@@ -10,6 +10,7 @@ use crate::{
     go_sort_program::{Operation, Program, physical_index},
     label_hash,
     numerical::{floor, source_add, source_mul},
+    position_index::PositionIndex,
     result::OwnedValue,
     shared::Strong,
     storage::{Control, Interrupted},
@@ -49,6 +50,7 @@ impl Plan {
             unreachable!("typed quantile aggregate")
         };
         let mut groups = AccountedVec::<GroupDescriptor>::new(account, MemoryKind::Workspace);
+        let mut index = PositionIndex::new(account);
         let mut bindings = AccountedVec::new(account, MemoryKind::Workspace);
         for row in &*rows {
             control.check()?;
@@ -62,27 +64,30 @@ impl Plan {
             } else {
                 label_hash::grouping(&labels, control, account)?
             };
-            let mut prior_group = None;
-            for (index, group) in groups.iter().enumerate() {
-                control.check()?;
-                account.work(1);
-                if group.hash == hash {
-                    prior_group = Some(index);
-                    break;
-                }
-            }
-            let index = if let Some(index) = prior_group {
-                index
+            let position = if let Some(position) = index.find(
+                hash,
+                |position| Ok(groups[position].hash == hash),
+                control,
+                account,
+            )? {
+                position
             } else {
-                let index = groups.len();
+                let position = groups.len();
                 groups.push(GroupDescriptor {
                     hash,
                     labels,
                     whole_drop_name: None,
                 });
-                index
+                index.insert_new(
+                    hash,
+                    position,
+                    |prior| Ok(groups[prior].hash),
+                    control,
+                    account,
+                )?;
+                position
             };
-            bindings.push(index);
+            bindings.push(position);
         }
         self.inputs = rows;
         self.bindings = bindings;

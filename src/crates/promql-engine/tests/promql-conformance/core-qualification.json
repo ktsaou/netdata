@@ -4533,5 +4533,4013 @@
       "Pages17/1024 preserve eight strict original cursor disagreements each as separate approved physical-Seek policy outcomes; no original result is replaced.",
       "Earlier foreign C/C++ runs retain their pre-lint source identities. Final ARM checks compile the revised source; they are not foreign runtime executions."
     ]
+  },
+  "lookup_index_qualification": {
+    "scope": "Position-only lookup indexes across grouping, ranking, quantiles and vector matching; original identity, traversal, duplicate/reservation/error phases and paged raw inputs retained. No grammar, numerical, provider, C ABI or HTTP contract change.",
+    "status": "qualified_on_recorded_finite_inputs",
+    "source_manifest": {
+      "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/source.json",
+      "sha256": "b2e4401e31cc303389589ba0004188c869962bcd70f524eac811fa40426ea15b"
+    },
+    "sources": {
+      "Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+      "Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+      "include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+      "src/absence.rs": "afb4f330f5dff938c2eebfa64574b3cf9693cbd94b43a9cf60752b8094a14889",
+      "src/accounting.rs": "3691f58a62ed5c9c40e8ac22348ee7a121a262278510a8dc355be6ede84b609d",
+      "src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+      "src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+      "src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+      "src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+      "src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+      "src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+      "src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+      "src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+      "src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+      "src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+      "src/binary_labels.rs": "0ccaf0d7486420e7fcb2f717903a3fd9aa8ae2fa9ef42f56e6caaa17a534f5f9",
+      "src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+      "src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+      "src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+      "src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+      "src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+      "src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+      "src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+      "src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+      "src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+      "src/c_abi/provider.rs": "fb8eaf369e5cd18f014c4e7dc5f708dffd193d953b8844cd56665d556045bb69",
+      "src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+      "src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+      "src/c_abi/tests.rs": "c9bc514b00414a44a54efea7cdb7594ce84b196dd389c44587f915a16b7e817d",
+      "src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+      "src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+      "src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+      "src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+      "src/c_abi/tests/pages.rs": "9af9fec790a324cf089dfb6076508e9c15f149eb600d35e1b1aae1f52024a99b",
+      "src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+      "src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+      "src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+      "src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+      "src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+      "src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+      "src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+      "src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+      "src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+      "src/derived_range.rs": "ab65985b25b848786bdb4475c5ca334cae9a36f233cfb078ec1d9163180f2982",
+      "src/evaluator.rs": "16cb45abf747868d6783dca7f5869ddb9d563d633ef64aa6173a3ddda5a76c86",
+      "src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+      "src/evaluator_roster.rs": "923823d6f6361efb8874851ece3f0d14c9365ac9fb45e044a324fa0582559f46",
+      "src/execution.rs": "598acde78a0f3edaafc1e57d82ed391b630b443eb94dd9f1608ef3f1991f5878",
+      "src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+      "src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+      "src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+      "src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+      "src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+      "src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+      "src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+      "src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+      "src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+      "src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+      "src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+      "src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+      "src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+      "src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+      "src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+      "src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+      "src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+      "src/frontend/regex.rs": "44dd8f64aa08e0e5e7c71d17214450de4cff3156ee96e75e64f056922dcd4228",
+      "src/frontend/regex_nfa.rs": "9586e2ecfd17bd4b59a61c270856de046c2948441ea6423b8562d572e39b105f",
+      "src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+      "src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+      "src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+      "src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+      "src/frontend/regex_selector.rs": "58778f43b7548806d708bb78df0450db888619247a841c30cd9d1e731623eedf",
+      "src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+      "src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+      "src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+      "src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+      "src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+      "src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+      "src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+      "src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+      "src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+      "src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+      "src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+      "src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+      "src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+      "src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+      "src/histogram_call.rs": "cef807e0dbd311e7255e5451b31e3aef337b9401067ea253f129c7ebafae0f3f",
+      "src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+      "src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+      "src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+      "src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+      "src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+      "src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+      "src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+      "src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+      "src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+      "src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+      "src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+      "src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+      "src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+      "src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+      "src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+      "src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+      "src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+      "src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+      "src/lookup_tests.rs": "41501bdffcafde88fa3299e1fd195e07d4472f0e83697b27e2afc0ceab3a864d",
+      "src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+      "src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+      "src/matrix_reader.rs": "1adc0d685b2fa6e05517075879f375304825849c1247b93145fcac65fd431f09",
+      "src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+      "src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+      "src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+      "src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+      "src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+      "src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+      "src/quantile_aggregate.rs": "5574aad6a5ba304e7e697eeb81284097bd52d46615b49b247b0a765b2cfee04c",
+      "src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+      "src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+      "src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+      "src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+      "src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+      "src/range_cache.rs": "5c7467bf03d916efb3fd145c28ab4c892bf10b1b01e95026612c0229f0c005a9",
+      "src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+      "src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+      "src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+      "src/range_quantile_rank.rs": "37b27f36dfb92e95cf7484604861b21348b582e77d222483e8df0d71b30d0f73",
+      "src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+      "src/range_reduce.rs": "a26c814a7df7fd09154174054298ad156c0f4a2c1ff52cfaa45ba7e6dbe74e9f",
+      "src/result.rs": "4eda17c431420724f4e8e770a6ac27efc96c524f41acc1e7949e176a7a9ac4b0",
+      "src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+      "src/scheduled_output.rs": "0d4adb4cd20eb224269f51caf93a3bf12ed8016652834e7d01272af853324fc0",
+      "src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+      "src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+      "src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+      "src/storage.rs": "6c6dce6028d5b9d378414af7c8a4d10a22515b5f1d50e0c3edfba2a97291390e",
+      "src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+      "src/temporal_quantile.rs": "670bc1d8b1197b170ec9fbe6e2943c590a7f0791be25914725c95cbae7dcae16",
+      "src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+      "src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+      "src/test_storage.rs": "45e159c7f5a6045cf421ebdae5191456d1201ab3633ce84e50a367f5b5349e9e",
+      "src/topk.rs": "779a16f4ae15da3ed627c592778fe646b89c92b80e3d8167d6efbf6465265477",
+      "src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+      "src/vector_matching.rs": "f37bea72d9cb0871d227468dafb53255bfb66265150b58a39c95b20fde72b63d",
+      "src/vector_sort.rs": "f34df2cf55a0a8c4d34830c682daf41bb18ee16f4dc62efc406535e0cc4e5022"
+    },
+    "binaries": {
+      "release": {
+        "libnetdata_promql_engine.a": "9ee388e8f629fb244502d2f048b14e71d76145b7f0f61a76fd6cc6f5e0b0acc6",
+        "promql-frontend-fixture": "5e7885bbf5b2e9d331e1faee6a1f8f52ff7582a4938928cea1ba8dacd4e48220",
+        "promql-kernel-fixture": "729553e7bf4764b83f88dd429d9acfb14183531ab42b888c9047c47b961c4f44",
+        "promql-protocol-fixture": "dc3307c9db17abaafe364bea7b741bfe48e81109fcdc30e2230ac8c142835a7e",
+        "promql-query-fixture": "1c894dccf756cb2cae95a5aefb1f6a71dc3500e5905748c8e14ef4af74906f3d"
+      },
+      "release-min": {
+        "libnetdata_promql_engine.a": "9c53af5331d667dd66198bbcc1a2ca8615049ca81b48c18a3d5627ca979e487f",
+        "promql-frontend-fixture": "845f31dc398ee02ba1f80c8d0b36133a8ac01dec70263f739a6dca7a4d8ccaf8",
+        "promql-kernel-fixture": "f203d0e5d7ceaf54da87575763ca9bd296e1bd8567aa9febc6027f45327150cb",
+        "promql-protocol-fixture": "0b7db91f3a052ee359287a39108f5397ee6bef69ccbda5edac812b81da220aa0",
+        "promql-query-fixture": "750eda83f0ef887bd8acce8122ad741787d85c462a6fa16863231c6af798e82b"
+      }
+    },
+    "fixture_unit_tests": {
+      "release": 535,
+      "release-min": 535
+    },
+    "build_receipt": {
+      "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/build-receipt.json",
+      "sha256": "98415f4fc4fc2bc53d989bf6e2c7dc600b2a8b20b4fba98e63cbf6354eccf0b0"
+    },
+    "checks": {
+      "format": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/format-status.json",
+        "sha256": "92f3b1627d19c9ca470fa4042ee4fe91590b91ff154d34656b8b503207b23359"
+      },
+      "clippy-fixtures": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/clippy-fixtures-status.json",
+        "sha256": "22fdd5035c5ee829ac6694accfa2a55cbdb2f2f58834e16a9d900fdeb8fa1cb5"
+      },
+      "clippy-production": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/clippy-production-status.json",
+        "sha256": "eb869df1d344bc9cf280712cd0c0b814c44392d64a7df7192b680c1de10564a2"
+      },
+      "msrv": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/msrv-status.json",
+        "sha256": "e2d89e86ac1b0356fa77916ac7f7d1008ed9300cae29ebb086b2bc30a663fba4"
+      },
+      "c-embedding-native": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/c-embedding-native-status.json",
+        "sha256": "42fca2105bb7a382210a263a8bccc988c4529b1583691f3e3c9d5227d5b3c7cf"
+      },
+      "c-embedding-aarch64-unknown-linux-gnu": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/c-embedding-aarch64-unknown-linux-gnu-status.json",
+        "sha256": "7ea9560ac64541dd996f35b1e3f26e68bcd8b12c876112a96970cf2790da4060"
+      },
+      "c-embedding-armv7-unknown-linux-gnueabihf": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/c-embedding-armv7-unknown-linux-gnueabihf-status.json",
+        "sha256": "efd9f178c4d786de638e308313d6b1d77b7f55a48cf5db5f5c7f4304e059ab07"
+      },
+      "agent-build": {
+        "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/agent-build-status.json",
+        "sha256": "1e2b61cfe0a8e6df01ff98423350dee86d8e92fbc0bee3dabc6fb334c88a8b88"
+      },
+      "live": {
+        "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/live-status.json",
+        "sha256": "5996d96cc7695915d4ac2bb67bd6102cb4e1fb5c37bdc864ea65d117bd54c645"
+      },
+      "sre": {
+        "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/sre-status.json",
+        "sha256": "80a7bacd6c4bc93c2904995a5f4f646c4f61e93097ff7cce7fd8a9c11557de75"
+      }
+    },
+    "builtin": {
+      "comparisons": 128652,
+      "required_per_profile_and_page": 21442,
+      "page_sizes": [
+        1,
+        17,
+        1024
+      ],
+      "reports": [
+        {
+          "profile": "release-min",
+          "page_size": 1,
+          "comparisons": 21442,
+          "report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/builtin-release-min-page1-m164fmsd/report.json",
+            "sha256": "52debe01ec23c0c6d12aae2997a3ef41c3638c9c5edbc298e3006ce37fc731ff"
+          }
+        },
+        {
+          "profile": "release-min",
+          "page_size": 1024,
+          "comparisons": 21442,
+          "report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/builtin-release-min-page1024-trexavh4/report.json",
+            "sha256": "ebff8d3214d2b4be522628f6b5965fb00c6a6ba3cf13b7591f0f1497b5971270"
+          }
+        },
+        {
+          "profile": "release-min",
+          "page_size": 17,
+          "comparisons": 21442,
+          "report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/builtin-release-min-page17-eyl82fxv/report.json",
+            "sha256": "085ee7d40b9ab991b9d3c99bb6cf12f0fce9848e274a1d8afb699e2c7be9213c"
+          }
+        },
+        {
+          "profile": "release",
+          "page_size": 1,
+          "comparisons": 21442,
+          "report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/builtin-release-page1-16vv22lh/report.json",
+            "sha256": "290ca263a991d0bc6545aa31882dd01b3824b1e618a93db871adc08569930fb3"
+          }
+        },
+        {
+          "profile": "release",
+          "page_size": 1024,
+          "comparisons": 21442,
+          "report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/builtin-release-page1024-xmk5vb5f/report.json",
+            "sha256": "dc7994d0ec36794d65eb840f12dcb851f4c7af8775c512fe96217c7c0fd3d2cd"
+          }
+        },
+        {
+          "profile": "release",
+          "page_size": 17,
+          "comparisons": 21442,
+          "report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/builtin-release-page17-h9rpc6cd/report.json",
+            "sha256": "f26c5f505adce2b0d42d5e4279d112808478835635230fa0b7dce1a3694224e7"
+          }
+        }
+      ]
+    },
+    "focused": {
+      "scheduled_comparisons": 1248,
+      "default_profile_comparisons": 252,
+      "cursor_original_outcomes": 492,
+      "independent_control_comparisons": 24,
+      "precision_distinct_outcomes": 54,
+      "precision_replays": 54,
+      "receipts": [
+        {
+          "profile": "release-min",
+          "page_size": 1,
+          "receipt": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/focused-release-min-page1-jl9g1men/receipt.json",
+            "sha256": "92c58cf28e9de15e8ade77e319cca7c3f94f577a2d3385f0465fea072b2f101e"
+          },
+          "panels": [
+            {
+              "panel": "scheduled",
+              "comparisons": 208,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-mn8d9kzr/report.json",
+                "sha256": "7907514297760331dd9b9951872d7b5a5552b0f8996a2bb7b79faeba91004c6a"
+              }
+            },
+            {
+              "panel": "default",
+              "comparisons": 42,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-mgm6_1wc/report.json",
+                "sha256": "7eca99bf73f34b57d530e1a97713c0e8cbcc8dde123c617279835f888b0852a3"
+              }
+            },
+            {
+              "panel": "cursor",
+              "original_outcomes": 82,
+              "new_controls": 4,
+              "strict_matches": 82,
+              "separate_policy_outcomes": 0,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-84eap404/physical-seek-policy.json",
+                "sha256": "bc16a1171848f473b1369c74b0effc03a074020e26d841ecfc0f66d7fb81b250"
+              }
+            },
+            {
+              "panel": "precision",
+              "comparisons": 27,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/precision-9k0y27m0/comparison.json",
+                "sha256": "2e27a9412235f7b8d400831c70fc2994504eebbc7f694b68b6b34b11f8dcdfe3"
+              }
+            }
+          ]
+        },
+        {
+          "profile": "release-min",
+          "page_size": 1024,
+          "receipt": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/focused-release-min-page1024-f6w8x1sc/receipt.json",
+            "sha256": "7c627f7955f9e251c156f2f110bc118084dcb091e46ce397ab2fa26aed82eb75"
+          },
+          "panels": [
+            {
+              "panel": "scheduled",
+              "comparisons": 208,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-bw93c7qh/report.json",
+                "sha256": "5d0260cfe8ee966a856d58c47962591ad83edebf4f013bd1aa923c2bcf574ad8"
+              }
+            },
+            {
+              "panel": "default",
+              "comparisons": 42,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-5p2brhbp/report.json",
+                "sha256": "ee108bcac1efd5c88614aafd5fc159fd482682db139edcb914c9489e5f17cf27"
+              }
+            },
+            {
+              "panel": "cursor",
+              "original_outcomes": 82,
+              "new_controls": 4,
+              "strict_matches": 74,
+              "separate_policy_outcomes": 8,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-xjzput4m/physical-seek-policy.json",
+                "sha256": "926db687209b7c416a56f81fe1d4867776c4961090a4f93d7f611f845cc391fe"
+              }
+            }
+          ]
+        },
+        {
+          "profile": "release-min",
+          "page_size": 17,
+          "receipt": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/focused-release-min-page17-x8fu9885/receipt.json",
+            "sha256": "2e72e013c18604e998651bdc8943ec410c8c8dba92398c5872771621eae7e8d4"
+          },
+          "panels": [
+            {
+              "panel": "scheduled",
+              "comparisons": 208,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-2zkcnjl4/report.json",
+                "sha256": "9bbb87ed9fa91731bfb7ea3053767bdac32e6f6b5210db4d36cc471fde0c3628"
+              }
+            },
+            {
+              "panel": "default",
+              "comparisons": 42,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-_7xw4n5g/report.json",
+                "sha256": "77d53e32945de0ca26b7fcf8f2d5222ac0394403c66029564d98e005ce203ec2"
+              }
+            },
+            {
+              "panel": "cursor",
+              "original_outcomes": 82,
+              "new_controls": 4,
+              "strict_matches": 74,
+              "separate_policy_outcomes": 8,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-frrkutw8/physical-seek-policy.json",
+                "sha256": "4fa9911d8f2fc7eee1737cd2456508f89bf442370f200f8b43499e148b4e7608"
+              }
+            }
+          ]
+        },
+        {
+          "profile": "release",
+          "page_size": 1,
+          "receipt": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/focused-release-page1-1q6ekyyz/receipt.json",
+            "sha256": "dc28907c7cee59b2e715e53da07b0b7d5cea297c92786bf3e38da06ac2c4170e"
+          },
+          "panels": [
+            {
+              "panel": "scheduled",
+              "comparisons": 208,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-9i9t32gh/report.json",
+                "sha256": "fd8e54577f426483c9d73fd38cf758120d4f7b780f2aa22e207fed5e2a716267"
+              }
+            },
+            {
+              "panel": "default",
+              "comparisons": 42,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-pu197h4j/report.json",
+                "sha256": "c545497e5d9669d16e841004a2ee29e2fa398c7490c9929d178405dbcd97324e"
+              }
+            },
+            {
+              "panel": "cursor",
+              "original_outcomes": 82,
+              "new_controls": 4,
+              "strict_matches": 82,
+              "separate_policy_outcomes": 0,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-esb68zj7/physical-seek-policy.json",
+                "sha256": "24767dc35aa18da3bff29de3bc913b9dd61c50cab98d54c757cb170e679d6722"
+              }
+            },
+            {
+              "panel": "precision",
+              "comparisons": 27,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/precision-fms81vhn/comparison.json",
+                "sha256": "8a4f0bb489c60aa979fff9fd2077cd5895153431043a790c7a81d5f17d98c50e"
+              }
+            }
+          ]
+        },
+        {
+          "profile": "release",
+          "page_size": 1024,
+          "receipt": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/focused-release-page1024-o0cwvnp_/receipt.json",
+            "sha256": "d0a93bec54e7990099fc79bcea9c15435f02aecbbf84330ea0a82bf430c51643"
+          },
+          "panels": [
+            {
+              "panel": "scheduled",
+              "comparisons": 208,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-ocj4znq5/report.json",
+                "sha256": "e1130a0ee7ef855081ba76662e01529007baba6e5504a0215250df129b0e81dd"
+              }
+            },
+            {
+              "panel": "default",
+              "comparisons": 42,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-wm9gxvrm/report.json",
+                "sha256": "0d42487ee1004dffa95396e5624180aa93e4361fd6f478062c315153ca421358"
+              }
+            },
+            {
+              "panel": "cursor",
+              "original_outcomes": 82,
+              "new_controls": 4,
+              "strict_matches": 74,
+              "separate_policy_outcomes": 8,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-4bzns_di/physical-seek-policy.json",
+                "sha256": "982a0363cd581ada791f5690294d74c88ebf7da0a3f47097558fd442e7bff7da"
+              }
+            }
+          ]
+        },
+        {
+          "profile": "release",
+          "page_size": 17,
+          "receipt": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/focused-release-page17-ma71w2tr/receipt.json",
+            "sha256": "75131e47eeff77a958fbec97b23cf3d84fbfdc84790f75be7cc1caa04fb5460a"
+          },
+          "panels": [
+            {
+              "panel": "scheduled",
+              "comparisons": 208,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-o0ia3hft/report.json",
+                "sha256": "50889c7622c4f5d983b58e89afa6372a8afdb6a6280a4328e67ea5279e67a317"
+              }
+            },
+            {
+              "panel": "default",
+              "comparisons": 42,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-zpn2mju6/report.json",
+                "sha256": "828f059326364193a82141725b31514c03337014fd84e44cf3b32b947fc1a683"
+              }
+            },
+            {
+              "panel": "cursor",
+              "original_outcomes": 82,
+              "new_controls": 4,
+              "strict_matches": 74,
+              "separate_policy_outcomes": 8,
+              "report": {
+                "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-ucef9n5v/physical-seek-policy.json",
+                "sha256": "dbc884845866316f6319e69f3679b63ef6eb9c7764047cd6addffc94f34d5164"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "indexed_reducers": {
+      "receipt": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/indexed-reducer-receipt.json",
+        "sha256": "08fdea4590f57ee4512ff0e993ec65108b57f049f81d6560301ce7f72f7fb049"
+      },
+      "runner": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-index-final-wgjb61tn/indexed-reducers.py",
+        "sha256": "0cfd9bb294c589a8aae3d4eec2c84c14e87c3e13879b58ba1f6785df220e5a30"
+      },
+      "comparisons": 56124,
+      "panels": [
+        {
+          "profile": "release",
+          "page_size": 1,
+          "panel": "topk",
+          "cases": 3556,
+          "raw_failures": 27,
+          "policy_boundaries": 32,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-v380s0c_/report.json",
+            "sha256": "76c10801dc1e387e905afca54fc80cb3b22eee948f40fb1a2524eb34033f6847"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-v380s0c_/policy-report.json",
+            "sha256": "9bf20acb16a8435f472d38fcf4074a02e8d865c780f0e8a33bc08414d9b6f432"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-v380s0c_/lookup-binding.json",
+            "sha256": "f100c8449eff6d0fa406e36e36516fbefb5bf082a1ea54c45dffd3fd2b1f2dde"
+          }
+        },
+        {
+          "profile": "release",
+          "page_size": 1,
+          "panel": "limits",
+          "cases": 2240,
+          "raw_failures": 7,
+          "policy_boundaries": 10,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-dpp4thml/report.json",
+            "sha256": "95fa723b6d711048952f07598b404bad9bf196229a2fb5c1dae0dda23ae2a02b"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-dpp4thml/policy-report.json",
+            "sha256": "27ba46c9cf617dc32acccf8fc3c05ec92c81389341f6de20d14b32eb20b7e7cf"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-dpp4thml/lookup-binding.json",
+            "sha256": "ccd987c899e2c055f544d3089d2e8fff288ca1f288030eabefddf8b6b62d286a"
+          }
+        },
+        {
+          "profile": "release",
+          "page_size": 1,
+          "panel": "aggregate-quantile",
+          "cases": 3558,
+          "raw_failures": 2,
+          "policy_boundaries": 8,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-vktt0xlu/report.json",
+            "sha256": "7ad466a57d9e1175cd057540eb4302104a109b1e260b954aa365c3c7f3e43c05"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-vktt0xlu/policy-report.json",
+            "sha256": "aad3da04dff5ebe8c9c87e4348d96d1cb4d159bb0589eddb012e840f696aff92"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-vktt0xlu/lookup-binding.json",
+            "sha256": "ac2e0aa2cccf93227f2ef72570410898f96fe1eadae3f6be734c9c2f645947a0"
+          }
+        },
+        {
+          "profile": "release",
+          "page_size": 17,
+          "panel": "topk",
+          "cases": 3556,
+          "raw_failures": 27,
+          "policy_boundaries": 32,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-polzfwyl/report.json",
+            "sha256": "115b7ef0d2e59f43efc34d0724ef3b0e825d8127d7a888c9c7170ec0dbb9ab48"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-polzfwyl/policy-report.json",
+            "sha256": "099d536a7d12c415430a63a2f819822a546df475e3b023b0697c3bf74feb90dd"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-polzfwyl/lookup-binding.json",
+            "sha256": "556f59cde3b6111cdeaa15d7c45765a5fbac19777ccf62cc64e152f61b1e2f49"
+          }
+        },
+        {
+          "profile": "release",
+          "page_size": 17,
+          "panel": "limits",
+          "cases": 2240,
+          "raw_failures": 7,
+          "policy_boundaries": 10,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-_0ste8za/report.json",
+            "sha256": "7672eb6203b5e71b434e60a90e50b64570adc80ce1827b59217f6a2cf8f33ee4"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-_0ste8za/policy-report.json",
+            "sha256": "fc5e5876ed6093602bad26b661019f1834130ef1d93f2f82fbcdd68560c201ea"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-_0ste8za/lookup-binding.json",
+            "sha256": "0f5094237b7a8e5d26767384fda0c5364f390d412ef7e97f76faf093f7a39ff6"
+          }
+        },
+        {
+          "profile": "release",
+          "page_size": 17,
+          "panel": "aggregate-quantile",
+          "cases": 3558,
+          "raw_failures": 2,
+          "policy_boundaries": 8,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-ltr9_smy/report.json",
+            "sha256": "8da9c3ed9d013e842df93652369c544876357455b25bd4eee9a07b48e612e0d5"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-ltr9_smy/policy-report.json",
+            "sha256": "43e369d3889adb8d9e84427fc87ccb14a16ea3bd6382f7f6a734e965ecad9fd1"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-ltr9_smy/lookup-binding.json",
+            "sha256": "f0083d08ecee8212808288a18e108ca18b78bbc037c7da1f3aaccec5dbe3b47a"
+          }
+        },
+        {
+          "profile": "release",
+          "page_size": 1024,
+          "panel": "topk",
+          "cases": 3556,
+          "raw_failures": 27,
+          "policy_boundaries": 32,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-vf7hka_j/report.json",
+            "sha256": "2f040d5783bab219366374277b7431a59fa09c43aa35e45034c41f23d26c278c"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-vf7hka_j/policy-report.json",
+            "sha256": "02aa7f6d47c01303f5ad6590190c8a4acbeee67887c26a61dccf55682749d2fb"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-vf7hka_j/lookup-binding.json",
+            "sha256": "843bdc610aa17536791147772c4906b8bfb96d95b433e543afe66ccae236f302"
+          }
+        },
+        {
+          "profile": "release",
+          "page_size": 1024,
+          "panel": "limits",
+          "cases": 2240,
+          "raw_failures": 7,
+          "policy_boundaries": 10,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-n8t9sufq/report.json",
+            "sha256": "c357aa9f6eb51da102122457c8969dfb59ea5c3d7c0e3e4c7c25aea10314669c"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-n8t9sufq/policy-report.json",
+            "sha256": "998bcee3e87f47c8176d99e66899185dfa7c82f1764dcb46644f901229663ba4"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-n8t9sufq/lookup-binding.json",
+            "sha256": "a7c142d6597f11dd4e1a3b4e008c315ec13f1070b7cbb077df2312b1e3fc448c"
+          }
+        },
+        {
+          "profile": "release",
+          "page_size": 1024,
+          "panel": "aggregate-quantile",
+          "cases": 3558,
+          "raw_failures": 2,
+          "policy_boundaries": 8,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-a392wcwr/report.json",
+            "sha256": "7aaa17a6b6b67dc8e6f1f3c97e14fa7e3178a9ff2cdd8ddeee79c880e2d52bd4"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-a392wcwr/policy-report.json",
+            "sha256": "b4b60af04f5a1c36e8773b2b4c07c6edf5f1160c294917c6654dea9746f9872d"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-a392wcwr/lookup-binding.json",
+            "sha256": "691f4db00e66135f336318a878e3d6b5b91eba194bcd4ee6485bda00733ea83c"
+          }
+        },
+        {
+          "profile": "release-min",
+          "page_size": 1,
+          "panel": "topk",
+          "cases": 3556,
+          "raw_failures": 27,
+          "policy_boundaries": 32,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-9gcs5oen/report.json",
+            "sha256": "aa138123dd0dee9fdc23cb4c6b49f16b89c8af0342c5744357b5bdfcf07958c4"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-9gcs5oen/policy-report.json",
+            "sha256": "6aa7dd7c010bca2c28a3b65e829c454529c2f6972bd426a40a650a0508f37233"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-9gcs5oen/lookup-binding.json",
+            "sha256": "efa922f2793206f8bf991bc37e857b88e3d8ebf30fc11137dc5313454a8e8890"
+          }
+        },
+        {
+          "profile": "release-min",
+          "page_size": 1,
+          "panel": "limits",
+          "cases": 2240,
+          "raw_failures": 7,
+          "policy_boundaries": 10,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-_wlqbn1a/report.json",
+            "sha256": "37ccca14617c5f3fb0caa434957326838050419c5c2d7cc628cdb62f2b8e7ce1"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-_wlqbn1a/policy-report.json",
+            "sha256": "37bc65239d13c4139858c383634b09e0d059929123d68ed0a9f7ef3e787caf92"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-_wlqbn1a/lookup-binding.json",
+            "sha256": "7a9eeaba21d4dcdd622dd50d0bbe6e253b2dda434104a78ed49e6c3bcdf96f01"
+          }
+        },
+        {
+          "profile": "release-min",
+          "page_size": 1,
+          "panel": "aggregate-quantile",
+          "cases": 3558,
+          "raw_failures": 2,
+          "policy_boundaries": 8,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-kwm7h4_2/report.json",
+            "sha256": "2d86e63ab2259dbbcbe7ba591ef662339e9e1e444c26fed4d85c18e8aa090473"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-kwm7h4_2/policy-report.json",
+            "sha256": "368f5be84057b6ecc4da3651f6ee8eb19a6858bfac2ec50b8d9d30cb72a47712"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-kwm7h4_2/lookup-binding.json",
+            "sha256": "9c867b78ccca37f9a4571eb1defb702e08a6e98472deaf5c1eabf794198d2d0d"
+          }
+        },
+        {
+          "profile": "release-min",
+          "page_size": 17,
+          "panel": "topk",
+          "cases": 3556,
+          "raw_failures": 27,
+          "policy_boundaries": 32,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-v7wiwfib/report.json",
+            "sha256": "05246eba466b6d386d6208851ecc498f57c9ca9be590f5ed8a365edac469bf56"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-v7wiwfib/policy-report.json",
+            "sha256": "5dad38c2e34d2672ef8938e460e32689d72b4caa5d66cdff69facfdc550a054c"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-v7wiwfib/lookup-binding.json",
+            "sha256": "c1430f8f8d7553e8eabbdff85229a61148040d6d73e106daf848f118040c2411"
+          }
+        },
+        {
+          "profile": "release-min",
+          "page_size": 17,
+          "panel": "limits",
+          "cases": 2240,
+          "raw_failures": 7,
+          "policy_boundaries": 10,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-pkn1mrpg/report.json",
+            "sha256": "c8d80ff6c40fc73b05ca2d0629986232967e97a6c6980f354e3fda8d6fd5c2c1"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-pkn1mrpg/policy-report.json",
+            "sha256": "bc839406103c0bf19de2162d6ee90fcdd89300efb20339642b7c4fdecfcbd990"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-pkn1mrpg/lookup-binding.json",
+            "sha256": "8b7a8876ee687ab758464659c7896359e8ee81b99d698b4b083dbf2e398ab6f4"
+          }
+        },
+        {
+          "profile": "release-min",
+          "page_size": 17,
+          "panel": "aggregate-quantile",
+          "cases": 3558,
+          "raw_failures": 2,
+          "policy_boundaries": 8,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-swmafh1o/report.json",
+            "sha256": "682edb6966839e0a62dab4da96bd7224b25b35ec8b36350bb12ecb7a5ba0a790"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-swmafh1o/policy-report.json",
+            "sha256": "ee435fe5aaf354625f738856e5f7245e7321f8ec4127e05ee7803100ff623336"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-swmafh1o/lookup-binding.json",
+            "sha256": "458f3079b9438f9f29acb6cd663599251209607f9d18af5656a5763ab80ee2ce"
+          }
+        },
+        {
+          "profile": "release-min",
+          "page_size": 1024,
+          "panel": "topk",
+          "cases": 3556,
+          "raw_failures": 27,
+          "policy_boundaries": 32,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-h603q0v7/report.json",
+            "sha256": "c7ef9a0c6b430bdb51b9599823265b7de5865b8948ad15b79c218488f41ab6ad"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-h603q0v7/policy-report.json",
+            "sha256": "e0198e2bf5d6c9925d850327e485e01edaef6eb1c171f69483aec8f763154d2a"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-topk-compare-h603q0v7/lookup-binding.json",
+            "sha256": "ea421c60f2b9c13c353bafa9885de12f759b70c29ca2fea030ba31951e9fd7d7"
+          }
+        },
+        {
+          "profile": "release-min",
+          "page_size": 1024,
+          "panel": "limits",
+          "cases": 2240,
+          "raw_failures": 7,
+          "policy_boundaries": 10,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-jojqvt_2/report.json",
+            "sha256": "cf34ce19e3c3df042d645dea68abf0d6f48f1b77dde4a46ba38f47a06c42e109"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-jojqvt_2/policy-report.json",
+            "sha256": "967d0a4633790981ce135fbe78ca97485fcd15b19d04666d32a3740e763ad061"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-limits-compare-jojqvt_2/lookup-binding.json",
+            "sha256": "11b1e10c02d82eba4a9f1c3c92f82c6b722a2fd3a9c5dd2ed70e6b1ae8d4583a"
+          }
+        },
+        {
+          "profile": "release-min",
+          "page_size": 1024,
+          "panel": "aggregate-quantile",
+          "cases": 3558,
+          "raw_failures": 2,
+          "policy_boundaries": 8,
+          "raw_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-nj8j63v2/report.json",
+            "sha256": "2faa08d02bd235220b35467fb47659754288ddcddaebbd6d6c90bdd2d818b20b"
+          },
+          "policy_report": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-nj8j63v2/policy-report.json",
+            "sha256": "b3b24151d870001d0a5542763905072509a60754f4d42554596b2f4d46bfe816"
+          },
+          "binding": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/lookup-aggregate-quantile-compare-nj8j63v2/lookup-binding.json",
+            "sha256": "d2f058fb13ec729e27ef6bcd8f800f865443b29049e27c540e3a3d17a839d671"
+          }
+        }
+      ],
+      "scope": "Unchanged complete ranking/quantile originals with separately qualified declared ordering controls; raw original differences remain recorded."
+    },
+    "sre": {
+      "summary": {
+        "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/sre-causal-v2-t14k4ccn/invocation-000-summary.json",
+        "sha256": "b2352935f1a44f136880d4c1620dbb0343ee07e5e28e51c618a3c6a665a720e4"
+      },
+      "run_binding": {
+        "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/sre-causal-v2-t14k4ccn/run-binding.json",
+        "sha256": "e0f73390518d11f5d3e97e36efa2bb59f9681187ebaaf908d81edf5319485b78"
+      },
+      "source_bound_runner": {
+        "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/replay-sre.py",
+        "sha256": "1b1af2d1b386c3cd26770eec90de47632a6cab0c4af4278ad6d3da83ef9bea0d"
+      },
+      "original_runner_adapter": {
+        "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/sre-adapter.json",
+        "sha256": "9c951cb466525580d027f48643e698cfe7f2d4f9ab30945d8ecef59c9282bd15"
+      },
+      "source_packet_files_verified": 83960,
+      "source_base_sha256": "4124c62a540fe1e61e10eceedf06bc740c5ebb4179ba6ce74bea279b92702eea",
+      "source_extension_sha256": "e2490bfb54e23799cd6a7e81d30fb21b3001332445d9b0190d8617983497809a",
+      "comparisons": 231540,
+      "failed": 0,
+      "open": 0,
+      "paired_bit_differences": 0,
+      "recording_bridge_failures": 0,
+      "go_parent_payloads_consumed_by_candidate": 0,
+      "complete_two_build_three_page_fixture_replay": true,
+      "exact_gate_pass": true,
+      "scope": "Required SRE expression fixture gate; not rule scheduling or full application readiness."
+    },
+    "c_embedding": {
+      "cohorts": [
+        {
+          "target": "native",
+          "manifest": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-ztth_9qu/manifest.json",
+            "sha256": "27c333a24cce8ee3fa1395ffade23cc9e35bb5bb66e6f7e935eb141fdf88d311"
+          },
+          "source_files": 148,
+          "artifacts": 304,
+          "profiles": [
+            "release",
+            "release-min"
+          ],
+          "structures": 58,
+          "callbacks": 17,
+          "shared_constants": 33,
+          "panic_abort_build_rejected": true,
+          "sanitizers": false,
+          "scope": "Actual current-source C/C++ engine execution and layout checks; GNU target runtime via installed QEMU for ARM."
+        },
+        {
+          "target": "aarch64-unknown-linux-gnu",
+          "manifest": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-1g9_uk5b/manifest.json",
+            "sha256": "ec7483d3e28199396ce86e458a42bdacdca5c3a5680faf571045e06c90b7c6cc"
+          },
+          "source_files": 148,
+          "artifacts": 204,
+          "profiles": [
+            "release",
+            "release-min"
+          ],
+          "structures": 58,
+          "callbacks": 17,
+          "shared_constants": 33,
+          "panic_abort_build_rejected": false,
+          "sanitizers": false,
+          "scope": "Actual current-source C/C++ engine execution and layout checks; GNU target runtime via installed QEMU for ARM."
+        },
+        {
+          "target": "armv7-unknown-linux-gnueabihf",
+          "manifest": {
+            "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-amod2edu/manifest.json",
+            "sha256": "70af59c6d6a10d237120f46f2217d1a60e846deccade05203b9a4f88b996d872"
+          },
+          "source_files": 148,
+          "artifacts": 204,
+          "profiles": [
+            "release",
+            "release-min"
+          ],
+          "structures": 58,
+          "callbacks": 17,
+          "shared_constants": 33,
+          "panic_abort_build_rejected": false,
+          "sanitizers": false,
+          "scope": "Actual current-source C/C++ engine execution and layout checks; GNU target runtime via installed QEMU for ARM."
+        }
+      ],
+      "final_source": "Actual current-source native, ARM64 and ARM32 C/C++ execution in both profiles."
+    },
+    "live_dbengine_api": {
+      "receipt": {
+        "netdata_repository_path": ".tmp/live-api-zdk6ndav/receipt.json",
+        "sha256": "818e5225d73cbe29b650480a51cc693652113b3f2bdc73f6b9a0f4fdda88d2b4"
+      },
+      "agent_binary_sha256": "e971303579bdb0dcedca3929d43b030b1b40b1cfabbd29d3694603e0139da70c",
+      "source_files": 291,
+      "runs": [
+        {
+          "codec": "array",
+          "http_checks": 17,
+          "context_readiness_scenarios": 12,
+          "process_exit": 0
+        },
+        {
+          "codec": "gorilla",
+          "http_checks": 17,
+          "context_readiness_scenarios": 12,
+          "process_exit": 0
+        }
+      ]
+    },
+    "performance": {
+      "baseline_source_commit": "038cda1169a836496cadc328135bd6200222d5ca",
+      "page_size": 17,
+      "complete_results_match": true,
+      "comparisons": 114,
+      "cohorts": [
+        {
+          "profile": "release",
+          "kind": "instant",
+          "receipt": {
+            "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/performance-release-h6z5y60l/receipt.json",
+            "sha256": "e4dcba6ee36756c82815c8bd737dbf51422df169e97d46f156b976f9cc3e277e"
+          },
+          "comparisons": 20,
+          "rows": [
+            {
+              "after": {
+                "elapsed_ns": "110809",
+                "owned_result_peak_bytes": 899,
+                "pages": 3,
+                "provider_calls": 11,
+                "samples_fetched": 3,
+                "work": 320,
+                "workspace_peak_bytes": 7854
+              },
+              "before": {
+                "elapsed_ns": "130969",
+                "expression": "sum by (id) (m)",
+                "id": "groups-1",
+                "owned_result_peak_bytes": 899,
+                "pages": 3,
+                "provider_calls": 11,
+                "samples_fetched": 3,
+                "series": 1,
+                "work": 320,
+                "workspace_peak_bytes": 7854
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-1"
+            },
+            {
+              "after": {
+                "elapsed_ns": "23730",
+                "owned_result_peak_bytes": 512,
+                "pages": 3,
+                "provider_calls": 11,
+                "samples_fetched": 3,
+                "work": 280,
+                "workspace_peak_bytes": 7712
+              },
+              "before": {
+                "elapsed_ns": "24870",
+                "expression": "sum(m)",
+                "id": "one-group-1",
+                "owned_result_peak_bytes": 512,
+                "pages": 3,
+                "provider_calls": 11,
+                "samples_fetched": 3,
+                "series": 1,
+                "work": 280,
+                "workspace_peak_bytes": 7712
+              },
+              "expression": "sum(m)",
+              "id": "one-group-1"
+            },
+            {
+              "after": {
+                "elapsed_ns": "52260",
+                "owned_result_peak_bytes": 899,
+                "pages": 10,
+                "provider_calls": 29,
+                "samples_fetched": 10,
+                "work": 966,
+                "workspace_peak_bytes": 11490
+              },
+              "before": {
+                "elapsed_ns": "48629",
+                "expression": "m / on (id) m",
+                "id": "join-1",
+                "owned_result_peak_bytes": 899,
+                "pages": 10,
+                "provider_calls": 29,
+                "samples_fetched": 10,
+                "series": 1,
+                "work": 882,
+                "workspace_peak_bytes": 11154
+              },
+              "expression": "m / on (id) m",
+              "id": "join-1"
+            },
+            {
+              "after": {
+                "elapsed_ns": "35939",
+                "owned_result_peak_bytes": 1382,
+                "pages": 6,
+                "provider_calls": 18,
+                "samples_fetched": 6,
+                "work": 645,
+                "workspace_peak_bytes": 8628
+              },
+              "before": {
+                "elapsed_ns": "32999",
+                "expression": "sum by (id) (m)",
+                "id": "groups-2",
+                "owned_result_peak_bytes": 1382,
+                "pages": 6,
+                "provider_calls": 18,
+                "samples_fetched": 6,
+                "series": 2,
+                "work": 619,
+                "workspace_peak_bytes": 8628
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-2"
+            },
+            {
+              "after": {
+                "elapsed_ns": "29370",
+                "owned_result_peak_bytes": 512,
+                "pages": 6,
+                "provider_calls": 18,
+                "samples_fetched": 6,
+                "work": 506,
+                "workspace_peak_bytes": 7712
+              },
+              "before": {
+                "elapsed_ns": "35830",
+                "expression": "sum(m)",
+                "id": "one-group-2",
+                "owned_result_peak_bytes": 512,
+                "pages": 6,
+                "provider_calls": 18,
+                "samples_fetched": 6,
+                "series": 2,
+                "work": 506,
+                "workspace_peak_bytes": 7712
+              },
+              "expression": "sum(m)",
+              "id": "one-group-2"
+            },
+            {
+              "after": {
+                "elapsed_ns": "65870",
+                "owned_result_peak_bytes": 1382,
+                "pages": 20,
+                "provider_calls": 51,
+                "samples_fetched": 20,
+                "work": 1935,
+                "workspace_peak_bytes": 13188
+              },
+              "before": {
+                "elapsed_ns": "61280",
+                "expression": "m / on (id) m",
+                "id": "join-2",
+                "owned_result_peak_bytes": 1382,
+                "pages": 20,
+                "provider_calls": 51,
+                "samples_fetched": 20,
+                "series": 2,
+                "work": 1791,
+                "workspace_peak_bytes": 12756
+              },
+              "expression": "m / on (id) m",
+              "id": "join-2"
+            },
+            {
+              "after": {
+                "elapsed_ns": "89919",
+                "owned_result_peak_bytes": 4696,
+                "pages": 24,
+                "provider_calls": 60,
+                "samples_fetched": 24,
+                "work": 2645,
+                "workspace_peak_bytes": 15128
+              },
+              "before": {
+                "elapsed_ns": "96300",
+                "expression": "sum by (id) (m)",
+                "id": "groups-8",
+                "owned_result_peak_bytes": 4696,
+                "pages": 24,
+                "provider_calls": 60,
+                "samples_fetched": 24,
+                "series": 8,
+                "work": 2534,
+                "workspace_peak_bytes": 15128
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-8"
+            },
+            {
+              "after": {
+                "elapsed_ns": "71519",
+                "owned_result_peak_bytes": 512,
+                "pages": 24,
+                "provider_calls": 60,
+                "samples_fetched": 24,
+                "work": 1873,
+                "workspace_peak_bytes": 10824
+              },
+              "before": {
+                "elapsed_ns": "70750",
+                "expression": "sum(m)",
+                "id": "one-group-8",
+                "owned_result_peak_bytes": 512,
+                "pages": 24,
+                "provider_calls": 60,
+                "samples_fetched": 24,
+                "series": 8,
+                "work": 1873,
+                "workspace_peak_bytes": 10824
+              },
+              "expression": "sum(m)",
+              "id": "one-group-8"
+            },
+            {
+              "after": {
+                "elapsed_ns": "199079",
+                "owned_result_peak_bytes": 4696,
+                "pages": 80,
+                "provider_calls": 183,
+                "samples_fetched": 80,
+                "work": 7910,
+                "workspace_peak_bytes": 26576
+              },
+              "before": {
+                "elapsed_ns": "187438",
+                "expression": "m / on (id) m",
+                "id": "join-8",
+                "owned_result_peak_bytes": 4696,
+                "pages": 80,
+                "provider_calls": 183,
+                "samples_fetched": 80,
+                "series": 8,
+                "work": 9216,
+                "workspace_peak_bytes": 25888
+              },
+              "expression": "m / on (id) m",
+              "id": "join-8"
+            },
+            {
+              "after": {
+                "elapsed_ns": "293657",
+                "owned_result_peak_bytes": 18806,
+                "pages": 96,
+                "provider_calls": 228,
+                "samples_fetched": 96,
+                "work": 11996,
+                "workspace_peak_bytes": 44884
+              },
+              "before": {
+                "elapsed_ns": "288437",
+                "expression": "sum by (id) (m)",
+                "id": "groups-32",
+                "owned_result_peak_bytes": 18806,
+                "pages": 96,
+                "provider_calls": 228,
+                "samples_fetched": 96,
+                "series": 32,
+                "work": 12255,
+                "workspace_peak_bytes": 44884
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "218528",
+                "owned_result_peak_bytes": 512,
+                "pages": 96,
+                "provider_calls": 228,
+                "samples_fetched": 96,
+                "work": 7598,
+                "workspace_peak_bytes": 27262
+              },
+              "before": {
+                "elapsed_ns": "219198",
+                "expression": "sum(m)",
+                "id": "one-group-32",
+                "owned_result_peak_bytes": 512,
+                "pages": 96,
+                "provider_calls": 228,
+                "samples_fetched": 96,
+                "series": 32,
+                "work": 7598,
+                "workspace_peak_bytes": 27262
+              },
+              "expression": "sum(m)",
+              "id": "one-group-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "726784",
+                "owned_result_peak_bytes": 18806,
+                "pages": 320,
+                "provider_calls": 711,
+                "samples_fetched": 320,
+                "work": 34009,
+                "workspace_peak_bytes": 87192
+              },
+              "before": {
+                "elapsed_ns": "738253",
+                "expression": "m / on (id) m",
+                "id": "join-32",
+                "owned_result_peak_bytes": 18806,
+                "pages": 320,
+                "provider_calls": 711,
+                "samples_fetched": 320,
+                "series": 32,
+                "work": 58870,
+                "workspace_peak_bytes": 85544
+              },
+              "expression": "m / on (id) m",
+              "id": "join-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1144431",
+                "owned_result_peak_bytes": 75282,
+                "pages": 384,
+                "provider_calls": 900,
+                "samples_fetched": 384,
+                "work": 57011,
+                "workspace_peak_bytes": 163980
+              },
+              "before": {
+                "elapsed_ns": "1246488",
+                "expression": "sum by (id) (m)",
+                "id": "groups-128",
+                "owned_result_peak_bytes": 75282,
+                "pages": 384,
+                "provider_calls": 900,
+                "samples_fetched": 384,
+                "series": 128,
+                "work": 76210,
+                "workspace_peak_bytes": 163980
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "839153",
+                "owned_result_peak_bytes": 512,
+                "pages": 384,
+                "provider_calls": 900,
+                "samples_fetched": 384,
+                "work": 31308,
+                "workspace_peak_bytes": 93050
+              },
+              "before": {
+                "elapsed_ns": "832792",
+                "expression": "sum(m)",
+                "id": "one-group-128",
+                "owned_result_peak_bytes": 512,
+                "pages": 384,
+                "provider_calls": 900,
+                "samples_fetched": 384,
+                "series": 128,
+                "work": 31308,
+                "workspace_peak_bytes": 93050
+              },
+              "expression": "sum(m)",
+              "id": "one-group-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "3084183",
+                "owned_result_peak_bytes": 75282,
+                "pages": 1280,
+                "provider_calls": 2823,
+                "samples_fetched": 1280,
+                "work": 148672,
+                "workspace_peak_bytes": 329800
+              },
+              "before": {
+                "elapsed_ns": "3721324",
+                "expression": "m / on (id) m",
+                "id": "join-128",
+                "owned_result_peak_bytes": 75282,
+                "pages": 1280,
+                "provider_calls": 2823,
+                "samples_fetched": 1280,
+                "series": 128,
+                "work": 624663,
+                "workspace_peak_bytes": 324312
+              },
+              "expression": "m / on (id) m",
+              "id": "join-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "5361385",
+                "owned_result_peak_bytes": 301458,
+                "pages": 1536,
+                "provider_calls": 3588,
+                "samples_fetched": 1536,
+                "work": 338471,
+                "workspace_peak_bytes": 641772
+              },
+              "before": {
+                "elapsed_ns": "7731706",
+                "expression": "sum by (id) (m)",
+                "id": "groups-512",
+                "owned_result_peak_bytes": 301458,
+                "pages": 1536,
+                "provider_calls": 3588,
+                "samples_fetched": 1536,
+                "series": 512,
+                "work": 710470,
+                "workspace_peak_bytes": 641772
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "3270602",
+                "owned_result_peak_bytes": 512,
+                "pages": 1536,
+                "provider_calls": 3588,
+                "samples_fetched": 1536,
+                "work": 130169,
+                "workspace_peak_bytes": 360570
+              },
+              "before": {
+                "elapsed_ns": "3233549",
+                "expression": "sum(m)",
+                "id": "one-group-512",
+                "owned_result_peak_bytes": 512,
+                "pages": 1536,
+                "provider_calls": 3588,
+                "samples_fetched": 1536,
+                "series": 512,
+                "work": 130169,
+                "workspace_peak_bytes": 360570
+              },
+              "expression": "sum(m)",
+              "id": "one-group-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "12180437",
+                "owned_result_peak_bytes": 301458,
+                "pages": 5120,
+                "provider_calls": 11271,
+                "samples_fetched": 5120,
+                "work": 722941,
+                "workspace_peak_bytes": 1301320
+              },
+              "before": {
+                "elapsed_ns": "29612066",
+                "expression": "m / on (id) m",
+                "id": "join-512",
+                "owned_result_peak_bytes": 301458,
+                "pages": 5120,
+                "provider_calls": 11271,
+                "samples_fetched": 5120,
+                "series": 512,
+                "work": 10481432,
+                "workspace_peak_bytes": 1280472
+              },
+              "expression": "m / on (id) m",
+              "id": "join-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "33138480",
+                "owned_result_peak_bytes": 1207210,
+                "pages": 6144,
+                "provider_calls": 14340,
+                "samples_fetched": 6144,
+                "work": 2974303,
+                "workspace_peak_bytes": 2557724
+              },
+              "before": {
+                "elapsed_ns": "76778935",
+                "expression": "sum by (id) (m)",
+                "id": "groups-2048",
+                "owned_result_peak_bytes": 1207210,
+                "pages": 6144,
+                "provider_calls": 14340,
+                "samples_fetched": 6144,
+                "series": 2048,
+                "work": 9183418,
+                "workspace_peak_bytes": 2557724
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-2048"
+            },
+            {
+              "after": {
+                "elapsed_ns": "12911281",
+                "owned_result_peak_bytes": 512,
+                "pages": 6144,
+                "provider_calls": 14340,
+                "samples_fetched": 6144,
+                "work": 540814,
+                "workspace_peak_bytes": 1433746
+              },
+              "before": {
+                "elapsed_ns": "13552780",
+                "expression": "sum(m)",
+                "id": "one-group-2048",
+                "owned_result_peak_bytes": 512,
+                "pages": 6144,
+                "provider_calls": 14340,
+                "samples_fetched": 6144,
+                "series": 2048,
+                "work": 540814,
+                "workspace_peak_bytes": 1433746
+              },
+              "expression": "sum(m)",
+              "id": "one-group-2048"
+            }
+          ]
+        },
+        {
+          "profile": "release",
+          "kind": "coupled",
+          "receipt": {
+            "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/performance-release-unmakxgv/receipt.json",
+            "sha256": "14230440ca04ee7c4e15ef13a123288a42a5b0e8538fcda0c8880b36ab4216d7"
+          },
+          "comparisons": 24,
+          "rows": [
+            {
+              "after": {
+                "elapsed_ns": "801903",
+                "owned_result_peak_bytes": 38016,
+                "pages": 192,
+                "provider_calls": 453,
+                "samples_fetched": 192,
+                "work": 36586,
+                "workspace_peak_bytes": 85352
+              },
+              "before": {
+                "elapsed_ns": "729164",
+                "expression": "sum by(id)(m)",
+                "id": "sum-64",
+                "owned_result_peak_bytes": 38016,
+                "pages": 192,
+                "profile": "server-default",
+                "provider_calls": 453,
+                "samples_fetched": 192,
+                "series": 64,
+                "work": 40559,
+                "workspace_peak_bytes": 85352
+              },
+              "expression": "sum by(id)(m)",
+              "id": "sum-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "826503",
+                "owned_result_peak_bytes": 39168,
+                "pages": 256,
+                "provider_calls": 581,
+                "samples_fetched": 256,
+                "work": 52207,
+                "workspace_peak_bytes": 99200
+              },
+              "before": {
+                "elapsed_ns": "837993",
+                "expression": "topk by(id)(1,m)",
+                "id": "topk-64",
+                "owned_result_peak_bytes": 39168,
+                "pages": 256,
+                "profile": "server-default",
+                "provider_calls": 581,
+                "samples_fetched": 256,
+                "series": 64,
+                "work": 53542,
+                "workspace_peak_bytes": 99200
+              },
+              "expression": "topk by(id)(1,m)",
+              "id": "topk-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "842663",
+                "owned_result_peak_bytes": 39168,
+                "pages": 256,
+                "provider_calls": 581,
+                "samples_fetched": 256,
+                "work": 52207,
+                "workspace_peak_bytes": 99200
+              },
+              "before": {
+                "elapsed_ns": "853873",
+                "expression": "bottomk by(id)(1,m)",
+                "id": "bottomk-64",
+                "owned_result_peak_bytes": 39168,
+                "pages": 256,
+                "profile": "server-default",
+                "provider_calls": 581,
+                "samples_fetched": 256,
+                "series": 64,
+                "work": 53542,
+                "workspace_peak_bytes": 99200
+              },
+              "expression": "bottomk by(id)(1,m)",
+              "id": "bottomk-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "998481",
+                "owned_result_peak_bytes": 38016,
+                "pages": 384,
+                "provider_calls": 837,
+                "samples_fetched": 384,
+                "work": 53815,
+                "workspace_peak_bytes": 126154
+              },
+              "before": {
+                "elapsed_ns": "1014411",
+                "expression": "quantile by(id)(0.5,m)",
+                "id": "quantile-64",
+                "owned_result_peak_bytes": 38016,
+                "pages": 384,
+                "profile": "server-default",
+                "provider_calls": 837,
+                "samples_fetched": 384,
+                "series": 64,
+                "work": 55150,
+                "workspace_peak_bytes": 126154
+              },
+              "expression": "quantile by(id)(0.5,m)",
+              "id": "quantile-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "882792",
+                "owned_result_peak_bytes": 39168,
+                "pages": 256,
+                "provider_calls": 581,
+                "samples_fetched": 256,
+                "work": 63099,
+                "workspace_peak_bytes": 99200
+              },
+              "before": {
+                "elapsed_ns": "920062",
+                "expression": "limitk by(id)(1,m)",
+                "id": "limitk-64",
+                "owned_result_peak_bytes": 39168,
+                "pages": 256,
+                "profile": "upstream-tests",
+                "provider_calls": 581,
+                "samples_fetched": 256,
+                "series": 64,
+                "work": 64434,
+                "workspace_peak_bytes": 99200
+              },
+              "expression": "limitk by(id)(1,m)",
+              "id": "limitk-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "641025",
+                "owned_result_peak_bytes": 26652,
+                "pages": 196,
+                "provider_calls": 461,
+                "samples_fetched": 196,
+                "work": 42998,
+                "workspace_peak_bytes": 89436
+              },
+              "before": {
+                "elapsed_ns": "659925",
+                "expression": "limit_ratio by(id)(0.5,m)",
+                "id": "limit-ratio-64",
+                "owned_result_peak_bytes": 26652,
+                "pages": 196,
+                "profile": "upstream-tests",
+                "provider_calls": 461,
+                "samples_fetched": 196,
+                "series": 64,
+                "work": 44333,
+                "workspace_peak_bytes": 89436
+              },
+              "expression": "limit_ratio by(id)(0.5,m)",
+              "id": "limit-ratio-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1243270",
+                "owned_result_peak_bytes": 38592,
+                "pages": 451,
+                "provider_calls": 1039,
+                "samples_fetched": 451,
+                "work": 85715,
+                "workspace_peak_bytes": 131506
+              },
+              "before": {
+                "elapsed_ns": "1333939",
+                "expression": "m / on(job) group_left g",
+                "id": "group-left-64",
+                "owned_result_peak_bytes": 38592,
+                "pages": 451,
+                "profile": "server-default",
+                "provider_calls": 1039,
+                "samples_fetched": 451,
+                "series": 64,
+                "work": 314766,
+                "workspace_peak_bytes": 127554
+              },
+              "expression": "m / on(job) group_left g",
+              "id": "group-left-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1253880",
+                "owned_result_peak_bytes": 38592,
+                "pages": 451,
+                "provider_calls": 1039,
+                "samples_fetched": 451,
+                "work": 85715,
+                "workspace_peak_bytes": 131506
+              },
+              "before": {
+                "elapsed_ns": "1340839",
+                "expression": "g / on(job) group_right m",
+                "id": "group-right-64",
+                "owned_result_peak_bytes": 38592,
+                "pages": 451,
+                "profile": "server-default",
+                "provider_calls": 1039,
+                "samples_fetched": 451,
+                "series": 64,
+                "work": 314766,
+                "workspace_peak_bytes": 127554
+              },
+              "expression": "g / on(job) group_right m",
+              "id": "group-right-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1276329",
+                "owned_result_peak_bytes": 76032,
+                "pages": 384,
+                "provider_calls": 901,
+                "samples_fetched": 384,
+                "work": 78522,
+                "workspace_peak_bytes": 165480
+              },
+              "before": {
+                "elapsed_ns": "1427288",
+                "expression": "sum by(id)(m)",
+                "id": "sum-128",
+                "owned_result_peak_bytes": 76032,
+                "pages": 384,
+                "profile": "server-default",
+                "provider_calls": 901,
+                "samples_fetched": 384,
+                "series": 128,
+                "work": 98397,
+                "workspace_peak_bytes": 165480
+              },
+              "expression": "sum by(id)(m)",
+              "id": "sum-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1760725",
+                "owned_result_peak_bytes": 78336,
+                "pages": 512,
+                "provider_calls": 1157,
+                "samples_fetched": 512,
+                "work": 125723,
+                "workspace_peak_bytes": 187264
+              },
+              "before": {
+                "elapsed_ns": "1850874",
+                "expression": "topk by(id)(1,m)",
+                "id": "topk-128",
+                "owned_result_peak_bytes": 78336,
+                "pages": 512,
+                "profile": "server-default",
+                "provider_calls": 1157,
+                "samples_fetched": 512,
+                "series": 128,
+                "work": 132386,
+                "workspace_peak_bytes": 187264
+              },
+              "expression": "topk by(id)(1,m)",
+              "id": "topk-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1786365",
+                "owned_result_peak_bytes": 78336,
+                "pages": 512,
+                "provider_calls": 1157,
+                "samples_fetched": 512,
+                "work": 125723,
+                "workspace_peak_bytes": 187264
+              },
+              "before": {
+                "elapsed_ns": "1832445",
+                "expression": "bottomk by(id)(1,m)",
+                "id": "bottomk-128",
+                "owned_result_peak_bytes": 78336,
+                "pages": 512,
+                "profile": "server-default",
+                "provider_calls": 1157,
+                "samples_fetched": 512,
+                "series": 128,
+                "work": 132386,
+                "workspace_peak_bytes": 187264
+              },
+              "expression": "bottomk by(id)(1,m)",
+              "id": "bottomk-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1915684",
+                "owned_result_peak_bytes": 76032,
+                "pages": 768,
+                "provider_calls": 1669,
+                "samples_fetched": 768,
+                "work": 112693,
+                "workspace_peak_bytes": 241354
+              },
+              "before": {
+                "elapsed_ns": "1977563",
+                "expression": "quantile by(id)(0.5,m)",
+                "id": "quantile-128",
+                "owned_result_peak_bytes": 76032,
+                "pages": 768,
+                "profile": "server-default",
+                "provider_calls": 1669,
+                "samples_fetched": 768,
+                "series": 128,
+                "work": 119356,
+                "workspace_peak_bytes": 241354
+              },
+              "expression": "quantile by(id)(0.5,m)",
+              "id": "quantile-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1928414",
+                "owned_result_peak_bytes": 78336,
+                "pages": 512,
+                "provider_calls": 1157,
+                "samples_fetched": 512,
+                "work": 151711,
+                "workspace_peak_bytes": 187264
+              },
+              "before": {
+                "elapsed_ns": "1991383",
+                "expression": "limitk by(id)(1,m)",
+                "id": "limitk-128",
+                "owned_result_peak_bytes": 78336,
+                "pages": 512,
+                "profile": "upstream-tests",
+                "provider_calls": 1157,
+                "samples_fetched": 512,
+                "series": 128,
+                "work": 158374,
+                "workspace_peak_bytes": 187264
+              },
+              "expression": "limitk by(id)(1,m)",
+              "id": "limitk-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1287509",
+                "owned_result_peak_bytes": 52892,
+                "pages": 386,
+                "provider_calls": 905,
+                "samples_fetched": 386,
+                "work": 92978,
+                "workspace_peak_bytes": 167356
+              },
+              "before": {
+                "elapsed_ns": "1341469",
+                "expression": "limit_ratio by(id)(0.5,m)",
+                "id": "limit-ratio-128",
+                "owned_result_peak_bytes": 52892,
+                "pages": 386,
+                "profile": "upstream-tests",
+                "provider_calls": 905,
+                "samples_fetched": 386,
+                "series": 128,
+                "work": 99641,
+                "workspace_peak_bytes": 167356
+              },
+              "expression": "limit_ratio by(id)(0.5,m)",
+              "id": "limit-ratio-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2460610",
+                "owned_result_peak_bytes": 77184,
+                "pages": 899,
+                "provider_calls": 2063,
+                "samples_fetched": 899,
+                "work": 176713,
+                "workspace_peak_bytes": 255026
+              },
+              "before": {
+                "elapsed_ns": "2972205",
+                "expression": "m / on(job) group_left g",
+                "id": "group-left-128",
+                "owned_result_peak_bytes": 77184,
+                "pages": 899,
+                "profile": "server-default",
+                "provider_calls": 2063,
+                "samples_fetched": 899,
+                "series": 128,
+                "work": 1125766,
+                "workspace_peak_bytes": 247490
+              },
+              "expression": "m / on(job) group_left g",
+              "id": "group-left-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2484529",
+                "owned_result_peak_bytes": 77184,
+                "pages": 899,
+                "provider_calls": 2063,
+                "samples_fetched": 899,
+                "work": 176713,
+                "workspace_peak_bytes": 255026
+              },
+              "before": {
+                "elapsed_ns": "2956636",
+                "expression": "g / on(job) group_right m",
+                "id": "group-right-128",
+                "owned_result_peak_bytes": 77184,
+                "pages": 899,
+                "profile": "server-default",
+                "provider_calls": 2063,
+                "samples_fetched": 899,
+                "series": 128,
+                "work": 1125766,
+                "workspace_peak_bytes": 247490
+              },
+              "expression": "g / on(job) group_right m",
+              "id": "group-right-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "5905230",
+                "owned_result_peak_bytes": 304128,
+                "pages": 1536,
+                "provider_calls": 3589,
+                "samples_fetched": 1536,
+                "work": 421955,
+                "workspace_peak_bytes": 647112
+              },
+              "before": {
+                "elapsed_ns": "8222971",
+                "expression": "sum by(id)(m)",
+                "id": "sum-512",
+                "owned_result_peak_bytes": 304128,
+                "pages": 1536,
+                "profile": "server-default",
+                "provider_calls": 3589,
+                "samples_fetched": 1536,
+                "series": 512,
+                "work": 794825,
+                "workspace_peak_bytes": 647112
+              },
+              "expression": "sum by(id)(m)",
+              "id": "sum-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "10942207",
+                "owned_result_peak_bytes": 313344,
+                "pages": 2048,
+                "provider_calls": 4613,
+                "samples_fetched": 2048,
+                "work": 1001818,
+                "workspace_peak_bytes": 715648
+              },
+              "before": {
+                "elapsed_ns": "13397018",
+                "expression": "topk by(id)(1,m)",
+                "id": "topk-512",
+                "owned_result_peak_bytes": 313344,
+                "pages": 2048,
+                "profile": "server-default",
+                "provider_calls": 4613,
+                "samples_fetched": 2048,
+                "series": 512,
+                "work": 1126276,
+                "workspace_peak_bytes": 715648
+              },
+              "expression": "topk by(id)(1,m)",
+              "id": "topk-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "11243035",
+                "owned_result_peak_bytes": 313344,
+                "pages": 2048,
+                "provider_calls": 4613,
+                "samples_fetched": 2048,
+                "work": 1001818,
+                "workspace_peak_bytes": 715648
+              },
+              "before": {
+                "elapsed_ns": "12328616",
+                "expression": "bottomk by(id)(1,m)",
+                "id": "bottomk-512",
+                "owned_result_peak_bytes": 313344,
+                "pages": 2048,
+                "profile": "server-default",
+                "provider_calls": 4613,
+                "samples_fetched": 2048,
+                "series": 512,
+                "work": 1126276,
+                "workspace_peak_bytes": 715648
+              },
+              "expression": "bottomk by(id)(1,m)",
+              "id": "bottomk-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "8606807",
+                "owned_result_peak_bytes": 304128,
+                "pages": 3072,
+                "provider_calls": 6661,
+                "samples_fetched": 3072,
+                "work": 557502,
+                "workspace_peak_bytes": 932554
+              },
+              "before": {
+                "elapsed_ns": "9218292",
+                "expression": "quantile by(id)(0.5,m)",
+                "id": "quantile-512",
+                "owned_result_peak_bytes": 304128,
+                "pages": 3072,
+                "profile": "server-default",
+                "provider_calls": 6661,
+                "samples_fetched": 3072,
+                "series": 512,
+                "work": 681960,
+                "workspace_peak_bytes": 932554
+              },
+              "expression": "quantile by(id)(0.5,m)",
+              "id": "quantile-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "12382596",
+                "owned_result_peak_bytes": 313344,
+                "pages": 2048,
+                "provider_calls": 4613,
+                "samples_fetched": 2048,
+                "work": 1205148,
+                "workspace_peak_bytes": 715648
+              },
+              "before": {
+                "elapsed_ns": "13027051",
+                "expression": "limitk by(id)(1,m)",
+                "id": "limitk-512",
+                "owned_result_peak_bytes": 313344,
+                "pages": 2048,
+                "profile": "upstream-tests",
+                "provider_calls": 4613,
+                "samples_fetched": 2048,
+                "series": 512,
+                "work": 1329606,
+                "workspace_peak_bytes": 715648
+              },
+              "expression": "limitk by(id)(1,m)",
+              "id": "limitk-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "6931422",
+                "owned_result_peak_bytes": 153116,
+                "pages": 1522,
+                "provider_calls": 3561,
+                "samples_fetched": 1522,
+                "work": 556869,
+                "workspace_peak_bytes": 555868
+              },
+              "before": {
+                "elapsed_ns": "7553867",
+                "expression": "limit_ratio by(id)(0.5,m)",
+                "id": "limit-ratio-512",
+                "owned_result_peak_bytes": 153116,
+                "pages": 1522,
+                "profile": "upstream-tests",
+                "provider_calls": 3561,
+                "samples_fetched": 1522,
+                "series": 512,
+                "work": 681327,
+                "workspace_peak_bytes": 555868
+              },
+              "expression": "limit_ratio by(id)(0.5,m)",
+              "id": "limit-ratio-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "10951357",
+                "owned_result_peak_bytes": 308736,
+                "pages": 3587,
+                "provider_calls": 8207,
+                "samples_fetched": 3587,
+                "work": 814768,
+                "workspace_peak_bytes": 996146
+              },
+              "before": {
+                "elapsed_ns": "20346959",
+                "expression": "m / on(job) group_left g",
+                "id": "group-left-512",
+                "owned_result_peak_bytes": 308736,
+                "pages": 3587,
+                "profile": "server-default",
+                "provider_calls": 8207,
+                "samples_fetched": 3587,
+                "series": 512,
+                "work": 16405003,
+                "workspace_peak_bytes": 967106
+              },
+              "expression": "m / on(job) group_left g",
+              "id": "group-left-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "11062116",
+                "owned_result_peak_bytes": 308736,
+                "pages": 3587,
+                "provider_calls": 8207,
+                "samples_fetched": 3587,
+                "work": 814768,
+                "workspace_peak_bytes": 996146
+              },
+              "before": {
+                "elapsed_ns": "19897143",
+                "expression": "g / on(job) group_right m",
+                "id": "group-right-512",
+                "owned_result_peak_bytes": 308736,
+                "pages": 3587,
+                "profile": "server-default",
+                "provider_calls": 8207,
+                "samples_fetched": 3587,
+                "series": 512,
+                "work": 16405003,
+                "workspace_peak_bytes": 967106
+              },
+              "expression": "g / on(job) group_right m",
+              "id": "group-right-512"
+            }
+          ]
+        },
+        {
+          "profile": "release",
+          "kind": "scheduled",
+          "receipt": {
+            "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/performance-release-xazobwbo/receipt.json",
+            "sha256": "d4f1b95c216efc5c2a1e33259d67ebc7deddce0753d010254a8c005274feff3f"
+          },
+          "comparisons": 13,
+          "rows": [
+            {
+              "after": {
+                "elapsed_ns": "328407",
+                "owned_result_peak_bytes": 9398,
+                "pages": 80,
+                "provider_calls": 228,
+                "samples_fetched": 80,
+                "work": 9724,
+                "workspace_peak_bytes": 26302
+              },
+              "before": {
+                "elapsed_ns": "382936",
+                "expression": "sum by (id) (m)",
+                "id": "aggregate-16",
+                "owned_result_peak_bytes": 9398,
+                "pages": 80,
+                "provider_calls": 228,
+                "samples_fetched": 80,
+                "work": 9416,
+                "workspace_peak_bytes": 25966
+              },
+              "expression": "sum by (id) (m)",
+              "id": "aggregate-16"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1442828",
+                "owned_result_peak_bytes": 9398,
+                "pages": 624,
+                "provider_calls": 1588,
+                "samples_fetched": 624,
+                "work": 55045,
+                "workspace_peak_bytes": 38292
+              },
+              "before": {
+                "elapsed_ns": "1493845",
+                "expression": "(sum by (id) (m)) + 0",
+                "id": "aggregate-plus-zero-16",
+                "owned_result_peak_bytes": 9398,
+                "pages": 624,
+                "provider_calls": 1588,
+                "samples_fetched": 624,
+                "work": 54609,
+                "workspace_peak_bytes": 37956
+              },
+              "expression": "(sum by (id) (m)) + 0",
+              "id": "aggregate-plus-zero-16"
+            },
+            {
+              "after": {
+                "elapsed_ns": "4265664",
+                "owned_result_peak_bytes": 9398,
+                "pages": 2208,
+                "provider_calls": 5575,
+                "samples_fetched": 2208,
+                "work": 208669,
+                "workspace_peak_bytes": 47301
+              },
+              "before": {
+                "elapsed_ns": "4308437",
+                "expression": "m / on (id) m",
+                "id": "join-16",
+                "owned_result_peak_bytes": 9398,
+                "pages": 2208,
+                "provider_calls": 5575,
+                "samples_fetched": 2208,
+                "work": 269981,
+                "workspace_peak_bytes": 46293
+              },
+              "expression": "m / on (id) m",
+              "id": "join-16"
+            },
+            {
+              "after": {
+                "elapsed_ns": "491046",
+                "owned_result_peak_bytes": 18806,
+                "pages": 160,
+                "provider_calls": 452,
+                "samples_fetched": 160,
+                "work": 20861,
+                "workspace_peak_bytes": 46398
+              },
+              "before": {
+                "elapsed_ns": "512695",
+                "expression": "sum by (id) (m)",
+                "id": "aggregate-32",
+                "owned_result_peak_bytes": 18806,
+                "pages": 160,
+                "provider_calls": 452,
+                "samples_fetched": 160,
+                "work": 21278,
+                "workspace_peak_bytes": 46292
+              },
+              "expression": "sum by (id) (m)",
+              "id": "aggregate-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "4844319",
+                "owned_result_peak_bytes": 18806,
+                "pages": 2272,
+                "provider_calls": 5732,
+                "samples_fetched": 2272,
+                "work": 191211,
+                "workspace_peak_bytes": 66794
+              },
+              "before": {
+                "elapsed_ns": "4979021",
+                "expression": "(sum by (id) (m)) + 0",
+                "id": "aggregate-plus-zero-32",
+                "owned_result_peak_bytes": 18806,
+                "pages": 2272,
+                "provider_calls": 5732,
+                "samples_fetched": 2272,
+                "work": 191786,
+                "workspace_peak_bytes": 66794
+              },
+              "expression": "(sum by (id) (m)) + 0",
+              "id": "aggregate-plus-zero-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "16079105",
+                "owned_result_peak_bytes": 18806,
+                "pages": 8512,
+                "provider_calls": 21383,
+                "samples_fetched": 8512,
+                "work": 817784,
+                "workspace_peak_bytes": 88672
+              },
+              "before": {
+                "elapsed_ns": "17803823",
+                "expression": "m / on (id) m",
+                "id": "join-32",
+                "owned_result_peak_bytes": 18806,
+                "pages": 8512,
+                "provider_calls": 21383,
+                "samples_fetched": 8512,
+                "work": 1527957,
+                "workspace_peak_bytes": 87824
+              },
+              "expression": "m / on (id) m",
+              "id": "join-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "985842",
+                "owned_result_peak_bytes": 37622,
+                "pages": 320,
+                "provider_calls": 900,
+                "samples_fetched": 320,
+                "work": 46251,
+                "workspace_peak_bytes": 87380
+              },
+              "before": {
+                "elapsed_ns": "1157009",
+                "expression": "sum by (id) (m)",
+                "id": "aggregate-64",
+                "owned_result_peak_bytes": 37622,
+                "pages": 320,
+                "provider_calls": 900,
+                "samples_fetched": 320,
+                "work": 52012,
+                "workspace_peak_bytes": 87380
+              },
+              "expression": "sum by (id) (m)",
+              "id": "aggregate-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "17660541",
+                "owned_result_peak_bytes": 37622,
+                "pages": 8640,
+                "provider_calls": 21700,
+                "samples_fetched": 8640,
+                "work": 702682,
+                "workspace_peak_bytes": 126570
+              },
+              "before": {
+                "elapsed_ns": "18631214",
+                "expression": "(sum by (id) (m)) + 0",
+                "id": "aggregate-plus-zero-64",
+                "owned_result_peak_bytes": 37622,
+                "pages": 8640,
+                "provider_calls": 21700,
+                "samples_fetched": 8640,
+                "work": 710731,
+                "workspace_peak_bytes": 126570
+              },
+              "expression": "(sum by (id) (m)) + 0",
+              "id": "aggregate-plus-zero-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "62938879",
+                "owned_result_peak_bytes": 37622,
+                "pages": 33408,
+                "provider_calls": 83719,
+                "samples_fetched": 33408,
+                "work": 3232074,
+                "workspace_peak_bytes": 173600
+              },
+              "before": {
+                "elapsed_ns": "75209211",
+                "expression": "m / on (id) m",
+                "id": "join-64",
+                "owned_result_peak_bytes": 37622,
+                "pages": 33408,
+                "provider_calls": 83719,
+                "samples_fetched": 33408,
+                "work": 11058048,
+                "workspace_peak_bytes": 171984
+              },
+              "expression": "m / on (id) m",
+              "id": "join-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "43769",
+                "owned_result_peak_bytes": 1385,
+                "pages": 2,
+                "provider_calls": 9,
+                "samples_fetched": 32,
+                "work": 347,
+                "workspace_peak_bytes": 6897
+              },
+              "before": {
+                "elapsed_ns": "47359",
+                "expression": "m",
+                "id": "selector-ticks-16",
+                "owned_result_peak_bytes": 1385,
+                "pages": 2,
+                "provider_calls": 9,
+                "samples_fetched": 32,
+                "work": 347,
+                "workspace_peak_bytes": 6897
+              },
+              "expression": "m",
+              "id": "selector-ticks-16"
+            },
+            {
+              "after": {
+                "elapsed_ns": "30739",
+                "owned_result_peak_bytes": 1961,
+                "pages": 4,
+                "provider_calls": 11,
+                "samples_fetched": 64,
+                "work": 603,
+                "workspace_peak_bytes": 6961
+              },
+              "before": {
+                "elapsed_ns": "29940",
+                "expression": "m",
+                "id": "selector-ticks-32",
+                "owned_result_peak_bytes": 1961,
+                "pages": 4,
+                "provider_calls": 11,
+                "samples_fetched": 64,
+                "work": 603,
+                "workspace_peak_bytes": 6961
+              },
+              "expression": "m",
+              "id": "selector-ticks-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "50320",
+                "owned_result_peak_bytes": 3113,
+                "pages": 8,
+                "provider_calls": 15,
+                "samples_fetched": 128,
+                "work": 1115,
+                "workspace_peak_bytes": 6961
+              },
+              "before": {
+                "elapsed_ns": "51520",
+                "expression": "m",
+                "id": "selector-ticks-64",
+                "owned_result_peak_bytes": 3113,
+                "pages": 8,
+                "provider_calls": 15,
+                "samples_fetched": 128,
+                "work": 1115,
+                "workspace_peak_bytes": 6961
+              },
+              "expression": "m",
+              "id": "selector-ticks-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "84569",
+                "owned_result_peak_bytes": 5417,
+                "pages": 16,
+                "provider_calls": 23,
+                "samples_fetched": 256,
+                "work": 2139,
+                "workspace_peak_bytes": 6961
+              },
+              "before": {
+                "elapsed_ns": "82359",
+                "expression": "m",
+                "id": "selector-ticks-128",
+                "owned_result_peak_bytes": 5417,
+                "pages": 16,
+                "provider_calls": 23,
+                "samples_fetched": 256,
+                "work": 2139,
+                "workspace_peak_bytes": 6961
+              },
+              "expression": "m",
+              "id": "selector-ticks-128"
+            }
+          ]
+        },
+        {
+          "profile": "release-min",
+          "kind": "instant",
+          "receipt": {
+            "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/performance-release-min-rqqzsd34/receipt.json",
+            "sha256": "4ca47aab6d7339969d0d6afc0650bc50f63dab14bf1fdfddb492250bd8fdca6a"
+          },
+          "comparisons": 20,
+          "rows": [
+            {
+              "after": {
+                "elapsed_ns": "101429",
+                "owned_result_peak_bytes": 899,
+                "pages": 3,
+                "provider_calls": 11,
+                "samples_fetched": 3,
+                "work": 320,
+                "workspace_peak_bytes": 7854
+              },
+              "before": {
+                "elapsed_ns": "130969",
+                "expression": "sum by (id) (m)",
+                "id": "groups-1",
+                "owned_result_peak_bytes": 899,
+                "pages": 3,
+                "provider_calls": 11,
+                "samples_fetched": 3,
+                "series": 1,
+                "work": 320,
+                "workspace_peak_bytes": 7854
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-1"
+            },
+            {
+              "after": {
+                "elapsed_ns": "30599",
+                "owned_result_peak_bytes": 512,
+                "pages": 3,
+                "provider_calls": 11,
+                "samples_fetched": 3,
+                "work": 280,
+                "workspace_peak_bytes": 7712
+              },
+              "before": {
+                "elapsed_ns": "24870",
+                "expression": "sum(m)",
+                "id": "one-group-1",
+                "owned_result_peak_bytes": 512,
+                "pages": 3,
+                "provider_calls": 11,
+                "samples_fetched": 3,
+                "series": 1,
+                "work": 280,
+                "workspace_peak_bytes": 7712
+              },
+              "expression": "sum(m)",
+              "id": "one-group-1"
+            },
+            {
+              "after": {
+                "elapsed_ns": "68000",
+                "owned_result_peak_bytes": 899,
+                "pages": 10,
+                "provider_calls": 29,
+                "samples_fetched": 10,
+                "work": 966,
+                "workspace_peak_bytes": 11490
+              },
+              "before": {
+                "elapsed_ns": "48629",
+                "expression": "m / on (id) m",
+                "id": "join-1",
+                "owned_result_peak_bytes": 899,
+                "pages": 10,
+                "provider_calls": 29,
+                "samples_fetched": 10,
+                "series": 1,
+                "work": 882,
+                "workspace_peak_bytes": 11154
+              },
+              "expression": "m / on (id) m",
+              "id": "join-1"
+            },
+            {
+              "after": {
+                "elapsed_ns": "48049",
+                "owned_result_peak_bytes": 1382,
+                "pages": 6,
+                "provider_calls": 18,
+                "samples_fetched": 6,
+                "work": 645,
+                "workspace_peak_bytes": 8628
+              },
+              "before": {
+                "elapsed_ns": "32999",
+                "expression": "sum by (id) (m)",
+                "id": "groups-2",
+                "owned_result_peak_bytes": 1382,
+                "pages": 6,
+                "provider_calls": 18,
+                "samples_fetched": 6,
+                "series": 2,
+                "work": 619,
+                "workspace_peak_bytes": 8628
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-2"
+            },
+            {
+              "after": {
+                "elapsed_ns": "40510",
+                "owned_result_peak_bytes": 512,
+                "pages": 6,
+                "provider_calls": 18,
+                "samples_fetched": 6,
+                "work": 506,
+                "workspace_peak_bytes": 7712
+              },
+              "before": {
+                "elapsed_ns": "35830",
+                "expression": "sum(m)",
+                "id": "one-group-2",
+                "owned_result_peak_bytes": 512,
+                "pages": 6,
+                "provider_calls": 18,
+                "samples_fetched": 6,
+                "series": 2,
+                "work": 506,
+                "workspace_peak_bytes": 7712
+              },
+              "expression": "sum(m)",
+              "id": "one-group-2"
+            },
+            {
+              "after": {
+                "elapsed_ns": "113619",
+                "owned_result_peak_bytes": 1382,
+                "pages": 20,
+                "provider_calls": 51,
+                "samples_fetched": 20,
+                "work": 1935,
+                "workspace_peak_bytes": 13188
+              },
+              "before": {
+                "elapsed_ns": "61280",
+                "expression": "m / on (id) m",
+                "id": "join-2",
+                "owned_result_peak_bytes": 1382,
+                "pages": 20,
+                "provider_calls": 51,
+                "samples_fetched": 20,
+                "series": 2,
+                "work": 1791,
+                "workspace_peak_bytes": 12756
+              },
+              "expression": "m / on (id) m",
+              "id": "join-2"
+            },
+            {
+              "after": {
+                "elapsed_ns": "134359",
+                "owned_result_peak_bytes": 4696,
+                "pages": 24,
+                "provider_calls": 60,
+                "samples_fetched": 24,
+                "work": 2645,
+                "workspace_peak_bytes": 15128
+              },
+              "before": {
+                "elapsed_ns": "96300",
+                "expression": "sum by (id) (m)",
+                "id": "groups-8",
+                "owned_result_peak_bytes": 4696,
+                "pages": 24,
+                "provider_calls": 60,
+                "samples_fetched": 24,
+                "series": 8,
+                "work": 2534,
+                "workspace_peak_bytes": 15128
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-8"
+            },
+            {
+              "after": {
+                "elapsed_ns": "106049",
+                "owned_result_peak_bytes": 512,
+                "pages": 24,
+                "provider_calls": 60,
+                "samples_fetched": 24,
+                "work": 1873,
+                "workspace_peak_bytes": 10824
+              },
+              "before": {
+                "elapsed_ns": "70750",
+                "expression": "sum(m)",
+                "id": "one-group-8",
+                "owned_result_peak_bytes": 512,
+                "pages": 24,
+                "provider_calls": 60,
+                "samples_fetched": 24,
+                "series": 8,
+                "work": 1873,
+                "workspace_peak_bytes": 10824
+              },
+              "expression": "sum(m)",
+              "id": "one-group-8"
+            },
+            {
+              "after": {
+                "elapsed_ns": "320207",
+                "owned_result_peak_bytes": 4696,
+                "pages": 80,
+                "provider_calls": 183,
+                "samples_fetched": 80,
+                "work": 7910,
+                "workspace_peak_bytes": 26576
+              },
+              "before": {
+                "elapsed_ns": "187438",
+                "expression": "m / on (id) m",
+                "id": "join-8",
+                "owned_result_peak_bytes": 4696,
+                "pages": 80,
+                "provider_calls": 183,
+                "samples_fetched": 80,
+                "series": 8,
+                "work": 9216,
+                "workspace_peak_bytes": 25888
+              },
+              "expression": "m / on (id) m",
+              "id": "join-8"
+            },
+            {
+              "after": {
+                "elapsed_ns": "478286",
+                "owned_result_peak_bytes": 18806,
+                "pages": 96,
+                "provider_calls": 228,
+                "samples_fetched": 96,
+                "work": 11996,
+                "workspace_peak_bytes": 44884
+              },
+              "before": {
+                "elapsed_ns": "288437",
+                "expression": "sum by (id) (m)",
+                "id": "groups-32",
+                "owned_result_peak_bytes": 18806,
+                "pages": 96,
+                "provider_calls": 228,
+                "samples_fetched": 96,
+                "series": 32,
+                "work": 12255,
+                "workspace_peak_bytes": 44884
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "367467",
+                "owned_result_peak_bytes": 512,
+                "pages": 96,
+                "provider_calls": 228,
+                "samples_fetched": 96,
+                "work": 7598,
+                "workspace_peak_bytes": 27262
+              },
+              "before": {
+                "elapsed_ns": "219198",
+                "expression": "sum(m)",
+                "id": "one-group-32",
+                "owned_result_peak_bytes": 512,
+                "pages": 96,
+                "provider_calls": 228,
+                "samples_fetched": 96,
+                "series": 32,
+                "work": 7598,
+                "workspace_peak_bytes": 27262
+              },
+              "expression": "sum(m)",
+              "id": "one-group-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1216209",
+                "owned_result_peak_bytes": 18806,
+                "pages": 320,
+                "provider_calls": 711,
+                "samples_fetched": 320,
+                "work": 34009,
+                "workspace_peak_bytes": 87192
+              },
+              "before": {
+                "elapsed_ns": "738253",
+                "expression": "m / on (id) m",
+                "id": "join-32",
+                "owned_result_peak_bytes": 18806,
+                "pages": 320,
+                "provider_calls": 711,
+                "samples_fetched": 320,
+                "series": 32,
+                "work": 58870,
+                "workspace_peak_bytes": 85544
+              },
+              "expression": "m / on (id) m",
+              "id": "join-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2037153",
+                "owned_result_peak_bytes": 75282,
+                "pages": 384,
+                "provider_calls": 900,
+                "samples_fetched": 384,
+                "work": 57011,
+                "workspace_peak_bytes": 163980
+              },
+              "before": {
+                "elapsed_ns": "1246488",
+                "expression": "sum by (id) (m)",
+                "id": "groups-128",
+                "owned_result_peak_bytes": 75282,
+                "pages": 384,
+                "provider_calls": 900,
+                "samples_fetched": 384,
+                "series": 128,
+                "work": 76210,
+                "workspace_peak_bytes": 163980
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1485487",
+                "owned_result_peak_bytes": 512,
+                "pages": 384,
+                "provider_calls": 900,
+                "samples_fetched": 384,
+                "work": 31308,
+                "workspace_peak_bytes": 93050
+              },
+              "before": {
+                "elapsed_ns": "832792",
+                "expression": "sum(m)",
+                "id": "one-group-128",
+                "owned_result_peak_bytes": 512,
+                "pages": 384,
+                "provider_calls": 900,
+                "samples_fetched": 384,
+                "series": 128,
+                "work": 31308,
+                "workspace_peak_bytes": 93050
+              },
+              "expression": "sum(m)",
+              "id": "one-group-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "5048477",
+                "owned_result_peak_bytes": 75282,
+                "pages": 1280,
+                "provider_calls": 2823,
+                "samples_fetched": 1280,
+                "work": 148672,
+                "workspace_peak_bytes": 329800
+              },
+              "before": {
+                "elapsed_ns": "3721324",
+                "expression": "m / on (id) m",
+                "id": "join-128",
+                "owned_result_peak_bytes": 75282,
+                "pages": 1280,
+                "provider_calls": 2823,
+                "samples_fetched": 1280,
+                "series": 128,
+                "work": 624663,
+                "workspace_peak_bytes": 324312
+              },
+              "expression": "m / on (id) m",
+              "id": "join-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "8918085",
+                "owned_result_peak_bytes": 301458,
+                "pages": 1536,
+                "provider_calls": 3588,
+                "samples_fetched": 1536,
+                "work": 338471,
+                "workspace_peak_bytes": 641772
+              },
+              "before": {
+                "elapsed_ns": "7731706",
+                "expression": "sum by (id) (m)",
+                "id": "groups-512",
+                "owned_result_peak_bytes": 301458,
+                "pages": 1536,
+                "provider_calls": 3588,
+                "samples_fetched": 1536,
+                "series": 512,
+                "work": 710470,
+                "workspace_peak_bytes": 641772
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "5653302",
+                "owned_result_peak_bytes": 512,
+                "pages": 1536,
+                "provider_calls": 3588,
+                "samples_fetched": 1536,
+                "work": 130169,
+                "workspace_peak_bytes": 360570
+              },
+              "before": {
+                "elapsed_ns": "3233549",
+                "expression": "sum(m)",
+                "id": "one-group-512",
+                "owned_result_peak_bytes": 512,
+                "pages": 1536,
+                "provider_calls": 3588,
+                "samples_fetched": 1536,
+                "series": 512,
+                "work": 130169,
+                "workspace_peak_bytes": 360570
+              },
+              "expression": "sum(m)",
+              "id": "one-group-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "20908543",
+                "owned_result_peak_bytes": 301458,
+                "pages": 5120,
+                "provider_calls": 11271,
+                "samples_fetched": 5120,
+                "work": 722941,
+                "workspace_peak_bytes": 1301320
+              },
+              "before": {
+                "elapsed_ns": "29612066",
+                "expression": "m / on (id) m",
+                "id": "join-512",
+                "owned_result_peak_bytes": 301458,
+                "pages": 5120,
+                "provider_calls": 11271,
+                "samples_fetched": 5120,
+                "series": 512,
+                "work": 10481432,
+                "workspace_peak_bytes": 1280472
+              },
+              "expression": "m / on (id) m",
+              "id": "join-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "51266287",
+                "owned_result_peak_bytes": 1207210,
+                "pages": 6144,
+                "provider_calls": 14340,
+                "samples_fetched": 6144,
+                "work": 2974303,
+                "workspace_peak_bytes": 2557724
+              },
+              "before": {
+                "elapsed_ns": "76778935",
+                "expression": "sum by (id) (m)",
+                "id": "groups-2048",
+                "owned_result_peak_bytes": 1207210,
+                "pages": 6144,
+                "provider_calls": 14340,
+                "samples_fetched": 6144,
+                "series": 2048,
+                "work": 9183418,
+                "workspace_peak_bytes": 2557724
+              },
+              "expression": "sum by (id) (m)",
+              "id": "groups-2048"
+            },
+            {
+              "after": {
+                "elapsed_ns": "22761018",
+                "owned_result_peak_bytes": 512,
+                "pages": 6144,
+                "provider_calls": 14340,
+                "samples_fetched": 6144,
+                "work": 540814,
+                "workspace_peak_bytes": 1433746
+              },
+              "before": {
+                "elapsed_ns": "13552780",
+                "expression": "sum(m)",
+                "id": "one-group-2048",
+                "owned_result_peak_bytes": 512,
+                "pages": 6144,
+                "provider_calls": 14340,
+                "samples_fetched": 6144,
+                "series": 2048,
+                "work": 540814,
+                "workspace_peak_bytes": 1433746
+              },
+              "expression": "sum(m)",
+              "id": "one-group-2048"
+            }
+          ]
+        },
+        {
+          "profile": "release-min",
+          "kind": "coupled",
+          "receipt": {
+            "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/performance-release-min-qo0loiwl/receipt.json",
+            "sha256": "4cb35342532f2df6b81dec55c057951405bfe02b19977b1106bf13685a1e88d3"
+          },
+          "comparisons": 24,
+          "rows": [
+            {
+              "after": {
+                "elapsed_ns": "1980053",
+                "owned_result_peak_bytes": 38016,
+                "pages": 192,
+                "provider_calls": 453,
+                "samples_fetched": 192,
+                "work": 36586,
+                "workspace_peak_bytes": 85352
+              },
+              "before": {
+                "elapsed_ns": "729164",
+                "expression": "sum by(id)(m)",
+                "id": "sum-64",
+                "owned_result_peak_bytes": 38016,
+                "pages": 192,
+                "profile": "server-default",
+                "provider_calls": 453,
+                "samples_fetched": 192,
+                "series": 64,
+                "work": 40559,
+                "workspace_peak_bytes": 85352
+              },
+              "expression": "sum by(id)(m)",
+              "id": "sum-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2034953",
+                "owned_result_peak_bytes": 39168,
+                "pages": 256,
+                "provider_calls": 581,
+                "samples_fetched": 256,
+                "work": 52207,
+                "workspace_peak_bytes": 99200
+              },
+              "before": {
+                "elapsed_ns": "837993",
+                "expression": "topk by(id)(1,m)",
+                "id": "topk-64",
+                "owned_result_peak_bytes": 39168,
+                "pages": 256,
+                "profile": "server-default",
+                "provider_calls": 581,
+                "samples_fetched": 256,
+                "series": 64,
+                "work": 53542,
+                "workspace_peak_bytes": 99200
+              },
+              "expression": "topk by(id)(1,m)",
+              "id": "topk-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2339830",
+                "owned_result_peak_bytes": 39168,
+                "pages": 256,
+                "provider_calls": 581,
+                "samples_fetched": 256,
+                "work": 52207,
+                "workspace_peak_bytes": 99200
+              },
+              "before": {
+                "elapsed_ns": "853873",
+                "expression": "bottomk by(id)(1,m)",
+                "id": "bottomk-64",
+                "owned_result_peak_bytes": 39168,
+                "pages": 256,
+                "profile": "server-default",
+                "provider_calls": 581,
+                "samples_fetched": 256,
+                "series": 64,
+                "work": 53542,
+                "workspace_peak_bytes": 99200
+              },
+              "expression": "bottomk by(id)(1,m)",
+              "id": "bottomk-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2873255",
+                "owned_result_peak_bytes": 38016,
+                "pages": 384,
+                "provider_calls": 837,
+                "samples_fetched": 384,
+                "work": 53815,
+                "workspace_peak_bytes": 126154
+              },
+              "before": {
+                "elapsed_ns": "1014411",
+                "expression": "quantile by(id)(0.5,m)",
+                "id": "quantile-64",
+                "owned_result_peak_bytes": 38016,
+                "pages": 384,
+                "profile": "server-default",
+                "provider_calls": 837,
+                "samples_fetched": 384,
+                "series": 64,
+                "work": 55150,
+                "workspace_peak_bytes": 126154
+              },
+              "expression": "quantile by(id)(0.5,m)",
+              "id": "quantile-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "3487841",
+                "owned_result_peak_bytes": 39168,
+                "pages": 256,
+                "provider_calls": 581,
+                "samples_fetched": 256,
+                "work": 63099,
+                "workspace_peak_bytes": 99200
+              },
+              "before": {
+                "elapsed_ns": "920062",
+                "expression": "limitk by(id)(1,m)",
+                "id": "limitk-64",
+                "owned_result_peak_bytes": 39168,
+                "pages": 256,
+                "profile": "upstream-tests",
+                "provider_calls": 581,
+                "samples_fetched": 256,
+                "series": 64,
+                "work": 64434,
+                "workspace_peak_bytes": 99200
+              },
+              "expression": "limitk by(id)(1,m)",
+              "id": "limitk-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2056572",
+                "owned_result_peak_bytes": 26652,
+                "pages": 196,
+                "provider_calls": 461,
+                "samples_fetched": 196,
+                "work": 42998,
+                "workspace_peak_bytes": 89436
+              },
+              "before": {
+                "elapsed_ns": "659925",
+                "expression": "limit_ratio by(id)(0.5,m)",
+                "id": "limit-ratio-64",
+                "owned_result_peak_bytes": 26652,
+                "pages": 196,
+                "profile": "upstream-tests",
+                "provider_calls": 461,
+                "samples_fetched": 196,
+                "series": 64,
+                "work": 44333,
+                "workspace_peak_bytes": 89436
+              },
+              "expression": "limit_ratio by(id)(0.5,m)",
+              "id": "limit-ratio-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "3690638",
+                "owned_result_peak_bytes": 38592,
+                "pages": 451,
+                "provider_calls": 1039,
+                "samples_fetched": 451,
+                "work": 85715,
+                "workspace_peak_bytes": 131506
+              },
+              "before": {
+                "elapsed_ns": "1333939",
+                "expression": "m / on(job) group_left g",
+                "id": "group-left-64",
+                "owned_result_peak_bytes": 38592,
+                "pages": 451,
+                "profile": "server-default",
+                "provider_calls": 1039,
+                "samples_fetched": 451,
+                "series": 64,
+                "work": 314766,
+                "workspace_peak_bytes": 127554
+              },
+              "expression": "m / on(job) group_left g",
+              "id": "group-left-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2892436",
+                "owned_result_peak_bytes": 38592,
+                "pages": 451,
+                "provider_calls": 1039,
+                "samples_fetched": 451,
+                "work": 85715,
+                "workspace_peak_bytes": 131506
+              },
+              "before": {
+                "elapsed_ns": "1340839",
+                "expression": "g / on(job) group_right m",
+                "id": "group-right-64",
+                "owned_result_peak_bytes": 38592,
+                "pages": 451,
+                "profile": "server-default",
+                "provider_calls": 1039,
+                "samples_fetched": 451,
+                "series": 64,
+                "work": 314766,
+                "workspace_peak_bytes": 127554
+              },
+              "expression": "g / on(job) group_right m",
+              "id": "group-right-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2391179",
+                "owned_result_peak_bytes": 76032,
+                "pages": 384,
+                "provider_calls": 901,
+                "samples_fetched": 384,
+                "work": 78522,
+                "workspace_peak_bytes": 165480
+              },
+              "before": {
+                "elapsed_ns": "1427288",
+                "expression": "sum by(id)(m)",
+                "id": "sum-128",
+                "owned_result_peak_bytes": 76032,
+                "pages": 384,
+                "profile": "server-default",
+                "provider_calls": 901,
+                "samples_fetched": 384,
+                "series": 128,
+                "work": 98397,
+                "workspace_peak_bytes": 165480
+              },
+              "expression": "sum by(id)(m)",
+              "id": "sum-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2907205",
+                "owned_result_peak_bytes": 78336,
+                "pages": 512,
+                "provider_calls": 1157,
+                "samples_fetched": 512,
+                "work": 125723,
+                "workspace_peak_bytes": 187264
+              },
+              "before": {
+                "elapsed_ns": "1850874",
+                "expression": "topk by(id)(1,m)",
+                "id": "topk-128",
+                "owned_result_peak_bytes": 78336,
+                "pages": 512,
+                "profile": "server-default",
+                "provider_calls": 1157,
+                "samples_fetched": 512,
+                "series": 128,
+                "work": 132386,
+                "workspace_peak_bytes": 187264
+              },
+              "expression": "topk by(id)(1,m)",
+              "id": "topk-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2941675",
+                "owned_result_peak_bytes": 78336,
+                "pages": 512,
+                "provider_calls": 1157,
+                "samples_fetched": 512,
+                "work": 125723,
+                "workspace_peak_bytes": 187264
+              },
+              "before": {
+                "elapsed_ns": "1832445",
+                "expression": "bottomk by(id)(1,m)",
+                "id": "bottomk-128",
+                "owned_result_peak_bytes": 78336,
+                "pages": 512,
+                "profile": "server-default",
+                "provider_calls": 1157,
+                "samples_fetched": 512,
+                "series": 128,
+                "work": 132386,
+                "workspace_peak_bytes": 187264
+              },
+              "expression": "bottomk by(id)(1,m)",
+              "id": "bottomk-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "3346332",
+                "owned_result_peak_bytes": 76032,
+                "pages": 768,
+                "provider_calls": 1669,
+                "samples_fetched": 768,
+                "work": 112693,
+                "workspace_peak_bytes": 241354
+              },
+              "before": {
+                "elapsed_ns": "1977563",
+                "expression": "quantile by(id)(0.5,m)",
+                "id": "quantile-128",
+                "owned_result_peak_bytes": 76032,
+                "pages": 768,
+                "profile": "server-default",
+                "provider_calls": 1669,
+                "samples_fetched": 768,
+                "series": 128,
+                "work": 119356,
+                "workspace_peak_bytes": 241354
+              },
+              "expression": "quantile by(id)(0.5,m)",
+              "id": "quantile-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "3184613",
+                "owned_result_peak_bytes": 78336,
+                "pages": 512,
+                "provider_calls": 1157,
+                "samples_fetched": 512,
+                "work": 151711,
+                "workspace_peak_bytes": 187264
+              },
+              "before": {
+                "elapsed_ns": "1991383",
+                "expression": "limitk by(id)(1,m)",
+                "id": "limitk-128",
+                "owned_result_peak_bytes": 78336,
+                "pages": 512,
+                "profile": "upstream-tests",
+                "provider_calls": 1157,
+                "samples_fetched": 512,
+                "series": 128,
+                "work": 158374,
+                "workspace_peak_bytes": 187264
+              },
+              "expression": "limitk by(id)(1,m)",
+              "id": "limitk-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2212791",
+                "owned_result_peak_bytes": 52892,
+                "pages": 386,
+                "provider_calls": 905,
+                "samples_fetched": 386,
+                "work": 92978,
+                "workspace_peak_bytes": 167356
+              },
+              "before": {
+                "elapsed_ns": "1341469",
+                "expression": "limit_ratio by(id)(0.5,m)",
+                "id": "limit-ratio-128",
+                "owned_result_peak_bytes": 52892,
+                "pages": 386,
+                "profile": "upstream-tests",
+                "provider_calls": 905,
+                "samples_fetched": 386,
+                "series": 128,
+                "work": 99641,
+                "workspace_peak_bytes": 167356
+              },
+              "expression": "limit_ratio by(id)(0.5,m)",
+              "id": "limit-ratio-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "4566081",
+                "owned_result_peak_bytes": 77184,
+                "pages": 899,
+                "provider_calls": 2063,
+                "samples_fetched": 899,
+                "work": 176713,
+                "workspace_peak_bytes": 255026
+              },
+              "before": {
+                "elapsed_ns": "2972205",
+                "expression": "m / on(job) group_left g",
+                "id": "group-left-128",
+                "owned_result_peak_bytes": 77184,
+                "pages": 899,
+                "profile": "server-default",
+                "provider_calls": 2063,
+                "samples_fetched": 899,
+                "series": 128,
+                "work": 1125766,
+                "workspace_peak_bytes": 247490
+              },
+              "expression": "m / on(job) group_left g",
+              "id": "group-left-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "4445553",
+                "owned_result_peak_bytes": 77184,
+                "pages": 899,
+                "provider_calls": 2063,
+                "samples_fetched": 899,
+                "work": 176713,
+                "workspace_peak_bytes": 255026
+              },
+              "before": {
+                "elapsed_ns": "2956636",
+                "expression": "g / on(job) group_right m",
+                "id": "group-right-128",
+                "owned_result_peak_bytes": 77184,
+                "pages": 899,
+                "profile": "server-default",
+                "provider_calls": 2063,
+                "samples_fetched": 899,
+                "series": 128,
+                "work": 1125766,
+                "workspace_peak_bytes": 247490
+              },
+              "expression": "g / on(job) group_right m",
+              "id": "group-right-128"
+            },
+            {
+              "after": {
+                "elapsed_ns": "9930176",
+                "owned_result_peak_bytes": 304128,
+                "pages": 1536,
+                "provider_calls": 3589,
+                "samples_fetched": 1536,
+                "work": 421955,
+                "workspace_peak_bytes": 647112
+              },
+              "before": {
+                "elapsed_ns": "8222971",
+                "expression": "sum by(id)(m)",
+                "id": "sum-512",
+                "owned_result_peak_bytes": 304128,
+                "pages": 1536,
+                "profile": "server-default",
+                "provider_calls": 3589,
+                "samples_fetched": 1536,
+                "series": 512,
+                "work": 794825,
+                "workspace_peak_bytes": 647112
+              },
+              "expression": "sum by(id)(m)",
+              "id": "sum-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "16508341",
+                "owned_result_peak_bytes": 313344,
+                "pages": 2048,
+                "provider_calls": 4613,
+                "samples_fetched": 2048,
+                "work": 1001818,
+                "workspace_peak_bytes": 715648
+              },
+              "before": {
+                "elapsed_ns": "13397018",
+                "expression": "topk by(id)(1,m)",
+                "id": "topk-512",
+                "owned_result_peak_bytes": 313344,
+                "pages": 2048,
+                "profile": "server-default",
+                "provider_calls": 4613,
+                "samples_fetched": 2048,
+                "series": 512,
+                "work": 1126276,
+                "workspace_peak_bytes": 715648
+              },
+              "expression": "topk by(id)(1,m)",
+              "id": "topk-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "16667749",
+                "owned_result_peak_bytes": 313344,
+                "pages": 2048,
+                "provider_calls": 4613,
+                "samples_fetched": 2048,
+                "work": 1001818,
+                "workspace_peak_bytes": 715648
+              },
+              "before": {
+                "elapsed_ns": "12328616",
+                "expression": "bottomk by(id)(1,m)",
+                "id": "bottomk-512",
+                "owned_result_peak_bytes": 313344,
+                "pages": 2048,
+                "profile": "server-default",
+                "provider_calls": 4613,
+                "samples_fetched": 2048,
+                "series": 512,
+                "work": 1126276,
+                "workspace_peak_bytes": 715648
+              },
+              "expression": "bottomk by(id)(1,m)",
+              "id": "bottomk-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "14698116",
+                "owned_result_peak_bytes": 304128,
+                "pages": 3072,
+                "provider_calls": 6661,
+                "samples_fetched": 3072,
+                "work": 557502,
+                "workspace_peak_bytes": 932554
+              },
+              "before": {
+                "elapsed_ns": "9218292",
+                "expression": "quantile by(id)(0.5,m)",
+                "id": "quantile-512",
+                "owned_result_peak_bytes": 304128,
+                "pages": 3072,
+                "profile": "server-default",
+                "provider_calls": 6661,
+                "samples_fetched": 3072,
+                "series": 512,
+                "work": 681960,
+                "workspace_peak_bytes": 932554
+              },
+              "expression": "quantile by(id)(0.5,m)",
+              "id": "quantile-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "18631822",
+                "owned_result_peak_bytes": 313344,
+                "pages": 2048,
+                "provider_calls": 4613,
+                "samples_fetched": 2048,
+                "work": 1205148,
+                "workspace_peak_bytes": 715648
+              },
+              "before": {
+                "elapsed_ns": "13027051",
+                "expression": "limitk by(id)(1,m)",
+                "id": "limitk-512",
+                "owned_result_peak_bytes": 313344,
+                "pages": 2048,
+                "profile": "upstream-tests",
+                "provider_calls": 4613,
+                "samples_fetched": 2048,
+                "series": 512,
+                "work": 1329606,
+                "workspace_peak_bytes": 715648
+              },
+              "expression": "limitk by(id)(1,m)",
+              "id": "limitk-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "10785139",
+                "owned_result_peak_bytes": 153116,
+                "pages": 1522,
+                "provider_calls": 3561,
+                "samples_fetched": 1522,
+                "work": 556869,
+                "workspace_peak_bytes": 555868
+              },
+              "before": {
+                "elapsed_ns": "7553867",
+                "expression": "limit_ratio by(id)(0.5,m)",
+                "id": "limit-ratio-512",
+                "owned_result_peak_bytes": 153116,
+                "pages": 1522,
+                "profile": "upstream-tests",
+                "provider_calls": 3561,
+                "samples_fetched": 1522,
+                "series": 512,
+                "work": 681327,
+                "workspace_peak_bytes": 555868
+              },
+              "expression": "limit_ratio by(id)(0.5,m)",
+              "id": "limit-ratio-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "18437134",
+                "owned_result_peak_bytes": 308736,
+                "pages": 3587,
+                "provider_calls": 8207,
+                "samples_fetched": 3587,
+                "work": 814768,
+                "workspace_peak_bytes": 996146
+              },
+              "before": {
+                "elapsed_ns": "20346959",
+                "expression": "m / on(job) group_left g",
+                "id": "group-left-512",
+                "owned_result_peak_bytes": 308736,
+                "pages": 3587,
+                "profile": "server-default",
+                "provider_calls": 8207,
+                "samples_fetched": 3587,
+                "series": 512,
+                "work": 16405003,
+                "workspace_peak_bytes": 967106
+              },
+              "expression": "m / on(job) group_left g",
+              "id": "group-left-512"
+            },
+            {
+              "after": {
+                "elapsed_ns": "18536923",
+                "owned_result_peak_bytes": 308736,
+                "pages": 3587,
+                "provider_calls": 8207,
+                "samples_fetched": 3587,
+                "work": 814768,
+                "workspace_peak_bytes": 996146
+              },
+              "before": {
+                "elapsed_ns": "19897143",
+                "expression": "g / on(job) group_right m",
+                "id": "group-right-512",
+                "owned_result_peak_bytes": 308736,
+                "pages": 3587,
+                "profile": "server-default",
+                "provider_calls": 8207,
+                "samples_fetched": 3587,
+                "series": 512,
+                "work": 16405003,
+                "workspace_peak_bytes": 967106
+              },
+              "expression": "g / on(job) group_right m",
+              "id": "group-right-512"
+            }
+          ]
+        },
+        {
+          "profile": "release-min",
+          "kind": "scheduled",
+          "receipt": {
+            "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/performance-release-min-qu4p35k2/receipt.json",
+            "sha256": "085bb62a29e21a0fd39bb3c99252d92041517eb7d48135f8a2781d0033e0e103"
+          },
+          "comparisons": 13,
+          "rows": [
+            {
+              "after": {
+                "elapsed_ns": "492236",
+                "owned_result_peak_bytes": 9398,
+                "pages": 80,
+                "provider_calls": 228,
+                "samples_fetched": 80,
+                "work": 9724,
+                "workspace_peak_bytes": 26302
+              },
+              "before": {
+                "elapsed_ns": "382936",
+                "expression": "sum by (id) (m)",
+                "id": "aggregate-16",
+                "owned_result_peak_bytes": 9398,
+                "pages": 80,
+                "provider_calls": 228,
+                "samples_fetched": 80,
+                "work": 9416,
+                "workspace_peak_bytes": 25966
+              },
+              "expression": "sum by (id) (m)",
+              "id": "aggregate-16"
+            },
+            {
+              "after": {
+                "elapsed_ns": "2384250",
+                "owned_result_peak_bytes": 9398,
+                "pages": 624,
+                "provider_calls": 1588,
+                "samples_fetched": 624,
+                "work": 55045,
+                "workspace_peak_bytes": 38292
+              },
+              "before": {
+                "elapsed_ns": "1493845",
+                "expression": "(sum by (id) (m)) + 0",
+                "id": "aggregate-plus-zero-16",
+                "owned_result_peak_bytes": 9398,
+                "pages": 624,
+                "provider_calls": 1588,
+                "samples_fetched": 624,
+                "work": 54609,
+                "workspace_peak_bytes": 37956
+              },
+              "expression": "(sum by (id) (m)) + 0",
+              "id": "aggregate-plus-zero-16"
+            },
+            {
+              "after": {
+                "elapsed_ns": "7410957",
+                "owned_result_peak_bytes": 9398,
+                "pages": 2208,
+                "provider_calls": 5575,
+                "samples_fetched": 2208,
+                "work": 208669,
+                "workspace_peak_bytes": 47301
+              },
+              "before": {
+                "elapsed_ns": "4308437",
+                "expression": "m / on (id) m",
+                "id": "join-16",
+                "owned_result_peak_bytes": 9398,
+                "pages": 2208,
+                "provider_calls": 5575,
+                "samples_fetched": 2208,
+                "work": 269981,
+                "workspace_peak_bytes": 46293
+              },
+              "expression": "m / on (id) m",
+              "id": "join-16"
+            },
+            {
+              "after": {
+                "elapsed_ns": "810983",
+                "owned_result_peak_bytes": 18806,
+                "pages": 160,
+                "provider_calls": 452,
+                "samples_fetched": 160,
+                "work": 20861,
+                "workspace_peak_bytes": 46398
+              },
+              "before": {
+                "elapsed_ns": "512695",
+                "expression": "sum by (id) (m)",
+                "id": "aggregate-32",
+                "owned_result_peak_bytes": 18806,
+                "pages": 160,
+                "provider_calls": 452,
+                "samples_fetched": 160,
+                "work": 21278,
+                "workspace_peak_bytes": 46292
+              },
+              "expression": "sum by (id) (m)",
+              "id": "aggregate-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "8074072",
+                "owned_result_peak_bytes": 18806,
+                "pages": 2272,
+                "provider_calls": 5732,
+                "samples_fetched": 2272,
+                "work": 191211,
+                "workspace_peak_bytes": 66794
+              },
+              "before": {
+                "elapsed_ns": "4979021",
+                "expression": "(sum by (id) (m)) + 0",
+                "id": "aggregate-plus-zero-32",
+                "owned_result_peak_bytes": 18806,
+                "pages": 2272,
+                "provider_calls": 5732,
+                "samples_fetched": 2272,
+                "work": 191786,
+                "workspace_peak_bytes": 66794
+              },
+              "expression": "(sum by (id) (m)) + 0",
+              "id": "aggregate-plus-zero-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "27655516",
+                "owned_result_peak_bytes": 18806,
+                "pages": 8512,
+                "provider_calls": 21383,
+                "samples_fetched": 8512,
+                "work": 817784,
+                "workspace_peak_bytes": 88672
+              },
+              "before": {
+                "elapsed_ns": "17803823",
+                "expression": "m / on (id) m",
+                "id": "join-32",
+                "owned_result_peak_bytes": 18806,
+                "pages": 8512,
+                "provider_calls": 21383,
+                "samples_fetched": 8512,
+                "work": 1527957,
+                "workspace_peak_bytes": 87824
+              },
+              "expression": "m / on (id) m",
+              "id": "join-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "1638447",
+                "owned_result_peak_bytes": 37622,
+                "pages": 320,
+                "provider_calls": 900,
+                "samples_fetched": 320,
+                "work": 46251,
+                "workspace_peak_bytes": 87380
+              },
+              "before": {
+                "elapsed_ns": "1157009",
+                "expression": "sum by (id) (m)",
+                "id": "aggregate-64",
+                "owned_result_peak_bytes": 37622,
+                "pages": 320,
+                "provider_calls": 900,
+                "samples_fetched": 320,
+                "work": 52012,
+                "workspace_peak_bytes": 87380
+              },
+              "expression": "sum by (id) (m)",
+              "id": "aggregate-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "29525521",
+                "owned_result_peak_bytes": 37622,
+                "pages": 8640,
+                "provider_calls": 21700,
+                "samples_fetched": 8640,
+                "work": 702682,
+                "workspace_peak_bytes": 126570
+              },
+              "before": {
+                "elapsed_ns": "18631214",
+                "expression": "(sum by (id) (m)) + 0",
+                "id": "aggregate-plus-zero-64",
+                "owned_result_peak_bytes": 37622,
+                "pages": 8640,
+                "provider_calls": 21700,
+                "samples_fetched": 8640,
+                "work": 710731,
+                "workspace_peak_bytes": 126570
+              },
+              "expression": "(sum by (id) (m)) + 0",
+              "id": "aggregate-plus-zero-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "111464349",
+                "owned_result_peak_bytes": 37622,
+                "pages": 33408,
+                "provider_calls": 83719,
+                "samples_fetched": 33408,
+                "work": 3232074,
+                "workspace_peak_bytes": 173600
+              },
+              "before": {
+                "elapsed_ns": "75209211",
+                "expression": "m / on (id) m",
+                "id": "join-64",
+                "owned_result_peak_bytes": 37622,
+                "pages": 33408,
+                "provider_calls": 83719,
+                "samples_fetched": 33408,
+                "work": 11058048,
+                "workspace_peak_bytes": 171984
+              },
+              "expression": "m / on (id) m",
+              "id": "join-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "48540",
+                "owned_result_peak_bytes": 1385,
+                "pages": 2,
+                "provider_calls": 9,
+                "samples_fetched": 32,
+                "work": 347,
+                "workspace_peak_bytes": 6897
+              },
+              "before": {
+                "elapsed_ns": "47359",
+                "expression": "m",
+                "id": "selector-ticks-16",
+                "owned_result_peak_bytes": 1385,
+                "pages": 2,
+                "provider_calls": 9,
+                "samples_fetched": 32,
+                "work": 347,
+                "workspace_peak_bytes": 6897
+              },
+              "expression": "m",
+              "id": "selector-ticks-16"
+            },
+            {
+              "after": {
+                "elapsed_ns": "38129",
+                "owned_result_peak_bytes": 1961,
+                "pages": 4,
+                "provider_calls": 11,
+                "samples_fetched": 64,
+                "work": 603,
+                "workspace_peak_bytes": 6961
+              },
+              "before": {
+                "elapsed_ns": "29940",
+                "expression": "m",
+                "id": "selector-ticks-32",
+                "owned_result_peak_bytes": 1961,
+                "pages": 4,
+                "provider_calls": 11,
+                "samples_fetched": 64,
+                "work": 603,
+                "workspace_peak_bytes": 6961
+              },
+              "expression": "m",
+              "id": "selector-ticks-32"
+            },
+            {
+              "after": {
+                "elapsed_ns": "66309",
+                "owned_result_peak_bytes": 3113,
+                "pages": 8,
+                "provider_calls": 15,
+                "samples_fetched": 128,
+                "work": 1115,
+                "workspace_peak_bytes": 6961
+              },
+              "before": {
+                "elapsed_ns": "51520",
+                "expression": "m",
+                "id": "selector-ticks-64",
+                "owned_result_peak_bytes": 3113,
+                "pages": 8,
+                "provider_calls": 15,
+                "samples_fetched": 128,
+                "work": 1115,
+                "workspace_peak_bytes": 6961
+              },
+              "expression": "m",
+              "id": "selector-ticks-64"
+            },
+            {
+              "after": {
+                "elapsed_ns": "109409",
+                "owned_result_peak_bytes": 5417,
+                "pages": 16,
+                "provider_calls": 23,
+                "samples_fetched": 256,
+                "work": 2139,
+                "workspace_peak_bytes": 6961
+              },
+              "before": {
+                "elapsed_ns": "82359",
+                "expression": "m",
+                "id": "selector-ticks-128",
+                "owned_result_peak_bytes": 5417,
+                "pages": 16,
+                "provider_calls": 23,
+                "samples_fetched": 256,
+                "work": 2139,
+                "workspace_peak_bytes": 6961
+              },
+              "expression": "m",
+              "id": "selector-ticks-128"
+            }
+          ]
+        }
+      ],
+      "layout": {
+        "receipt": {
+          "netdata_repository_path": ".tmp/lookup-indexes-j1no96zd/layout-receipt.json",
+          "sha256": "f091f648ca5dbe625344360884d52af96e2abf71107904d4314ade48692237ae"
+        },
+        "comparisons": [
+          {
+            "owner": "baseline",
+            "layouts": {
+              "vector_matching::Step<'_>": 384,
+              "evaluator::Frame<'_>": 240,
+              "evaluator::State<'_>": 96,
+              "vector_matching::CacheEntry": 96,
+              "vector_matching::Side": 96,
+              "vector_matching::Active": 16
+            },
+            "output_sha256": "c55ee11b65e1f5a36445ab6b3e4d180e4c3c47a756947193c48966fe0a639b12"
+          },
+          {
+            "owner": "candidate",
+            "layouts": {
+              "vector_matching::Step<'_>": 672,
+              "evaluator::Frame<'_>": 240,
+              "vector_matching::Cache": 104,
+              "vector_matching::CacheEntry": 104,
+              "vector_matching::Side": 104,
+              "evaluator::State<'_>": 96,
+              "position_index::PositionIndex": 56,
+              "vector_matching::Active": 16
+            },
+            "output_sha256": "794ea4343edd7c3bcc9ae66f90be66c51db959cb2282414a877803bc0cb5bdea"
+          }
+        ]
+      },
+      "scope": "Fixture work/sample/accounted-memory observations, not production throughput or whole-process RSS."
+    },
+    "limitations": [
+      "Finite same-input comparisons do not prove arbitrary-input compatibility.",
+      "Indexes add metadata RAM and do not remove composite child-value replay or high-cardinality label-cache growth.",
+      "Pages17/1024 retain eight strict original cursor disagreements as separately approved physical-Seek policy outcomes; original references remain unchanged.",
+      "Caller instrumentation and whole-process memory are not qualified by these uninstrumented C/C++ cohorts."
+    ]
   }
 }

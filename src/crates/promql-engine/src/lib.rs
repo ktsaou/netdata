@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Standalone typed PromQL expression core, qualified against a pinned reference.
 //! Includes bounded typed storage, partial paged evaluation and independently owned output.
-//! Complete expression qualification and the C boundary remain in progress.
+//! Source-bound qualification and the C boundary are described in tests/promql-conformance.
 
 #[cfg(panic = "abort")]
 compile_error!("PromQL requires panic=unwind for containment at its C boundary");
@@ -82,6 +82,7 @@ mod numerical_exponential;
 mod numerical_hyperbolic;
 mod numerical_math;
 mod numerical_trigonometric;
+mod position_index;
 mod query_bounds;
 mod query_catalog;
 mod query_preparation;

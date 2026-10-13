@@ -76,6 +76,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Retained generic runners may use process-signalling timeout helpers. For a new qualification without explicit
   signal approval, use a recorded Popen/communicate owner and preserve child identity/completion receipts.
 - Follow the conformance README for pinned differential panels; preserve its stated tolerance and bit diagnostics.
+- Shared grouping/ranking/quantile changes MUST include the complete retained reducer panels and separate declared
+  ordering controls in `src/crates/promql-engine/tests/promql-conformance/README.md#compact-group-and-join-lookups`.
+  Preserve strict original failures; a policy report does not replace or modify them.
 - Cursor-fault qualification uses Netdata's `src/crates/promql-engine/tests/promql-conformance/cursor_policy_calls.py`.
   Its procedure and separate original/control reports are in
   `src/crates/promql-engine/tests/promql-conformance/README.md#physical-cursor-fault-qualification`.

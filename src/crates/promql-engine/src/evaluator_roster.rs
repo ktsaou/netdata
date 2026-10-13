@@ -7,6 +7,7 @@ use crate::{
     evaluator_order,
     frontend::ast::{NodeId, VectorMatching},
     label_hash,
+    position_index::PositionIndex,
     result::OwnedLabels,
     storage::{Control, InitialSample, Interrupted},
 };
@@ -714,7 +715,7 @@ impl Rosters {
     pub(crate) fn finish_binary_cache(
         &mut self,
         node: NodeId,
-        cache: AccountedVec<crate::vector_matching::CacheEntry>,
+        cache: crate::vector_matching::Cache,
     ) {
         self.nodes[node.0]
             .binary
@@ -1052,6 +1053,7 @@ impl Rosters {
         control: &Control,
     ) -> Result<(), Interrupted> {
         let mut groups = AccountedVec::<GroupDescriptor>::new(account, MemoryKind::Workspace);
+        let mut index = PositionIndex::new(account);
         if self.nodes[child.0].sources.is_some() {
             for descriptor in self.nodes[child.0].output.as_deref().unwrap_or(&[]) {
                 control.check()?;
@@ -1066,12 +1068,28 @@ impl Rosters {
                 } else {
                     label_hash::grouping(&labels, control, account)?
                 };
-                if group_position(&groups, hash, |group| group.hash, control, account)?.is_none() {
+                if index
+                    .find(
+                        hash,
+                        |position| Ok(groups[position].hash == hash),
+                        control,
+                        account,
+                    )?
+                    .is_none()
+                {
+                    let position = groups.len();
                     groups.push(GroupDescriptor {
                         hash,
                         labels,
                         whole_drop_name: None,
                     });
+                    index.insert_new(
+                        hash,
+                        position,
+                        |prior| Ok(groups[prior].hash),
+                        control,
+                        account,
+                    )?;
                 }
             }
         } else if let Some(mut descriptors) = self.take_output(child) {
@@ -1090,12 +1108,28 @@ impl Rosters {
                 } else {
                     label_hash::grouping(&descriptor.labels, control, account)?
                 };
-                if group_position(&groups, hash, |group| group.hash, control, account)?.is_none() {
+                if index
+                    .find(
+                        hash,
+                        |position| Ok(groups[position].hash == hash),
+                        control,
+                        account,
+                    )?
+                    .is_none()
+                {
+                    let position = groups.len();
                     groups.push(GroupDescriptor {
                         hash,
                         labels: descriptor.labels,
                         whole_drop_name: None,
                     });
+                    index.insert_new(
+                        hash,
+                        position,
+                        |prior| Ok(groups[prior].hash),
+                        control,
+                        account,
+                    )?;
                 }
             }
         }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Bounded pair replay follows pinned promql/engine.go:3172-3462; see NOTICE.
 use crate::{
-    accounting::{AccountedVec, MemoryKind, QueryAccounting},
+    accounting::{AccountedBox, AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
     binary_labels,
     binary_value::{self, Diagnostic},
     evaluator::{EvaluatedSample, EvaluationError, EvaluationOptions},
@@ -11,6 +11,7 @@ use crate::{
         token::TokenKind,
     },
     label_hash,
+    position_index::{PositionIndex, SignatureIndex},
     result::{OwnedLabels, OwnedValue, append_bytes_checked},
     storage::{Control, Interrupted},
 };
@@ -19,19 +20,78 @@ use std::cell::RefCell;
 pub(crate) struct Side {
     pub(crate) rows: AccountedVec<Descriptor>,
     signatures: AccountedVec<usize>,
+    ordinal_positions: Option<AccountedBox<AccountedVec<usize>>>,
 }
-pub(crate) struct CacheEntry {
-    key: AccountedVec<u8>,
+struct Key {
+    bytes: AccountedVec<u8>,
+    hash: u64,
+}
+struct CacheEntry {
+    key: Key,
     labels: OwnedLabels,
+}
+pub(crate) struct Cache {
+    entries: AccountedVec<CacheEntry>,
+    index: PositionIndex,
+}
+impl Cache {
+    pub(crate) fn new(account: &QueryAccounting) -> Self {
+        Self {
+            entries: AccountedVec::new(account, MemoryKind::Workspace),
+            index: PositionIndex::new(account),
+        }
+    }
 }
 pub(crate) struct Plan {
     pub(crate) sides: [Side; 2],
-    pub(crate) cache: AccountedVec<CacheEntry>,
+    pub(crate) cache: Cache,
+    signature_count: usize,
 }
 #[derive(Clone, Copy)]
 pub(crate) struct Preparation<'a> {
     pub(crate) node: NodeId,
-    pub(crate) cache: &'a RefCell<AccountedVec<CacheEntry>>,
+    pub(crate) cache: &'a RefCell<Cache>,
+}
+impl Side {
+    fn new(
+        rows: AccountedVec<Descriptor>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Self, Interrupted> {
+        let mut ordered = true;
+        for pair in rows.windows(2) {
+            control.check()?;
+            account.work(1);
+            ordered &= pair[0].ordinal <= pair[1].ordinal;
+        }
+        let ordinal_positions = if ordered {
+            None
+        } else {
+            let mut positions = AccountedVec::new(account, MemoryKind::Workspace);
+            for position in 0..rows.len() {
+                control.check()?;
+                account.work(1);
+                positions.push(position);
+            }
+            crate::evaluator_order::sort(&mut positions, control, account, |left, right| {
+                (rows[*left].ordinal, *left).cmp(&(rows[*right].ordinal, *right))
+            })?;
+            Some(AccountedBox::new(
+                positions,
+                &AllocationContext::new(account, MemoryKind::Workspace),
+            ))
+        };
+        Ok(Self {
+            rows,
+            signatures: AccountedVec::new(account, MemoryKind::Workspace),
+            ordinal_positions,
+        })
+    }
+    fn row_position(&self, position: usize) -> usize {
+        self.ordinal_positions
+            .as_ref()
+            .map_or(position, |rows| rows[position])
+    }
 }
 impl Plan {
     pub(crate) fn new(
@@ -41,43 +101,47 @@ impl Plan {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Self, EvaluationError> {
-        let mut keys = AccountedVec::<AccountedVec<u8>>::new(account, MemoryKind::Workspace);
+        let mut keys = AccountedVec::<Key>::new(account, MemoryKind::Workspace);
+        let mut index = PositionIndex::new(account);
         let mut sides = [
-            Side {
-                rows: left,
-                signatures: AccountedVec::new(account, MemoryKind::Workspace),
-            },
-            Side {
-                rows: right,
-                signatures: AccountedVec::new(account, MemoryKind::Workspace),
-            },
+            Side::new(left, control, account)?,
+            Side::new(right, control, account)?,
         ];
         for side in &mut sides {
             for row in &*side.rows {
                 let mut key = AccountedVec::new(account, MemoryKind::Workspace);
                 binary_labels::append(&mut key, &row.labels, Some(matching), control, account)?;
-                let mut found = None;
-                for (index, prior) in keys.iter().enumerate() {
-                    control.check()?;
-                    account.work(1);
-                    if binary_labels::equal(&key, prior, control, account)? {
-                        found = Some(index);
-                        break;
-                    }
-                }
-                let index = if let Some(index) = found {
-                    index
+                let hash = label_hash::bytes(&key, control, account)?;
+                let found = index.find(
+                    hash,
+                    |position| {
+                        Ok(keys[position].hash == hash
+                            && binary_labels::equal(&key, &keys[position].bytes, control, account)?)
+                    },
+                    control,
+                    account,
+                )?;
+                let signature = if let Some(position) = found {
+                    position
                 } else {
-                    let index = keys.len();
-                    keys.push(key);
-                    index
+                    let position = keys.len();
+                    keys.push(Key { bytes: key, hash });
+                    index.insert_new(
+                        hash,
+                        position,
+                        |prior| Ok(keys[prior].hash),
+                        control,
+                        account,
+                    )?;
+                    position
                 };
-                side.signatures.push(index);
+                side.signatures.push(signature);
             }
         }
         Ok(Self {
             sides,
-            cache: AccountedVec::new(account, MemoryKind::Workspace),
+            cache: Cache::new(account),
+            signature_count: keys.len(),
         })
     }
     fn position(
@@ -87,13 +151,28 @@ impl Plan {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<usize, EvaluationError> {
-        for (index, row) in self.sides[side].rows.iter().enumerate() {
+        let side = &self.sides[side];
+        let (mut left, mut right) = (0, side.rows.len());
+        while left < right {
             control.check()?;
             account.work(1);
-            if row.ordinal == sample.ordinal
-                && binary_labels::same(&row.labels, &sample.labels, control, account)?
-            {
-                return Ok(index);
+            let middle = left + (right - left) / 2;
+            if side.rows[side.row_position(middle)].ordinal < sample.ordinal {
+                left = middle + 1;
+            } else {
+                right = middle;
+            }
+        }
+        for position in left..side.rows.len() {
+            control.check()?;
+            account.work(1);
+            let position = side.row_position(position);
+            let row = &side.rows[position];
+            if row.ordinal != sample.ordinal {
+                break;
+            }
+            if binary_labels::same(&row.labels, &sample.labels, control, account)? {
+                return Ok(position);
             }
         }
         Err(EvaluationError::Invalid(
@@ -106,6 +185,7 @@ impl Plan {
 struct Active {
     row: usize,
     kind: u8,
+    reserved: bool,
 }
 #[derive(Clone, Copy)]
 struct Operand {
@@ -152,8 +232,12 @@ pub(crate) struct Step<'a> {
     operator: TokenKind,
     return_bool: bool,
     active: [AccountedVec<Active>; 2],
+    active_index: [SignatureIndex; 2],
+    duplicate_pairs: [Option<(usize, usize)>; 2],
     reservations: AccountedVec<(usize, u64)>,
+    reservation_index: PositionIndex,
     seen: AccountedVec<u64>,
+    seen_index: PositionIndex,
     duplicate: bool,
     phase: Phase,
     position: usize,
@@ -179,8 +263,12 @@ impl<'a> Step<'a> {
                 AccountedVec::new(account, MemoryKind::Workspace),
                 AccountedVec::new(account, MemoryKind::Workspace),
             ],
+            active_index: [SignatureIndex::new(account), SignatureIndex::new(account)],
+            duplicate_pairs: [None, None],
             reservations: AccountedVec::new(account, MemoryKind::Workspace),
+            reservation_index: PositionIndex::new(account),
             seen: AccountedVec::new(account, MemoryKind::Workspace),
+            seen_index: PositionIndex::new(account),
             duplicate: false,
             phase: Phase::StartLeft,
             position: 0,
@@ -203,6 +291,7 @@ impl<'a> Step<'a> {
                 self.active[side].push(Active {
                     row,
                     kind: sample.value.kind_bit(),
+                    reserved: false,
                 });
             }
             Phase::WaitLeft | Phase::WaitRight => {
@@ -248,24 +337,36 @@ impl<'a> Step<'a> {
     }
     fn result_labels(
         &self,
-        cache: &mut AccountedVec<CacheEntry>,
+        cache: &mut Cache,
         key: AccountedVec<u8>,
         operands: [&OwnedLabels; 2],
         drop_name: bool,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(usize, OwnedLabels), EvaluationError> {
-        for (position, entry) in cache.iter().enumerate() {
-            control.check()?;
-            account.work(1);
-            if binary_labels::equal(&entry.key, &key, control, account)? {
-                return Ok((
-                    position,
-                    entry
-                        .labels
-                        .copy_checked(account, MemoryKind::Workspace, control)?,
-                ));
-            }
+        let hash = label_hash::bytes(&key, control, account)?;
+        if let Some(position) = cache.index.find(
+            hash,
+            |position| {
+                Ok(cache.entries[position].key.hash == hash
+                    && binary_labels::equal(
+                        &cache.entries[position].key.bytes,
+                        &key,
+                        control,
+                        account,
+                    )?)
+            },
+            control,
+            account,
+        )? {
+            return Ok((
+                position,
+                cache.entries[position].labels.copy_checked(
+                    account,
+                    MemoryKind::Workspace,
+                    control,
+                )?,
+            ));
         }
         let labels = binary_labels::projected(
             operands[0],
@@ -277,9 +378,81 @@ impl<'a> Step<'a> {
             account,
         )?;
         let copy = labels.copy_checked(account, MemoryKind::Workspace, control)?;
-        let position = cache.len();
-        cache.push(CacheEntry { key, labels });
+        let position = cache.entries.len();
+        cache.entries.push(CacheEntry {
+            key: Key { bytes: key, hash },
+            labels,
+        });
+        cache.index.insert_new(
+            hash,
+            position,
+            |prior| Ok(cache.entries[prior].key.hash),
+            control,
+            account,
+        )?;
         Ok((position, copy))
+    }
+
+    fn prepare_active(
+        &mut self,
+        side: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let active = &self.active[side];
+        let signatures = &self.plan.sides[side].signatures;
+        let index = &mut self.active_index[side];
+        for position in 0..active.len() {
+            control.check()?;
+            account.work(1);
+            let signature = signatures[active[position].row];
+            let key_of = |prior: usize| signatures[active[prior].row];
+            if let Some(prior) = index.find(signature, key_of, control, account)? {
+                self.duplicate_pairs[side].get_or_insert((position, prior));
+            } else {
+                index.insert_new(
+                    signature,
+                    position,
+                    self.plan.signature_count,
+                    key_of,
+                    control,
+                    account,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn first_active(
+        &self,
+        side: usize,
+        signature: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<usize>, Interrupted> {
+        self.active_index[side].find(
+            signature,
+            |position| self.signature(side, self.active[side][position]),
+            control,
+            account,
+        )
+    }
+
+    fn reservation_position(
+        &self,
+        signature: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(usize, usize), Interrupted> {
+        let many = usize::from(self.swapped());
+        if let Some(position) = self.first_active(many, signature, control, account)? {
+            return Ok((many, position));
+        }
+        Ok((
+            1 - many,
+            self.first_active(1 - many, signature, control, account)?
+                .expect("chosen signature has an active row"),
+        ))
     }
 
     fn reserved(
@@ -288,14 +461,8 @@ impl<'a> Step<'a> {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<bool, Interrupted> {
-        for (prior, _) in &*self.reservations {
-            control.check()?;
-            account.work(1);
-            if *prior == signature {
-                return Ok(true);
-            }
-        }
-        Ok(false)
+        let (side, position) = self.reservation_position(signature, control, account)?;
+        Ok(self.active[side][position].reserved)
     }
     fn validate(
         &self,
@@ -306,36 +473,40 @@ impl<'a> Step<'a> {
             return Ok(());
         }
         let side = usize::from(!self.swapped());
-        for (position, active) in self.active[side].iter().enumerate() {
-            let signature = self.signature(side, *active);
-            for previous in &self.active[side][..position] {
-                control.check()?;
-                account.work(1);
-                if self.signature(side, *previous) != signature {
-                    continue;
-                }
-                let row = &self.plan.sides[side].rows[active.row].labels;
-                let prior = &self.plan.sides[side].rows[previous.row].labels;
-                let group = binary_labels::matched(row, self.matching, control, account)?;
-                let group = binary_labels::render(&group, control, account)?;
-                let mut a = binary_labels::render(row, control, account)?;
-                let mut b = binary_labels::render(prior, control, account)?;
-                if binary_labels::compare(&a, &b, control, account)?.is_gt() {
-                    std::mem::swap(&mut a, &mut b);
-                }
-                let mut message = AccountedVec::new(account, MemoryKind::Workspace);
-                let side_name = if self.swapped() {
-                    &b"left"[..]
-                } else {
-                    &b"right"[..]
-                };
-                for bytes in [&b"found duplicate series for the match group "[..], &group, b" on the ", side_name,
-                    b" hand-side of the operation: [", &a, b", ", &b,
-                    b"];many-to-many matching not allowed: matching labels must be unique on one side"] {
-                    append_bytes_checked(&mut message, bytes, account, control)?;
-                }
-                return Err(EvaluationError::Runtime(message));
+        if let Some((position, previous)) = self.duplicate_pairs[side] {
+            let active = &self.active[side][position];
+            let previous = &self.active[side][previous];
+            control.check()?;
+            account.work(1);
+            let row = &self.plan.sides[side].rows[active.row].labels;
+            let prior = &self.plan.sides[side].rows[previous.row].labels;
+            let group = binary_labels::matched(row, self.matching, control, account)?;
+            let group = binary_labels::render(&group, control, account)?;
+            let mut a = binary_labels::render(row, control, account)?;
+            let mut b = binary_labels::render(prior, control, account)?;
+            if binary_labels::compare(&a, &b, control, account)?.is_gt() {
+                std::mem::swap(&mut a, &mut b);
             }
+            let mut message = AccountedVec::new(account, MemoryKind::Workspace);
+            let side_name = if self.swapped() {
+                &b"left"[..]
+            } else {
+                &b"right"[..]
+            };
+            for bytes in [
+                &b"found duplicate series for the match group "[..],
+                &group,
+                b" on the ",
+                side_name,
+                b" hand-side of the operation: [",
+                &a,
+                b", ",
+                &b,
+                b"];many-to-many matching not allowed: matching labels must be unique on one side",
+            ] {
+                append_bytes_checked(&mut message, bytes, account, control)?;
+            }
+            return Err(EvaluationError::Runtime(message));
         }
         Ok(())
     }
@@ -346,14 +517,9 @@ impl<'a> Step<'a> {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<bool, Interrupted> {
-        for active in &*self.active[side] {
-            control.check()?;
-            account.work(1);
-            if self.signature(side, *active) == signature {
-                return Ok(true);
-            }
-        }
-        Ok(false)
+        Ok(self
+            .first_active(side, signature, control, account)?
+            .is_some())
     }
     fn choose(
         &mut self,
@@ -375,7 +541,11 @@ impl<'a> Step<'a> {
                 };
                 self.position += 1;
                 let signature = self.signature(side, active);
-                let present = self.present(1 - side, signature, control, account)?;
+                let present = if self.operator == TokenKind::LOR && !self.retry {
+                    false
+                } else {
+                    self.present(1 - side, signature, control, account)?
+                };
                 let keep = match self.operator {
                     TokenKind::LAND => present,
                     TokenKind::LUNLESS => !present,
@@ -423,15 +593,9 @@ impl<'a> Step<'a> {
                 };
                 (fake, own)
             } else {
-                let mut matched = None;
-                for other in &*self.active[one] {
-                    control.check()?;
-                    account.work(1);
-                    if self.signature(one, *other) == signature {
-                        matched = Some(*other);
-                        break;
-                    }
-                }
+                let matched = self
+                    .first_active(one, signature, control, account)?
+                    .map(|position| self.active[one][position]);
                 let right = if let Some(other) = matched {
                     Operand {
                         side: one,
@@ -497,7 +661,17 @@ impl<'a> Step<'a> {
                         self.phase = Phase::Finished;
                         continue;
                     }
-                    self.validate(control, account)?;
+                    if self.operator.is_set() {
+                        let side = usize::from(self.operator != TokenKind::LOR);
+                        if !self.active[1 - side].is_empty() {
+                            self.prepare_active(side, control, account)?;
+                        }
+                    } else {
+                        let one = usize::from(!self.swapped());
+                        self.prepare_active(one, control, account)?;
+                        self.validate(control, account)?;
+                        self.prepare_active(1 - one, control, account)?;
+                    }
                     self.phase = Phase::Pairs;
                 }
                 Phase::Pairs => {
@@ -622,24 +796,46 @@ impl<'a> Step<'a> {
                                 frozen_labels(&self.plan.cache, &key, control, account)?
                             };
                             let hash = label_hash::full(&labels, control, account)?;
-                            for (previous, inserted) in &*self.reservations {
-                                control.check()?;
-                                account.work(1);
-                                if *previous != signature {
-                                    continue;
-                                }
-                                if self.matching.cardinality == Cardinality::OneToOne {
+                            let (reserved_side, reserved_position) =
+                                self.reservation_position(signature, control, account)?;
+                            if self.matching.cardinality == Cardinality::OneToOne {
+                                if self.active[reserved_side][reserved_position].reserved {
                                     return Err(EvaluationError::Invalid(
                                         "multiple matches for labels: many-to-one matching must be explicit (group_left/group_right)",
                                     ));
                                 }
-                                if *inserted == hash {
+                            } else {
+                                let key_hash = reservation_hash(signature, hash);
+                                if self
+                                    .reservation_index
+                                    .find(
+                                        key_hash,
+                                        |position| {
+                                            Ok(self.reservations[position] == (signature, hash))
+                                        },
+                                        control,
+                                        account,
+                                    )?
+                                    .is_some()
+                                {
                                     return Err(EvaluationError::Invalid(
                                         "multiple matches for labels: grouping labels must ensure unique matches",
                                     ));
                                 }
+                                let position = self.reservations.len();
+                                self.reservations.push((signature, hash));
+                                self.reservation_index.insert_new(
+                                    key_hash,
+                                    position,
+                                    |prior| {
+                                        let (signature, hash) = self.reservations[prior];
+                                        Ok(reservation_hash(signature, hash))
+                                    },
+                                    control,
+                                    account,
+                                )?;
                             }
-                            self.reservations.push((signature, hash));
+                            self.active[reserved_side][reserved_position].reserved = true;
                             if self.return_bool {
                                 value = OwnedValue::Float(f64::from(pair.keep));
                             } else if !pair.keep {
@@ -655,12 +851,28 @@ impl<'a> Step<'a> {
                         }
                     };
                     let hash = label_hash::full(&labels, control, account)?;
-                    for previous in &*self.seen {
-                        control.check()?;
-                        account.work(1);
-                        self.duplicate |= *previous == hash;
+                    if self
+                        .seen_index
+                        .find(
+                            hash,
+                            |position| Ok(self.seen[position] == hash),
+                            control,
+                            account,
+                        )?
+                        .is_some()
+                    {
+                        self.duplicate = true;
+                    } else {
+                        let position = self.seen.len();
+                        self.seen.push(hash);
+                        self.seen_index.insert_new(
+                            hash,
+                            position,
+                            |prior| Ok(self.seen[prior]),
+                            control,
+                            account,
+                        )?;
                     }
-                    self.seen.push(hash);
                     return Ok(Action::Sample(EvaluatedSample {
                         ordinal,
                         labels,
@@ -697,25 +909,163 @@ impl OperandLabels<'_> {
         }
     }
 }
+fn reservation_hash(signature: usize, hash: u64) -> u64 {
+    label_hash::avalanche(signature as u64) ^ hash.rotate_left(17)
+}
 fn frozen_labels(
-    cache: &[CacheEntry],
+    cache: &Cache,
     key: &[u8],
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<(usize, OwnedLabels), EvaluationError> {
-    for (position, entry) in cache.iter().enumerate() {
-        control.check()?;
-        account.work(1);
-        if binary_labels::equal(&entry.key, key, control, account)? {
-            return Ok((
-                position,
-                entry
-                    .labels
-                    .copy_checked(account, MemoryKind::Workspace, control)?,
-            ));
-        }
+    let hash = label_hash::bytes(key, control, account)?;
+    if let Some(position) = cache.index.find(
+        hash,
+        |position| {
+            Ok(cache.entries[position].key.hash == hash
+                && binary_labels::equal(&cache.entries[position].key.bytes, key, control, account)?)
+        },
+        control,
+        account,
+    )? {
+        return Ok((
+            position,
+            cache.entries[position]
+                .labels
+                .copy_checked(account, MemoryKind::Workspace, control)?,
+        ));
     }
     Err(EvaluationError::Invalid(
         "frozen binary label cache key is missing",
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{accounting::EngineAccounting, storage::LabelRef};
+
+    fn labels(value: &[u8], account: &QueryAccounting) -> OwnedLabels {
+        OwnedLabels::copy_from(
+            &[LabelRef { name: b"id", value }],
+            account,
+            MemoryKind::Workspace,
+        )
+    }
+
+    #[test]
+    fn ordinal_lookup_keeps_original_first_matching_rows_and_labels() {
+        for (source, expected, unordered) in [
+            (
+                [(8, b"a"), (3, b"b"), (8, b"c"), (8, b"a"), (1, b"d")],
+                [0, 1, 2, 0, 4],
+                true,
+            ),
+            (
+                [(1, b"d"), (3, b"b"), (8, b"a"), (8, b"c"), (8, b"a")],
+                [0, 1, 2, 3, 2],
+                false,
+            ),
+        ] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+            for (position, (ordinal, value)) in source.into_iter().enumerate() {
+                rows.push(Descriptor {
+                    labels: labels(value, &account),
+                    ordinal,
+                    hash: 0,
+                    drop_name: false,
+                    first_order: position,
+                    sources: 0..0,
+                    kinds: 1,
+                    heads: Default::default(),
+                });
+            }
+            let plan = Plan::new(
+                rows,
+                AccountedVec::new(&account, MemoryKind::Workspace),
+                &VectorMatching::default(),
+                &control,
+                &account,
+            )
+            .unwrap();
+            assert_eq!(plan.sides[0].ordinal_positions.is_some(), unordered);
+            for (position, (ordinal, value)) in source.into_iter().enumerate() {
+                let sample = EvaluatedSample {
+                    ordinal,
+                    labels: labels(value, &account),
+                    value: OwnedValue::Float(1.0),
+                    float_samples: None,
+                    source_time_ms: 0,
+                    source_start_time_ms: 0,
+                    drop_name: false,
+                };
+                assert_eq!(
+                    plan.position(0, &sample, &control, &account).unwrap(),
+                    expected[position]
+                );
+                assert_eq!(plan.sides[0].rows[position].ordinal, ordinal);
+            }
+            drop(plan);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn frozen_cache_digest_collisions_still_require_complete_keys_after_rebuild() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut target = AccountedVec::new(&account, MemoryKind::Workspace);
+        binary_labels::append(
+            &mut target,
+            &labels(b"target", &account),
+            None,
+            &control,
+            &account,
+        )
+        .unwrap();
+        let hash = label_hash::bytes(&target, &control, &account).unwrap();
+        let mut cache = Cache::new(&account);
+        for position in 0..128 {
+            let value = if position == 63 {
+                b"target".to_vec()
+            } else {
+                format!("other-{position}").into_bytes()
+            };
+            let labels = labels(&value, &account);
+            let mut bytes = AccountedVec::new(&account, MemoryKind::Workspace);
+            binary_labels::append(&mut bytes, &labels, None, &control, &account).unwrap();
+            // A forced equal digest exercises the owner's complete-key predicate.
+            cache.entries.push(CacheEntry {
+                key: Key { bytes, hash },
+                labels,
+            });
+            cache
+                .index
+                .insert_new(
+                    hash,
+                    position,
+                    |prior| Ok(cache.entries[prior].key.hash),
+                    &control,
+                    &account,
+                )
+                .unwrap();
+        }
+        let (position, result) = frozen_labels(&cache, &target, &control, &account).unwrap();
+        assert_eq!(position, 63);
+        assert_eq!(&*result.0[0].value, b"target");
+        assert_eq!(size_of::<Active>(), size_of::<usize>() * 2);
+        eprintln!(
+            "index layout: Active={} Side={} Cache={} PositionIndex={}",
+            size_of::<Active>(),
+            size_of::<Side>(),
+            size_of::<Cache>(),
+            size_of::<PositionIndex>()
+        );
+        drop((cache, target, result));
+        account.snapshot().assert_memory_released();
+    }
 }

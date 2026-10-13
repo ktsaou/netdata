@@ -42,6 +42,10 @@ use tokens::TokenKind;
 #[path = "scheduled_output.rs"]
 mod scheduled_output;
 
+#[cfg(test)]
+#[path = "lookup_tests.rs"]
+mod lookup_tests;
+
 #[derive(Clone, Copy, Debug)]
 pub struct EngineOptions {
     pub parser: ParserOptions,
@@ -1737,8 +1741,7 @@ impl CompiledQuery {
             } else {
                 (None, None)
             };
-            let binary_cache =
-                std::cell::RefCell::new(AccountedVec::new(account, MemoryKind::Workspace));
+            let binary_cache = std::cell::RefCell::new(crate::vector_matching::Cache::new(account));
             let binary_preparation = if let Expr::Binary {
                 left,
                 right,

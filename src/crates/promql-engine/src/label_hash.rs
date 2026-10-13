@@ -100,11 +100,7 @@ impl Digest {
             h ^= (*byte as u64).wrapping_mul(P5);
             h = h.rotate_left(11).wrapping_mul(P1);
         }
-        h ^= h >> 33;
-        h = h.wrapping_mul(P2);
-        h ^= h >> 29;
-        h = h.wrapping_mul(P3);
-        h ^ (h >> 32)
+        avalanche(h)
     }
     fn field(
         &mut self,
@@ -135,6 +131,22 @@ impl Digest {
         self.field(bytes, control, account)?;
         Ok(())
     }
+}
+pub(crate) fn avalanche(mut hash: u64) -> u64 {
+    hash ^= hash >> 33;
+    hash = hash.wrapping_mul(P2);
+    hash ^= hash >> 29;
+    hash = hash.wrapping_mul(P3);
+    hash ^ (hash >> 32)
+}
+pub(crate) fn bytes(
+    bytes: &[u8],
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<u64, Interrupted> {
+    let mut digest = Digest::new();
+    digest.field(bytes, control, account)?;
+    Ok(digest.finish())
 }
 pub(crate) fn grouping(
     labels: &OwnedLabels,

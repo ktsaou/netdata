@@ -25,6 +25,10 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Compact group/join lookups pass 535 fixture units per optimized build, 128,652 builtin comparisons and all
+  231,540 required SRE comparisons across both builds and pages 1/17/1024. Fresh C/C++ callers execute on AMD64,
+  ARM64 and ARM32; 58 controlled live API/contexts checks pass. The [lookup panel](#compact-group-and-join-lookups)
+  records 114 complete before/after comparisons and 56,124 ranking/quantile outcomes with separate ordering controls.
 - Certified final vector range output passes 527 fixture units in each optimized build, 128,652 builtin comparisons
   and all 231,540 required SRE comparisons across both builds and pages 1/17/1024. Fresh native C/C++ and 58 controlled
   live Netdata API/contexts checks pass. ARM compilation and earlier foreign runtime receipts remain distinguished.
@@ -78,7 +82,9 @@ The standalone expression core is qualified against these pinned panels and inde
 [Catalog coverage](catalog-coverage.json) identifies successful expression witnesses, and
 [core qualification](core-qualification.json) records the original source/binary cohorts, comparison policy,
 qualified scope and limitations. These panels do not establish equivalence for every possible input.
-Live dbengine/API integration, alert scheduling and Cloud distribution are later stages. Alertmanager is outside this work.
+Controlled live dbengine/API integration is qualified separately in the current runtime cohorts and the
+[Netdata integration guide](../../../../../tests/promql-integration/README.md). Alert scheduling and Cloud distribution
+remain later stages. Alertmanager is outside this work.
 
 The detailed counts below preserve individual historical checkpoints and their source attribution. Historical
 OPEN counts and earlier prerequisite limitations describe those earlier cohorts. Current scope and final source
@@ -2115,6 +2121,47 @@ pre-grouping COUNT errors, deletion/no-match controls and combined labelsets lar
 The real C/C++ embedding gate adds six provider cases and checks error classification, rejection before raw cursor
 creation and paired releases. Allocation-accounting witnesses are documented above; complete expression gate
 results and their finite evidence limits are recorded separately in the standalone overview.
+
+## Compact group and join lookups
+
+Grouping, TOPK/BOTTOMK, both LIMIT operators, aggregate QUANTILE and vector matching use compact accounted indexes
+over their existing metadata arrays. Indexes preserve each owner's original equality and first writer; they never
+drive reductions or output order. Binary signatures/cache keys still compare complete encoded bytes, including
+the source's undelimited concatenation aliases. Active membership, duplicate validation, reservations and output
+uniqueness retain their original phases. Ordinary aggregation releases positions before reversing/removing groups.
+
+Empty/singleton indexes have no slot allocation. Sparse slots grow at two-thirds load; active signature domains
+use dense positions only when they fit the sparse replacement already required. Rebuilds charge both allocations
+and check cancellation before publication. They contain positions rather than raw samples or copied payloads.
+
+Before/after fixtures at the accepted `038cda1169` source preserve complete answers and sample reads in both builds:
+
+| Fixture | Counted work before → after | Workspace peak before → after |
+| --- | ---: | ---: |
+| SUM with 2,048 groups | 9,183,418 → 2,974,303 | 2,557,724 → 2,557,724 B |
+| One-to-one join, 512 series | 10,481,432 → 722,941 | 1,280,472 → 1,301,320 B |
+| Group-left/right, 512 series and one signature | 16,405,003 → 814,768 | 967,106 → 996,146 B |
+
+The full panel compares 20 cardinality, 24 coupled-owner and 13 scheduled cases per build. Existing scheduled selector
+page counts/peaks stay unchanged. Compiler layout checks retain Frame 240 B and Active 16 B; ordered Side grows 96→104 B,
+cache entry 96→104 B and boxed binary Step 384→672 B. These are fixture work/accounted-memory measurements, not CPU
+instruction counts, production throughput or whole-process RSS. Composite child replay and large metadata/cache
+domains remain separate costs. Resource caps remain disabled.
+
+Shared grouping changes also replay the complete retained TOPK/BOTTOMK (3,556), LIMIT (2,240) and aggregate
+QUANTILE (3,558) panels at pages 1/17/1024 in both builds: 56,124 outcomes. Strict original reports retain
+27, seven and two ordering differences respectively per build/page. Separate approved ordering controls pass;
+the originals and their raw failures are unchanged. This is policy-qualified finite coverage, rather than a claim
+that every original outcome matches literally.
+
+Use the existing `topk_calls.py`, `limit_calls.py` and `quantile_aggregate_calls.py` helpers with explicit verified
+reference directories and frozen candidate binaries. Preserve their complete strict candidate reports first;
+apply the corresponding `topk_policy.py`, `limit_policy.py` and `quantile_policy.py` qualification
+as separate reports using the original control captures. LIMIT qualification also binds the original ratio-sampler
+capture. Inspect each helper's callable `qualify` interface: a known strict ordering failure must not prevent
+the separate policy gate from running. Follow the conformance workflow's recorded process-owner route for these
+helpers when process signals have not been approved. The current source, helper and binary bindings are recorded
+under `lookup_index_qualification` in [core-qualification.json](core-qualification.json).
 
 ## Bounded binary matching and pair replay
 

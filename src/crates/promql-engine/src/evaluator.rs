@@ -432,6 +432,7 @@ enum State<'a> {
     },
     Aggregate {
         groups: AccountedVec<Group<'a>>,
+        lookup: Option<AccountedBox<crate::position_index::PositionIndex>>,
         collecting: bool,
     },
     Scalar {
@@ -2563,8 +2564,38 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                     groups.push(Group::new(labels, ordinal));
                 }
+                let lookup = if groups.len() > 1 {
+                    let mut lookup = crate::position_index::PositionIndex::new(self.account);
+                    for position in 0..groups.len() {
+                        let hash = groups[position].hash;
+                        if lookup
+                            .find(
+                                hash,
+                                |prior| Ok(groups[prior].hash == hash),
+                                self.control,
+                                self.account,
+                            )?
+                            .is_none()
+                        {
+                            lookup.insert_new(
+                                hash,
+                                position,
+                                |prior| Ok(groups[prior].hash),
+                                self.control,
+                                self.account,
+                            )?;
+                        }
+                    }
+                    Some(AccountedBox::new(
+                        lookup,
+                        &AllocationContext::new(self.account, MemoryKind::Workspace),
+                    ))
+                } else {
+                    None
+                };
                 self.frames[index].state = State::Aggregate {
                     groups,
+                    lookup,
                     collecting: true,
                 };
                 self.push_all(*child)?;
@@ -3130,6 +3161,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 }
                 State::Aggregate {
                     groups,
+                    lookup,
                     collecting: true,
                 } => {
                     let Expr::Aggregate {
@@ -3161,13 +3193,23 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     } else {
                         label_hash::grouping(&labels, self.control, self.account)?
                     };
-                    if let Some(position) = crate::evaluator_roster::group_position(
-                        groups,
-                        hash,
-                        |group| group.hash,
-                        self.control,
-                        self.account,
-                    )? {
+                    let position = if let Some(lookup) = lookup {
+                        lookup.find(
+                            hash,
+                            |position| Ok(groups[position].hash == hash),
+                            self.control,
+                            self.account,
+                        )?
+                    } else {
+                        crate::evaluator_roster::group_position(
+                            groups,
+                            hash,
+                            |group| group.hash,
+                            self.control,
+                            self.account,
+                        )?
+                    };
+                    if let Some(position) = position {
                         let group = &mut groups[position];
                         if let Some(kind) = group.add(
                             *operator,
@@ -3871,9 +3913,15 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         return Ok(Some(sample));
                     }
                 }
-                State::Aggregate { groups, collecting } => {
+                State::Aggregate {
+                    groups,
+                    lookup,
+                    collecting,
+                } => {
                     if *collecting {
                         *collecting = false;
+                        // Positions cease to identify the same groups after reversal and removal.
+                        *lookup = None;
                         let length = groups.len();
                         for position in 0..length / 2 {
                             self.control.check()?;

@@ -218,6 +218,23 @@ its actual work, resources and delivered points. See [final range output](README
 
 ## Runtime, ownership and accounting
 
+### Compact group and join lookups
+
+- **Choice:** accounted indexes store positions into the existing metadata arrays. Group identity remains hash-only;
+  binary signatures and result-cache keys check cached hashes followed by complete encoded bytes. Arrays keep their
+  original discovery/reduction order and first matching identity. Nonmonotonic ordinal rosters sort positions only.
+- **Memory:** empty/singleton indexes allocate no slots. Sparse tables start at four slots, double at two-thirds
+  load, and charge old/new capacity during replacement. Active join signatures switch to dense positions only when
+  their domain fits the sparse allocation already required by the next insertion. Neither path stores raw values.
+- **Phases:** both children finish before membership construction. Duplicate validation retains its original phase;
+  reservations publish after successful values/labels and before false filtering. Cache first writers survive the
+  whole logical scope. Aggregation releases its lookup before reversing or removing groups.
+- **Tradeoff:** indexes reduce repeated searches and add metadata RAM. The measured AMD64 Frame remains 240 B and
+  Active 16 B; the boxed binary Step grows 384→672 B. This does not remove computed-child replay or bound all metadata.
+- **Evidence:** [lookup owner](../../src/position_index.rs),
+  [measured grouping and joins](README.md#compact-group-and-join-lookups),
+  [source-bound cohorts](core-qualification.json).
+
 ### 16. Observe resources now; keep every resource cap disabled
 
 - **Choice:** account current/peak owned and query-held borrowed bytes, sample/work totals, retained series/groups,

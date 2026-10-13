@@ -14,6 +14,7 @@ use crate::{
     },
     go_sort_program::{Operation, Program, physical_index},
     label_hash, numerical,
+    position_index::PositionIndex,
     result::OwnedValue,
     shared::Strong,
     storage::{Control, Interrupted},
@@ -222,6 +223,7 @@ impl Plan {
             unreachable!("typed selection aggregate")
         };
         let mut hashes = AccountedVec::<u64>::new(account, MemoryKind::Workspace);
+        let mut index = PositionIndex::new(account);
         let mut bindings = AccountedVec::new(account, MemoryKind::Workspace);
         for row in &*rows {
             control.check()?;
@@ -236,20 +238,19 @@ impl Plan {
                 label_hash::grouping(&labels, control, account)?
             };
             drop(labels);
-            let mut group = None;
-            for (index, prior) in hashes.iter().enumerate() {
-                control.check()?;
-                account.work(1);
-                if *prior == hash {
-                    group = Some(index);
-                    break;
-                }
-            }
-            let group = group.unwrap_or_else(|| {
-                let index = hashes.len();
+            let group = if let Some(group) = index.find(
+                hash,
+                |position| Ok(hashes[position] == hash),
+                control,
+                account,
+            )? {
+                group
+            } else {
+                let position = hashes.len();
                 hashes.push(hash);
-                index
-            });
+                index.insert_new(hash, position, |prior| Ok(hashes[prior]), control, account)?;
+                position
+            };
             bindings.push(Binding {
                 group,
                 canonical: None,
