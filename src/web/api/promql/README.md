@@ -138,12 +138,13 @@ there is no fallback that loads the entire response into RAM. Small scalar resul
 
 ## Building and scope
 
-PromQL is enabled by default with DBengine. Source builds need Rust 1.91 or newer, the pinned
-`src/crates/promql-engine` submodule and the locked Cargo dependencies. Custom builds can opt out with
+PromQL is enabled by default with DBengine. Source builds need Rust 1.91 or newer and the locked Cargo dependencies.
+The complete engine source and conformance suite are included under `src/crates/promql-engine`; no separate PromQL
+repository is required. Custom builds can opt out with
 `--disable-promql` in `netdata-installer.sh` or `-DENABLE_PROMQL=Off` in CMake. The engine uses an unwind profile
 so ordinary Rust panics can return an error through its C interface.
 
 The [Agent integration design](../../../../tests/promql-conformance/DESIGN.md) explains storage and ownership.
-The [pinned library design](https://github.com/netdata-labs/promql-engine/blob/93f9c2c37b080efa9341431c237d2003ace4c2e4/tests/promql-conformance/DESIGN.md) records expression
+The [library design](../../../crates/promql-engine/tests/promql-conformance/DESIGN.md) records expression
 compatibility decisions. This API does not implement distributed Cloud query processing, a separate alert-rule
 evaluation engine or Alertmanager.

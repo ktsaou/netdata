@@ -1,8 +1,9 @@
 # PromQL design decisions
 
-The approved expression-engine decisions moved with the canonical Rust implementation to
-[the pinned library design document](https://github.com/netdata-labs/promql-engine/blob/93f9c2c37b080efa9341431c237d2003ace4c2e4/tests/promql-conformance/DESIGN.md).
-The complete original document and qualification identities remain in the library's imported history.
+The approved expression-engine decisions are in
+[the contained library design document](../../src/crates/promql-engine/tests/promql-conformance/DESIGN.md).
+The complete Rust library and generic conformance suite are included in this branch. Historical qualification
+identities and extraction provenance are preserved.
 
 Netdata owns contexts metadata, dbengine page formats and retained-data projection, temporary backing,
 HTTP and transport integration. The [operator guide](../../src/web/api/promql/README.md) describes the public API.
@@ -11,8 +12,10 @@ Alertmanager remains outside this work.
 
 ## Source and build ownership
 
-- The independent engine is consumed through the pinned `src/crates/promql-engine` Git submodule. Its C header,
-  Cargo lock, notices and generic conformance harness travel with that source authority.
+- The independent engine lives in `src/crates/promql-engine` as ordinary tracked files. Its C header, Cargo lock,
+  notices and generic conformance harness ship in the same branch as the C/storage/API integration. There is one
+  edited source authority. Repository separation is postponed; the independent Cargo workspace and C interface
+  preserve the library boundary for that later move.
 - Netdata supplies the typed storage and output callbacks. ABI 4 tables reject mismatched versions and layouts.
 - PromQL is enabled by default when DBengine is enabled. Custom CMake or installer builds can explicitly opt out.
 - Rust 1.91 is the minimum. Cargo builds use the lockfile and an independent unwind profile, including MinSizeRel.
@@ -116,6 +119,6 @@ Alertmanager remains outside this work.
 
 The [integration runners](../promql-integration/README.md) exercise real storage, collected data, contexts,
 routed HTTP and loopback WebRTC independently of the library's same-input PromQL corpus. Receipts bind source,
-library pin and actual binary. Controlled MQTT/ACLK tests establish bounded source ownership and framing; they
-do not substitute for a live Cloud connection. Distributed Cloud execution and a separate rule evaluation engine
-remain subsequent targets.
+contained engine hashes and actual binary. Historical receipts preserve their separate-library pins. Controlled
+MQTT/ACLK tests establish bounded source ownership and framing; they do not substitute for a live Cloud connection.
+Distributed Cloud execution and a separate rule evaluation engine remain subsequent targets.

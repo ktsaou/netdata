@@ -145,8 +145,8 @@ def main():
     if run.parent != parent or run.stat().st_mode & 0o077:
         raise RuntimeError("unsafe run directory")
     initial_sources, binary_hash = source_binding(), sha256(binary)
-    pin = subprocess.check_output(["git", "-C", str(REPO / "src/crates/promql-engine"), "rev-parse", "HEAD"], text=True).strip()
-    receipt = {"sources": initial_sources, "binary_sha256": binary_hash, "library_commit": pin, "phases": [], "passed": False,
+    revision = subprocess.check_output(["git", "-C", str(REPO), "rev-parse", "HEAD"], text=True).strip()
+    receipt = {"sources": initial_sources, "binary_sha256": binary_hash, "source_commit": revision, "phases": [], "passed": False,
                "scope": "real five-tier storage, contexts bridge, native handlers/dispatcher and bounded delivery components; "
                         + ("actual loopback WebRTC peers; " if args.rtc_peers else "controlled WebRTC framing; ")
                         + "no external HTTP or live Cloud connection"}

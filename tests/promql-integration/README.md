@@ -76,7 +76,8 @@ It sends no signal to a running Agent or unrelated process; its PID, command, ex
 
 ## Evidence and limits
 
-Receipts bind the actual executable, pinned engine and affected sources. Allocation callbacks measure owned
+Receipts bind the actual executable, Netdata revision and affected sources, including the contained Rust engine.
+Historical receipts retain their original separate-library revision and source hashes. Allocation callbacks measure owned
 workspace, private pages and borrowed cache/pool exposure separately and must balance after owned work retires.
 They are not measurements of total process RSS.
 

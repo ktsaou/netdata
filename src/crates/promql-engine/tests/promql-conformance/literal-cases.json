@@ -1,0 +1,285 @@
+{
+  "architecture": "amd64",
+  "cases": [
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:000",
+      "input": "MA==",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:001",
+      "input": "MDEy",
+      "nanoseconds": 10000000000,
+      "value_bits": "4024000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:002",
+      "input": "MDg=",
+      "nanoseconds": 8000000000,
+      "value_bits": "4020000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:003",
+      "input": "MHhfRkY=",
+      "nanoseconds": 255000000000,
+      "value_bits": "406fe00000000000"
+    },
+    {
+      "duration": false,
+      "errors": [
+        "ZXJyb3IgcGFyc2luZyBudW1iZXI6IHN0cmNvbnYuUGFyc2VGbG9hdDogcGFyc2luZyAiMHhfX0ZGIjogaW52YWxpZCBzeW50YXg="
+      ],
+      "id": "literal:004",
+      "input": "MHhfX0ZG",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [
+        "ZXJyb3IgcGFyc2luZyBudW1iZXI6IHN0cmNvbnYuUGFyc2VGbG9hdDogcGFyc2luZyAiMHgiOiBpbnZhbGlkIHN5bnRheA=="
+      ],
+      "id": "literal:005",
+      "input": "MHg=",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [
+        "ZXJyb3IgcGFyc2luZyBudW1iZXI6IHN0cmNvbnYuUGFyc2VGbG9hdDogcGFyc2luZyAiLjEuMiI6IGludmFsaWQgc3ludGF4"
+      ],
+      "id": "literal:006",
+      "input": "LjEuMg==",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:007",
+      "input": "MHg3ZmZmZmZmZmZmZmZmZmZm",
+      "nanoseconds": -9223372036854775808,
+      "value_bits": "43e0000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [
+        "ZXJyb3IgcGFyc2luZyBudW1iZXI6IHN0cmNvbnYuUGFyc2VGbG9hdDogcGFyc2luZyAiMHg4MDAwMDAwMDAwMDAwMDAwIjogaW52YWxpZCBzeW50YXg="
+      ],
+      "id": "literal:008",
+      "input": "MHg4MDAwMDAwMDAwMDAwMDAw",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:009",
+      "input": "OTIyMzM3MjAzNjg1NDc3NTgwOA==",
+      "nanoseconds": -9223372036854775808,
+      "value_bits": "43e0000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:010",
+      "input": "OTAwNzE5OTI1NDc0MDk5Mw==",
+      "nanoseconds": -9223372036854775808,
+      "value_bits": "4340000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:011",
+      "input": "MC4xMDAwMDAwMDAwMDAwMDAwMDU1NTExMTUxMjMxMjU3ODI3MDIxMTgxNTgzNDA0NTQxMDE1NjI1",
+      "nanoseconds": 100000000,
+      "value_bits": "3fb999999999999a"
+    },
+    {
+      "duration": false,
+      "errors": [
+        "ZXJyb3IgcGFyc2luZyBudW1iZXI6IHN0cmNvbnYuUGFyc2VGbG9hdDogcGFyc2luZyAiMWUzMDkiOiB2YWx1ZSBvdXQgb2YgcmFuZ2U="
+      ],
+      "id": "literal:012",
+      "input": "MWUzMDk=",
+      "nanoseconds": -9223372036854775808,
+      "value_bits": "7ff0000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:013",
+      "input": "MWUtOTk5OQ==",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:014",
+      "input": "NWUtMzI0",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000001"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:015",
+      "input": "Mi4yMjUwNzM4NTg1MDcyMDE0ZS0zMDg=",
+      "nanoseconds": 0,
+      "value_bits": "0010000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:016",
+      "input": "TmFO",
+      "nanoseconds": -9223372036854775808,
+      "value_bits": "7ff8000000000001"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:017",
+      "input": "SW5m",
+      "nanoseconds": -9223372036854775808,
+      "value_bits": "7ff0000000000000"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:018",
+      "input": "MS4yMzQ1Njc4OQ==",
+      "nanoseconds": 1234567890,
+      "value_bits": "3ff3c0ca4283de1b"
+    },
+    {
+      "duration": false,
+      "errors": [],
+      "id": "literal:019",
+      "input": "OTIyMzM3MjAzNi44NTQ3NzY=",
+      "nanoseconds": -9223372036854775808,
+      "value_bits": "42012e0be826d695"
+    },
+    {
+      "duration": true,
+      "errors": [],
+      "id": "literal:020",
+      "input": "MXM=",
+      "nanoseconds": 1000000000,
+      "value_bits": "3ff0000000000000"
+    },
+    {
+      "duration": true,
+      "errors": [],
+      "id": "literal:021",
+      "input": "MXkxdzFkMWgxbTFzMW1z",
+      "nanoseconds": 32230861001000000,
+      "value_bits": "417ebcdcd0041893"
+    },
+    {
+      "duration": true,
+      "errors": [
+        "dW5rbm93biB1bml0ICJocyIgaW4gZHVyYXRpb24gIjFocyI="
+      ],
+      "id": "literal:022",
+      "input": "MWhz",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    },
+    {
+      "duration": true,
+      "errors": [
+        "bm90IGEgdmFsaWQgZHVyYXRpb24gc3RyaW5nOiAiMW0xaCI="
+      ],
+      "id": "literal:023",
+      "input": "MW0xaA==",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    },
+    {
+      "duration": true,
+      "errors": [
+        "bm90IGEgdmFsaWQgZHVyYXRpb24gc3RyaW5nOiAiMWgxaCI="
+      ],
+      "id": "literal:024",
+      "input": "MWgxaA==",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    },
+    {
+      "duration": true,
+      "errors": [
+        "ZHVyYXRpb24gb3V0IG9mIHJhbmdl"
+      ],
+      "id": "literal:025",
+      "input": "Mjk0eQ==",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    },
+    {
+      "duration": true,
+      "errors": [
+        "bm90IGEgdmFsaWQgZHVyYXRpb24gc3RyaW5nOiAiMTg0NDY3NDQwNzM3MDk1NTE2MTZzIg=="
+      ],
+      "id": "literal:026",
+      "input": "MTg0NDY3NDQwNzM3MDk1NTE2MTZz",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    },
+    {
+      "duration": true,
+      "errors": [],
+      "id": "literal:027",
+      "input": "OTIyMzM3MjAzNjg1NG1z",
+      "nanoseconds": 9223372036853999616,
+      "value_bits": "42012e0be826d4fe"
+    },
+    {
+      "duration": true,
+      "errors": [
+        "ZHVyYXRpb24gb3V0IG9mIHJhbmdl"
+      ],
+      "id": "literal:028",
+      "input": "OTIyMzM3MjAzNjg1NW1z",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    },
+    {
+      "duration": true,
+      "errors": [],
+      "id": "literal:029",
+      "input": "OTk5OTk5OTk5OTk5bXM=",
+      "nanoseconds": 999999999998999936,
+      "value_bits": "41cdcd64ffffdf3b"
+    },
+    {
+      "duration": true,
+      "errors": [],
+      "id": "literal:030",
+      "input": "OTAwNzE5OTI1NDc0MW1z",
+      "nanoseconds": 9007199254740999168,
+      "value_bits": "4200c6f7a0b5ed91"
+    },
+    {
+      "duration": true,
+      "errors": [],
+      "id": "literal:031",
+      "input": "MG1z",
+      "nanoseconds": 0,
+      "value_bits": "0000000000000000"
+    }
+  ],
+  "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+  "go_version": "go1.27.1"
+}

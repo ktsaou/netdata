@@ -8,7 +8,7 @@ include_guard()
 
 if(ENABLE_PROMQL OR ENABLE_NETDATA_JOURNAL_FILE_READER OR ENABLE_PLUGIN_OTEL OR ENABLE_PLUGIN_NETFLOW)
     if(ENABLE_PROMQL AND NOT EXISTS "${CMAKE_SOURCE_DIR}/src/crates/promql-engine/Cargo.toml")
-        message(FATAL_ERROR "The PromQL engine submodule is missing. Run git submodule update --init src/crates/promql-engine, or pass -DENABLE_PROMQL=Off for a custom build without the PromQL API.")
+        message(FATAL_ERROR "The PromQL engine source is missing from src/crates/promql-engine. Use a complete Netdata source checkout, or pass -DENABLE_PROMQL=Off for a custom build without the PromQL API.")
     endif()
     # Check for the toolchain before fetching Corrosion: without this, a missing
     # rustc surfaces as an error deep inside Corrosion's FindRust with no hint of

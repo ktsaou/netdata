@@ -139,8 +139,9 @@ cd netdata
 
 - If your server does not have access to the internet and you have manually put the installation directory on your server, you will need to pass the option `--disable-go` to the installer. The option will prevent the installer from attempting to download and install `go.d.plugin`.
 
-- PromQL is enabled by default with DBengine and requires Rust 1.91 or newer, the pinned engine submodule and
-  locked Cargo dependencies. An offline build needs those dependencies cached in advance or `--disable-promql`.
+- PromQL is enabled by default with DBengine and requires Rust 1.91 or newer and locked Cargo dependencies.
+  Its engine source is included in the Netdata checkout. An offline build needs those dependencies cached in advance
+  or `--disable-promql`.
   Disabling Go alone does not disable the Rust PromQL build.
 
 ## Optional parameters to alter your installation

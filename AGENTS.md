@@ -767,6 +767,8 @@ and the rule for adding one; each skill's frontmatter description is the authori
 - Tests.
   - `tests-query-corpus`: running, extending or reviewing `tests/query-corpus/`; fixtures, oracles, red/green cases for
     query-engine bugs, formatter byte-pins, validating a fix branch
+  - `tests-promql-conformance`: qualifying the PromQL frontend, evaluator, C interface, accounting and same-input
+    compatibility under the contained Rust library
 - Packaging.
   - `packaging-static-installer`: building, testing, reviewing or troubleshooting the static self-extracting installer
     (`netdata-<arch>-latest.gz.run`) under `packaging/makeself/`

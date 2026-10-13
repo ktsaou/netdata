@@ -1,0 +1,308 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//! Whole-series label operations derive from pinned promql/functions.go:2483-2571.
+use crate::{
+    accounting::{AccountedBox, AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
+    evaluator::EvaluationError,
+    evaluator_roster::Descriptor,
+    frontend::{
+        ast::{Expr, NodeId, ParsedExpression},
+        regex::GoRegex,
+    },
+    query_preparation::Prepared,
+    result::append_bytes_checked,
+    storage::Control,
+};
+
+pub(crate) fn is_label_call(expression: &Expr) -> bool {
+    matches!(expression, Expr::Call { function: Some(function), .. }
+        if matches!(function.name, "label_replace" | "label_join"))
+}
+
+pub(crate) enum LabelOperation<'a> {
+    Replace {
+        destination: &'a [u8],
+        replacement: &'a [u8],
+        source: &'a [u8],
+        regex: GoRegex,
+    },
+    Join {
+        destination: &'a [u8],
+        separator: &'a [u8],
+        sources: AccountedVec<&'a [u8]>,
+    },
+}
+
+fn runtime_error(
+    prefix: &[u8],
+    value: &[u8],
+    account: &QueryAccounting,
+    control: &Control,
+) -> Result<EvaluationError, EvaluationError> {
+    let mut message = AccountedVec::new(account, MemoryKind::Workspace);
+    append_bytes_checked(&mut message, prefix, account, control)?;
+    append_bytes_checked(&mut message, value, account, control)?;
+    Ok(EvaluationError::Runtime(message))
+}
+
+pub(crate) fn string_literal_error(
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<EvaluationError, EvaluationError> {
+    Ok(EvaluationError::WrappedRuntime(
+        crate::binary_labels::formatted(
+            format_args!(
+                "unexpected error: interface conversion: parser.Expr is *parser.ParenExpr, not *parser.StringLiteral"
+            ),
+            control,
+            account,
+        )?,
+    ))
+}
+
+pub(crate) fn valid_name(
+    name: &[u8],
+    account: &QueryAccounting,
+    control: &Control,
+) -> Result<bool, EvaluationError> {
+    Ok(!name.is_empty() && crate::frontend::quote::valid_utf8(name, account, control)?)
+}
+
+impl<'a> LabelOperation<'a> {
+    pub(crate) fn prepare(
+        expression: &'a ParsedExpression,
+        node: NodeId,
+        prepared: &Prepared,
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> Result<AccountedBox<Self>, EvaluationError> {
+        let Expr::Call {
+            function: Some(function),
+            arguments,
+        } = &expression.arena[node].expression
+        else {
+            unreachable!("label call")
+        };
+        let string = |index| {
+            let argument = prepared.preprocessing.child(
+                expression,
+                node,
+                arguments[index],
+                control,
+                account,
+            )?;
+            if let Expr::String(value) = &expression.arena[argument].expression {
+                Ok(&value[..])
+            } else {
+                // Unvisited parameter parentheses reach the source's literal assertion.
+                assert!(matches!(
+                    expression.arena[argument].expression,
+                    Expr::Paren(_)
+                ));
+                Err(string_literal_error(control, account)?)
+            }
+        };
+        let context = AllocationContext::new(account, MemoryKind::Workspace);
+        let operation = if function.name == "label_replace" {
+            let destination = string(1)?;
+            let replacement = string(2)?;
+            let source = string(3)?;
+            let pattern = string(4)?;
+            control.check()?;
+            account.work(pattern.len() as u64);
+            let compiled =
+                GoRegex::compile_label_replace_checked(pattern, Some(&context), control)?;
+            control.check()?;
+            let regex = match compiled {
+                Ok(regex) => regex,
+                Err(_) => {
+                    return Err(runtime_error(
+                        b"invalid regular expression in label_replace(): ",
+                        pattern,
+                        account,
+                        control,
+                    )?);
+                }
+            };
+            if !valid_name(destination, account, control)? {
+                return Err(runtime_error(
+                    b"invalid destination label name in label_replace(): ",
+                    destination,
+                    account,
+                    control,
+                )?);
+            }
+            Self::Replace {
+                destination,
+                replacement,
+                source,
+                regex,
+            }
+        } else {
+            let destination = string(1)?;
+            let separator = string(2)?;
+            let mut sources = AccountedVec::new(account, MemoryKind::Workspace);
+            for index in 3..arguments.len() {
+                control.check()?;
+                account.work(1);
+                let source = string(index)?;
+                if !valid_name(source, account, control)? {
+                    return Err(runtime_error(
+                        b"invalid source label name in label_join(): ",
+                        source,
+                        account,
+                        control,
+                    )?);
+                }
+                sources.push(source);
+            }
+            if !valid_name(destination, account, control)? {
+                return Err(runtime_error(
+                    b"invalid destination label name in label_join(): ",
+                    destination,
+                    account,
+                    control,
+                )?);
+            }
+            Self::Join {
+                destination,
+                separator,
+                sources,
+            }
+        };
+        Ok(AccountedBox::new(operation, &context))
+    }
+
+    pub(crate) fn apply(
+        &self,
+        descriptor: &mut Descriptor,
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> Result<(), EvaluationError> {
+        control.check()?;
+        account.work(1);
+        let context = AllocationContext::new(account, MemoryKind::Workspace);
+        let (destination, value) = match self {
+            Self::Replace {
+                destination,
+                replacement,
+                source,
+                regex,
+            } => {
+                let original = descriptor.labels.get_checked(source, account, control)?;
+                account.work(original.len() as u64);
+                let captures = regex.captures_checked(original, Some(&context), control)?;
+                control.check()?;
+                let Some(captures) = captures else {
+                    return Ok(());
+                };
+                account.work(replacement.len() as u64);
+                let value = regex.expand_checked(
+                    replacement,
+                    original,
+                    &captures,
+                    Some(&context),
+                    control,
+                )?;
+                control.check()?;
+                (*destination, value)
+            }
+            Self::Join {
+                destination,
+                separator,
+                sources,
+            } => {
+                let mut value = AccountedVec::new(account, MemoryKind::Workspace);
+                for (index, source) in sources.iter().enumerate() {
+                    control.check()?;
+                    account.work(1);
+                    if index != 0 {
+                        append_bytes_checked(&mut value, separator, account, control)?;
+                    }
+                    let original = descriptor.labels.get_checked(source, account, control)?;
+                    append_bytes_checked(&mut value, original, account, control)?;
+                }
+                (*destination, value)
+            }
+        };
+        descriptor.labels.reset_checked(account, control)?;
+        descriptor
+            .labels
+            .set(destination, &value, account, MemoryKind::Workspace, control)?;
+        crate::label_encoding::finalized(&descriptor.labels, control, account)?;
+        if destination == b"__name__" {
+            descriptor.drop_name = false;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        execution::{Engine, EngineOptions, ExecutionError, QueryRequest},
+        test_storage::FixtureProvider,
+    };
+    use std::sync::atomic::Ordering;
+
+    #[test]
+    fn unvisited_parenthesized_strings_return_source_error_before_vector_reads() {
+        let calls: [(&str, &[&str]); 2] = [
+            (
+                "label_replace",
+                &["counter_total", "\"dst\"", "\"$1\"", "\"job\"", "\"(.*)\""],
+            ),
+            (
+                "label_join",
+                &["counter_total", "\"dst\"", "\":\"", "\"job\""],
+            ),
+        ];
+        for (function, arguments) in calls {
+            for position in 1..arguments.len() {
+                let parenthesized = format!("(({}))", arguments[position]);
+                let mut arguments = arguments.to_vec();
+                arguments[position] = &parenthesized;
+                let call = format!("{function}({})", arguments.join(","));
+                for owner in ["topk", "quantile"] {
+                    let expression = format!("{owner}(scalar({call}),counter_total)");
+                    for series in [0, 1] {
+                        for request in [
+                            QueryRequest::Instant { time_ms: 2000 },
+                            QueryRequest::Range {
+                                start_ms: 0,
+                                end_ms: 2000,
+                                step_ms: 1000,
+                            },
+                        ] {
+                            let engine = Engine::default();
+                            let provider = FixtureProvider::new(3, 1, series);
+                            let control = Control::default();
+                            let query = engine
+                                .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                                .unwrap();
+                            let failure = query.collect(&provider, request, &control).unwrap_err();
+                            assert!(
+                                matches!(
+                                    &failure,
+                                    ExecutionError::Evaluation(EvaluationError::WrappedRuntime(bytes))
+                                        if &**bytes == b"unexpected error: interface conversion: parser.Expr is *parser.ParenExpr, not *parser.StringLiteral"
+                                ),
+                                "{expression}: {failure:?}"
+                            );
+                            for record in &provider.series {
+                                assert_eq!(
+                                    record.source.counters.opened.load(Ordering::Relaxed),
+                                    0
+                                );
+                            }
+                            drop(failure);
+                            drop(query);
+                            provider.assert_closed();
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

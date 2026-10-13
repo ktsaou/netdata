@@ -5,7 +5,7 @@ data collected on that machine. It uses a separate directory and a loopback HTTP
 
 ## What has been implemented
 
-- An independent Rust PromQL parser, validator and evaluator, consumed as a pinned library with a versioned C API.
+- An independent Rust PromQL parser, validator and evaluator, included in this branch with a versioned C API.
   Operators, functions, vector matching, range selectors and subqueries are checked against the pinned Go engine.
   The expression core also supports native histograms; the Netdata storage adapter currently supplies floats.
 - Live Agent and Parent queries using the existing contexts metadata and DBengine pages. Original metadata strings
@@ -40,13 +40,14 @@ git clone --single-branch --branch feature/promql-rust-core \
   https://github.com/ktsaou/netdata.git netdata-promql
 cd netdata-promql
 
-git submodule update --init --depth 1 \
-  src/aclk/aclk-schemas src/crates/promql-engine
-git -C src/crates/promql-engine rev-parse HEAD
+git submodule update --init --depth 1 src/aclk/aclk-schemas
+test -f src/crates/promql-engine/Cargo.toml
 ```
 
-The library revision must be `93f9c2c37b080efa9341431c237d2003ace4c2e4`. Do not replace it with another library
-revision. Both repositories are required; downloading only the Netdata GitHub ZIP omits its submodule contents.
+This branch contains the complete Rust engine, C header, Cargo lockfile and conformance suite as ordinary files.
+The library keeps its own Cargo workspace; a separate PromQL repository or repository access is not required.
+The existing ACLK schemas still need the submodule command above. Downloading only the Netdata GitHub ZIP omits
+those schemas.
 
 ## Build and install a private Agent
 
@@ -179,7 +180,7 @@ Removing `/host/localhost` changes these requests to the retained fleet scope on
 ## Finish and troubleshoot
 
 - Stop the trial with Ctrl-C in its foreground terminal. Its files remain under `.tmp/promql-demo/`.
-- A missing library manifest means the pinned submodule was not fetched. A CMake dependency error means the named
+- A missing library manifest means the Netdata source checkout is incomplete. A CMake dependency error means the named
   build dependency is missing; use the source build guide rather than disabling DBengine or PromQL.
 - Connection failure usually means the foreground Agent is not running or the port differs. Inspect its terminal
   and trial log directory under `"$PROMQL_PREFIX/var/log/netdata"`.

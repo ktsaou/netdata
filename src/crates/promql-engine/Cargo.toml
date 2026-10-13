@@ -1,0 +1,52 @@
+[package]
+name = "netdata-promql-engine"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+license = "GPL-3.0-or-later"
+publish = false
+autobins = false
+
+[workspace]
+
+[features]
+fixtures = ["dep:serde_json"]
+
+[dependencies]
+regex-automata = "=0.4.16"
+regex-syntax = "=0.8.11"
+serde_json = { version = "=1.0.151", optional = true }
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["rlib", "staticlib"]
+
+[[bin]]
+name = "promql-frontend-fixture"
+path = "src/bin/frontend_fixture.rs"
+required-features = ["fixtures"]
+
+[[bin]]
+name = "promql-kernel-fixture"
+path = "src/bin/kernel_fixture.rs"
+required-features = ["fixtures"]
+
+[[bin]]
+name = "promql-query-fixture"
+path = "src/bin/query_fixture.rs"
+required-features = ["fixtures"]
+
+[profile.release]
+panic = "unwind"
+
+[[bin]]
+name = "promql-protocol-fixture"
+path = "src/bin/protocol_fixture.rs"
+required-features = ["fixtures"]
+
+[profile.release-min]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "unwind"

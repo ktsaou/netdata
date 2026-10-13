@@ -1,0 +1,108 @@
+{
+  "kind": "source-relocation qualification",
+  "date": "2026-10-11",
+  "reference": "original source identities retained in IMPORT.json and core-qualification.json",
+  "imported_files": 331,
+  "changed_imports": {
+    "src/fixture_temporary_storage.rs": {
+      "original": "src/crates/promql-engine/src/fixture_temporary_storage.rs",
+      "before": "7112cc1255ec968c8b9579336eadc354c277adc74ee079cce6a363744c084847",
+      "after": "d0a2a9c9e2b25cc58dc314aa60745baa933989f3ca47428e05895d8d3654e9d8"
+    },
+    "tests/promql-conformance/DESIGN.md": {
+      "original": "tests/promql-conformance/DESIGN.md",
+      "before": "a14c10ece3a9e82450fdd1ffa07093b985b936b4c8110c1b17d11a27279165ff",
+      "after": "04790e2f1921e84ac3cd469ed44711456d407f9344b5bec7fdaf42c1298e9091"
+    },
+    "tests/promql-conformance/README.md": {
+      "original": "tests/promql-conformance/README.md",
+      "before": "851fcedbbcc80369f88138c5f5e99be0abd218acc24721c5c7851c527b6d862e",
+      "after": "a682e74329f62efe684e2689d3b7b53889a97c66aa3aa05f930b02d4d2eade0f"
+    },
+    "tests/promql-conformance/build.py": {
+      "original": "tests/promql-conformance/build.py",
+      "before": "f1d3d59d4de1673f28a7d5cb5bc7988a5c381b4c606b1f5d930620487c27aac6",
+      "after": "8304e774ac5d329b2c1f68c24de70a6b0cfb671d4962165b2a696caf93163f86"
+    },
+    "tests/promql-conformance/build_frontend.py": {
+      "original": "tests/promql-conformance/build_frontend.py",
+      "before": "4a51934b6b57e86fd82ea222700308a7d856d00f2ddb6d1caaabe8729983bc7a",
+      "after": "4bd1bcbe5944eb9c703a4d048c9fa16eef0a4f93b26babfd5605eb5cd7bf6ffe"
+    },
+    "tests/promql-conformance/c_embedding.py": {
+      "original": "tests/promql-conformance/c_embedding.py",
+      "before": "cba7f48eef6dde0fa777675e276a3847adb34e15b96ab302188b04b8d9656f64",
+      "after": "0999d4519b5431596c465954378263d3163c93445416c8e1023db9e4a9606d0d"
+    },
+    "tests/promql-conformance/contract.json": {
+      "original": "tests/promql-conformance/contract.json",
+      "before": "b5f5da95ae06e59a619e72ad1d356c5f95eb26cdbaa2ea8d8585c8f8a048c729",
+      "after": "8beef1c524f95722360dc18eb996eacac63505ef5ee7ecb053aa8d738ab5d16f"
+    },
+    "tests/promql-conformance/float_text.py": {
+      "original": "tests/promql-conformance/float_text.py",
+      "before": "0fed39943610dce7b65b6f730f2c7e5c06027f1cd2101105f6854417f8761ac6",
+      "after": "ccd28493da38d3d14db56b8404bfa3bf291744b0a6e43ab8793cc8e74d44c83b"
+    },
+    "tests/promql-conformance/histogram_annotations.py": {
+      "original": "tests/promql-conformance/histogram_annotations.py",
+      "before": "a14938bf0523714c1c52883a0a508b76d6336de86414a444bddf8d3b2b8058df",
+      "after": "c1a92fc7f7cffdde1392988246788436428d124baeb8c389679726a9ea3264c7"
+    },
+    "tests/promql-conformance/histogram_bounds.py": {
+      "original": "tests/promql-conformance/histogram_bounds.py",
+      "before": "cd60bfe178dba30788f4595a75ffeb999bb333d164919cca6223e5f893521912",
+      "after": "10c3d764862ec24a12fbfd2bc0eb356f44a7abb96192a47dae6bec276353ee2a"
+    },
+    "tests/promql-conformance/regex_unicode.py": {
+      "original": "tests/promql-conformance/regex_unicode.py",
+      "before": "ca4e62ea65f6d895c945dd9290cc77ad39ec444c3c6026ee42f20b96f4bc48b1",
+      "after": "99da2b51e145befdba6a811fbf94609d9e9b2e60a893d89e3bc6a23857a478be"
+    }
+  },
+  "core_algorithm_changes": false,
+  "fixture_change": "fixture-only scratch path follows the independent Cargo root",
+  "units": {
+    "release": 471,
+    "release-min": 471,
+    "python": 193
+  },
+  "oracle": "pinned Go reference built; module verification and numerical/codec tests passed",
+  "native_embedding": {
+    "profiles": [
+      "release",
+      "release-min"
+    ],
+    "structures": 51,
+    "callbacks": 15,
+    "shared_constants": 33,
+    "callers": [
+      "gcc C11",
+      "g++ C++17",
+      "clang C11",
+      "clang++ C++17"
+    ],
+    "panic_abort_rejected": true
+  },
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "evidence_sha256": {
+    ".tmp/core-release-rerun.stdout": "5b8e304f3c25312f7b5543f48101cddaa4d10e85ec2f4e60f10933b68d441d49",
+    ".tmp/core-release-rerun.stderr": "74e21b9aaff7a1dd2f2d1bb64933c8c1aa02aa54e067a1926c3b0a3f54abaa98",
+    ".tmp/core-release-min.stdout": "c4a4623cb1bd8e5de1a13a853e14b3e75e5db943f98d512c8f76cd31a62833ff",
+    ".tmp/core-release-min.stderr": "5d9bc75a56649421fc56734c41bec3e7bea942a770a52c122adf88e823aebc5c",
+    ".tmp/python-units-rerun.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/python-units-rerun.stderr": "0c0c13723b079f38b8ca18a86c49019c609e57f7a1debd6e502715ff950d7166",
+    ".tmp/oracle-build.stdout": "31349201635271409b0e24bb4be06eea54644f1da86e1ef069275ff062fb3eab",
+    ".tmp/oracle-build.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/c-embedding.stdout": "71d0ee7b0a51d6d1c0b0f47407504c8d40eb917180881623b6ba786cd2243434",
+    ".tmp/c-embedding.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tests/promql-conformance/.tmp/c-embedding-2cgkia9d/manifest.json": "ee30f0b23344aeaedfd8723ff1c098b44830d07833a6bdfca6a26db42fbc5f7a"
+  },
+  "limitations": [
+    "Native AMD64 relocation panel; earlier ARM captures retain their original identities.",
+    "No live Netdata integration qualification is claimed by extraction.",
+    "Historical differential panels were not rerun for this source-only move."
+  ],
+  "qualified_revision": "0a1c686e37681ba10614fbe2229c9f95d7ababd7",
+  "subsequent_documentation_changes": "Follow-up links identify the external Netdata experiment and storage sources; original changed-import and execution hashes above remain bound to the qualified revision."
+}

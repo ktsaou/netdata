@@ -1,8 +1,9 @@
 # PromQL conformance
 
-The generic frontend, evaluator, source-bound fixtures and C/C++ qualification now belong to the
-[pinned standalone engine](../../src/crates/promql-engine/README.md). Netdata consumes that repository
-through an immutable Git submodule; there is one authoritative source and conformance suite.
+The generic frontend, evaluator, source-bound fixtures and C/C++ qualification belong to the
+[contained Rust library](../../src/crates/promql-engine/README.md). Its complete source and conformance suite
+are ordinary files in this Netdata branch. The independent Cargo workspace and C interface remain intact;
+separate repository publication is postponed.
 
 See its [conformance guide](../../src/crates/promql-engine/tests/promql-conformance/README.md),
 [approved engine decisions](../../src/crates/promql-engine/tests/promql-conformance/DESIGN.md),
@@ -20,5 +21,6 @@ python src/crates/promql-engine/tests/promql-conformance/build_frontend.py
 python src/crates/promql-engine/tests/promql-conformance/c_embedding.py --profiles release release-min --abort-check
 ```
 
-The library's fixture tests use their own project-local scratch directory. Existing private Netdata
-evidence is retained separately; it is not copied into the public library.
+For commands shown inside the library's conformance guide, first change into `src/crates/promql-engine`;
+its "repository root" means that independent Cargo root. Fixture tests use their own project-local scratch
+directory. Existing private Netdata evidence remains separately retained and is not included in published source.

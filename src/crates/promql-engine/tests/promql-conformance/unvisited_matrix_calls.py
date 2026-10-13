@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Qualify typed parenthesized matrix calls against complete original Go expressions."""
+
+import argparse
+
+import native_matrix_calls
+
+PANEL = "unvisited-primary"
+
+
+def capture(upstream):
+    return native_matrix_calls.capture(upstream, PANEL)
+
+
+def load_reference(reference):
+    return native_matrix_calls.load_reference(reference, PANEL)
+
+
+def qualify(reference, binary, page_size=1024):
+    return native_matrix_calls.qualify(reference, binary, PANEL, page_size)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--capture", action="store_true")
+    parser.add_argument("--upstream")
+    parser.add_argument("--reference")
+    parser.add_argument("--binary")
+    parser.add_argument("--page-size", type=int, default=1024)
+    arguments = parser.parse_args()
+    if arguments.capture:
+        if not arguments.upstream:
+            parser.error("capture requires --upstream")
+        capture(arguments.upstream)
+    else:
+        if not arguments.reference or not arguments.binary:
+            parser.error("comparison requires reference and binary")
+        raise SystemExit(
+            not qualify(arguments.reference, arguments.binary, arguments.page_size)[
+                "bitwise_pass"
+            ]
+        )

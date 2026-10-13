@@ -1,0 +1,8 @@
+/target/
+/.tmp/
+**/__pycache__/
+**/.pytest_cache/
+*.local.md
+# Netdata's root owns SOW tracking; retained standalone workspace state is private.
+/.agents/sow/
+/.agents/skills/
