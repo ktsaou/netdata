@@ -1,5 +1,7 @@
 # Live PromQL integration checks
 
+For a hands-on installation and real query examples, use [Install and try the PromQL branch](GETTING_STARTED.md).
+
 The runners use private directories under the repository's ignored `.tmp/` and preserve storage files, process
 identities and logs. They install nothing and change no existing service. Use an existing Debug Agent with
 DBengine and PromQL enabled and `NETDATA_INTERNAL_CHECKS` explicitly defined.

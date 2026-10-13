@@ -4,6 +4,9 @@ Netdata exposes PromQL instant queries, range queries and label discovery over i
 The Rust expression engine reads the existing contexts catalogue and DBengine pages through Netdata's C adapter.
 Agents and Parents use the same API; a Parent can query the hosts whose data it retains.
 
+For branch installation and example queries over collected Linux data, see
+[Install and try the PromQL branch](../../../../tests/promql-integration/GETTING_STARTED.md).
+
 ## Endpoints
 
 | Endpoint | Methods | Result |
