@@ -145,6 +145,14 @@ def layouts(crate):
 def probes(task, shapes, callbacks, constants):
     rust = [
         "use netdata_promql_engine::c_abi::types;",
+        "use netdata_promql_engine::storage::{AdaptedPage, PageSamples, SamplePage};",
+        "fn copy_traits<T: Copy + Clone + std::fmt::Debug + Send + Sync + std::panic::RefUnwindSafe + std::panic::UnwindSafe>() {}",
+        "fn page_traits<T: std::fmt::Debug + Send + Sync + std::panic::RefUnwindSafe + std::panic::UnwindSafe>() {}",
+        "fn narrow<'short, 'long: 'short>(page: PageSamples<'long>) -> PageSamples<'short> {",
+        " match page { PageSamples::Views(v) => PageSamples::Views(v), PageSamples::Samples(v) => PageSamples::Samples(v), PageSamples::Adapted(v) => PageSamples::Adapted(v) }",
+        "}",
+        "fn narrow_adapted<'short, 'long: 'short>(page: AdaptedPage<'long>) -> AdaptedPage<'short> { page }",
+        "fn narrow_page<'short, 'long: 'short>(page: SamplePage<'long>) -> SamplePage<'short> { page }",
         "fn layout<T>(name: &str, fields: &[(&str, usize)]) {",
         ' print!("{{\\"name\\":\\"{}\\",\\"size\\":{},\\"align\\":{},\\"fields\\":{{", name, size_of::<T>(), align_of::<T>());',
         " for (index, (field, offset)) in fields.iter().enumerate() {",
@@ -152,6 +160,9 @@ def probes(task, shapes, callbacks, constants):
         ' } println!("}}}}");',
         "}",
         "fn main() {",
+        " copy_traits::<PageSamples<'_>>(); copy_traits::<AdaptedPage<'_>>(); page_traits::<SamplePage<'_>>();",
+        " let samples = narrow(PageSamples::Views(&[])); assert!(samples.is_empty());",
+        " let _ = (narrow_adapted, narrow_page);",
     ]
     c = [
         '#include "netdata-promql.h"',

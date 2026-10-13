@@ -9,7 +9,7 @@ use crate::{
     histogram::{FloatHistogramRef, IntegerHistogramRef},
     storage::{
         self, AdaptedPage, Control, Interrupted, LabelRef, PageSamples, ProviderDiagnosticRef,
-        ProviderResources, SamplePage, StorageError, TimeBounds,
+        ProviderResources, SampleAccess, SamplePage, StorageError, TimeBounds,
     },
     value::{SampleRef, SampleValueRef},
 };
@@ -131,9 +131,47 @@ pub(crate) struct Series<'a> {
 }
 pub(crate) struct Cursor<'a> {
     owner: Owner<'a>,
-    samples: AccountedVec<SampleRef<'a>>,
+    samples: ValidatedPage<'a>,
     borrowed: MemoryLease,
     maximum: usize,
+}
+
+struct ValidatedPage<'a> {
+    data: *const types::Sample,
+    length: usize,
+    borrow: std::marker::PhantomData<&'a types::Sample>,
+}
+impl Default for ValidatedPage<'_> {
+    fn default() -> Self {
+        Self {
+            data: std::ptr::NonNull::<types::Sample>::dangling().as_ptr(),
+            length: 0,
+            borrow: std::marker::PhantomData,
+        }
+    }
+}
+
+// The ABI keeps this validated page and its nested arrays immutable until cursor mutation.
+unsafe impl Send for ValidatedPage<'_> {}
+unsafe impl Sync for ValidatedPage<'_> {}
+
+impl SampleAccess for ValidatedPage<'_> {
+    fn len(&self) -> usize {
+        self.length
+    }
+    fn sample(&self, index: usize) -> SampleRef<'_> {
+        // Slice references stay within this access, so moving/dropping the owner cannot protect freed data.
+        let samples = unsafe { std::slice::from_raw_parts(self.data, self.length) };
+        unsafe { sample_view(samples[index], None) }.expect("validated immutable foreign sample")
+    }
+}
+impl std::fmt::Debug for ValidatedPage<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_list()
+            .entries((0..self.len()).map(|index| self.sample(index)))
+            .finish()
+    }
 }
 struct Temporary<'a> {
     owner: Owner<'a>,
@@ -518,7 +556,7 @@ impl storage::Series for Series<'_> {
         };
         let mut result = Cursor {
             owner,
-            samples: AccountedVec::new(provider.account, MemoryKind::Workspace),
+            samples: ValidatedPage::default(),
             borrowed: provider.account.hold(MemoryKind::BorrowedView, 0),
             maximum: 0,
         };
@@ -532,7 +570,7 @@ impl storage::Series for Series<'_> {
 }
 impl Cursor<'_> {
     fn invalidate(&mut self) {
-        self.samples.clear();
+        self.samples = ValidatedPage::default();
         self.borrowed.resize(0);
     }
 }
@@ -610,12 +648,16 @@ impl storage::SampleCursor for Cursor<'_> {
             .checked_mul(size_of::<SampleRef<'_>>())
             .filter(|bytes| *bytes <= isize::MAX as usize)
             .ok_or(Invalid("adapter descriptor size overflow"))?;
-        for sample in raw {
+        for _ in raw {
             control.check()?;
             provider.account.work(1);
-            self.samples.push(unsafe { sample_view(*sample, None) }?);
         }
         control.check()?;
+        self.samples = ValidatedPage {
+            data: raw.as_ptr(),
+            length: raw.len(),
+            borrow: std::marker::PhantomData,
+        };
         Ok(Some(SamplePage {
             samples: PageSamples::Adapted(AdaptedPage {
                 samples: &self.samples,

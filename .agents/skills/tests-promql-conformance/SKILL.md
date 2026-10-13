@@ -82,6 +82,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Cursor-fault qualification uses Netdata's `src/crates/promql-engine/tests/promql-conformance/cursor_policy_calls.py`.
   Its procedure and separate original/control reports are in
   `src/crates/promql-engine/tests/promql-conformance/README.md#physical-cursor-fault-qualification`.
+- Foreign page-wrapper changes MUST preserve public marker/lifetime properties and whole-page validation phases.
+  Run the focused ownership checks before broader rebuilds; the installed-tool and actual caller scopes are in
+  `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-foreign-sample-pages`.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
 
 ## Evidence

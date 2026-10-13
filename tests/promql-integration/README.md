@@ -58,6 +58,12 @@ fetch a whole page before a replay seeks, so fetched-sample totals may vary acro
 The retained quantile case has identical outputs and 410 page callbacks but different probe overfetch. Use the
 forced four-sample pages for stable checkpoint read-count comparisons; retain natural-page counts as observations.
 
+The Rust adapter now accesses a validated borrowed C page without a second sample-descriptor array. Its
+[owned qualification](../../src/crates/promql-engine/tests/promql-conformance/borrowed-page-qualification.json)
+records exact payload/lifetime/control checks, standalone target execution and matched fixture memory/time.
+New storage and live API cohorts qualify the complete containing Agent separately; standalone foreign targets
+remain engine/caller evidence. The Netdata metadata, page formats and checkpoint backing owners are unchanged.
+
 ## Storage and native components
 
 The fixture uses real storage writers and demand-reader APIs at all five tiers. Separate write, cold-read and append

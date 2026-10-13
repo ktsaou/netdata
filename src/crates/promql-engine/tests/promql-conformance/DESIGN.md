@@ -183,6 +183,14 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Evidence:** [temporary interface](../../src/storage.rs),
   [paged float-bit owner](../../src/temporary_float_bits.rs).
 
+The C page adapter retains a validated immutable pointer/count rather than an owned sample-descriptor array.
+It checks the entire foreign shape and union footprint before cancellable publication, then decodes each requested
+view with a lifetime tied to the wrapper borrow. Invalidation detaches the wrapper before cursor operations/close.
+Only this immutable wrapper carries the public page's thread-marker requirements; the C owner remains unchanged.
+Raw pointer/count avoids protected embedded slice references conflicting with provider cleanup during an owned
+cursor move/drop. Generic Rust page paths and timestamp/error phases remain intact. See
+[borrowed page qualification](README.md#borrowed-foreign-sample-pages).
+
 ### 14. Stream certified common chains; retain general replay for other shapes
 
 - **Choice:** certify common single-selector expressions and evaluate their original child ticks through one

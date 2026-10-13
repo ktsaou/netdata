@@ -199,10 +199,17 @@ pub enum PageSamples<'a> {
     Adapted(AdaptedPage<'a>),
 }
 
-/// Adapter descriptors have their own charge; the foreign page is observed before conversion can be interrupted.
+pub(crate) trait SampleAccess:
+    std::fmt::Debug + Send + Sync + std::panic::RefUnwindSafe + std::panic::UnwindSafe
+{
+    fn len(&self) -> usize;
+    fn sample(&self, index: usize) -> SampleRef<'_>;
+}
+
+/// The complete foreign page is validated and observed before cancellable publication.
 #[derive(Clone, Copy, Debug)]
 pub struct AdaptedPage<'a> {
-    pub(crate) samples: &'a [SampleRef<'a>],
+    pub(crate) samples: &'a dyn SampleAccess,
     pub(crate) observation: &'a MemoryLease,
 }
 
@@ -223,7 +230,7 @@ impl<'a> PageSamples<'a> {
         match self {
             Self::Views(samples) => samples[index],
             Self::Samples(samples) => samples[index].as_ref(),
-            Self::Adapted(page) => page.samples[index],
+            Self::Adapted(page) => page.samples.sample(index),
         }
     }
 }

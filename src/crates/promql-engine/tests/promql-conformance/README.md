@@ -1892,7 +1892,8 @@ the [installation and API guide](../../../../../tests/promql-integration/GETTING
   arithmetic and required callbacks. Pointer liveness, correct handle types and nonracing access are caller contracts.
 - Provider scopes, selections, series and cursors have paired ownership. Successful NULL opaque tokens receive their
   matching close. Series metadata survives selection close. Cursor pages survive until that cursor's next operation;
-  one bounded raw page and its accounted view descriptors are retained. Repeated reads use the provider's stable input.
+  one bounded raw page is retained, validated and observed before cancellable publication. Adapted indexing reads
+  its immutable headers on demand without retaining a second sample-descriptor array. Repeated reads use stable input.
 - Temporary float-bit backing has five optional callbacks: create, read, write, resources and close. Provide all five
   or none; incomplete groups are rejected before dispatch. None remains valid for expressions that do not require
   backing. Successful creation owns its token, including NULL, until exactly one close; failed creation cleans its
@@ -1922,9 +1923,9 @@ in the evidence manifest. Both unwind profiles compare all 58 declared structure
 33 shared constants between Rust,
 C11 and C++17, and check header/archive exports. The real foreign callers exercise arithmetic, repeated paging,
 resource conservation, independent results, opaque errors, output delivery and cancellation/error precedence.
-ASan/UBSan instrument the native C caller, not the Rust static library. The retained Miri checks cover selected
-Rust owners at their historical ABI 2 checkpoint; they are not a complete ABI 4 Miri gate. `panic=abort` must fail the
-crate's compile guard.
+ASan/UBSan instrument the native C caller, not the Rust static library. Historical Miri receipts retain their ABI 2
+checkpoint; current focused borrowed-page checks have their own source identity and are not a complete ABI 4 Miri
+gate. `panic=abort` must fail the crate's compile guard.
 
 The protocol primitive gate replays 230 original helper/selector outcomes and 528 nested labelset comparisons
 per native profile. It excludes two caller time-parameter wrappers and twelve selector-batch wrappers. The precise
@@ -2095,8 +2096,47 @@ The typed Rust core stage includes the approved C cursor/ownership interface, sy
 callbacks plus an owned collector, panic containment and resource/concurrency/elapsed-time accounting. Resource
 enforcement is disabled; fixed memory, cardinality, concurrency and default deadline caps are not selected. Future
 enforcement must adapt to the device. Opaque regex memory is explicitly estimated; observable owned/page bytes
-remain precise, and totals containing estimates are not guaranteed bounds. Live dbengine, APIs, Go Cloud distribution and independent rule lifecycle are
-later tracked stages. Alertmanager remains excluded.
+remain precise, and totals containing estimates are not guaranteed bounds. Live DBengine and Agent/Parent APIs are
+qualified separately in the containing repository. Go Cloud distribution and independent rule lifecycle remain
+tracked stages. Alertmanager remains excluded.
+
+## Borrowed foreign sample pages
+
+The C adapter validates every header and nested array in the returned page before cooperative publication. It
+observes the union of exposed foreign regions, preserving overlaps and absent versus present-empty arrays. A
+private inline pointer/count wrapper supplies views on demand. It detaches before Next, Seek or Close; generic
+Rust `Views` and `Samples` providers retain their direct paths. Whole-page shape errors precede pending cancellation;
+timestamp/tail validation stays in the walker, preserving earlier consumer errors.
+
+The wrapper's accessor returns views tied to its own borrow. Only that immutable wrapper receives the thread
+marker implementations required by the existing public page API. An embedded Rust slice inside a movable cursor
+would remain protected during owner destruction even after assignment to an empty slice; retaining pointer/count
+avoids that conflict with the provider freeing its allocation. No raw page or history is copied into engine storage.
+
+The embedding driver's Rust consumer probe checks exhaustive enum matching, public fields/methods, covariance and
+Copy/Clone/Debug/Send/Sync/unwind marker bounds on all declared target/profile variants. Fixture units separately
+measure first-page retained workspace at pages 1/17/1024, nested exact bits, concurrent reads, malformed unused tails,
+and observation release before mutation, END, callback failure and unwind cleanup.
+
+For ownership changes, run the focused Miri tests before broader profile rebuilds. Select an already installed
+nightly with Miri and rust-src; do not let a missing channel trigger installation. From the Cargo root, run
+`cargo +<installed-nightly> miri test --offline --locked --features fixtures --lib <test-name>` for these tests:
+
+- `nested_foreign_views_preserve_bits_and_union_the_actual_exposed_regions`
+- `foreign_page_borrows_end_before_mutation_end_failure_and_unwind_close`
+- `foreign_page_shapes_precede_cancellation_and_unread_tail_timestamps_stay_in_the_walker`
+
+These interpret Rust implementations of the foreign callbacks. They qualify selected ownership paths, without
+executing a C compiler's code or replacing actual native/foreign C/C++ caller qualification.
+
+The [source-bound page qualification](borrowed-page-qualification.json) retains the meaningful memory failure,
+current unit/Miri/caller cohorts and matched C measurements. First-page retained descriptor workspace falls from
+576/4,608/147,456 bytes to zero at pages 1/17/1024; borrowed sample bytes remain 32/544/32,768. In the complete
+synthetic sum fixture, a 1,024-sample page reduces workspace peak from 227,504 to 7,875 bytes in both profiles.
+Longer histories of 8,192/65,536 points keep the same peak at a fixed page bound. Three repetitions preserve
+complete sums, fetched counts, page counts and resource release. For 65,536 points with 1,024-sample pages, median
+times change from 23.06 to 18.78 ms in release and 39.58 to 31.43 ms in release-min. These measurements describe
+the fixture, not production throughput or RSS.
 
 ## Label encoding compatibility exception
 

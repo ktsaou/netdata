@@ -8541,5 +8541,19 @@
       "Pages17/1024 retain eight strict original cursor disagreements as separately approved physical-Seek policy outcomes; original references remain unchanged.",
       "Caller instrumentation and whole-process memory are not qualified by these uninstrumented C/C++ cohorts."
     ]
+  },
+  "borrowed_page_qualification": {
+    "status": "qualified_on_recorded_finite_inputs",
+    "scope": "Private C borrowed-page representation/ownership/control/accounting and unchanged public page/ABI surface; no language/numerical/provider-format change.",
+    "qualification": {
+      "repository_path": "tests/promql-conformance/borrowed-page-qualification.json",
+      "sha256": "9ca5bac621519494b8a28c3ac3d1cd6f0b20f4aaa030e7548b41174f1efc3a3a"
+    },
+    "source_files": 144,
+    "fixture_units_per_profile": 538,
+    "miri_cases": 3,
+    "c_embedding_artifacts": 734,
+    "storage_records": 672,
+    "live_checks": 58
   }
 }

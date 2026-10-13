@@ -66,17 +66,17 @@
       },
       "slo_recordings": 608,
       "slo_alerts": 72,
-      "current_status": "Fresh native replay passes all 1110 controlled source expressions across 231540 evaluations, both builds and pages 1/17/1024. Recording chains consume candidate-owned parent results; no Go parent payloads are consumed. Expression evidence includes issue 6028 scenarios; live metrics and rule scheduling are later stages."
+      "current_status": "Fresh native replay passes all 1110 controlled source expressions across 231540 evaluations, both builds and pages 1/17/1024. Recording chains consume candidate-owned parent results; no Go parent payloads are consumed. Expression evidence includes issue 6028 scenarios. Netdata's live retained-data integration is qualified separately; rule scheduling remains a later stage."
     }
   },
   "approved_core_runtime": {
-    "storage": "Typed C cursors; one raw page per active cursor, chronological operator state and exact replay; common single-selector schedules reuse the held page. Temporary sort backing is provider-owned; cache reuse belongs to the later dbengine adapter.",
+    "storage": "Typed C cursors; one raw page per active cursor, chronological operator state and exact replay; common single-selector schedules reuse the held page. Temporary sort backing and DBengine cache reuse belong to the separately qualified Netdata provider.",
     "output": "Synchronous incremental borrowed chunks, provisional until final success; independently owned convenience collector.",
     "accounting": "Current/peak resources, cumulative samples/work, active/peak executions and per-query elapsed time; charges survive until resource release.",
     "regex_accounting": "Approved option 8.C: retain the qualified matcher. Explicitly estimate opaque backend/selector-table memory; precisely account observable engine-owned buffers and borrowed pages. Disclose hidden regex temporary peaks; totals including estimates are not exact requested bytes or guaranteed bounds.",
     "enforcement": "All engine resource caps disabled for now. Caller cancellation/deadlines remain explicit.",
     "future_policy": "Device-adaptive enforcement remains a later runtime/integration design; no fixed profile or adaptive formula selected.",
-    "status": "Implemented standalone Rust/C ABI4 expression runtime; finite native/foreign, ownership and C caller cohorts retain their actual source and interface versions in core-qualification.json. Live integration remains separate.",
+    "status": "Implemented independent Rust/C ABI4 expression runtime; finite native/foreign, ownership and C caller cohorts retain their actual source and interface versions in core-qualification.json. Netdata contexts/DBengine and live API integration is implemented and qualified separately in the containing repository's tests/promql-integration/.",
     "cooperative_control": {
       "query_walks": "Labels, validation, diagnostic formatting/merging, metadata rosters/filters, task scheduling and parenthesis projection poll existing cancellation/deadline control and record work. Compilation checks each variadic argument before enqueue.",
       "provider_failure_precedence": "An already returned provider failure keeps precedence while transporting its diagnostics; success/END callbacks poll before diagnostic conversion. Query-prefix work remains accounted while later cancellation is suppressed.",
@@ -114,7 +114,6 @@
     "regex_cases_exact_passed": 21320
   },
   "remaining_stages": [
-    "NIDL/dbengine adapter and Agent/Parent APIs",
     "Go Cloud distributed query contract and implementation",
     "Independent rules, lifecycle/templates and Netdata alert integration",
     "Platform, failure, performance and operational qualification"
