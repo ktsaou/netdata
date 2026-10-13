@@ -29,6 +29,7 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Reuse verified source captures through explicit paths; provide an existing Go module cache for new captures.
 - Exercise pages 1, 17 and 1024 when changing cursor/replay ownership or temporal evaluation.
 - Record compiler profile, binary hash, source hashes and comparison policy for each new cohort.
+- Bind the comparison runner and imported helper bytes before and after each new cohort.
 
 ## Bad practices
 
@@ -75,6 +76,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Retained generic runners may use process-signalling timeout helpers. For a new qualification without explicit
   signal approval, use a recorded Popen/communicate owner and preserve child identity/completion receipts.
 - Follow the conformance README for pinned differential panels; preserve its stated tolerance and bit diagnostics.
+- Cursor-fault qualification uses Netdata's `src/crates/promql-engine/tests/promql-conformance/cursor_policy_calls.py`.
+  Its procedure and separate original/control reports are in
+  `src/crates/promql-engine/tests/promql-conformance/README.md#physical-cursor-fault-qualification`.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
 
 ## Evidence

@@ -25,6 +25,11 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Certified final vector range output passes 527 fixture units in each optimized build, 128,652 builtin comparisons
+  and all 231,540 required SRE comparisons across both builds and pages 1/17/1024. Fresh native C/C++ and 58 controlled
+  live Netdata API/contexts checks pass. ARM compilation and earlier foreign runtime receipts remain distinguished.
+  The [final output panel](#certified-final-range-output) records the bounded-memory before/after measurements;
+  [cursor fault qualification](#physical-cursor-fault-qualification) separates strict originals from page-reuse policy.
 - The native diagnostic printability getter reuses the existing Go Unicode17 table without allocating. Its
   additive cohort passes522 fixture units in both profiles,520 production units, lint/format/MSRV checks and448
   rebuilt C/C++ records across AMD64/ARM64/ARM32. Twelve rune boundaries and invalid output-pointer controls run
@@ -1704,6 +1709,48 @@ query time falls from 151.65 s to 16.49 s. Engine workspace is 38,476 bytes at b
 borrowed source pages and provider-selected temporary backing are accounted separately. These are finite fixture
 measurements, not throughput or elapsed-time guarantees for dbengine or other devices.
 
+### Certified final range output
+
+Final vector range queries reuse the existing single-selector certificate after checking every row and its final
+label identity. Each physical series emits chronological points through one cursor/page, using the original
+operator machine. Normal rows keep their ordinal IDs. Delayed cleanup and root negation retain their existing
+first-productive-time IDs with a bounded prefix pass and compact `(time, row)` metadata. Final identity collisions
+and unproved shapes use ordinary evaluation. Preparation owns logical statistics and diagnostics; the final visitor
+observes actual work, borrowed/owned memory and successfully delivered points.
+
+The generated regressions stream up to 100,000 points without collecting their answer. At pages 1/17/1024 they check
+one active cursor and unchanged workspace/provider/borrowed peaks as history grows. A 13-case source-bound
+before/after replay preserves complete results. At page size 17, selector histories of 16/32/64/128 points change from
+272/801/2630/9372 fetched entries to 32/64/128/256; peak workspace remains 6897/6961/6961/6961 bytes in both builds.
+These are fixture resource observations, not disk reads, whole-process RAM or production throughput measurements.
+
+Direct `timestamp`/`start_timestamp` initialization keeps initial Provider errors until ordinary lookup. A latched
+initial error disables that selector's schedule certificate, so a later tick of an earlier series cannot override
+the initial lookup failure of another series. Parentheses share the direct-clock path; unary wrappers retain their
+source-defined child preparation.
+
+### Physical cursor fault qualification
+
+The original 82-case cursor capture remains unchanged. Page 1 matches all 82 strict original outcomes. Pages 17/1024
+retain 74 strict matches and eight separately qualified physical-Seek outcomes: faults attached only to an omitted
+callback cannot occur. Four vector outcomes use identical-input, fault-free originals in that capture. Four
+two-fault outcomes use new original Go controls removing only the omitted Seek fault, preserving the other series'
+initial Next fault. Complete results are compared with ID substitution only; no result is authored by Rust.
+
+`cursor_policy_calls.py` records the strict report and a separate physical-operation comparison, verifies the exact
+declared difference roster, and also executes the independent controls. It binds candidate, inputs, original/control
+results and comparison helper bytes. The raw disagreements are evidence and are never overwritten or counted as
+strict matches. The existing page-reuse tests separately check actual omitted callbacks and errors when movement
+crosses a page boundary.
+
+```sh
+python3 tests/promql-conformance/cursor_policy_calls.py --capture \
+  --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"
+python3 tests/promql-conformance/cursor_policy_calls.py \
+  --reference "${PROMQL_CURSOR_CAPTURE_DIR:?}" --controls "${PROMQL_CURSOR_CONTROLS_DIR:?}" \
+  --binary "${PROMQL_QUERY_BINARY:?}" --page-size 1024
+```
+
 ### Ordinary buffered matrix replay
 
 Ordinary range functions and raw matrix roots use one source operation owner derived from
@@ -1822,7 +1869,8 @@ delegates for descriptor marshalling and independently owned collection.
 ### Synchronous C embedding
 
 `include/netdata-promql.h` declares version 4 of the standalone interface. The crate emits an
-`rlib` and a static library. Production Agent/plugin build integration belongs to a later stage.
+`rlib` and a static library. The containing Netdata tree links it into the Agent;
+the [installation and API guide](../../../../../tests/promql-integration/GETTING_STARTED.md) describes live queries.
 
 - Engine, immutable query, control, report and result handles have paired release functions. Results and reports own
   their data independently of the query, foreign provider and engine handle. Individual getters borrow bytes and

@@ -39,6 +39,9 @@ use crate::{
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use tokens::TokenKind;
 
+#[path = "scheduled_output.rs"]
+mod scheduled_output;
+
 #[derive(Clone, Copy, Debug)]
 pub struct EngineOptions {
     pub parser: ParserOptions,
@@ -826,6 +829,20 @@ impl CompiledQuery {
             }
         }
         let cleanup_guard = MergeGuard::new(hashes, control, account)?;
+        if self.try_scheduled_output(
+            catalog,
+            scheduled_output::FinalSchedule {
+                scope,
+                rosters: &rosters,
+                merge_root,
+                cleanup_guard: &cleanup_guard,
+            },
+            control,
+            account,
+            sink,
+        )? {
+            return Ok(());
+        }
         let mut traversal = crate::query_scopes::Traversal::new(
             evaluator_header.into(),
             !prepared.flags().boundaries[self.expression.root.0]
@@ -916,16 +933,9 @@ impl CompiledQuery {
                     sink.chunk_checked(OutputChunk::Scalar { time_ms, value }, control, account)
                         .map_err(|error| ExecutionError::output(error, account))?;
                 } else {
-                    sink.chunk_checked(
-                        OutputChunk::Series {
-                            series_id,
-                            labels: &labels,
-                            points: &[point],
-                        },
-                        control,
-                        account,
-                    )
-                    .map_err(|error| ExecutionError::output(error, account))?;
+                    scheduled_output::emit_point(
+                        sink, series_id, &labels, point, control, account,
+                    )?;
                 }
                 account.output(1);
             }
@@ -1905,6 +1915,7 @@ impl CompiledQuery {
                 };
                 let mut failures = AccountedVec::new(account, MemoryKind::Workspace);
                 let mut hashes = AccountedVec::new(account, MemoryKind::Workspace);
+                let mut has_initial_error = false;
                 for ordinal in 0..catalog.len(selector_node) {
                     control.check()?;
                     account.work(1);
@@ -1942,10 +1953,13 @@ impl CompiledQuery {
                             },
                         )
                         .expect("clock series ordinal")?;
+                    has_initial_error |= matches!(failure, crate::storage::InitialSample::Error(_));
                     failures.push(failure);
                 }
                 rosters.prepare_clock(selector_node, failures);
-                if !selector.smoothed
+                // Latched errors must reach the ordinary first lookup before later series work.
+                if !has_initial_error
+                    && !selector.smoothed
                     && crate::scheduled_expression::unique(hashes, control, account)?
                 {
                     rosters.certify_schedule(selector_node, selector_node);

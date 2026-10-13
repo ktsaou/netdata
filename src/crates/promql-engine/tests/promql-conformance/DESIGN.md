@@ -2,12 +2,12 @@
 
 The native query engine is a standalone Rust implementation of the pinned PromQL language with a typed C interface.
 It evaluates raw storage through bounded pages and replay, supports streaming and owned results, and accounts for
-resources with enforcement disabled. Live dbengine/API integration, the independent rule engine and Go Cloud
-execution are subsequent stages.
+resources with enforcement disabled. The containing Netdata tree supplies live dbengine/API integration;
+the independent rule engine and Go Cloud execution remain subsequent stages.
 
-This document extracts the approved design and its consequences. It records the completed core at code checkpoint
+This document extracts the approved design and its consequences. Its original core extraction records code checkpoint
 `e5a9338d766eea359425641e1539760fca33c491` and qualification checkpoint
-`5d1cb3c03caf202535161321ccde9f41b5803dc6`; it introduces no new runtime policy.
+`5d1cb3c03caf202535161321ccde9f41b5803dc6`. Later source-bound qualification records preserve each actual implementation.
 
 ## Implementation status
 
@@ -15,8 +15,8 @@ This document extracts the approved design and its consequences. It records the 
 | --- | --- |
 | Completed standalone core | Owned parser/type checker, float and native-histogram values, selectors, time/range/subquery evaluation, operators, joins, aggregations, stable and explicitly enabled optional functions, diagnostics, typed storage/output interfaces, C ABI 4, accounting and cooperative control. |
 | Qualified evidence | Pinned upstream and required SRE expression panels, source-bound native/foreign checks, ownership/control regressions and actual C/C++ embedding. These finite checks do not prove equivalence for every possible input. |
-| Approved later integration | Existing retained Netdata data, dual metric names, endpoint/tier policy, Agent/Parent APIs, Go Cloud distribution and a meta health engine parallel to existing health. |
-| Approved Netdata integration | Caller-owned contexts metadata, paged dbengine reads, fixed counter origin, query/discovery APIs, fleet/explicit-host scope and bounded sealed response ownership. Implementation and live acceptance are tracked by Netdata. |
+| Implemented Netdata integration | Caller-owned contexts metadata, dual metric names, paged dbengine reads, fixed counter origin, endpoint/tier policy, Agent/Parent query/discovery APIs, fleet/explicit-host scope and bounded sealed responses. [Installation and API guide](../../../../../tests/promql-integration/GETTING_STARTED.md). |
+| Approved later integration | Go Cloud distribution and a meta health engine parallel to existing health. |
 | Designs still open | Distributed plan/transport, rule configuration/lifecycle/ownership, adaptive enforcement and broader platform/rollout policy. |
 | Excluded | Alertmanager implementation and compatibility. |
 
@@ -34,7 +34,7 @@ The [README](README.md#standalone-expression-core) summarizes implementation and
   diagnostics and threshold outcomes.
 - **Consequence:** Go Cloud must share the semantic contract. The division of processing between native executors
   and Cloud remains a design discussion; the core's local scheduler does not select that distributed split.
-- **Status:** native expression core delivered; production and Cloud integration remain later work.
+- **Status:** native expression core and Netdata API integration delivered; Cloud integration remains later work.
 
 ### 2. A parallel meta health engine; Alertmanager excluded
 
@@ -196,6 +196,13 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Evidence:** [single-selector schedules](README.md#common-single-selector-schedules),
   [certification owner](../../src/scheduled_expression.rs).
 
+Final vector range output uses that certificate after every physical row and final label identity are checked.
+It emits each row chronologically through one source cursor/page. Delayed cleanup and root negation preserve
+first-productive-time series IDs with a bounded prefix pass and compact row-order metadata; collisions keep ordinary
+evaluation. Direct clock initialization retains latched errors for their original lookup phase and withholds the
+certificate when such an error exists. Preparation owns logical statistics and diagnostics; final traversal accounts
+its actual work, resources and delivered points. See [final range output](README.md#certified-final-range-output).
+
 ### 15. Advance within the immutable raw page already held
 
 - **Choice:** scheduled instantaneous forward movement reuses its current page. Validate the unread tail before
@@ -327,7 +334,7 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Evidence:** [control/work observations](README.md#cooperative-control-and-work-observations),
   [annotation owner](../../src/annotations.rs).
 
-## Approved data policies awaiting the production adapter
+## Netdata data policies
 
 ### 24. Query the decoded retained Netdata dataset
 
@@ -479,7 +486,7 @@ integration, and Alertmanager remains excluded.
 - **Evidence:** `src/c_abi/sort.rs`, `src/go_sort.rs`, the empty-group-label execution/collector fixtures and the
   six actual C controls. The new callback is additive; existing ABI4 table layouts remain unchanged.
 
-## Current library qualification
+## Retained library qualification
 
 - Both optimized builds pass522 fixture units; the production feature set passes520 units. Strict lint,
   formatting and the installed Rust1.91.0 minimum-version checks pass.
@@ -506,3 +513,23 @@ integration, and Alertmanager remains excluded.
   does not instrument the linked Rust archive. No current full-engine Miri gate is claimed.
 - `core-qualification.json` binds every fresh receipt to its actual sources and binaries. These finite checks
   qualify the library; live metadata, dbengine projection, HTTP routing and response delivery belong to Netdata.
+
+## Final range output qualification
+
+- The finalized 142-file source cohort passes 527 fixture units in each optimized profile, formatting, strict lint
+  and the installed Rust 1.91.0 check. Final ARM64/ARM32 checks compile that source. Earlier actual foreign C/C++
+  runs retain their pre-lint source identities; fresh final C/C++ execution is native AMD64.
+- Both builds and pages 1/17/1024 pass 128,652 builtin comparisons and 231,540 required SRE comparisons, with no
+  expression mismatch or paired-bit difference. Recording chains consume candidate-owned completed results.
+  Focused schedule, default-profile, precise-clock and cursor-policy panels retain their separate complete outcomes.
+- Page 1 matches all 82 unchanged cursor originals. Pages 17/1024 match 74 originals and separately qualify eight
+  approved physical-Seek outcomes against independent Go controls; their raw original disagreements remain evidence.
+- Current C/C++ callers preserve ABI4 layouts and reject ABI3, and the panic-abort build remains rejected.
+  A controlled Netdata build passes 34 HTTP checks and 24 contexts-readiness scenarios across array/Gorilla storage.
+  Both fixture processes exit successfully. No production service is part of this qualification.
+- A 13-case before/after panel preserves complete results. Its 128-point selector fetches 256 entries instead of
+  9,372 at page size 17, with the same 6,961-byte workspace peak. Generated final-output checks stream up to
+  100,000 points through one active cursor with history-independent raw workspace. These observations do not
+  establish DBengine disk throughput or whole-process memory.
+- [core-qualification.json](core-qualification.json) records the final source/binary cohort and retained evidence
+  identities. The public language, numerical, provider, C ABI and HTTP contracts are unchanged.
