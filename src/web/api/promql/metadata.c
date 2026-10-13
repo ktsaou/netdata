@@ -126,7 +126,7 @@ static void physical_destroy(PROMQL_PHYSICAL *physical) {
     promql_free(physical->label_references);
     promql_free(physical->labels);
     promql_free(physical->alias);
-    promql_free(physical->checkpoints);
+    promql_checkpoints_free(physical->checkpoints);
     promql_host_release(physical->query, physical->host);
     promql_free(physical);
 }

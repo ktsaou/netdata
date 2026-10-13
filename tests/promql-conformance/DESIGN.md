@@ -82,6 +82,13 @@ Alertmanager remains outside this work.
   and extent LRUs rather than retaining all raw pages across a time range or all selected series.
 - Forward evaluation reuses the current page; computed selectors retain bounded streaming state where supported.
   Other replay paths can repeat storage work, which the query observations report.
+- Counter replay checkpoints retain the accumulator before each page boundary. The first 16 records use a bounded
+  RAM prefix; longer histories use exact 16-byte timestamp/value-bit records in one query-owned anonymous backing
+  file. Physical aliases share the same checkpoint owner and starting basis. Cached first/last records and bounded
+  copy scratch avoid a RAM timeline; the scratch grows only when needed, to at most 8 KiB.
+  Region reservations, copy/write completion and final control checks precede publication. Failed opens release
+  their partial cursor/reference owners; query cleanup closes backing after descendants. This changes private
+  query state, preserving DBengine page formats, interpolation, units and streaming.
 - Provider callbacks receive explicit query-owned allocation handles, including cleanup. This captures temporary
   C allocation peaks as well as retained memory. Shared borrowed views have separate observations.
 - Accounting distinguishes engine-owned memory, provider workspaces, private pages, shared views, result state,
@@ -92,6 +99,8 @@ Alertmanager remains outside this work.
 - Provider-managed temporary storage supports external computations and large outputs. The C adapter places
   backing under the configured cache directory or explicit PromQL directory. Unavailable/full backing returns
   an error; the engine does not silently materialize the complete dataset in RAM.
+  Counter queries exceeding the short checkpoint prefix can require backing even for a tiny result. This adds
+  a reached backing requirement to those queries; short histories remain independent of it.
 
 ## API and response ownership
 

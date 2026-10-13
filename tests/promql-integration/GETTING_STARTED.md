@@ -187,6 +187,7 @@ Removing `/host/localhost` changes these requests to the retained fleet scope on
 - An empty metric result means there are no matching retained series/samples yet. Check collection, selector labels
   and host scope. The scalar `1+1` query distinguishes API availability from metric availability.
 - Large queries need writable temporary backing and enough free space. The default is the Agent's cache directory.
+  Counter queries crossing more than 16 page-boundary checkpoints also need it, even for a small result.
   An unavailable/full backing location returns an error. Metadata and aggregation state still grow with cardinality.
 
 The [integration checks](README.md) describe the exercised storage, HTTP and response paths. Controlled ACLK tests

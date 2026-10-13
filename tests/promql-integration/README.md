@@ -12,6 +12,7 @@ DBengine and PromQL enabled and `NETDATA_INTERNAL_CHECKS` explicitly defined.
 | `storage.py --binary BUILD/netdata --rtc-peers` | The same checks plus actual loopback WebRTC peers |
 | `live.py --binary BUILD/netdata` | Ordinary HTTP server over real collected DBengine data |
 | `backing.py` | Native backing I/O with sparse offsets above 2 GiB |
+| `checkpoints.py` | Exact bounded checkpoint ownership, shared backing and controlled I/O failures |
 
 Both storage codecs run by default; `--codecs array` or `--codecs gorilla` selects one. Actual peer qualification
 also requires the pinned libdatachannel build. Each runner requires its exact closed case roster, rejects duplicate
@@ -22,6 +23,40 @@ query cap.
 3 GiB sizing, bounded reads and writes across the 2 GiB boundary, and offset overflow. Use `--cc COMPILER`
 and `--runner 'EMULATOR OPTIONS'` for an installed cross compiler and emulator. Its receipts do not qualify
 daemon memory accounting.
+
+`checkpoints.py` compiles the actual checkpoint and backing owners with allocation/control and I/O wrappers.
+Its closed cases cover exact NaN/zero/integer bits, interleaved metrics, 65,537 checkpoints, before/exact-first
+and last fast paths, failed allocation/reservation/copy/write, interrupted publication, short I/O and sparse
+offsets above 3 GiB. It accepts the same `--cc` and `--runner` options. These are module/shim observations;
+the storage runner below measures the real daemon's query-owned allocation handles separately.
+
+## Counter checkpoint memory
+
+Each physical metric retains a short 16-record prefix and exact first/last records. Longer histories use one
+query-owned anonymous file, shared across metrics and aliases, and a lazy copy window capped at 8 KiB. Successful
+growth reserves a whole region before copying/appending and publishes after its final control check. Failed growth
+leaves the earlier records valid; unreachable regions remain until query cleanup. No raw history is held in RAM.
+
+The real provider fixture forces four samples per DBengine page, then compares complete native/legacy counter sums
+and release accounting at 16/17/33/129/513/2,049 pages. In the recorded array baseline and both current codecs,
+tracked provider peak at 2,049 pages falls from 135,097 to 45,097 bytes. A 16-page query grows from 37,017 to
+37,081 bytes. These are source-bound fixture observations, not whole-process RSS or general throughput guarantees.
+Checkpoint state is bounded in history length; metric metadata and reducer state still grow with cardinality.
+
+The runner also exercises real forward/backward/ended seeks, alias-shared basis, two metrics sharing one file,
+failed-open reference/account balance, sticky failed seek/next, reset-bearing gaps, and negative/absolute legacy
+views after spill. Its callback cases use the existing output callback's borrowed account and close all descendants
+before returning. Short no-backing queries succeed; the longer counter case returns a specific provider error.
+Large counter histories can therefore require writable backing even when their output is tiny. Checkpoint disk
+traffic remains separate from Rust temporary-float-store observations.
+The [checkpoint qualification](checkpoint-qualification.json) binds the source, executable, complete storage/live
+receipts and actual module execution on AMD64/ARM64/ARM32. Existing Rust expression qualification retains its
+unchanged source/binary identity; these C-only changes do not reattribute or rerun the full expression corpus.
+
+Natural DBengine page boundaries depend on chart alignment, including its process-local pointer hash. A probe can
+fetch a whole page before a replay seeks, so fetched-sample totals may vary across processes with identical inputs.
+The retained quantile case has identical outputs and 410 page callbacks but different probe overfetch. Use the
+forced four-sample pages for stable checkpoint read-count comparisons; retain natural-page counts as observations.
 
 ## Storage and native components
 

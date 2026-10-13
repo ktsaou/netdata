@@ -41,6 +41,8 @@ if(ENABLE_PROMQL)
         src/web/api/promql/memory.h
         src/web/api/promql/backing.h
         src/web/api/promql/backing.c
+        src/web/api/promql/checkpoint.h
+        src/web/api/promql/checkpoint.c
         src/web/api/promql/body.h
         src/web/api/promql/body.c
         src/web/api/promql/aclk-source.h

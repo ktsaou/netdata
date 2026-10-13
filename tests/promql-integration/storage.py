@@ -31,6 +31,12 @@ PROVIDER_CASES = {
     "gap-prefix", "reset-gap-prefix", "fine-coarse-fine", "fine-coarse-first", "fine-coarse-last",
     "fine-coarse-negative", "fine-coarse-absolute", "fine-coarse-native", "fine-coarse-alias", "fine-coarse-replay",
 }
+PROVIDER_CASES |= {f"checkpoint-{mode}-{pages}" for mode in ("native", "legacy")
+                   for pages in (16, 17, 33, 129, 513, 2049)}
+PROVIDER_CASES |= {"checkpoint-short-no-backing", "checkpoint-long-no-backing"}
+PROVIDER_CASES |= {"checkpoint-reset-gap", "checkpoint-reset-gap-alias", "checkpoint-negative", "checkpoint-absolute"}
+CHECKPOINT_CALLBACK_CASES = {"native-seeks", "legacy-seeks", "alias-basis", "failed-open-cleanup",
+                             "failed-seek-sticky", "two-metrics-one-file"}
 DISCOVERY_CASES = {"negative", "reversed", "between-seconds", "zero", "positive-wide", "full-clock", "future-wide"}
 OUTPUT_CASES = {"scalar-no-backing", "string-escaping", "vector-no-backing", "large-no-backing",
                 "plain-2049", "plain-100000", "gzip-2049", "gzip-100000"}
@@ -177,6 +183,8 @@ def main():
                 faults = [row for row in rows if "storage_fault" in row]
                 collections = [row for row in rows if "collection_case" in row]
                 providers = [row for row in rows if "provider_case" in row]
+                checkpoint_memory = [row for row in rows if "checkpoint_memory" in row]
+                checkpoint_callbacks = [row for row in rows if "checkpoint_callback" in row]
                 discoveries = [row for row in rows if "discovery_case" in row]
                 outputs = [row for row in rows if "output_case" in row]
                 natives = [row for row in rows if "native_case" in row]
@@ -192,6 +200,8 @@ def main():
                 expected_faults = FAULT_CASES if phase == "read" else set()
                 expected_collections = COLLECTION_CASES if phase == "read" else set()
                 expected_providers = PROVIDER_CASES if phase == "read" else set()
+                expected_checkpoints = {"native", "legacy"} if phase == "read" else set()
+                expected_checkpoint_callbacks = CHECKPOINT_CALLBACK_CASES if phase == "read" else set()
                 expected_discoveries = DISCOVERY_CASES if phase == "read" else set()
                 expected_outputs = OUTPUT_CASES if phase == "read" else set()
                 expected_natives = NATIVE_CASES if phase == "read" else set()
@@ -204,11 +214,13 @@ def main():
                 expected_operations = OPERATION_CASES if phase == "read" else set()
                 expected_routes = API_ROUTE_CASES if phase == "read" else set()
                 expected_peers = RTC_PEER_CASES if phase == "read" and args.rtc_peers else set()
-                if (result or len(rows) != 36 + len(expected_faults) + len(expected_collections) + len(expected_providers) + len(expected_discoveries) + len(expected_outputs) + len(expected_natives) + len(expected_refs) + len(expected_requests) + len(expected_api) + len(expected_mqtt) + len(expected_aclk) + len(expected_rtc) + len(expected_operations) + len(expected_routes) + len(expected_peers)
+                if (result or len(rows) != 36 + len(expected_faults) + len(expected_collections) + len(expected_providers) + len(expected_checkpoints) + len(expected_checkpoint_callbacks) + len(expected_discoveries) + len(expected_outputs) + len(expected_natives) + len(expected_refs) + len(expected_requests) + len(expected_api) + len(expected_mqtt) + len(expected_aclk) + len(expected_rtc) + len(expected_operations) + len(expected_routes) + len(expected_peers)
                         or any(row["errors"] for row in rows)
                         or {row["storage_fault"] for row in faults} != expected_faults
                         or {(row["collection_case"], row["tier"]) for row in collections} != expected_collections
                         or {row["provider_case"] for row in providers} != expected_providers
+                        or {row["checkpoint_memory"] for row in checkpoint_memory} != expected_checkpoints
+                        or {row["checkpoint_callback"] for row in checkpoint_callbacks} != expected_checkpoint_callbacks
                         or {row["discovery_case"] for row in discoveries} != expected_discoveries
                         or {row["output_case"] for row in outputs} != expected_outputs
                         or {row["native_case"] for row in natives} != expected_natives

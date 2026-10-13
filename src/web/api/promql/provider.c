@@ -18,6 +18,9 @@ typedef struct {
     netdata_promql_sample_t samples[PROMQL_STORAGE_PAGE_SAMPLES];
 } PROMQL_CURSOR;
 
+static uint32_t temporary_failure(PROMQL_PROVIDER_CONTEXT *context, PROMQL_READ_FRAME *frame, int cause,
+                                   netdata_promql_bytes_t *error);
+
 static void counted(PROMQL_PROVIDER_CONTEXT *context, uint64_t *counter, uint64_t amount) {
     if(amount > UINT64_MAX - *counter) { *counter = UINT64_MAX; context->counters_overflowed = true; }
     else *counter += amount;
@@ -43,6 +46,7 @@ static void query_close(void *context __maybe_unused, void *handle,
     PROMQL_PROVIDER_QUERY *query = handle;
     internal_fatal(query->used || query->hosts, "PromQL query closed before its provider descendants");
     promql_free(query->physical);
+    promql_checkpoint_backing_close(&query->checkpoints);
     promql_free(query);
 }
 
@@ -91,30 +95,39 @@ static void series_close(void *context __maybe_unused, void *handle,
     promql_free(series);
 }
 
-static void cursor_restore(PROMQL_CURSOR *cursor, int64_t wanted) {
+static uint32_t cursor_restore(PROMQL_CURSOR *cursor, int64_t wanted, PROMQL_READ_FRAME *frame,
+                               netdata_promql_bytes_t *error) {
     PROMQL_PHYSICAL *physical = cursor->physical;
     wanted = MAX(MAX(wanted, promql_ceil_seconds(cursor->bounds.start_ms)), INT64_C(1));
     bool ended = cursor->ended;
-    if(physical->query->empty || wanted > cursor->last) { cursor->ended = true; return; }
+    if(physical->query->empty || wanted > cursor->last) { cursor->ended = true; return NETDATA_PROMQL_OK; }
+    const PROMQL_CHECKPOINT *last = promql_checkpoints_last(physical->checkpoints);
+    if(!ended && cursor->projection_started && wanted >= cursor->next &&
+       (wanted == cursor->next || !last || last->next <= cursor->next)) {
+        cursor->wanted = (time_t)wanted;
+        if(!physical->incremental) cursor->next = cursor->wanted;
+        return NETDATA_PROMQL_OK;
+    }
+    PROMQL_CHECKPOINT checkpoint;
+    bool found;
+    int cause;
+    if(!promql_checkpoints_find(physical->checkpoints, &physical->query->checkpoints, wanted,
+                                &checkpoint, &found, frame, &cause)) {
+        cursor->error_status = temporary_failure(physical->query->context, frame, cause, error);
+        return cursor->error_status;
+    }
     cursor->wanted = (time_t)wanted;
     cursor->ended = false;
-    size_t low = 0, high = physical->checkpoint_count;
-    while(low < high) {
-        size_t middle = low + (high - low) / 2;
-        if(physical->checkpoints[middle].next <= cursor->wanted) low = middle + 1;
-        else high = middle;
-    }
-    if(low && (ended || !cursor->projection_started || cursor->wanted < cursor->next ||
-               physical->checkpoints[low - 1].next > cursor->next)) {
-        PROMQL_CHECKPOINT checkpoint = physical->checkpoints[low - 1];
-        cursor->next = checkpoint.next;
-        cursor->counter = checkpoint.counter;
+    if(found && (ended || !cursor->projection_started || cursor->wanted < cursor->next ||
+                 checkpoint.next > cursor->next)) {
+        cursor->next = (time_t)checkpoint.next;
+        cursor->counter = netdata_promql_double_from_bits(checkpoint.counter_bits);
         cursor->projection_started = true;
     }
     else if(ended || !cursor->projection_started || cursor->wanted < cursor->next) {
-        if(physical->checkpoint_count) {
-            cursor->next = physical->checkpoints[0].next;
-            cursor->counter = physical->checkpoints[0].counter;
+        if(physical->checkpoints) {
+            cursor->next = (time_t)checkpoint.next;
+            cursor->counter = netdata_promql_double_from_bits(checkpoint.counter_bits);
             cursor->projection_started = true;
         }
         else {
@@ -124,6 +137,7 @@ static void cursor_restore(PROMQL_CURSOR *cursor, int64_t wanted) {
         }
     }
     if(!physical->incremental) cursor->next = MAX(cursor->wanted, (time_t)1);
+    return NETDATA_PROMQL_OK;
 }
 
 static void cursor_advance(PROMQL_CURSOR *cursor, time_t timestamp, uint32_t increment) {
@@ -148,7 +162,12 @@ static uint32_t cursor_open(void *context, void *handle, netdata_promql_bounds_t
     cursor->last = (time_t)MAX(INT64_C(0),
         MIN(promql_floor_seconds(bounds.end_ms), (int64_t)cursor->physical->query->last));
     cursor->reader_span = UINT32_MAX;
-    cursor_restore(cursor, promql_ceil_seconds(bounds.start_ms));
+    uint32_t status = cursor_restore(cursor, promql_ceil_seconds(bounds.start_ms), &frame, error);
+    if(status != NETDATA_PROMQL_OK) {
+        promql_physical_release(cursor->physical);
+        promql_free(cursor);
+        return status;
+    }
     *out = (netdata_promql_cursor_open_t){cursor, PROMQL_STORAGE_PAGE_SAMPLES};
     return NETDATA_PROMQL_OK;
 }
@@ -162,14 +181,13 @@ static void cursor_close(void *context __maybe_unused, void *handle,
 }
 
 static uint32_t cursor_seek(void *context __maybe_unused, void *handle, int64_t timestamp,
-                             const netdata_promql_callback_control_t *control, netdata_promql_bytes_t *error __maybe_unused) {
+                             const netdata_promql_callback_control_t *control, netdata_promql_bytes_t *error) {
     PROMQL_READ_FRAME frame;
     promql_read_operation(&frame, control);
     if(!promql_read_poll(&frame)) return frame.interrupted;
     PROMQL_CURSOR *cursor = handle;
     if(cursor->error_status) return cursor->error_status;
-    cursor_restore(cursor, promql_ceil_seconds(timestamp));
-    return NETDATA_PROMQL_OK;
+    return cursor_restore(cursor, promql_ceil_seconds(timestamp), &frame, error);
 }
 
 static uint32_t reader_error(PROMQL_CURSOR *cursor, PROMQL_READ_FRAME *frame, RRDENG_READ_ERROR failure,
@@ -189,22 +207,12 @@ static uint32_t reader_error(PROMQL_CURSOR *cursor, PROMQL_READ_FRAME *frame, RR
     return cursor->error_status;
 }
 
-static bool checkpoint_add(PROMQL_CURSOR *cursor, PROMQL_READ_FRAME *frame) {
+static bool checkpoint_add(PROMQL_CURSOR *cursor, PROMQL_READ_FRAME *frame, int *cause) {
     PROMQL_PHYSICAL *physical = cursor->physical;
-    if(physical->checkpoint_count && physical->checkpoints[physical->checkpoint_count - 1].next >= cursor->next)
-        return true;
-    if(physical->checkpoint_count == physical->checkpoint_capacity) {
-        size_t capacity = physical->checkpoint_capacity ? physical->checkpoint_capacity * 2 : 16;
-        if(capacity < physical->checkpoint_capacity || capacity > SIZE_MAX / sizeof(*physical->checkpoints)) return false;
-        void *checkpoints = physical->checkpoints ?
-            promql_resize(frame->account, physical->checkpoints, capacity * sizeof(*physical->checkpoints)) :
-            promql_malloc(frame->account, NETDATA_PROMQL_MEMORY_PROVIDER_HELD, capacity * sizeof(*physical->checkpoints));
-        if(!checkpoints) return false;
-        physical->checkpoints = checkpoints;
-        physical->checkpoint_capacity = capacity;
-    }
-    physical->checkpoints[physical->checkpoint_count++] = (PROMQL_CHECKPOINT){cursor->next, cursor->counter};
-    return true;
+    PROMQL_CHECKPOINT checkpoint = {.next = (int64_t)cursor->next,
+                                    .counter_bits = netdata_promql_double_bits(cursor->counter)};
+    return promql_checkpoints_append(&physical->checkpoints, &physical->query->checkpoints,
+                                      physical->query->context->backing_directory, checkpoint, frame, cause);
 }
 
 static netdata_promql_sample_t sample(time_t timestamp, uint64_t bits) {
@@ -272,9 +280,10 @@ static uint32_t cursor_next(void *context __maybe_unused, void *handle,
             }
             cursor->projection_started = true;
         }
-        if(physical->incremental && (new_page || !physical->checkpoint_count)) {
-            if(!checkpoint_add(cursor, &frame)) {
-                cursor->error_status = promql_provider_error(owner, "cannot account counter checkpoints", error);
+        if(physical->incremental && (new_page || !physical->checkpoints)) {
+            int cause;
+            if(!checkpoint_add(cursor, &frame, &cause)) {
+                cursor->error_status = temporary_failure(owner, &frame, cause, error);
                 return cursor->error_status;
             }
         }

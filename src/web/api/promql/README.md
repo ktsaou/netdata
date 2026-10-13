@@ -135,6 +135,9 @@ memory is reported separately from query-owned allocations; accounting is not a 
 Temporary backing is required for large results and computations that need external storage. Keep the configured
 directory writable with sufficient space. If backing is unavailable or full, the query returns an explicit error;
 there is no fallback that loads the entire response into RAM. Small scalar results can complete without backing.
+Counter reconstruction keeps 16 page-boundary checkpoints in RAM and spills longer histories into one query-owned
+backing file. Such counter queries need backing even when their final result is small. Checkpoints preserve the
+query's starting basis and exact accumulated bits; copy scratch stays within 8 KiB. DBengine page formats are unchanged.
 
 ## Building and scope
 

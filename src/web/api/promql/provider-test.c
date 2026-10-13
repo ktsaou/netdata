@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "provider.h"
+#include "provider-internal.h"
 #include "database/rrd.h"
 #include "database/rrddim-collection.h"
 #include "daemon/config/netdata-conf-directories.h"
@@ -78,9 +78,10 @@ static int discovery_case(netdata_promql_engine_t *engine, netdata_promql_select
     return errors;
 }
 
-static int provider_case(netdata_promql_engine_t *engine, const PROVIDER_CASE *test) {
+static int provider_case(netdata_promql_engine_t *engine, const PROVIDER_CASE *test, const char *directory,
+                         netdata_promql_query_observations_t *observed) {
     PROMQL_PROVIDER_CONTEXT context = {.scope = PROMQL_HOST_GUID, .host = localhost->machine_guid,
-        .backing_directory = netdata_configured_cache_dir, .absolute = test->absolute};
+        .backing_directory = directory, .absolute = test->absolute};
     netdata_promql_provider_t provider = promql_provider(&context);
     netdata_promql_query_t *query = NULL;
     netdata_promql_report_t *report = NULL;
@@ -96,6 +97,7 @@ static int provider_case(netdata_promql_engine_t *engine, const PROVIDER_CASE *t
     int errors = status != test->status;
     netdata_promql_query_observations_t observations = {0};
     if(report) netdata_promql_report_observations(report, &observations);
+    if(observed) *observed = observations;
     if(status == NETDATA_PROMQL_OK) {
         netdata_promql_result_info_t info = {0};
         errors += netdata_promql_result_info(result, &info) != NETDATA_PROMQL_OK;
@@ -119,10 +121,302 @@ static int provider_case(netdata_promql_engine_t *engine, const PROVIDER_CASE *t
     if(result) netdata_promql_result_release(result);
     if(query) netdata_promql_query_release(query);
     if(report) netdata_promql_report_release(report);
+    netdata_promql_engine_observations_t remaining = {0};
+    errors += netdata_promql_engine_observations(engine, &remaining) != NETDATA_PROMQL_OK;
+    errors += remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current != 0;
     printf("{\"provider_case\":\"%s\",\"status\":%u,\"errors\":%d,\"logical_pages\":%"PRIu64
-           ",\"logical_samples\":%"PRIu64",\"cursor_points\":%"PRIu64",\"provider_folds\":%"PRIu64"}\n",
+           ",\"logical_samples\":%"PRIu64",\"cursor_points\":%"PRIu64",\"provider_folds\":%"PRIu64
+           ",\"provider_peak\":%"PRIu64",\"remaining_provider\":%"PRIu64"}\n",
            test->name, status, errors, observations.pages, observations.samples_fetched,
-           context.storage_points[0], context.reconstruction_points);
+           context.storage_points[0], context.reconstruction_points,
+           observations.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].peak,
+           remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current);
+    return errors;
+}
+
+typedef struct {
+    netdata_promql_engine_t *engine;
+    unsigned mode, points;
+    int errors;
+    bool alias_shared, file_shared;
+    uint32_t open_error, seek_error, next_error;
+} CHECKPOINT_SCENARIO;
+
+static bool checkpoint_series(netdata_promql_provider_t *provider, void *query, const char *dimension,
+                               bool alias, netdata_promql_bounds_t bounds,
+                               const netdata_promql_callback_control_t *control, netdata_promql_series_open_t *out) {
+    netdata_promql_matcher_t matchers[] = {
+        {.kind = NETDATA_PROMQL_MATCH_EQUAL, .name = promql_bytes("netdata_context"),
+         .value = promql_bytes("fixture.checkpoints")},
+        {.kind = NETDATA_PROMQL_MATCH_EQUAL, .name = promql_bytes("netdata_dimension_id"),
+         .value = promql_bytes(dimension)},
+    };
+    netdata_promql_selection_request_t request = {.bounds = bounds, .matchers = {matchers, 2}};
+    void *selection = NULL;
+    netdata_promql_bytes_t error = {0};
+    const netdata_promql_accounting_context_t *account = NULL;
+    if(netdata_promql_callback_accounting(control, &account) != NETDATA_PROMQL_OK ||
+       provider->selection_open(provider->context, query, &request, control, &selection, &error) != NETDATA_PROMQL_OK)
+        return false;
+    bool found = false;
+    for(;;) {
+        netdata_promql_series_open_t series = {0};
+        netdata_promql_provider_diagnostics_t diagnostics;
+        uint32_t status = provider->selection_next(provider->context, selection, control, &series, &diagnostics, &error);
+        if(status != NETDATA_PROMQL_OK) break;
+        bool name_matches = false, dimension_matches = false;
+        for(uint64_t i = 0; i < series.labels.len; i++) {
+            netdata_promql_label_t label = series.labels.data[i];
+            if(!promql_label_compare(label.name, promql_bytes("__name__")))
+                name_matches = !promql_label_compare(label.value, promql_bytes(alias ? "fixture.checkpoints" : "fixture_checkpoints"));
+            if(!promql_label_compare(label.name, promql_bytes("netdata_dimension_id")))
+                dimension_matches = !promql_label_compare(label.value, promql_bytes(dimension));
+        }
+        if(name_matches && dimension_matches) { *out = series; found = true; break; }
+        provider->series_close(provider->context, series.handle, account);
+    }
+    provider->selection_close(provider->context, selection, account);
+    return found;
+}
+
+static int checkpoint_read_all(netdata_promql_provider_t *provider, void *cursor, unsigned points,
+                               const netdata_promql_callback_control_t *control) {
+    unsigned read = 0;
+    netdata_promql_bytes_t error = {0};
+    for(;;) {
+        netdata_promql_page_t page;
+        netdata_promql_resources_t observations;
+        uint32_t status = provider->cursor_next(provider->context, cursor, control, &page, &observations, &error);
+        if(status == NETDATA_PROMQL_END) return read != points;
+        if(status != NETDATA_PROMQL_OK || !page.samples.len || page.samples.len > 1024) return 1;
+        for(uint64_t i = 0; i < page.samples.len; i++) {
+            const netdata_promql_sample_t *sample = &page.samples.data[i];
+            read++;
+            if(sample->time_ms != (int64_t)(PROVIDER_BASE + read) * 1000 ||
+               sample->value.kind != NETDATA_PROMQL_VALUE_FLOAT ||
+               sample->value.payload.float_bits != netdata_promql_double_bits(2.0 * read)) return 1;
+        }
+    }
+}
+
+static uint32_t checkpoint_begin(void *handle, const netdata_promql_output_header_t *header __maybe_unused,
+                                  const netdata_promql_callback_control_t *control, netdata_promql_bytes_t *error) {
+    CHECKPOINT_SCENARIO *test = handle;
+    PROMQL_PROVIDER_CONTEXT context = {.scope = PROMQL_HOST_GUID, .host = localhost->machine_guid,
+                                      .backing_directory = netdata_configured_cache_dir};
+    netdata_promql_provider_t provider = promql_provider(&context);
+    netdata_promql_bounds_t bounds = {(int64_t)(PROVIDER_BASE + 1) * 1000,
+                                     (int64_t)(PROVIDER_BASE + test->points) * 1000};
+    const netdata_promql_accounting_context_t *account = NULL;
+    void *query = NULL;
+    netdata_promql_series_open_t series = {0}, other = {0};
+    netdata_promql_cursor_open_t cursor = {0}, second = {0};
+    if(netdata_promql_callback_accounting(control, &account) != NETDATA_PROMQL_OK ||
+       provider.query_open(provider.context, bounds, control, &query, error) != NETDATA_PROMQL_OK ||
+       !checkpoint_series(&provider, query, test->mode == 1 ? "legacy" : "native", false, bounds, control, &series) ||
+       provider.cursor_open(provider.context, series.handle, bounds, control, &cursor, error) != NETDATA_PROMQL_OK) {
+        test->errors++; goto finished;
+    }
+    test->errors += checkpoint_read_all(&provider, cursor.handle, test->points, control);
+    PROMQL_PROVIDER_QUERY *owned = query;
+    if(!owned->checkpoints.file) { test->errors++; goto finished; }
+    if(test->mode == 2 || test->mode == 5) {
+        test->errors += !checkpoint_series(&provider, query, test->mode == 5 ? "legacy" : "native",
+                                           test->mode == 2, bounds, control, &other);
+        if(!other.handle) goto finished;
+        test->alias_shared = ((PROMQL_SERIES *)series.handle)->physical == ((PROMQL_SERIES *)other.handle)->physical;
+        test->errors += test->alias_shared != (test->mode == 2);
+        PROMQL_FILE *file = owned->checkpoints.file;
+        test->errors += provider.cursor_open(provider.context, other.handle, bounds, control, &second, error) != NETDATA_PROMQL_OK;
+        if(second.handle) test->errors += checkpoint_read_all(&provider, second.handle, test->points, control);
+        test->file_shared = file == owned->checkpoints.file;
+        test->errors += !test->file_shared;
+    }
+    if(test->mode == 3 || test->mode == 4) {
+        // Only this query's anonymous checkpoint file is truncated; DBengine files remain intact.
+        if(ftruncate(owned->checkpoints.file->fd, 0)) { test->errors++; goto finished; }
+        int64_t target = (int64_t)(PROVIDER_BASE + test->points / 2) * 1000;
+        if(test->mode == 3) {
+            PROMQL_PHYSICAL *physical = ((PROMQL_SERIES *)series.handle)->physical;
+            size_t references = physical->references;
+            netdata_promql_engine_observations_t before = {0}, after = {0};
+            test->errors += netdata_promql_engine_observations(test->engine, &before) != NETDATA_PROMQL_OK;
+            netdata_promql_bounds_t later = {target, bounds.end_ms};
+            test->open_error = provider.cursor_open(provider.context, series.handle, later, control, &second, error);
+            test->errors += netdata_promql_engine_observations(test->engine, &after) != NETDATA_PROMQL_OK;
+            test->errors += test->open_error != NETDATA_PROMQL_PROVIDER_ERROR || second.handle != NULL ||
+                physical->references != references ||
+                before.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current != after.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current;
+        }
+        else {
+            test->seek_error = provider.cursor_seek(provider.context, cursor.handle, target, control, error);
+            netdata_promql_page_t page;
+            netdata_promql_resources_t observations;
+            test->next_error = provider.cursor_next(provider.context, cursor.handle, control, &page, &observations, error);
+            test->errors += test->seek_error != NETDATA_PROMQL_PROVIDER_ERROR || test->next_error != test->seek_error ||
+                page.samples.data != NULL || page.samples.len != 0;
+        }
+    }
+    else {
+        const unsigned targets[] = {1, test->points / 2 + 1, 33, test->points - 3, 17};
+        for(size_t i = 0; i < sizeof(targets) / sizeof(targets[0]); i++) {
+            int64_t when = (int64_t)(PROVIDER_BASE + targets[i]) * 1000;
+            netdata_promql_page_t page;
+            netdata_promql_resources_t observations;
+            uint32_t status = provider.cursor_seek(provider.context, cursor.handle, when, control, error);
+            if(status == NETDATA_PROMQL_OK)
+                status = provider.cursor_next(provider.context, cursor.handle, control, &page, &observations, error);
+            test->errors += status != NETDATA_PROMQL_OK;
+            if(status == NETDATA_PROMQL_OK)
+                test->errors += !page.samples.len || page.samples.data[0].time_ms != when ||
+                    page.samples.data[0].value.payload.float_bits != netdata_promql_double_bits(2.0 * targets[i]);
+        }
+    }
+finished:
+    if(second.handle) provider.cursor_close(provider.context, second.handle, account);
+    if(cursor.handle) provider.cursor_close(provider.context, cursor.handle, account);
+    if(other.handle) provider.series_close(provider.context, other.handle, account);
+    if(series.handle) provider.series_close(provider.context, series.handle, account);
+    if(query) provider.query_close(provider.context, query, account);
+    if(test->errors) { *error = promql_bytes("counter checkpoint fixture failed"); return NETDATA_PROMQL_OUTPUT_ERROR; }
+    return NETDATA_PROMQL_OK;
+}
+
+static uint32_t checkpoint_chunk(void *context __maybe_unused, const netdata_promql_chunk_t *chunk __maybe_unused,
+                                  const netdata_promql_callback_control_t *control __maybe_unused,
+                                  netdata_promql_bytes_t *error __maybe_unused) {
+    return NETDATA_PROMQL_OK;
+}
+
+static int checkpoint_callbacks(netdata_promql_engine_t *engine, unsigned points) {
+    const char *names[] = {"native-seeks", "legacy-seeks", "alias-basis", "failed-open-cleanup",
+                          "failed-seek-sticky", "two-metrics-one-file"};
+    int errors = 0;
+    for(unsigned mode = 0; mode < sizeof(names) / sizeof(names[0]); mode++) {
+        CHECKPOINT_SCENARIO test = {.engine = engine, .mode = mode, .points = points};
+        PROMQL_PROVIDER_CONTEXT context = {.scope = PROMQL_HOST_GUID, .host = localhost->machine_guid,
+                                          .backing_directory = netdata_configured_cache_dir};
+        netdata_promql_provider_t provider = promql_provider(&context);
+        netdata_promql_query_t *query = NULL;
+        netdata_promql_report_t *report = NULL;
+        uint32_t status = netdata_promql_compile(engine, promql_bytes("vector(0)"), NULL, &query, &report);
+        if(report) { netdata_promql_report_release(report); report = NULL; }
+        netdata_promql_precise_request_t request = {
+            .header = {NETDATA_PROMQL_ABI_VERSION, sizeof(request)}, .kind = NETDATA_PROMQL_REQUEST_INSTANT,
+            .start = {.unix_seconds = PROVIDER_BASE + points}, .lookback_ns = INT64_C(1000000000),
+        };
+        netdata_promql_output_t output = {.header = {NETDATA_PROMQL_ABI_VERSION, sizeof(output)}, .context = &test,
+            .begin = checkpoint_begin, .chunk = checkpoint_chunk, .commit = discovery_commit, .abort = discovery_abort};
+        if(status == NETDATA_PROMQL_OK)
+            status = netdata_promql_execute_precise(query, &provider, &request, NULL, &output, &report);
+        netdata_promql_query_observations_t observations = {0};
+        if(report) netdata_promql_report_observations(report, &observations);
+        if(report) netdata_promql_report_release(report);
+        if(query) netdata_promql_query_release(query);
+        netdata_promql_engine_observations_t remaining = {0};
+        test.errors += netdata_promql_engine_observations(engine, &remaining) != NETDATA_PROMQL_OK;
+        test.errors += status != NETDATA_PROMQL_OK || remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current != 0;
+        printf("{\"checkpoint_callback\":\"%s\",\"errors\":%d,\"status\":%u,\"open_error\":%u,\"seek_error\":%u,"
+               "\"next_error\":%u,\"alias_shared\":%s,\"file_shared\":%s,\"provider_peak\":%"PRIu64
+               ",\"remaining_provider\":%"PRIu64"}\n", names[mode], test.errors, status, test.open_error,
+               test.seek_error, test.next_error, test.alias_shared ? "true" : "false", test.file_shared ? "true" : "false",
+               observations.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].peak,
+               remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current);
+        errors += test.errors;
+    }
+    return errors;
+}
+
+static int checkpoint_pages_fixture(netdata_promql_engine_t *engine) {
+    const unsigned pages[] = {16, 17, 33, 129, 513, 2049};
+    const unsigned points_per_page = 4;
+    RRDSET *chart = rrdset_create(localhost, "promql_fixture", "checkpoints", NULL, "fixture", "fixture.checkpoints",
+                                 "Checkpoint fixture", "events", "fixture", "fixture", 1, 1, RRDSET_TYPE_LINE);
+    if(!chart) return 1;
+    RRDDIM *native = rrddim_add(chart, "native", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
+    RRDDIM *legacy = rrddim_add(chart, "legacy", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
+    RRDDIM *reset_gap = rrddim_add(chart, "reset_gap", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
+    RRDDIM *legacy_negative = rrddim_add(chart, "legacy_negative", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
+    if(!native || !legacy || !reset_gap || !legacy_negative) { rrdset_free(chart); return 1; }
+    for(unsigned i = 1; i <= pages[5] * points_per_page; i++) {
+        usec_t when = (usec_t)(PROVIDER_BASE + i) * USEC_PER_SEC;
+        storage_engine_store_metric(native->tiers[0].sch, when, 2, 2, 2, 1, 0,
+                                    SN_FLAG_NOT_ANOMALOUS | SP_FLAG_COUNTER_SOURCE);
+        storage_engine_store_metric(legacy->tiers[0].sch, when, 2, 2, 2, 1, 0,
+                                    SN_FLAG_NOT_ANOMALOUS | SP_FLAG_ORDINARY_SOURCE);
+        double gap_value = i == 73 ? NAN : 2;
+        storage_engine_store_metric(reset_gap->tiers[0].sch, when, gap_value, gap_value, gap_value,
+                                    i == 73 ? 0 : 1, 0, SN_FLAG_NOT_ANOMALOUS | SP_FLAG_COUNTER_SOURCE |
+                                    (i == 69 || i == 73 ? SN_FLAG_RESET : SN_FLAG_NONE));
+        storage_engine_store_metric(legacy_negative->tiers[0].sch, when, -2, -2, -2, 1, 0,
+                                    SN_FLAG_NOT_ANOMALOUS | SP_FLAG_ORDINARY_SOURCE);
+        if(i % points_per_page == 0) {
+            storage_engine_store_flush(native->tiers[0].sch);
+            storage_engine_store_flush(legacy->tiers[0].sch);
+            storage_engine_store_flush(reset_gap->tiers[0].sch);
+            storage_engine_store_flush(legacy_negative->tiers[0].sch);
+        }
+    }
+    rrddim_finalize_collection_and_check_retention(native);
+    rrddim_finalize_collection_and_check_retention(legacy);
+    rrddim_finalize_collection_and_check_retention(reset_gap);
+    rrddim_finalize_collection_and_check_retention(legacy_negative);
+    int errors = 0;
+    for(unsigned mode = 0; mode < 2; mode++) {
+        const char *dimension = mode ? "legacy" : "native";
+        uint64_t reference_peak = 0, longest_peak = 0;
+        for(size_t i = 0; i < sizeof(pages) / sizeof(pages[0]); i++) {
+            char name[96], expression[256];
+            unsigned points = pages[i] * points_per_page;
+            snprintfz(name, sizeof(name) - 1, "checkpoint-%s-%u", dimension, pages[i]);
+            snprintfz(expression, sizeof(expression) - 1,
+                      "sum_over_time(fixture_checkpoints{netdata_dimension_id=\"%s\"}[%us])", dimension, points);
+            PROVIDER_CASE test = {name, expression, points, points, false, (double)points * (points + 1), 1, 0};
+            netdata_promql_query_observations_t observations = {0};
+            errors += provider_case(engine, &test, netdata_configured_cache_dir, &observations);
+            uint64_t peak = observations.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].peak;
+            if(pages[i] == 129) reference_peak = peak;
+            if(pages[i] == 2049) longest_peak = peak;
+        }
+        // Longer history may grow only the bounded copy window, not a checkpoint timeline in RAM.
+        int failures = !reference_peak || !longest_peak ||
+            (longest_peak > reference_peak && longest_peak - reference_peak > 12 * 1024);
+        errors += failures;
+        printf("{\"checkpoint_memory\":\"%s\",\"short_peak\":%"PRIu64",\"long_peak\":%"PRIu64
+               ",\"errors\":%d}\n", dimension, reference_peak, longest_peak, failures);
+    }
+    errors += checkpoint_callbacks(engine, pages[5] * points_per_page);
+    const PROVIDER_CASE no_backing[] = {
+        {"checkpoint-short-no-backing", "fixture_checkpoints{netdata_dimension_id=\"native\"}", 64, 64, false, 128, 1, 0},
+        {"checkpoint-long-no-backing", "fixture_checkpoints{netdata_dimension_id=\"native\"}", 68, 68, false, 0, 0,
+         NETDATA_PROMQL_PROVIDER_ERROR},
+    };
+    for(size_t i = 0; i < sizeof(no_backing) / sizeof(no_backing[0]); i++)
+        errors += provider_case(engine, &no_backing[i], NULL, NULL);
+    double gap_sum = 0;
+    unsigned gap_counter = 0;
+    for(unsigned i = 1; i <= pages[5] * points_per_page; i++) {
+        if(i == 69 || i == 73) gap_counter = 0;
+        if(i != 73) { gap_counter += 2; gap_sum += gap_counter; }
+    }
+    unsigned points = pages[5] * points_per_page;
+    char gap_expression[256], alias_expression[256], negative_expression[256];
+    snprintfz(gap_expression, sizeof(gap_expression) - 1,
+              "sum_over_time(fixture_checkpoints{netdata_dimension_id=\"reset_gap\"}[%us])", points);
+    snprintfz(alias_expression, sizeof(alias_expression) - 1,
+              "{__name__=\"fixture.checkpoints\",netdata_dimension_id=\"reset_gap\"}+"
+              "fixture_checkpoints{netdata_dimension_id=\"reset_gap\"}");
+    snprintfz(negative_expression, sizeof(negative_expression) - 1,
+              "sum_over_time(fixture_checkpoints{netdata_dimension_id=\"legacy_negative\"}[%us])", points);
+    const PROVIDER_CASE spill_values[] = {
+        {"checkpoint-reset-gap", gap_expression, points, points, false, gap_sum, 1, 0},
+        {"checkpoint-reset-gap-alias", alias_expression, points, points, false, 2.0 * gap_counter, 1, 0},
+        {"checkpoint-negative", negative_expression, points, points, false, -(double)points * (points + 1), 1, 0},
+        {"checkpoint-absolute", negative_expression, points, points, true, (double)points * (points + 1), 1, 0},
+    };
+    for(size_t i = 0; i < sizeof(spill_values) / sizeof(spill_values[0]); i++)
+        errors += provider_case(engine, &spill_values[i], netdata_configured_cache_dir, NULL);
+    rrdset_free(chart);
     return errors;
 }
 
@@ -206,7 +500,9 @@ int promql_live_provider_fixture(void) {
     };
     if(engine) {
         errors += promql_metadata_reference_fixture(engine, chart, gauge);
-        for(size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) errors += provider_case(engine, &cases[i]);
+        for(size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+            errors += provider_case(engine, &cases[i], netdata_configured_cache_dir, NULL);
+        errors += checkpoint_pages_fixture(engine);
         errors += promql_output_fixture(engine);
         errors += promql_request_fixture(engine);
         errors += promql_api_fixture();

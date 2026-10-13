@@ -5,6 +5,7 @@
 
 #include "provider.h"
 #include "backing.h"
+#include "checkpoint.h"
 #include "database/contexts/rrdcontext-internal.h"
 #include "database/engine/demand.h"
 #include "database/engine/rrdengineapi.h"
@@ -14,11 +15,6 @@ typedef struct promql_host {
     RRDHOST *host;
     size_t references;
 } PROMQL_HOST;
-
-typedef struct {
-    time_t next;
-    double counter;
-} PROMQL_CHECKPOINT;
 
 typedef struct {
     STRING *name, *value;
@@ -42,8 +38,7 @@ typedef struct promql_physical {
     RRDENG_READ_PROMISE promises[RRD_STORAGE_TIERS];
     RRDENG_READ_TIER_SPAN spans[RRDENG_READ_MAX_SPANS];
     uint32_t span_count;
-    PROMQL_CHECKPOINT *checkpoints;
-    size_t checkpoint_count, checkpoint_capacity;
+    PROMQL_CHECKPOINTS *checkpoints;
 } PROMQL_PHYSICAL;
 
 typedef struct promql_provider_query {
@@ -54,6 +49,7 @@ typedef struct promql_provider_query {
     PROMQL_HOST *hosts;
     PROMQL_PHYSICAL **physical;
     size_t capacity, used, tombstones;
+    PROMQL_CHECKPOINT_BACKING checkpoints;
 } PROMQL_PROVIDER_QUERY;
 
 static inline int64_t promql_ceil_seconds(int64_t milliseconds) {
