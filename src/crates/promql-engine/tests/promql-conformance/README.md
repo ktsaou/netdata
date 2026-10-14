@@ -2611,3 +2611,39 @@ The final cohort passes 562 units per profile, 128,652 retained builtin comparis
 controls in every current caller. The fresh Debug Agent passes 672 storage records and 66 live HTTP/readiness
 checks, including the new instant/range average cases. These finite cohorts do not prove arbitrary-input behavior,
 foreign whole-Agent execution, total RSS or production disk throughput.
+
+## Histogram constructor key lookup
+
+Histogram plan construction uses a temporary index over existing encoded keys to avoid scanning every earlier
+group. It retains direct comparison through two groups, then promotes in first-encounter order. Classic keys omit
+`le`; native correspondence retains complete labels and runs after classic group construction. Hashes select
+candidates; complete byte equality remains authoritative, including empty labels and reserved metadata.
+
+The index retires before plan publication. It adds no retained plan field, key copy, raw sample or value timeline.
+Label preparation and numerical/replay order stay unchanged. Completed lookup/insertion and final constructor
+polls prevent interrupted provisional work from publishing a plan.
+
+Focused controls cover eight actual digest-collision configurations, twelve empty/reserved/native-label rows,
+eight malformed/NaN/infinity/zero bound cases, 68 calibrated constructor interruptions and three tiny long-key
+lookups. Complete regression outputs, logical/read statistics, fetched counters and cleanup precede the work bound.
+Later active-group discovery, binding, numerical and replay scans remain separate costs.
+
+[Histogram key qualification](histogram-key-qualification.json) binds the actual final sources, binaries,
+comparisons and measurements. The earlier measured candidate remains separately identified: it increased work
+for two groups with long labels, prompting the final direct-comparison choice. Finite fixture timings and tracked
+workspace do not establish production throughput, process RSS or arbitrary-input equivalence.
+
+The final matched cohort covers 12 high-cardinality groups and 60 empty/small/native-only/64KiB-label groups,
+both profiles and three alternating pairs. All 432 complete responses match, with unchanged fetched entries and
+tracked workspace peaks. Tiny-set accounted work is unchanged in every group. Page 17 illustrates the larger sets:
+
+| Groups | Work before → after | Workspace peak before/after | Release time ratio | Release-min time ratio |
+| --- | --- | --- | --- | --- |
+| 128 | 1,850,410 → 884,375 | 416,520 bytes | 1.004 | 1.034 |
+| 512 | 22,282,232 → 6,244,368 | 1,643,400 bytes | 1.040 | 1.129 |
+
+High-cardinality median timing ratios range from 0.995 to 1.130. Reduced accounted work does not imply a
+proportional time gain; later histogram preparation and numerical replay remain. The source-bound final cohort
+passes 568 units per profile, 128,652 retained builtin comparisons, 2,070 focused comparisons and 231,540 exact
+SRE comparisons. Current native/ARM C qualification retains 734 artifacts. The fresh Agent passes 672 storage
+records and 74 HTTP/readiness checks, including the added live histogram expressions.

@@ -39,6 +39,15 @@ pub(crate) fn interrupt_during<R>(
     control: &Control,
     operation: impl FnOnce() -> R,
 ) -> R {
+    interrupt_after_work(account, control, 8192, operation)
+}
+
+pub(crate) fn interrupt_after_work<R>(
+    account: &QueryAccounting,
+    control: &Control,
+    remaining: u64,
+    operation: impl FnOnce() -> R,
+) -> R {
     struct Restore(Option<WorkInterruption>);
     impl Drop for Restore {
         fn drop(&mut self) {
@@ -49,7 +58,7 @@ pub(crate) fn interrupt_during<R>(
     let previous = WORK_INTERRUPTION.with_borrow_mut(|entry| {
         entry.replace(WorkInterruption {
             query: account.test_identity(),
-            remaining: 8192,
+            remaining,
             cancellation: control.cancellation.clone(),
         })
     });

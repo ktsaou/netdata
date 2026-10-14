@@ -149,6 +149,12 @@ instant averages and a fleet range average with exact HTTP results for both page
 cohort records 66 combined HTTP/readiness checks and 672 storage records in
 [the library qualification](../../src/crates/promql-engine/tests/promql-conformance/average-read-reuse-qualification.json).
 
+The histogram constructor cohort adds three scoped instant quantiles and a fleet range quantile. It uses
+`label_replace` to derive `le="1"` and `le="+Inf"` buckets from the same collected constant gauges. Each group's
+quantile is exactly 0.5 and their fleet sum is 1. Both codecs pass all 74 combined HTTP/readiness checks and
+672 storage records on the freshly rebuilt Agent, recorded in
+[histogram key qualification](../../src/crates/promql-engine/tests/promql-conformance/histogram-key-qualification.json).
+
 The runner requests the fixture Agent's native `/exit` endpoint and waits for that exact child to exit normally.
 It sends no signal to a running Agent or unrelated process; its PID, command, exit status and logs are retained.
 

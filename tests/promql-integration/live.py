@@ -128,6 +128,14 @@ def qualify(binary, codec, run):
             check("fleet-average-range", "query_range", {"query": average, "start": base + 3, "end": base + 5, "step": 1},
                   {"status": "success", "data": {"resultType": "matrix", "result": [
                       {"metric": {}, "values": [[base + index, "12"] for index in range(3, 6)]}]}})
+            buckets = ('label_replace(fixture_http{netdata_dimension_id="gauge"},"le","1","netdata_dimension_id","gauge") or '
+                       'label_replace(fixture_http{netdata_dimension_id="gauge"},"le","+Inf","netdata_dimension_id","gauge")')
+            quantile = f"sum(histogram_quantile(0.5,({buckets})))"
+            for name, scope, value in [("fleet-histogram-quantile", "", 1), ("local-histogram-quantile", local, 0.5), ("child-histogram-quantile", child, 0.5)]:
+                check(name, "query", {"query": f"scalar({quantile})", "time": base + 4}, scalar(value), prefix=scope)
+            check("fleet-histogram-quantile-range", "query_range", {"query": quantile, "start": base + 3, "end": base + 5, "step": 1},
+                  {"status": "success", "data": {"resultType": "matrix", "result": [
+                      {"metric": {}, "values": [[base + index, "1"] for index in range(3, 6)]}]}})
             check("context-name", "query", {"query": 'scalar(sum({__name__="fixture.http",netdata_dimension_id="gauge"}))', "time": base + 4}, scalar(12))
             check("collected-counter", "query", {"query": counter, "time": base + 4}, scalar(8), prefix=local)
             check("counter-reset", "query", {"query": counter, "time": base + 6}, scalar(0, base + 6), prefix=local)

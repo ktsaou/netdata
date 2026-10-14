@@ -100,6 +100,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Average acquisition reuse MUST preserve full saved traversal state, completed validation before read credit,
   stale-histogram consumption and later native arithmetic phases; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#validated-average-acquisition-reuse` for causal controls.
+- Histogram constructor lookup MUST preserve encoded-key identity, separate passes and tiny-set cost; see
+  `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-constructor-key-lookup` for collision,
+  ordering and terminal interruption controls.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
 
 ## Evidence

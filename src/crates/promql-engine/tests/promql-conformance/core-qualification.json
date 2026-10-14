@@ -8667,5 +8667,21 @@
     "caller_artifacts": 734,
     "storage_records": 672,
     "live_checks": 66
+  },
+  "histogram_constructor_key_qualification": {
+    "status": "qualified_on_recorded_finite_inputs",
+    "scope": "Transient histogram constructor index over existing encoded keys; full-byte equality, separate classic/native passes and first-encounter IDs. Direct comparison through two groups avoids unnecessary tiny-set hashing; promotion retires before Plan publication.",
+    "qualification": {
+      "repository_path": "tests/promql-conformance/histogram-key-qualification.json",
+      "sha256": "1b6895bc915dfbdb9c4bebbaa979ad56fdecc763ba17e7b51020e6be14098cbc"
+    },
+    "source_files": 144,
+    "fixture_units_per_profile": 568,
+    "builtin_comparisons": 128652,
+    "focused_comparisons": 2070,
+    "sre_comparisons": 231540,
+    "caller_artifacts": 734,
+    "storage_records": 672,
+    "live_checks": 74
   }
 }

@@ -674,3 +674,20 @@ integration, and Alertmanager remains excluded.
   consumption. This optimization targets physical reads and leaves other preparation and replay costs in place.
 - **Evidence:** [average reuse qualification](average-read-reuse-qualification.json) binds complete results and
   credits, saved-state comparisons, calibrated failures, C execution phases, memory and matched query measurements.
+
+## Histogram constructor key lookup
+
+- **Choice:** a transient position index replaces repeated constructor lookup for larger classic histogram group
+  sets. Up to two groups retain direct comparisons; third-group promotion uses their first-encounter positions.
+- **Authority:** complete encoded label bytes define identity. Classic keys omit `le`; native correspondence uses
+  complete labels after all classic groups are known. Hash collisions require byte comparison. Reset output labels
+  remove empty values and cannot replace the original keys.
+- **Ownership:** the index stores positions into existing keys and retires before plan publication. It adds no
+  persistent plan field, key copy, raw value or history array. Whole-query peaks must be measured across lifetimes.
+- **Controls:** checked lookup, promotion and replacement retain accounting and interruption checks. Explicit polls
+  follow lookup/insertion and precede successful constructor publication.
+- **Boundaries:** parsing, first group IDs, label preparation, separate passes, native/mixed semantics and later
+  numerical/replay owners retain their behavior. Tiny-set lookup avoids unnecessary full hashing; larger collisions
+  can still produce repeated probes.
+- **Evidence:** [histogram key qualification](histogram-key-qualification.json) records complete identity, parsing,
+  cancellation and memory controls, current caller/Agent panels and matched measurements.

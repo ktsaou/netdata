@@ -17,6 +17,7 @@ use crate::{
     },
     histogram_functions::{self, NativeHistogramInfo},
     label_hash,
+    position_index::PositionIndex,
     query_preparation::Prepared,
     result::{OwnedLabels, OwnedValue},
     storage::{Control, Interrupted, StorageError},
@@ -126,6 +127,33 @@ pub(crate) struct Plan {
     groups: AccountedVec<Group>,
     bindings: AccountedVec<Binding>,
 }
+
+fn lookup_group(
+    keys: &[AccountedVec<u8>],
+    index: &PositionIndex,
+    key: &[u8],
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<(Option<usize>, u64), Interrupted> {
+    // Tiny sets avoid a full hash walk and a table allocation.
+    if keys.len() <= 2 {
+        for (position, prior) in keys.iter().enumerate() {
+            if binary_labels::equal(key, prior, control, account)? {
+                return Ok((Some(position), 0));
+            }
+        }
+        return Ok((None, 0));
+    }
+    let hash = label_hash::bytes(key, control, account)?;
+    let group = index.find(
+        hash,
+        |position| binary_labels::equal(key, &keys[position], control, account),
+        control,
+        account,
+    )?;
+    Ok((group, hash))
+}
+
 impl Plan {
     pub(crate) fn new(
         rows: AccountedVec<Descriptor>,
@@ -140,6 +168,7 @@ impl Plan {
         };
         let context = AllocationContext::new(account, MemoryKind::Workspace);
         let mut keys = AccountedVec::<AccountedVec<u8>>::new(account, MemoryKind::Workspace);
+        let mut key_index = PositionIndex::new(account);
         for row in &*result.rows {
             control.check()?;
             account.work(1);
@@ -156,21 +185,37 @@ impl Plan {
                     bound = Some(parsed.value);
                     let mut key = AccountedVec::new(account, MemoryKind::Workspace);
                     binary_labels::append_without(&mut key, &row.labels, b"le", control, account)?;
-                    for (index, prior) in keys.iter().enumerate() {
-                        if binary_labels::equal(&key, prior, control, account)? {
-                            group = Some(index);
-                            break;
-                        }
-                    }
+                    let (found, hash) = lookup_group(&keys, &key_index, &key, control, account)?;
+                    group = found;
+                    control.check()?;
                     if group.is_none() {
                         let mut labels =
                             row.labels
                                 .copy_checked(account, MemoryKind::Workspace, control)?;
                         labels.reset_checked(account, control)?;
                         labels.set(b"le", b"", account, MemoryKind::Workspace, control)?;
-                        group = Some(result.groups.len());
+                        let position = result.groups.len();
+                        group = Some(position);
                         result.groups.push(Group { labels });
                         keys.push(key);
+                        if keys.len() >= 3 {
+                            let first = if keys.len() == 3 { 0 } else { position };
+                            for inserted in first..keys.len() {
+                                let hash = if keys.len() == 3 {
+                                    label_hash::bytes(&keys[inserted], control, account)?
+                                } else {
+                                    hash
+                                };
+                                key_index.insert_new(
+                                    hash,
+                                    inserted,
+                                    |prior| label_hash::bytes(&keys[prior], control, account),
+                                    control,
+                                    account,
+                                )?;
+                                control.check()?;
+                            }
+                        }
                     }
                 }
             }
@@ -186,13 +231,11 @@ impl Plan {
             }
             let mut key = AccountedVec::new(account, MemoryKind::Workspace);
             binary_labels::append(&mut key, &row.labels, None, control, account)?;
-            for (group, candidate) in keys.iter().enumerate() {
-                if binary_labels::equal(&key, candidate, control, account)? {
-                    result.metadata[position].native_group = Some(group);
-                    break;
-                }
-            }
+            let (group, _) = lookup_group(&keys, &key_index, &key, control, account)?;
+            control.check()?;
+            result.metadata[position].native_group = group;
         }
+        control.check()?;
         Ok(result)
     }
     pub(crate) fn finish(&mut self, cache: Cache) {
@@ -1226,5 +1269,384 @@ fn compare_stored(
             (None, _) => return Ok(Ordering::Less),
             (_, None) => return Ok(Ordering::Greater),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{accounting::EngineAccounting, evaluator_roster::HeadSummary};
+
+    type Labels<'a> = &'a [(&'a [u8], &'a [u8])];
+    type Spec<'a> = (u8, Labels<'a>, Option<usize>, Option<usize>);
+
+    fn row(
+        rows: &mut AccountedVec<Descriptor>,
+        kinds: u8,
+        labels: Labels<'_>,
+        account: &QueryAccounting,
+    ) {
+        let mut labels = labels.to_vec();
+        labels.sort_by(|left, right| left.0.cmp(right.0));
+        let mut owned = OwnedLabels::new(account, MemoryKind::Workspace);
+        for (name, value) in labels {
+            owned.push(name, value, account, MemoryKind::Workspace);
+        }
+        let position = rows.len();
+        rows.push(Descriptor {
+            labels: owned,
+            ordinal: position,
+            hash: 0,
+            drop_name: false,
+            first_order: position,
+            sources: position..position + 1,
+            kinds,
+            heads: HeadSummary::default(),
+        });
+    }
+
+    #[test]
+    fn constructor_collisions_keep_first_groups_and_exact_native_correspondence() {
+        const FIRST: &[u8] = b"Aaaaa\x00\x00\x00\x00\x00\x00\x00\x00";
+        const SECOND: &[u8] = b"Bbbbb\x1d\x3c\xa5\x95\x96\x2f\x43\xdd";
+        for prefix in [0, 2] {
+            for native_first in [false, true] {
+                for second_first in [false, true] {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let mut encoded = Vec::new();
+                    for value in [FIRST, SECOND] {
+                        let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+                        labels.push(b"a", value, &account, MemoryKind::Workspace);
+                        let mut key = AccountedVec::new(&account, MemoryKind::Workspace);
+                        binary_labels::append(&mut key, &labels, None, &control, &account).unwrap();
+                        assert_eq!(
+                            label_hash::bytes(&key, &control, &account).unwrap(),
+                            0x9c71_0b2e_3747_e3bd
+                        );
+                        encoded.push(key);
+                    }
+                    assert_ne!(&*encoded[0], &*encoded[1]);
+                    drop(encoded);
+                    let values = if second_first {
+                        [SECOND, FIRST]
+                    } else {
+                        [FIRST, SECOND]
+                    };
+                    let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+                    let mut expected = Vec::new();
+                    {
+                        let mut push = |kinds, labels: Labels<'_>, group, native| {
+                            row(&mut rows, kinds, labels, &account);
+                            expected.push((group, native));
+                        };
+                        let native_ids = [
+                            prefix + usize::from(second_first),
+                            prefix + usize::from(!second_first),
+                        ];
+                        if native_first {
+                            for (value, group) in [FIRST, SECOND].into_iter().zip(native_ids) {
+                                push(2, &[(b"a", value)], None, Some(group));
+                            }
+                        }
+                        for group in 0..prefix {
+                            let value = format!("prior-{group}");
+                            for bound in [b"1".as_slice(), b"+Inf"] {
+                                push(
+                                    1,
+                                    &[(b"a", value.as_bytes()), (b"le", bound)],
+                                    Some(group),
+                                    None,
+                                );
+                            }
+                        }
+                        for (index, value) in values.into_iter().enumerate() {
+                            for bound in [b"1".as_slice(), b"+Inf", b"2"] {
+                                push(
+                                    1,
+                                    &[(b"a", value), (b"le", bound)],
+                                    Some(prefix + index),
+                                    None,
+                                );
+                            }
+                        }
+                        if !native_first {
+                            for (value, group) in [FIRST, SECOND].into_iter().zip(native_ids) {
+                                push(2, &[(b"a", value)], None, Some(group));
+                            }
+                        }
+                    }
+                    let plan = Plan::new(rows, &control, &account).unwrap();
+                    assert_eq!(plan.groups.len(), prefix + 2);
+                    assert_eq!(plan.metadata.len(), expected.len());
+                    for (metadata, (group, native)) in plan.metadata.iter().zip(expected) {
+                        assert_eq!((metadata.group, metadata.native_group), (group, native));
+                    }
+                    for (index, value) in values.into_iter().enumerate() {
+                        assert_eq!(
+                            plan.groups[prefix + index]
+                                .labels
+                                .get_checked(b"a", &account, &control)
+                                .unwrap(),
+                            value
+                        );
+                    }
+                    drop(plan);
+                    account.snapshot().assert_memory_released();
+                }
+            }
+        }
+        println!("{{\"histogram_constructor_collisions\":8}}");
+    }
+
+    #[test]
+    fn constructor_keys_keep_empty_reserved_and_native_le_identity() {
+        let cases: &[Spec<'_>] = &[
+            (2, &[], None, Some(0)),
+            (2, &[(b"a", b"")], None, Some(1)),
+            (2, &[(b"le", b"")], None, None),
+            (1, &[(b"le", b"1")], Some(0), None),
+            (1, &[(b"a", b""), (b"le", b"+Inf")], Some(1), None),
+            (
+                1,
+                &[
+                    (b"__type__", b"counter"),
+                    (b"__unit__", b"seconds"),
+                    (b"le", b"2"),
+                ],
+                Some(2),
+                None,
+            ),
+            (
+                1,
+                &[
+                    (b"__type__", b"gauge"),
+                    (b"__unit__", b"seconds"),
+                    (b"le", b"3"),
+                ],
+                Some(3),
+                None,
+            ),
+            (
+                2,
+                &[(b"__type__", b"counter"), (b"__unit__", b"seconds")],
+                None,
+                Some(2),
+            ),
+            (
+                3,
+                &[
+                    (b"__type__", b"counter"),
+                    (b"__unit__", b"seconds"),
+                    (b"le", b"4"),
+                ],
+                Some(2),
+                None,
+            ),
+            (3, &[(b"a", b""), (b"le", b"")], None, None),
+            (1, &[(b"a", b""), (b"le", b"5")], Some(1), None),
+            (0, &[(b"a", b"ignored")], None, None),
+        ];
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+        for &(kind, labels, _, _) in cases {
+            row(&mut rows, kind, labels, &account);
+        }
+        let plan = Plan::new(rows, &control, &account).unwrap();
+        assert_eq!(plan.groups.len(), 4);
+        assert!(plan.groups[0].labels.0.is_empty());
+        assert!(plan.groups[1].labels.0.is_empty());
+        for (metadata, &(_, _, group, native)) in plan.metadata.iter().zip(cases) {
+            assert_eq!((metadata.group, metadata.native_group), (group, native));
+        }
+        assert_eq!(
+            plan.groups[2]
+                .labels
+                .get_checked(b"__type__", &account, &control)
+                .unwrap(),
+            b"counter"
+        );
+        assert_eq!(
+            plan.groups[3]
+                .labels
+                .get_checked(b"__type__", &account, &control)
+                .unwrap(),
+            b"gauge"
+        );
+        drop(plan);
+        account.snapshot().assert_memory_released();
+        println!("{{\"histogram_constructor_identity_rows\":12}}");
+    }
+
+    #[test]
+    fn constructor_bound_parsing_keeps_skips_nan_infinities_and_signed_zero() {
+        let cases: &[(Option<&[u8]>, Option<f64>)] = &[
+            (None, None),
+            (Some(b""), None),
+            (Some(b"invalid"), None),
+            (Some(b"NaN"), Some(f64::NAN)),
+            (Some(b"+Inf"), Some(f64::INFINITY)),
+            (Some(b"-Inf"), Some(f64::NEG_INFINITY)),
+            (Some(b"-0"), Some(-0.0)),
+            (Some(b"1"), Some(1.0)),
+        ];
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+        for &(bound, _) in cases {
+            let mut labels = vec![(b"a".as_slice(), b"same".as_slice())];
+            if let Some(bound) = bound {
+                labels.push((b"le", bound));
+            }
+            row(&mut rows, 1, &labels, &account);
+        }
+        let plan = Plan::new(rows, &control, &account).unwrap();
+        assert_eq!(plan.groups.len(), 1);
+        for (metadata, &(_, expected)) in plan.metadata.iter().zip(cases) {
+            match (metadata.bound, expected) {
+                (None, None) => assert_eq!(metadata.group, None),
+                (Some(value), Some(expected)) => {
+                    assert_eq!(metadata.group, Some(0));
+                    if expected.is_nan() {
+                        assert!(value.is_nan());
+                    } else {
+                        assert_eq!(value.to_bits(), expected.to_bits());
+                    }
+                }
+                _ => panic!("bound parsing changed"),
+            }
+            assert_eq!(metadata.native_group, None);
+        }
+        drop(plan);
+        account.snapshot().assert_memory_released();
+        println!("{{\"histogram_constructor_bound_rows\":8}}");
+    }
+
+    #[test]
+    fn constructor_tiny_lookup_avoids_hashing_long_keys() {
+        for count in 0usize..=2 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let index = PositionIndex::new(&account);
+            let mut keys = AccountedVec::new(&account, MemoryKind::Workspace);
+            for position in 0..count {
+                let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+                labels.push(
+                    b"a",
+                    &vec![b'x' + position as u8; 65536],
+                    &account,
+                    MemoryKind::Workspace,
+                );
+                let mut key = AccountedVec::new(&account, MemoryKind::Workspace);
+                binary_labels::append(&mut key, &labels, None, &control, &account).unwrap();
+                keys.push(key);
+            }
+            let key = keys.last().map_or(b"".as_slice(), |key| &**key);
+            let before = account.snapshot();
+            let (group, hash) = lookup_group(&keys, &index, key, &control, &account).unwrap();
+            let after = account.snapshot();
+            assert_eq!(group, count.checked_sub(1));
+            assert_eq!(hash, 0);
+            assert_eq!(
+                after.work - before.work,
+                key.len() as u64 + if count == 2 { 1024 } else { 0 }
+            );
+            assert_eq!(
+                after.memory[MemoryKind::Workspace as usize].current,
+                before.memory[MemoryKind::Workspace as usize].current
+            );
+            drop((index, keys));
+            account.snapshot().assert_memory_released();
+        }
+        println!("{{\"histogram_constructor_tiny_cases\":3}}");
+    }
+
+    fn interrupt_rows(
+        count: usize,
+        last_kind: u8,
+        account: &QueryAccounting,
+    ) -> AccountedVec<Descriptor> {
+        let mut rows = AccountedVec::new(account, MemoryKind::Workspace);
+        for group in 0..count {
+            let value = format!("{group:08}");
+            for bound in [b"1".as_slice(), b"+Inf"] {
+                row(
+                    &mut rows,
+                    1,
+                    &[(b"a", value.as_bytes()), (b"le", bound)],
+                    account,
+                );
+            }
+        }
+        let labels: Labels<'_> = match last_kind {
+            0 => &[(b"a", b"ignored")],
+            1 | 3 => &[(b"a", b"last"), (b"le", b"1")],
+            2 => &[(b"a", b"00000000")],
+            _ => unreachable!(),
+        };
+        row(&mut rows, last_kind, labels, account);
+        rows
+    }
+
+    #[test]
+    fn constructor_interruption_releases_growth_and_prevents_terminal_publication() {
+        let mut interruptions = 0;
+        for count in [2, 128, 512] {
+            for last_kind in 0..=3 {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let rows = interrupt_rows(count, last_kind, &account);
+                let before = account.snapshot().work;
+                let plan = Plan::new(rows, &control, &account).unwrap();
+                let total = account.snapshot().work - before;
+                assert_eq!(
+                    plan.groups.len(),
+                    count + usize::from(last_kind == 1 || last_kind == 3)
+                );
+                assert_eq!(
+                    plan.metadata.last().unwrap().native_group,
+                    (last_kind == 2).then_some(0)
+                );
+                drop(plan);
+                account.snapshot().assert_memory_released();
+                let mut budgets = vec![1, total / 4, total / 2, total - 1, total];
+                if total >= 8192 {
+                    budgets.push(8192);
+                }
+                budgets.sort_unstable();
+                budgets.dedup();
+                for budget in budgets {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let rows = interrupt_rows(count, last_kind, &account);
+                    let before = account.snapshot().work;
+                    let outcome = crate::test_storage::interrupt_after_work(
+                        &account,
+                        &control,
+                        budget,
+                        || Plan::new(rows, &control, &account),
+                    );
+                    assert!(
+                        matches!(
+                            &outcome,
+                            Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                        ),
+                        "count={count},kind={last_kind},budget={budget}"
+                    );
+                    assert!(account.snapshot().work - before >= budget);
+                    drop(outcome);
+                    account.snapshot().assert_memory_released();
+                    interruptions += 1;
+                }
+            }
+        }
+        println!("{{\"histogram_constructor_interruptions\":{interruptions}}}");
     }
 }
