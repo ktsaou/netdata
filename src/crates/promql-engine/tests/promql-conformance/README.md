@@ -2309,6 +2309,37 @@ resource release. The original join and numeric-fold controls remain in the rost
 The [rate-join qualification](rate-join-qualification.json) binds the final engine, optimized profiles, expression
 panels, C callers and rebuilt Agent checks. Earlier cohorts retain their own source and binary identities.
 
+## Compact one-to-one result labels
+
+One-to-one result projection with no included fields copies only retained labels. The existing vector therefore
+grows with output fields rather than keeping capacity for discarded inputs. The shared checked field-copy body
+keeps exact byte capacities, source order and partial-owner cleanup. Grouped and nonempty-include projections,
+complete cache keys, first-writer labels, public types and output copies keep their existing behavior.
+
+Empty values disappear before the original reserved-name preflight. A remaining empty name still reports the
+same wrapped error before `on`/`ignoring` can remove it. The three reserved metadata fields and conditional name
+removal retain their existing predicates. Controls cover reset/error order, matching, group/include overrides,
+opaque values, cancellation during a retained field, actual derived empty names and discard-output statistics.
+
+With one retained field, 8/17/65 input labels formerly retained 777/3,081/12,297 bytes. They now retain 393 bytes
+each, while complete output and release checks pass. The whole-query workload has 17 input labels, one point per
+series and two timestamps for `m / on(instance) m`. Both profiles, pages 1/17/1024 and three alternating matched
+repetitions preserve complete results and fetched samples:
+
+| Series | Workspace peak before → after | Fetched samples before → after |
+| --- | ---: | ---: |
+| 32 | 405,937 → 319,921 B | 700 → 700 |
+| 128 | 1,596,468 → 1,252,404 B | 2,812 → 2,812 |
+| 512 | 6,385,716 → 5,009,460 B | 11,260 → 11,260 |
+
+All 18 matched groups use roughly 21% less workspace. Recorded work also falls, but short-query timings are mixed;
+this cohort establishes a memory improvement, not a throughput gain. These are generated query/workspace
+observations, not production disk throughput or process RSS. Input metadata, complete keys and collected output
+remain separate costs that grow with cardinality. Contexts/provider ownership and raw paging are unchanged.
+
+The [projected-label qualification](projected-label-qualification.json) binds the final source/profile/caller and
+rebuilt Agent cohorts. Earlier qualifications keep their actual source and binary identities.
+
 ## Bounded binary matching and pair replay
 
 Vector/vector arithmetic, comparisons, `bool`, `and`, `or`, `unless`, `on`, `ignoring`, group modifiers and optional

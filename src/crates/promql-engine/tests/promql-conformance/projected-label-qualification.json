@@ -1,0 +1,4180 @@
+{
+  "schema_version": 1,
+  "status": "qualified_on_recorded_finite_inputs",
+  "scope": "Output-sized one-to-one result-label construction with empty includes, shared exact-capacity field copy and virtual-reset reserved-name error preflight; unchanged grouped/include/cache/public/provider contracts.",
+  "sources": {
+    "Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/absence.rs": "afb4f330f5dff938c2eebfa64574b3cf9693cbd94b43a9cf60752b8094a14889",
+    "src/accounting.rs": "3691f58a62ed5c9c40e8ac22348ee7a121a262278510a8dc355be6ede84b609d",
+    "src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/c_abi/provider.rs": "7c38cd156a78a22b263f6d90dc92dc2f6f4aa14a0e57a63755c2d5d82a67b375",
+    "src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/c_abi/tests.rs": "f30191c1e27d7521e216578a48a1b019a28e6226ed1e38b503f7d47fe1b65015",
+    "src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/c_abi/tests/pages.rs": "fc4ca73ae808c092f67bdec1745f2492a518d09aec0156bae20486d9f14a3783",
+    "src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/derived_range.rs": "ab65985b25b848786bdb4475c5ca334cae9a36f233cfb078ec1d9163180f2982",
+    "src/evaluator.rs": "95c6adb79b5d79264d47a185ad154892e8dd4ace74f28f2fbb575d61d075f483",
+    "src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/evaluator_roster.rs": "92af062ac26221fff51ad9eb5996401097b80e45c20657161ae2374851232f14",
+    "src/execution.rs": "5872215a31a9342465d1312602877c295c815626a11e60b3747010c89f535b4f",
+    "src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/frontend/regex.rs": "44dd8f64aa08e0e5e7c71d17214450de4cff3156ee96e75e64f056922dcd4228",
+    "src/frontend/regex_nfa.rs": "9586e2ecfd17bd4b59a61c270856de046c2948441ea6423b8562d572e39b105f",
+    "src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/frontend/regex_selector.rs": "58778f43b7548806d708bb78df0450db888619247a841c30cd9d1e731623eedf",
+    "src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/histogram_call.rs": "cef807e0dbd311e7255e5451b31e3aef337b9401067ea253f129c7ebafae0f3f",
+    "src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/lookup_tests.rs": "907fb54926819d57f36a2e8c5541442170f6479638490ac772f3925fc89e3825",
+    "src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/matrix_reader.rs": "1adc0d685b2fa6e05517075879f375304825849c1247b93145fcac65fd431f09",
+    "src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/quantile_aggregate.rs": "5574aad6a5ba304e7e697eeb81284097bd52d46615b49b247b0a765b2cfee04c",
+    "src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/range_quantile_rank.rs": "37b27f36dfb92e95cf7484604861b21348b582e77d222483e8df0d71b30d0f73",
+    "src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/range_reduce.rs": "a26c814a7df7fd09154174054298ad156c0f4a2c1ff52cfaa45ba7e6dbe74e9f",
+    "src/result.rs": "75658360d24544d09cf1a630ee1467ea44d6d960dffea504ee29c55eab4ebc3e",
+    "src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+    "src/scheduled_output.rs": "0d4adb4cd20eb224269f51caf93a3bf12ed8016652834e7d01272af853324fc0",
+    "src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/storage.rs": "fdac6d49e370a3a95ac1726334ecfcf01dd760ef6d93634549913d9e91c34102",
+    "src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/temporal_quantile.rs": "670bc1d8b1197b170ec9fbe6e2943c590a7f0791be25914725c95cbae7dcae16",
+    "src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/test_storage.rs": "45e159c7f5a6045cf421ebdae5191456d1201ab3633ce84e50a367f5b5349e9e",
+    "src/topk.rs": "779a16f4ae15da3ed627c592778fe646b89c92b80e3d8167d6efbf6465265477",
+    "src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/vector_matching.rs": "fe5d93e598175b9935f550fd6c3d71009626622a4069dcff9c167cf1b993594d",
+    "src/vector_sort.rs": "f34df2cf55a0a8c4d34830c682daf41bb18ee16f4dc62efc406535e0cc4e5022"
+  },
+  "binaries": {
+    "release": {
+      "libnetdata_promql_engine.a": "b76023a4217b1d92e885ed85b11842d2aec8530a9fc59e1ec5b61df35359636b",
+      "promql-frontend-fixture": "c304479e557d6ce0cfb7e51b5d766f640aed0fe2902a8591ba63e9732446a094",
+      "promql-kernel-fixture": "752b5e05ad208416c6c03cc706003eef50ad2c22ac37e9db573e6ad875774a06",
+      "promql-protocol-fixture": "90dca37f7a3ce37917d08a33570f611833f4335ccbf07c757aaca6706f94c44a",
+      "promql-query-fixture": "06c53dceb0896c05c49a22c9d7be6c0fda6ed8541c6f9d180d4f0f3f84674587"
+    },
+    "release-min": {
+      "libnetdata_promql_engine.a": "9d0fca43a9a6f8826b2ed4b76431e381027742f684fd1de21c2ab37c6559f4c1",
+      "promql-frontend-fixture": "55b363a1317cd809afd635d574e65db63d0700c43dc2284e23f416ea6da1c20e",
+      "promql-kernel-fixture": "b538fc0f4813d1e1af45d489d0c5fa654a33dff2c1905eb6f05b7ee181491c09",
+      "promql-protocol-fixture": "af41f03ff3f47da0d2169ddcf130f68a7eaa80235bd56f8c294d8f02a070a791",
+      "promql-query-fixture": "0cb3c41b3d5715454ba16b09934f960fcd248dc1a16d1b6f605c41614d9a6043"
+    }
+  },
+  "fixture_units": [
+    {
+      "profile": "release",
+      "passed": 552,
+      "runtime_seconds": 79.24,
+      "stdout": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/release-unit.stdout",
+        "sha256": "ab2b9d3b6431fe2a60078c6ef4a8f2bcfce956b6ad4ab2a06f552810c92adc85"
+      }
+    },
+    {
+      "profile": "release-min",
+      "passed": 552,
+      "runtime_seconds": 137.03,
+      "stdout": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/release-min-unit.stdout",
+        "sha256": "c324c18ea1c996d4e823ebbbb29a9da3c62b3ea725e313299fbdbabe72361983"
+      }
+    }
+  ],
+  "static_checks": [
+    {
+      "name": "format-final",
+      "status": {
+        "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/format-final-status.json",
+        "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
+      },
+      "stderr": {
+        "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/format-final.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "clippy-production",
+      "status": {
+        "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/clippy-production-status.json",
+        "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
+      },
+      "stderr": {
+        "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/clippy-production.stderr",
+        "sha256": "42a2367a54143d0a468c3b31ed10b3e05597e12f2b67ef96dfc4e67bc32a8f2a"
+      }
+    },
+    {
+      "name": "clippy-fixtures-final",
+      "status": {
+        "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/clippy-fixtures-final-status.json",
+        "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
+      },
+      "stderr": {
+        "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/clippy-fixtures-final.stderr",
+        "sha256": "a259e755e4317d9944d3f4ebd2c7a651872977e07a459393e0c8fbe25c470ecb"
+      }
+    },
+    {
+      "name": "msrv",
+      "status": {
+        "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/msrv-status.json",
+        "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
+      },
+      "stderr": {
+        "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/msrv.stderr",
+        "sha256": "259432e7247584bdecefbfd54527b7c455e1722381afb30ce048924ab07477d9"
+      }
+    }
+  ],
+  "meaningful_red": {
+    "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/red-proof.json",
+    "sha256": "bc191c53cf6206f5476b670f35429dde084e4c4666e42c065e3ad7bcb1fc23af"
+  },
+  "first_development_green": {
+    "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/first-green.stdout",
+    "sha256": "034f1e9b3b8f02f0c66d960c5720469756202d895262e483a758ccc7e7dcd001"
+  },
+  "builtin": {
+    "comparisons": 128652,
+    "panels": [
+      {
+        "profile": "release-min",
+        "page_size": 1,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/builtin-release-min-page1-anp_cbhk/report.json",
+          "sha256": "6e88e57ff201f2c6548c574e8490222dd489e5669264edb63ca088312436094c"
+        }
+      },
+      {
+        "profile": "release-min",
+        "page_size": 1024,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/builtin-release-min-page1024-jcumje45/report.json",
+          "sha256": "a83dfcb23a00d4f23979c09c0050f216763870c53397e38a9236410554e7540e"
+        }
+      },
+      {
+        "profile": "release-min",
+        "page_size": 17,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/builtin-release-min-page17-8mkwdfa3/report.json",
+          "sha256": "9578fafde23403493df541b17e31ffd22badbe826be302632a986e71361cfa0b"
+        }
+      },
+      {
+        "profile": "release",
+        "page_size": 1,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/builtin-release-page1-bp6wa5ue/report.json",
+          "sha256": "9b3dc5db4d87362482153622d5470ec72a3953f4d4d0410d72d00ac9f2893896"
+        }
+      },
+      {
+        "profile": "release",
+        "page_size": 1024,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/builtin-release-page1024-nwddbmwr/report.json",
+          "sha256": "2ee2d7e61b05aa74505ee1e49e59617a43c1a1d63a0259dde473f6970b0a0803"
+        }
+      },
+      {
+        "profile": "release",
+        "page_size": 17,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/builtin-release-page17-zcn6rfmf/report.json",
+          "sha256": "a44781a5ed9d267d2f6d5079053fb3a8c29e0d486b86aa224dfad9bb7e0b8b36"
+        }
+      }
+    ]
+  },
+  "focused": {
+    "comparisons": 2070,
+    "panels": [
+      {
+        "profile": "release-min",
+        "page_size": 1,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/focused-release-min-page1-am393fyp/receipt.json",
+          "sha256": "2752346cdb760a947c8991503d04fca70f1fc9267d327f94046f4f34c8a1b1b2"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-fimdkrmm/report.json",
+              "sha256": "d5d728367029b2713040255c12a455709540d63b25459c5d604300cb3657bbf3"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-p11dku9s/report.json",
+              "sha256": "1fcfd6938727cba9256af7d3029d4199524d1879c60aff2ce455c424a3805ca2"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-q0gvm312/physical-seek-policy.json",
+              "sha256": "2562ba826746e75f60b8caebcdc08e62d5ca2f662c0ad0eeccd5f943323155dd"
+            }
+          },
+          {
+            "name": "precision",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/precision-_l_uy35r/comparison.json",
+              "sha256": "3787ec752ae3d37d81ba44d45c3216d6b858f388e377acf1db5a6a9338dd6561"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "page_size": 1024,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/focused-release-min-page1024-wphcn3h8/receipt.json",
+          "sha256": "af970d06da7762baeebf2baaede938a1dee37aa631d3ec72a3ba6b8ad459de80"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-40jirwa3/report.json",
+              "sha256": "023380afd791bc8b7a6625d34eeb0efc531b1b1f7658605b36b728d2df71e03f"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-bx17orn3/report.json",
+              "sha256": "1fc456b8b703ba754883ffd1a9f0a28de29ad2efa71cfd67c26afa5666946e08"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-rnz_ztbk/physical-seek-policy.json",
+              "sha256": "11eaf8ff5a3f79e3f29115ea4fdc5364477af7b7271283721cdd38b75592c104"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "page_size": 17,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/focused-release-min-page17-_u9vfl_h/receipt.json",
+          "sha256": "a7bacb45fbf15784d1db370f58527094815b03061945bbbb08344fa9124a7051"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-4ea7bueo/report.json",
+              "sha256": "7a5b2167ae3941993c7d2201df2a7a935df167624c697f474a7263360a50aaf6"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-trg6u5h3/report.json",
+              "sha256": "0eb05e1f435b3a34e91067ddce1ef0a46fdfa6788030df1562304e33201c5f51"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-yyfw2n_m/physical-seek-policy.json",
+              "sha256": "fda398d937518f7f98c45f8e8f1b9261c0d324181f3576ffe5b0351871268ed0"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page_size": 1,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/focused-release-page1-ze92i2a4/receipt.json",
+          "sha256": "3326f89343a7bb59d6067bc9fe468aaf6d4f38e10465c3a25af2745e5c894398"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-3qexn33p/report.json",
+              "sha256": "d833dd9a728fdf12d3cd55d6ffad8e4aa9dffbe75c81f759651e49625c6ffa7f"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-4sg3a7jc/report.json",
+              "sha256": "2e67691c6cd05d504e05d61ee33d3e4bb9fc587206d152607ffa7625705e69c3"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-9v6c2t9l/physical-seek-policy.json",
+              "sha256": "7bc155fd7bcad77e555e3684f781329b6f80569705784ef803ab7ca1b323a9c4"
+            }
+          },
+          {
+            "name": "precision",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/precision-g5eaj27u/comparison.json",
+              "sha256": "30f1a3d15af6c382fa1a4e73852b0d6ba5a6d4b0af1a32d8f8ec18cbaedb25c2"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page_size": 1024,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/focused-release-page1024-hj1sgok4/receipt.json",
+          "sha256": "e43ef07d5e4dbe95f30ee678fda2e5adef175d86c75093f6f0be0e888ce158bf"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-hgmuzdw4/report.json",
+              "sha256": "156c5f729c466580af8413bbb9099c3012830ecc7c191439087f67f8039835f3"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-uvmfo9dv/report.json",
+              "sha256": "3097693a13c830cf42d1180aa1c70125091922e12058f555ecff886dd1e67665"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-wwj1aofw/physical-seek-policy.json",
+              "sha256": "01a3a4b27abe8cff7b6c66b03875943266117acb1c40116786d72ce8387ed97c"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page_size": 17,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/projected-label-final-qidu2_xw/focused-release-page17-uryd8jri/receipt.json",
+          "sha256": "1ee0b6858a214c9de41244d68d8ca8c07f3c57968855a7f0ee027d8a5f4477f7"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-35m35q2f/report.json",
+              "sha256": "0cce41c4310d139aafab99322ca22ac715d47e3753839da6f74997a68a7bdca9"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-064xas5t/report.json",
+              "sha256": "36d4efae11b6e19ea53ae53345930e66ea0de25ef4a47bc0b75c7d4b6480cfa6"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-vg_grn7f/physical-seek-policy.json",
+              "sha256": "37f16f42b9b70c427dcdaf03cd73d2b9f77b8b002fb4d015f4ff6bcad7e457de"
+            }
+          }
+        ]
+      }
+    ],
+    "raw_cursor_differences_retained": true
+  },
+  "sre": {
+    "comparisons": 231540,
+    "summary": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/sre-causal-v2-zpwvvzfx/invocation-000-summary.json",
+      "sha256": "701ff9a46a1690806c2de152a486ff08c86711074d8c4ae2724afdde1730bcc9"
+    },
+    "source_binding": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/sre-source-binding.json",
+      "sha256": "7f169a17b4ebde7fbd6ca567c23d54e7bad4ceecc706fb9244811d869f50b4e4"
+    },
+    "run_binding": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/sre-causal-v2-zpwvvzfx/run-binding.json",
+      "sha256": "39d1fa6d7e2119131ed4f10e5c39c3e35bfbae0d3b41100c4a9c726b44e63f02"
+    },
+    "go_parent_payloads_consumed": 0
+  },
+  "c_embedding": [
+    {
+      "target": "native",
+      "manifest": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-kdc63ajl/manifest.json",
+        "sha256": "429579bbb1944a6cb2d78c6eb292b1b8b9aa188a0316ea2cfc8c34ec2df6a253"
+      },
+      "artifacts": 326,
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "structures": 58,
+      "callbacks": 17,
+      "shared_constants": 33,
+      "caller_variants": 10,
+      "retained_join_cases_per_caller": 9,
+      "retained_instant_fold_cases_per_caller": 6,
+      "retained_direct_rate_cases_per_caller": 12,
+      "caller_sanitizers": true,
+      "sanitizer_scope": "foreign caller; Rust core is not instrumented",
+      "panic_abort_rejected": true
+    },
+    {
+      "target": "arm64",
+      "manifest": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-zb3j7s15/manifest.json",
+        "sha256": "568f99e3665d4dd7cd807de4b62f41893331793b4936b582138eed97e3b11304"
+      },
+      "artifacts": 204,
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "structures": 58,
+      "callbacks": 17,
+      "shared_constants": 33,
+      "caller_variants": 4,
+      "retained_join_cases_per_caller": 9,
+      "retained_instant_fold_cases_per_caller": 6,
+      "retained_direct_rate_cases_per_caller": 12,
+      "caller_sanitizers": false,
+      "sanitizer_scope": "foreign caller; Rust core is not instrumented",
+      "panic_abort_rejected": false
+    },
+    {
+      "target": "arm32",
+      "manifest": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-bvm2hfxp/manifest.json",
+        "sha256": "9b4f7b5d954fabf898c794a30bb6ab59d5d49f90d8aae9a707190c2001bc5594"
+      },
+      "artifacts": 204,
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "structures": 58,
+      "callbacks": 17,
+      "shared_constants": 33,
+      "caller_variants": 4,
+      "retained_join_cases_per_caller": 9,
+      "retained_instant_fold_cases_per_caller": 6,
+      "retained_direct_rate_cases_per_caller": 12,
+      "caller_sanitizers": false,
+      "sanitizer_scope": "foreign caller; Rust core is not instrumented",
+      "panic_abort_rejected": false
+    }
+  ],
+  "live_dbengine_api": [
+    {
+      "kind": "storage",
+      "receipt": {
+        "netdata_repository_path": ".tmp/dbengine-storage-5xsian5f/receipt.json",
+        "sha256": "38e8255383f85a31508c829b63e78deec188ea0f5dbb0c7c8331cfda8e938a18"
+      },
+      "source_files": 292,
+      "binary_sha256": "74ecfbef58461c958dc972378c1a5bd20d4cb321deb7b1aaac879074e24bf904",
+      "records_or_checks": 672
+    },
+    {
+      "kind": "live",
+      "receipt": {
+        "netdata_repository_path": ".tmp/live-api-mnhyzmbo/receipt.json",
+        "sha256": "abf355c5c6a895f824188628c4a06ed40f8ca546a5e2aef8df4f3b7142f7a1d9"
+      },
+      "source_files": 293,
+      "binary_sha256": "74ecfbef58461c958dc972378c1a5bd20d4cb321deb7b1aaac879074e24bf904",
+      "records_or_checks": 58
+    }
+  ],
+  "performance": {
+    "comparison": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/performance-comparison.json",
+      "sha256": "fbbe9cc4b6b11049fa260d225fb8e289ec097a66d0f24c4efd97dd46830ded21"
+    },
+    "publication_provenance": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/performance-publication-provenance.json",
+      "sha256": "7fa0a3b3c2d319071019df06680ea20cb00a32f3558f414af2b4fd3858a0618f"
+    },
+    "rows": [
+      {
+        "profile": "release",
+        "id": "labels-32-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 5079114,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 5069684,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 5129623,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 5247802,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 5215302,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 5208873,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 0.9738868429862738
+      },
+      {
+        "profile": "release",
+        "id": "labels-128-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 20010088,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 20437265,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 19817120,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 20200687,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 21602434,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 20095477,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 0.9905647268333003
+      },
+      {
+        "profile": "release",
+        "id": "labels-512-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 89333859,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 87242798,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 82982886,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 82157433,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 82190053,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 81755018,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.0618978078343806
+      },
+      {
+        "profile": "release",
+        "id": "labels-32-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 4925435,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 4961494,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 4953215,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 4957995,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 4962154,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 4945395,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 0.9990359006009486
+      },
+      {
+        "profile": "release",
+        "id": "labels-128-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 19785921,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 20222426,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 19900919,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 20287776,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 20189797,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 20316336,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 0.9809315225089236
+      },
+      {
+        "profile": "release",
+        "id": "labels-512-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 91324231,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 88653065,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 81854486,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 81953875,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 82371311,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 83595561,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.0762614303904912
+      },
+      {
+        "profile": "release",
+        "id": "labels-32-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 5152623,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 5301242,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 5148593,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 4932605,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 4931915,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 5027025,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.044604828483124
+      },
+      {
+        "profile": "release",
+        "id": "labels-128-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 20443754,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 21354476,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 21046839,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 20122357,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 19893380,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 20104547,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.0468695962162191
+      },
+      {
+        "profile": "release",
+        "id": "labels-512-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 93903046,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 94483671,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 83098745,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 82661769,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 81102933,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 86282867,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.1359912464491293
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-32-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 8963438,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 8921959,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 8989918,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 9150207,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 10110738,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 9284355,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 0.9654346478565285
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-128-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 35702856,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 35852984,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 36419359,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 36308270,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 37465050,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 38504160,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 0.9569714707440669
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-512-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 148333792,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 148933697,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 148874068,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 151535513,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 148118515,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 150292595,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 0.990561564260701
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-32-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 8979099,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 8932199,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 9047847,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 9166657,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 9024618,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 8947779,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 0.9949561299990759
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-128-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 36219551,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 36223081,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 36252501,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 36648797,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 36553918,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 36899155,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 0.9883839024784361
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-512-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 147869677,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 150033337,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 148630849,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 152447164,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 151605643,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 147440120,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 0.9803780786708579
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-32-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 9099397,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 9050698,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 9122447,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 967426,
+            "workspace_peak": 405937,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 8985368,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 8991899,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 8927809,
+            "samples_fetched": 700,
+            "pages": 700,
+            "provider_calls": 1853,
+            "work": 954648,
+            "workspace_peak": 319921,
+            "output_samples": 64,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.0126905208556845
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-128-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 36832935,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 36781056,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 37427520,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3983297,
+            "workspace_peak": 1596468,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 36911964,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 36371559,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 36041913,
+            "samples_fetched": 2812,
+            "pages": 2812,
+            "provider_calls": 7421,
+            "work": 3931315,
+            "workspace_peak": 1252404,
+            "output_samples": 256,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.0126850762707202
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-512-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 147104093,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 147881297,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 151236617,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16596611,
+            "workspace_peak": 6385716,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 146648918,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 149340743,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 173083447,
+            "samples_fetched": 11260,
+            "pages": 11260,
+            "provider_calls": 29693,
+            "work": 16383733,
+            "workspace_peak": 5009460,
+            "output_samples": 1024,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 0.9902274090065295
+      }
+    ],
+    "scope": "9 complete generated label-heavy queries, both optimized profiles, three repetitions with alternating pair order. Workspace is tracked query memory; elapsed_ns is synthetic query timing, not Agent throughput or process RSS."
+  },
+  "preserved_failed_attempts": {
+    "initial_statistics_cast": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/controls-dev.stderr",
+      "sha256": "ea002cc56cd31dc3167d867d28a4ceddfd483aa3bc0a84edfca108bdac5ba854"
+    },
+    "initial_numeric_discard_order": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/discard-dev.stderr",
+      "sha256": "34aa438f44f127b98f6bb0e69842ceecdf2156d20ec2d1cd38cd2e21f4e5a378"
+    },
+    "initial_test_module_placement": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/clippy-fixtures.stderr",
+      "sha256": "662ef1089e58255038ba499100cba7b80910bc24854e7b5f3abad4af3860eee3"
+    }
+  },
+  "causal_controls": {
+    "matching_and_error_cancellation": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/controls-dev-v2.stdout",
+      "sha256": "de4b0b68917e900a9bec9acc85ae5e601ed9bab58988466888c6381cbc5401fc"
+    },
+    "derived_empty_name": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/derived-dev.stdout",
+      "sha256": "d32280493e60b3b44d1c25da3a7d436c8f91c2f722c9289feff4a4e3448e147f"
+    },
+    "existing_reserved_name": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/reserved-existing-dev.stdout",
+      "sha256": "524dc007f6edc77555068f37af85c4e3146c93b2531d2eb6f7f213f8a9413741"
+    },
+    "discard_output_and_statistics": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/discard-dev-v2.stdout",
+      "sha256": "1bbd58d116580713a147ced55b69d2514e0d08016222c57611d4495cd56c7fd8"
+    },
+    "reference_dispositions": {
+      "netdata_repository_path": ".tmp/projected-labels-_4o8ezdt/final-reference-scan.json",
+      "sha256": "92615c4585fbc572b70c42735ee68fd29f2a36c23c46c2dea19e69d55fb03bfa"
+    }
+  },
+  "limitations": [
+    "Finite inputs do not prove arbitrary-input equivalence.",
+    "Fixture timings and tracked query workspace are not production disk throughput or RSS.",
+    "Standalone foreign callers do not qualify a whole foreign Netdata Agent.",
+    "Caller ASan/UBSan does not instrument the Rust archive; MSRV is compile-only.",
+    "Grouped and nonempty-include label construction retains its existing full-copy/include replacement path.",
+    "Input metadata, complete keys and output copies still grow with cardinality; no metadata sharing/provider or raw history change is introduced.",
+    "Earlier qualification cohorts preserve their actual source and binary identities."
+  ]
+}

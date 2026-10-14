@@ -4297,10 +4297,26 @@ pub(crate) fn drop_reserved(
     account: &QueryAccounting,
     control: &Control,
 ) -> Result<(), EvaluationError> {
+    check_reserved_name(labels.0.first().map(|label| &*label.name), account, control)?;
+    labels.retain_labels_checked(account, control, |label| {
+        Ok::<_, Interrupted>(if name_only {
+            &*label.name != b"__name__"
+        } else {
+            !metadata(&label.name)
+        })
+    })?;
+    Ok(())
+}
+
+pub(crate) fn check_reserved_name(
+    first: Option<&[u8]>,
+    account: &QueryAccounting,
+    control: &Control,
+) -> Result<(), EvaluationError> {
     control.check()?;
     account.work(1);
     // Pinned DropReserved indexes the first sorted name before calling its predicate.
-    if labels.0.first().is_some_and(|label| label.name.is_empty()) {
+    if first.is_some_and(|name| name.is_empty()) {
         return Err(EvaluationError::WrappedRuntime(
             crate::binary_labels::formatted(
                 format_args!(
@@ -4311,13 +4327,6 @@ pub(crate) fn drop_reserved(
             )?,
         ));
     }
-    labels.retain_labels_checked(account, control, |label| {
-        Ok::<_, Interrupted>(if name_only {
-            &*label.name != b"__name__"
-        } else {
-            !metadata(&label.name)
-        })
-    })?;
     Ok(())
 }
 

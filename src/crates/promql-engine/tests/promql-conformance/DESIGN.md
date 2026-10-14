@@ -606,3 +606,19 @@ integration, and Alertmanager remains excluded.
   reads and tracked workspace peaks remain unchanged in the recorded generated workload.
 - **Phase proof:** the C error case uses the normal run's cursor observed before first output and checks a
   later physical series. Native traces establish final evaluation; output begin alone precedes preparation.
+
+## Compact one-to-one result labels
+
+- **Choice:** one-to-one projection with no included fields copies only retained labels. It removes empty values,
+  conditionally removes the three reserved metadata names, then applies the existing `on`/`ignoring` predicate.
+  Grouped and nonempty-include projections keep their existing replacement/removal path.
+- **Ownership:** the existing accounted label vector grows with output fields rather than discarded input fields.
+  A shared private field-copy helper preserves exact byte capacities and checked copy checkpoints. Public label
+  types, complete pair keys, first-writer cache identities and independently owned output copies are unchanged.
+- **Compatibility:** virtual reset precedes the original reserved-name preflight. A surviving empty name still
+  reports its wrapped runtime error before matching can remove it. Existing reserved-removal callers share that
+  same authority. Source order, cancellation/deadlines and partial-owner cleanup remain checked.
+- **Boundaries:** contexts/catalog/provider metadata ownership and raw paging are unchanged. This targets retained
+  projection capacity; input metadata, cache keys and collected output remain separate cardinality-dependent costs.
+- **Evidence:** projection memory/error/cancellation controls, complete matching/include cases, actual derived
+  empty-name expressions, discard-output statistics and source-bound whole-query comparisons.

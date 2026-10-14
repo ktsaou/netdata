@@ -76,6 +76,11 @@ halve sample reads with unchanged tracked workspace peaks; these observations ar
 
 ## Storage and native components
 
+The [projected-label qualification](../../src/crates/promql-engine/tests/promql-conformance/projected-label-qualification.json)
+binds compact join-label construction to fresh containing storage/API cohorts. Generated label-heavy joins use
+about 21% less tracked query workspace with unchanged outputs and reads. Contexts references, provider metadata,
+storage readers and raw paging retain their existing ownership; synthetic timings show no consistent speed gain.
+
 The [rate-join qualification](../../src/crates/promql-engine/tests/promql-conformance/rate-join-qualification.json)
 binds completed direct rate-operand discovery to the optimized engine and a freshly rebuilt Agent's storage/API
 checks. Generated joins reduce repeated metadata work with unchanged fetched samples and peak query workspace.

@@ -200,6 +200,43 @@ pub(crate) fn projected(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<OwnedLabels, crate::evaluator::EvaluationError> {
+    if matching.cardinality == Cardinality::OneToOne
+        && matching
+            .include
+            .as_ref()
+            .is_none_or(|fields| fields.is_empty())
+    {
+        let remove_reserved = drop_name || crate::binary_value::changes_metadata(operator);
+        if remove_reserved {
+            let mut first = None;
+            for label in &*left.0 {
+                control.check()?;
+                account.work(1);
+                if !label.value.is_empty() {
+                    first = Some(&*label.name);
+                    break;
+                }
+            }
+            // Reset precedes the reserved-name error; matching must not hide it.
+            crate::evaluator::check_reserved_name(first, account, control)?;
+        }
+        return left
+            .copy_filtered_checked(account, MemoryKind::Workspace, control, |label| {
+                if label.value.is_empty()
+                    || remove_reserved && crate::evaluator::metadata(&label.name)
+                {
+                    return Ok(false);
+                }
+                let selected = named(
+                    &label.name,
+                    matching.labels.as_deref().unwrap_or(&[]),
+                    control,
+                    account,
+                )?;
+                Ok(if matching.on { selected } else { !selected })
+            })
+            .map_err(Into::into);
+    }
     let mut result = left.copy_checked(account, MemoryKind::Workspace, control)?;
     result.reset_checked(account, control)?;
     if drop_name || crate::binary_value::changes_metadata(operator) {
@@ -332,4 +369,268 @@ pub(crate) fn write_with_control(
         control.check()?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod projection_tests {
+    use super::*;
+    use crate::accounting::EngineAccounting;
+
+    fn labels(values: &[(&[u8], &[u8])], account: &QueryAccounting) -> OwnedLabels {
+        let mut result = OwnedLabels::new(account, MemoryKind::Workspace);
+        for (name, value) in values {
+            result.push(name, value, account, MemoryKind::Workspace);
+        }
+        result
+    }
+
+    fn matching(name: &[u8], account: &QueryAccounting) -> VectorMatching {
+        let mut field = AccountedVec::new(account, MemoryKind::Workspace);
+        field.extend_from_slice(name);
+        let mut fields = AccountedVec::new(account, MemoryKind::Workspace);
+        fields.push(field);
+        VectorMatching {
+            on: true,
+            labels: Some(fields),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn one_to_one_projection_memory_follows_retained_labels() {
+        let mut retained = Vec::new();
+        for count in [8, 17, 65] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut source = labels(&[(b"__name__", b"m"), (b"instance", b"a")], &account);
+            for index in 2..count {
+                source.push(
+                    format!("tag_{index:02}").as_bytes(),
+                    b"discarded metadata",
+                    &account,
+                    MemoryKind::Workspace,
+                );
+            }
+            let matching = matching(b"instance", &account);
+            let before = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+            let output = projected(
+                &source,
+                &source,
+                TokenKind::DIV,
+                &matching,
+                false,
+                &control,
+                &account,
+            )
+            .unwrap();
+            assert_eq!(output.0.len(), 1);
+            assert_eq!(&*output.0[0].name, b"instance");
+            assert_eq!(&*output.0[0].value, b"a");
+            let bytes = account.snapshot().memory[MemoryKind::Workspace as usize].current - before;
+            println!("{{\"projection_input_labels\":{count},\"retained_bytes\":{bytes}}}");
+            retained.push(bytes);
+            drop(output);
+            assert_eq!(
+                account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                before
+            );
+            drop((matching, source));
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+        assert!(
+            retained.iter().all(|bytes| *bytes == retained[0]),
+            "one retained label must not retain input-sized capacity: {retained:?}"
+        );
+    }
+
+    #[test]
+    fn one_to_one_projection_preserves_reset_and_reserved_error_order() {
+        for operator in [TokenKind::DIV, TokenKind::EQLC] {
+            for drop_name in [false, true] {
+                for empty_value in [false, true] {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let source = labels(
+                        &[
+                            (b"", if empty_value { b"" } else { b"generated" }),
+                            (b"__name__", b"m"),
+                            (b"__type__", b"gauge"),
+                            (b"__unit__", b"KiB"),
+                            (b"instance", b"a"),
+                        ],
+                        &account,
+                    );
+                    let matching = matching(b"instance", &account);
+                    let outcome = projected(
+                        &source, &source, operator, &matching, drop_name, &control, &account,
+                    );
+                    if !empty_value && (drop_name || operator == TokenKind::DIV) {
+                        let EvaluationError::WrappedRuntime(message) = outcome.unwrap_err() else {
+                            panic!("reserved removal must report its original empty-name error");
+                        };
+                        assert_eq!(
+                            &*message,
+                            b"unexpected error: runtime error: index out of range [0] with length 0"
+                        );
+                    } else {
+                        let output = outcome.unwrap();
+                        assert_eq!(output.0.len(), 1);
+                        assert_eq!(&*output.0[0].name, b"instance");
+                        assert_eq!(&*output.0[0].value, b"a");
+                    }
+                    drop((matching, source));
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn one_to_one_projection_interrupts_retained_field_copy() {
+        for pending in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let value = vec![b'x'; 16_384];
+            let source = labels(&[(b"instance", &value)], &account);
+            let matching = matching(b"instance", &account);
+            let before = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+            if pending {
+                control.cancellation.cancel();
+            }
+            let outcome = crate::test_storage::interrupt_during(&account, &control, || {
+                projected(
+                    &source,
+                    &source,
+                    TokenKind::DIV,
+                    &matching,
+                    false,
+                    &control,
+                    &account,
+                )
+            });
+            assert!(matches!(
+                outcome,
+                Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+            ));
+            drop(outcome);
+            assert_eq!(
+                account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                before
+            );
+            drop((matching, source));
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn compact_projection_keeps_matching_and_group_include_semantics() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let source = labels(
+            &[
+                (b"__name__", b"m"),
+                (b"__type__", b"gauge"),
+                (b"__unit__", b"KiB"),
+                (b"empty", b""),
+                (b"instance", b"a"),
+                (b"job", b"worker"),
+                (b"opaque", &[0, 255]),
+            ],
+            &account,
+        );
+        for operator in [TokenKind::DIV, TokenKind::EQLC] {
+            for drop_name in [false, true] {
+                for on in [false, true] {
+                    for empty_fields in [false, true] {
+                        let mut matching = matching(b"instance", &account);
+                        matching.on = on;
+                        if empty_fields {
+                            matching.labels.as_mut().unwrap().clear();
+                        }
+                        let result = projected(
+                            &source, &source, operator, &matching, drop_name, &control, &account,
+                        )
+                        .unwrap();
+                        let actual: Vec<_> = result
+                            .0
+                            .iter()
+                            .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                            .collect();
+                        let expected: Vec<_> = source
+                            .0
+                            .iter()
+                            .filter(|label| {
+                                !label.value.is_empty()
+                                    && (!(drop_name || operator == TokenKind::DIV)
+                                        || !matches!(
+                                            &*label.name,
+                                            b"__name__" | b"__type__" | b"__unit__"
+                                        ))
+                                    && (if on {
+                                        !empty_fields && &*label.name == b"instance"
+                                    } else {
+                                        empty_fields || &*label.name != b"instance"
+                                    })
+                            })
+                            .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                            .collect();
+                        assert_eq!(actual, expected);
+                    }
+                }
+            }
+        }
+        let other = labels(&[(b"instance", b"b"), (b"new", b"included")], &account);
+        for cardinality in [
+            Cardinality::OneToOne,
+            Cardinality::ManyToOne,
+            Cardinality::OneToMany,
+        ] {
+            let mut matching = matching(b"instance", &account);
+            matching.cardinality = cardinality;
+            let mut include = AccountedVec::new(&account, MemoryKind::Workspace);
+            for name in [b"instance".as_slice(), b"job", b"new"] {
+                let mut field = AccountedVec::new(&account, MemoryKind::Workspace);
+                field.extend_from_slice(name);
+                include.push(field);
+            }
+            matching.include = Some(include);
+            let output = projected(
+                &source,
+                &other,
+                TokenKind::DIV,
+                &matching,
+                false,
+                &control,
+                &account,
+            )
+            .unwrap();
+            let actual: Vec<_> = output
+                .0
+                .iter()
+                .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                .collect();
+            let mut expected = vec![
+                (b"instance".to_vec(), b"b".to_vec()),
+                (b"new".to_vec(), b"included".to_vec()),
+            ];
+            if cardinality != Cardinality::OneToOne {
+                expected.push((b"opaque".to_vec(), vec![0, 255]));
+            }
+            assert_eq!(actual, expected);
+        }
+        drop((source, other));
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
 }

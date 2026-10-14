@@ -41,6 +41,19 @@ fn append_bytes_with(
     }
     Ok(())
 }
+fn copy_label_with(
+    label: LabelRef<'_>,
+    account: &QueryAccounting,
+    kind: MemoryKind,
+    work: HistogramWork<'_>,
+) -> Result<OwnedLabel, Interrupted> {
+    let context = AllocationContext::new(account, kind);
+    let mut name = AccountedVec::with_capacity_in(label.name.len(), Some(&context));
+    let mut value = AccountedVec::with_capacity_in(label.value.len(), Some(&context));
+    append_bytes_with(&mut name, label.name, work)?;
+    append_bytes_with(&mut value, label.value, work)?;
+    Ok(OwnedLabel { name, value })
+}
 impl OwnedLabels {
     pub fn new(account: &QueryAccounting, kind: MemoryKind) -> Self {
         Self(AccountedVec::new(account, kind))
@@ -76,17 +89,33 @@ impl OwnedLabels {
         let mut result = Self::new(account, kind);
         for label in labels {
             work.step(1)?;
-            let mut name = AccountedVec::with_capacity_in(
-                label.name.len(),
-                Some(&AllocationContext::new(account, kind)),
-            );
-            let mut value = AccountedVec::with_capacity_in(
-                label.value.len(),
-                Some(&AllocationContext::new(account, kind)),
-            );
-            append_bytes_with(&mut name, label.name, work)?;
-            append_bytes_with(&mut value, label.value, work)?;
-            result.0.push(OwnedLabel { name, value });
+            result.0.push(copy_label_with(label, account, kind, work)?);
+        }
+        work.step(1)?;
+        Ok(result)
+    }
+    pub(crate) fn copy_filtered_checked(
+        &self,
+        account: &QueryAccounting,
+        kind: MemoryKind,
+        control: &Control,
+        mut keep: impl FnMut(&OwnedLabel) -> Result<bool, Interrupted>,
+    ) -> Result<Self, Interrupted> {
+        let work = HistogramWork::new(control, account);
+        let mut result = Self::new(account, kind);
+        for label in &*self.0 {
+            work.step(1)?;
+            if keep(label)? {
+                result.0.push(copy_label_with(
+                    LabelRef {
+                        name: &label.name,
+                        value: &label.value,
+                    },
+                    account,
+                    kind,
+                    work,
+                )?);
+            }
         }
         work.step(1)?;
         Ok(result)

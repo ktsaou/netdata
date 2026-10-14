@@ -53,6 +53,162 @@ fn binary_matching_lookup_work_avoids_all_pairs() {
 }
 
 #[test]
+fn label_heavy_join_discards_output_with_exact_series_and_statistics() {
+    struct Discard {
+        count: usize,
+        labels: Vec<Vec<u8>>,
+        next: usize,
+        committed: bool,
+        aborted: bool,
+    }
+    impl OutputSink for Discard {
+        fn begin(&mut self, header: OutputHeader) -> Result<(), AccountedVec<u8>> {
+            assert_eq!(
+                (header.start_ms, header.end_ms, header.step_ms),
+                (1000, 2000, 1000)
+            );
+            Ok(())
+        }
+        fn chunk(&mut self, chunk: OutputChunk<'_>) -> Result<(), AccountedVec<u8>> {
+            let OutputChunk::Series { labels, points, .. } = chunk else {
+                panic!("series output");
+            };
+            assert_eq!(labels.len(), 1);
+            assert_eq!(labels[0].name, b"instance");
+            assert_eq!(labels[0].value, self.labels[self.next % self.count]);
+            assert_eq!(points.len(), 1);
+            assert_eq!(
+                points[0].time_ms,
+                1000 + (self.next / self.count) as i64 * 1000
+            );
+            let crate::value::SampleValueRef::Float(value) = points[0].value else {
+                panic!("float join");
+            };
+            assert_eq!(value.to_bits(), 1.0f64.to_bits());
+            self.next += 1;
+            Ok(())
+        }
+        fn commit(&mut self, observations: &QueryObservations) -> Result<(), AccountedVec<u8>> {
+            assert_eq!(self.next, 2 * self.count);
+            assert_eq!(observations.output_samples, (2 * self.count) as u64);
+            assert_eq!(
+                observations.statistics.samples.total_queryable_samples,
+                (4 * self.count) as u64
+            );
+            self.committed = true;
+            Ok(())
+        }
+        fn abort(&mut self) {
+            self.aborted = true;
+        }
+    }
+    for page_size in [1, 17, 1024] {
+        for count in [32, 128] {
+            let mut provider = FixtureProvider::new(1, page_size, count);
+            for series in &mut provider.series {
+                for tag in 0..14 {
+                    series
+                        .labels
+                        .push((format!("tag_{tag:02}").into_bytes(), b"metadata".to_vec()));
+                }
+            }
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"counter_total / on(instance) counter_total",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let mut labels: Vec<_> = (0..count)
+                .map(|index| index.to_string().into_bytes())
+                .collect();
+            labels.sort();
+            let mut sink = Discard {
+                count,
+                labels,
+                next: 0,
+                committed: false,
+                aborted: false,
+            };
+            let observations = query
+                .execute(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 2000,
+                        step_ms: 1000,
+                    },
+                    &control,
+                    &mut sink,
+                )
+                .unwrap();
+            assert!(sink.committed && !sink.aborted);
+            println!(
+                "{{\"label_join_discard_rows\":{count},\"page_size\":{page_size},\"workspace_peak\":{},\"work\":{},\"fetched\":{},\"queryable\":{}}}",
+                observations.memory[MemoryKind::Workspace as usize].peak,
+                observations.work,
+                observations.samples_fetched,
+                observations.statistics.samples.total_queryable_samples
+            );
+            provider.assert_closed();
+            drop(query);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+}
+
+#[test]
+fn projected_derived_empty_name_errors_before_on_can_remove_it() {
+    for page_size in [1, 17, 1024] {
+        for delayed in [false, true] {
+            let mut provider = FixtureProvider::new(2, page_size, 2);
+            for (index, series) in provider.series.iter_mut().enumerate() {
+                series.labels[1].1 = b"same".to_vec();
+                series.labels.push((
+                    b"le".to_vec(),
+                    if index == 0 {
+                        b"1".to_vec()
+                    } else {
+                        b"+Inf".to_vec()
+                    },
+                ));
+            }
+            let engine = Engine::default();
+            let control = Control::default();
+            let mut options = EngineOptions {
+                delayed_name_removal: delayed,
+                ..EngineOptions::default()
+            };
+            options.parser.experimental_functions = true;
+            let query = engine.compile(
+                b"histogram_quantiles(counter_total,\"\",0.5) / on(instance) histogram_quantiles(counter_total,\"\",0.5)",
+                options, &control,
+            ).unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Instant { time_ms: 2000 },
+                &control,
+            );
+            let Err(ExecutionError::Evaluation(crate::evaluator::EvaluationError::WrappedRuntime(
+                message,
+            ))) = &report.result
+            else {
+                panic!("derived empty name must retain its reserved-removal failure");
+            };
+            assert_eq!(
+                &**message,
+                b"unexpected error: runtime error: index out of range [0] with length 0"
+            );
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+}
+
+#[test]
 fn instant_root_numeric_fold_avoids_a_second_complete_quantile_scan() {
     let mut reads = Vec::new();
     for page_size in [1, 17, 1024] {
