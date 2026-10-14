@@ -8718,5 +8718,25 @@
     "complete_performance_responses": 576,
     "caveat": "Small current-scope metadata cost;prefix/projection/histogram work remains. Historical cohorts preserve their own sources/binaries.",
     "warmed_small_responses": 7200
+  },
+  "set_operand_prefix_qualification": {
+    "status": "pass",
+    "qualification": {
+      "path": "set-prefix-qualification.json",
+      "sha256": "38f1d89d4e34bd4242d0d91b2052d92d796b08fb62c88ccf74b86e63e9516f3c"
+    },
+    "scope": "Finite completed set-operand prefix qualification: verified nonselected acquisitions omitted after actual success; fresh requested/unverified/All values, hash/seen/deferred errors, exact current scopes and bounded raw paging preserved. No public/default/ABI/reference/storage change. Not arbitrary-input proof or whole-core readiness.",
+    "fixture_units_per_profile": 591,
+    "builtin_comparisons": 128652,
+    "focused_comparisons": 2070,
+    "sre_exact_comparisons": 231540,
+    "foreign_executed_owner_checks": 112,
+    "foreign_distinct_target_profile_tests": 108,
+    "c_embedding_artifacts": 1033,
+    "live_http_and_readiness_checks": 82,
+    "storage_records": 672,
+    "complete_performance_responses": 576,
+    "complete_small_timing_responses": 7200,
+    "caveat": "No observed new workspace; selected/unverified acquisition, skipped full hashing, warm reconstruction and projection/histogram work remain. Serial same-Plan ownership is required. Historical cohorts preserve their own sources/binaries."
   }
 }

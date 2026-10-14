@@ -2715,8 +2715,9 @@ projection copies strip source ranges or move descriptors, then check owned side
 and ordinals. Matching-signature duplicates remain legal. Native/mixed, multiple, aliased, copied, invariant,
 wrapping and other expression shapes continue through the original implementation.
 
-Warm reconstruction preserves side order and all later phases: Begin, choice, every prefix/selected operand
-reread, labels, duplicate/diagnostic completion and output truncation. Its Right-to-Begin publication certifies
+Warm reconstruction preserves side order and later phases: Begin, choice, selected/unverified operand
+rereads, labels, duplicate/diagnostic completion and output truncation. Completed prefixes below can omit verified
+nonselected acquisitions; the original discovery-only cohort retained every reread. Right-to-Begin publication certifies
 completed discovery. Existing Pair replay still publishes only after Done. Successful roster preparation clears
 all set snapshots before ordinary or standalone derived-matrix final consumption, preserving a complete first
 final discovery. One current exact key replaces the previous scope before allocating its bitmap.
@@ -2729,7 +2730,7 @@ successful-preparation assertion verifies snapshot clearing for both final consu
 validate labels, ticks, float bits, diagnostics, logical totals, actual useful/fetched reads, one cursor and release
 before the throughput bound. Raw history remains paged across series and time.
 
-Prefix acquisitions and later histogram/projection replay remain independently measured costs. The bitmap and
+Selected/unverified acquisitions and later histogram/projection replay remain independently measured costs. The bitmap and
 its accounted owners can add a small workspace allocation; reduced reads are not a universal memory reduction,
 production disk-throughput claim or arbitrary-input equivalence proof.
 
@@ -2759,5 +2760,70 @@ A 7,200-response follow-up repeats empty/one/two/four-input and raw-gauge contro
 repetitions for timing. Warmed `release` ratios range from 1.139 to 1.687; `release-min` ranges from 0.953 to 1.675.
 The empty `release-min` median increases from 67.740µs to 71.055µs, about 4.9%, with unchanged workspace and
 18 additional work units. The first cold empty ratio of 0.809 is therefore not the warmed effect. Small disjoint
-sets can add 248 bytes of metadata; no universal speedup or memory decrease is claimed. Prefix and later
-projection/histogram replay remain independent improvement opportunities.
+sets can add 248 bytes of metadata; no universal speedup or memory decrease is claimed. At that source, prefix and
+later projection/histogram replay remained independent opportunities; the prefix correction is qualified below.
+
+## Completed set-operand prefixes
+
+The current exact set-discovery owner records one successfully completed kept prefix. During a later targeted
+Matrix body, verified nonselected operands reconstruct full-hash/seen/duplicate state from immutable descriptor
+labels without rereading values, copying labels or emitting filtered samples. The requested operand stays fresh.
+Discovery grants no credit; success includes the original operand, label, hash, seen and terminal control phases.
+
+Initialization and advancement share the Matrix/owner/filter predicate. All bodies seed progress while returning
+every value; inactive contexts do neither. Key replacement, new discovery publication and preparation clearing
+reset the frontier. Ordinary Done with no pending discovery preserves All-body progress. Unverified prefixes and
+suffixes, first-pass failures, selected failures and original truncation remain required; there is no extra drain.
+
+This scalar fits the existing replay payload and retains no raw samples, value cache, label copy or additional
+owned buffer. Its synchronous borrowed scope adds no Step fields. Current callers serialize same-Plan execution:
+certified descendants are proper raw/projection/set children, an OrderedRows wrapper finishes or truncates its
+child, preparation/final Machines run sequentially, and reentrant queries own fresh Rosters. Future overlapping
+same-Plan Steps, shared Rosters or ancestor redirects must revisit this assumption; exact keys alone do not solve
+an overlapping A→B→A incarnation.
+
+Causal owners check fresh requested and unverified reads, backward/sparse targets, All seeding/Done, discovery
+without credit, missing suffixes, failed acquisitions, all eleven key fields, reset/clear and all three set
+operators. A genuine unequal-label full-hash collision retains exact-byte matching signatures and the original
+deferred Finished duplicate error. Calibrated cancellation must precede terminal credit and skipped reconstruction.
+Complete workload controls check labels, ticks, float bits, diagnostics, logical totals, useful/fetched reads,
+single-cursor paging and release before imposing the new acquisition bound.
+
+[Set prefix qualification](set-prefix-qualification.json) retains the actual source-bound cohorts and measured
+tradeoffs. Existing discovery-only, red, provisional and failed control/helper receipts preserve their original
+identities. Full hashing of skipped labels, active-membership reconstruction and later projection/histogram work
+remain independent costs; reduced reads are not a general production disk-throughput or process-RSS claim.
+
+Both profiles pass 591 units, 128,652 builtin comparisons, 2,070 focused comparisons and 231,540 exact SRE
+comparisons. ARM64 and ARM32 execute 112 discovery/prefix owner checks across both profiles, covering 108 distinct
+target/profile/test slots because one test belongs to both selectors. Compiled layouts match the prior discovery
+cohort: `ReplayRows/Replay/CompletedStep/Plan/Step` remain `48/64/128/328/680` bytes on AMD64/ARM64 and
+`32/40/112/224/496` bytes on ARM32.
+
+Actual C/C++ qualification retains 18 caller variants, ABI3 rejection, layouts and the native caller sanitizer/abort
+checks. The private runner uses separate per-task Rust/abort targets, preserving previous link inputs. Its 1,033
+artifact files include those build outputs; this count is not additional C test coverage. The freshly linked Debug
+Agent passes 672 storage records and 82 HTTP/readiness checks under both codecs, with ordinary 30s client reads
+and normal owned exits. The initial private helper-import failure is retained separately from passing C evidence.
+
+The matched cohort retains 576 complete alternating responses across 96 query/profile groups, three page sizes
+and three pairs. Larger disjoint/deep cases reduce both work and fetched entries; none of the 96 observed workspace
+peaks increases. Grouped quantiles use 32 fewer bytes; other peaks are unchanged. Page-17 measurements are:
+
+| Three-tick query | Fetched entries before → after | Work before → after | Workspace peak, bytes | `release` ratio | `release-min` ratio |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Disjoint set, 16 input series | 10,752 → 1,824 | 1,190,594 → 430,286 | 79,463 | 3.880 | 3.930 |
+| Disjoint set, 32 input series | 39,936 → 3,648 | 4,431,616 → 1,319,608 | 145,448 | 5.512 | 5.574 |
+| Disjoint set, 64 input series | 153,600 → 7,296 | 17,160,097 → 4,521,637 | 277,808 | 7.596 | 7.199 |
+| Six-group histogram sum | 125,388 → 4,329 | 39,382,001 → 2,965,238 | 189,077 | 16.118 | 16.517 |
+
+Ratios divide the previous published build's median query time by the current median. The deep query falls from
+292.796ms to 18.165ms in `release` and from 528.898ms to 32.021ms in `release-min`. Separate complete direct units
+also validate useful reads and logical participation, which the protocol observations do not expose.
+
+A 7,200-response warmed follow-up repeats empty/one/two/four-input and raw-gauge controls, discarding the first
+twenty repetitions. Ratios range from 0.981 to 1.749 in `release` and 1.007 to 1.799 in `release-min`. The raw-gauge
+`release` median rises from 19.965µs to 20.355µs, about 2%; empty and small disjoint controls are unchanged or faster.
+These synthetic measurements ran on a shared host while SRE replay was also active. They establish neither a
+universal speedup, CPU isolation, production disk throughput nor process RSS. Historical measurements retain their
+actual sources and binaries.

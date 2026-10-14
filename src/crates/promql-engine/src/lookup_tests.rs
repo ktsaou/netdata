@@ -3,7 +3,7 @@ use super::*;
 use crate::{result::OwnedValue, test_storage::FixtureProvider};
 
 #[test]
-fn nested_set_discovery_reuses_completed_inputs() {
+fn nested_set_prefix_reuses_successful_operands() {
     fn point(index: usize) -> crate::value::Sample {
         crate::value::Sample {
             time_ms: (index as i64 + 2) * 1000,
@@ -93,8 +93,8 @@ fn nested_set_discovery_reuses_completed_inputs() {
     assert!(
         reads
             .iter()
-            .all(|(count, _, fetched)| *fetched <= 4000 * *count as u64),
-        "completed set inputs must avoid repeated full discovery: {reads:?}"
+            .all(|(count, _, fetched)| *fetched <= 1000 * *count as u64),
+        "completed set prefixes must avoid repeated operand acquisition: {reads:?}"
     );
 }
 

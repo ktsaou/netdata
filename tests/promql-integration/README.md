@@ -194,3 +194,11 @@ The source-bound set-discovery cohort passes 672 storage records and 82 live HTT
 owned Agent exits. Its exact six-group range no longer needs the exceptional client allowance. Separate matched
 Rust engine measurements show approximately 13× faster deep-query evaluation, adding 1,240 bytes of tracked
 workspace. This is finite generated-data timing, not a production disk or process-RSS measurement.
+
+The subsequent completed-prefix route omits previously successful nonselected set operand acquisitions while
+retaining fresh requested/unverified reads, first discovery, matching and cleanup. A freshly linked Debug Agent
+again passes 672 storage records and 82 live HTTP/readiness checks under both codecs, using ordinary 30s client
+reads and normal exits. The source-bound engine cohort measures the same deep query about 16× faster than the
+preceding discovery-only build, with unchanged 189,077-byte tracked workspace; these remain synthetic Rust engine
+measurements. See the contained conformance guide's completed set-operand prefix section for exact sources,
+small-query tradeoffs and the current serial same-Plan ownership requirement.

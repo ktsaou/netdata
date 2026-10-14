@@ -11065,8 +11065,7 @@ mod tests {
     #[test]
     fn unequal_labels_with_the_same_full_hash_follow_source_merge_identity() {
         // Go mergeSeriesWithSameLabelset uses Hash alone, not label equality.
-        const FIRST: &[u8] = b"Aaaaa\x00\x00\x00\x00\x00\x00\x00\x00";
-        const SECOND: &[u8] = b"Bbbbb\x1d\x3c\xa5\x95\x96\x2f\x43\xdd";
+        let [first_value, second_value] = crate::test_storage::FULL_LABEL_HASH_COLLISION_VALUES;
         fn first(index: usize) -> crate::value::Sample {
             crate::value::Sample {
                 time_ms: [1000, 2000][index],
@@ -11092,7 +11091,7 @@ mod tests {
         let engine = Engine::default();
         let account = engine.accounting.query();
         let control = Control::default();
-        for value in [FIRST, SECOND] {
+        for value in [first_value, second_value] {
             let mut labels = crate::result::OwnedLabels::new(&account, MemoryKind::Workspace);
             labels.push(b"a", value, &account, MemoryKind::Workspace);
             assert_eq!(
@@ -11103,7 +11102,7 @@ mod tests {
         for page in [1, 17, 1024] {
             for overlap in [false, true] {
                 let mut provider = FixtureProvider::new(2, page, 2);
-                for (index, value) in [FIRST, SECOND].into_iter().enumerate() {
+                for (index, value) in [first_value, second_value].into_iter().enumerate() {
                     provider.series[index].labels = vec![
                         (b"a".to_vec(), value.to_vec()),
                         (
@@ -11148,7 +11147,7 @@ mod tests {
                     let series = &result.series[0];
                     assert_eq!(series.labels.0.len(), 1);
                     assert_eq!(&series.labels.0[0].name[..], b"a");
-                    assert_eq!(&series.labels.0[0].value[..], FIRST);
+                    assert_eq!(&series.labels.0[0].value[..], first_value);
                     assert_eq!(
                         series
                             .points

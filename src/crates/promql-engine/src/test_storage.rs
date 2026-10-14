@@ -13,6 +13,12 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
+#[cfg(test)]
+pub(crate) const FULL_LABEL_HASH_COLLISION_VALUES: [&[u8]; 2] = [
+    b"Aaaaa\x00\x00\x00\x00\x00\x00\x00\x00",
+    b"Bbbbb\x1d\x3c\xa5\x95\x96\x2f\x43\xdd",
+];
+
 struct WorkInterruption {
     query: usize,
     remaining: u64,

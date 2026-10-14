@@ -724,8 +724,9 @@ integration, and Alertmanager remains excluded.
   checked before projections strip source ranges or move descriptors; actual owned side rows are checked afterward.
   Native/mixed, multiple, aliased, invariant, copied, wrapping and unsupported shapes use the original path.
 - **Phases:** publication at Right-to-Begin certifies complete discovery, not successful binary emission. Warm
-  reconstruction retains original side order, Begin, choice, every prefix and selected reread, duplicate/diagnostic
-  completion and positive Vector truncation. Pair replay still publishes only after Done.
+  reconstruction retains original side order, Begin, choice, selected/unverified rereads, duplicate/diagnostic
+  completion and positive Vector truncation. Completed prefixes can omit the nonselected acquisitions described
+  below; the original discovery-only cohort retained every reread. Pair replay still publishes only after Done.
 - **Final evaluation:** the successful end of roster preparation clears only set discovery snapshots. Both ordinary
   and standalone derived-matrix consumers therefore perform a complete first final discovery; eligibility and Pair
   state survive. Failed preparation drops its local state.
@@ -734,5 +735,34 @@ integration, and Alertmanager remains excluded.
   occupies the existing vector niche, adding no persistent Plan/Step field or Replay size.
 - **Controls:** allocation, capture, reconstruction, replacement, publication and clearing retain polling and work
   accounting. Kind/order ambiguity discards capture while continuing the original cold streams.
-- **Limits:** prefix acquisitions and histogram/projection replay remain independent costs. Reduced raw reads can
+- **Limits:** selected/unverified acquisitions and histogram/projection replay remain independent costs. Reduced raw reads can
   add a small current-scope metadata allocation; whole-query workspace and timing require actual measurement.
+
+## Completed set-operand prefixes
+
+- **Choice:** one scalar frontier records the greatest successfully completed kept set ordinal at the current exact
+  discovery scope. A targeted Matrix body omits acquisition, value handling and label copying for verified
+  nonselected operands. The requested operand is always acquired freshly; All bodies retain every value.
+- **Authority:** discovery alone grants no prefix credit. Fresh acquisition, value presence, label copying, full
+  hashing, seen bookkeeping and the terminal control check must succeed before progress advances. Choices visit
+  kept rows in ascending flat left/right order; excluded matching rows need no operand credit.
+- **Phases:** skipped operands still fully hash immutable descriptor labels and reconstruct the original seen and
+  deferred-duplicate state. Unverified prefixes/suffixes, selected errors, original Vector truncation and Finished
+  checks retain their paths. No extra draining manufactures completion.
+- **Scope:** initialization and advancement share one Matrix/owner/filter predicate. An inactive context cannot
+  read or update progress. An eligible All context seeds success without skipping. Every skip/update checks the
+  actual effective frame key; replacement, new discovery publication and preparation clearing reset progress.
+  Ordinary Done without a pending owner preserves successfully completed All-body progress.
+- **Ownership:** the scalar fits the existing replay enum payload on qualified native and ARM targets. A synchronous
+  borrowed key/target context adds no persistent Step field, owned buffer, values, labels or history. Existing Pair
+  layout/accounting and current-scope bitmap ownership remain unchanged.
+- **Serial callers:** this representation relies on current production scheduling. Certified children are proper
+  raw/projection/set descendants; parenthesis preprocessing does not redirect to ancestors. An outer OrderedRows
+  frame is not a Binary Step and finishes or truncates its child before the next one. Preparation/final Machines
+  run sequentially and reentrant queries own fresh Rosters. Key identity alone would not protect future overlapping
+  same-Plan A→B→A Steps; shared/interleaved Rosters or ancestor redirects must revisit the certificate.
+- **Controls:** fresh publication and skipped seen reconstruction poll after their accounted work. Interrupted
+  queries discard their local state. Full hashing of skipped labels and warm bitmap/index reconstruction remain
+  separate measured costs.
+- **Evidence:** [set prefix qualification](set-prefix-qualification.json) binds meaningful acquisition/control
+  failures, actual final sources/binaries, complete results, causal owners, integration and matched measurements.

@@ -535,6 +535,23 @@ enum OutputMode {
     Matrix,
     Vector,
 }
+fn set_discovery_target(
+    mode: OutputMode,
+    bypass_order: bool,
+    filter: RowFilter<'_>,
+    node: NodeId,
+    preparation: Option<crate::vector_matching::Preparation<'_>>,
+) -> Option<Option<usize>> {
+    if !matches!(mode, OutputMode::Matrix) {
+        return None;
+    }
+    match filter {
+        RowFilter::One(target) if bypass_order => Some(Some(target)),
+        RowFilter::Ordinals([target]) if bypass_order => Some(Some(*target)),
+        RowFilter::All if preparation.is_some_and(|owner| owner.node == node) => Some(None),
+        _ => None,
+    }
+}
 
 #[derive(Clone, Copy)]
 pub(crate) enum RowFilter<'a> {
@@ -2662,15 +2679,15 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.account,
                     );
                     let frame = &self.frames[index];
-                    let singleton =
-                        matches!(frame.filter, RowFilter::Ordinals([_]) | RowFilter::One(_));
                     if operator.is_set()
-                        && matches!(frame.mode, OutputMode::Matrix)
-                        && (frame.bypass_order && singleton
-                            || matches!(frame.filter, RowFilter::All)
-                                && self
-                                    .binary_preparation
-                                    .is_some_and(|owner| owner.node == node))
+                        && set_discovery_target(
+                            frame.mode,
+                            frame.bypass_order,
+                            frame.filter,
+                            node,
+                            self.binary_preparation,
+                        )
+                        .is_some()
                     {
                         step.enable_set_discovery(
                             crate::vector_matching::ReplayKey::new(
@@ -3377,6 +3394,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             }
             let node = self.frames[index].node;
             let filter = self.frames[index].filter;
+            let mode = self.frames[index].mode;
+            let bypass_order = self.frames[index].bypass_order;
             match &mut self.frames[index].state {
                 State::Gather(step) => match step.advance(self.control, self.account)? {
                     crate::matrix_heads::Action::Child {
@@ -3800,10 +3819,38 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 }
                 State::Binary(step) => {
                     let options = self.options;
+                    let progress = if step.has_set_discovery() {
+                        set_discovery_target(
+                            mode,
+                            bypass_order,
+                            filter,
+                            node,
+                            self.binary_preparation,
+                        )
+                        .map(|target| {
+                            (
+                                crate::vector_matching::ReplayKey::new(
+                                    options,
+                                    self.step_index,
+                                    self.prepared.lookback_ns(options.lookback_ms),
+                                    self.data_bounds,
+                                ),
+                                target,
+                            )
+                        })
+                    } else {
+                        None
+                    };
                     match step.advance(
                         node,
                         options,
                         self.binary_preparation,
+                        progress.as_ref().map(|(key, target)| {
+                            crate::vector_matching::SetProgress {
+                                key,
+                                target: *target,
+                            }
+                        }),
                         self.control,
                         self.account,
                     )? {
@@ -4386,6 +4433,49 @@ pub(crate) fn scalar_binary(
 mod filter_tests {
     use super::*;
     use crate::accounting::EngineAccounting;
+
+    #[test]
+    fn set_discovery_scope_shares_the_existing_activation_predicate() {
+        let account = EngineAccounting::default().query();
+        let cache = std::cell::RefCell::new(crate::vector_matching::Cache::new(&account));
+        let owner = crate::vector_matching::Preparation {
+            node: NodeId(1),
+            cache: &cache,
+        };
+        let one = [7];
+        let many = [3, 7];
+        for mode in [OutputMode::Vector, OutputMode::Matrix] {
+            for bypass_order in [false, true] {
+                for (filter, target) in [
+                    (RowFilter::One(7), Some(Some(7))),
+                    (RowFilter::Ordinals(&one), Some(Some(7))),
+                    (RowFilter::All, Some(None)),
+                    (RowFilter::Ordinals(&[]), None),
+                    (RowFilter::Ordinals(&many), None),
+                ] {
+                    for preparation in [None, Some(owner)] {
+                        for node in [NodeId(1), NodeId(2)] {
+                            let expected = if matches!(mode, OutputMode::Vector) {
+                                None
+                            } else if matches!(filter, RowFilter::All) {
+                                (preparation.is_some() && node == owner.node).then_some(None)
+                            } else if bypass_order {
+                                target
+                            } else {
+                                None
+                            };
+                            assert_eq!(
+                                set_discovery_target(mode, bypass_order, filter, node, preparation),
+                                expected
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        drop(cache);
+        account.snapshot().assert_memory_released();
+    }
 
     #[test]
     fn scalar_trim_errors_keep_source_text_and_release_owned_messages() {
