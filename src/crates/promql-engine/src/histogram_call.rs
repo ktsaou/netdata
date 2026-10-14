@@ -17,7 +17,7 @@ use crate::{
     },
     histogram_functions::{self, NativeHistogramInfo},
     label_hash,
-    position_index::PositionIndex,
+    position_index::{PositionIndex, SignatureIndex},
     query_preparation::Prepared,
     result::{OwnedLabels, OwnedValue},
     storage::{Control, Interrupted, StorageError},
@@ -310,6 +310,26 @@ struct ActiveGroup {
     dropped: bool,
     skip: bool,
 }
+
+fn lookup_active_group(
+    groups: &[ActiveGroup],
+    index: &SignatureIndex,
+    group: usize,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<Option<usize>, Interrupted> {
+    if groups.len() <= 4 {
+        for (position, prior) in groups.iter().enumerate() {
+            control.check()?;
+            account.work(1);
+            if prior.group == group {
+                return Ok(Some(position));
+            }
+        }
+        return Ok(None);
+    }
+    index.find(group, |position| groups[position].group, control, account)
+}
 #[derive(Clone, Copy)]
 enum Phase {
     StartScalar(usize),
@@ -469,6 +489,7 @@ impl<'a> Step<'a> {
                 )?;
             }
         }
+        let mut group_index = SignatureIndex::new(account);
         for active in &*self.active {
             control.check()?;
             account.work(1);
@@ -490,13 +511,15 @@ impl<'a> Step<'a> {
                 }
                 continue;
             };
-            let mut found = false;
-            for prior in &*self.groups {
-                control.check()?;
-                account.work(1);
-                found |= prior.group == group;
-            }
-            if found {
+            let found = lookup_active_group(&self.groups, &group_index, group, control, account)?;
+            control.check()?;
+            if let Some(position) = found {
+                // Counts become ordered offsets after native suppression and enumeration.
+                self.groups[position].bounds.end = self.groups[position]
+                    .bounds
+                    .end
+                    .checked_add(1)
+                    .expect("histogram bound count overflow");
                 continue;
             }
             let mut dropped = false;
@@ -522,11 +545,35 @@ impl<'a> Step<'a> {
             }
             self.groups.push(ActiveGroup {
                 group,
-                bounds: 0..0,
+                bounds: 0..1,
                 dropped,
                 skip: false,
             });
+            if self.groups.len() == 5 {
+                for position in 0..5 {
+                    group_index.insert_new(
+                        self.groups[position].group,
+                        position,
+                        self.plan.groups.len(),
+                        |prior| self.groups[prior].group,
+                        control,
+                        account,
+                    )?;
+                    control.check()?;
+                }
+            } else if self.groups.len() > 5 {
+                group_index.insert_new(
+                    group,
+                    self.groups.len() - 1,
+                    self.plan.groups.len(),
+                    |prior| self.groups[prior].group,
+                    control,
+                    account,
+                )?;
+                control.check()?;
+            }
         }
+        let mut skipped = 0;
         for active in &mut *self.active {
             if active.kind != 2 {
                 continue;
@@ -534,13 +581,13 @@ impl<'a> Step<'a> {
             let Some(group) = self.plan.metadata[active.row].native_group else {
                 continue;
             };
-            for classic in &mut *self.groups {
-                control.check()?;
-                account.work(1);
-                if classic.group != group || classic.skip {
-                    continue;
-                }
-                classic.skip = true;
+            let found = lookup_active_group(&self.groups, &group_index, group, control, account)?;
+            control.check()?;
+            if let Some(position) = found
+                && !self.groups[position].skip
+            {
+                self.groups[position].skip = true;
+                skipped += 1;
                 active.skip = true;
                 if let Some(preparation) = preparation {
                     let mut cache = preparation.cache.borrow_mut();
@@ -568,29 +615,116 @@ impl<'a> Step<'a> {
                         account,
                     )?;
                 }
-                break;
             }
         }
+        // Enumeration changes positions; its lookup must be rebuilt afterward.
+        drop(group_index);
         self.enumerate_groups(control, account)?;
-        for group in &mut *self.groups {
-            group.bounds.start = self.bounds.len();
-            if !group.skip {
-                for active in &*self.active {
-                    control.check()?;
-                    account.work(1);
-                    if active.kind == 1 && self.plan.metadata[active.row].group == Some(group.group)
-                    {
-                        self.bounds.push(Bound {
-                            upper_bound: self.plan.metadata[active.row]
-                                .bound
-                                .expect("parsed classic bound"),
-                            ordinal: active.row,
-                        });
+        if self.groups.len() - skipped <= 4 {
+            for group in &mut *self.groups {
+                control.check()?;
+                group.bounds.start = self.bounds.len();
+                if !group.skip {
+                    for active in &*self.active {
+                        control.check()?;
+                        account.work(1);
+                        if active.kind == 1
+                            && self.plan.metadata[active.row].group == Some(group.group)
+                        {
+                            self.bounds.push(Bound {
+                                upper_bound: self.plan.metadata[active.row]
+                                    .bound
+                                    .expect("parsed classic bound"),
+                                ordinal: active.row,
+                            });
+                        }
                     }
                 }
+                group.bounds.end = self.bounds.len();
             }
-            group.bounds.end = self.bounds.len();
+        } else {
+            let mut group_index = SignatureIndex::new(account);
+            let mut total = 0usize;
+            for position in 0..self.groups.len() {
+                control.check()?;
+                account.work(1);
+                let count = if self.groups[position].skip {
+                    0
+                } else {
+                    group_index.insert_new(
+                        self.groups[position].group,
+                        position,
+                        self.plan.groups.len(),
+                        |prior| self.groups[prior].group,
+                        control,
+                        account,
+                    )?;
+                    control.check()?;
+                    self.groups[position].bounds.end
+                };
+                let end = total
+                    .checked_add(count)
+                    .expect("histogram bound count overflow");
+                self.groups[position].bounds = total..end;
+                total = end;
+            }
+            assert!(
+                total <= self.active.len(),
+                "histogram bound count exceeds active rows"
+            );
+            self.bounds.reserve(total);
+            let empty = [Bound {
+                upper_bound: 0.0,
+                ordinal: 0,
+            }; 64];
+            while self.bounds.len() < total {
+                control.check()?;
+                let count = (total - self.bounds.len()).min(empty.len());
+                account.work(count as u64);
+                self.bounds.extend_from_slice(&empty[..count]);
+            }
+            for active in &*self.active {
+                control.check()?;
+                account.work(1);
+                if active.kind != 1 {
+                    continue;
+                }
+                let Some(group) = self.plan.metadata[active.row].group else {
+                    continue;
+                };
+                let found = group_index.find(
+                    group,
+                    |position| self.groups[position].group,
+                    control,
+                    account,
+                )?;
+                control.check()?;
+                if let Some(position) = found {
+                    let cursor = &mut self.groups[position].bounds;
+                    assert!(cursor.start < cursor.end, "histogram bound cursor overflow");
+                    // Preserve source order for the subsequent pinned numerical sort.
+                    self.bounds[cursor.start] = Bound {
+                        upper_bound: self.plan.metadata[active.row]
+                            .bound
+                            .expect("parsed classic bound"),
+                        ordinal: active.row,
+                    };
+                    cursor.start += 1;
+                }
+            }
+            let mut start = 0;
+            for group in &mut *self.groups {
+                control.check()?;
+                account.work(1);
+                assert_eq!(
+                    group.bounds.start, group.bounds.end,
+                    "histogram bound count mismatch"
+                );
+                group.bounds.start = start;
+                start = group.bounds.end;
+            }
         }
+        control.check()?;
         self.phase = Phase::Choose;
         Ok(())
     }
@@ -1591,6 +1725,330 @@ mod tests {
         };
         row(&mut rows, last_kind, labels, account);
         rows
+    }
+
+    fn distribution_step<'a>(plan: &'a Plan, account: &QueryAccounting) -> Step<'a> {
+        let mut step = Step::new(
+            plan,
+            Arguments {
+                function: Function::Quantile,
+                scalar_spans: [Span::default(); 10],
+                scalar_count: 1,
+                vector_span: Span::default(),
+                destination: None,
+            },
+            false,
+            None,
+            account,
+        );
+        step.parameters[0] = Some(0.5);
+        step.phase = Phase::Begin;
+        step
+    }
+
+    fn distribution_options() -> EvaluationOptions {
+        EvaluationOptions {
+            time_ms: 2000,
+            start_ms: 2000,
+            end_ms: 2000,
+            step_ms: 1000,
+            lookback_ms: 300000,
+            start_timestamps: false,
+            delayed_name_removal: false,
+        }
+    }
+
+    #[test]
+    fn active_distribution_work_avoids_all_pairs() {
+        let mut measured = Vec::new();
+        for count in [128, 512] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let plan = Plan::new(interrupt_rows(count, 0, &account), &control, &account).unwrap();
+            let mut step = distribution_step(&plan, &account);
+            for row in 0..2 * count {
+                step.active.push(Active {
+                    row,
+                    kind: 1,
+                    skip: false,
+                });
+            }
+            let before = account.snapshot().work;
+            step.begin(distribution_options(), None, b"", &control, &account)
+                .unwrap();
+            let work = account.snapshot().work - before;
+            assert!(matches!(step.phase, Phase::Choose));
+            assert_eq!(step.groups.len(), count);
+            assert_eq!(step.bounds.len(), 2 * count);
+            for (position, group) in step.groups.iter().enumerate() {
+                assert_eq!(group.group, position);
+                assert_eq!(group.bounds, 2 * position..2 * position + 2);
+                assert!(!group.skip && !group.dropped);
+                let bounds = &step.bounds[group.bounds.clone()];
+                assert_eq!(bounds[0].upper_bound.to_bits(), 1.0f64.to_bits());
+                assert_eq!(bounds[1].upper_bound.to_bits(), f64::INFINITY.to_bits());
+                assert_eq!(
+                    (bounds[0].ordinal, bounds[1].ordinal),
+                    (2 * position, 2 * position + 1)
+                );
+            }
+            drop(step);
+            drop(plan);
+            account.snapshot().assert_memory_released();
+            measured.push((count, work));
+            println!("{{\"histogram_active_groups\":{count},\"begin_work\":{work}}}");
+        }
+        for (count, work) in measured {
+            assert!(
+                work <= (250 * count) as u64,
+                "{count} groups used Begin work {work}"
+            );
+        }
+    }
+
+    #[test]
+    fn active_distribution_keeps_sparse_order_skipped_ranges_and_native_phases() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+        for group in 0..18 {
+            let value = format!("{:08}", 18 - group);
+            for bound in [b"1".as_slice(), b"+Inf", b"-0", b"NaN"] {
+                row(
+                    &mut rows,
+                    1,
+                    &[
+                        (b"__name__", b"h"),
+                        (b"a", value.as_bytes()),
+                        (b"le", bound),
+                    ],
+                    &account,
+                );
+            }
+        }
+        for value in [b"00000011".as_slice(), b"00000011", b"00000005", b"absent"] {
+            row(
+                &mut rows,
+                2,
+                &[(b"__name__", b"h"), (b"a", value)],
+                &account,
+            );
+        }
+        row(
+            &mut rows,
+            1,
+            &[(b"__name__", b"h"), (b"a", b"bad")],
+            &account,
+        );
+        let plan = Plan::new(rows, &control, &account).unwrap();
+        assert_eq!(plan.groups.len(), 18);
+        let cache = RefCell::new(Cache::new(&account));
+        for group in [7, 4, 13, 0] {
+            cache.borrow_mut().live.push(Live {
+                group,
+                dropped: group == 4,
+            });
+        }
+        let mut step = distribution_step(&plan, &account);
+        step.notes = Some(AnnotationBuilder::new(&account));
+        for (row, kind) in [
+            (72, 2),
+            (65, 1),
+            (16, 1),
+            (28, 1),
+            (6, 1),
+            (40, 1),
+            (53, 1),
+            (64, 1),
+            (19, 1),
+            (41, 1),
+            (29, 1),
+            (5, 1),
+            (52, 1),
+            (40, 1),
+            (4, 1),
+            (73, 2),
+            (74, 2),
+            (75, 2),
+            (68, 1),
+            (69, 1),
+            (76, 1),
+        ] {
+            step.active.push(Active {
+                row,
+                kind,
+                skip: false,
+            });
+        }
+        step.begin(
+            distribution_options(),
+            Some(Preparation {
+                node: NodeId(0),
+                cache: &cache,
+            }),
+            b"",
+            &control,
+            &account,
+        )
+        .unwrap();
+        assert!(matches!(step.phase, Phase::Choose));
+        let expected = [
+            (17, 0..2, false, false),
+            (16, 2..4, false, false),
+            (13, 4..4, true, false),
+            (10, 4..7, false, false),
+            (7, 7..7, true, false),
+            (1, 7..10, false, false),
+            (4, 10..12, false, true),
+        ];
+        assert_eq!(step.groups.len(), expected.len());
+        for (group, (id, bounds, skip, dropped)) in step.groups.iter().zip(expected) {
+            assert_eq!(
+                (group.group, group.bounds.clone(), group.skip, group.dropped),
+                (id, bounds, skip, dropped)
+            );
+        }
+        let expected_bounds = [
+            (1.0f64.to_bits(), 68),
+            (f64::INFINITY.to_bits(), 69),
+            (f64::INFINITY.to_bits(), 65),
+            (1.0f64.to_bits(), 64),
+            (1.0f64.to_bits(), 40),
+            (f64::INFINITY.to_bits(), 41),
+            (1.0f64.to_bits(), 40),
+            ((-0.0f64).to_bits(), 6),
+            (f64::INFINITY.to_bits(), 5),
+            (1.0f64.to_bits(), 4),
+            (1.0f64.to_bits(), 16),
+            (0x7ff8_0000_0000_0001, 19),
+        ];
+        assert_eq!(step.bounds.len(), expected_bounds.len());
+        for (bound, expected) in step.bounds.iter().zip(expected_bounds) {
+            assert_eq!((bound.upper_bound.to_bits(), bound.ordinal), expected);
+        }
+        assert!(step.active[0].skip && step.active[16].skip);
+        assert!(!step.active[15].skip && !step.active[17].skip);
+        let live: Vec<_> = cache
+            .borrow()
+            .live
+            .iter()
+            .map(|entry| (entry.group, entry.dropped))
+            .collect();
+        assert_eq!(
+            live,
+            [
+                (4, true),
+                (0, false),
+                (16, false),
+                (1, false),
+                (10, false),
+                (17, false)
+            ]
+        );
+        let notes = step.notes.take().unwrap().finish();
+        let kinds: Vec<_> = notes.iter().map(|note| note.kind).collect();
+        assert_eq!(
+            kinds,
+            [
+                AnnotationKind::BadBucketLabel,
+                AnnotationKind::MixedClassicNativeHistograms
+            ]
+        );
+        drop(notes);
+        drop(step);
+        drop((plan, cache));
+        account.snapshot().assert_memory_released();
+        println!("{{\"histogram_active_sparse_groups\":7,\"plan_groups\":18,\"exact_bounds\":12}}");
+    }
+
+    #[test]
+    fn active_distribution_interruption_discards_partial_ranges_before_choose() {
+        let mut interruptions = 0;
+        for count in [1, 2, 128, 512] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let plan = Plan::new(interrupt_rows(count, 0, &account), &control, &account).unwrap();
+            let mut step = distribution_step(&plan, &account);
+            for row in 0..2 * count {
+                step.active.push(Active {
+                    row,
+                    kind: 1,
+                    skip: false,
+                });
+            }
+            let before = account.snapshot().work;
+            step.begin(distribution_options(), None, b"", &control, &account)
+                .unwrap();
+            let total = account.snapshot().work - before;
+            drop(step);
+            let mut budgets = vec![
+                1,
+                (total / 4).max(1),
+                (total / 2).max(1),
+                (total - 1).max(1),
+                total,
+            ];
+            if total >= 8192 {
+                budgets.push(8192);
+            }
+            budgets.sort_unstable();
+            budgets.dedup();
+            for budget in budgets {
+                let control = Control::default();
+                let mut step = distribution_step(&plan, &account);
+                for row in 0..2 * count {
+                    step.active.push(Active {
+                        row,
+                        kind: 1,
+                        skip: false,
+                    });
+                }
+                let before = account.snapshot().work;
+                let outcome =
+                    crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                        step.begin(distribution_options(), None, b"", &control, &account)
+                    });
+                assert!(
+                    matches!(
+                        outcome,
+                        Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                    ),
+                    "count={count},budget={budget}"
+                );
+                assert!(!matches!(step.phase, Phase::Choose));
+                assert!(account.snapshot().work - before >= budget);
+                drop(step);
+                interruptions += 1;
+            }
+            drop(plan);
+            account.snapshot().assert_memory_released();
+        }
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let plan = Plan::new(
+            AccountedVec::new(&account, MemoryKind::Workspace),
+            &control,
+            &account,
+        )
+        .unwrap();
+        let mut step = distribution_step(&plan, &account);
+        control.cancellation.cancel();
+        assert!(matches!(
+            step.begin(distribution_options(), None, b"", &control, &account),
+            Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+        ));
+        assert!(!matches!(step.phase, Phase::Choose));
+        drop(step);
+        drop(plan);
+        account.snapshot().assert_memory_released();
+        println!(
+            "{{\"histogram_active_interruptions\":{},\"empty_terminal_control\":true}}",
+            interruptions
+        );
     }
 
     #[test]

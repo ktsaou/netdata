@@ -173,3 +173,14 @@ The library's separate conformance corpus establishes same-input expression beha
 the retained-data bridge and the stated API/delivery paths. They do not prove original scrape timing recovery,
 general collector behavior, a live Cloud connection, distributed Cloud execution or an alert-rule engine.
 Controlled ACLK/MQTT cases must be reported separately from actual HTTP and loopback peer checks.
+
+The active-distribution cohort retains 672 storage records and expands live HTTP/readiness checks to 82.
+Four added expressions per codec derive `1`/`+Inf` bucket labels from the already collected gauges and project
+three distinct groups per host. Fleet queries exercise six histogram groups and return a quantile sum of `3`;
+local/child queries return `1.5`, and the three-tick fleet range returns `3` at every tick. This exercises the
+indexed Rust path through the existing API, contexts and DBengine without changing collectors or stored metrics.
+
+That deeper range expression exceeded the ordinary 30s test-client allowance with both previous/current Debug
+Agents. Those partial runs remain separate performance evidence. Final functional checks allow 180s for that one
+range request and pass under both codecs; ordinary checks keep 30s. This is a fixture transport allowance, not a
+production query-timeout change or a throughput fix. All owned Agents exit normally.

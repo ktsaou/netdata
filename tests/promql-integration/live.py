@@ -44,8 +44,8 @@ def configuration(root, codec):
     (root / "config/stream.conf").write_text("[stream]\n    enabled = no\n")
 
 
-def request(port, target, method="GET", payload=None, compressed=False):
-    connection = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+def request(port, target, method="GET", payload=None, compressed=False, read_timeout=30):
+    connection = http.client.HTTPConnection("127.0.0.1", port, timeout=read_timeout)
     headers = {"Connection": "close", "Accept-Encoding": "gzip" if compressed else "identity"}
     if payload is not None:
         headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -103,8 +103,8 @@ def qualify(binary, codec, run):
                 raise RuntimeError("HTTP instance identity differs from the owned fixture")
             item["ready"] = ready
 
-            def check(name, endpoint, parameters, expected=None, method="GET", payload=None, prefix="", status=200, compressed=False, inspect=None):
-                observed, body = request(port, target(endpoint, parameters, prefix), method, payload, compressed)
+            def check(name, endpoint, parameters, expected=None, method="GET", payload=None, prefix="", status=200, compressed=False, inspect=None, read_timeout=30):
+                observed, body = request(port, target(endpoint, parameters, prefix), method, payload, compressed, read_timeout)
                 value = json.loads(body)
                 record = {"name": name, **observed, "passed": False}
                 item["checks"].append(record)
@@ -136,6 +136,15 @@ def qualify(binary, codec, run):
             check("fleet-histogram-quantile-range", "query_range", {"query": quantile, "start": base + 3, "end": base + 5, "step": 1},
                   {"status": "success", "data": {"resultType": "matrix", "result": [
                       {"metric": {}, "values": [[base + index, "1"] for index in range(3, 6)]}]}})
+            grouped_buckets = " or ".join(
+                f'label_replace(({buckets}),"fixture_group","{group}","netdata_dimension_id","gauge")'
+                for group in ["a", "b", "c"])
+            grouped_quantile = f"sum(histogram_quantile(0.5,({grouped_buckets})))"
+            for name, scope, value in [("fleet-grouped-histogram", "", 3), ("local-grouped-histogram", local, 1.5), ("child-grouped-histogram", child, 1.5)]:
+                check(name, "query", {"query": f"scalar({grouped_quantile})", "time": base + 4}, scalar(value), prefix=scope)
+            check("fleet-grouped-histogram-range", "query_range", {"query": grouped_quantile, "start": base + 3, "end": base + 5, "step": 1},
+                  {"status": "success", "data": {"resultType": "matrix", "result": [
+                      {"metric": {}, "values": [[base + index, "3"] for index in range(3, 6)]}]}}, read_timeout=180)
             check("context-name", "query", {"query": 'scalar(sum({__name__="fixture.http",netdata_dimension_id="gauge"}))', "time": base + 4}, scalar(12))
             check("collected-counter", "query", {"query": counter, "time": base + 4}, scalar(8), prefix=local)
             check("counter-reset", "query", {"query": counter, "time": base + 6}, scalar(0, base + 6), prefix=local)

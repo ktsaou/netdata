@@ -104,6 +104,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-constructor-key-lookup` for collision,
   ordering and terminal interruption controls.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
+- Active histogram distribution MUST retain group identity, skipped ranges and pre-sort bound/ordinal order; see
+  `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-active-group-distribution` for sparse/native,
+  control and complete-query qualification. Keep failed deep derived-replay witnesses separate from passing panels.
 
 ## Evidence
 

@@ -46,97 +46,157 @@ fn grouped_sum_lookup_work_avoids_all_pairs() {
     assert!(work[1] <= work[0] * 6, "4x rows used work {work:?}");
 }
 
+fn histogram_lookup_work(count: usize, page_size: usize, range: bool) -> u64 {
+    let ticks = if range { 8 } else { 1 };
+    let engine = Engine::default();
+    let control = Control::default();
+    let mut provider = FixtureProvider::new(if range { 8 } else { 2 }, page_size, 2 * count);
+    for (index, series) in provider.series.iter_mut().enumerate() {
+        series.labels[0].1 = b"request_duration_bucket".to_vec();
+        series.labels[1].1 = format!("{:08}", index / 2).into_bytes();
+        series.labels.push((
+            b"le".to_vec(),
+            if index % 2 == 0 {
+                b"1".to_vec()
+            } else {
+                b"+Inf".to_vec()
+            },
+        ));
+    }
+    let query = engine
+        .compile(
+            b"histogram_quantile(0.5,request_duration_bucket)",
+            EngineOptions::default(),
+            &control,
+        )
+        .unwrap();
+    let report = query.collect_reported(
+        &provider,
+        if range {
+            QueryRequest::Range {
+                start_ms: 1000,
+                end_ms: 8000,
+                step_ms: 1000,
+            }
+        } else {
+            QueryRequest::Instant { time_ms: 2000 }
+        },
+        &control,
+    );
+    let result = report.result.as_ref().unwrap();
+    assert_eq!(result.series.len(), count);
+    assert!(report.annotations.is_empty());
+    for (index, series) in result.series.iter().enumerate() {
+        assert_eq!(series.labels.0.len(), 2);
+        assert_eq!(&*series.labels.0[0].name, b"instance");
+        assert_eq!(&*series.labels.0[0].value, format!("{index:08}").as_bytes());
+        assert_eq!(&*series.labels.0[1].name, b"job");
+        assert_eq!(&*series.labels.0[1].value, b"worker");
+        assert_eq!(series.points.len(), ticks);
+        for (position, point) in series.points.iter().enumerate() {
+            assert_eq!(
+                point.time_ms,
+                if range {
+                    1000 * (position as i64 + 1)
+                } else {
+                    2000
+                }
+            );
+            let OwnedValue::Float(value) = point.value else {
+                panic!("classic quantile must emit floats");
+            };
+            assert_eq!(value.to_bits(), 0.5f64.to_bits());
+        }
+    }
+    assert_eq!(report.observations.output_samples, (count * ticks) as u64);
+    assert_eq!(
+        report
+            .observations
+            .statistics
+            .samples
+            .total_queryable_samples,
+        (2 * count * ticks) as u64
+    );
+    let expected_read = if range {
+        match count {
+            16 => 24448,
+            32 => 85760,
+            64 => 318976,
+            _ => unreachable!("declared range statistics cohort"),
+        }
+    } else {
+        (14 * count) as u64
+    };
+    assert_eq!(
+        report.observations.statistics.samples.samples_read,
+        expected_read
+    );
+    assert_eq!(
+        report.observations.samples_fetched,
+        provider.series[0]
+            .source
+            .counters
+            .samples_returned
+            .load(std::sync::atomic::Ordering::Relaxed) as u64
+    );
+    let work = report.observations.work;
+    println!(
+        "{{\"histogram_groups\":{count},\"page_size\":{page_size},\"ticks\":{ticks},\"work\":{work},\"fetched\":{},\"workspace_peak\":{},\"queryable\":{},\"samples_read\":{}}}",
+        report.observations.samples_fetched,
+        report.observations.memory[MemoryKind::Workspace as usize].peak,
+        report
+            .observations
+            .statistics
+            .samples
+            .total_queryable_samples,
+        report.observations.statistics.samples.samples_read
+    );
+    provider.assert_closed();
+    drop((report, query));
+    engine.accounting.snapshot().assert_memory_released();
+    work
+}
+
 #[test]
 fn histogram_constructor_lookup_avoids_scanning_every_prior_key() {
     let mut measured = Vec::new();
-    for page_size in [1, 17, 1024] {
+    for page in [1, 17, 1024] {
         for count in [128, 512] {
-            let engine = Engine::default();
-            let control = Control::default();
-            let mut provider = FixtureProvider::new(2, page_size, 2 * count);
-            for (index, series) in provider.series.iter_mut().enumerate() {
-                series.labels[0].1 = b"request_duration_bucket".to_vec();
-                series.labels[1].1 = format!("{:08}", index / 2).into_bytes();
-                series.labels.push((
-                    b"le".to_vec(),
-                    if index % 2 == 0 {
-                        b"1".to_vec()
-                    } else {
-                        b"+Inf".to_vec()
-                    },
-                ));
-            }
-            let query = engine
-                .compile(
-                    b"histogram_quantile(0.5,request_duration_bucket)",
-                    EngineOptions::default(),
-                    &control,
-                )
-                .unwrap();
-            let report = query.collect_reported(
-                &provider,
-                QueryRequest::Instant { time_ms: 2000 },
-                &control,
-            );
-            let result = report.result.as_ref().unwrap();
-            assert_eq!(result.series.len(), count);
-            assert!(report.annotations.is_empty());
-            for (index, series) in result.series.iter().enumerate() {
-                assert_eq!(series.labels.0.len(), 2);
-                assert_eq!(&*series.labels.0[0].name, b"instance");
-                assert_eq!(&*series.labels.0[0].value, format!("{index:08}").as_bytes());
-                assert_eq!(&*series.labels.0[1].name, b"job");
-                assert_eq!(&*series.labels.0[1].value, b"worker");
-                assert_eq!(series.points.len(), 1);
-                assert_eq!(series.points[0].time_ms, 2000);
-                let OwnedValue::Float(value) = series.points[0].value else {
-                    panic!("classic quantile must emit floats");
-                };
-                assert_eq!(value.to_bits(), 0.5f64.to_bits());
-            }
-            assert_eq!(report.observations.output_samples, count as u64);
-            assert_eq!(
-                report
-                    .observations
-                    .statistics
-                    .samples
-                    .total_queryable_samples,
-                (2 * count) as u64
-            );
-            assert_eq!(
-                report.observations.statistics.samples.samples_read,
-                (14 * count) as u64
-            );
-            assert_eq!(
-                report.observations.samples_fetched,
-                provider.series[0]
-                    .source
-                    .counters
-                    .samples_returned
-                    .load(std::sync::atomic::Ordering::Relaxed) as u64
-            );
-            let work = report.observations.work;
-            println!(
-                "{{\"histogram_groups\":{count},\"page_size\":{page_size},\"work\":{work},\"fetched\":{},\"workspace_peak\":{},\"queryable\":{},\"samples_read\":{}}}",
-                report.observations.samples_fetched,
-                report.observations.memory[MemoryKind::Workspace as usize].peak,
-                report
-                    .observations
-                    .statistics
-                    .samples
-                    .total_queryable_samples,
-                report.observations.statistics.samples.samples_read
-            );
-            provider.assert_closed();
-            drop((report, query));
-            engine.accounting.snapshot().assert_memory_released();
-            measured.push((count, page_size, work));
+            measured.push((count, page, histogram_lookup_work(count, page, false)));
         }
     }
     for (count, page, work) in measured {
         assert!(
             work <= (20_000 * count) as u64,
             "{count} histogram groups, page {page} used work {work}"
+        );
+    }
+}
+
+#[test]
+fn histogram_active_distribution_reduces_complete_instant_and_range_work() {
+    let mut measured = Vec::new();
+    for page in [1, 17, 1024] {
+        for (count, range, bound) in [
+            (128, false, 835000),
+            (512, false, 5000000),
+            (16, true, 1950000),
+            (32, true, 8000000),
+            (64, true, 35000000),
+        ] {
+            measured.push((
+                count,
+                page,
+                range,
+                bound,
+                histogram_lookup_work(count, page, range),
+            ));
+        }
+    }
+    for (count, page, range, bound, work) in measured {
+        assert!(
+            work <= bound,
+            "{count} histogram groups, page{page}, range={range} used work {work}>{bound}"
         );
     }
 }

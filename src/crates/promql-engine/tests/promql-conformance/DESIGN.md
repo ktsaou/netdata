@@ -691,3 +691,23 @@ integration, and Alertmanager remains excluded.
   can still produce repeated probes.
 - **Evidence:** [histogram key qualification](histogram-key-qualification.json) records complete identity, parsing,
   cancellation and memory controls, current caller/Agent panels and matched measurements.
+
+## Histogram active-group distribution
+
+- **Choice:** temporary group-ID lookups replace repeated active-group discovery and native correspondence.
+  Direct lookup through four groups avoids tiny-set tables. Discovery counts bucket references in existing ranges.
+- **Order:** release discovery positions before label-based enumeration, then index surviving sorted groups.
+  Checked prefix counts reserve the existing bounds buffer; source-order scatter preserves every bound bit and
+  physical row ordinal before the pinned numerical sort. Skipped groups keep zero-length ranges at their offsets.
+- **Native handling:** the first corresponding native suppresses an unskipped classic group and that native;
+  later natives remain unchanged. Live-cache updates and annotations keep their existing phases.
+- **Ownership:** use existing range fields for counts and write cursors, restore them before replay, and release
+  both indexes before choosing values. No new persistent field or raw-value/history array. Small surviving sets
+  retain ordinary distribution.
+- **Controls:** discovery, promotion, prefix/initialization, scatter and restoration remain checked/accounted;
+  interrupted partial state is discarded before completion.
+- **Boundaries:** complete vector collection and later numerical/binding/derived replay remain. A deeper nested
+  OR/projection range exceeds the live fixture client's timeout in both previous/current Debug Agents; that
+  independent throughput witness is retained separately.
+- **Evidence:** [active distribution qualification](histogram-distribution-qualification.json) binds exact
+  pre-sort sequences, sparse/skipped/native/control cases, complete queries, caller/Agent checks and measurements.

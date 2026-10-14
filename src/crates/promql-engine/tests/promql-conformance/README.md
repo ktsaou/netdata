@@ -2647,3 +2647,57 @@ proportional time gain; later histogram preparation and numerical replay remain.
 passes 568 units per profile, 128,652 retained builtin comparisons, 2,070 focused comparisons and 231,540 exact
 SRE comparisons. Current native/ARM C qualification retains 734 artifacts. The fresh Agent passes 672 storage
 records and 74 HTTP/readiness checks, including the added live histogram expressions.
+
+## Histogram active-group distribution
+
+Temporary group-ID indexes replace repeated active-group discovery, native/classic correspondence and bounds
+distribution inside histogram step preparation. Direct lookup and ordinary distribution through four groups
+avoid measured small-set table overhead. Existing ranges hold reference counts and scatter cursors. Sorting changes
+positions, so the discovery index retires before enumeration and the surviving groups are indexed afterward.
+Source-order scatter preserves every bound bit and physical ordinal before numerical sorting. No new persistent
+field or raw history array is added.
+
+Focused checks force reverse encounter/label order, sparse IDs, skipped groups between survivors, duplicate,
+NaN and signed-zero bounds, malformed warnings, first native suppression and later native handling. Seven active
+groups within an eighteen-group plan preserve twelve exact bounds; calibrated interruptions discard partial state
+before value selection. Direct preparation work falls from 64,912 to 18,498 at 128 groups and from 871,756 to 96,559
+at 512 groups. These are accounted work units, not timing ratios.
+
+[Active distribution qualification](histogram-distribution-qualification.json) binds the final current source,
+binaries, complete outputs/statistics/release and actual measurements. The earlier through-two candidate remains
+separately identified: it added 22 instant/440 range work units at four groups and showed small-query timing cost,
+prompting the final through-four crossover. Historical source and binary identities are preserved.
+
+Complete query checks validate labels, ticks, bits, diagnostics, logical/read statistics,fetched counters and cleanup
+before work bounds. Current range read assertions are distinct from protocol comparisons, whose baseline
+observations do not expose basic sample statistics. Generated query timings and tracked workspace are separate
+from production throughput and total RAM.
+
+The final matched cohort covers 612 complete alternating responses in 102 query/profile groups. All tracked
+workspace peaks and read counters match the previous revision. Accounted work falls in all 30 larger groups and
+is unchanged in all 72 empty/small/long-label controls. Page-17 medians from three alternating pairs are:
+
+| Query | Groups | Work before → after | Workspace peak, bytes | `release` ratio | `release-min` ratio |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Instant | 128 | 884,375 → 791,547 | 416,520 | 1.153 | 1.064 |
+| Instant | 512 | 6,244,368 → 4,693,974 | 1,643,400 | 1.361 | 1.298 |
+| Eight-tick range | 16 | 1,977,186 → 1,914,218 | 59,254 | 1.012 | 1.011 |
+| Eight-tick range | 32 | 8,351,869 → 7,707,445 | 110,374 | 1.115 | 1.036 |
+| Eight-tick range | 64 | 38,438,681 → 32,732,201 | 213,696 | 1.203 | 1.125 |
+
+Ratios divide the previous median elapsed time by the current median. Across all larger groups they range from
+0.994 to 1.371; reduced work does not guarantee a proportional timing gain. Both profiles pass 572 units,
+128,652 retained builtin comparisons, 2,070 focused comparisons and 231,540 exact SRE comparisons. Native/ARM
+C qualification retains 734 artifacts, and the fresh Agent passes 672 storage records and 82 HTTP/readiness checks.
+
+A focused follow-up retains 8,640 complete small-query responses with repeated warmed timing. The large cold
+empty-case discrepancy does not persist. Warmed ratios are 0.976–1.027 for `release` and 0.941–0.983 for
+`release-min`, including up to 6.3% longer small-query medians in the latter. These controls keep their identical
+accounted work and workspace, but the measurements do not establish a universal speedup.
+
+The retained deeper live expression projects the two collected gauges into three groups per host. Its three-tick
+fleet range exceeds the HTTP client's ordinary 30s allowance in both previous/current Debug Agents. Final functional
+checks use a targeted 180s client allowance for that one expression and complete under both storage codecs; ordinary
+checks remain 30s. Fleet quantile sums are 3, local/child sums 1.5. No collector, stored metric or production-timeout policy
+changes. The earlier failed runs remain separate evidence; longer waiting is not a throughput fix. Nested derived
+replay remains an independently tracked performance opportunity.
