@@ -934,14 +934,17 @@ typedef struct {
     delivery output;
     fixture *source;
     uint32_t arm_after;
+    uint8_t numeric;
 } join_delivery;
 
 static uint32_t join_begin(void *context, const netdata_promql_output_header_t *header,
                             const netdata_promql_callback_control_t *control,
                             netdata_promql_bytes_t *error) {
-    assert(header->value_type == NETDATA_PROMQL_TYPE_MATRIX && header->reserved == 0);
-    assert(header->start_ms == 1000 && header->end_ms == 2000 && header->step_ms == 1000);
-    return output_status(&((join_delivery *)context)->output, 1, control, error);
+    join_delivery *d = (join_delivery *)context;
+    assert(header->value_type == (d->numeric ? NETDATA_PROMQL_TYPE_VECTOR : NETDATA_PROMQL_TYPE_MATRIX));
+    assert(header->reserved == 0 && header->end_ms == 2000);
+    assert(header->start_ms == (d->numeric ? 2000 : 1000) && header->step_ms == (d->numeric ? 0 : 1000));
+    return output_status(&d->output, 1, control, error);
 }
 
 static uint32_t join_chunk(void *context, const netdata_promql_chunk_t *chunk,
@@ -954,12 +957,12 @@ static uint32_t join_chunk(void *context, const netdata_promql_chunk_t *chunk,
     assert(series->series_id == position % 4 && series->labels.len == 1 && series->points.len == 1);
     assert(series->labels.data[0].name.len == 4 && memcmp(series->labels.data[0].name.data, "zone", 4) == 0);
     assert(series->labels.data[0].value.len == 1 && series->labels.data[0].value.data[0] == '0' + position % 4);
-    assert(series->points.data[0].time_ms == (position < 4 ? 1000 : 2000));
+    assert(series->points.data[0].time_ms == (!d->numeric && position < 4 ? 1000 : 2000));
     assert(series->points.data[0].value.kind == NETDATA_PROMQL_VALUE_FLOAT);
-    assert(series->points.data[0].value.payload.float_bits == netdata_promql_double_bits(1));
+    assert(series->points.data[0].value.payload.float_bits == netdata_promql_double_bits(d->numeric ? 1.5 : 1));
     uint32_t status = output_status(&d->output, 2, control, error);
     if (d->arm_after && d->output.calls[1] == d->arm_after) d->source->failure = 6;
-    // An unfinished first pass must return its operand error before this second output error.
+    // Required reads must report their error before a later output error.
     if (d->arm_after == 1 && d->output.calls[1] == 2) {
         *error = text("second join output failure");
         return NETDATA_PROMQL_OUTPUT_ERROR;
@@ -971,17 +974,18 @@ static uint32_t join_commit(void *context, const netdata_promql_query_observatio
                              const netdata_promql_callback_control_t *control,
                              netdata_promql_bytes_t *error) {
     join_delivery *d = (join_delivery *)context;
-    assert(!d->arm_after && d->output.calls[1] == 8 && observations->output_samples == 8);
+    uint32_t points = d->numeric ? 4 : 8;
+    assert(!d->arm_after && d->output.calls[1] == points && observations->output_samples == points);
     assert(observations->memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
     statistics_valid(&observations->statistics);
     released(d->source);
     return output_status(&d->output, 3, control, error);
 }
 
-static void unique_binary_replay(netdata_promql_engine_t *engine) {
+static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t numeric) {
     const uint64_t page_sizes[] = {1, 17, 1024};
     for (unsigned page = 0; page < 3; page++) {
-        for (unsigned arm = 0; arm < 3; arm++) {
+        for (unsigned arm = 0; arm < (numeric ? 2u : 3u); arm++) {
             join_fixture source;
             memset(&source, 0, sizeof(source));
             init_fixture(&source.source, 2, page_sizes[page]);
@@ -994,15 +998,18 @@ static void unique_binary_replay(netdata_promql_engine_t *engine) {
             netdata_promql_provider_t input = provider(&source.source);
             input.context = &source;
             input.selection_next = join_selection_next;
-            netdata_promql_query_t *query = compile(engine, "m / on(zone) m");
-            netdata_promql_request_t request = instant(1000);
-            request.kind = NETDATA_PROMQL_REQUEST_RANGE;
-            request.end_ms = 2000;
-            request.step_ms = 1000;
+            netdata_promql_query_t *query = compile(engine, numeric ? "quantile_over_time(.5,m[2s])" : "m / on(zone) m");
+            netdata_promql_request_t request = instant(numeric ? 2000 : 1000);
+            if (!numeric) {
+                request.kind = NETDATA_PROMQL_REQUEST_RANGE;
+                request.end_ms = 2000;
+                request.step_ms = 1000;
+            }
             join_delivery output;
             memset(&output, 0, sizeof(output));
             output.source = &source.source;
             output.arm_after = arm;
+            output.numeric = numeric;
             netdata_promql_output_t table = delivery_table(&output.output);
             table.context = &output;
             table.begin = join_begin;
@@ -1012,7 +1019,7 @@ static void unique_binary_replay(netdata_promql_engine_t *engine) {
             uint32_t status = netdata_promql_execute(query, &input, &request, NULL, &table, &report);
             assert(status == (arm ? NETDATA_PROMQL_PROVIDER_ERROR : NETDATA_PROMQL_OK));
             assert(report && output.output.calls[0] == 1);
-            assert(output.output.calls[1] == (arm ? arm : 8));
+            assert(output.output.calls[1] == (arm ? arm : (numeric ? 4u : 8u)));
             assert(output.output.calls[2] == (arm ? 0u : 1u) && output.output.calls[3] == (arm ? 1u : 0u));
             released(&source.source);
             netdata_promql_query_observations_t observations;
@@ -1029,7 +1036,8 @@ static void unique_binary_replay(netdata_promql_engine_t *engine) {
             assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
         }
     }
-    puts("{\"unique_binary_replay\":\"pass\",\"cases\":9,\"page_sizes\":3}");
+    puts(numeric ? "{\"instant_numeric_folds\":\"pass\",\"cases\":6,\"page_sizes\":3}" :
+                   "{\"unique_binary_replay\":\"pass\",\"cases\":9,\"page_sizes\":3}");
 }
 
 static void output_delivery(netdata_promql_engine_t *engine) {
@@ -1704,7 +1712,9 @@ int main(void) {
     balanced(engine, &idle);
     label_field_boundary(engine);
     balanced(engine, &idle);
-    unique_binary_replay(engine);
+    four_series_float_query(engine, 0);
+    balanced(engine, &idle);
+    four_series_float_query(engine, 1);
     balanced(engine, &idle);
     assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
     foreign_allocation_lifetime();

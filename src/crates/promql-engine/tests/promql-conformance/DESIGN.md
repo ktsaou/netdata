@@ -572,3 +572,17 @@ integration, and Alertmanager remains excluded.
   error priority remain complete; errors tied to omitted physical operations follow the existing provider policy.
 - **Evidence:** `src/vector_matching.rs`, `src/evaluator_roster.rs`, `src/evaluator.rs`, `src/execution.rs`, the
   changing-membership/history fixtures and actual C caller's first-output and selected-pair failure cases.
+
+## Completed instant numeric folds
+
+- **Choice:** a productive true-instant root Numeric call over a raw matrix selector may retain its completed
+  preparation folds when source and scope headers equal the effective evaluator header. Other clear sites and
+  non-instant/composite/subquery/Rate/Fold paths keep their existing behavior.
+- **Ownership:** stable in-place compaction keeps only that root/selector's completed float-or-absent snapshots.
+  The existing sorted records and exact request key remain authoritative; no new array, raw page or history is
+  retained. Absent summaries are useful because final ordinary traversal still visits their physical series.
+- **Compatibility:** final initialization, scalar parameters, labels and diagnostic/statistics handling remain
+  unchanged. Exact-key misses recompute normally. Parameterless functions have no separate outer initialization;
+  omitted internal fold reads follow the existing physical-operation policy. Completed backing closes before reuse.
+- **Evidence:** `src/execution.rs`, `src/range_cache.rs`, exact quantile/absent/history controls and the actual C
+  caller's error armed after first output. The public instant step0 is distinct from effective evaluator step1.

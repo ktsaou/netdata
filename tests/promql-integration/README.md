@@ -69,6 +69,11 @@ separately binds the evaluator change and a rebuilt Agent's storage/API checks. 
 later operand error before a second output error, selected-pair read failure after reuse, and complete resource
 release. Their controlled fixture callbacks supplement the live storage and HTTP checks.
 
+The [instant-fold qualification](../../src/crates/promql-engine/tests/promql-conformance/instant-fold-qualification.json)
+binds reuse of completed instant numeric range results to both optimized profiles and fresh storage/API cohorts.
+Actual C callers retain final initialization errors after the first output. Matched quantile fixtures roughly
+halve sample reads with unchanged tracked workspace peaks; these observations are separate from live disk throughput.
+
 ## Storage and native components
 
 The fixture uses real storage writers and demand-reader APIs at all five tiers. Separate write, cold-read and append

@@ -87,6 +87,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-foreign-sample-pages`.
 - Completed binary replay MUST preserve full first-pass failure priority before reusing membership metadata; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-unique-float-join-scans` for its causal controls.
+- Instant fold reuse MUST preserve required final initialization and exact-key checks, including absent summaries;
+  see `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-numeric-folds` for causal controls.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
 
 ## Evidence

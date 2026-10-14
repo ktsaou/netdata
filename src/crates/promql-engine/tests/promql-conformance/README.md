@@ -2242,6 +2242,36 @@ The [join qualification](binary-replay-qualification.json) binds the exact engin
 profiles, original expression panels, actual C callers and separately rebuilt DBengine/API checks. It preserves
 the earlier qualification cohorts and their original source identities.
 
+## Completed instant numeric folds
+
+A true-instant root numeric range function can reuse its completed preparation result during final output.
+It requires a direct raw matrix selector, productive root output and matching preparation/evaluator headers.
+The existing exact key still checks effective clocks, parameter bits, precise lookback, duration, geometry and
+input bounds. Non-instant, composite and subquery requests retain their ordinary phase-specific cache lifecycle.
+
+The query retains one float-or-absent summary per physical input series in its existing accounted fold records.
+Stable compaction releases unrelated snapshots without another allocation. An all-absent root clears everything.
+When another series is productive, final traversal also visits absent physical series, so their small summaries
+avoid repeated scans. No raw value vector, histogram payload or history is retained.
+
+Final series initialization and scalar-argument evaluation remain before the lookup. Labels, warnings and logical
+queryable samples retain their existing path. Errors during complete preparation or required final initialization
+still propagate; omitted redundant reads follow the existing provider policy. Temporary quantile backing closes
+before the completed snapshot is retained, and no new backing requirement is introduced.
+
+The 4,096-point monotone quantile control returns exactly 2,048.5 before and after the change. Its dev-unit reads
+fall 278,598→139,300 at page1, 279,718→139,876 at page17 and 350,208→176,128 at page1024. The generated provider
+keeps the same 11,010 B tracked workspace peak and 4,096 logical queryable samples. Histories 2,048/8,192 keep equal
+raw/provider/workspace peaks and one cursor. These are finite generated observations, not production throughput or RSS.
+
+Final matched measurements cover 40 groups across both optimized profiles, three page sizes and three interleaved
+repetitions. All tracked workspace peaks are unchanged. Page17 quantile medians improve about 1.95–2.08× for
+one/four/16 series; the mixed zero/NaN backing case creates one completed store instead of two.
+
+The [instant-fold qualification](instant-fold-qualification.json) binds final optimized profiles, original
+expression panels, actual C caller targets and separately rebuilt Agent checks. Earlier receipts keep their actual
+source identities. Numeric summaries can still grow with selected-series cardinality; raw paging remains bounded.
+
 ## Bounded binary matching and pair replay
 
 Vector/vector arithmetic, comparisons, `bool`, `and`, `or`, `unless`, `on`, `ignoring`, group modifiers and optional

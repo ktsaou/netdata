@@ -8571,5 +8571,21 @@
     "caller_artifacts": 734,
     "storage_records": 672,
     "live_checks": 58
+  },
+  "instant_fold_qualification": {
+    "status": "qualified_on_recorded_finite_inputs",
+    "scope": "Completed productive true-instant raw-root Numeric folds across preparation/final output, exact-key authority, required final initialization and bounded derived ownership.",
+    "qualification": {
+      "repository_path": "tests/promql-conformance/instant-fold-qualification.json",
+      "sha256": "78a8218993a08805b2c017e791943a3bb4ba135fcb6c9077ffa60e2140b9db57"
+    },
+    "source_files": 144,
+    "fixture_units_per_profile": 544,
+    "builtin_comparisons": 128652,
+    "focused_comparisons": 2070,
+    "sre_comparisons": 231540,
+    "caller_artifacts": 734,
+    "storage_records": 672,
+    "live_checks": 58
   }
 }

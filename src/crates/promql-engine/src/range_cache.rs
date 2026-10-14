@@ -257,6 +257,43 @@ impl Folds {
         Ok(())
     }
 
+    pub(crate) fn retain_numeric(
+        &self,
+        owner: NodeId,
+        selector: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let mut records = self.records.borrow_mut();
+        // Preserve sorted identities without another allocation or repeated shifts.
+        let mut kept = 0;
+        for position in 0..records.len() {
+            control.check()?;
+            account.work(1);
+            let record = &records[position];
+            let retain = record.identity.0 == owner.0
+                && record.identity.1 == selector.0
+                && record.snapshot.as_ref().is_some_and(|snapshot| {
+                    matches!(snapshot.key.function, RangeFunction::Numeric(_))
+                        && matches!(snapshot.folded.value, None | Some(OwnedValue::Float(_)))
+                });
+            if retain {
+                if kept != position {
+                    records.swap(kept, position);
+                }
+                kept += 1;
+            } else {
+                records[position].snapshot = None;
+            }
+        }
+        while records.len() > kept {
+            control.check()?;
+            account.work(1);
+            drop(records.pop());
+        }
+        Ok(())
+    }
+
     fn position(
         records: &[Record],
         identity: (usize, usize, usize),

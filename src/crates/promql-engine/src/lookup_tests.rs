@@ -53,6 +53,202 @@ fn binary_matching_lookup_work_avoids_all_pairs() {
 }
 
 #[test]
+fn instant_root_numeric_fold_avoids_a_second_complete_quantile_scan() {
+    let mut reads = Vec::new();
+    for page_size in [1, 17, 1024] {
+        let engine = Engine::default();
+        let control = Control::default();
+        let provider = FixtureProvider::new(4096, page_size, 1);
+        let query = engine
+            .compile(
+                b"quantile_over_time(.5,counter_total[4096s])",
+                EngineOptions::default(),
+                &control,
+            )
+            .unwrap();
+        let report = query.collect_reported(
+            &provider,
+            QueryRequest::Instant { time_ms: 4_096_000 },
+            &control,
+        );
+        let result = report.result.as_ref().unwrap();
+        assert_eq!(result.series.len(), 1);
+        assert!(report.annotations.is_empty());
+        let series = &result.series[0];
+        assert_eq!(series.labels.0.len(), 2);
+        assert_eq!(&*series.labels.0[0].name, b"instance");
+        assert_eq!(&*series.labels.0[0].value, b"0");
+        assert_eq!(&*series.labels.0[1].name, b"job");
+        assert_eq!(&*series.labels.0[1].value, b"worker");
+        assert_eq!(series.points.len(), 1);
+        assert_eq!(series.points[0].time_ms, 4_096_000);
+        let OwnedValue::Float(value) = series.points[0].value else {
+            panic!("float quantile");
+        };
+        assert_eq!(value.to_bits(), 2048.5f64.to_bits());
+        let observed = &report.observations;
+        assert_eq!(observed.output_samples, 1);
+        assert_eq!(observed.statistics.samples.total_queryable_samples, 4096);
+        println!(
+            "{{\"instant_quantile_points\":4096,\"page_size\":{page_size},\"fetched\":{},\"work\":{},\"workspace_peak\":{},\"queryable\":{},\"samples_read\":{}}}",
+            observed.samples_fetched,
+            observed.work,
+            observed.memory[MemoryKind::Workspace as usize].peak,
+            observed.statistics.samples.total_queryable_samples,
+            observed.statistics.samples.samples_read,
+        );
+        reads.push((page_size, observed.samples_fetched));
+        provider.assert_closed();
+        drop((report, query));
+        engine.accounting.snapshot().assert_memory_released();
+    }
+    assert!(
+        reads.iter().all(|(_, fetched)| *fetched < 50 * 4096),
+        "instant quantile must avoid a duplicate full fold: {reads:?}",
+    );
+}
+
+#[test]
+fn instant_root_numeric_fold_reuses_absent_physical_series() {
+    fn histogram(index: usize) -> crate::value::Sample {
+        let mut sample = crate::test_storage::counter(index);
+        sample.value = crate::value::SampleValue::FloatHistogram(Default::default());
+        sample
+    }
+    for page_size in [1, 17, 1024] {
+        for native_first in [false, true] {
+            let mut provider = FixtureProvider::new(4096, page_size, 2);
+            let native = usize::from(!native_first);
+            provider.series[native].source.sample = histogram;
+            provider.series[native].source.counters =
+                std::sync::Arc::new(crate::test_storage::CursorCounts::default());
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"quantile_over_time(.5,counter_total[4096s])",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Instant { time_ms: 4_096_000 },
+                &control,
+            );
+            let result = report.result.as_ref().unwrap();
+            assert_eq!(result.series.len(), 1);
+            assert!(report.annotations.is_empty());
+            let series = &result.series[0];
+            assert_eq!(series.labels.0.len(), 2);
+            assert_eq!(&*series.labels.0[0].name, b"instance");
+            assert_eq!(
+                &*series.labels.0[0].value,
+                (1 - native).to_string().as_bytes()
+            );
+            assert_eq!(&*series.labels.0[1].name, b"job");
+            assert_eq!(&*series.labels.0[1].value, b"worker");
+            assert_eq!(series.points.len(), 1);
+            assert_eq!(series.points[0].time_ms, 4_096_000);
+            let OwnedValue::Float(value) = series.points[0].value else {
+                panic!("float quantile");
+            };
+            assert_eq!(value.to_bits(), 2048.5f64.to_bits());
+            let absent_reads = provider.series[native]
+                .source
+                .counters
+                .samples_returned
+                .load(std::sync::atomic::Ordering::Relaxed);
+            println!(
+                "{{\"absent_numeric_rows\":1,\"native_first\":{native_first},\"page_size\":{page_size},\"absent_fetched\":{absent_reads},\"fetched\":{}}}",
+                report.observations.samples_fetched
+            );
+            assert!(
+                absent_reads < 4 * 4096,
+                "absent physical series repeated its fold: page={page_size}, reads={absent_reads}"
+            );
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+        let mut provider = FixtureProvider::new(4096, page_size, 1);
+        provider.series[0].source.sample = histogram;
+        let engine = Engine::default();
+        let control = Control::default();
+        let query = engine
+            .compile(
+                b"quantile_over_time(.5,counter_total[4096s])",
+                EngineOptions::default(),
+                &control,
+            )
+            .unwrap();
+        let report = query.collect_reported(
+            &provider,
+            QueryRequest::Instant { time_ms: 4_096_000 },
+            &control,
+        );
+        assert!(report.result.as_ref().unwrap().series.is_empty());
+        assert!(report.annotations.is_empty());
+        assert_eq!(report.observations.output_samples, 0);
+        provider.assert_closed();
+        drop((report, query));
+        engine.accounting.snapshot().assert_memory_released();
+    }
+}
+
+#[test]
+fn instant_root_numeric_fold_keeps_raw_memory_independent_of_history() {
+    for page_size in [1, 17, 1024] {
+        let mut peaks = Vec::new();
+        for history in [2048, 8192] {
+            let provider = FixtureProvider::new(history, page_size, 1);
+            let engine = Engine::default();
+            let control = Control::default();
+            let expression = format!("quantile_over_time(.5,counter_total[{history}s])");
+            let query = engine
+                .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Instant {
+                    time_ms: history as i64 * 1000,
+                },
+                &control,
+            );
+            let result = report.result.as_ref().unwrap();
+            assert_eq!(result.series.len(), 1);
+            assert!(report.annotations.is_empty());
+            assert_eq!(result.series[0].points.len(), 1);
+            assert_eq!(result.series[0].points[0].time_ms, history as i64 * 1000);
+            let OwnedValue::Float(value) = result.series[0].points[0].value else {
+                panic!("float quantile");
+            };
+            assert_eq!(value.to_bits(), (history as f64 / 2.0 + 0.5).to_bits());
+            assert_eq!(
+                provider.series[0]
+                    .source
+                    .counters
+                    .peak
+                    .load(std::sync::atomic::Ordering::Relaxed),
+                1
+            );
+            peaks.push([
+                report.observations.memory[MemoryKind::Workspace as usize].peak,
+                report.observations.memory[MemoryKind::ProviderHeld as usize].peak,
+                report.observations.memory[MemoryKind::BorrowedView as usize].peak,
+            ]);
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+        assert_eq!(
+            peaks[0], peaks[1],
+            "history changes page={page_size}: {peaks:?}"
+        );
+    }
+}
+
+#[test]
 fn unique_root_binary_replay_fetches_linear_samples() {
     fn point(_: usize) -> crate::value::Sample {
         crate::value::Sample {

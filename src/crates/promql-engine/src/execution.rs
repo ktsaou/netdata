@@ -743,7 +743,40 @@ impl CompiledQuery {
             account,
             annotations,
         )?;
-        prepared.range_folds.clear(control, account)?;
+        let same_header = |other: OutputHeader| {
+            other.value_type == evaluator_header.value_type
+                && other.start_ms == evaluator_header.start_ms
+                && other.end_ms == evaluator_header.end_ms
+                && other.step_ms == evaluator_header.step_ms
+        };
+        let retained = if header.value_type == ValueType::Vector
+            && header.start_ms == header.end_ms
+            && header.step_ms == 0
+            && !rosters.descriptors(self.expression.root).is_empty()
+            && matches!(&self.expression.arena[self.expression.root].expression,
+                Expr::Call { function: Some(function), .. }
+                if matches!(RangeFunction::parse(function.name), Some(RangeFunction::Numeric(_))))
+            && same_header(prepared.source_header(self.expression.root, evaluator_header))
+            && same_header(prepared.scope_header(self.expression.root, evaluator_header))
+        {
+            crate::evaluator::range_selector(
+                &self.expression,
+                prepared,
+                self.expression.root,
+                control,
+                account,
+            )?
+            .map(|selector| (self.expression.root, selector))
+        } else {
+            None
+        };
+        if let Some((owner, selector)) = retained {
+            prepared
+                .range_folds
+                .retain_numeric(owner, selector, control, account)?;
+        } else {
+            prepared.range_folds.clear(control, account)?;
+        }
         *annotations = rosters
             .take_annotations(self.expression.root)
             .expect("completed root diagnostics")
