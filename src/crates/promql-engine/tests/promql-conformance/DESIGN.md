@@ -586,3 +586,21 @@ integration, and Alertmanager remains excluded.
   omitted internal fold reads follow the existing physical-operation policy. Completed backing closes before reuse.
 - **Evidence:** `src/execution.rs`, `src/range_cache.rs`, exact quantile/absent/history controls and the actual C
   caller's error armed after first output. The public instant step0 is distinct from effective evaluator step1.
+
+## Completed direct rate join scans
+
+- **Choice:** the existing bare-root one-to-one float join certificate also accepts ordinary direct
+  `rate(raw_selector[range])` operands. Producer, source and scope grids must match the effective evaluator grid.
+  Fixed, invariant, anchored, smoothed, wrapped and unsupported computed shapes retain ordinary replay.
+- **Clocks:** certification checks the nanosecond range-plus-offset sum and both physical/extrapolation window
+  endpoints before reuse. Physical selection and extrapolation truncate different expressions; fractional inputs
+  retain their full existing arithmetic. A failed eligibility check uses ordinary evaluation without a new error.
+- **Ownership:** range outputs preserve physical selector ordinals. Existing side positions bind those ordinals
+  to frozen join identities; the existing accounted one-step membership bitmap and selected-pair evaluator suffice.
+  No additional label roster, value array, raw history, cache or provider requirement is introduced.
+- **Compatibility:** complete first-pass discovery, matching, diagnostics and successful completion still precede
+  publication. Nonfloat values discard the candidate. Later selected-pair reads retain their existing errors,
+  statistics and exact-key authority; omitted operations follow the established provider policy.
+- **Evidence:** `src/execution.rs`, complete reversed-order/membership/comparison/mixed-operand fixtures and actual
+  C first-pass provider-error, first-output cancellation/error and release controls. Matched work falls while raw
+  reads and tracked workspace peaks remain unchanged in the recorded generated workload.

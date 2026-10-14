@@ -8587,5 +8587,21 @@
     "caller_artifacts": 734,
     "storage_records": 672,
     "live_checks": 58
+  },
+  "rate_join_qualification": {
+    "status": "qualified_on_recorded_finite_inputs",
+    "scope": "Completed bare root one-to-one float join discovery with ordinary direct raw-matrix rate operands, effective clocks and checked windows; existing physical-ordinal pair replay and complete first-pass authority.",
+    "qualification": {
+      "repository_path": "tests/promql-conformance/rate-join-qualification.json",
+      "sha256": "02d9b1badbf61fced848d4bcb2f081b047b6ad9b4ba9779d79a2122359c38019"
+    },
+    "source_files": 144,
+    "fixture_units_per_profile": 546,
+    "builtin_comparisons": 128652,
+    "focused_comparisons": 2070,
+    "sre_comparisons": 231540,
+    "caller_artifacts": 734,
+    "storage_records": 672,
+    "live_checks": 58
   }
 }

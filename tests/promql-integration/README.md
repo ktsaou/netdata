@@ -76,6 +76,12 @@ halve sample reads with unchanged tracked workspace peaks; these observations ar
 
 ## Storage and native components
 
+The [rate-join qualification](../../src/crates/promql-engine/tests/promql-conformance/rate-join-qualification.json)
+binds completed direct rate-operand discovery to the optimized engine and a freshly rebuilt Agent's storage/API
+checks. Generated joins reduce repeated metadata work with unchanged fetched samples and peak query workspace.
+Actual C callers preserve first-pass failure priority, cancellation, output failure and cleanup. Synthetic timing
+improvements are separate from live DBengine throughput.
+
 The fixture uses real storage writers and demand-reader APIs at all five tiers. Separate write, cold-read and append
 processes exercise both tier0 codec families, counter-page anchors, coarse32-bit counts, positive counter storage
 with negative presentation, reset-bearing gaps, all-gap pages, forced page boundaries, cadence changes,

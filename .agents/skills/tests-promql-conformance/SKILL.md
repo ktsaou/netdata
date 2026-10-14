@@ -89,6 +89,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-unique-float-join-scans` for its causal controls.
 - Instant fold reuse MUST preserve required final initialization and exact-key checks, including absent summaries;
   see `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-numeric-folds` for causal controls.
+- Direct rate join certification MUST preserve physical ordinals and effective clocks, including distinct window
+  truncation; see `src/crates/promql-engine/tests/promql-conformance/README.md#completed-direct-rate-join-scans`.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
 
 ## Evidence

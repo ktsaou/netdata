@@ -229,6 +229,7 @@ def native_records(name, output):
         {"label_field_boundary": "pass", "cases": 6},
         {"unique_binary_replay": "pass", "cases": 9, "page_sizes": 3},
         {"instant_numeric_folds": "pass", "cases": 6, "page_sizes": 3},
+        {"direct_rate_replay": "pass", "cases": 12, "page_sizes": 3},
         {"foreign_allocation_lifetime": "pass", "bytes": 16384, "abort_cases": 3},
         {"native_embedding": "pass"},
     ]

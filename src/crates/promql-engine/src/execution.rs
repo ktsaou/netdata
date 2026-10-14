@@ -902,40 +902,49 @@ impl CompiledQuery {
                         | TokenKind::ATAN2
                 ))
             && !self.options.delayed_name_removal
-            && [self.expression.root, *left, *right].into_iter().all(|node| {
-                !prepared.flags().invariants[node.0]
-                    && !prepared.flags().boundaries[node.0]
-                    && rosters.matrix(node).is_none()
-            })
-            && [*left, *right].into_iter().all(|node| {
-                matches!(&self.expression.arena[node].expression, Expr::Selector(selector) if !selector.smoothed)
-            })
+            && [self.expression.root, *left, *right]
+                .into_iter()
+                .all(|node| {
+                    !prepared.flags().invariants[node.0]
+                        && !prepared.flags().boundaries[node.0]
+                        && rosters.matrix(node).is_none()
+                })
         {
-            let supported = {
-                let machine = Machine::new(
-                    catalog,
-                    &self.expression,
-                    self.expression.root,
-                    self.evaluation_options(evaluator_header, evaluator_header.start_ms, prepared),
-                    control,
-                    account,
-                    EvaluationMetadata {
-                        prepared,
-                        rosters: &rosters,
-                        timestamp_selectors: &self.timestamp_selectors,
-                        data_bounds,
-                        annotations: None,
-                        binary_preparation: None,
-                        histogram_preparation: None,
-                        info_preparation: None,
-                        count_preparation: None,
-                    },
-                );
-                let grid = evaluator_header.into();
-                machine.supports_schedule(*left, grid) && machine.supports_schedule(*right, grid)
-            };
-            if supported {
-                rosters.certify_binary_replay(self.expression.root, control, account)?;
+            let selectors = [*left, *right].map(|node| {
+                self.binary_replay_selector(node, evaluator_header, prepared, &rosters)
+            });
+            if let [Some(left_selector), Some(right_selector)] = selectors {
+                let supported = {
+                    let machine = Machine::new(
+                        catalog,
+                        &self.expression,
+                        self.expression.root,
+                        self.evaluation_options(
+                            evaluator_header,
+                            evaluator_header.start_ms,
+                            prepared,
+                        ),
+                        control,
+                        account,
+                        EvaluationMetadata {
+                            prepared,
+                            rosters: &rosters,
+                            timestamp_selectors: &self.timestamp_selectors,
+                            data_bounds,
+                            annotations: None,
+                            binary_preparation: None,
+                            histogram_preparation: None,
+                            info_preparation: None,
+                            count_preparation: None,
+                        },
+                    );
+                    let grid = evaluator_header.into();
+                    machine.supports_schedule(left_selector, grid)
+                        && machine.supports_schedule(right_selector, grid)
+                };
+                if supported {
+                    rosters.certify_binary_replay(self.expression.root, control, account)?;
+                }
             }
         }
         let mut traversal = crate::query_scopes::Traversal::new(
@@ -1233,6 +1242,68 @@ impl CompiledQuery {
             return Err(EvaluationError::Invalid("unexpected number of samples"));
         }
         Ok(Some(copies))
+    }
+
+    fn binary_replay_selector(
+        &self,
+        node: NodeId,
+        header: OutputHeader,
+        prepared: &Prepared,
+        rosters: &Rosters,
+    ) -> Option<NodeId> {
+        if let Expr::Selector(selector) = &self.expression.arena[node].expression {
+            return (!selector.smoothed).then_some(node);
+        }
+        let Expr::Call {
+            function: Some(function),
+            arguments,
+            ..
+        } = &self.expression.arena[node].expression
+        else {
+            return None;
+        };
+        if function.name != "rate" || arguments.len() != 1 {
+            return None;
+        }
+        let matrix = arguments[0];
+        let Expr::Matrix {
+            selector, range, ..
+        } = self.expression.arena[matrix].expression
+        else {
+            return None;
+        };
+        let Expr::Selector(leaf) = &self.expression.arena[selector].expression else {
+            return None;
+        };
+        if leaf.smoothed
+            || leaf.anchored
+            || prepared.flags().invariants[selector.0]
+            || prepared.timestamp(selector, &leaf.modifiers).is_some()
+        {
+            return None;
+        }
+        let grid = crate::query_scopes::Grid::from(header);
+        if rosters
+            .producer_clock(node)
+            .is_none_or(|clock| clock.grid != grid)
+            || crate::query_scopes::Grid::from(prepared.source_header(node, header)) != grid
+            || crate::query_scopes::Grid::from(prepared.scope_header(node, header)) != grid
+        {
+            return None;
+        }
+        let range_ns = prepared.range(matrix, range);
+        if range_ns / 1_000_000 <= 0 {
+            return None;
+        }
+        let offset_ns = prepared.adjusted_offset(selector, &leaf.modifiers, grid.start_ms);
+        let combined_ns = range_ns.checked_add(offset_ns)?;
+        // Physical selection and extrapolation round different nanosecond expressions.
+        for time_ms in [grid.start_ms, grid.end_ms] {
+            let lookup = time_ms.checked_sub(offset_ns / 1_000_000)?;
+            lookup.checked_sub(range_ns / 1_000_000)?;
+            time_ms.checked_sub(combined_ns / 1_000_000)?;
+        }
+        Some(selector)
     }
 
     fn matrix_clock(

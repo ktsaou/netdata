@@ -249,6 +249,253 @@ fn instant_root_numeric_fold_keeps_raw_memory_independent_of_history() {
 }
 
 #[test]
+fn direct_rate_join_avoids_repeating_full_child_discovery() {
+    let count = 64;
+    let mut work = Vec::new();
+    for page_size in [1, 17, 1024] {
+        for reversed in [false, true] {
+            let mut provider = FixtureProvider::new(2, page_size, 2 * count);
+            provider.filter_selectors = true;
+            for (position, series) in provider.series.iter_mut().enumerate() {
+                let index = if position < count || !reversed {
+                    position % count
+                } else {
+                    2 * count - 1 - position
+                };
+                series.labels = vec![
+                    (
+                        b"__name__".to_vec(),
+                        if position < count {
+                            b"m_total"
+                        } else {
+                            b"n_total"
+                        }
+                        .to_vec(),
+                    ),
+                    (b"instance".to_vec(), index.to_string().into_bytes()),
+                ];
+            }
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"rate(m_total[5m]) / on(instance) rate(n_total[5m])",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Range {
+                    start_ms: 2000,
+                    end_ms: 3000,
+                    step_ms: 1000,
+                },
+                &control,
+            );
+            let result = report.result.as_ref().unwrap();
+            assert_eq!(result.series.len(), count);
+            assert!(report.annotations.is_empty());
+            let mut instances = std::collections::BTreeSet::new();
+            for series in &*result.series {
+                assert_eq!(series.labels.0.len(), 1);
+                assert_eq!(&*series.labels.0[0].name, b"instance");
+                assert!(instances.insert(series.labels.0[0].value.to_vec()));
+                let points: Vec<_> = series
+                    .points
+                    .iter()
+                    .map(|point| {
+                        let OwnedValue::Float(value) = point.value else {
+                            panic!("float rate join");
+                        };
+                        (point.time_ms, value.to_bits())
+                    })
+                    .collect();
+                assert_eq!(points, [(2000, 1.0f64.to_bits()), (3000, 1.0f64.to_bits())]);
+            }
+            assert_eq!(
+                instances,
+                (0..count)
+                    .map(|index| index.to_string().into_bytes())
+                    .collect()
+            );
+            let observed = &report.observations;
+            assert_eq!(observed.output_samples, 2 * count as u64);
+            println!(
+                "{{\"direct_rate_join_rows\":{count},\"page_size\":{page_size},\"reversed\":{reversed},\"work\":{},\"fetched\":{},\"workspace_peak\":{},\"queryable\":{}}}",
+                observed.work,
+                observed.samples_fetched,
+                observed.memory[MemoryKind::Workspace as usize].peak,
+                observed.statistics.samples.total_queryable_samples,
+            );
+            work.push(observed.work);
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+    assert!(
+        work.iter().all(|value| *value < 1_650_000),
+        "direct rate joins must avoid repeated whole-child discovery: {work:?}"
+    );
+}
+
+#[test]
+fn direct_rate_join_preserves_membership_order_and_mixed_operands() {
+    fn point<const LEFT: bool, const ID: usize>(index: usize) -> crate::value::Sample {
+        let missing = index == 2 && ((LEFT && ID == 0) || (!LEFT && ID == 1));
+        crate::value::Sample {
+            time_ms: (index as i64 + 1) * 1000,
+            start_time_ms: 0,
+            value: crate::value::SampleValue::Float(if missing {
+                f64::from_bits(crate::value::STALE_NAN_BITS)
+            } else {
+                (index as f64 + 1.0) * if LEFT { (1usize << ID) as f64 } else { 1.0 }
+            }),
+        }
+    }
+    let cases = [
+        (
+            b"rate(a_total[2s]) / on(instance) rate(b_total[2s])".as_slice(),
+            [
+                vec![(2000, 1.0), (5000, 1.0)],
+                vec![(2000, 2.0), (5000, 2.0)],
+                vec![(2000, 4.0), (3000, 4.0), (4000, 4.0), (5000, 4.0)],
+            ],
+        ),
+        (
+            b"rate(a_total[2s]) > on(instance) rate(b_total[2s])".as_slice(),
+            [
+                vec![],
+                vec![(2000, 2.0), (5000, 2.0)],
+                vec![(2000, 4.0), (3000, 4.0), (4000, 4.0), (5000, 4.0)],
+            ],
+        ),
+        (
+            b"rate(a_total[2s]) > bool on(instance) rate(b_total[2s])".as_slice(),
+            [
+                vec![(2000, 0.0), (5000, 0.0)],
+                vec![(2000, 1.0), (5000, 1.0)],
+                vec![(2000, 1.0), (3000, 1.0), (4000, 1.0), (5000, 1.0)],
+            ],
+        ),
+        (
+            b"a_total / on(instance) rate(b_total[2s])".as_slice(),
+            [
+                vec![(2000, 2.0), (4000, 4.0), (5000, 5.0)],
+                vec![(2000, 4.0), (5000, 10.0)],
+                vec![(2000, 8.0), (3000, 12.0), (4000, 16.0), (5000, 20.0)],
+            ],
+        ),
+        (
+            b"rate(a_total[2s]) / on(instance) b_total".as_slice(),
+            [
+                vec![(2000, 0.5), (5000, 0.2)],
+                vec![(2000, 1.0), (4000, 0.5), (5000, 0.4)],
+                vec![(2000, 2.0), (3000, 4.0 / 3.0), (4000, 1.0), (5000, 0.8)],
+            ],
+        ),
+    ];
+    for page_size in [1, 17, 1024] {
+        for delayed in [false, true] {
+            for (expression, expected) in &cases {
+                let mut provider = FixtureProvider::new(5, page_size, 6);
+                provider.filter_selectors = true;
+                let samples: [fn(usize) -> crate::value::Sample; 6] = [
+                    point::<true, 0>,
+                    point::<true, 1>,
+                    point::<true, 2>,
+                    point::<false, 2>,
+                    point::<false, 1>,
+                    point::<false, 0>,
+                ];
+                for (index, series) in provider.series.iter_mut().enumerate() {
+                    series.labels = vec![
+                        (
+                            b"__name__".to_vec(),
+                            if index < 3 { b"a_total" } else { b"b_total" }.to_vec(),
+                        ),
+                        (
+                            b"instance".to_vec(),
+                            (if index < 3 { index } else { 5 - index })
+                                .to_string()
+                                .into_bytes(),
+                        ),
+                    ];
+                    series.source.sample = samples[index];
+                }
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        expression,
+                        EngineOptions {
+                            delayed_name_removal: delayed,
+                            ..EngineOptions::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let report = query.collect_reported(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 2000,
+                        end_ms: 5000,
+                        step_ms: 1000,
+                    },
+                    &control,
+                );
+                let result = report.result.as_ref().unwrap();
+                assert!(report.annotations.is_empty());
+                assert_eq!(
+                    result.series.len(),
+                    expected.iter().filter(|points| !points.is_empty()).count()
+                );
+                let mut seen = std::collections::BTreeSet::new();
+                for series in &*result.series {
+                    assert_eq!(series.labels.0.len(), 1);
+                    assert_eq!(&*series.labels.0[0].name, b"instance");
+                    let id = std::str::from_utf8(&series.labels.0[0].value)
+                        .unwrap()
+                        .parse::<usize>()
+                        .unwrap();
+                    assert!(seen.insert(id));
+                    let points: Vec<_> = series
+                        .points
+                        .iter()
+                        .map(|point| {
+                            let OwnedValue::Float(value) = point.value else {
+                                panic!("float rate join");
+                            };
+                            (point.time_ms, value.to_bits())
+                        })
+                        .collect();
+                    assert_eq!(
+                        points,
+                        expected[id]
+                            .iter()
+                            .map(|(time, value)| (*time, f64::to_bits(*value)))
+                            .collect::<Vec<_>>(),
+                        "page={page_size}, delayed={delayed}, expression={expression:?}, id={id}"
+                    );
+                }
+                assert_eq!(
+                    seen,
+                    expected
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(id, points)| (!points.is_empty()).then_some(id))
+                        .collect()
+                );
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+}
+
+#[test]
 fn unique_root_binary_replay_fetches_linear_samples() {
     fn point(_: usize) -> crate::value::Sample {
         crate::value::Sample {

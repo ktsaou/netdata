@@ -2272,6 +2272,40 @@ The [instant-fold qualification](instant-fold-qualification.json) binds final op
 expression panels, actual C caller targets and separately rebuilt Agent checks. Earlier receipts keep their actual
 source identities. Numeric summaries can still grow with selected-series cardinality; raw paging remains bounded.
 
+## Completed direct rate join scans
+
+Bare-root one-to-one float joins can reuse completed discovery when an operand is an ordinary direct
+`rate(raw_selector[range])`. Raw-selector eligibility stays the same. The rate producer/source/scope grids must
+match the effective evaluator, and the range/offset arithmetic must produce nonwrapping window endpoints.
+Grouped, filled, delayed-name, invariant, extended, wrapped and other computed shapes retain ordinary replay.
+
+The existing physical-ordinal bindings and accounted one-step membership bitmap are reused after the complete
+first final pass succeeds. No new value array, raw history or backing requirement is introduced. Native values
+discard a candidate. Selected-pair reads, exact labels, diagnostics, numerical folds and logical sample statistics
+keep their existing owners. Physical selection and extrapolation retain their distinct nanosecond truncation.
+
+The fixed workload is `rate(m_total[5m]) / on(id) rate(n_total[5m])`, with two counter samples per series and two
+evaluation timestamps. Both optimized profiles, pages 1/17/1024 and both right-side physical orders preserve every
+output across three repetitions with alternating before/after order. At page17 with reversed right-side order:
+
+| Pairs | Recorded work before → after | Workspace peak before → after |
+| --- | ---: | ---: |
+| 16 | 217,501 → 49,699 | 72,187 → 72,187 B |
+| 32 | 836,580 → 106,155 | 129,576 → 129,576 B |
+| 64 | 3,302,052 → 230,677 | 246,568 → 246,568 B |
+
+Fetched samples remain unchanged in all 36 matched groups. Page17 medians improve about 2.57/4.42/8.00× in release
+and 2.74/4.73/8.74× in release-min. These are generated query timings and accounted query workspace, not production
+disk throughput or process RSS. Preparation and ordinary selector prefix work remain independent costs.
+
+Thirty changing-membership/comparison/boolean/mixed-operand controls preserve complete results. Each actual C
+caller also checks 12 rate cases across three page sizes: normal output, a later first-pass provider error before
+the first output error, cancellation during the first output and an opaque first-output failure. All retain
+transactional abort/commit and resource release. The original join and numeric-fold controls remain in the roster.
+
+The [rate-join qualification](rate-join-qualification.json) binds the final engine, optimized profiles, expression
+panels, C callers and rebuilt Agent checks. Earlier cohorts retain their own source and binary identities.
+
 ## Bounded binary matching and pair replay
 
 Vector/vector arithmetic, comparisons, `bool`, `and`, `or`, `unless`, `on`, `ignoring`, group modifiers and optional
