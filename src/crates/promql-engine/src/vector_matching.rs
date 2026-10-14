@@ -41,11 +41,73 @@ impl Cache {
             index: PositionIndex::new(account),
         }
     }
+    fn position(
+        &self,
+        key: &[u8],
+        hash: u64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<usize>, Interrupted> {
+        self.index.find(
+            hash,
+            |position| {
+                Ok(self.entries[position].key.hash == hash
+                    && binary_labels::equal(
+                        &self.entries[position].key.bytes,
+                        key,
+                        control,
+                        account,
+                    )?)
+            },
+            control,
+            account,
+        )
+    }
 }
 pub(crate) struct Plan {
     pub(crate) sides: [Side; 2],
     pub(crate) cache: Cache,
     signature_count: usize,
+    replay: Option<AccountedBox<Replay>>,
+}
+
+struct Replay {
+    pairs: AccountedVec<[usize; 2]>,
+    completed: RefCell<Option<AccountedBox<CompletedStep>>>,
+}
+struct CompletedStep {
+    key: ReplayKey,
+    emitted: AccountedVec<u64>,
+}
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ReplayKey {
+    clock: [i64; 9],
+    start_timestamps: bool,
+    delayed_name_removal: bool,
+}
+impl ReplayKey {
+    pub(crate) fn new(
+        options: EvaluationOptions,
+        step_index: i64,
+        lookback_ns: i64,
+        data_bounds: crate::storage::TimeBounds,
+    ) -> Self {
+        Self {
+            clock: [
+                options.time_ms,
+                options.start_ms,
+                options.end_ms,
+                options.step_ms,
+                options.lookback_ms,
+                step_index,
+                lookback_ns,
+                data_bounds.start_ms,
+                data_bounds.end_ms,
+            ],
+            start_timestamps: options.start_timestamps,
+            delayed_name_removal: options.delayed_name_removal,
+        }
+    }
 }
 #[derive(Clone, Copy)]
 pub(crate) struct Preparation<'a> {
@@ -142,7 +204,92 @@ impl Plan {
             sides,
             cache: Cache::new(account),
             signature_count: keys.len(),
+            replay: None,
         })
+    }
+    pub(crate) fn certify_replay(
+        &mut self,
+        required: &[usize],
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        for side in &self.sides {
+            if !crate::scheduled_expression::unique_rows(&side.rows, control, account)? {
+                return Ok(());
+            }
+            for row in &*side.rows {
+                control.check()?;
+                account.work(1);
+                if row.kinds != 1 {
+                    return Ok(());
+                }
+            }
+        }
+        let context = AllocationContext::new(account, MemoryKind::Workspace);
+        let missing = [usize::MAX; 2];
+        let mut positions = AccountedVec::with_capacity_in(self.signature_count, Some(&context));
+        for _ in 0..self.signature_count {
+            control.check()?;
+            account.work(1);
+            positions.push(missing);
+        }
+        for side in 0..2 {
+            for (row, signature) in self.sides[side].signatures.iter().enumerate() {
+                control.check()?;
+                account.work(1);
+                if positions[*signature][side] != usize::MAX {
+                    return Ok(());
+                }
+                positions[*signature][side] = row;
+            }
+        }
+        let mut pairs = AccountedVec::with_capacity_in(self.cache.entries.len(), Some(&context));
+        for _ in &*self.cache.entries {
+            control.check()?;
+            account.work(1);
+            pairs.push(missing);
+        }
+        for pair in &*positions {
+            control.check()?;
+            account.work(1);
+            if pair.contains(&usize::MAX) {
+                continue;
+            }
+            let mut key = AccountedVec::new(account, MemoryKind::Workspace);
+            for (side, row) in pair.iter().enumerate() {
+                binary_labels::append(
+                    &mut key,
+                    &self.sides[side].rows[*row].labels,
+                    None,
+                    control,
+                    account,
+                )?;
+            }
+            let hash = label_hash::bytes(&key, control, account)?;
+            if let Some(ordinal) = self.cache.position(&key, hash, control, account)? {
+                if pairs[ordinal] != missing {
+                    return Ok(());
+                }
+                pairs[ordinal] = *pair;
+            }
+        }
+        for ordinal in required {
+            control.check()?;
+            account.work(1);
+            if pairs.get(*ordinal).is_none_or(|pair| *pair == missing) {
+                return Ok(());
+            }
+        }
+        drop(positions);
+        control.check()?;
+        self.replay = Some(AccountedBox::new(
+            Replay {
+                pairs,
+                completed: RefCell::new(None),
+            },
+            &context,
+        ));
+        Ok(())
     }
     fn position(
         &self,
@@ -245,6 +392,7 @@ pub(crate) struct Step<'a> {
     choice: Option<Choice>,
     values: [Option<crate::statistics::ValueParts>; 2],
     last_diagnostic: Option<Diagnostic>,
+    pending: Option<AccountedBox<CompletedStep>>,
 }
 impl<'a> Step<'a> {
     pub(crate) fn new(
@@ -276,7 +424,81 @@ impl<'a> Step<'a> {
             choice: None,
             values: [None, None],
             last_diagnostic: None,
+            pending: None,
         }
+    }
+    pub(crate) fn enable_replay(
+        &mut self,
+        target: usize,
+        key: ReplayKey,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let Some(replay) = &self.plan.replay else {
+            return Ok(());
+        };
+        let Some(pair) = replay.pairs.get(target).copied() else {
+            return Ok(());
+        };
+        if pair.contains(&usize::MAX) {
+            return Ok(());
+        }
+        control.check()?;
+        let present = replay
+            .completed
+            .borrow()
+            .as_ref()
+            .filter(|step| step.key == key)
+            .map(|step| step.emitted[target / 64] & (1 << (target % 64)) != 0);
+        let context = AllocationContext::new(account, MemoryKind::Workspace);
+        if let Some(present) = present {
+            self.phase = if present {
+                Phase::Begin
+            } else {
+                Phase::Finished
+            };
+            if present {
+                for (side, row) in pair.into_iter().enumerate() {
+                    control.check()?;
+                    account.work(1);
+                    self.active[side] = AccountedVec::with_capacity_in(1, Some(&context));
+                    self.active[side].push(Active {
+                        row,
+                        kind: 1,
+                        reserved: false,
+                    });
+                }
+            }
+        } else {
+            // A query keeps only one completed scope, with no overlap during replacement.
+            replay.completed.borrow_mut().take();
+            let words = replay.pairs.len() / 64 + usize::from(replay.pairs.len() % 64 != 0);
+            let mut emitted = AccountedVec::with_capacity_in(words, Some(&context));
+            for _ in 0..words {
+                control.check()?;
+                account.work(1);
+                emitted.push(0);
+            }
+            self.pending = Some(AccountedBox::new(CompletedStep { key, emitted }, &context));
+        }
+        Ok(())
+    }
+    pub(crate) fn complete_replay(&mut self, control: &Control) -> Result<(), Interrupted> {
+        if self.pending.is_some() {
+            control.check()?;
+            let completed = self
+                .pending
+                .take()
+                .expect("completed binary replay candidate");
+            *self
+                .plan
+                .replay
+                .as_ref()
+                .expect("certified complete binary replay")
+                .completed
+                .borrow_mut() = Some(completed);
+        }
+        Ok(())
     }
     pub(crate) fn receive(
         &mut self,
@@ -286,6 +508,9 @@ impl<'a> Step<'a> {
     ) -> Result<(), EvaluationError> {
         match self.phase {
             Phase::Left | Phase::Right => {
+                if sample.value.kind_bit() != 1 {
+                    self.pending = None;
+                }
                 let side = usize::from(matches!(self.phase, Phase::Right));
                 let row = self.plan.position(side, &sample, control, account)?;
                 self.active[side].push(Active {
@@ -345,20 +570,7 @@ impl<'a> Step<'a> {
         account: &QueryAccounting,
     ) -> Result<(usize, OwnedLabels), EvaluationError> {
         let hash = label_hash::bytes(&key, control, account)?;
-        if let Some(position) = cache.index.find(
-            hash,
-            |position| {
-                Ok(cache.entries[position].key.hash == hash
-                    && binary_labels::equal(
-                        &cache.entries[position].key.bytes,
-                        &key,
-                        control,
-                        account,
-                    )?)
-            },
-            control,
-            account,
-        )? {
+        if let Some(position) = cache.position(&key, hash, control, account)? {
             return Ok((
                 position,
                 cache.entries[position].labels.copy_checked(
@@ -873,6 +1085,11 @@ impl<'a> Step<'a> {
                             account,
                         )?;
                     }
+                    if let Some(pending) = &mut self.pending {
+                        control.check()?;
+                        account.work(1);
+                        pending.emitted[ordinal / 64] |= 1 << (ordinal % 64);
+                    }
                     return Ok(Action::Sample(EvaluatedSample {
                         ordinal,
                         labels,
@@ -919,15 +1136,7 @@ fn frozen_labels(
     account: &QueryAccounting,
 ) -> Result<(usize, OwnedLabels), EvaluationError> {
     let hash = label_hash::bytes(key, control, account)?;
-    if let Some(position) = cache.index.find(
-        hash,
-        |position| {
-            Ok(cache.entries[position].key.hash == hash
-                && binary_labels::equal(&cache.entries[position].key.bytes, key, control, account)?)
-        },
-        control,
-        account,
-    )? {
+    if let Some(position) = cache.position(key, hash, control, account)? {
         return Ok((
             position,
             cache.entries[position]

@@ -64,6 +64,11 @@ records exact payload/lifetime/control checks, standalone target execution and m
 New storage and live API cohorts qualify the complete containing Agent separately; standalone foreign targets
 remain engine/caller evidence. The Netdata metadata, page formats and checkpoint backing owners are unchanged.
 
+The [completed join qualification](../../src/crates/promql-engine/tests/promql-conformance/binary-replay-qualification.json)
+separately binds the evaluator change and a rebuilt Agent's storage/API checks. Actual C caller cases cover a
+later operand error before a second output error, selected-pair read failure after reuse, and complete resource
+release. Their controlled fixture callbacks supplement the live storage and HTTP checks.
+
 ## Storage and native components
 
 The fixture uses real storage writers and demand-reader APIs at all five tiers. Separate write, cold-read and append

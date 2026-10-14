@@ -847,6 +847,64 @@ impl CompiledQuery {
         )? {
             return Ok(());
         }
+        if let Expr::Binary {
+            left,
+            right,
+            operator,
+            matching: Some(matching),
+            ..
+        } = &self.expression.arena[self.expression.root].expression
+            && matching.cardinality == crate::frontend::ast::Cardinality::OneToOne
+            && matching.fill_left.is_none()
+            && matching.fill_right.is_none()
+            && (operator.is_comparison()
+                || matches!(
+                    operator,
+                    TokenKind::ADD
+                        | TokenKind::SUB
+                        | TokenKind::MUL
+                        | TokenKind::DIV
+                        | TokenKind::MOD
+                        | TokenKind::POW
+                        | TokenKind::ATAN2
+                ))
+            && !self.options.delayed_name_removal
+            && [self.expression.root, *left, *right].into_iter().all(|node| {
+                !prepared.flags().invariants[node.0]
+                    && !prepared.flags().boundaries[node.0]
+                    && rosters.matrix(node).is_none()
+            })
+            && [*left, *right].into_iter().all(|node| {
+                matches!(&self.expression.arena[node].expression, Expr::Selector(selector) if !selector.smoothed)
+            })
+        {
+            let supported = {
+                let machine = Machine::new(
+                    catalog,
+                    &self.expression,
+                    self.expression.root,
+                    self.evaluation_options(evaluator_header, evaluator_header.start_ms, prepared),
+                    control,
+                    account,
+                    EvaluationMetadata {
+                        prepared,
+                        rosters: &rosters,
+                        timestamp_selectors: &self.timestamp_selectors,
+                        data_bounds,
+                        annotations: None,
+                        binary_preparation: None,
+                        histogram_preparation: None,
+                        info_preparation: None,
+                        count_preparation: None,
+                    },
+                );
+                let grid = evaluator_header.into();
+                machine.supports_schedule(*left, grid) && machine.supports_schedule(*right, grid)
+            };
+            if supported {
+                rosters.certify_binary_replay(self.expression.root, control, account)?;
+            }
+        }
         let mut traversal = crate::query_scopes::Traversal::new(
             evaluator_header.into(),
             !prepared.flags().boundaries[self.expression.root.0]

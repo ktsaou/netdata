@@ -558,3 +558,17 @@ integration, and Alertmanager remains excluded.
   establish DBengine disk throughput or whole-process memory.
 - [core-qualification.json](core-qualification.json) records the final source/binary cohort and retained evidence
   identities. The public language, numerical, provider, C ABI and HTTP contracts are unchanged.
+
+## Completed unique float join scans
+
+- **Choice:** certify unambiguous bare root joins between two raw float selectors. The original first replay
+  completes discovery, arithmetic, reservations and duplicate checks for the current timestamp. After successful
+  completion and diagnostics, later output rows reuse its emitted-ordinal bitmap and read their own operand pair.
+- **Ownership:** query-local bindings map frozen cache ordinals to original side positions. One accounted snapshot
+  identifies all effective clock/options, step index, exact lookback and data bounds. Replacement releases the prior
+  snapshot first; errors and partial replays never publish one. No raw values or timeline are retained.
+- **Compatibility:** exact frozen keys and first-writer labels remain authoritative. Native, grouped, filled,
+  ambiguous, delayed-name, invariant and unsupported clock shapes retain ordinary replay. Initial validation and
+  error priority remain complete; errors tied to omitted physical operations follow the existing provider policy.
+- **Evidence:** `src/vector_matching.rs`, `src/evaluator_roster.rs`, `src/evaluator.rs`, `src/execution.rs`, the
+  changing-membership/history fixtures and actual C caller's first-output and selected-pair failure cases.

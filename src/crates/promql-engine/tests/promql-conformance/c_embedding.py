@@ -227,6 +227,7 @@ def native_records(name, output):
         {"protocol_primitives": "pass"},
         {"metadata_discovery": "pass", "cases": 6},
         {"label_field_boundary": "pass", "cases": 6},
+        {"unique_binary_replay": "pass", "cases": 9, "page_sizes": 3},
         {"foreign_allocation_lifetime": "pass", "bytes": 16384, "abort_cases": 3},
         {"native_embedding": "pass"},
     ]

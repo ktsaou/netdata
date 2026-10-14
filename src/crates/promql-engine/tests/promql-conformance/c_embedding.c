@@ -904,6 +904,134 @@ static netdata_promql_output_t delivery_table(delivery *d) {
     output.commit = output_commit; output.abort = output_abort;
     return output;
 }
+
+typedef struct {
+    fixture source;
+    netdata_promql_label_t labels[4][2];
+} join_fixture;
+
+static uint32_t join_selection_next(void *context, void *handle,
+                                    const netdata_promql_callback_control_t *control,
+                                    netdata_promql_series_open_t *out,
+                                    netdata_promql_provider_diagnostics_t *diagnostics,
+                                    netdata_promql_bytes_t *error) {
+    join_fixture *f = (join_fixture *)context;
+    (void)diagnostics;
+    uint32_t status = checked_control(control);
+    if (status != NETDATA_PROMQL_OK) return status;
+    status = returned(&f->source, 3, error);
+    if (status != NETDATA_PROMQL_OK) return status;
+    uint8_t *position = (uint8_t *)handle;
+    if (*position == 4) return NETDATA_PROMQL_END;
+    f->source.opened[2]++;
+    out->handle = NULL;
+    out->labels.data = f->labels[(*position)++];
+    out->labels.len = 2;
+    return NETDATA_PROMQL_OK;
+}
+
+typedef struct {
+    delivery output;
+    fixture *source;
+    uint32_t arm_after;
+} join_delivery;
+
+static uint32_t join_begin(void *context, const netdata_promql_output_header_t *header,
+                            const netdata_promql_callback_control_t *control,
+                            netdata_promql_bytes_t *error) {
+    assert(header->value_type == NETDATA_PROMQL_TYPE_MATRIX && header->reserved == 0);
+    assert(header->start_ms == 1000 && header->end_ms == 2000 && header->step_ms == 1000);
+    return output_status(&((join_delivery *)context)->output, 1, control, error);
+}
+
+static uint32_t join_chunk(void *context, const netdata_promql_chunk_t *chunk,
+                            const netdata_promql_callback_control_t *control,
+                            netdata_promql_bytes_t *error) {
+    join_delivery *d = (join_delivery *)context;
+    uint32_t position = d->output.calls[1];
+    assert(chunk->kind == NETDATA_PROMQL_CHUNK_SERIES && chunk->reserved == 0);
+    const netdata_promql_series_chunk_t *series = &chunk->payload.series;
+    assert(series->series_id == position % 4 && series->labels.len == 1 && series->points.len == 1);
+    assert(series->labels.data[0].name.len == 4 && memcmp(series->labels.data[0].name.data, "zone", 4) == 0);
+    assert(series->labels.data[0].value.len == 1 && series->labels.data[0].value.data[0] == '0' + position % 4);
+    assert(series->points.data[0].time_ms == (position < 4 ? 1000 : 2000));
+    assert(series->points.data[0].value.kind == NETDATA_PROMQL_VALUE_FLOAT);
+    assert(series->points.data[0].value.payload.float_bits == netdata_promql_double_bits(1));
+    uint32_t status = output_status(&d->output, 2, control, error);
+    if (d->arm_after && d->output.calls[1] == d->arm_after) d->source->failure = 6;
+    // An unfinished first pass must return its operand error before this second output error.
+    if (d->arm_after == 1 && d->output.calls[1] == 2) {
+        *error = text("second join output failure");
+        return NETDATA_PROMQL_OUTPUT_ERROR;
+    }
+    return status;
+}
+
+static uint32_t join_commit(void *context, const netdata_promql_query_observations_t *observations,
+                             const netdata_promql_callback_control_t *control,
+                             netdata_promql_bytes_t *error) {
+    join_delivery *d = (join_delivery *)context;
+    assert(!d->arm_after && d->output.calls[1] == 8 && observations->output_samples == 8);
+    assert(observations->memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
+    statistics_valid(&observations->statistics);
+    released(d->source);
+    return output_status(&d->output, 3, control, error);
+}
+
+static void unique_binary_replay(netdata_promql_engine_t *engine) {
+    const uint64_t page_sizes[] = {1, 17, 1024};
+    for (unsigned page = 0; page < 3; page++) {
+        for (unsigned arm = 0; arm < 3; arm++) {
+            join_fixture source;
+            memset(&source, 0, sizeof(source));
+            init_fixture(&source.source, 2, page_sizes[page]);
+            static const uint8_t zones[] = {'0', '1', '2', '3'};
+            for (unsigned row = 0; row < 4; row++) {
+                source.labels[row][0] = source.source.labels[0];
+                source.labels[row][1].name = text("zone");
+                source.labels[row][1].value = bytes(&zones[row], 1);
+            }
+            netdata_promql_provider_t input = provider(&source.source);
+            input.context = &source;
+            input.selection_next = join_selection_next;
+            netdata_promql_query_t *query = compile(engine, "m / on(zone) m");
+            netdata_promql_request_t request = instant(1000);
+            request.kind = NETDATA_PROMQL_REQUEST_RANGE;
+            request.end_ms = 2000;
+            request.step_ms = 1000;
+            join_delivery output;
+            memset(&output, 0, sizeof(output));
+            output.source = &source.source;
+            output.arm_after = arm;
+            netdata_promql_output_t table = delivery_table(&output.output);
+            table.context = &output;
+            table.begin = join_begin;
+            table.chunk = join_chunk;
+            table.commit = join_commit;
+            netdata_promql_report_t *report = NULL;
+            uint32_t status = netdata_promql_execute(query, &input, &request, NULL, &table, &report);
+            assert(status == (arm ? NETDATA_PROMQL_PROVIDER_ERROR : NETDATA_PROMQL_OK));
+            assert(report && output.output.calls[0] == 1);
+            assert(output.output.calls[1] == (arm ? arm : 8));
+            assert(output.output.calls[2] == (arm ? 0u : 1u) && output.output.calls[3] == (arm ? 1u : 0u));
+            released(&source.source);
+            netdata_promql_query_observations_t observations;
+            assert(netdata_promql_report_observations(report, &observations) == NETDATA_PROMQL_OK);
+            assert(observations.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
+            if (arm) {
+                static const uint8_t message[] = {'p','r','o','v','i','d','e','r',0,255,'f','a','i','l','u','r','e'};
+                netdata_promql_error_t error;
+                assert(netdata_promql_report_error(report, 0, &error) == NETDATA_PROMQL_OK);
+                assert(error.kind == NETDATA_PROMQL_ERROR_PROVIDER && error.message.len >= sizeof(message));
+                assert(memcmp(error.message.data + error.message.len - sizeof(message), message, sizeof(message)) == 0);
+            }
+            assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+            assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+        }
+    }
+    puts("{\"unique_binary_replay\":\"pass\",\"cases\":9,\"page_sizes\":3}");
+}
+
 static void output_delivery(netdata_promql_engine_t *engine) {
     for (unsigned test = 0; test < 6; test++) {
         netdata_promql_query_t *query = compile(engine, "m");
@@ -1575,6 +1703,8 @@ int main(void) {
     metadata_discovery(engine);
     balanced(engine, &idle);
     label_field_boundary(engine);
+    balanced(engine, &idle);
+    unique_binary_replay(engine);
     balanced(engine, &idle);
     assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
     foreign_allocation_lifetime();

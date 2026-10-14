@@ -85,6 +85,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Foreign page-wrapper changes MUST preserve public marker/lifetime properties and whole-page validation phases.
   Run the focused ownership checks before broader rebuilds; the installed-tool and actual caller scopes are in
   `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-foreign-sample-pages`.
+- Completed binary replay MUST preserve full first-pass failure priority before reusing membership metadata; see
+  `src/crates/promql-engine/tests/promql-conformance/README.md#completed-unique-float-join-scans` for its causal controls.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
 
 ## Evidence

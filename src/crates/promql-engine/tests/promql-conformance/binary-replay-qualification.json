@@ -1,0 +1,1768 @@
+{
+  "schema_version": 1,
+  "status": "qualified_on_recorded_finite_inputs",
+  "scope": "Completed unique bare-root float join discovery/pair scans, exact frozen-label bindings, current-scope ownership and unchanged general replay.",
+  "sources": {
+    "Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/absence.rs": "afb4f330f5dff938c2eebfa64574b3cf9693cbd94b43a9cf60752b8094a14889",
+    "src/accounting.rs": "3691f58a62ed5c9c40e8ac22348ee7a121a262278510a8dc355be6ede84b609d",
+    "src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/binary_labels.rs": "0ccaf0d7486420e7fcb2f717903a3fd9aa8ae2fa9ef42f56e6caaa17a534f5f9",
+    "src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/c_abi/provider.rs": "7c38cd156a78a22b263f6d90dc92dc2f6f4aa14a0e57a63755c2d5d82a67b375",
+    "src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/c_abi/tests.rs": "f30191c1e27d7521e216578a48a1b019a28e6226ed1e38b503f7d47fe1b65015",
+    "src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/c_abi/tests/pages.rs": "fc4ca73ae808c092f67bdec1745f2492a518d09aec0156bae20486d9f14a3783",
+    "src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/derived_range.rs": "ab65985b25b848786bdb4475c5ca334cae9a36f233cfb078ec1d9163180f2982",
+    "src/evaluator.rs": "e5355742e18ddb72af9449cf228b6d6d2ee127bebee258442ee8b314b60f885e",
+    "src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/evaluator_roster.rs": "92af062ac26221fff51ad9eb5996401097b80e45c20657161ae2374851232f14",
+    "src/execution.rs": "105e4164a58a7caa48a338acc199c12b44cd0ef153846c199f3264007d2f215c",
+    "src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/frontend/regex.rs": "44dd8f64aa08e0e5e7c71d17214450de4cff3156ee96e75e64f056922dcd4228",
+    "src/frontend/regex_nfa.rs": "9586e2ecfd17bd4b59a61c270856de046c2948441ea6423b8562d572e39b105f",
+    "src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/frontend/regex_selector.rs": "58778f43b7548806d708bb78df0450db888619247a841c30cd9d1e731623eedf",
+    "src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/histogram_call.rs": "cef807e0dbd311e7255e5451b31e3aef337b9401067ea253f129c7ebafae0f3f",
+    "src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/lookup_tests.rs": "01b560f57248f79920e4d61bb34912215b6d172b3107f18fcfcb0f8d501756d7",
+    "src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/matrix_reader.rs": "1adc0d685b2fa6e05517075879f375304825849c1247b93145fcac65fd431f09",
+    "src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/quantile_aggregate.rs": "5574aad6a5ba304e7e697eeb81284097bd52d46615b49b247b0a765b2cfee04c",
+    "src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/range_cache.rs": "5c7467bf03d916efb3fd145c28ab4c892bf10b1b01e95026612c0229f0c005a9",
+    "src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/range_quantile_rank.rs": "37b27f36dfb92e95cf7484604861b21348b582e77d222483e8df0d71b30d0f73",
+    "src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/range_reduce.rs": "a26c814a7df7fd09154174054298ad156c0f4a2c1ff52cfaa45ba7e6dbe74e9f",
+    "src/result.rs": "4eda17c431420724f4e8e770a6ac27efc96c524f41acc1e7949e176a7a9ac4b0",
+    "src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+    "src/scheduled_output.rs": "0d4adb4cd20eb224269f51caf93a3bf12ed8016652834e7d01272af853324fc0",
+    "src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/storage.rs": "fdac6d49e370a3a95ac1726334ecfcf01dd760ef6d93634549913d9e91c34102",
+    "src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/temporal_quantile.rs": "670bc1d8b1197b170ec9fbe6e2943c590a7f0791be25914725c95cbae7dcae16",
+    "src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/test_storage.rs": "45e159c7f5a6045cf421ebdae5191456d1201ab3633ce84e50a367f5b5349e9e",
+    "src/topk.rs": "779a16f4ae15da3ed627c592778fe646b89c92b80e3d8167d6efbf6465265477",
+    "src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/vector_matching.rs": "fe5d93e598175b9935f550fd6c3d71009626622a4069dcff9c167cf1b993594d",
+    "src/vector_sort.rs": "f34df2cf55a0a8c4d34830c682daf41bb18ee16f4dc62efc406535e0cc4e5022"
+  },
+  "binaries": {
+    "release": {
+      "libnetdata_promql_engine.a": "9028d6c16ff2d7ac6f8a6a9e35e0808faa3a4e84ca17b04ab895cc575300ab33",
+      "promql-frontend-fixture": "117af31739fa3dd890ad3eee8898663b1930423a4641a47594d7cc6078c971a5",
+      "promql-kernel-fixture": "aca697e1812ebe0ed54e1203c48350bc0ea123c423ca78153c405d4b183bf297",
+      "promql-protocol-fixture": "289e7582e2c7fa38b8c4d47e341555a2b4e107bcbd3559615a4ff2f14593b87c",
+      "promql-query-fixture": "71eb1ba7242ca4a31fc18d53fa21117586ef099fb515a178627fe597f26d1fc0"
+    },
+    "release-min": {
+      "libnetdata_promql_engine.a": "a77ee06922981b9205266a8e972cd0700180ee405503da036c8142abefb21b47",
+      "promql-frontend-fixture": "6e048877e8220ef4bba4072b8a4b3d029fe4e6a7f8f6435f2cd83bee0b5d67b5",
+      "promql-kernel-fixture": "d59619796ef9fbc0824cb561d93fdf18809bf6f8fed98b7ad5ebf24b44a4abd4",
+      "promql-protocol-fixture": "c980dc2826c3b3f61faf125997df35c4658f5b290aa2f360236f9af9c0855c91",
+      "promql-query-fixture": "1a90cb74ab14c541f2f86eac39f834640173a242cd4cf08c196c109af0220054"
+    }
+  },
+  "fixture_units": [
+    {
+      "profile": "release",
+      "passed": 541,
+      "runtime_seconds": 84.59,
+      "stdout": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/release-unit.stdout",
+        "sha256": "a4d54bc10f41a34196c59fcec19401e440984e270ab69e99e91ddb51e0798485"
+      }
+    },
+    {
+      "profile": "release-min",
+      "passed": 541,
+      "runtime_seconds": 140.29,
+      "stdout": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/release-min-unit.stdout",
+        "sha256": "e08e6d12b8feb2a670734694f1bd9926620f6056c9f47bc4a7fc9fc40c0b12ac"
+      }
+    }
+  ],
+  "static_checks": [
+    {
+      "name": "final-format",
+      "status": {
+        "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/final-format-status.json",
+        "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
+      },
+      "stderr": {
+        "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/final-format.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "final-clippy-production",
+      "status": {
+        "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/final-clippy-production-status.json",
+        "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
+      },
+      "stderr": {
+        "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/final-clippy-production.stderr",
+        "sha256": "ee1d3fffa2022e962e63e0dbe4d35c9c198450a20c29fc09030f635dbb38bfcd"
+      }
+    },
+    {
+      "name": "final-clippy-fixtures",
+      "status": {
+        "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/final-clippy-fixtures-status.json",
+        "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
+      },
+      "stderr": {
+        "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/final-clippy-fixtures.stderr",
+        "sha256": "a73f287e66d68eac5651e4c7270c9eae1a3e6b7769efafb12936aca9ac0ebc75"
+      }
+    },
+    {
+      "name": "msrv",
+      "status": {
+        "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/msrv-status.json",
+        "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
+      },
+      "stderr": {
+        "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/msrv.stderr",
+        "sha256": "f4e291156fc041b8f4970d418989395e884c8f1477c2178cb329900183d76adf"
+      }
+    }
+  ],
+  "meaningful_red": {
+    "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/red-proof.json",
+    "sha256": "b18089c5f9b44d16cdf5004e08be2da5597d8f544db460e6f688362e7221406a"
+  },
+  "first_development_green": {
+    "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/first-green.stdout",
+    "sha256": "9abaa97c428da76f053a0dfce9299a58eef9fd55d881b0e4297bcc8af5b69bde"
+  },
+  "builtin": {
+    "comparisons": 128652,
+    "panels": [
+      {
+        "profile": "release-min",
+        "page_size": 1,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/builtin-release-min-page1-4vyg11zg/report.json",
+          "sha256": "90973ed100cb08ef850a476db99a06e4dcdca0c3922413e0451eba964a20e132"
+        }
+      },
+      {
+        "profile": "release-min",
+        "page_size": 1024,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/builtin-release-min-page1024-6p8psivh/report.json",
+          "sha256": "6ed2d69aa5719463998244efb1263396aad58faaee23d889a5c8cf1e74bb0f63"
+        }
+      },
+      {
+        "profile": "release-min",
+        "page_size": 17,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/builtin-release-min-page17-70x0y12f/report.json",
+          "sha256": "d1a33825245c47e57d12baf5ff5bfee891b73ad2b615ffd259882a45cd49dfff"
+        }
+      },
+      {
+        "profile": "release",
+        "page_size": 1,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/builtin-release-page1-du6okywb/report.json",
+          "sha256": "4484ea514250a0c8ba56640d528553fb3d85c471ba85b515ffd54ea1cadf4aa9"
+        }
+      },
+      {
+        "profile": "release",
+        "page_size": 1024,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/builtin-release-page1024-0l8_9s64/report.json",
+          "sha256": "697fdfb026164719a35456a93be0696467be6a065aff44195b847a0b65019ad4"
+        }
+      },
+      {
+        "profile": "release",
+        "page_size": 17,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/builtin-release-page17-xzwpwmv0/report.json",
+          "sha256": "3de3308c18d5447e81f72fdff52b49131296ee73d408c05903a5f0f1fabf3d29"
+        }
+      }
+    ]
+  },
+  "focused": {
+    "comparisons": 2070,
+    "panels": [
+      {
+        "profile": "release-min",
+        "page_size": 1,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/focused-release-min-page1-o3vt_xfc/receipt.json",
+          "sha256": "957a979e521fe71cb8bb42201a6ab8ed8d4a15fea482ee7ae06870eee43ce5b6"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-l82leac4/report.json",
+              "sha256": "00e61efb7e606943ba3da90e2d63f6b2f1403535344037fb6ed7dea85b5f51d1"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-osewm0p4/report.json",
+              "sha256": "d0cc3fdf064e57d5d3c9ae353c82f68b356ea49e0caad95ef2b80eb42c471b89"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-vee8o4gl/physical-seek-policy.json",
+              "sha256": "3de585added9dd5112add714cb922d041e05ff38e3f62e64eda887bd98750bf9"
+            }
+          },
+          {
+            "name": "precision",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/precision-rnain3ce/comparison.json",
+              "sha256": "bd2b6f163de881bcd8cff21729f4e80404c2581ff2b0fd89785c2c5be0006b12"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "page_size": 1024,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/focused-release-min-page1024-nmmfjgbl/receipt.json",
+          "sha256": "d880b31bdbc961a50b137e759c2edf9ec2628a95e1a041dcb11a1a0a5792c595"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-1obz243v/report.json",
+              "sha256": "93f35079094d1aa2e1a6bc8507c828523a070deb46e8ecc6526581de22989aec"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-ru7ebql0/report.json",
+              "sha256": "6e0eefdef2c09768b464eeaa4a38ff767a56e5654c4bcb66d3fde7e09eb8f385"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-4mg04a_0/physical-seek-policy.json",
+              "sha256": "20e445062d77a5e1bfe2718f40ce1b6f5723ff1308bb4096c376fb7007e2a8a0"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "page_size": 17,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/focused-release-min-page17-8ruh_wju/receipt.json",
+          "sha256": "768999f2926a0010230c18d631aa1f7dbb0fae2cc801a502b5f9ee0d59963409"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-wdw218gx/report.json",
+              "sha256": "f74b188bb33696e0bd6eec160e41d2c9b5394200d3a3a1ba814b30999d41b9c2"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-z63t6rp9/report.json",
+              "sha256": "987a88cf016fe5672cd87975a9e11cb5426bd258a91298b83a4c99cc5461d359"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-_mvil5qw/physical-seek-policy.json",
+              "sha256": "cb29be72e3973d1cef61d31aa0409cf7c9e255c5bbe9deaffc4a2a658fd657ed"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page_size": 1,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/focused-release-page1-q972wegr/receipt.json",
+          "sha256": "2ede79132631f186513f0449c690cc63cc946b8c01a77c1e1f83e5a3e6cd5841"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-yzhfvclh/report.json",
+              "sha256": "4f07bf786fc7f88db0c14b62c21474f87a4f205cfc0dd14b49be239b303f2df3"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-9fhpkwbq/report.json",
+              "sha256": "e0cf4f1a7b9ae25b999b97507f9fa66f69fe84366dc775f5442a171a5501a358"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-7mgo9288/physical-seek-policy.json",
+              "sha256": "e74000c627449b8a53bcd37899c9e1ee8aa7ef142ce0dac58a2153e164a0f818"
+            }
+          },
+          {
+            "name": "precision",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/precision-667go6vm/comparison.json",
+              "sha256": "cbc85bada800ef9201691c6a6cac55f3da32335d9a824f1138be3eda7cf1ebc1"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page_size": 1024,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/focused-release-page1024-achgqcoe/receipt.json",
+          "sha256": "4d9d99b70ba6b388d122d9de97093dbdb3ac1e5828772dd8b6efe6a82a50607c"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-gnmw1pyv/report.json",
+              "sha256": "05001f5bae9e199485691f6f3e5064c39fbc371af0323a14686165214137309d"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-3tyqkcmy/report.json",
+              "sha256": "75f8bf086359246204daaadc9782cd88bd7f55e8ba9a25e807dfc93fa3209a86"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-9kaj87ch/physical-seek-policy.json",
+              "sha256": "40a92cac6deb2c4e6154ae354de45c74e4a05ef53a28ac245efebc614f261df3"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page_size": 17,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/binary-replay-final-a99tqd_9/focused-release-page17-d7u1cseu/receipt.json",
+          "sha256": "1ec3151a9dcff5199c4188c431d7ea920d6e0ca4d375d14b7b7fe13449870afd"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-w84n9sb5/report.json",
+              "sha256": "a1bf1a8b3cae3b386aa297c20c839687bb10d630e7789de1680ce8988699481c"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-sau58ypy/report.json",
+              "sha256": "8981d311e6a8b23807ac9ada5eebc180306d67892aa51f56989c1f5f984fef66"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-dkguxo_i/physical-seek-policy.json",
+              "sha256": "875417e52e501eb88ba68942cc49318e7b77a574acb4100bfba3b41e2894b412"
+            }
+          }
+        ]
+      }
+    ],
+    "raw_cursor_differences_retained": true
+  },
+  "sre": {
+    "comparisons": 231540,
+    "summary": {
+      "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/sre-causal-v2-zel9dtil/invocation-000-summary.json",
+      "sha256": "70e45331ab8a291798af1bf91f832c27586291b4fd1f6bd3357234bcdbc9d4bf"
+    },
+    "source_binding": {
+      "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/sre-source-binding.json",
+      "sha256": "ff499038f489bfb299d95d3cf07d8ba691f97b079f99106a3ba42a55eaea24f0"
+    },
+    "run_binding": {
+      "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/sre-causal-v2-zel9dtil/run-binding.json",
+      "sha256": "8b85e2336393ba2b5c58e756d9ebbdc6d844578503c3d93846fafab5d8bd5ed6"
+    },
+    "go_parent_payloads_consumed": 0
+  },
+  "c_embedding": [
+    {
+      "target": "native",
+      "manifest": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-fj75dhhb/manifest.json",
+        "sha256": "2fbcf963d37070712f2c9b9c3abf09a1949ebe57f8d8a8411a88a9c1b7d57ea8"
+      },
+      "artifacts": 326,
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "structures": 58,
+      "callbacks": 17,
+      "shared_constants": 33,
+      "caller_variants": 10,
+      "new_join_cases_per_caller": 9,
+      "caller_sanitizers": true,
+      "sanitizer_scope": "foreign caller; Rust core is not instrumented",
+      "panic_abort_rejected": true
+    },
+    {
+      "target": "arm64",
+      "manifest": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-a3vw5qqw/manifest.json",
+        "sha256": "4139831158be9f32f3e37c5a6c10c53563952a891320b43f24561484d5ab3882"
+      },
+      "artifacts": 204,
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "structures": 58,
+      "callbacks": 17,
+      "shared_constants": 33,
+      "caller_variants": 4,
+      "new_join_cases_per_caller": 9,
+      "caller_sanitizers": false,
+      "sanitizer_scope": "foreign caller; Rust core is not instrumented",
+      "panic_abort_rejected": false
+    },
+    {
+      "target": "arm32",
+      "manifest": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-47du2c5_/manifest.json",
+        "sha256": "20f74b15c93345e7e33c54c9f89c0197140bdcbefbdebdd9787110dab5c6470b"
+      },
+      "artifacts": 204,
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "structures": 58,
+      "callbacks": 17,
+      "shared_constants": 33,
+      "caller_variants": 4,
+      "new_join_cases_per_caller": 9,
+      "caller_sanitizers": false,
+      "sanitizer_scope": "foreign caller; Rust core is not instrumented",
+      "panic_abort_rejected": false
+    }
+  ],
+  "live_dbengine_api": [
+    {
+      "kind": "storage",
+      "receipt": {
+        "netdata_repository_path": ".tmp/dbengine-storage-cpy4eph9/receipt.json",
+        "sha256": "716db76aab7b6220b90d6f0407952eda8af28b5e81f80321ef1a94540f0aadd4"
+      },
+      "source_files": 292,
+      "binary_sha256": "2dd964c67757549cadbe0b8402accec41e1cfaac4cadbef7752913abdd54e9e0",
+      "records_or_checks": 672
+    },
+    {
+      "kind": "live",
+      "receipt": {
+        "netdata_repository_path": ".tmp/live-api-moy2bukt/receipt.json",
+        "sha256": "b71c903b3d47d43ba25989afce88985b7e5abf44f6269646b70df021810e0066"
+      },
+      "source_files": 293,
+      "binary_sha256": "2dd964c67757549cadbe0b8402accec41e1cfaac4cadbef7752913abdd54e9e0",
+      "records_or_checks": 58
+    }
+  ],
+  "performance": {
+    "comparison": {
+      "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/performance-comparison.json",
+      "sha256": "15432b222a411f9d987eefbd04962743f17c189d29a8eaebc2a320d469406fc5"
+    },
+    "rows": [
+      {
+        "profile": "release",
+        "id": "join-16-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 4632476,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 4730446,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 4564827,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 998800,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1007201,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1010571,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          }
+        ],
+        "median_time_ratio": 4.599356037176293
+      },
+      {
+        "profile": "release",
+        "id": "join-16-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 4453879,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 4613227,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 4456958,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 855132,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 848322,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 851822,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          }
+        ],
+        "median_time_ratio": 5.232264487181594
+      },
+      {
+        "profile": "release",
+        "id": "join-16-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 4430828,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 4639347,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 4424468,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 845003,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 849352,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 846342,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          }
+        ],
+        "median_time_ratio": 5.235268957466367
+      },
+      {
+        "profile": "release",
+        "id": "join-32-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 16791563,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 17417828,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 16741374,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 2374268,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1673024,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1686034,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          }
+        ],
+        "median_time_ratio": 9.959207821431834
+      },
+      {
+        "profile": "release",
+        "id": "join-32-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 17010321,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 17483917,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 17020881,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 2370368,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1673675,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1672104,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          }
+        ],
+        "median_time_ratio": 10.169764739271363
+      },
+      {
+        "profile": "release",
+        "id": "join-32-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 17076361,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 17471927,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 16787114,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 1675215,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1683124,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1671415,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          }
+        ],
+        "median_time_ratio": 10.19353396429712
+      },
+      {
+        "profile": "release",
+        "id": "join-64-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 67937786,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 67926946,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 64948004,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 3361539,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 3326919,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 3329699,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          }
+        ],
+        "median_time_ratio": 20.400326275738436
+      },
+      {
+        "profile": "release",
+        "id": "join-64-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 65820865,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 76145990,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 65236082,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 3401498,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 3356278,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 3328399,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          }
+        ],
+        "median_time_ratio": 19.611267302648947
+      },
+      {
+        "profile": "release",
+        "id": "join-64-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 66665468,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 67892056,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 64992433,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 3350259,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 3335978,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 3335539,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          }
+        ],
+        "median_time_ratio": 19.98378526477093
+      },
+      {
+        "profile": "release-min",
+        "id": "join-16-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 7450341,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 7463370,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 7396491,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 1531305,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1503557,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1499436,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          }
+        ],
+        "median_time_ratio": 4.955143702566647
+      },
+      {
+        "profile": "release-min",
+        "id": "join-16-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 7346652,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 7342411,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 7370761,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 1414787,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1387067,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1443686,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          }
+        ],
+        "median_time_ratio": 5.192761878643216
+      },
+      {
+        "profile": "release-min",
+        "id": "join-16-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 7657618,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 7318212,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 7391731,
+            "samples_fetched": 2208,
+            "work": 208669,
+            "workspace_peak": 47301,
+            "pages": 2208,
+            "provider_calls": 5575
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 1380467,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1385507,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1441307,
+            "samples_fetched": 348,
+            "work": 39284,
+            "workspace_peak": 47317,
+            "pages": 348,
+            "provider_calls": 925
+          }
+        ],
+        "median_time_ratio": 5.335036921502382
+      },
+      {
+        "profile": "release-min",
+        "id": "join-32-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 29955760,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 27777071,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 27946989,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 2759055,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 2779174,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 2914063,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          }
+        ],
+        "median_time_ratio": 10.055861561744605
+      },
+      {
+        "profile": "release-min",
+        "id": "join-32-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 33481518,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 27792411,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 27946739,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 2775384,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 2769724,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 2871783,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          }
+        ],
+        "median_time_ratio": 10.069503535366637
+      },
+      {
+        "profile": "release-min",
+        "id": "join-32-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 28074958,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 27786241,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 27863720,
+            "samples_fetched": 8512,
+            "work": 817784,
+            "workspace_peak": 88672,
+            "pages": 8512,
+            "provider_calls": 21383
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 2812233,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 2750794,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 2873393,
+            "samples_fetched": 700,
+            "work": 81996,
+            "workspace_peak": 88680,
+            "pages": 700,
+            "provider_calls": 1853
+          }
+        ],
+        "median_time_ratio": 9.908041047807917
+      },
+      {
+        "profile": "release-min",
+        "id": "join-64-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 108782255,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 108045852,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 109093582,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 5560459,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 5516088,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 5764616,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          }
+        ],
+        "median_time_ratio": 19.563538729446616
+      },
+      {
+        "profile": "release-min",
+        "id": "join-64-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 108970203,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 108645256,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 124676426,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 5548068,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 5551308,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 5809955,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          }
+        ],
+        "median_time_ratio": 19.629644581060894
+      },
+      {
+        "profile": "release-min",
+        "id": "join-64-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 109373209,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 107831724,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 108843474,
+            "samples_fetched": 33408,
+            "work": 3232074,
+            "workspace_peak": 173600,
+            "pages": 33408,
+            "provider_calls": 83719
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 5542998,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 5553348,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 5815756,
+            "samples_fetched": 1404,
+            "work": 169488,
+            "workspace_peak": 173608,
+            "pages": 1404,
+            "provider_calls": 3709
+          }
+        ],
+        "median_time_ratio": 19.59961342238952
+      }
+    ],
+    "scope": "Identical generated one-point float datasets and complete query outputs; three interleaved repetitions/build/phase/page/cardinality. Synthetic physical counts and timing, not production disk throughput or RSS."
+  },
+  "preserved_failed_attempts": {
+    "native_parallel_input_guard": {
+      "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/embedding-native.stderr",
+      "sha256": "6052156bb8480c4b775f0279ed57b69d4b400a178840176c8c7a08839eb90b40"
+    },
+    "sre_prelaunch_task_guard": {
+      "netdata_repository_path": ".tmp/binary-replay-ycxko1xh/sre.stderr",
+      "sha256": "93cc888d8236458a547a1f540cba62187ad62ae76f245db8b3686791292816ab"
+    }
+  },
+  "limitations": [
+    "Finite inputs do not prove arbitrary-input equivalence.",
+    "Fixture timings and tracked query workspace are not production disk throughput or RSS.",
+    "Standalone foreign callers do not qualify a whole foreign Netdata Agent.",
+    "Caller ASan/UBSan does not instrument the Rust archive; MSRV is compile-only.",
+    "Native/grouped/filled/nested/delayed/ambiguous/invariant or unsupported-clock joins retain ordinary replay.",
+    "Selector prefix traversal and general computed-result replay remain separate costs; no raw history/vector is cached.",
+    "Earlier qualification cohorts preserve their actual source and binary identities."
+  ]
+}

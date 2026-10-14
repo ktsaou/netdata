@@ -712,6 +712,30 @@ impl Rosters {
     pub(crate) fn binary(&self, node: NodeId) -> Option<&crate::vector_matching::Plan> {
         self.nodes[node.0].binary.as_deref()
     }
+    pub(crate) fn certify_binary_replay(
+        &mut self,
+        node: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        let roster = &mut self.nodes[node.0];
+        let (Some(rows), Some(sources), Some(plan)) =
+            (&roster.output, &roster.sources, &mut roster.binary)
+        else {
+            return Ok(());
+        };
+        if rows.len() < 2 || !crate::scheduled_expression::unique_rows(rows, control, account)? {
+            return Ok(());
+        }
+        for row in &**rows {
+            control.check()?;
+            account.work(1);
+            if row.kinds != 1 || row.sources.len() != 1 {
+                return Ok(());
+            }
+        }
+        plan.certify_replay(sources, control, account)
+    }
     pub(crate) fn finish_binary_cache(
         &mut self,
         node: NodeId,

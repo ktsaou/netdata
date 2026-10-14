@@ -8555,5 +8555,21 @@
     "c_embedding_artifacts": 734,
     "storage_records": 672,
     "live_checks": 58
+  },
+  "binary_replay_qualification": {
+    "status": "qualified_on_recorded_finite_inputs",
+    "scope": "Completed unique bare-root float join discovery/pair scans, exact frozen-label bindings, current-scope ownership and unchanged general replay.",
+    "qualification": {
+      "repository_path": "tests/promql-conformance/binary-replay-qualification.json",
+      "sha256": "5732955e2af4ff110cfbd9e45b05e0de19cf675b8b7c47e969a488600a4d7f2b"
+    },
+    "source_files": 144,
+    "fixture_units_per_profile": 541,
+    "builtin_comparisons": 128652,
+    "focused_comparisons": 2070,
+    "sre_comparisons": 231540,
+    "caller_artifacts": 734,
+    "storage_records": 672,
+    "live_checks": 58
   }
 }

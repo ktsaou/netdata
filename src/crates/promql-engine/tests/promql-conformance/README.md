@@ -2203,6 +2203,45 @@ the separate policy gate from running. Follow the conformance workflow's recorde
 helpers when process signals have not been approved. The current source, helper and binary bindings are recorded
 under `lookup_index_qualification` in [core-qualification.json](core-qualification.json).
 
+## Completed unique float join scans
+
+Final evaluation can reuse a completed operand scan for a bare root one-to-one join between two raw float
+selectors. It requires unambiguous signatures, hashes, output bindings and supported ordinary clocks. Native,
+grouped, filled, nested, delayed-name and other ambiguous shapes keep the existing pair replay.
+
+The first row completes the original full scan and pair evaluation, including comparison filtering, reservations
+and duplicate checks. Its emitted cache ordinals become reusable only after successful completion and diagnostics.
+Later rows read their own pair through the existing numeric/label path. An incomplete producer, failed callback,
+cancelled query or partial replay publishes no replacement. Frozen first-writer cache labels remain unchanged.
+
+The query keeps original pair positions and one current-scope bitmap, accounted as workspace. The key includes
+effective query options, step index, exact lookback and data bounds. Scope changes release the old snapshot before
+allocating its replacement. This avoids a raw value vector and a time-by-series cache. Ordinary root output is
+step-major; the separate series-major subquery path remains ordinary replay.
+
+Qualification includes complete changing-membership, false/boolean/arithmetic and reversed-operand-position
+results, history growth with discard output, and actual C callbacks where a later operand failure must precede
+a second-output failure. The closed C caller roster also checks selected-pair failure after reuse. Original physical
+cursor reports remain separate from approved skipped-operation controls. Final source-bound measurements and
+compatibility cohorts are recorded alongside their own binaries; earlier receipts retain their original identities.
+
+In the matched `m / on(id) m` fixture, each metric has one point and the query has two evaluation timestamps.
+Both release profiles and pages 1/17/1024 preserve every output and annotation across three interleaved repetitions:
+
+| Selected metrics | Fetched entries before → after | Workspace peak before → after |
+| --- | ---: | ---: |
+| 16 | 2,208 → 348 | 47,301 → 47,317 B |
+| 32 | 8,512 → 700 | 88,672 → 88,680 B |
+| 64 | 33,408 → 1,404 | 173,600 → 173,608 B |
+
+The snapshot adds accounted metadata; the fixture's peak is dominated by existing preparation. These figures
+describe generated inputs, not production throughput or RSS. General computed joins and selector prefix traversal
+remain separate costs.
+
+The [join qualification](binary-replay-qualification.json) binds the exact engine sources, both optimized
+profiles, original expression panels, actual C callers and separately rebuilt DBengine/API checks. It preserves
+the earlier qualification cohorts and their original source identities.
+
 ## Bounded binary matching and pair replay
 
 Vector/vector arithmetic, comparisons, `bool`, `and`, `or`, `unless`, `on`, `ignoring`, group modifiers and optional

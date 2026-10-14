@@ -2652,16 +2652,39 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     };
                     self.push_all(scalar_node)?;
                 } else {
-                    self.frames[index].state = State::Binary(AccountedBox::new(
-                        crate::vector_matching::Step::new(
-                            self.rosters
-                                .binary(node)
-                                .ok_or(EvaluationError::Invalid("binary plan is missing"))?,
-                            matching.as_ref().expect("typed vector matching"),
-                            *operator,
-                            *return_bool,
+                    let mut step = crate::vector_matching::Step::new(
+                        self.rosters
+                            .binary(node)
+                            .ok_or(EvaluationError::Invalid("binary plan is missing"))?,
+                        matching.as_ref().expect("typed vector matching"),
+                        *operator,
+                        *return_bool,
+                        self.account,
+                    );
+                    let frame = &self.frames[index];
+                    if matches!(frame.mode, OutputMode::Matrix)
+                        && frame.bypass_order
+                        && self.binary_preparation.is_none()
+                        && let Some(target) = match frame.filter {
+                            RowFilter::Ordinals([target]) => Some(*target),
+                            RowFilter::One(target) => Some(target),
+                            _ => None,
+                        }
+                    {
+                        step.enable_replay(
+                            target,
+                            crate::vector_matching::ReplayKey::new(
+                                frame.options,
+                                frame.step_index,
+                                self.prepared.lookback_ns(frame.options.lookback_ms),
+                                self.data_bounds,
+                            ),
+                            self.control,
                             self.account,
-                        ),
+                        )?;
+                    }
+                    self.frames[index].state = State::Binary(AccountedBox::new(
+                        step,
                         &AllocationContext::new(self.account, MemoryKind::Workspace),
                     ));
                 }
@@ -3798,6 +3821,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     self.account,
                                 )?;
                             }
+                            step.complete_replay(self.control)?;
                             self.frames.pop();
                         }
                     }
