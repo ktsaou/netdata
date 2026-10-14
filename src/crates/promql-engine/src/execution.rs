@@ -2345,7 +2345,10 @@ impl CompiledQuery {
                         self.helper_shortcut(node, control, account)?,
                     );
                     while let Some((time_ms, step_index)) = traversal.current() {
-                        step_kinds.clear();
+                        // A per-series Option cannot have duplicate or mixed heads.
+                        if series_site.is_none() {
+                            step_kinds.clear();
+                        }
                         let mut machine = base.replay(
                             node,
                             self.evaluation_options(header, time_ms, prepared),
@@ -2395,8 +2398,9 @@ impl CompiledQuery {
                                 continue;
                             }
                             let hash = crate::label_hash::full(&sample.labels, control, account)?;
-                            let kind = sample.value.kind_bit();
-                            step_kinds.push(hash, sample.ordinal, kind);
+                            if series_site.is_none() {
+                                step_kinds.push(hash, sample.ordinal, sample.value.kind_bit());
+                            }
                             self.record_descriptor(
                                 node,
                                 (sample, hash),
@@ -2406,13 +2410,16 @@ impl CompiledQuery {
                                 account,
                             )?;
                         }
-                        step_kinds.finish(control, account)?;
-                        for descriptor in descriptors.iter_mut() {
-                            control.check()?;
-                            account.work(1);
-                            descriptor
-                                .heads
-                                .note(step_kinds.counts(descriptor, control, account)?, time_ms);
+                        if series_site.is_none() {
+                            step_kinds.finish(control, account)?;
+                            for descriptor in descriptors.iter_mut() {
+                                control.check()?;
+                                account.work(1);
+                                descriptor.heads.note(
+                                    step_kinds.counts(descriptor, control, account)?,
+                                    time_ms,
+                                );
+                            }
                         }
                         traversal.advance();
                     }

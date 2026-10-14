@@ -53,6 +53,81 @@ fn binary_matching_lookup_work_avoids_all_pairs() {
 }
 
 #[test]
+fn direct_numeric_range_preparation_avoids_repeated_summary_scans() {
+    let steps = 8;
+    let mut measured = Vec::new();
+    for page_size in [1, 17, 1024] {
+        for count in [128, 512] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let mut provider = FixtureProvider::new(2, page_size, count);
+            for (index, series) in provider.series.iter_mut().enumerate() {
+                series.labels[1].1 = format!("{index:08}").into_bytes();
+            }
+            let query = engine
+                .compile(
+                    b"avg_over_time(counter_total[5m])",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Range {
+                    start_ms: 2000,
+                    end_ms: 9000,
+                    step_ms: 1000,
+                },
+                &control,
+            );
+            let result = report.result.as_ref().unwrap();
+            assert_eq!(result.series.len(), count);
+            assert!(report.annotations.is_empty());
+            for (index, series) in result.series.iter().enumerate() {
+                assert_eq!(series.labels.0.len(), 2);
+                assert_eq!(&*series.labels.0[0].name, b"instance");
+                assert_eq!(&*series.labels.0[0].value, format!("{index:08}").as_bytes());
+                assert_eq!(&*series.labels.0[1].name, b"job");
+                assert_eq!(&*series.labels.0[1].value, b"worker");
+                assert_eq!(series.points.len(), steps);
+                for (step, point) in series.points.iter().enumerate() {
+                    assert_eq!(point.time_ms, 2000 + step as i64 * 1000);
+                    let OwnedValue::Float(value) = point.value else {
+                        panic!("numeric range must emit floats");
+                    };
+                    assert_eq!(value.to_bits(), 1.5f64.to_bits());
+                }
+            }
+            assert_eq!(report.observations.output_samples, (count * steps) as u64);
+            assert_eq!(
+                report
+                    .observations
+                    .statistics
+                    .samples
+                    .total_queryable_samples,
+                (2 * count * steps) as u64
+            );
+            let work = report.observations.work;
+            println!(
+                "{{\"numeric_range_series\":{count},\"page_size\":{page_size},\"work\":{work},\"fetched\":{},\"workspace_peak\":{}}}",
+                report.observations.samples_fetched,
+                report.observations.memory[MemoryKind::Workspace as usize].peak
+            );
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+            measured.push((count, page_size, work));
+        }
+    }
+    for (count, page, work) in measured {
+        assert!(
+            work <= (850 * count * steps) as u64,
+            "{count} series, page {page} used work {work}"
+        );
+    }
+}
+
+#[test]
 fn label_heavy_join_discards_output_with_exact_series_and_statistics() {
     struct Discard {
         count: usize,

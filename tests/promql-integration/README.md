@@ -76,6 +76,11 @@ halve sample reads with unchanged tracked workspace peaks; these observations ar
 
 ## Storage and native components
 
+The [range-head qualification](../../src/crates/promql-engine/tests/promql-conformance/range-head-qualification.json)
+binds the removal of redundant per-series preparation scans to fresh containing storage/API checks. Generated
+512-series numeric ranges use about 43% less recorded work and run about 1.4× faster, with unchanged outputs/reads
+and a 96-byte workspace reduction. These are synthetic query measurements; storage and provider contracts are unchanged.
+
 The [projected-label qualification](../../src/crates/promql-engine/tests/promql-conformance/projected-label-qualification.json)
 binds compact join-label construction to fresh containing storage/API cohorts. Generated label-heavy joins use
 about 21% less tracked query workspace with unchanged outputs and reads. Contexts references, provider metadata,

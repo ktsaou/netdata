@@ -95,6 +95,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   records calibrated cursor landmarks and native traces for the first-final rate case.
 - Label projection MUST preserve virtual reset and reserved-name errors before matching; measure retained vector
   capacity independently of inputs. See `src/crates/promql-engine/tests/promql-conformance/README.md#compact-one-to-one-result-labels`.
+- Single-series head optimizations MUST retain generic multiplicity/kind handling and meaningful control polling;
+  see `src/crates/promql-engine/tests/promql-conformance/README.md#single-series-range-head-preparation` for causal controls.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
 
 ## Evidence

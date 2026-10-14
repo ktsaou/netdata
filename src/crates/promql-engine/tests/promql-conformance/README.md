@@ -2340,6 +2340,35 @@ remain separate costs that grow with cardinality. Contexts/provider ownership an
 The [projected-label qualification](projected-label-qualification.json) binds the final source/profile/caller and
 rebuilt Agent cohorts. Earlier qualifications keep their actual source and binary identities.
 
+## Single-series range head preparation
+
+Direct raw range-function preparation skips redundant step-kind collection and repeated head-summary scans.
+One physical series produces zero or one value of one kind per tick, which cannot change those summaries.
+The generic path still records multiple outputs and mixed kinds. Descriptor kinds across ticks, evaluation,
+parameters, initialization, hashes, exact clocks, diagnostics, statistics and publication remain unchanged.
+Meaningful remaining work and final execution still observe cancellation/deadlines.
+
+The work regression checks every label, eight timestamps, exact values, empty diagnostics, `2NT` logical samples
+and complete release before applying its work budget. Retained controls exercise native/mixed values, generic
+heads, scalar parameters, initialization failures, precise clocks, disjoint aliases and cancellation.
+
+The matched workload is `avg_over_time(counter_total[5m])`, two points valued 1 and 2 at seconds 1 and 2, and
+eight query steps from seconds 2 through 9. Both profiles, pages 1/17/1024 and three alternating repetitions
+preserve complete results and fetched samples. At page 17:
+
+| Series | Work before → after | Fetched samples before → after | Median timing ratio, release / release-min |
+| --- | ---: | ---: | ---: |
+| 128 | 594,713 → 461,593 | 16,384 → 16,384 | 1.11× / 1.11× |
+| 512 | 4,877,299 → 2,771,955 | 65,536 → 65,536 | 1.39× / 1.41× |
+
+All 12 matched groups reduce work. Peak workspace falls by 96 bytes; no raw/value array or index is added.
+The timings describe synthetic query execution, not production API or disk throughput. Workspace is tracked
+query memory, not RSS. Other uniqueness and final replay costs remain; total preparation is still nonlinear,
+and raw reads do not fall in this cohort.
+
+The [range-head qualification](range-head-qualification.json) binds the final engine, callers and rebuilt Agent
+checks. Earlier qualifications retain their actual source and binary identities.
+
 ## Bounded binary matching and pair replay
 
 Vector/vector arithmetic, comparisons, `bool`, `and`, `or`, `unless`, `on`, `ignoring`, group modifiers and optional

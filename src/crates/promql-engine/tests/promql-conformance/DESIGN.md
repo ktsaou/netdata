@@ -622,3 +622,18 @@ integration, and Alertmanager remains excluded.
   projection capacity; input metadata, cache keys and collected output remain separate cardinality-dependent costs.
 - **Evidence:** projection memory/error/cancellation controls, complete matching/include cases, actual derived
   empty-name expressions, discard-output statistics and source-bound whole-query comparisons.
+
+## Single-series range head preparation
+
+- **Choice:** the direct raw range-function branch skips step-kind collection and the accumulated-descriptor
+  head sweep. Each physical series produces at most one optional value per tick; zero/one values of one kind
+  cannot change a head summary. Generic multi-output preparation retains its existing bookkeeping.
+- **Authority:** evaluation, parameters, initialization, label hashing, descriptor kinds/order, folds, diagnostics,
+  clocks, statistics and roster publication keep their original owners and order. Kind changes across different
+  ticks remain recorded independently. Meaningful work and final execution still poll cancellation/deadlines.
+- **Ownership:** no cache, index, raw window, value array or public type is added. The removed one-entry scratch
+  vector accounts for a small constant workspace reduction; raw paging is unchanged.
+- **Boundaries:** other uniqueness and final replay costs remain. Removing this quadratic no-op scan does not
+  make total preparation linear or reduce raw reads. Matched query timings qualify generated workloads only.
+- **Evidence:** a complete-result/statistics/release work regression, retained native/mixed/generic/error/clock
+  controls, and both-profile/page source-bound comparison and integration cohorts.
