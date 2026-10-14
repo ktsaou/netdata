@@ -30,6 +30,7 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Exercise pages 1, 17 and 1024 when changing cursor/replay ownership or temporal evaluation.
 - Record compiler profile, binary hash, source hashes and comparison policy for each new cohort.
 - Bind the comparison runner and imported helper bytes before and after each new cohort.
+- Finalize artifact hashes after their owned writers finish; exclude a receipt from its own artifact map.
 
 ## Bad practices
 

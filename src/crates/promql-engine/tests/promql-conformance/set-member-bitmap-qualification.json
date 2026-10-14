@@ -244,7 +244,7 @@
   },
   "actual_runner_binding": {
     "netdata_repository_path": ".tmp/set-member-bits-agbqs64q/helper-binding.json",
-    "sha256": "f5eb270e84f4b3d7806b5df587d14bbec7cd5b3cbcf06a5da487cf201036979e"
+    "sha256": "0561f4c5f913b8728d095cd938ce91613ee7b79a60cf489b83f2af7949e31fc2"
   },
   "unit_binary_binding": {
     "netdata_repository_path": ".tmp/set-member-bits-agbqs64q/final-unit-binding.json",
@@ -260,7 +260,7 @@
   },
   "baseline": {
     "netdata_repository_path": ".tmp/set-member-bits-agbqs64q/baseline-receipt.json",
-    "sha256": "77c71d0cab94f0258eb912f48ea39a000556f6d33b8ecdf48fb9365ba86093d8"
+    "sha256": "a192672d554005199592f7fd0db4f4275661844e55084184a5771eb7e92539a0"
   },
   "builtin": [
     {
@@ -28948,7 +28948,7 @@
   ],
   "workflow_amendment": {
     "netdata_repository_path": ".tmp/set-member-bits-agbqs64q/skill-amendment.json",
-    "sha256": "d1ae93baa972a501f28a569f34c72dfcf6c3a325388872d8d12bee603c22c1d7"
+    "sha256": "6ad36bd7972cb6c973915165fa9e3b4630ed915c06e27b2c020e5a4ec5a04e2a"
   },
   "limitations": [
     "Finite same-input and retained-data cohorts;not arbitrary-input equivalence or a provably optimal engine.",
@@ -28963,5 +28963,9 @@
     "Synthetic timings are alternating frozen binaries on a shared host with concurrent shared-host activity disclosed in the measurement binding; no machine or CPU isolation is claimed.",
     "C artifact totals include the private per-task Rust/abort build outputs; actual executed C/C++ callers remain18 and are reported separately.",
     "Prefix certification requires current serial same-Plan callers. Exact key identity alone does not support overlapping A-to-B-to-A incarnations; scheduling changes must re-ground this invariant."
-  ]
+  ],
+  "baseline_log_binding_correction": {
+    "netdata_repository_path": ".tmp/set-member-bits-agbqs64q/baseline-log-binding-correction.json",
+    "sha256": "fdf735207c31ec7ab8e67f8507563fb9e3314bfeba5d5295fbe7afb9f5dffb06"
+  }
 }

@@ -8763,7 +8763,7 @@
     "status": "pass",
     "qualification": {
       "path": "set-member-bitmap-qualification.json",
-      "sha256": "5b895d58ce4ac437801ffb30b700496c8ebf682c1be7fc8d27c36259261a22a6"
+      "sha256": "85ed983be18836a602a018db179b3a3843aa42fd0a52840d3a23d4490932b9aa"
     },
     "scope": "Finite existing set-member bitmap qualification: ascending existing membership words and set bits replace warm inactive descriptor scans; physical side-row ordering, suppressed inputs, cold capture, requested/unverified values, final polling, exact current scopes and bounded raw paging preserved. No public/default/ABI/reference/storage change. Not arbitrary-input proof or whole-core readiness.",
     "fixture_units_per_profile": 596,
