@@ -227,3 +227,13 @@ lookup after the original sorting callback completes. A freshly linked Debug Age
 and 82 HTTP/readiness checks under both codecs, with ordinary client reads and normal owned exits. The contained
 conformance guide records exact order/error/cache/control obligations and the allocation/timing tradeoff. Storage,
 contexts ownership, API contracts and paged raw data remain unchanged; these checks do not measure live disk throughput.
+
+The subsequent completed-sort-delivery route reuses only an exact snapshot's successful full operand delivery.
+Eligible bare direct-float range queries still acquire fresh selected values; instant, nested/computed and
+uncertified shapes keep their ordinary reads. A freshly rebuilt/relinked Debug Agent passes the canonical
+672 storage records and 82 HTTP/readiness checks with both codecs and normal owned exits. A separately bound,
+private additive HTTP helper passes 88 checks/readiness, including complete two-host `sort()` and `sort_desc()`
+range results compared with the same Agent's raw DBengine query. It leaves the canonical helper unchanged.
+See the contained conformance guide's completed vector-sort emission section for source-bound memory and timing
+tradeoffs. These generated-data checks preserve contexts, raw paging and API contracts; they do not establish
+production disk throughput or process RSS.

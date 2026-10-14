@@ -29,6 +29,69 @@ use tokens::TokenKind;
 
 const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 
+pub(crate) fn supports_selector_schedule(
+    selector: NodeId,
+    value: &VectorSelector,
+    prepared: &Prepared,
+    timestamp_selector: bool,
+    lookback_ms: i64,
+    grid: crate::query_scopes::Grid,
+) -> bool {
+    if !grid.forward_without_wrap()
+        || grid
+            .end_ms
+            .checked_sub(grid.start_ms)
+            .is_none_or(|width| width < 0)
+        || value.smoothed
+    {
+        return false;
+    }
+    let modifiers = &value.modifiers;
+    if let Some(reference) = prepared.timestamp(selector, modifiers) {
+        let Some(offset) = grid
+            .start_ms
+            .checked_sub(reference)
+            .and_then(|delta| delta.checked_mul(1_000_000))
+            .and_then(|delta| {
+                delta.checked_add(prepared.offset(selector, modifiers.original_offset))
+            })
+        else {
+            return false;
+        };
+        if !timestamp_selector
+            && offset != prepared.adjusted_offset(selector, modifiers, grid.start_ms)
+        {
+            return false;
+        }
+        if timestamp_selector
+            && grid
+                .end_ms
+                .checked_sub(reference)
+                .and_then(|delta| delta.checked_mul(1_000_000))
+                .is_none()
+        {
+            return false;
+        }
+    }
+    let offset = prepared.adjusted_offset(selector, modifiers, grid.start_ms) / 1_000_000;
+    for time in [grid.start_ms, grid.end_ms] {
+        let lookup = if timestamp_selector
+            && let Some(reference) = prepared.timestamp(selector, modifiers)
+        {
+            reference
+        } else {
+            let Some(lookup) = time.checked_sub(offset) else {
+                return false;
+            };
+            lookup
+        };
+        if lookup.checked_sub(lookback_ms).is_none() {
+            return false;
+        }
+    }
+    true
+}
+
 pub(crate) fn matrix_argument(
     expression: &ParsedExpression,
     prepared: &Prepared,
@@ -685,6 +748,34 @@ pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
 }
 
 impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
+    #[cfg(test)]
+    pub(crate) fn set_sort_test_context(
+        &mut self,
+        node: NodeId,
+        ordinals: &'a [usize],
+        matrix: bool,
+        bypass_order: bool,
+    ) {
+        let frame = &mut self.frames[0];
+        frame.node = node;
+        frame.filter = RowFilter::Ordinals(ordinals);
+        frame.mode = if matrix {
+            OutputMode::Matrix
+        } else {
+            OutputMode::Vector
+        };
+        frame.bypass_order = bypass_order;
+        frame.state = State::Sort(AccountedBox::new(
+            crate::vector_sort::Step::new(
+                self.rosters.sorting(node).unwrap(),
+                frame.options,
+                frame.step_index,
+                false,
+                self.account,
+            ),
+            &AllocationContext::new(self.account, MemoryKind::Workspace),
+        ));
+    }
     pub(crate) fn new(
         catalog: &'a Catalog<'q, Q>,
         expression: &'a ParsedExpression,
@@ -874,65 +965,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         selector: NodeId,
         grid: crate::query_scopes::Grid,
     ) -> bool {
-        if !grid.forward_without_wrap()
-            || grid
-                .end_ms
-                .checked_sub(grid.start_ms)
-                .is_none_or(|width| width < 0)
-            || self.selector(selector).smoothed
-        {
-            return false;
-        }
-        let modifiers = &self.selector(selector).modifiers;
-        if let Some(reference) = self.prepared.timestamp(selector, modifiers) {
-            let Some(offset) = grid
-                .start_ms
-                .checked_sub(reference)
-                .and_then(|delta| delta.checked_mul(1_000_000))
-                .and_then(|delta| {
-                    delta.checked_add(self.prepared.offset(selector, modifiers.original_offset))
-                })
-            else {
-                return false;
-            };
-            if !self.timestamp_selectors[selector.0]
-                && offset
-                    != self
-                        .prepared
-                        .adjusted_offset(selector, modifiers, grid.start_ms)
-            {
-                return false;
-            }
-            if self.timestamp_selectors[selector.0]
-                && grid
-                    .end_ms
-                    .checked_sub(reference)
-                    .and_then(|delta| delta.checked_mul(1_000_000))
-                    .is_none()
-            {
-                return false;
-            }
-        }
-        let offset = self
-            .prepared
-            .adjusted_offset(selector, modifiers, grid.start_ms)
-            / 1_000_000;
-        for time in [grid.start_ms, grid.end_ms] {
-            let lookup = if self.timestamp_selectors[selector.0]
-                && let Some(reference) = self.prepared.timestamp(selector, modifiers)
-            {
-                reference
-            } else {
-                let Some(lookup) = time.checked_sub(offset) else {
-                    return false;
-                };
-                lookup
-            };
-            if lookup.checked_sub(self.options.lookback_ms).is_none() {
-                return false;
-            }
-        }
-        true
+        supports_selector_schedule(
+            selector,
+            self.selector(selector),
+            self.prepared,
+            self.timestamp_selectors[selector.0],
+            self.options.lookback_ms,
+            grid,
+        )
     }
 
     pub(crate) fn scheduled_row(
@@ -3772,7 +3812,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                 }
                 State::Sort(step) => {
-                    let action = step.advance(self.expression, self.control, self.account);
+                    let target = match filter {
+                        RowFilter::Ordinals([target])
+                            if node == self.expression.root
+                                && matches!(mode, OutputMode::Matrix)
+                                && bypass_order =>
+                        {
+                            Some(*target)
+                        }
+                        _ => None,
+                    };
+                    let action = step.advance(self.expression, target, self.control, self.account);
                     if step.take_range_warning()
                         && node == self.diagnostic_node
                         && let Some(annotations) = &mut self.annotations

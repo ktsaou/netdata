@@ -8825,5 +8825,30 @@
     "retained_sort_original_comparisons": 456,
     "expanded_complete_special_native_responses": 960,
     "caveat": "Large post-sort hash validation reduces accounted work with temporary allocation traffic. Complete callback/failure/gate/permutation/cache/control ownership remains; actual peaks and mixed timing outcomes are reported. No universal speed/memory or arbitrary-input compatibility claim."
+  },
+  "sort_emission_qualification": {
+    "status": "pass",
+    "qualification": {
+      "path": "sort-emission-qualification.json",
+      "sha256": "f1f3d1dfb55bc7e028d323e9722e2e9b1d8d8aa3b192640fe0bd17bb371f6c4b"
+    },
+    "scope": "Finite completed sort emission qualification. An exact-snapshot scalar credit enables checked nonselected operand skips only after successful full original Emit and terminal Done. Certified bare-root/direct unique float positive-forward ranges reread fresh selected values; other routes preserve ordinary delivery. No retained raw values, new membership/history array, public/default/ABI/reference/storage change. Not arbitrary-input equivalence or whole-core readiness.",
+    "fixture_units_per_profile": 618,
+    "builtin_comparisons": 128652,
+    "focused_comparisons": 2070,
+    "sre_exact_comparisons": 231540,
+    "foreign_distinct_target_profile_checks": 180,
+    "actual_c_callers": 18,
+    "storage_records": 672,
+    "canonical_http_and_readiness_checks": 82,
+    "additive_http_and_readiness_checks": 88,
+    "complete_baseline_responses": 732,
+    "complete_matched_responses": 4392,
+    "matched_groups": 732,
+    "final_shared_timing_responses": 768,
+    "warmed_tiny_responses": 8640,
+    "retained_sort_originals": 456,
+    "expanded_special_native_responses": 960,
+    "caveat": "Eligible direct-root ranges reduce repeated reads/work/allocation traffic with8B more measured native workspace peak. Fresh selected values, required cold suffix/errors and ownership/control phases remain. Fallbacks, tiny costs and all original timing observations are retained; no universal speed/RSS/optimality claim."
   }
 }

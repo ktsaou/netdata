@@ -769,6 +769,25 @@ impl Rosters {
         }
         plan.certify_replay(sources, control, account)
     }
+    pub(crate) fn certify_sort_emit(
+        &mut self,
+        node: NodeId,
+        selector: NodeId,
+        catalog_len: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        if self.scheduled_selector(selector) != Some(selector) {
+            return Ok(());
+        }
+        let roster = &mut self.nodes[node.0];
+        if let (Some(rows), Some(sources), Some(plan)) =
+            (&roster.output, &roster.sources, &mut roster.sorting)
+        {
+            plan.certify_emit(rows, sources, catalog_len, control, account)?;
+        }
+        Ok(())
+    }
     pub(crate) fn finish_binary_cache(
         &mut self,
         node: NodeId,

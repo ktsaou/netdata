@@ -947,6 +947,61 @@ impl CompiledQuery {
                 }
             }
         }
+        if header.step_ms > 0
+            && header.start_ms < header.end_ms
+            && crate::vector_sort::is_sort(&self.expression.arena[self.expression.root].expression)
+            && rosters.descriptors(self.expression.root).len() >= 2
+        {
+            let root = self.expression.root;
+            let Expr::Call { arguments, .. } = &self.expression.arena[root].expression else {
+                unreachable!("typed sorting call")
+            };
+            let selector = arguments[0];
+            if let Expr::Selector(value) = &self.expression.arena[selector].expression
+                && !value.anchored
+                && !value.smoothed
+                && value.modifiers.original_offset == 0
+                && value.modifiers.offset == 0
+                && value.modifiers.original_offset_expression.is_none()
+                && value.modifiers.timestamp.is_none()
+                && value.modifiers.start_or_end.is_none()
+                && prepared.preprocessing.child(
+                    &self.expression,
+                    root,
+                    selector,
+                    control,
+                    account,
+                )? == selector
+                && [root, selector].into_iter().all(|node| {
+                    !prepared.flags().invariants[node.0]
+                        && !prepared.flags().boundaries[node.0]
+                        && rosters.matrix(node).is_none()
+                        && same_header(prepared.source_header(node, evaluator_header))
+                        && same_header(prepared.scope_header(node, evaluator_header))
+                        && rosters
+                            .producer_clock(node)
+                            .is_some_and(|clock| clock.grid == evaluator_header.into())
+                })
+            {
+                let supported = crate::evaluator::supports_selector_schedule(
+                    selector,
+                    value,
+                    prepared,
+                    self.timestamp_selectors[selector.0],
+                    prepared.lookback_ms(self.options.lookback_ms),
+                    evaluator_header.into(),
+                );
+                if supported {
+                    rosters.certify_sort_emit(
+                        root,
+                        selector,
+                        catalog.len(selector),
+                        control,
+                        account,
+                    )?;
+                }
+            }
+        }
         let mut traversal = crate::query_scopes::Traversal::new(
             evaluator_header.into(),
             !prepared.flags().boundaries[self.expression.root.0]
@@ -5976,6 +6031,132 @@ mod tests {
     }
 
     #[test]
+    fn completed_sort_emission_preserves_first_suffix_and_warm_selected_failures() {
+        for page in [1, 17, 1024] {
+            for descending in [false, true] {
+                for phase in ["none", "suffix", "selected"] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut provider = FixtureProvider::new(3, page, 43);
+                    for (index, series) in provider.series.iter_mut().enumerate() {
+                        series.labels[1].1 = format!("{index:02}").into_bytes();
+                        series.labels.push((
+                            b"order".to_vec(),
+                            format!("{:02}", if descending { 42 - index } else { index })
+                                .into_bytes(),
+                        ));
+                        series.source.counters = Default::default();
+                    }
+                    let acquisition = if phase == "suffix" { 9 } else { 10 };
+                    if phase != "none" {
+                        provider.series[42].source.fail_acquisition = Some(acquisition);
+                    }
+                    let expression = if descending {
+                        b"sort_by_label_desc(counter_total,\"order\")".as_slice()
+                    } else {
+                        b"sort_by_label(counter_total,\"order\")".as_slice()
+                    };
+                    let mut options = EngineOptions::default();
+                    options.parser.experimental_functions = true;
+                    let query = engine.compile(expression, options, &control).unwrap();
+                    let mut sink = RecordingSink::default();
+                    let account = query.execution_accounting();
+                    let mut report = query.execute_reported_in(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                        &mut sink,
+                        &account,
+                    );
+                    if phase == "none" {
+                        report.result.as_ref().unwrap();
+                        assert!(sink.committed && !sink.aborted);
+                        assert_eq!(sink.chunks, 130);
+                        assert_eq!(report.annotations.len(), 1);
+                        assert_eq!(report.observations.output_samples, 129);
+                        assert_eq!(
+                            report
+                                .observations
+                                .statistics
+                                .samples
+                                .total_queryable_samples,
+                            129
+                        );
+                    } else {
+                        assert!(matches!(
+                            &report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                                StorageError::Provider(bytes)
+                            ))) if &**bytes == b"injected page failure"
+                        ));
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        assert_eq!(
+                            provider.series[42]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            acquisition
+                        );
+                        if phase == "suffix" {
+                            assert_eq!(sink.chunks, 1);
+                            assert_eq!(report.observations.output_samples, 1);
+                        } else {
+                            assert_eq!(sink.chunks, 42);
+                            assert_eq!(report.observations.output_samples, 42);
+                        }
+                        assert_eq!(
+                            provider.series[0]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            9
+                        );
+                        for series in &provider.series[..42] {
+                            assert!(
+                                series
+                                    .source
+                                    .counters
+                                    .samples_returned
+                                    .load(Ordering::Relaxed)
+                                    >= 17
+                            );
+                        }
+                        assert_eq!(report.annotations.len(), 1);
+                        drop(std::mem::take(&mut report.annotations));
+                        report.observations = account.snapshot();
+                        report.assert_retained_callback_error_memory();
+                    }
+                    println!(
+                        "{{\"sort_emit_phase\":\"{phase}\",\"descending\":{descending},\"page_size\":{page},\"chunks\":{},\"first_acquisitions\":{},\"last_acquisitions\":{}}}",
+                        sink.chunks,
+                        provider.series[0]
+                            .source
+                            .counters
+                            .opened
+                            .load(Ordering::Relaxed),
+                        provider.series[42]
+                            .source
+                            .counters
+                            .opened
+                            .load(Ordering::Relaxed)
+                    );
+                    provider.assert_closed();
+                    drop((report, query));
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
     fn sort_child_and_comparator_failures_precede_pending_duplicate_publication() {
         for page in [1, 17, 1024] {
             for function in ["sort", "sort_desc", "sort_by_label", "sort_by_label_desc"] {
@@ -7981,6 +8162,155 @@ mod tests {
                         }
                     }
                     assert!(certified > 0, "derived={derived},page={page}");
+                }
+                provider.assert_closed();
+                account.snapshot().assert_memory_released();
+                drop((compiled, account));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn sort_emission_actual_machine_context_and_preparation_keep_cold_delivery() {
+        for page in [1, 17, 1024] {
+            for (matrix, bypass, filter) in [
+                (true, true, vec![0]),
+                (false, true, vec![0]),
+                (true, false, vec![0]),
+                (true, true, vec![0, 1]),
+                (true, true, vec![]),
+            ] {
+                let mut provider = FixtureProvider::new(1, page, 3);
+                for series in &mut provider.series {
+                    series.source.counters = Default::default();
+                }
+                let engine = Engine::default();
+                let control = Control::default();
+                let compiled = engine
+                    .compile(b"sort(counter_total)", EngineOptions::default(), &control)
+                    .unwrap();
+                let account = compiled.execution_accounting();
+                {
+                    let header = compiled
+                        .header(QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 1001,
+                            step_ms: 1000,
+                        })
+                        .unwrap();
+                    let prepared = Prepared::new(
+                        &compiled.expression,
+                        &compiled.preprocessing,
+                        header,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let options = compiled.evaluation_options(header, header.start_ms, &prepared);
+                    let bounds = crate::query_bounds::find(
+                        &compiled.expression,
+                        options,
+                        &prepared,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let query = provider.open(bounds, &control).unwrap();
+                    let catalog = Catalog::new(
+                        &query,
+                        &compiled.expression,
+                        &prepared,
+                        options,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let mut rosters = compiled
+                        .prepare_rosters(
+                            &catalog,
+                            &prepared,
+                            bounds,
+                            &control,
+                            &account,
+                            &mut Annotations::default(),
+                        )
+                        .unwrap();
+                    let root = compiled.expression.root;
+                    let Expr::Call { arguments, .. } = &compiled.expression.arena[root].expression
+                    else {
+                        panic!("sort")
+                    };
+                    let selector = arguments[0];
+                    assert_eq!(
+                        rosters.sorting(root).unwrap().emission_state(),
+                        (false, false)
+                    );
+                    for phase in 0..3 {
+                        if phase == 1 {
+                            rosters
+                                .certify_sort_emit(
+                                    root,
+                                    selector,
+                                    catalog.len(selector),
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                        }
+                        let before: usize = provider
+                            .series
+                            .iter()
+                            .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
+                            .sum();
+                        let mut machine = Machine::new(
+                            &catalog,
+                            &compiled.expression,
+                            root,
+                            options,
+                            &control,
+                            &account,
+                            EvaluationMetadata {
+                                prepared: &prepared,
+                                rosters: &rosters,
+                                timestamp_selectors: &compiled.timestamp_selectors,
+                                data_bounds: bounds,
+                                annotations: None,
+                                binary_preparation: None,
+                                histogram_preparation: None,
+                                info_preparation: None,
+                                count_preparation: None,
+                            },
+                        );
+                        machine.set_sort_test_context(root, &filter, matrix, bypass);
+                        let mut outputs = 0;
+                        while let Some(sample) = machine.next().unwrap() {
+                            let OwnedValue::Float(value) = sample.value else {
+                                panic!("float")
+                            };
+                            assert_eq!(value.to_bits(), 1.0f64.to_bits());
+                            outputs += 1;
+                        }
+                        drop(machine);
+                        let after: usize = provider
+                            .series
+                            .iter()
+                            .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
+                            .sum();
+                        let eligible = matrix && bypass && filter.len() == 1;
+                        assert_eq!(
+                            after - before,
+                            if phase == 2 && eligible { 1 } else { 3 },
+                            "phase={phase}, matrix={matrix}, bypass={bypass}, filter={filter:?}"
+                        );
+                        assert_eq!(outputs, filter.len());
+                        assert_eq!(
+                            rosters.sorting(root).unwrap().emission_state(),
+                            (phase > 0, phase > 0 && eligible)
+                        );
+                    }
                 }
                 provider.assert_closed();
                 account.snapshot().assert_memory_released();

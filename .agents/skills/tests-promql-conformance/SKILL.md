@@ -86,6 +86,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Completed sort publication MUST preserve callback/error phases, hash-only duplicates, eligible input kinds,
   delayed-name gates and snapshot lifecycle. Check lookup growth and terminal interruption, actual child acquisition
   phases and temporary allocation costs; see the same guide's completed vector-sort publication section.
+- Completed sort emission MUST preserve first-final full delivery, fresh selected values and exact snapshot ownership.
+  Check cold suffix/warm selected failures, context/key replacement, sparse ordinals and every credit charge; see
+  `src/crates/promql-engine/tests/promql-conformance/README.md#completed-vector-sort-emission`.
 - Cursor-fault qualification uses Netdata's `src/crates/promql-engine/tests/promql-conformance/cursor_policy_calls.py`.
   Its procedure and separate original/control reports are in
   `src/crates/promql-engine/tests/promql-conformance/README.md#physical-cursor-fault-qualification`.

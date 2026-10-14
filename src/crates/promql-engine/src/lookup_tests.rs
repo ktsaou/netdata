@@ -3,6 +3,101 @@ use super::*;
 use crate::{result::OwnedValue, test_storage::FixtureProvider};
 
 #[test]
+fn completed_sort_emission_avoids_repeated_sorted_operands() {
+    let mut observations = Vec::new();
+    for page in [1, 17, 1024] {
+        for count in [32, 128] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let provider = FixtureProvider::new(3, page, count);
+            let mut options = EngineOptions::default();
+            options.parser.experimental_functions = true;
+            let query = engine
+                .compile(
+                    b"sort_by_label(counter_total,\"instance\")",
+                    options,
+                    &control,
+                )
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Range {
+                    start_ms: 1000,
+                    end_ms: 3000,
+                    step_ms: 1000,
+                },
+                &control,
+            );
+            let result = report.result.as_ref().unwrap();
+            assert_eq!(result.series.len(), count);
+            assert_eq!(report.annotations.len(), 1);
+            let mut expected: Vec<_> = (0..count).map(|index| index.to_string()).collect();
+            expected.sort();
+            for (series, instance) in result.series.iter().zip(&expected) {
+                assert_eq!(series.labels.0.len(), 3);
+                for (label, (name, value)) in series.labels.0.iter().zip([
+                    (b"__name__".as_slice(), b"counter_total".as_slice()),
+                    (b"instance", instance.as_bytes()),
+                    (b"job", b"worker"),
+                ]) {
+                    assert_eq!(&*label.name, name);
+                    assert_eq!(&*label.value, value);
+                }
+                assert_eq!(series.points.len(), 3);
+                for (index, point) in series.points.iter().enumerate() {
+                    assert_eq!(point.time_ms, (index as i64 + 1) * 1000);
+                    let OwnedValue::Float(value) = point.value else {
+                        panic!("float sorted operand");
+                    };
+                    assert_eq!(value.to_bits(), (index as f64 + 1.0).to_bits());
+                }
+            }
+            let observed = &report.observations;
+            assert_eq!(observed.output_samples, 3 * count as u64);
+            assert_eq!(
+                observed.statistics.samples.total_queryable_samples,
+                3 * count as u64
+            );
+            assert!(observed.statistics.samples.samples_read <= observed.samples_fetched);
+            assert_eq!(
+                observed.samples_fetched,
+                provider.series[0]
+                    .source
+                    .counters
+                    .samples_returned
+                    .load(std::sync::atomic::Ordering::Relaxed) as u64
+            );
+            assert_eq!(
+                provider.series[0]
+                    .source
+                    .counters
+                    .peak
+                    .load(std::sync::atomic::Ordering::Relaxed),
+                1
+            );
+            println!(
+                "{{\"sort_emission_rows\":{count},\"page_size\":{page},\"fetched\":{},\"read\":{},\"queryable\":{},\"work\":{},\"workspace_peak\":{}}}",
+                observed.samples_fetched,
+                observed.statistics.samples.samples_read,
+                observed.statistics.samples.total_queryable_samples,
+                observed.work,
+                observed.memory[MemoryKind::Workspace as usize].peak
+            );
+            observations.push((observed.samples_fetched, observed.work));
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+    assert!(
+        observations
+            .chunks_exact(2)
+            .all(|pair| pair[1].0 <= pair[0].0 * 6 && pair[1].1 <= pair[0].1 * 8),
+        "completed sorted delivery must avoid repeated full operand reads: {observations:?}"
+    );
+}
+
+#[test]
 fn quantile_group_keys_do_not_retain_discarded_label_capacity() {
     let mut retained = Vec::new();
     for count in [8, 17, 65] {

@@ -13,7 +13,11 @@ use crate::{
     shared::Strong,
     storage::{Control, Interrupted},
 };
-use std::{cell::RefCell, cmp::Ordering};
+use std::{
+    cell::RefCell,
+    cmp::Ordering,
+    sync::atomic::{AtomicBool, Ordering as AtomicOrdering},
+};
 
 #[derive(Clone, Copy)]
 enum Function {
@@ -41,10 +45,21 @@ pub(crate) struct Plan {
     labels: AccountedVec<NodeId>,
     function: Function,
     pub(crate) singleton: bool,
+    emit_certified: bool,
     canonical: Option<AccountedVec<Option<usize>>>,
     cache: RefCell<Option<Strong<Snapshot>>>,
 }
 impl Plan {
+    #[cfg(test)]
+    pub(crate) fn emission_state(&self) -> (bool, bool) {
+        (
+            self.emit_certified,
+            self.cache
+                .borrow()
+                .as_ref()
+                .is_some_and(|snapshot| snapshot.emitted.load(AtomicOrdering::Relaxed)),
+        )
+    }
     pub(crate) fn new(
         rows: AccountedVec<Descriptor>,
         expression: &ParsedExpression,
@@ -76,6 +91,7 @@ impl Plan {
             labels,
             function: Function::parse(function.name).expect("sorting function"),
             singleton,
+            emit_certified: false,
             canonical: None,
             cache: RefCell::new(None),
         })
@@ -103,6 +119,60 @@ impl Plan {
             }
         }
         self.canonical = Some(canonical);
+        Ok(())
+    }
+    pub(crate) fn certify_emit(
+        &mut self,
+        descriptors: &[Descriptor],
+        sources: &[usize],
+        catalog_len: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let Some(canonical) = &self.canonical else {
+            return Ok(());
+        };
+        if self.rows.len() < 2
+            || descriptors.len() != self.rows.len()
+            || canonical.len() != self.rows.len()
+        {
+            return Ok(());
+        }
+        let mut prior = None;
+        for row in &*self.rows {
+            control.check()?;
+            account.work(1);
+            if row.kinds != 1
+                || row.heads.multiple()
+                || row.ordinal >= catalog_len
+                || prior.is_some_and(|ordinal| row.ordinal <= ordinal)
+            {
+                return Ok(());
+            }
+            prior = Some(row.ordinal);
+        }
+        for (position, descriptor) in descriptors.iter().enumerate() {
+            control.check()?;
+            account.work(1);
+            if descriptor.kinds != 1
+                || descriptor.heads.multiple()
+                || descriptor.sources.len() != 1
+                || descriptor.ordinal != position
+            {
+                return Ok(());
+            }
+            let Some(&input) = sources.get(descriptor.sources.start) else {
+                return Ok(());
+            };
+            let Some(row) = self.rows.get(input) else {
+                return Ok(());
+            };
+            if canonical[input] != Some(descriptor.ordinal) || row.hash != descriptor.hash {
+                return Ok(());
+            }
+        }
+        control.check()?;
+        self.emit_certified = true;
         Ok(())
     }
     fn row(
@@ -209,6 +279,7 @@ impl From<(EvaluationOptions, i64)> for Key {
 struct Snapshot {
     key: Key,
     indices: AccountedVec<usize>,
+    emitted: AtomicBool,
 }
 #[derive(Clone, Copy)]
 enum Stage {
@@ -353,6 +424,7 @@ impl<'a> Step<'a> {
             Snapshot {
                 key: (self.options, self.step_index).into(),
                 indices,
+                emitted: AtomicBool::new(false),
             },
             Some(&AllocationContext::new(account, MemoryKind::Workspace)),
         );
@@ -416,6 +488,7 @@ impl<'a> Step<'a> {
     pub(crate) fn advance(
         &mut self,
         expression: &ParsedExpression,
+        target: Option<usize>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Action<'a>, EvaluationError> {
@@ -538,6 +611,7 @@ impl<'a> Step<'a> {
                     self.position += 1;
                     return Ok(Action::Sample(sample));
                 }
+                let target = target.filter(|_| self.plan.emit_certified && !self.project);
                 if let Some(&input) = self
                     .snapshot
                     .as_ref()
@@ -545,11 +619,33 @@ impl<'a> Step<'a> {
                     .indices
                     .get(self.position)
                 {
+                    if target.is_some_and(|target| target != input)
+                        && self
+                            .snapshot
+                            .as_ref()
+                            .expect("sorted snapshot")
+                            .emitted
+                            .load(AtomicOrdering::Relaxed)
+                    {
+                        self.position += 1;
+                        return Ok(Action::Continue);
+                    }
                     return Ok(self.request(input));
                 }
                 self.stage = Stage::Done;
             }
-            Stage::Done => return Ok(Action::Done),
+            Stage::Done => {
+                if target.is_some() && self.plan.emit_certified && !self.project {
+                    control.check()?;
+                    // Order alone is insufficient: the original full delivery must succeed.
+                    self.snapshot
+                        .as_ref()
+                        .expect("sorted snapshot")
+                        .emitted
+                        .store(true, AtomicOrdering::Relaxed);
+                }
+                return Ok(Action::Done);
+            }
         }
         Ok(Action::Continue)
     }
@@ -685,6 +781,7 @@ mod tests {
             labels: AccountedVec::new(account, MemoryKind::Workspace),
             function: Function::Numeric(false),
             singleton: false,
+            emit_certified: false,
             canonical: None,
             cache: RefCell::new(None),
         }
@@ -716,6 +813,513 @@ mod tests {
             arena,
             root,
         }
+    }
+
+    type EmissionTrace = (Vec<usize>, Vec<(usize, u64)>);
+
+    fn drive_emission(
+        step: &mut Step<'_>,
+        expression: &ParsedExpression,
+        target: Option<usize>,
+        control: &Control,
+        account: &QueryAccounting,
+        value: f64,
+    ) -> Result<EmissionTrace, EvaluationError> {
+        let mut requested = Vec::new();
+        let mut output = Vec::new();
+        loop {
+            control.check()?;
+            match step.advance(expression, target, control, account)? {
+                Action::Child(Some(ordinal)) => {
+                    let ordinal = *ordinal;
+                    control.check()?;
+                    requested.push(ordinal);
+                    let row = step
+                        .plan
+                        .rows
+                        .iter()
+                        .find(|row| row.ordinal == ordinal)
+                        .unwrap();
+                    step.receive(
+                        EvaluatedSample {
+                            ordinal,
+                            labels: row.labels.copy_checked(
+                                account,
+                                MemoryKind::Workspace,
+                                control,
+                            )?,
+                            value: OwnedValue::Float(value),
+                            float_samples: None,
+                            source_time_ms: -1,
+                            source_start_time_ms: 17,
+                            drop_name: false,
+                        },
+                        control,
+                        account,
+                    )?;
+                }
+                Action::Sample(sample) => {
+                    assert_eq!(sample.source_time_ms, step.options.time_ms);
+                    assert_eq!(sample.source_start_time_ms, 0);
+                    let OwnedValue::Float(value) = sample.value else {
+                        panic!("float emission")
+                    };
+                    output.push((sample.ordinal, value.to_bits()));
+                }
+                Action::Continue => (),
+                Action::Done => return Ok((requested, output)),
+                _ => panic!("published emission must request a single catalog row"),
+            }
+        }
+    }
+
+    #[test]
+    fn emission_reuse_keeps_sparse_domains_fresh_values_and_ordinary_gates() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let expression = inert_expression(&account);
+        let mut plan = owner_plan(3, &account);
+        for (row, ordinal) in plan.rows.iter_mut().zip([7, 23, 99]) {
+            row.ordinal = ordinal;
+        }
+        plan.canonical = Some(AccountedVec::from_vec_in(
+            vec![Some(2), Some(0), Some(1)],
+            Some(&AllocationContext::new(&account, MemoryKind::Workspace)),
+        ));
+        plan.emit_certified = true;
+        let mut first = Step::new(&plan, owner_options(), 2, false, &account);
+        first.indices.extend_from_slice(&[2, 0]);
+        first.publish(&control, &account).unwrap();
+        assert_eq!(
+            drive_emission(&mut first, &expression, Some(2), &control, &account, 1.0).unwrap(),
+            (
+                vec![99, 7],
+                vec![(2, 1.0f64.to_bits()), (0, 1.0f64.to_bits())]
+            )
+        );
+        drop(first);
+        for (target, project, expected_reads, expected_ordinals) in [
+            (Some(2), false, vec![99], vec![2]),
+            (Some(1), false, vec![], vec![]),
+            (None, false, vec![99, 7], vec![2, 0]),
+            (Some(2), true, vec![99, 7], vec![1, 2]),
+        ] {
+            let mut step = Step::new(&plan, owner_options(), 2, project, &account);
+            let (reads, output) =
+                drive_emission(&mut step, &expression, target, &control, &account, 2.0).unwrap();
+            assert_eq!(reads, expected_reads);
+            assert_eq!(
+                output,
+                expected_ordinals
+                    .into_iter()
+                    .map(|ordinal| (ordinal, 2.0f64.to_bits()))
+                    .collect::<Vec<_>>()
+            );
+        }
+        plan.emit_certified = false;
+        let mut ordinary = Step::new(&plan, owner_options(), 2, false, &account);
+        assert_eq!(
+            drive_emission(&mut ordinary, &expression, Some(2), &control, &account, 3.0)
+                .unwrap()
+                .0,
+            vec![99, 7]
+        );
+        drop(ordinary);
+        drop((plan, expression));
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn emission_completion_belongs_to_each_exact_snapshot_owner() {
+        for change in 1..=5 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let expression = inert_expression(&account);
+            let mut plan = owner_plan(3, &account);
+            plan.emit_certified = true;
+            let options = owner_options();
+            let mut completed = Step::new(&plan, options, 2, false, &account);
+            completed.indices.extend_from_slice(&[2, 0, 1]);
+            completed.publish(&control, &account).unwrap();
+            drive_emission(
+                &mut completed,
+                &expression,
+                Some(0),
+                &control,
+                &account,
+                0.5,
+            )
+            .unwrap();
+            drop(completed);
+            let hit = Step::new(&plan, options, 2, false, &account);
+            assert!(
+                hit.snapshot
+                    .as_ref()
+                    .unwrap()
+                    .emitted
+                    .load(AtomicOrdering::Relaxed)
+            );
+            drop(hit);
+            let mut changed = options;
+            let mut position = 2;
+            match change {
+                1 => changed.time_ms += 1,
+                2 => changed.start_ms += 1,
+                3 => changed.end_ms += 1,
+                4 => changed.step_ms += 1,
+                5 => position += 1,
+                _ => unreachable!(),
+            }
+            let changed_owner = Step::new(&plan, changed, position, false, &account);
+            assert!(matches!(changed_owner.stage, Stage::Scan));
+            assert!(changed_owner.snapshot.is_none());
+            drop(changed_owner);
+            let mut old = Step::new(&plan, options, 2, false, &account);
+            old.indices.extend_from_slice(&[2, 0, 1]);
+            old.publish(&control, &account).unwrap();
+            let old_snapshot = old.snapshot.as_ref().unwrap().clone();
+            let mut other = Step::new(&plan, changed, position, false, &account);
+            assert!(matches!(other.stage, Stage::Scan));
+            other.indices.extend_from_slice(&[1, 2, 0]);
+            other.publish(&control, &account).unwrap();
+            let other_snapshot = other.snapshot.as_ref().unwrap().clone();
+            let mut current = Step::new(&plan, options, 2, false, &account);
+            assert!(matches!(current.stage, Stage::Scan));
+            current.indices.extend_from_slice(&[0, 1, 2]);
+            current.publish(&control, &account).unwrap();
+            let current_snapshot = current.snapshot.as_ref().unwrap().clone();
+            assert!(!old_snapshot.same_allocation(&current_snapshot));
+            assert_eq!(
+                drive_emission(&mut old, &expression, Some(0), &control, &account, 1.0)
+                    .unwrap()
+                    .0,
+                vec![2, 0, 1]
+            );
+            assert!(old_snapshot.emitted.load(AtomicOrdering::Relaxed));
+            assert!(!other_snapshot.emitted.load(AtomicOrdering::Relaxed));
+            assert!(!current_snapshot.emitted.load(AtomicOrdering::Relaxed));
+            assert_eq!(
+                drive_emission(&mut current, &expression, Some(0), &control, &account, 2.0)
+                    .unwrap()
+                    .0,
+                vec![0, 1, 2]
+            );
+            drop(current);
+            let mut hit = Step::new(&plan, options, 2, false, &account);
+            assert!(
+                hit.snapshot
+                    .as_ref()
+                    .unwrap()
+                    .same_allocation(&current_snapshot)
+            );
+            assert_eq!(
+                drive_emission(&mut hit, &expression, Some(2), &control, &account, 3.0)
+                    .unwrap()
+                    .0,
+                vec![2]
+            );
+            drop((
+                hit,
+                old,
+                other,
+                old_snapshot,
+                other_snapshot,
+                current_snapshot,
+            ));
+            drop((plan, expression));
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn emission_every_work_boundary_preserves_prior_credit_and_releases() {
+        for warm in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let expression = inert_expression(&account);
+            let mut plan = owner_plan(3, &account);
+            plan.emit_certified = true;
+            let control = Control::default();
+            let mut seed = Step::new(&plan, owner_options(), 2, false, &account);
+            seed.indices.extend_from_slice(&[2, 0, 1]);
+            seed.publish(&control, &account).unwrap();
+            let snapshot = seed.snapshot.as_ref().unwrap().clone();
+            if warm {
+                drive_emission(&mut seed, &expression, Some(0), &control, &account, 1.0).unwrap();
+            }
+            drop(seed);
+            let mut complete = Step::new(&plan, owner_options(), 2, false, &account);
+            let before = account.snapshot().work;
+            drive_emission(&mut complete, &expression, Some(0), &control, &account, 2.0).unwrap();
+            let work = account.snapshot().work - before;
+            drop(complete);
+            snapshot.emitted.store(warm, AtomicOrdering::Relaxed);
+            for charge in 1..=work {
+                let control = Control::default();
+                let mut step = Step::new(&plan, owner_options(), 2, false, &account);
+                let held = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+                let result =
+                    crate::test_storage::interrupt_after_work(&account, &control, charge, || {
+                        drive_emission(&mut step, &expression, Some(0), &control, &account, 3.0)
+                    });
+                assert!(
+                    matches!(
+                        result,
+                        Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                    ),
+                    "warm={warm}, charge={charge}/{work}"
+                );
+                assert_eq!(snapshot.emitted.load(AtomicOrdering::Relaxed), warm);
+                drop(step);
+                assert_eq!(
+                    account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                    held
+                );
+            }
+            println!("{{\"sort_emit_warm\":{warm},\"charged_boundaries\":{work}}}");
+            drop(snapshot);
+            drop((plan, expression));
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn emission_snapshot_traits_and_accounted_layouts_remain_explicit() {
+        fn send<T: Send>() {}
+        fn shared<T: Send + Sync>() {}
+        send::<Plan>();
+        shared::<Snapshot>();
+        shared::<Strong<Snapshot>>();
+        println!(
+            "{{\"sort_plan\":{},\"sort_plan_allocation\":{},\"sort_snapshot\":{},\"sort_snapshot_allocation\":{},\"sort_step\":{},\"sort_step_allocation\":{}}}",
+            size_of::<Plan>(),
+            crate::accounting::AccountedBox::<Plan>::allocation_bytes(),
+            size_of::<Snapshot>(),
+            Strong::<Snapshot>::allocation_bytes(),
+            size_of::<Step<'static>>(),
+            crate::accounting::AccountedBox::<Step<'static>>::allocation_bytes()
+        );
+    }
+
+    #[test]
+    fn emission_fresh_selected_missing_and_wrong_kind_errors_remain() {
+        for wrong_kind in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let expression = inert_expression(&account);
+            let mut plan = owner_plan(3, &account);
+            plan.emit_certified = true;
+            let mut seed = Step::new(&plan, owner_options(), 2, false, &account);
+            seed.indices.extend_from_slice(&[2, 0, 1]);
+            seed.publish(&control, &account).unwrap();
+            drive_emission(&mut seed, &expression, Some(0), &control, &account, 1.0).unwrap();
+            drop(seed);
+            let mut step = Step::new(&plan, owner_options(), 2, false, &account);
+            assert!(matches!(
+                step.advance(&expression, Some(0), &control, &account)
+                    .unwrap(),
+                Action::Continue
+            ));
+            assert!(matches!(
+                step.advance(&expression, Some(0), &control, &account)
+                    .unwrap(),
+                Action::Child(Some(0))
+            ));
+            if wrong_kind {
+                let histogram = crate::histogram::FloatHistogram::default();
+                step.receive(
+                    EvaluatedSample {
+                        ordinal: 0,
+                        labels: plan.rows[0]
+                            .labels
+                            .copy_checked(&account, MemoryKind::Workspace, &control)
+                            .unwrap(),
+                        value: OwnedValue::from_sample_checked(
+                            crate::value::SampleValueRef::FloatHistogram(histogram.as_ref()),
+                            &control,
+                            &account,
+                            MemoryKind::Workspace,
+                        )
+                        .unwrap(),
+                        float_samples: None,
+                        source_time_ms: 4000,
+                        source_start_time_ms: 0,
+                        drop_name: false,
+                    },
+                    &control,
+                    &account,
+                )
+                .unwrap();
+            }
+            let result = step.advance(&expression, Some(0), &control, &account);
+            assert!(matches!(
+                result,
+                Err(EvaluationError::Invalid("sort row changed during replay"))
+            ));
+            drop(result);
+            drop(step);
+            drop((plan, expression));
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn emission_certificate_rejects_inconsistent_metadata_and_every_charge() {
+        for invalid in 0..17 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut plan = owner_plan(3, &account);
+            let mut descriptors = owner_plan(3, &account).rows;
+            let mut sources = vec![2, 0, 1];
+            for (row, ordinal) in plan.rows.iter_mut().zip([7, 23, 99]) {
+                row.ordinal = ordinal;
+                row.sources = 0..0;
+            }
+            for (descriptor, input) in descriptors.iter_mut().zip(&sources) {
+                descriptor.hash = plan.rows[*input].hash;
+            }
+            plan.project(&descriptors, &sources, &control, &account)
+                .unwrap();
+            let mut catalog_len = 100;
+            match invalid {
+                0 => (),
+                1 => plan.canonical = None,
+                2 => plan.rows.truncate(1),
+                3 => {
+                    descriptors.pop();
+                }
+                4 => {
+                    plan.canonical.as_mut().unwrap().pop();
+                }
+                5 => plan.rows[1].kinds = 2,
+                6 => {
+                    let mut counts = crate::evaluator_roster::PointCounts::default();
+                    counts.push(1);
+                    counts.push(1);
+                    plan.rows[1].heads.note(counts, 4000);
+                }
+                7 => catalog_len = 99,
+                8 => plan.rows[1].ordinal = 7,
+                9 => descriptors[1].kinds = 3,
+                10 => {
+                    let mut counts = crate::evaluator_roster::PointCounts::default();
+                    counts.push(1);
+                    counts.push(1);
+                    descriptors[1].heads.note(counts, 4000);
+                }
+                11 => descriptors[1].sources = 0..2,
+                12 => descriptors[1].ordinal = 7,
+                13 => sources[1] = 3,
+                14 => descriptors[1].hash ^= 1,
+                15 => plan.canonical.as_mut().unwrap()[sources[1]] = Some(2),
+                16 => sources.clear(),
+                _ => unreachable!(),
+            }
+            let before = account.snapshot().work;
+            plan.certify_emit(&descriptors, &sources, catalog_len, &control, &account)
+                .unwrap();
+            assert_eq!(plan.emit_certified, invalid == 0, "invalid={invalid}");
+            if invalid == 0 {
+                let work = account.snapshot().work - before;
+                assert!(work > 0);
+                for charge in 1..=work {
+                    plan.emit_certified = false;
+                    let control = Control::default();
+                    let result = crate::test_storage::interrupt_after_work(
+                        &account,
+                        &control,
+                        charge,
+                        || {
+                            plan.certify_emit(
+                                &descriptors,
+                                &sources,
+                                catalog_len,
+                                &control,
+                                &account,
+                            )
+                        },
+                    );
+                    assert!(matches!(result, Err(Interrupted::Cancelled)));
+                    assert!(!plan.emit_certified);
+                }
+            }
+            drop((plan, descriptors));
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn emission_completion_waits_for_successful_done_handoff() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut plan = owner_plan(3, &account);
+        plan.emit_certified = true;
+        let expression = inert_expression(&account);
+        let mut step = Step::new(&plan, owner_options(), 2, false, &account);
+        step.indices.extend_from_slice(&[0, 1, 2]);
+        step.publish(&control, &account).unwrap();
+        let snapshot = step.snapshot.as_ref().unwrap().clone();
+        let mut delivered = 0;
+        while !matches!(step.stage, Stage::Done) {
+            match step
+                .advance(&expression, Some(0), &control, &account)
+                .unwrap()
+            {
+                Action::Child(Some(ordinal)) => {
+                    let ordinal = *ordinal;
+                    step.receive(
+                        EvaluatedSample {
+                            ordinal,
+                            labels: plan.rows[ordinal]
+                                .labels
+                                .copy_checked(&account, MemoryKind::Workspace, &control)
+                                .unwrap(),
+                            value: OwnedValue::Float(1.0),
+                            float_samples: None,
+                            source_time_ms: 4000,
+                            source_start_time_ms: 0,
+                            drop_name: false,
+                        },
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                }
+                Action::Sample(_) => delivered += 1,
+                Action::Continue => (),
+                _ => panic!("original full emission before Done"),
+            }
+        }
+        assert_eq!(delivered, 3);
+        assert!(
+            !snapshot.emitted.load(AtomicOrdering::Relaxed),
+            "abandonment before the Done handoff must grant no completed credit"
+        );
+        let interrupted = Control::default();
+        let result = crate::test_storage::interrupt_after_work(&account, &interrupted, 1, || {
+            step.advance(&expression, Some(0), &interrupted, &account)
+        });
+        assert!(matches!(
+            result,
+            Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+        ));
+        assert!(!snapshot.emitted.load(AtomicOrdering::Relaxed));
+        assert!(matches!(
+            step.advance(&expression, Some(0), &Control::default(), &account)
+                .unwrap(),
+            Action::Done
+        ));
+        assert!(snapshot.emitted.load(AtomicOrdering::Relaxed));
+        drop(snapshot);
+        drop(step);
+        drop(plan);
+        drop(expression);
+        account.snapshot().assert_memory_released();
     }
 
     #[test]
@@ -999,7 +1603,7 @@ mod tests {
                     samples: [None, None],
                 });
             }
-            let result = step.advance(&expression, &control, &account);
+            let result = step.advance(&expression, None, &control, &account);
             if numeric {
                 assert!(matches!(
                     result,

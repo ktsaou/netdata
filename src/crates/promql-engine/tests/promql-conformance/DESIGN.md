@@ -807,10 +807,35 @@ integration, and Alertmanager remains excluded.
   Delayed name removal bypasses this validation only when start and end are equal. Range warnings retain their
   original phase. A decisive duplicate still precedes cancellation caused by that comparison's work charge.
 - **Ownership:** the temporary lookup retires before the terminal control check and snapshot publication. The
-  snapshot retains only the existing permutation and exact time/start/end/step/position key. Same-key hits and
-  changed-key invalidation preserve their existing behavior; no raw values, history or additional plan field remain.
+  publication checkpoint retains the existing permutation and exact time/start/end/step/position key. Same-key
+  hits and invalidation keep their behavior. That change adds no raw values, history or Plan field; the subsequent
+  completed-emission certificate below adds scalar delivery state.
 - **Tradeoff:** the lookup reduces repeated hash comparisons but adds temporary allocations. Whole-query peaks,
   allocation traffic and elapsed time require separate measurements. Hash probing has no universal linear bound,
   and the cutoff is a measured private policy rather than a proven optimum.
 - **Evidence:** the conformance guide's completed vector-sort section binds the actual owner regression, source
   phases, collision/gate/cache/error/interruption controls, complete outcomes and containing-Agent qualification.
+
+## Completed vector-sort emission
+
+- **Choice:** a private scalar certificate records successful full delivery through the exact immutable sort
+  snapshot. The first final body keeps all original reads, including operands after provisional output. Credit is
+  stored only after the terminal control check immediately before `Done`; sorting order alone grants none.
+- **Eligibility:** only positive forward ranges with unequal bounds, an exact root sorting call and its direct
+  unique float selector. Raw uniqueness, single-source/head/kind metadata, canonical correspondence and effective
+  source/scope/producer grids must agree. Shifted/modifier, instant, nested/computed, native/mixed and uncertified
+  shapes remain supported through ordinary evaluation. Unequal bounds with one effective tick retain the existing
+  preparation permutation while still requiring first-final full delivery.
+- **Reuse:** later same-snapshot bodies walk physical permutation positions, skip certified nonselected operands,
+  and acquire the selected catalog row afresh. Physical, catalog and canonical ordinals remain separate. No raw
+  values, history or new membership array is retained. Sparse/absent targets create no extra selected read.
+- **Ownership:** one Plan eligibility bool and one snapshot `AtomicBool`; no new Step field. The atomic preserves
+  Snapshot/Strong thread traits and does not make the Plan concurrently callable. Each replaced key starts without
+  credit; an old owner completing after replacement cannot credit a new owner. Effective lookback, name handling,
+  precision and data bounds remain fixed by this query scope.
+- **Memory:** the shared schedule predicate uses borrowed metadata and checked arithmetic directly. It creates no
+  evaluator solely for proof. Measured native matched-query workspace rises by 8 bytes; allocation traffic and reads
+  fall for eligible ranges. This is a fixed state tradeoff, not a lower-RSS claim.
+- **Evidence:** [completed sort-emission qualification](sort-emission-qualification.json) retains the complete-query
+  growth red, premature-completion red, actual suffix/warm-selected failures, sparse/key/context/charge controls,
+  target layouts and source-bound containing-Agent checks. Timing remains finite shared-host evidence.

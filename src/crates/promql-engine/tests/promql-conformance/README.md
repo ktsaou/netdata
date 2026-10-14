@@ -3062,3 +3062,93 @@ It executes 140 distinct ARM target/profile sort checks and all 18 C/C++ callers
 records and 82 live HTTP/readiness checks. All 47 preceding ledger objects and 114 preceding C/ARM link inputs
 remain unchanged. Foreign checks execute the library and callers; caller sanitizers exclude Rust instrumentation.
 Historical cohorts retain their original identities.
+
+## Completed vector-sort emission
+
+Bare `sort`, `sort_desc`, `sort_by_label` and `sort_by_label_desc` range queries can reuse a completed delivery
+certificate for their exact sorting snapshot. Eligibility requires an unchanged direct selector, unique float rows,
+consistent single-source metadata, matching effective grids and positive forward execution with unequal bounds.
+Instant, nested/computed, native/mixed, shifted/modifier and uncertified cases retain ordinary supported evaluation.
+
+The first final body reads every original sorted operand, including the suffix after a provisional selected result.
+Only successful `Done`, after its last control check, grants credit. Later same-snapshot bodies walk physical
+permutation positions, skip certified nonselected operands and acquire the selected catalog row afresh. Physical
+input positions, catalog ordinals and canonical output ordinals remain distinct. Sparse absent targets require no
+extra selected read after completed delivery.
+
+Preparation never grants this credit. Unequal bounds with one effective tick can retain an existing preparation
+permutation, but the first final Emit still runs completely. Exact time/start/end/step/position replacement starts
+without credit. An old live owner cannot credit a replacement. Effective lookback, precision, name handling and
+storage bounds remain fixed by the eligible query scope.
+
+One Plan bool and one snapshot `AtomicBool` retain the state; the Step has no new field. Snapshot/Strong thread
+traits remain intact, while the Plan remains confined to serial use. No raw values, history or new membership array
+is cached. The shared schedule predicate reads borrowed metadata and uses the same checked arithmetic directly,
+without constructing an evaluator solely to prove eligibility.
+
+The complete-query read/work regression checks all labels, float bits, clocks, canonical order, logical participation,
+actual provider reads, one concurrent cursor and release before applying its growth bound. An independent terminal
+regression reproduces the premature Emit-to-Done credit and verifies that abandonment and final-charge cancellation
+grant none. Actual query controls retain suffix failure after one provisional result and later selected failure after
+42 earlier results; both abort without committing. Diagnostic ownership is released explicitly before checking that
+only the returned provider error remains.
+
+Sparse/domain, exact-key/old-owner, fresh-value/missing-row/kind, metadata and actual Machine-context controls
+complement those query failures. Interruption at all 190 cold/warm Emit charges and six certificate charges checks
+credit and release. Existing publication, callback, hash-collision, natural-order and native-membership controls
+remain separate. Whole-query memory, allocation traffic and elapsed time require complete matched measurements;
+these owner controls do not establish process RSS, production disk throughput or a universal work bound.
+
+The complete matched panel contains 4,392 responses across 732 query/profile groups, with three alternating
+before/final pairs, both profiles, pages 1/17/1024 and cardinalities 0 through 512. It includes 36 unequal-bounds,
+single-effective-tick cases per profile. All ordered results, diagnostics, output samples, backing and release match.
+All 288 eligible groups reduce reads, pages, provider calls, work and acquired workspace bytes. The 444 fallback
+groups preserve reads and work. Every measured native workspace peak rises by exactly 8 bytes.
+
+| Complete range route, 512 rows, page 17, three ticks | Before | Final |
+|---|---:|---:|
+| Numeric sort fetched samples | 2,533,596 | 183,507 |
+| Numeric sort work | 94,657,838 | 9,272,295 |
+| Numeric sort acquired workspace bytes | 519,335,396 | 45,400,829 |
+| Numeric sort workspace peak | 758,304 | 758,312 |
+| Label sort fetched samples | 2,374,656 | 24,567 |
+| Label sort work | 90,317,618 | 4,932,075 |
+| Label sort acquired workspace bytes | 487,282,528 | 13,347,961 |
+| Label sort workspace peak | 758,336 | 758,344 |
+
+Numeric sorting still performs its original comparator reads. Skipped operands still require permutation walks;
+this does not establish linear whole-query work. Allocation traffic is cumulative requested bytes, not retained
+memory. The separate borrowed schedule-proof extraction saves 960 acquired bytes per eligible query in the native
+prototype while preserving work, reads and peaks. Current compiled payload/accounted sizes are Plan 168/192,
+Snapshot 96/128 and Step 4,704/4,728 bytes on AMD64/ARM64; ARM32 measures 112/128, 80/112 and 4,088/4,104.
+The retained old query executable has no DWARF; those current layouts are not measured before/after type-size claims.
+
+The original fully qualified candidate also retains 768 warmed complete comparisons and 8,640 empty/tiny
+comparisons. At 512 inputs and page 17, its before/candidate time ratios are:
+
+| Complete query | Release | Release-min |
+|---|---:|---:|
+| Numeric sort, instant | 0.995 | 0.952 |
+| Label sort, instant | 0.989 | 0.967 |
+| Numeric sort, three range ticks | 11.964 | 11.753 |
+| Label sort, three range ticks | 35.232 | 35.404 |
+
+Ratios below one are slower. Empty/tiny ratios range from 0.818 to 1.306; the slowest empty numeric instant
+case changes from 6,590 to 8,060 ns. These shared-host observations have no CPU isolation. They do not establish
+timing causality, universal speed, an optimal crossover, RSS or production disk throughput. Later trials retain
+separate source and executable identities and do not replace these observations.
+
+A subsequent private dispatch trial passed 90 sort-focused checks and 1,920 complete comparisons with identical
+outputs and resource counters. Its 512-input instant ratios against the selected candidate were 0.971/0.999 in
+release and 1.017/1.021 in release-min for numeric/label sorting. Its 32-input range controls were also mixed.
+The trial was rejected; the selected source is exactly the original qualified candidate. Its own source, binaries,
+complete outcomes and slower observations remain separately bound in the qualification record.
+
+[Completed sort-emission qualification](sort-emission-qualification.json) preserves the meaningful query-growth red,
+the terminal-credit red, earlier compiler/test-expectation/lint phases and all actual source/binary identities.
+Final checks pass 618 units per profile, 128,652 built-in and 2,070 focused comparisons, 231,540 exact SRE evaluations,
+456 retained sort originals and 960 expanded special/native responses. All 18 C/C++ callers and 180 distinct ARM
+checks pass; the rebuilt/relinked Debug Agent passes 672 storage records, the canonical 82 HTTP/readiness checks
+and a separate additive 88-check HTTP probe, including six complete sort-related results over its own DBengine data.
+Historical ledger and caller inputs remain preserved. Foreign checks execute the library/callers, not a full foreign
+Agent; caller sanitizers exclude Rust instrumentation. These finite panels include no CI or arbitrary-input proof.
