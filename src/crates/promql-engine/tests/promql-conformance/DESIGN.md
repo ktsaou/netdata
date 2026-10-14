@@ -604,3 +604,5 @@ integration, and Alertmanager remains excluded.
 - **Evidence:** `src/execution.rs`, complete reversed-order/membership/comparison/mixed-operand fixtures and actual
   C first-pass provider-error, first-output cancellation/error and release controls. Matched work falls while raw
   reads and tracked workspace peaks remain unchanged in the recorded generated workload.
+- **Phase proof:** the C error case uses the normal run's cursor observed before first output and checks a
+  later physical series. Native traces establish final evaluation; output begin alone precedes preparation.

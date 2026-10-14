@@ -908,7 +908,9 @@ static netdata_promql_output_t delivery_table(delivery *d) {
 typedef struct {
     fixture source;
     netdata_promql_label_t labels[4][2];
-    uint64_t fail_on_cursor;
+    uint64_t fail_on_cursor, failed_cursor;
+    void *latest_cursor;
+    uint32_t latest_series;
 } join_fixture;
 
 static uint32_t join_selection_next(void *context, void *handle,
@@ -925,10 +927,23 @@ static uint32_t join_selection_next(void *context, void *handle,
     uint8_t *position = (uint8_t *)handle;
     if (*position == 4) return NETDATA_PROMQL_END;
     f->source.opened[2]++;
-    out->handle = NULL;
+    out->handle = (void *)(uintptr_t)(*position + 1);
     out->labels.data = f->labels[(*position)++];
     out->labels.len = 2;
     return NETDATA_PROMQL_OK;
+}
+
+static uint32_t join_cursor_open(void *context, void *series, netdata_promql_bounds_t bounds,
+                                 const netdata_promql_callback_control_t *control,
+                                 netdata_promql_cursor_open_t *out, netdata_promql_bytes_t *error) {
+    join_fixture *f = (join_fixture *)context;
+    assert((uintptr_t)series >= 1 && (uintptr_t)series <= 4);
+    uint32_t status = cursor_open(&f->source, series, bounds, control, out, error);
+    if (status == NETDATA_PROMQL_OK) {
+        f->latest_cursor = out->handle;
+        f->latest_series = (uint32_t)((uintptr_t)series - 1);
+    }
+    return status;
 }
 
 static uint32_t join_cursor_next(void *context, void *handle,
@@ -936,7 +951,11 @@ static uint32_t join_cursor_next(void *context, void *handle,
                                  netdata_promql_page_t *out, netdata_promql_resources_t *resources,
                                  netdata_promql_bytes_t *error) {
     join_fixture *f = (join_fixture *)context;
-    if (f->fail_on_cursor && f->source.opened[3] == f->fail_on_cursor) f->source.failure = 6;
+    if (f->fail_on_cursor && f->source.opened[3] == f->fail_on_cursor) {
+        assert(handle == f->latest_cursor && f->latest_series == 3);
+        f->failed_cursor = f->source.opened[3];
+        f->source.failure = 6;
+    }
     return cursor_next(&f->source, handle, control, out, resources, error);
 }
 
@@ -947,6 +966,7 @@ typedef struct {
     join_fixture *input;
     uint32_t arm_after;
     uint8_t query_kind;
+    uint64_t first_output_cursors;
 } join_delivery;
 
 static uint32_t join_begin(void *context, const netdata_promql_output_header_t *header,
@@ -958,10 +978,6 @@ static uint32_t join_begin(void *context, const netdata_promql_output_header_t *
     assert(header->reserved == 0 && header->end_ms == (d->query_kind == FOUR_SERIES_RATE ? 3000 : 2000));
     assert(header->start_ms == (d->query_kind == FOUR_SERIES_JOIN ? 1000 : 2000));
     assert(header->step_ms == (numeric ? 0 : 1000));
-    if (d->query_kind == FOUR_SERIES_RATE && d->arm_after == 1) {
-        // Three final series must finish before the fourth fails, ahead of the first output.
-        d->input->fail_on_cursor = d->input->source.opened[3] + 4;
-    }
     return output_status(&d->output, 1, control, error);
 }
 
@@ -970,6 +986,7 @@ static uint32_t join_chunk(void *context, const netdata_promql_chunk_t *chunk,
                             netdata_promql_bytes_t *error) {
     join_delivery *d = (join_delivery *)context;
     uint32_t position = d->output.calls[1];
+    if (position == 0) d->first_output_cursors = d->input->source.opened[3];
     assert(chunk->kind == NETDATA_PROMQL_CHUNK_SERIES && chunk->reserved == 0);
     const netdata_promql_series_chunk_t *series = &chunk->payload.series;
     assert(series->series_id == position % 4 && series->labels.len == 1 && series->points.len == 1);
@@ -1006,6 +1023,7 @@ static uint32_t join_commit(void *context, const netdata_promql_query_observatio
 static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t query_kind) {
     const uint64_t page_sizes[] = {1, 17, 1024};
     for (unsigned page = 0; page < 3; page++) {
+        uint64_t first_output_cursors = 0;
         unsigned variants = query_kind == FOUR_SERIES_NUMERIC ? 2u : query_kind == FOUR_SERIES_RATE ? 4u : 3u;
         for (unsigned arm = 0; arm < variants; arm++) {
             join_fixture source;
@@ -1021,7 +1039,13 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
             netdata_promql_provider_t input = provider(&source.source);
             input.context = &source;
             input.selection_next = join_selection_next;
+            input.cursor_open = join_cursor_open;
             input.cursor_next = join_cursor_next;
+            if (query_kind == FOUR_SERIES_RATE && arm == 1) {
+                assert(first_output_cursors > 4);
+                // Normal output identifies the last required first-final acquisition.
+                source.fail_on_cursor = first_output_cursors;
+            }
             const char *expression = query_kind == FOUR_SERIES_NUMERIC ? "quantile_over_time(.5,m[2s])" :
                                      query_kind == FOUR_SERIES_RATE ? "rate(m_total[3s]) / on(zone) rate(m_total[3s])" : "m / on(zone) m";
             netdata_promql_query_t *query = compile(engine, expression);
@@ -1053,6 +1077,13 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
             uint32_t expected = !arm ? NETDATA_PROMQL_OK : query_kind != FOUR_SERIES_RATE || arm == 1 ?
                 NETDATA_PROMQL_PROVIDER_ERROR : arm == 2 ? NETDATA_PROMQL_CANCELLED : NETDATA_PROMQL_OUTPUT_ERROR;
             assert(status == expected);
+            if (query_kind == FOUR_SERIES_RATE) {
+                if (!arm) first_output_cursors = output.first_output_cursors;
+                if (arm == 1) {
+                    assert(source.failed_cursor == first_output_cursors && source.latest_series == 3);
+                    assert(output.first_output_cursors == 0);
+                }
+            }
             assert(report && output.output.calls[0] == 1);
             unsigned chunks = !arm ? (query_kind == FOUR_SERIES_NUMERIC ? 4u : 8u) :
                               query_kind != FOUR_SERIES_RATE ? arm : arm == 1 ? 0u : 1u;

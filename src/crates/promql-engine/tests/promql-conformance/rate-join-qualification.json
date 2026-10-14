@@ -523,8 +523,8 @@
     {
       "target": "native",
       "manifest": {
-        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-39bb7men/manifest.json",
-        "sha256": "fbdf1197a466b2d39f60798ea58789ffa3303ee055f40b633219ee196407b2e4"
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-kneakfzn/manifest.json",
+        "sha256": "3628d078df81fa4bad2da0bbb496adcafc023c25fafb33051c76febde184f95a"
       },
       "artifacts": 326,
       "profiles": [
@@ -545,8 +545,8 @@
     {
       "target": "arm64",
       "manifest": {
-        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-xnr0wih8/manifest.json",
-        "sha256": "365486ca7972c3887e70d60efe26e87de49c5dbb92e127f02837323a8fc01738"
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-mx9ogvlw/manifest.json",
+        "sha256": "8397d91006fbecef4c2bd1bc5755927b3eeb8dcef84c4c9e266724732911bf8e"
       },
       "artifacts": 204,
       "profiles": [
@@ -567,8 +567,8 @@
     {
       "target": "arm32",
       "manifest": {
-        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-tgfgw335/manifest.json",
-        "sha256": "5ecaa95269e47452ed976054122c7e97d6529b33be26b5b2441006526dcc82d3"
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-dqb7hsnm/manifest.json",
+        "sha256": "b54cad74b7e598cd0bc0bf090012d00d524854d4758c346c8c37cef5b062a4dc"
       },
       "artifacts": 204,
       "profiles": [
@@ -7642,19 +7642,38 @@
     "initial_non_counter_fixture_name": {
       "netdata_repository_path": ".tmp/rate-join-v4qezbah/baseline-c-run.stderr",
       "sha256": "69b89a72e56d2418392e71625157a9a3513b63265bcf76a66d829ff1efd5dc52"
+    },
+    "initial_relative_trace_scratch": {
+      "netdata_repository_path": ".tmp/rate-join-v4qezbah/phase-before.stderr",
+      "sha256": "be7cc296de6bfbd9381a31b69ad34d5b83675f39208fe9126162a197d97de4f0"
     }
+  },
+  "final_phase_control": {
+    "netdata_repository_path": ".tmp/rate-join-v4qezbah/final-phase-qualification.json",
+    "sha256": "6715b7c468819698032acc6bfa9ea8ed32b3361fe6849355920b6458998c72e1"
+  },
+  "review_correction": {
+    "original_review": {
+      "netdata_repository_path": ".tmp/rate-join-v4qezbah/final-review-v1.json",
+      "sha256": "13f8e3596572a2e2eb06676dd6be136d4d79a0c0ea9b68cba20dc0226da288de"
+    },
+    "unchanged_engine_source": {
+      "netdata_repository_path": ".tmp/rate-join-v4qezbah/correction-source-impact.json",
+      "sha256": "7feee22ab622540b4c203a889a89a78c3eed6c954513839790372ea79426c00e"
+    },
+    "scope": "Replace begin-relative preparation failure with calibrated later-series first-final acquisition; engine and numerical/source-qualified results remain unchanged."
   },
   "unchanged_baseline_c_controls": {
     "build_status": {
-      "netdata_repository_path": ".tmp/rate-join-v4qezbah/baseline-c-build-v2-status.json",
+      "netdata_repository_path": ".tmp/rate-join-v4qezbah/baseline-c-build-v3-status.json",
       "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
     },
     "run_status": {
-      "netdata_repository_path": ".tmp/rate-join-v4qezbah/baseline-c-run-v2-status.json",
+      "netdata_repository_path": ".tmp/rate-join-v4qezbah/baseline-c-run-v3-status.json",
       "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
     },
     "output": {
-      "netdata_repository_path": ".tmp/rate-join-v4qezbah/baseline-c-run-v2.stdout",
+      "netdata_repository_path": ".tmp/rate-join-v4qezbah/baseline-c-run-v3.stdout",
       "sha256": "8d58882930177136e0176dc70cf8aea2c7462ae3829e80d41528f943a365c5c0"
     },
     "archives": {

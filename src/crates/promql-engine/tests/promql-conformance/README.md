@@ -2299,9 +2299,12 @@ and 2.74/4.73/8.74× in release-min. These are generated query timings and accou
 disk throughput or process RSS. Preparation and ordinary selector prefix work remain independent costs.
 
 Thirty changing-membership/comparison/boolean/mixed-operand controls preserve complete results. Each actual C
-caller also checks 12 rate cases across three page sizes: normal output, a later first-pass provider error before
-the first output error, cancellation during the first output and an opaque first-output failure. All retain
-transactional abort/commit and resource release. The original join and numeric-fold controls remain in the roster.
+caller also checks 12 rate cases across three page sizes: normal output, a provider error on a later series in the
+first final pass before the first output error, cancellation during first output and an opaque output failure.
+The normal run records its last required cursor before first output; the error case checks physical series 3.
+Native call traces verify final evaluation, with no preparation frames. Output begin precedes preparation,
+so a cursor constant armed there cannot establish this phase. All cases retain transactional abort/commit and
+resource release. The original join and numeric-fold controls remain in the roster.
 
 The [rate-join qualification](rate-join-qualification.json) binds the final engine, optimized profiles, expression
 panels, C callers and rebuilt Agent checks. Earlier cohorts retain their own source and binary identities.

@@ -8593,7 +8593,7 @@
     "scope": "Completed bare root one-to-one float join discovery with ordinary direct raw-matrix rate operands, effective clocks and checked windows; existing physical-ordinal pair replay and complete first-pass authority.",
     "qualification": {
       "repository_path": "tests/promql-conformance/rate-join-qualification.json",
-      "sha256": "02d9b1badbf61fced848d4bcb2f081b047b6ad9b4ba9779d79a2122359c38019"
+      "sha256": "19e3a774941fc196b0218f31e7245f83d851ce0e6d3fe263196769151948caa8"
     },
     "source_files": 144,
     "fixture_units_per_profile": 546,

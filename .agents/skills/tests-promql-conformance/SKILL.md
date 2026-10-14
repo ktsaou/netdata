@@ -91,6 +91,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   see `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-numeric-folds` for causal controls.
 - Direct rate join certification MUST preserve physical ordinals and effective clocks, including distinct window
   truncation; see `src/crates/promql-engine/tests/promql-conformance/README.md#completed-direct-rate-join-scans`.
+- Callback failure controls MUST establish their actual phase: output begin precedes preparation. The same guide
+  records calibrated cursor landmarks and native traces for the first-final rate case.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
 
 ## Evidence
