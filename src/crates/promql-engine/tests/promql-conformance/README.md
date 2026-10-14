@@ -2695,9 +2695,69 @@ empty-case discrepancy does not persist. Warmed ratios are 0.976–1.027 for `re
 `release-min`, including up to 6.3% longer small-query medians in the latter. These controls keep their identical
 accounted work and workspace, but the measurements do not establish a universal speedup.
 
-The retained deeper live expression projects the two collected gauges into three groups per host. Its three-tick
-fleet range exceeds the HTTP client's ordinary 30s allowance in both previous/current Debug Agents. Final functional
-checks use a targeted 180s client allowance for that one expression and complete under both storage codecs; ordinary
+The retained active-distribution cohort projects the two collected gauges into three groups per host. In that
+cohort, its three-tick fleet range exceeded the HTTP client's ordinary 30s allowance in both compared Debug Agents.
+Those functional checks used a targeted 180s client allowance and completed under both storage codecs; ordinary
 checks remain 30s. Fleet quantile sums are 3, local/child sums 1.5. No collector, stored metric or production-timeout policy
 changes. The earlier failed runs remain separate evidence; longer waiting is not a throughput fix. Nested derived
 replay remains an independently tracked performance opportunity.
+
+## Completed set-input discovery
+
+Repeated ordered range evaluation of `and`, `or` and `unless` can reuse one complete child-discovery pass at
+an exact scope. The private Plan keeps active-input membership, including inputs suppressed by matching.
+It retains no sample values or history. The original full left/right discovery must finish before publication;
+a later selected body can reuse that metadata without forcing a truncated Vector caller to drain.
+
+Eligibility is restricted to compatible ordinary forward multi-tick clocks over raw selectors, transparent
+parentheses, prepared label projections and other qualified sets. Check original immediate-child aliases before
+projection copies strip source ranges or move descriptors, then check owned side-row labels, float kinds, heads
+and ordinals. Matching-signature duplicates remain legal. Native/mixed, multiple, aliased, copied, invariant,
+wrapping and other expression shapes continue through the original implementation.
+
+Warm reconstruction preserves side order and all later phases: Begin, choice, every prefix/selected operand
+reread, labels, duplicate/diagnostic completion and output truncation. Its Right-to-Begin publication certifies
+completed discovery. Existing Pair replay still publishes only after Done. Successful roster preparation clears
+all set snapshots before ordinary or standalone derived-matrix final consumption, preserving a complete first
+final discovery. One current exact key replaces the previous scope before allocating its bitmap.
+
+The focused owner tests cover suppressed inputs, sparse membership at 64-bit boundaries, reversed side ordinals,
+legal duplicate signatures, all eleven key fields, old-before-new replacement, failed/abandoned discovery,
+unchanged selected reread errors, native/repeated/descending capture invalidation, full-hash/head/source/ordinal
+ambiguity, original-versus-copied aliases, empty-versus-missing descriptor owners and cancellation. A direct
+successful-preparation assertion verifies snapshot clearing for both final consumers. Complete query checks
+validate labels, ticks, float bits, diagnostics, logical totals, actual useful/fetched reads, one cursor and release
+before the throughput bound. Raw history remains paged across series and time.
+
+Prefix acquisitions and later histogram/projection replay remain independently measured costs. The bitmap and
+its accounted owners can add a small workspace allocation; reduced reads are not a universal memory reduction,
+production disk-throughput claim or arbitrary-input equivalence proof.
+
+[Set discovery qualification](set-discovery-qualification.json) binds the final sources and both profiles,
+581 units per profile, 128,652 builtin and 2,070 focused comparisons, 231,540 exact SRE comparisons,
+68 executed ARM discovery-owner checks and 734 C/C++ artifacts. The rebuilt Debug Agent passes 672 storage
+records and 82 live HTTP/readiness checks; the unchanged six-group range uses the ordinary 30s client allowance
+under both codecs. Earlier failed/180s runs and the first pre-lint candidate retain their separate identities.
+
+The matched cohort retains 576 complete alternating responses across 96 query/profile groups, including
+empty/tiny/64KiB-label controls, three page sizes and three pairs. All outputs match; larger disjoint and deep
+queries reduce both work and fetched entries. Page-17 medians are:
+
+| Three-tick query | Fetched entries before → after | Work before → after | Workspace peak before → after, bytes | `release` ratio | `release-min` ratio |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Disjoint set, 16 inputs | 28,608 → 10,752 | 2,611,677 → 1,190,594 | 79,215 → 79,463 | 2.140 | 2.206 |
+| Disjoint set, 32 inputs | 112,512 → 39,936 | 10,247,509 → 4,431,616 | 145,200 → 145,448 | 2.319 | 2.356 |
+| Disjoint set, 64 inputs | 446,208 → 153,600 | 40,784,949 → 17,160,097 | 277,552 → 277,808 | 2.370 | 2.420 |
+| Six-group histogram sum | 2,319,948 → 125,388 | 498,789,241 → 39,382,001 | 187,837 → 189,077 | 12.914 | 12.638 |
+
+Ratios divide previous median query time by current median. The deep query falls from 3,768ms to 292ms in
+`release`, and 6,727ms to 532ms in `release-min`; these are synthetic engine measurements. The nine direct
+query units separately validate unchanged logical totals and actual useful reads, which the protocol observation
+payload does not expose.
+
+A 7,200-response follow-up repeats empty/one/two/four-input and raw-gauge controls, discarding the first twenty
+repetitions for timing. Warmed `release` ratios range from 1.139 to 1.687; `release-min` ranges from 0.953 to 1.675.
+The empty `release-min` median increases from 67.740µs to 71.055µs, about 4.9%, with unchanged workspace and
+18 additional work units. The first cold empty ratio of 0.809 is therefore not the warmed effect. Small disjoint
+sets can add 248 bytes of metadata; no universal speedup or memory decrease is claimed. Prefix and later
+projection/histogram replay remain independent improvement opportunities.

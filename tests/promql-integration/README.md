@@ -180,7 +180,17 @@ three distinct groups per host. Fleet queries exercise six histogram groups and 
 local/child queries return `1.5`, and the three-tick fleet range returns `3` at every tick. This exercises the
 indexed Rust path through the existing API, contexts and DBengine without changing collectors or stored metrics.
 
-That deeper range expression exceeded the ordinary 30s test-client allowance with both previous/current Debug
-Agents. Those partial runs remain separate performance evidence. Final functional checks allow 180s for that one
-range request and pass under both codecs; ordinary checks keep 30s. This is a fixture transport allowance, not a
-production query-timeout change or a throughput fix. All owned Agents exit normally.
+At the active-distribution source, that deeper range expression exceeded the ordinary 30s test-client allowance
+with both compared Debug Agents. Those partial runs remain separate performance evidence. That cohort's final
+functional checks used 180s for the one range request and passed under both codecs. The historical allowance
+changed only the test client; it was not a production query-timeout change or a throughput fix.
+
+The subsequent completed set-input discovery route retains one current-scope active bitmap and preserves the
+original first discovery, operand rereads and raw paging. Its live fixture retires the exceptional wait and again
+uses 30s for every request, including the unchanged exact six-group range. Refer to the contained engine's
+conformance guide for source-bound qualification and measured resource costs.
+
+The source-bound set-discovery cohort passes 672 storage records and 82 live HTTP/readiness checks with normal
+owned Agent exits. Its exact six-group range no longer needs the exceptional client allowance. Separate matched
+Rust engine measurements show approximately 13× faster deep-query evaluation, adding 1,240 bytes of tracked
+workspace. This is finite generated-data timing, not a production disk or process-RSS measurement.

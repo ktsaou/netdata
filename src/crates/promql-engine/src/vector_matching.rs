@@ -72,12 +72,16 @@ pub(crate) struct Plan {
 }
 
 struct Replay {
-    pairs: AccountedVec<[usize; 2]>,
+    rows: ReplayRows,
     completed: RefCell<Option<AccountedBox<CompletedStep>>>,
+}
+enum ReplayRows {
+    Pairs(AccountedVec<[usize; 2]>),
+    SetDiscovery,
 }
 struct CompletedStep {
     key: ReplayKey,
-    emitted: AccountedVec<u64>,
+    members: AccountedVec<u64>,
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ReplayKey {
@@ -284,12 +288,68 @@ impl Plan {
         control.check()?;
         self.replay = Some(AccountedBox::new(
             Replay {
-                pairs,
+                rows: ReplayRows::Pairs(pairs),
                 completed: RefCell::new(None),
             },
             &context,
         ));
         Ok(())
+    }
+    pub(crate) fn certify_set_discovery(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        if self.sides.iter().map(|side| side.rows.len()).sum::<usize>() < 2 {
+            return Ok(());
+        }
+        for side in &self.sides {
+            if !crate::scheduled_expression::unique_rows(&side.rows, control, account)? {
+                return Ok(());
+            }
+            let mut prior = None;
+            for position in 0..side.rows.len() {
+                control.check()?;
+                account.work(1);
+                let row = &side.rows[side.row_position(position)];
+                if row.kinds != 1 || prior == Some(row.ordinal) {
+                    return Ok(());
+                }
+                prior = Some(row.ordinal);
+            }
+        }
+        control.check()?;
+        self.replay = Some(AccountedBox::new(
+            Replay {
+                rows: ReplayRows::SetDiscovery,
+                completed: RefCell::new(None),
+            },
+            &AllocationContext::new(account, MemoryKind::Workspace),
+        ));
+        Ok(())
+    }
+    pub(crate) fn has_set_discovery(&self) -> bool {
+        self.replay
+            .as_ref()
+            .is_some_and(|replay| matches!(replay.rows, ReplayRows::SetDiscovery))
+    }
+    pub(crate) fn clear_set_discovery(&self) {
+        if let Some(replay) = &self.replay
+            && matches!(replay.rows, ReplayRows::SetDiscovery)
+        {
+            replay.completed.borrow_mut().take();
+        }
+    }
+    #[cfg(test)]
+    pub(crate) fn has_completed_set_discovery(&self) -> bool {
+        self.has_set_discovery()
+            && self
+                .replay
+                .as_ref()
+                .expect("set discovery owner")
+                .completed
+                .borrow()
+                .is_some()
     }
     fn position(
         &self,
@@ -437,7 +497,10 @@ impl<'a> Step<'a> {
         let Some(replay) = &self.plan.replay else {
             return Ok(());
         };
-        let Some(pair) = replay.pairs.get(target).copied() else {
+        let ReplayRows::Pairs(pairs) = &replay.rows else {
+            return Ok(());
+        };
+        let Some(pair) = pairs.get(target).copied() else {
             return Ok(());
         };
         if pair.contains(&usize::MAX) {
@@ -449,7 +512,7 @@ impl<'a> Step<'a> {
             .borrow()
             .as_ref()
             .filter(|step| step.key == key)
-            .map(|step| step.emitted[target / 64] & (1 << (target % 64)) != 0);
+            .map(|step| step.members[target / 64] & (1 << (target % 64)) != 0);
         let context = AllocationContext::new(account, MemoryKind::Workspace);
         if let Some(present) = present {
             self.phase = if present {
@@ -472,15 +535,65 @@ impl<'a> Step<'a> {
         } else {
             // A query keeps only one completed scope, with no overlap during replacement.
             replay.completed.borrow_mut().take();
-            let words = replay.pairs.len() / 64 + usize::from(replay.pairs.len() % 64 != 0);
-            let mut emitted = AccountedVec::with_capacity_in(words, Some(&context));
+            let words = pairs.len() / 64 + usize::from(pairs.len() % 64 != 0);
+            let mut members = AccountedVec::with_capacity_in(words, Some(&context));
             for _ in 0..words {
                 control.check()?;
                 account.work(1);
-                emitted.push(0);
+                members.push(0);
             }
-            self.pending = Some(AccountedBox::new(CompletedStep { key, emitted }, &context));
+            self.pending = Some(AccountedBox::new(CompletedStep { key, members }, &context));
         }
+        Ok(())
+    }
+    pub(crate) fn enable_set_discovery(
+        &mut self,
+        key: ReplayKey,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let Some(replay) = &self.plan.replay else {
+            return Ok(());
+        };
+        if !self.operator.is_set() || !matches!(replay.rows, ReplayRows::SetDiscovery) {
+            return Ok(());
+        }
+        control.check()?;
+        let completed = replay.completed.borrow();
+        if let Some(step) = completed.as_ref().filter(|step| step.key == key) {
+            let mut offset = 0;
+            for side in 0..2 {
+                for row in 0..self.plan.sides[side].rows.len() {
+                    control.check()?;
+                    account.work(1);
+                    let position = offset + row;
+                    if step.members[position / 64] & (1 << (position % 64)) != 0 {
+                        self.active[side].push(Active {
+                            row,
+                            kind: 1,
+                            reserved: false,
+                        });
+                    }
+                }
+                offset += self.plan.sides[side].rows.len();
+            }
+            control.check()?;
+            self.phase = Phase::Begin;
+            return Ok(());
+        }
+        drop(completed);
+        // Only a fully exhausted discovery pass can be reused by another output row.
+        replay.completed.borrow_mut().take();
+        let rows = self.plan.sides[0].rows.len() + self.plan.sides[1].rows.len();
+        let words = rows.div_ceil(64);
+        let context = AllocationContext::new(account, MemoryKind::Workspace);
+        let mut members = AccountedVec::with_capacity_in(words, Some(&context));
+        for _ in 0..words {
+            control.check()?;
+            account.work(1);
+            members.push(0);
+        }
+        self.pending = Some(AccountedBox::new(CompletedStep { key, members }, &context));
         Ok(())
     }
     pub(crate) fn complete_replay(&mut self, control: &Control) -> Result<(), Interrupted> {
@@ -513,6 +626,22 @@ impl<'a> Step<'a> {
                 }
                 let side = usize::from(matches!(self.phase, Phase::Right));
                 let row = self.plan.position(side, &sample, control, account)?;
+                if self.operator.is_set() && self.pending.is_some() {
+                    if self.active[side].last().is_some_and(|last| last.row >= row) {
+                        self.pending = None;
+                    } else {
+                        let position = row
+                            + if side == 0 {
+                                0
+                            } else {
+                                self.plan.sides[0].rows.len()
+                            };
+                        control.check()?;
+                        account.work(1);
+                        let pending = self.pending.as_mut().expect("set discovery candidate");
+                        pending.members[position / 64] |= 1 << (position % 64);
+                    }
+                }
                 self.active[side].push(Active {
                     row,
                     kind: sample.value.kind_bit(),
@@ -861,7 +990,12 @@ impl<'a> Step<'a> {
                         ordinal: None,
                     });
                 }
-                Phase::Right => self.phase = Phase::Begin,
+                Phase::Right => {
+                    if self.operator.is_set() {
+                        self.complete_replay(control)?;
+                    }
+                    self.phase = Phase::Begin;
+                }
                 Phase::Begin => {
                     let empty = self.active[0].is_empty() || self.active[1].is_empty();
                     if !self.operator.is_set()
@@ -1085,10 +1219,12 @@ impl<'a> Step<'a> {
                             account,
                         )?;
                     }
-                    if let Some(pending) = &mut self.pending {
+                    if !self.operator.is_set()
+                        && let Some(pending) = &mut self.pending
+                    {
                         control.check()?;
                         account.work(1);
-                        pending.emitted[ordinal / 64] |= 1 << (ordinal % 64);
+                        pending.members[ordinal / 64] |= 1 << (ordinal % 64);
                     }
                     return Ok(Action::Sample(EvaluatedSample {
                         ordinal,
@@ -1160,6 +1296,466 @@ mod tests {
             account,
             MemoryKind::Workspace,
         )
+    }
+
+    fn discovery_options() -> EvaluationOptions {
+        EvaluationOptions {
+            time_ms: 1000,
+            start_ms: 1000,
+            end_ms: 3000,
+            step_ms: 1000,
+            lookback_ms: 300_000,
+            start_timestamps: false,
+            delayed_name_removal: false,
+        }
+    }
+    fn discovery_key() -> ReplayKey {
+        ReplayKey::new(
+            discovery_options(),
+            0,
+            300_000_000_000,
+            crate::storage::TimeBounds {
+                start_ms: 0,
+                end_ms: 3000,
+            },
+        )
+    }
+    fn discovery_plan(
+        count: usize,
+        matching: &VectorMatching,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Plan {
+        let sides = [0, 1].map(|side| {
+            let mut rows = AccountedVec::new(account, MemoryKind::Workspace);
+            for position in 0..count {
+                let labels = labels(format!("{position:08}").as_bytes(), account);
+                let hash = label_hash::full(&labels, control, account).unwrap();
+                rows.push(Descriptor {
+                    labels,
+                    ordinal: (count - position) * (side + 2),
+                    hash,
+                    drop_name: false,
+                    first_order: position,
+                    sources: 0..0,
+                    kinds: 1,
+                    heads: Default::default(),
+                });
+            }
+            rows
+        });
+        let [left, right] = sides;
+        Plan::new(left, right, matching, control, account).unwrap()
+    }
+    fn discovery_sample(
+        plan: &Plan,
+        side: usize,
+        row: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> EvaluatedSample {
+        let descriptor = &plan.sides[side].rows[row];
+        EvaluatedSample {
+            ordinal: descriptor.ordinal,
+            labels: descriptor
+                .labels
+                .copy_checked(account, MemoryKind::Workspace, control)
+                .unwrap(),
+            value: OwnedValue::Float((1000 * side + row + 1) as f64),
+            float_samples: None,
+            source_time_ms: 1000,
+            source_start_time_ms: 0,
+            drop_name: false,
+        }
+    }
+    #[derive(Debug, PartialEq, Eq)]
+    struct DiscoveryTrace {
+        scans: usize,
+        rereads: Vec<(usize, usize)>,
+        outputs: Vec<(usize, Vec<u8>, u64)>,
+    }
+    fn discovery_trace(
+        step: &mut Step<'_>,
+        members: [&[usize]; 2],
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> DiscoveryTrace {
+        let mut trace = DiscoveryTrace {
+            scans: 0,
+            rereads: Vec::new(),
+            outputs: Vec::new(),
+        };
+        loop {
+            match step
+                .advance(NodeId(0), discovery_options(), None, control, account)
+                .unwrap()
+            {
+                Action::Child { side, ordinal } => {
+                    if let Some(ordinal) = ordinal {
+                        let row = step.plan.sides[side]
+                            .rows
+                            .iter()
+                            .position(|row| row.ordinal == *ordinal)
+                            .unwrap();
+                        trace.rereads.push((side, row));
+                        let sample = discovery_sample(step.plan, side, row, control, account);
+                        step.receive(sample, control, account).unwrap();
+                    } else {
+                        trace.scans += 1;
+                        for row in members[side] {
+                            let sample = discovery_sample(step.plan, side, *row, control, account);
+                            step.receive(sample, control, account).unwrap();
+                        }
+                    }
+                }
+                Action::Sample(sample) => {
+                    let OwnedValue::Float(value) = sample.value else {
+                        panic!("float discovery trace")
+                    };
+                    trace.outputs.push((
+                        sample.ordinal,
+                        sample.labels.0[0].value.to_vec(),
+                        value.to_bits(),
+                    ));
+                }
+                Action::Done(diagnostic) => {
+                    assert!(diagnostic.is_none());
+                    step.complete_replay(control).unwrap();
+                    return trace;
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn completed_set_discovery_keeps_suppressed_inputs_and_original_rereads() {
+        for duplicate_signatures in [false, true] {
+            for operator in [TokenKind::LOR, TokenKind::LAND, TokenKind::LUNLESS] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let matching = VectorMatching {
+                    on: duplicate_signatures,
+                    labels: duplicate_signatures
+                        .then(|| AccountedVec::new(&account, MemoryKind::Workspace)),
+                    ..VectorMatching::default()
+                };
+                let mut plan = discovery_plan(65, &matching, &control, &account);
+                plan.certify_set_discovery(&control, &account).unwrap();
+                assert!(plan.has_set_discovery());
+                assert!(
+                    plan.sides
+                        .iter()
+                        .all(|side| side.ordinal_positions.is_some())
+                );
+                let members = [&[0, 64][..], &[0, 1, 64][..]];
+                let cold = {
+                    let mut step = Step::new(&plan, &matching, operator, false, &account);
+                    step.enable_set_discovery(discovery_key(), &control, &account)
+                        .unwrap();
+                    discovery_trace(&mut step, members, &control, &account)
+                };
+                assert_eq!(cold.scans, 2);
+                let snapshot_guard = plan.replay.as_ref().unwrap().completed.borrow();
+                let snapshot = snapshot_guard.as_ref().unwrap();
+                assert_eq!(snapshot.members.len(), 3);
+                assert_eq!(snapshot.members[0], 1);
+                assert_eq!(snapshot.members[1], 7);
+                assert_eq!(snapshot.members[2], 2);
+                drop(snapshot_guard);
+                let warm = {
+                    let mut step = Step::new(&plan, &matching, operator, false, &account);
+                    step.enable_set_discovery(discovery_key(), &control, &account)
+                        .unwrap();
+                    assert!(step.pending.is_none());
+                    discovery_trace(&mut step, [&[], &[]], &control, &account)
+                };
+                assert_eq!(warm.scans, 0);
+                assert_eq!(warm.outputs, cold.outputs);
+                assert_eq!(warm.rereads, cold.rereads);
+                let expected_rows: &[usize] = match (operator, duplicate_signatures) {
+                    (TokenKind::LOR, false) => &[0, 64, 66],
+                    (TokenKind::LOR | TokenKind::LAND, _) => &[0, 64],
+                    (TokenKind::LUNLESS, _) => &[],
+                    _ => unreachable!(),
+                };
+                assert_eq!(
+                    warm.outputs.iter().map(|row| row.0).collect::<Vec<_>>(),
+                    expected_rows
+                );
+                drop((plan, matching));
+                account.snapshot().assert_memory_released();
+            }
+        }
+        println!(
+            "set discovery layouts: ReplayRows={} Replay={} CompletedStep={} Plan={} Step={}",
+            size_of::<ReplayRows>(),
+            size_of::<Replay>(),
+            size_of::<CompletedStep>(),
+            size_of::<Plan>(),
+            size_of::<Step<'_>>()
+        );
+        assert_eq!(
+            size_of::<ReplayRows>(),
+            size_of::<AccountedVec<[usize; 2]>>()
+        );
+    }
+
+    #[test]
+    fn set_discovery_replaces_each_exact_scope_without_overlapping_snapshots() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let matching = VectorMatching::default();
+        let mut plan = discovery_plan(65, &matching, &control, &account);
+        plan.certify_set_discovery(&control, &account).unwrap();
+        let base = discovery_key();
+        let mut keys = vec![base];
+        for field in 0..base.clock.len() {
+            let mut key = base;
+            key.clock[field] += 1;
+            keys.push(key);
+        }
+        keys.push(ReplayKey {
+            start_timestamps: true,
+            ..base
+        });
+        keys.push(ReplayKey {
+            delayed_name_removal: true,
+            ..base
+        });
+        for (index, key) in keys.into_iter().enumerate() {
+            let before = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+            let mut step = Step::new(&plan, &matching, TokenKind::LOR, false, &account);
+            step.enable_set_discovery(key, &control, &account).unwrap();
+            assert!(step.pending.is_some());
+            assert!(!plan.has_completed_set_discovery());
+            if index != 0 {
+                assert_eq!(
+                    account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                    before
+                );
+            }
+            let members = if index % 2 == 0 {
+                [&[0][..], &[][..]]
+            } else {
+                [&[][..], &[64][..]]
+            };
+            let trace = discovery_trace(&mut step, members, &control, &account);
+            assert_eq!(trace.scans, 2);
+            assert_eq!(trace.outputs.len(), 1);
+            assert_eq!(trace.outputs[0].0, if index % 2 == 0 { 0 } else { 129 });
+            drop(step);
+        }
+        plan.clear_set_discovery();
+        assert!(plan.has_set_discovery());
+        assert!(!plan.has_completed_set_discovery());
+        drop(plan);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn set_discovery_publishes_after_both_streams_before_selected_rereads() {
+        for abandoned_phase in 0..3 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let matching = VectorMatching::default();
+            let mut plan = discovery_plan(65, &matching, &control, &account);
+            plan.certify_set_discovery(&control, &account).unwrap();
+            let mut step = Step::new(&plan, &matching, TokenKind::LOR, false, &account);
+            step.enable_set_discovery(discovery_key(), &control, &account)
+                .unwrap();
+            assert!(matches!(
+                step.advance(NodeId(0), discovery_options(), None, &control, &account)
+                    .unwrap(),
+                Action::Child {
+                    side: 0,
+                    ordinal: None
+                }
+            ));
+            for row in [0, 64] {
+                step.receive(
+                    discovery_sample(&plan, 0, row, &control, &account),
+                    &control,
+                    &account,
+                )
+                .unwrap();
+            }
+            if abandoned_phase > 0 {
+                assert!(matches!(
+                    step.advance(NodeId(0), discovery_options(), None, &control, &account)
+                        .unwrap(),
+                    Action::Child {
+                        side: 1,
+                        ordinal: None
+                    }
+                ));
+                for row in [0, 1, 64] {
+                    step.receive(
+                        discovery_sample(&plan, 1, row, &control, &account),
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                }
+            }
+            assert!(!plan.has_completed_set_discovery());
+            if abandoned_phase == 2 {
+                assert!(matches!(
+                    step.advance(NodeId(0), discovery_options(), None, &control, &account)
+                        .unwrap(),
+                    Action::Child {
+                        side: 0,
+                        ordinal: Some(_)
+                    }
+                ));
+                assert!(plan.has_completed_set_discovery());
+                assert!(step.pending.is_none());
+                assert!(matches!(
+                    step.advance(NodeId(0), discovery_options(), None, &control, &account),
+                    Err(EvaluationError::Invalid("binary operand replay is empty"))
+                ));
+            }
+            drop(step);
+            assert_eq!(plan.has_completed_set_discovery(), abandoned_phase == 2);
+            drop(plan);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn set_discovery_discards_duplicate_descending_and_native_capture() {
+        for case in 0..3 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let matching = VectorMatching::default();
+            let mut plan = discovery_plan(65, &matching, &control, &account);
+            plan.certify_set_discovery(&control, &account).unwrap();
+            let mut step = Step::new(&plan, &matching, TokenKind::LOR, false, &account);
+            step.enable_set_discovery(discovery_key(), &control, &account)
+                .unwrap();
+            step.advance(NodeId(0), discovery_options(), None, &control, &account)
+                .unwrap();
+            let rows = if case == 1 { [64, 0] } else { [0, 0] };
+            for row in rows {
+                let mut sample = discovery_sample(&plan, 0, row, &control, &account);
+                if case == 2 {
+                    let histogram = crate::histogram::FloatHistogram::default();
+                    sample.value = OwnedValue::copy_from(
+                        crate::value::SampleValueRef::FloatHistogram(histogram.as_ref()),
+                        &account,
+                        MemoryKind::Workspace,
+                    );
+                }
+                step.receive(sample, &control, &account).unwrap();
+            }
+            assert!(step.pending.is_none());
+            assert_eq!(step.active[0].len(), 2);
+            assert_eq!(step.active[0][0].row, rows[0]);
+            assert_eq!(step.active[0][1].row, rows[1]);
+            assert!(matches!(
+                step.advance(NodeId(0), discovery_options(), None, &control, &account)
+                    .unwrap(),
+                Action::Child {
+                    side: 1,
+                    ordinal: None
+                }
+            ));
+            assert!(!plan.has_completed_set_discovery());
+            drop(step);
+            drop(plan);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn set_discovery_certification_rejects_ambiguous_owned_rows() {
+        for case in 0..5 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let matching = VectorMatching::default();
+            let mut plan = discovery_plan(4, &matching, &control, &account);
+            match case {
+                0 => plan.sides[0].rows[1].hash = plan.sides[0].rows[0].hash,
+                1 => {
+                    let mut counts = crate::evaluator_roster::PointCounts::default();
+                    counts.push(1);
+                    counts.push(1);
+                    plan.sides[0].rows[0].heads.note(counts, 1000);
+                }
+                2 => plan.sides[0].rows[0].sources = 0..2,
+                3 => plan.sides[0].rows[0].kinds = 2,
+                4 => plan.sides[0].rows[1].ordinal = plan.sides[0].rows[0].ordinal,
+                _ => unreachable!(),
+            }
+            plan.certify_set_discovery(&control, &account).unwrap();
+            assert!(!plan.has_set_discovery(), "case {case}");
+            drop(plan);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn set_discovery_cancellation_stops_reconstruction_and_publication() {
+        for budget in [1, 63, 64, 65, 127, 128, 258] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let matching = VectorMatching::default();
+            let mut plan = discovery_plan(129, &matching, &control, &account);
+            plan.certify_set_discovery(&control, &account).unwrap();
+            {
+                let mut cold = Step::new(&plan, &matching, TokenKind::LOR, false, &account);
+                cold.enable_set_discovery(discovery_key(), &control, &account)
+                    .unwrap();
+                discovery_trace(&mut cold, [&[0, 128], &[64]], &control, &account);
+            }
+            let mut warm = Step::new(&plan, &matching, TokenKind::LOR, false, &account);
+            let result =
+                crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                    warm.enable_set_discovery(discovery_key(), &control, &account)
+                });
+            assert!(
+                matches!(result, Err(Interrupted::Cancelled)),
+                "budget {budget}"
+            );
+            assert!(matches!(warm.phase, Phase::StartLeft));
+            assert!(plan.has_completed_set_discovery());
+            drop(warm);
+            drop(plan);
+            account.snapshot().assert_memory_released();
+        }
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let matching = VectorMatching::default();
+        let mut plan = discovery_plan(4, &matching, &control, &account);
+        plan.certify_set_discovery(&control, &account).unwrap();
+        let mut step = Step::new(&plan, &matching, TokenKind::LOR, false, &account);
+        step.enable_set_discovery(discovery_key(), &control, &account)
+            .unwrap();
+        step.advance(NodeId(0), discovery_options(), None, &control, &account)
+            .unwrap();
+        step.receive(
+            discovery_sample(&plan, 0, 0, &control, &account),
+            &control,
+            &account,
+        )
+        .unwrap();
+        step.advance(NodeId(0), discovery_options(), None, &control, &account)
+            .unwrap();
+        control.cancellation.cancel();
+        assert!(matches!(
+            step.advance(NodeId(0), discovery_options(), None, &control, &account),
+            Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+        ));
+        assert!(!plan.has_completed_set_discovery());
+        drop(step);
+        drop(plan);
+        account.snapshot().assert_memory_released();
     }
 
     #[test]

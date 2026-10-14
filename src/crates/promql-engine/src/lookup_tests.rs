@@ -2,6 +2,102 @@
 use super::*;
 use crate::{result::OwnedValue, test_storage::FixtureProvider};
 
+#[test]
+fn nested_set_discovery_reuses_completed_inputs() {
+    fn point(index: usize) -> crate::value::Sample {
+        crate::value::Sample {
+            time_ms: (index as i64 + 2) * 1000,
+            start_time_ms: 0,
+            value: crate::value::SampleValue::Float(1.0),
+        }
+    }
+    let mut reads = Vec::new();
+    for page_size in [1, 17, 1024] {
+        for count in [16, 32, 64] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let mut provider = FixtureProvider::new(3, page_size, count);
+            for series in &mut provider.series {
+                series.source.sample = point;
+            }
+            let query = engine
+                .compile(
+                    b"sum(label_replace(counter_total,\"branch\",\"a\",\"instance\",\".*\") or label_replace(counter_total,\"branch\",\"b\",\"instance\",\".*\"))",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Range {
+                    start_ms: 2000,
+                    end_ms: 4000,
+                    step_ms: 1000,
+                },
+                &control,
+            );
+            let result = report.result.as_ref().unwrap();
+            assert!(report.annotations.is_empty());
+            assert_eq!(result.series.len(), 1);
+            assert!(result.series[0].labels.0.is_empty());
+            let points: Vec<_> = result.series[0]
+                .points
+                .iter()
+                .map(|point| {
+                    let OwnedValue::Float(value) = point.value else {
+                        panic!("float set sum");
+                    };
+                    (point.time_ms, value.to_bits())
+                })
+                .collect();
+            assert_eq!(
+                points,
+                [2000, 3000, 4000].map(|time| (time, (2.0 * count as f64).to_bits()))
+            );
+            let observed = &report.observations;
+            assert_eq!(observed.output_samples, 3);
+            assert_eq!(
+                observed.statistics.samples.total_queryable_samples,
+                6 * count as u64
+            );
+            assert_eq!(
+                observed.samples_fetched,
+                provider.series[0]
+                    .source
+                    .counters
+                    .samples_returned
+                    .load(std::sync::atomic::Ordering::Relaxed) as u64
+            );
+            assert_eq!(
+                provider.series[0]
+                    .source
+                    .counters
+                    .peak
+                    .load(std::sync::atomic::Ordering::Relaxed),
+                1
+            );
+            println!(
+                "{{\"nested_set_rows\":{count},\"page_size\":{page_size},\"fetched\":{},\"read\":{},\"queryable\":{},\"work\":{},\"workspace_peak\":{}}}",
+                observed.samples_fetched,
+                observed.statistics.samples.samples_read,
+                observed.statistics.samples.total_queryable_samples,
+                observed.work,
+                observed.memory[MemoryKind::Workspace as usize].peak
+            );
+            reads.push((count, page_size, observed.samples_fetched));
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+    assert!(
+        reads
+            .iter()
+            .all(|(count, _, fetched)| *fetched <= 4000 * *count as u64),
+        "completed set inputs must avoid repeated full discovery: {reads:?}"
+    );
+}
+
 fn cardinality_work(expression: &[u8]) -> [u64; 2] {
     let mut work = [0; 2];
     for (position, count) in [128, 512].into_iter().enumerate() {

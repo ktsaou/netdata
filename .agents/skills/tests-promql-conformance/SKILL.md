@@ -108,6 +108,10 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-active-group-distribution` for sparse/native,
   control and complete-query qualification. Keep failed deep derived-replay witnesses separate from passing panels.
 
+- Set discovery reuse MUST retain suppressed inputs, original prefix/selected rereads and cold first final discovery.
+  Check original aliases, exact keys, bit boundaries and successful preparation clearing; see
+  `src/crates/promql-engine/tests/promql-conformance/README.md#completed-set-input-discovery`.
+
 ## Evidence
 
 - `tests/promql-conformance/README.md`: panel commands and scope.

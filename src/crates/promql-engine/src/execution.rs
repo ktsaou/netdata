@@ -1306,6 +1306,53 @@ impl CompiledQuery {
         Some(selector)
     }
 
+    fn set_discovery_child(
+        &self,
+        mut node: NodeId,
+        header: OutputHeader,
+        prepared: &Prepared,
+        rosters: &Rosters,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        let grid = crate::query_scopes::Grid::from(header);
+        loop {
+            control.check()?;
+            account.work(1);
+            if prepared.flags().invariants[node.0]
+                || prepared.flags().boundaries[node.0]
+                || rosters.matrix(node).is_some()
+                || rosters
+                    .producer_clock(node)
+                    .is_none_or(|clock| clock.grid != grid)
+                || crate::query_scopes::Grid::from(prepared.source_header(node, header)) != grid
+                || crate::query_scopes::Grid::from(prepared.scope_header(node, header)) != grid
+            {
+                return Ok(false);
+            }
+            let child = match &self.expression.arena[node].expression {
+                Expr::Selector(selector) => {
+                    return Ok(!selector.smoothed && !selector.anchored);
+                }
+                Expr::Paren(child) => *child,
+                Expr::Call { arguments, .. }
+                    if label_functions::is_label_call(&self.expression.arena[node].expression) =>
+                {
+                    arguments[0]
+                }
+                Expr::Binary { operator, .. } if operator.is_set() => {
+                    return Ok(rosters
+                        .binary(node)
+                        .is_some_and(|plan| plan.has_set_discovery()));
+                }
+                _ => return Ok(false),
+            };
+            node = prepared
+                .preprocessing
+                .child(&self.expression, node, child, control, account)?;
+        }
+    }
+
     fn matrix_clock(
         &self,
         node: NodeId,
@@ -1907,13 +1954,44 @@ impl CompiledQuery {
             let binary_preparation = if let Expr::Binary {
                 left,
                 right,
+                operator,
                 matching: Some(matching),
                 ..
             } = expression
                 && self.expression.arena[*left].value_type == ValueType::Vector
                 && self.expression.arena[*right].value_type == ValueType::Vector
             {
-                rosters.prepare_binary(node, [*left, *right], matching, control, account)?;
+                let mut set_discovery = operator.is_set()
+                    && header.start_ms < header.end_ms
+                    && crate::query_scopes::Grid::from(header).forward_without_wrap()
+                    && !prepared.flags().invariants[node.0]
+                    && !prepared.flags().boundaries[node.0]
+                    && crate::query_scopes::Grid::from(source_header) == header.into();
+                if set_discovery {
+                    for child in [*left, *right] {
+                        let child = prepared.preprocessing.child(
+                            &self.expression,
+                            node,
+                            child,
+                            control,
+                            account,
+                        )?;
+                        if !self.set_discovery_child(
+                            child, header, prepared, &rosters, control, account,
+                        )? {
+                            set_discovery = false;
+                            break;
+                        }
+                    }
+                }
+                rosters.prepare_binary(
+                    node,
+                    [*left, *right],
+                    matching,
+                    set_discovery,
+                    control,
+                    account,
+                )?;
                 Some(crate::vector_matching::Preparation {
                     node,
                     cache: &binary_cache,
@@ -2618,6 +2696,8 @@ impl CompiledQuery {
                 rosters.release_output(child);
             }
         }
+        // Final consumption must perform its own complete first discovery.
+        rosters.clear_set_discovery(control, account)?;
         Ok(rosters)
     }
 
@@ -7733,6 +7813,91 @@ mod tests {
                     provider.assert_closed();
                     engine.accounting.snapshot().assert_memory_released();
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn completed_set_preparation_clears_discovery_before_both_final_routes() {
+        let body = "label_replace(counter_total,\"branch\",\"a\",\"instance\",\".*\") or label_replace(counter_total,\"branch\",\"b\",\"instance\",\".*\")";
+        for derived in [false, true] {
+            let expression = if derived {
+                format!("({body})[3s:1s]")
+            } else {
+                format!("sum({body})")
+            };
+            for page in [1, 17, 1024] {
+                let provider = FixtureProvider::new(4, page, 4);
+                let engine = Engine::default();
+                let control = Control::default();
+                let compiled = engine
+                    .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let account = engine.accounting.query();
+                {
+                    let request = if derived {
+                        QueryRequest::Instant { time_ms: 4000 }
+                    } else {
+                        QueryRequest::Range {
+                            start_ms: 2000,
+                            end_ms: 4000,
+                            step_ms: 1000,
+                        }
+                    };
+                    let header = compiled.header(request).unwrap();
+                    let prepared = Prepared::new(
+                        &compiled.expression,
+                        &compiled.preprocessing,
+                        header,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let bounds = crate::query_bounds::find(
+                        &compiled.expression,
+                        compiled.evaluation_options(header, header.start_ms, &prepared),
+                        &prepared,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let query = provider.open(bounds, &control).unwrap();
+                    let catalog = Catalog::new(
+                        &query,
+                        &compiled.expression,
+                        &prepared,
+                        compiled.evaluation_options(header, header.start_ms, &prepared),
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let rosters = compiled
+                        .prepare_rosters(
+                            &catalog,
+                            &prepared,
+                            bounds,
+                            &control,
+                            &account,
+                            &mut Annotations::default(),
+                        )
+                        .unwrap();
+                    let mut certified = 0;
+                    for position in 0..compiled.expression.arena.nodes.len() {
+                        if let Some(plan) = rosters.binary(NodeId(position))
+                            && plan.has_set_discovery()
+                        {
+                            certified += 1;
+                            assert!(!plan.has_completed_set_discovery());
+                        }
+                    }
+                    assert!(certified > 0, "derived={derived},page={page}");
+                }
+                provider.assert_closed();
+                account.snapshot().assert_memory_released();
+                drop((compiled, account));
+                engine.accounting.snapshot().assert_memory_released();
             }
         }
     }

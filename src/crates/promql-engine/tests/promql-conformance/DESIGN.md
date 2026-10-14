@@ -707,7 +707,32 @@ integration, and Alertmanager remains excluded.
 - **Controls:** discovery, promotion, prefix/initialization, scatter and restoration remain checked/accounted;
   interrupted partial state is discarded before completion.
 - **Boundaries:** complete vector collection and later numerical/binding/derived replay remain. A deeper nested
-  OR/projection range exceeds the live fixture client's timeout in both previous/current Debug Agents; that
-  independent throughput witness is retained separately.
+  OR/projection range exceeded the live fixture client's timeout in both compared Debug Agents at that source;
+  the independent historical throughput witness is retained separately.
 - **Evidence:** [active distribution qualification](histogram-distribution-qualification.json) binds exact
   pre-sort sequences, sparse/skipped/native/control cases, complete queries, caller/Agent checks and measurements.
+
+## Completed set-input discovery
+
+- **Choice:** eligible ordinary forward range sets reuse active-input membership after both original child
+  discovery streams exhaust. Owning preparation and nested ordered bodies share this private Plan owner.
+- **Authority:** a cold pass retains full label/ordinal resolution and requires float, strictly ascending unique
+  side-row positions. The bitmap includes suppressed inputs, not only returned outputs. Matching-signature
+  duplicates remain legal; existing complete-byte signature IDs remain authoritative.
+- **Eligibility:** raw nonextended selectors, transparent parentheses, prepared label projections and already
+  qualified sets must share compatible resolved source/scope/producer grids. Original immediate-child aliases are
+  checked before projections strip source ranges or move descriptors; actual owned side rows are checked afterward.
+  Native/mixed, multiple, aliased, invariant, copied, wrapping and unsupported shapes use the original path.
+- **Phases:** publication at Right-to-Begin certifies complete discovery, not successful binary emission. Warm
+  reconstruction retains original side order, Begin, choice, every prefix and selected reread, duplicate/diagnostic
+  completion and positive Vector truncation. Pair replay still publishes only after Done.
+- **Final evaluation:** the successful end of roster preparation clears only set discovery snapshots. Both ordinary
+  and standalone derived-matrix consumers therefore perform a complete first final discovery; eligibility and Pair
+  state survive. Failed preparation drops its local state.
+- **Ownership:** one exact existing ReplayKey and dense bitmap per eligible Plan, with accounted owners and old
+  state released before replacement. No raw values, labels, pair mappings or history are cached. The replay enum
+  occupies the existing vector niche, adding no persistent Plan/Step field or Replay size.
+- **Controls:** allocation, capture, reconstruction, replacement, publication and clearing retain polling and work
+  accounting. Kind/order ambiguity discards capture while continuing the original cold streams.
+- **Limits:** prefix acquisitions and histogram/projection replay remain independent costs. Reduced raw reads can
+  add a small current-scope metadata allocation; whole-query workspace and timing require actual measurement.

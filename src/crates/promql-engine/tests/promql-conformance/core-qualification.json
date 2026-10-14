@@ -8699,5 +8699,24 @@
     "caller_artifacts": 734,
     "storage_records": 672,
     "live_checks": 82
+  },
+  "set_input_discovery_qualification": {
+    "status": "pass",
+    "qualification": {
+      "path": "set-discovery-qualification.json",
+      "sha256": "21afd33d772d62da5057f28feb80781e0b38ead66e290a55cb7e46a92a92030e"
+    },
+    "scope": "Finite completed set-input discovery qualification:both preparation/final phases,complete first final discovery,original prefix/selected rereads and bounded raw paging. No public/default/ABI/reference/storage change. Not arbitrary-input proof or whole-core readiness.",
+    "fixture_units_per_profile": 581,
+    "builtin_comparisons": 128652,
+    "focused_comparisons": 2070,
+    "sre_exact_comparisons": 231540,
+    "foreign_discovery_units": 68,
+    "c_embedding_artifacts": 734,
+    "live_http_and_readiness_checks": 82,
+    "storage_records": 672,
+    "complete_performance_responses": 576,
+    "caveat": "Small current-scope metadata cost;prefix/projection/histogram work remains. Historical cohorts preserve their own sources/binaries.",
+    "warmed_small_responses": 7200
   }
 }

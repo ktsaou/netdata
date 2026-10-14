@@ -2662,6 +2662,27 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.account,
                     );
                     let frame = &self.frames[index];
+                    let singleton =
+                        matches!(frame.filter, RowFilter::Ordinals([_]) | RowFilter::One(_));
+                    if operator.is_set()
+                        && matches!(frame.mode, OutputMode::Matrix)
+                        && (frame.bypass_order && singleton
+                            || matches!(frame.filter, RowFilter::All)
+                                && self
+                                    .binary_preparation
+                                    .is_some_and(|owner| owner.node == node))
+                    {
+                        step.enable_set_discovery(
+                            crate::vector_matching::ReplayKey::new(
+                                frame.options,
+                                frame.step_index,
+                                self.prepared.lookback_ns(frame.options.lookback_ms),
+                                self.data_bounds,
+                            ),
+                            self.control,
+                            self.account,
+                        )?;
+                    }
                     if matches!(frame.mode, OutputMode::Matrix)
                         && frame.bypass_order
                         && self.binary_preparation.is_none()

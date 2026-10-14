@@ -698,19 +698,52 @@ impl Rosters {
         node: NodeId,
         children: [NodeId; 2],
         matching: &VectorMatching,
+        mut set_discovery: bool,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
+        if set_discovery {
+            // Ordered copies lose their source ranges, so inspect aliases before copying.
+            for child in children {
+                let Some(rows) = &self.nodes[child.0].output else {
+                    set_discovery = false;
+                    break;
+                };
+                if !crate::scheduled_expression::unique_rows(rows, control, account)? {
+                    set_discovery = false;
+                    break;
+                }
+            }
+        }
         let left = self.projection_input(children[0], control, account)?;
         let right = self.projection_input(children[1], control, account)?;
+        let mut plan = crate::vector_matching::Plan::new(left, right, matching, control, account)?;
+        if set_discovery {
+            plan.certify_set_discovery(control, account)?;
+        }
         self.nodes[node.0].binary = Some(AccountedBox::new(
-            crate::vector_matching::Plan::new(left, right, matching, control, account)?,
+            plan,
             &AllocationContext::new(account, MemoryKind::Workspace),
         ));
         Ok(())
     }
     pub(crate) fn binary(&self, node: NodeId) -> Option<&crate::vector_matching::Plan> {
         self.nodes[node.0].binary.as_deref()
+    }
+    pub(crate) fn clear_set_discovery(
+        &self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        for roster in &*self.nodes {
+            control.check()?;
+            account.work(1);
+            if let Some(plan) = &roster.binary {
+                plan.clear_set_discovery();
+            }
+        }
+        control.check()?;
+        Ok(())
     }
     pub(crate) fn certify_binary_replay(
         &mut self,
@@ -1219,6 +1252,76 @@ pub(crate) fn group_position<T>(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn set_discovery_checks_original_aliases_and_descriptor_presence() {
+        for case in 0..4 {
+            let engine = crate::accounting::EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut rosters = Rosters::new(&account, 3, &control).unwrap();
+            for side in 0..2 {
+                let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+                let count = if side == 0 && case >= 2 { 0 } else { 2 };
+                for position in 0..count {
+                    let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+                    labels.push(
+                        b"id",
+                        format!("{side}-{position}").as_bytes(),
+                        &account,
+                        MemoryKind::Workspace,
+                    );
+                    let hash = label_hash::full(&labels, &control, &account).unwrap();
+                    rows.push(Descriptor {
+                        labels,
+                        ordinal: position,
+                        hash,
+                        drop_name: false,
+                        first_order: position,
+                        sources: position..position + 1,
+                        kinds: 1,
+                        heads: HeadSummary::default(),
+                    });
+                }
+                let mut sources = AccountedVec::new(&account, MemoryKind::Workspace);
+                for position in 0..count {
+                    sources.push(position + 30);
+                }
+                if side == 0 && case == 1 {
+                    rows[0].sources = 0..2;
+                }
+                rosters.nodes[side].output = Some(rows);
+                rosters.nodes[side].sources = Some(sources);
+            }
+            if case == 3 {
+                rosters.nodes[0].output = None;
+            }
+            rosters
+                .prepare_binary(
+                    NodeId(2),
+                    [NodeId(0), NodeId(1)],
+                    &VectorMatching::default(),
+                    true,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+            let plan = rosters.binary(NodeId(2)).unwrap();
+            assert_eq!(
+                plan.has_set_discovery(),
+                case == 0 || case == 2,
+                "case {case}"
+            );
+            assert!(
+                plan.sides
+                    .iter()
+                    .flat_map(|side| side.rows.iter())
+                    .all(|row| row.sources.is_empty())
+            );
+            drop(rosters);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
     #[test]
     fn unary_metadata_detection_observes_cancellation_and_avoids_all_pairs() {
         let engine = crate::accounting::EngineAccounting::default();
