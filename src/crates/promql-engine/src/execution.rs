@@ -5976,6 +5976,94 @@ mod tests {
     }
 
     #[test]
+    fn sort_child_and_comparator_failures_precede_pending_duplicate_publication() {
+        for page in [1, 17, 1024] {
+            for function in ["sort", "sort_desc", "sort_by_label", "sort_by_label_desc"] {
+                for phase in ["none", "scan", "compare"] {
+                    if phase == "compare" && function.contains("by_label") {
+                        continue;
+                    }
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut provider = FixtureProvider::new(1, page, 43);
+                    for (index, series) in provider.series.iter_mut().enumerate() {
+                        let value = if index < 2 {
+                            crate::test_storage::FULL_LABEL_HASH_COLLISION_VALUES[index].to_vec()
+                        } else {
+                            format!("unique{index}").into_bytes()
+                        };
+                        series.labels = vec![(b"a".to_vec(), value)];
+                        // Separate counters establish each source's actual acquisition phase.
+                        series.source.counters = Default::default();
+                    }
+                    let (target, acquisition) = if phase == "compare" { (20, 3) } else { (42, 2) };
+                    if phase != "none" {
+                        provider.series[target].source.fail_acquisition = Some(acquisition);
+                    }
+                    let expression = if function.contains("by_label") {
+                        format!("{function}({{a=~\".+\"}},\"a\")")
+                    } else {
+                        format!("{function}({{a=~\".+\"}})")
+                    };
+                    let mut settings = EngineOptions::default();
+                    settings.parser.experimental_functions = true;
+                    let query = engine
+                        .compile(expression.as_bytes(), settings, &control)
+                        .unwrap();
+                    let mut sink = RecordingSink::default();
+                    let report = query.execute_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 1000 },
+                        &control,
+                        &mut sink,
+                    );
+                    if phase == "none" {
+                        assert!(is_duplicate(report.result.as_ref().unwrap_err()));
+                    } else {
+                        assert!(matches!(
+                            &report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                                StorageError::Provider(bytes)
+                            ))) if &**bytes == b"injected page failure"
+                        ));
+                        assert_eq!(
+                            provider.series[target]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            acquisition
+                        );
+                    }
+                    for (index, series) in provider.series.iter().enumerate() {
+                        let required = if phase == "scan" && index == target {
+                            1
+                        } else {
+                            2
+                        };
+                        assert!(
+                            series
+                                .source
+                                .counters
+                                .samples_returned
+                                .load(Ordering::Relaxed)
+                                >= required
+                        );
+                    }
+                    assert!(sink.begun && sink.aborted && !sink.committed);
+                    assert_eq!(sink.chunks, 0);
+                    assert_eq!(report.observations.output_samples, 0);
+                    assert!(report.annotations.is_empty());
+                    report.assert_retained_callback_error_memory();
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
     fn finite_signed_merged_matrix_output_preserves_sorted_lanes() {
         // A collided label group sorts its lanes before aliases publish the completed matrix.
         let left = "label_replace(vector(time()) == 0,\"src\",\"a\",\"__name__\",\".*\")";

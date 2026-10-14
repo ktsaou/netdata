@@ -135,6 +135,8 @@ pub(crate) struct GeneratedSeries {
     pub seek_index: Option<fn(i64) -> usize>,
     pub counters: Arc<CursorCounts>,
     pub fail_page: Option<usize>,
+    #[cfg(test)]
+    pub fail_acquisition: Option<usize>,
 }
 
 impl GeneratedSeries {
@@ -146,6 +148,8 @@ impl GeneratedSeries {
             seek_index: None,
             counters: Arc::new(CursorCounts::default()),
             fail_page: None,
+            #[cfg(test)]
+            fail_acquisition: None,
         }
     }
 }
@@ -156,6 +160,8 @@ pub(crate) struct GeneratedCursor<'a> {
     index: usize,
     pages: usize,
     values: Vec<Sample>,
+    #[cfg(test)]
+    acquisition: usize,
 }
 
 impl Series for GeneratedSeries {
@@ -175,7 +181,7 @@ impl Series for GeneratedSeries {
         control: &Control,
     ) -> Result<Self::Cursor<'_>, StorageError> {
         control.check()?;
-        self.counters.opened.fetch_add(1, Ordering::Relaxed);
+        let _acquisition = self.counters.opened.fetch_add(1, Ordering::Relaxed);
         let active = self.counters.active.fetch_add(1, Ordering::Relaxed) + 1;
         self.counters.peak.fetch_max(active, Ordering::Relaxed);
         Ok(GeneratedCursor {
@@ -184,6 +190,8 @@ impl Series for GeneratedSeries {
             index: 0,
             pages: 0,
             values: Vec::with_capacity(self.page_size),
+            #[cfg(test)]
+            acquisition: _acquisition + 1,
         })
     }
 }
@@ -238,7 +246,11 @@ impl SampleCursor for GeneratedCursor<'_> {
             .fetch_add(1, Ordering::Relaxed);
         self.values.clear();
         *resources = self.resources();
-        if self.source.fail_page == Some(self.pages) {
+        let fail_page = self.source.fail_page == Some(self.pages);
+        #[cfg(test)]
+        let fail_page = fail_page
+            || (self.pages == 0 && self.source.fail_acquisition == Some(self.acquisition));
+        if fail_page {
             return Err(StorageError::Provider(
                 b"injected page failure".to_vec().into(),
             ));

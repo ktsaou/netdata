@@ -8801,5 +8801,29 @@
     "complete_small_timing_responses": 34560,
     "complete_latency_concern_followup_responses": 480,
     "caveat": "Four copied grouping consumers omit discarded byte payloads and unused outer capacity. Ownership-transfer capacity, input/output metadata, ranking descriptors and other replay costs remain. Actual whole-query savings and tiny costs are reported; historical sources/binaries remain distinct."
+  },
+  "sort_publication_qualification": {
+    "status": "pass",
+    "qualification": {
+      "path": "sort-publication-qualification.json",
+      "sha256": "afcf36a64045c72d790b72c74fc45f6479093e14dbcae094aeab65b49e438b17"
+    },
+    "scope": "Finite completed vector-sort publication qualification. All four sort functions preserve their complete original callbacks/permutation before hash-only duplicate validation. Direct comparisons remain through32 eligible rows; larger rows use local accounted physical-position lookup. Temporary lookup retires before terminal check and snapshot. No new raw history/value cache,plan field,public/default/ABI/reference/storage change. Not arbitrary-input equivalence or whole-core readiness.",
+    "fixture_units_per_profile": 608,
+    "builtin_comparisons": 128652,
+    "focused_comparisons": 2070,
+    "sre_exact_comparisons": 231540,
+    "foreign_executed_owner_checks": 140,
+    "foreign_distinct_target_profile_tests": 140,
+    "c_embedding_artifacts": 1033,
+    "live_http_and_readiness_checks": 82,
+    "storage_records": 672,
+    "complete_baseline_responses": 660,
+    "complete_performance_responses": 3960,
+    "complete_final_shared_path_timing_responses": 768,
+    "complete_final_warmed_tiny_responses": 8640,
+    "retained_sort_original_comparisons": 456,
+    "expanded_complete_special_native_responses": 960,
+    "caveat": "Large post-sort hash validation reduces accounted work with temporary allocation traffic. Complete callback/failure/gate/permutation/cache/control ownership remains; actual peaks and mixed timing outcomes are reported. No universal speed/memory or arbitrary-input compatibility claim."
   }
 }

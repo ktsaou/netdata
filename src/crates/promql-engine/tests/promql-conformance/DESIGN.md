@@ -795,3 +795,22 @@ integration, and Alertmanager remains excluded.
   cache, metadata provider, persistent view or query limit.
 - **Evidence:** [copied grouping qualification](grouped-label-qualification.json) binds the actual capacity red,
   final sources/executables, complete query measurements, interruption controls and containing-Agent checks.
+
+## Completed vector-sort publication
+
+- **Choice:** after the original numeric or label sorting callback completes, duplicate validation retains the
+  direct pairwise path through 32 eligible inputs. Larger permutations use the existing accounted position
+  index, storing physical input positions and comparing the descriptors' cached full hashes.
+- **Identity:** duplicate equality remains hash-only, including unequal labels with the same hash. Numeric
+  sorting admits float inputs; label sorting also admits native histograms. Lookup never changes the permutation.
+- **Phases:** child scans, string validation and comparator acquisitions finish before duplicate validation.
+  Delayed name removal bypasses this validation only when start and end are equal. Range warnings retain their
+  original phase. A decisive duplicate still precedes cancellation caused by that comparison's work charge.
+- **Ownership:** the temporary lookup retires before the terminal control check and snapshot publication. The
+  snapshot retains only the existing permutation and exact time/start/end/step/position key. Same-key hits and
+  changed-key invalidation preserve their existing behavior; no raw values, history or additional plan field remain.
+- **Tradeoff:** the lookup reduces repeated hash comparisons but adds temporary allocations. Whole-query peaks,
+  allocation traffic and elapsed time require separate measurements. Hash probing has no universal linear bound,
+  and the cutoff is a measured private policy rather than a proven optimum.
+- **Evidence:** the conformance guide's completed vector-sort section binds the actual owner regression, source
+  phases, collision/gate/cache/error/interruption controls, complete outcomes and containing-Agent qualification.

@@ -2980,3 +2980,85 @@ lower elapsed time for every query on a shared host.
 All 18 C/C++ callers, 72 distinct ARM target/profile grouping checks, 672 storage records and 82 live HTTP/readiness
 checks pass. The cohort preserves all 46 preceding ledger objects and their source/binary identities. Caller
 sanitizers exclude Rust instrumentation; ARM checks execute the library and callers, not a complete foreign Agent.
+
+## Completed vector-sort publication
+
+`sort`, `sort_desc`, `sort_by_label` and `sort_by_label_desc` complete their existing sorting callbacks before
+checking duplicate hashes. Through 32 eligible inputs, publication retains direct pairwise comparisons.
+Larger permutations use a temporary accounted position index over the existing cached full hashes. It stores
+physical input positions, leaves the permutation untouched and retires before snapshot publication.
+
+Duplicate identity remains hash-only, including unequal labels with the same full hash. Numeric sorting excludes
+histograms; label sorting includes them. Delayed name removal bypasses publication validation only for equal
+start/end bounds. Child, string and comparator errors still precede a pending duplicate, and a decisive duplicate
+precedes cancellation triggered by its comparison charge. The common terminal poll prevents a cancelled query
+from publishing a snapshot. Exact time/start/end/step/position cache keys, hits, invalidation and range warnings remain.
+
+The actual unchanged-runtime owner regression first checks the complete permutation, snapshot key, stage, warning
+and release, then fails its growth bound at 8,128/130,816 work units for 128/512 rows. The indexed owner charges
+1,662/6,749 instead. This isolates publication work; it does not measure the earlier sorting callbacks or whole-query speed.
+
+Controls cover 32/33/43 boundaries, sparse and nonmonotone physical positions, repeated inputs, actual unequal-label
+hash collisions, zero cached hashes, delayed gates, every snapshot-key component, same-key hits and native/mixed
+membership. Interruption is injected at all 1,580 charged boundaries in the native owner panel, including promotion,
+rehashing and the terminal charge. Every interrupted publication releases its temporary lookup and retains no snapshot.
+
+Complete-query failure controls use independent counters for each source. A fault on the last source's second
+acquisition reaches the sort scan after raw preparation succeeds. Numeric faults on the first comparator operand's
+third acquisition leave the entire scan complete before comparison fails. A fixed first-page fault would fail raw
+preparation and does not establish these sort phases. Thirty actual fault/no-fault outcomes check first errors,
+abort without output, retained error bytes and complete closure at pages 1/17/1024.
+
+The retained pinned source panel covers special float values, native filtering/inclusion, natural label order and
+nested string errors. Those originals are below the lookup cutoff. A separate accepted-engine comparison pads
+special values above it and exercises 32-float-plus-histogram, 33-float-plus-histogram and 33-histogram inputs,
+both delayed modes and both query modes. Complete row order, values, histograms and diagnostics remain unchanged.
+
+The complete matched panel contains 3,960 before/final responses across 660 query/profile groups: five routes,
+11 cardinalities from 0 to 512, instant/range execution and pages 1/17/1024. All outputs, diagnostics, sample/page/call
+counts, output samples, backing use and final release match. All 660 whole-query workspace peaks are unchanged.
+Through 32 rows, work and acquired workspace bytes are unchanged; above 32, work falls and allocation traffic rises.
+
+At 512 rows with page size 17, complete numeric sort work falls from 1,635,417 to 1,511,463 for an instant query
+and from 95,401,562 to 94,657,838 for three range ticks. Label sort falls from 856,934 to 732,858 and from
+91,062,074 to 90,317,618. These complete-query savings are smaller than the isolated publication savings because
+sorting callbacks and sorted-row replay still perform their original reads.
+
+| Complete route, 512 rows | Workspace peak, before and final | Extra acquired workspace bytes |
+|---|---:|---:|
+| Numeric sort, instant | 672,288 | 16,352 |
+| Numeric sort, three range ticks | 758,304 | 98,112 |
+| Label sort, instant | 672,320 | 16,352 |
+| Label sort, three range ticks | 758,336 | 98,112 |
+| `abs(sort(m))`, three range ticks | 1,042,976 | 147,168 |
+
+The additional bytes are allocation traffic, not increased peak or process RSS. The lookup is temporary and
+retired before the snapshot; neither retains raw sample values. Hash probing has no universal linear bound and
+32 is a measured private policy, not a proven optimum. Sorted-row replay remains a separately tracked cost.
+
+Timing runs begin after all 18 owned bulk qualification phases finish. Three alternating before/final pairs
+retain every complete matched result, including cold tiny outliers. A separate 768-response followup at 32/512
+rows uses 18 warmed measurements per phase/group; an 8,640-response empty/tiny followup at 0/1/4 rows uses 60.
+Both profiles retain exact results and resource counters. Ratios below divide the before median by the final median.
+
+| Warmed route, 512 rows and page 17 | Release ratio | Release-min ratio |
+|---|---:|---:|
+| Numeric sort, instant | 1.138 | 1.085 |
+| Numeric sort, three range ticks | 0.988 | 1.046 |
+| Label sort, instant | 1.133 | 1.142 |
+| Label sort, three range ticks | 0.994 | 1.056 |
+
+The two release range cases remain about 1.2%/0.6% slower; the first prototype also retains slower range results.
+Warmed empty/tiny ratios range from 0.957 to 1.045 with unchanged work and acquired bytes. These are shared-host
+synthetic measurements without CPU isolation. They do not establish universal speed, an optimal crossover, RSS
+or production disk throughput, and the later followups do not replace the original observations.
+
+The [sort publication qualification](sort-publication-qualification.json) preserves the actual source and executable
+phases, initial compiler failure, corrected meaningful red, first prototype observations and final qualification.
+The formatter-overlap development run is explicitly unqualified; its passing test diagnostics do not replace a
+source-frozen run. Final qualification passes 608 units per profile, 128,652 built-in and 2,070 focused comparisons,
+231,540 exact SRE expressions, 456 retained pinned sort comparisons and 960 expanded accepted-engine responses.
+It executes 140 distinct ARM target/profile sort checks and all 18 C/C++ callers; the fresh Agent passes 672 storage
+records and 82 live HTTP/readiness checks. All 47 preceding ledger objects and 114 preceding C/ARM link inputs
+remain unchanged. Foreign checks execute the library and callers; caller sanitizers exclude Rust instrumentation.
+Historical cohorts retain their original identities.

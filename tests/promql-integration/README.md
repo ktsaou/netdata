@@ -221,3 +221,9 @@ HTTP/readiness checks under both codecs, using ordinary client reads and normal 
 Rust engine queries reduce quantile/nested-group peak workspace and copied allocation volume. Raw transfer-path
 and top-k peaks remain unchanged. The contained conformance guide records original slower timings and their
 separate follow-up; these are finite generated-data measurements, not production disk or process-RSS claims.
+
+The subsequent sort-publication route replaces large pairwise duplicate-hash checks with a temporary position
+lookup after the original sorting callback completes. A freshly linked Debug Agent passes 672 storage records
+and 82 HTTP/readiness checks under both codecs, with ordinary client reads and normal owned exits. The contained
+conformance guide records exact order/error/cache/control obligations and the allocation/timing tradeoff. Storage,
+contexts ownership, API contracts and paged raw data remain unchanged; these checks do not measure live disk throughput.
