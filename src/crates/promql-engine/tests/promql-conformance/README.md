@@ -2369,6 +2369,38 @@ and raw reads do not fall in this cohort.
 The [range-head qualification](range-head-qualification.json) binds the final engine, callers and rebuilt Agent
 checks. Earlier qualifications retain their actual source and binary identities.
 
+## Range preparation label uniqueness
+
+Ordinary range-function preparation uses the existing accounted position index instead of scanning every earlier
+result hash. The check still follows complete preparation and uses full-hash equality, including unequal labelsets
+with equal hashes. Current label hashes are recomputed in their original order. Delayed cleanup, kind-aware
+streaming checks, metadata-preserving functions and generic merge rules retain their existing owners.
+
+The collection index is no longer needed at this phase and is released before the new lookup table is allocated.
+Neither index retains raw samples. Cancellation is checked after lookup before duplicate errors/insertion, and
+after insertion. Actual collision controls cover inline and allocated tables, float/native results, later provider
+failures and cancellation at the matching probe; every failed query aborts output and releases its owners.
+
+The matched workload is an instant `avg_over_time(counter_total[5m])` at second 2, using two samples valued 1 and 2
+at seconds 1 and 2. The work regression verifies every label, timestamp, exact 1.5 value, empty diagnostics,
+`2N` logical samples and complete release before its work bound. Both profiles, pages 1/17/1024 and three
+alternating repetitions preserve complete outputs and fetched samples. At page 17:
+
+| Series | Work before → after | Peak workspace before → after | Median timing ratio, release / release-min |
+| --- | ---: | ---: | ---: |
+| 128 | 73,459 → 66,821 | 161,149 → 161,149 bytes | 1.02× / 1.06× |
+| 512 | 497,373 → 373,098 | 632,552 → 630,504 bytes | 1.11× / 1.13× |
+
+All 12 matched groups reduce work and preserve reads; workspace is unchanged at 128 series and falls by 2 KiB
+at 512. The table itself can exceed the old hash vector's size; the measured benefit includes releasing finished
+collection metadata. Timings describe generated query execution, not production API or disk throughput. Workspace
+is tracked query memory, not RSS. Collisions can still require repeated probes, and other preparation/replay costs
+remain; this does not establish linear total execution.
+
+The [range uniqueness qualification](range-uniqueness-qualification.json) binds 555 units per profile, retained
+expression/SRE panels, actual C callers and a rebuilt Agent's storage/API checks. Earlier ledger entries keep their
+actual source and binary identities.
+
 ## Bounded binary matching and pair replay
 
 Vector/vector arithmetic, comparisons, `bool`, `and`, `or`, `unless`, `on`, `ignoring`, group modifiers and optional

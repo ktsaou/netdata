@@ -11,7 +11,7 @@ use crate::{
     annotations::{AnnotationBuilder, Annotations},
     evaluator::{
         EvaluationError, EvaluationMetadata, EvaluationOptions, Machine, PointwiseFunction,
-        drop_reserved, remember_unique, remember_unique_kind,
+        drop_reserved, remember_unique_kind,
     },
     evaluator_roster::{
         Descriptor, DescriptorIndex, HeadSummary, MergeGuard, PointCounts, Rosters, StepKinds,
@@ -2505,9 +2505,33 @@ impl CompiledQuery {
                 Expr::Call { function: Some(function), .. }
                 if RangeFunction::parse(function.name).is_some())
             {
-                let mut seen = AccountedVec::new(account, MemoryKind::Workspace);
-                for descriptor in descriptors.iter() {
-                    remember_unique(&mut seen, &descriptor.labels, account, control)?;
+                // Collection is complete; avoid overlapping both lookup tables.
+                drop(descriptor_index);
+                let mut seen = crate::position_index::PositionIndex::new(account);
+                for (position, descriptor) in descriptors.iter().enumerate() {
+                    let hash = crate::label_hash::full(&descriptor.labels, control, account)?;
+                    let duplicate = seen
+                        .find(
+                            hash,
+                            |prior| Ok(descriptors[prior].hash == hash),
+                            control,
+                            account,
+                        )?
+                        .is_some();
+                    control.check()?;
+                    if duplicate {
+                        return Err(EvaluationError::Invalid(
+                            "vector cannot contain metrics with the same labelset",
+                        ));
+                    }
+                    seen.insert_new(
+                        hash,
+                        position,
+                        |prior| Ok(descriptors[prior].hash),
+                        control,
+                        account,
+                    )?;
+                    control.check()?;
                 }
             }
             let merged_unary =
@@ -10757,6 +10781,122 @@ mod tests {
         assert!(work[1] < work[0] * 8, "{work:?}");
         assert!(nested_work[1] < nested_work[0] * 6, "{nested_work:?}");
     }
+    #[test]
+    fn range_hash_collisions_wait_for_later_provider_errors_and_observe_controls() {
+        const FIRST: &[u8] = b"Aaaaa\x00\x00\x00\x00\x00\x00\x00\x00";
+        const SECOND: &[u8] = b"Bbbbb\x1d\x3c\xa5\x95\x96\x2f\x43\xdd";
+        for page in [1, 17, 1024] {
+            for prefix in [0, 2] {
+                for mixed in [false, true] {
+                    for fail_later in [false, true] {
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let account = engine.accounting.query();
+                        assert_ne!(FIRST, SECOND);
+                        for value in [FIRST, SECOND] {
+                            let mut labels =
+                                crate::result::OwnedLabels::new(&account, MemoryKind::Workspace);
+                            labels.push(b"a", value, &account, MemoryKind::Workspace);
+                            assert_eq!(
+                                crate::label_hash::full(&labels, &control, &account).unwrap(),
+                                0x9c71_0b2e_3747_e3bd
+                            );
+                        }
+                        drop(account);
+                        let mut provider =
+                            FixtureProvider::new(2, page, prefix + 2 + usize::from(fail_later));
+                        for (index, series) in provider.series.iter_mut().enumerate() {
+                            let value = if index == prefix {
+                                FIRST.to_vec()
+                            } else if index == prefix + 1 {
+                                SECOND.to_vec()
+                            } else {
+                                format!("unique{index}").into_bytes()
+                            };
+                            series.labels = vec![
+                                (b"__name__".to_vec(), b"m".to_vec()),
+                                (b"a".to_vec(), value),
+                            ];
+                        }
+                        if mixed {
+                            provider.series[prefix + 1].source.sample = native_range_sample;
+                        }
+                        if fail_later {
+                            provider.series[prefix + 2].source.fail_page = Some(1);
+                        }
+                        let query = engine
+                            .compile(b"avg_over_time(m[5m])", EngineOptions::default(), &control)
+                            .unwrap();
+                        let request = QueryRequest::Instant { time_ms: 2000 };
+                        let mut sink = RecordingSink::default();
+                        let report =
+                            query.execute_reported(&provider, request, &control, &mut sink);
+                        if fail_later {
+                            assert!(matches!(
+                                &report.result,
+                                Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                                    StorageError::Provider(bytes)
+                                ))) if &**bytes == b"injected page failure"
+                            ));
+                        } else {
+                            assert!(matches!(
+                                &report.result,
+                                Err(ExecutionError::Evaluation(EvaluationError::Invalid(
+                                    "vector cannot contain metrics with the same labelset"
+                                )))
+                            ));
+                        }
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        assert_eq!(sink.chunks, 0);
+                        assert_eq!(report.observations.output_samples, 0);
+                        assert!(report.annotations.is_empty());
+                        for series in &provider.series[..prefix + 2] {
+                            assert!(
+                                series
+                                    .source
+                                    .counters
+                                    .samples_returned
+                                    .load(Ordering::Relaxed)
+                                    > 0
+                            );
+                        }
+                        report.assert_retained_callback_error_memory();
+                        let duplicate_work = report.observations.work;
+                        provider.assert_closed();
+                        drop(report);
+                        if prefix == 2 && !mixed && !fail_later {
+                            assert!(duplicate_work > 0 && duplicate_work < 8192);
+                            let cancelled = Control::default();
+                            let account = engine.accounting.query();
+                            let mut sink = RecordingSink::default();
+                            let report =
+                                crate::test_storage::interrupt_during(&account, &cancelled, || {
+                                    account.work(8192 - duplicate_work);
+                                    query.execute_reported_in(
+                                        &provider, request, &cancelled, &mut sink, &account,
+                                    )
+                                });
+                            assert!(matches!(
+                                &report.result,
+                                Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                                    Interrupted::Cancelled
+                                )))
+                            ));
+                            assert_eq!(report.observations.work, 8192);
+                            assert!(sink.begun && sink.aborted && !sink.committed);
+                            assert_eq!(sink.chunks, 0);
+                            report.assert_retained_callback_error_memory();
+                            provider.assert_closed();
+                            drop((report, account));
+                        }
+                        drop(query);
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+    }
+
     #[test]
     fn unequal_labels_with_the_same_full_hash_follow_source_merge_identity() {
         // Go mergeSeriesWithSameLabelset uses Hash alone, not label equality.

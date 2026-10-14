@@ -637,3 +637,22 @@ integration, and Alertmanager remains excluded.
   make total preparation linear or reduce raw reads. Matched query timings qualify generated workloads only.
 - **Evidence:** a complete-result/statistics/release work regression, retained native/mixed/generic/error/clock
   controls, and both-profile/page source-bound comparison and integration cohorts.
+
+## Range preparation label uniqueness
+
+- **Choice:** ordinary range-function preparation indexes descriptor positions with the existing accounted
+  `PositionIndex` instead of scanning every earlier hash. The index stays local to the original duplicate-check
+  phase and is discarded before roster sorting/publication.
+- **Authority:** recompute each current label hash in its original order; compare only full hashes against
+  immutable prior descriptor hashes. Unequal labels with equal hashes remain duplicates. Complete preparation,
+  including later provider errors, still precedes duplicate detection.
+- **Ownership:** release the finished collection index before allocating uniqueness metadata. Neither index
+  owns raw samples or provider callbacks. The new table alone can exceed the old hash vector's size; whole-query
+  memory benefit must come from measured lifetimes, not a smaller-table assumption.
+- **Controls:** explicitly check cancellation after lookup before reporting duplicates or inserting a position,
+  and after insertion. Rebuilds retain existing checked allocation/probing and cleanup.
+- **Boundaries:** kind-aware streaming checks, delayed cleanup, generic merges and metadata-preserving functions
+  keep their existing behavior. Hash collisions can still cause repeated probes; this is no worst-case linearity
+  guarantee. Raw reads, numerical evaluation and public interfaces are unchanged.
+- **Evidence:** [range uniqueness qualification](range-uniqueness-qualification.json) records complete work,
+  collision/error/control checks and both-profile/page comparisons, alongside current caller and Agent cohorts.

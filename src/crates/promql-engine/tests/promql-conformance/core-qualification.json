@@ -8635,5 +8635,21 @@
     "caller_artifacts": 734,
     "storage_records": 672,
     "live_checks": 58
+  },
+  "range_preparation_uniqueness_qualification": {
+    "status": "qualified_on_recorded_finite_inputs",
+    "scope": "Ordinary range-function preparation uses a local descriptor-position index for full-hash-only duplicate lookup after complete acquisition; original evaluation/error phases, hashes, controls, diagnostics, publication and raw paging remain authoritative.",
+    "qualification": {
+      "repository_path": "tests/promql-conformance/range-uniqueness-qualification.json",
+      "sha256": "ed8cfd06e45da6cc4abf3318cfa020cb8148029437cfef311e5e7f459c393e2f"
+    },
+    "source_files": 144,
+    "fixture_units_per_profile": 555,
+    "builtin_comparisons": 128652,
+    "focused_comparisons": 2070,
+    "sre_comparisons": 231540,
+    "caller_artifacts": 734,
+    "storage_records": 672,
+    "live_checks": 58
   }
 }

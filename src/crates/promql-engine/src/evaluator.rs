@@ -4254,22 +4254,6 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     }
 }
 
-pub(crate) fn remember_unique(
-    seen: &mut AccountedVec<u64>,
-    labels: &OwnedLabels,
-    account: &QueryAccounting,
-    control: &Control,
-) -> Result<(), EvaluationError> {
-    let hash = label_hash::full(labels, control, account)?;
-    if crate::evaluator_order::contains(seen, &hash, control, account)? {
-        return Err(EvaluationError::Invalid(
-            "vector cannot contain metrics with the same labelset",
-        ));
-    }
-    seen.push(hash);
-    Ok(())
-}
-
 pub(crate) fn remember_unique_kind(
     seen: &mut AccountedVec<(u64, u8)>,
     labels: &OwnedLabels,

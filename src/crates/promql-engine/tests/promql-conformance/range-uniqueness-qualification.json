@@ -1,0 +1,3042 @@
+{
+  "schema_version": 1,
+  "status": "qualified_on_recorded_finite_inputs",
+  "scope": "Ordinary range-function preparation uses a local descriptor-position index for full-hash-only duplicate lookup after complete acquisition; original evaluation/error phases, hashes, controls, diagnostics, publication and raw paging remain authoritative.",
+  "sources": {
+    "Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/absence.rs": "afb4f330f5dff938c2eebfa64574b3cf9693cbd94b43a9cf60752b8094a14889",
+    "src/accounting.rs": "3691f58a62ed5c9c40e8ac22348ee7a121a262278510a8dc355be6ede84b609d",
+    "src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/c_abi/provider.rs": "7c38cd156a78a22b263f6d90dc92dc2f6f4aa14a0e57a63755c2d5d82a67b375",
+    "src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/c_abi/tests.rs": "f30191c1e27d7521e216578a48a1b019a28e6226ed1e38b503f7d47fe1b65015",
+    "src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/c_abi/tests/pages.rs": "fc4ca73ae808c092f67bdec1745f2492a518d09aec0156bae20486d9f14a3783",
+    "src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/derived_range.rs": "ab65985b25b848786bdb4475c5ca334cae9a36f233cfb078ec1d9163180f2982",
+    "src/evaluator.rs": "c11f59c001262f6046efe6abb09dae69d74159408626b441c6ad01ae1516dc80",
+    "src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/evaluator_roster.rs": "92af062ac26221fff51ad9eb5996401097b80e45c20657161ae2374851232f14",
+    "src/execution.rs": "79b3ccb590a7eb9c2a37fc0e7aa661a0ec0cf52af3d9fea83e03ed55769b2487",
+    "src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/frontend/regex.rs": "44dd8f64aa08e0e5e7c71d17214450de4cff3156ee96e75e64f056922dcd4228",
+    "src/frontend/regex_nfa.rs": "9586e2ecfd17bd4b59a61c270856de046c2948441ea6423b8562d572e39b105f",
+    "src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/frontend/regex_selector.rs": "58778f43b7548806d708bb78df0450db888619247a841c30cd9d1e731623eedf",
+    "src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/histogram_call.rs": "cef807e0dbd311e7255e5451b31e3aef337b9401067ea253f129c7ebafae0f3f",
+    "src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/lookup_tests.rs": "db64584d675bfb451346a4b0a311c397c14038cb626aecd5b359e58645766f36",
+    "src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/matrix_reader.rs": "1adc0d685b2fa6e05517075879f375304825849c1247b93145fcac65fd431f09",
+    "src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/quantile_aggregate.rs": "5574aad6a5ba304e7e697eeb81284097bd52d46615b49b247b0a765b2cfee04c",
+    "src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/range_quantile_rank.rs": "37b27f36dfb92e95cf7484604861b21348b582e77d222483e8df0d71b30d0f73",
+    "src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/range_reduce.rs": "a26c814a7df7fd09154174054298ad156c0f4a2c1ff52cfaa45ba7e6dbe74e9f",
+    "src/result.rs": "75658360d24544d09cf1a630ee1467ea44d6d960dffea504ee29c55eab4ebc3e",
+    "src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+    "src/scheduled_output.rs": "0d4adb4cd20eb224269f51caf93a3bf12ed8016652834e7d01272af853324fc0",
+    "src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/storage.rs": "fdac6d49e370a3a95ac1726334ecfcf01dd760ef6d93634549913d9e91c34102",
+    "src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/temporal_quantile.rs": "670bc1d8b1197b170ec9fbe6e2943c590a7f0791be25914725c95cbae7dcae16",
+    "src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/test_storage.rs": "45e159c7f5a6045cf421ebdae5191456d1201ab3633ce84e50a367f5b5349e9e",
+    "src/topk.rs": "779a16f4ae15da3ed627c592778fe646b89c92b80e3d8167d6efbf6465265477",
+    "src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/vector_matching.rs": "fe5d93e598175b9935f550fd6c3d71009626622a4069dcff9c167cf1b993594d",
+    "src/vector_sort.rs": "f34df2cf55a0a8c4d34830c682daf41bb18ee16f4dc62efc406535e0cc4e5022"
+  },
+  "binaries": {
+    "release": {
+      "libnetdata_promql_engine.a": "4973196b02c7e4d1651241d8668af1491f8860521d48b71bb5eb88ea398a57b4",
+      "promql-frontend-fixture": "7ce92dfcb1a9232746fd83a3960c16ac4aa20bd417f12a4b0ff3133b2a784740",
+      "promql-kernel-fixture": "81627609f597616466f15ef21f0f644f44a23bd2d4e3b455f2c5923acc59a37d",
+      "promql-protocol-fixture": "d603161b78dcbde34e391cdb7455f1c80c0dd7564ecc4c296f2dd8a06403dbb7",
+      "promql-query-fixture": "9481dba4a0310e034010ab755f087d9f1ca0a4149f48e2c6e7d8c4f679474b90"
+    },
+    "release-min": {
+      "libnetdata_promql_engine.a": "f35f8e89576a5f5c1a095eed7835d5428ccf8b01ecc35a53ae0dd0da8a76c1db",
+      "promql-frontend-fixture": "9a17e45a650aa91926d6f3a3831c95baca921eaa5c6168ddaeb5d7b061a15265",
+      "promql-kernel-fixture": "99b96ca8fc3502ebc62fa670bfd870681cf777cb8e40e57053b0c5ec71549b47",
+      "promql-protocol-fixture": "f16954181e6747391b3f52f0924c5ef00860eb0a31abc54ca4029e5b38839959",
+      "promql-query-fixture": "63f486d345f2c7b278200c4f46c22cd5c333ab96f473ba5288394bde7edac00e"
+    }
+  },
+  "fixture_units": [
+    {
+      "profile": "release",
+      "passed": 555,
+      "runtime_seconds": 79.07,
+      "stdout": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/release-unit.stdout",
+        "sha256": "7e2c82adb1bc97b890296e95a932a003d438d32d7f0eea1cd4813b7b2e55801f"
+      }
+    },
+    {
+      "profile": "release-min",
+      "passed": 555,
+      "runtime_seconds": 146.53,
+      "stdout": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/release-min-unit.stdout",
+        "sha256": "f915bf236f6d3a0597649724e0b58dfab021e06c67160f2fd4d50d55b7a24cf1"
+      }
+    }
+  ],
+  "static_checks": [
+    {
+      "name": "format-final",
+      "status": {
+        "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/format-final-status.json",
+        "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
+      },
+      "stderr": {
+        "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/format-final.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "clippy-production",
+      "status": {
+        "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/clippy-production-status.json",
+        "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
+      },
+      "stderr": {
+        "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/clippy-production.stderr",
+        "sha256": "aab18040634c4e949deb92853036b7fa2489957cab1fd34aed1ad8aed5816e4b"
+      }
+    },
+    {
+      "name": "clippy-fixtures-final",
+      "status": {
+        "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/clippy-fixtures-final-status.json",
+        "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
+      },
+      "stderr": {
+        "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/clippy-fixtures-final.stderr",
+        "sha256": "b1cba4c2cdf70b1d6cd571ede7130c06cc134638a5efa8a1be22789d806ae6d4"
+      }
+    },
+    {
+      "name": "msrv",
+      "status": {
+        "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/msrv-status.json",
+        "sha256": "5bc232b82de377a5655a39a2af9d7ae0fc868de5b9df957e18905cb914606c88"
+      },
+      "stderr": {
+        "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/msrv.stderr",
+        "sha256": "fc00dca5de55588830da981bc8cddaac291cfa5d76a8803f869f0f4537c98a0f"
+      }
+    }
+  ],
+  "meaningful_red": {
+    "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/red-proof.json",
+    "sha256": "31de3e8cafec9077a487ebc441c2426da57dac5fc149aaaad93216a756cfc7b5"
+  },
+  "first_development_green": {
+    "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/first-green.stdout",
+    "sha256": "b027c31f5b0a73b2c34589b736aabec78f578b546caee35b66536c3a4231c64e"
+  },
+  "development_green_source": {
+    "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/first-green-source.json",
+    "sha256": "3e141a9d6c85cb123d8691956054f7049f03f9983b0553b122f2f27a7032bc8c"
+  },
+  "post_green_impact": {
+    "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/post-green-impact.json",
+    "sha256": "c5a4fc9f949aa37a3c8813af4d71918ccbb29c1621b6d1e3b064b148db1007c8"
+  },
+  "builtin": {
+    "comparisons": 128652,
+    "panels": [
+      {
+        "profile": "release-min",
+        "page_size": 1,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/builtin-release-min-page1-ypw647oa/report.json",
+          "sha256": "964e03cb3bf2a80c164dd60c6a0bb40dd8adc77d6936c1ce51a6e36b01f16d4d"
+        }
+      },
+      {
+        "profile": "release-min",
+        "page_size": 1024,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/builtin-release-min-page1024-2_d3mwet/report.json",
+          "sha256": "3927f797844df52ecefc02ebed4fd5d819ba9d697ad55144e248a092db05cd28"
+        }
+      },
+      {
+        "profile": "release-min",
+        "page_size": 17,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/builtin-release-min-page17-qm5din1c/report.json",
+          "sha256": "491925dc5fdbee4c5357fc3fc5d3bd55a6d21deb9ac89a619479000923a1648f"
+        }
+      },
+      {
+        "profile": "release",
+        "page_size": 1,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/builtin-release-page1-egm3bklz/report.json",
+          "sha256": "4e7513307e5af22ed1eddba7b77cd5b074b42314cc59ecdbb9483a3dce481cbd"
+        }
+      },
+      {
+        "profile": "release",
+        "page_size": 1024,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/builtin-release-page1024-xqt5zkdc/report.json",
+          "sha256": "7d266ea469c25efdc648dc44ea24e921d51691ba26087c04254bf5df95d2933e"
+        }
+      },
+      {
+        "profile": "release",
+        "page_size": 17,
+        "comparisons": 21442,
+        "report": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/builtin-release-page17-d9jg1bfi/report.json",
+          "sha256": "6036ba0b3efd6b924962a7b7de4732a5a2a3a81cbe9841809220b188296c1774"
+        }
+      }
+    ]
+  },
+  "focused": {
+    "comparisons": 2070,
+    "panels": [
+      {
+        "profile": "release-min",
+        "page_size": 1,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/focused-release-min-page1-hi6s_1ww/receipt.json",
+          "sha256": "b998553e903d705aee5df192b72d14e7ef9470f26245d99af06f666818405dd1"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-_s7tk1s1/report.json",
+              "sha256": "f7f9a1250592582e96a82464e98c212db177824ffdbc082be9a7d0883994b30b"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-0zeorxgu/report.json",
+              "sha256": "a949d839d0c0ffda7c48f0188e22c5534d054b5205cc2915f5cdf9f8b6cd1fea"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-g_oeffgs/physical-seek-policy.json",
+              "sha256": "b0b7c4620cb8fc7146c0e5d5adc200711da9d4f8f488f77e9ce899d5a95ee503"
+            }
+          },
+          {
+            "name": "precision",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/precision-0g0emx62/comparison.json",
+              "sha256": "3a2320aae037b4eb230e1402a10d6a1153137395be0220755fb0b62ec7a6397e"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "page_size": 1024,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/focused-release-min-page1024-2t1g0045/receipt.json",
+          "sha256": "8e1ff260e073f6c10fd71dfaa2890a2c8f0e0ce18de7553ab149696a1b3124b9"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-3iah_cnn/report.json",
+              "sha256": "f0b443764a0dd8a4d554abe91e2bc372f9bad11cd022e134545a2eb747215861"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-te0m2r__/report.json",
+              "sha256": "5eebaf6b9be511f7112758a8e14b3848861f00bf522d30cebc60545272547c49"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-1b7f85b7/physical-seek-policy.json",
+              "sha256": "e9b7154c93c2263ce95d81434c5486842155a1b2ba4b9328ed42858443457106"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "page_size": 17,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/focused-release-min-page17-03yf2wyr/receipt.json",
+          "sha256": "092f14fc8a3d7f9f077d46d2fc82b6019d0058dcc16df5f3f7e2c756a05a907b"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-ojcyp73v/report.json",
+              "sha256": "68ce5eb9fc9ca1ccff469946f63d56c73242ca24c14be6feed865cf2e56eb7c9"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-2nfdbegq/report.json",
+              "sha256": "ad826d7b1b82deb96ca9ccd5162c9ca54395c45dccd62e2919b8fb64e9bbf333"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-6aactkqg/physical-seek-policy.json",
+              "sha256": "cd1fac44bf9256c4fd46a9dc39f6305a7edb45142e309bf0fd1566d52f355a31"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page_size": 1,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/focused-release-page1-odp304dd/receipt.json",
+          "sha256": "6e3b9af878f117d241f4fcbce5047e84fe97745aea5c9ce2c23a4afa22a43c93"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-2m5agtme/report.json",
+              "sha256": "97219bbe625dcf76abedf5b6f16c475b016740f3aebfdffd157f1f492e79a958"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-570c8jo5/report.json",
+              "sha256": "394762a86fb26e6e9981c334c917f747e1ad021df73230ec90f28d6244a6dcba"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-8cygynbr/physical-seek-policy.json",
+              "sha256": "9d826ace5724459b54b8bd69af72e0f9fde390d75e6375ed75f497da29c6a24c"
+            }
+          },
+          {
+            "name": "precision",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/precision-ker9mahz/comparison.json",
+              "sha256": "42aa2ee5fc8bd8a656750f2d8ea4b9929d3d8188aaca71fe364f587ec378309d"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page_size": 1024,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/focused-release-page1024-z4gvqvme/receipt.json",
+          "sha256": "8997a0fc39cd6f7d7448a35427c7ba2ee6be6b6c666c2bd08cabc3700a8e36e8"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-4e49t64d/report.json",
+              "sha256": "e70f10b7bbc064ae44d474bc58e3dfd54ead55b289d502998535d0668c510235"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-ewos4nwg/report.json",
+              "sha256": "3c31094859083c0c492c765981af6a72597ae48288ea1b79e7ec541d4a587af8"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-3vxcgsr4/physical-seek-policy.json",
+              "sha256": "b34b3f332352a21f964b6f246626b41ddd33d673e6f85a012d1ee05c8fc0bf9b"
+            }
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page_size": 17,
+        "receipt": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/focused-release-page17-pweimhw7/receipt.json",
+          "sha256": "d1a67eb50b9d2fcaf3d1213f2718826bef7c7441ff4c673db62d1696931c9769"
+        },
+        "panels": [
+          {
+            "name": "scheduled",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/scheduled-selector-compare-z8uxihvb/report.json",
+              "sha256": "ac2d32ae5985da42407def33e0c2ba1a12cd608e0cd78369567b20de11fa6fc9"
+            }
+          },
+          {
+            "name": "default",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/default-profile-compare-tz2o5dpr/report.json",
+              "sha256": "a9e3fdee508c72bc6a964eeec042c48f2d93be6c2bc4c5f35176f4be672987c2"
+            }
+          },
+          {
+            "name": "cursor",
+            "report": {
+              "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/cursor-call-compare-ik2d6n4d/physical-seek-policy.json",
+              "sha256": "d9a415fba22a71dfd7f5074a97779d95cddf2c88ad8acc52311a62f8def493a8"
+            }
+          }
+        ]
+      }
+    ],
+    "raw_cursor_differences_retained": true
+  },
+  "sre": {
+    "comparisons": 231540,
+    "summary": {
+      "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/sre-causal-v2-nw937nxs/invocation-000-summary.json",
+      "sha256": "2ce66c3ddcb410749f579a8594d6d92c39c3794ad9717965906920f72f611231"
+    },
+    "source_binding": {
+      "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/sre-source-binding.json",
+      "sha256": "37292749f9aef3c8135373e78d91d27eaa1ea7e53f0728bed26a405d8946de13"
+    },
+    "run_binding": {
+      "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/sre-causal-v2-nw937nxs/run-binding.json",
+      "sha256": "c4eb78a8ec86f239e051cc22a8cb7b5243e6e736022052db41bae127c2df1b7a"
+    },
+    "go_parent_payloads_consumed": 0
+  },
+  "c_embedding": [
+    {
+      "target": "native",
+      "manifest": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-rhet3ghv/manifest.json",
+        "sha256": "06280ee7c2d3315dd48c37775f3960cc1dd562a1cbab315f8d2a1e6aca0e48a1"
+      },
+      "artifacts": 326,
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "structures": 58,
+      "callbacks": 17,
+      "shared_constants": 33,
+      "caller_variants": 10,
+      "retained_join_cases_per_caller": 9,
+      "retained_instant_fold_cases_per_caller": 6,
+      "retained_direct_rate_cases_per_caller": 12,
+      "caller_sanitizers": true,
+      "sanitizer_scope": "foreign caller; Rust core is not instrumented",
+      "panic_abort_rejected": true
+    },
+    {
+      "target": "arm64",
+      "manifest": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-6ri5ia_m/manifest.json",
+        "sha256": "62e621c0804e7d91814d369fbdba6c394f20997eb10fe34432f6cccabfc6d766"
+      },
+      "artifacts": 204,
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "structures": 58,
+      "callbacks": 17,
+      "shared_constants": 33,
+      "caller_variants": 4,
+      "retained_join_cases_per_caller": 9,
+      "retained_instant_fold_cases_per_caller": 6,
+      "retained_direct_rate_cases_per_caller": 12,
+      "caller_sanitizers": false,
+      "sanitizer_scope": "foreign caller; Rust core is not instrumented",
+      "panic_abort_rejected": false
+    },
+    {
+      "target": "arm32",
+      "manifest": {
+        "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-enzy_avf/manifest.json",
+        "sha256": "ffe1d516f7f2db7546787a512d52ebf99237db24617fae2ec7293b7f8e3aff6c"
+      },
+      "artifacts": 204,
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "structures": 58,
+      "callbacks": 17,
+      "shared_constants": 33,
+      "caller_variants": 4,
+      "retained_join_cases_per_caller": 9,
+      "retained_instant_fold_cases_per_caller": 6,
+      "retained_direct_rate_cases_per_caller": 12,
+      "caller_sanitizers": false,
+      "sanitizer_scope": "foreign caller; Rust core is not instrumented",
+      "panic_abort_rejected": false
+    }
+  ],
+  "live_dbengine_api": [
+    {
+      "kind": "storage",
+      "receipt": {
+        "netdata_repository_path": ".tmp/dbengine-storage-we9b6xuu/receipt.json",
+        "sha256": "4295985a8f7da50574e2529df3e2447810afe5ef99191fd7f0aa36c23a8d6059"
+      },
+      "source_files": 292,
+      "binary_sha256": "6fc996b5b46e92877cc98135a32c83084558a4c20e168983543e73902699b9d1",
+      "records_or_checks": 672
+    },
+    {
+      "kind": "live",
+      "receipt": {
+        "netdata_repository_path": ".tmp/live-api-j57ibeqr/receipt.json",
+        "sha256": "05d6c03608ba122f1a3a3c2aed8d552fe22096aea8fbf1a59065214aa7962797"
+      },
+      "source_files": 293,
+      "binary_sha256": "6fc996b5b46e92877cc98135a32c83084558a4c20e168983543e73902699b9d1",
+      "records_or_checks": 58
+    }
+  ],
+  "performance": {
+    "comparison": {
+      "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/performance-comparison.json",
+      "sha256": "44e6b14b413760b19950fdd3cfe4d748bcc0e01ee7e3dc64263c4f15a4d19fb3"
+    },
+    "baseline_binding": {
+      "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/baseline-binding.json",
+      "sha256": "03823312534e343fdd81ddb2a4777793fec57be4f9a2257de9f0b7ae3c7d54cc"
+    },
+    "rows": [
+      {
+        "profile": "release",
+        "id": "unique-128-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 1468927,
+            "samples_fetched": 1536,
+            "pages": 1536,
+            "provider_calls": 2692,
+            "work": 72947,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1464838,
+            "samples_fetched": 1536,
+            "pages": 1536,
+            "provider_calls": 2692,
+            "work": 72947,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1477757,
+            "samples_fetched": 1536,
+            "pages": 1536,
+            "provider_calls": 2692,
+            "work": 72947,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 1431728,
+            "samples_fetched": 1536,
+            "pages": 1536,
+            "provider_calls": 2692,
+            "work": 66309,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1437967,
+            "samples_fetched": 1536,
+            "pages": 1536,
+            "provider_calls": 2692,
+            "work": 66309,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1455017,
+            "samples_fetched": 1536,
+            "pages": 1536,
+            "provider_calls": 2692,
+            "work": 66309,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.021530396733722
+      },
+      {
+        "profile": "release",
+        "id": "unique-512-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 6652381,
+            "samples_fetched": 6144,
+            "pages": 6144,
+            "provider_calls": 10756,
+            "work": 495325,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 6695611,
+            "samples_fetched": 6144,
+            "pages": 6144,
+            "provider_calls": 10756,
+            "work": 495325,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 6782790,
+            "samples_fetched": 6144,
+            "pages": 6144,
+            "provider_calls": 10756,
+            "work": 495325,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 6135686,
+            "samples_fetched": 6144,
+            "pages": 6144,
+            "provider_calls": 10756,
+            "work": 371050,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 6108256,
+            "samples_fetched": 6144,
+            "pages": 6144,
+            "provider_calls": 10756,
+            "work": 371050,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 6100146,
+            "samples_fetched": 6144,
+            "pages": 6144,
+            "provider_calls": 10756,
+            "work": 371050,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.096157561176218
+      },
+      {
+        "profile": "release",
+        "id": "unique-128-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 1284369,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 73459,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1303748,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 73459,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1298319,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 73459,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 1246359,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 66821,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1278659,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 66821,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1321429,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 66821,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.0153754832210933
+      },
+      {
+        "profile": "release",
+        "id": "unique-512-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 6302044,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 497373,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 6393333,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 497373,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 6618232,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 497373,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 5746460,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 373098,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 5757109,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 373098,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 5777389,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 373098,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.1105110221119663
+      },
+      {
+        "profile": "release",
+        "id": "unique-128-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 1310009,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 73459,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1363958,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 73459,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1419698,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 73459,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 1245898,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 66821,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 1258148,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 66821,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 1254559,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 66821,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.087201159929505
+      },
+      {
+        "profile": "release",
+        "id": "unique-512-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 6294155,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 497373,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 6354384,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 497373,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 6371294,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 497373,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 5837828,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 373098,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 5792789,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 373098,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 5791709,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 373098,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.0969472563216096
+      },
+      {
+        "profile": "release-min",
+        "id": "unique-128-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 2337919,
+            "samples_fetched": 1536,
+            "pages": 1536,
+            "provider_calls": 2692,
+            "work": 72947,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 2316779,
+            "samples_fetched": 1536,
+            "pages": 1536,
+            "provider_calls": 2692,
+            "work": 72947,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 2337579,
+            "samples_fetched": 1536,
+            "pages": 1536,
+            "provider_calls": 2692,
+            "work": 72947,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 2263490,
+            "samples_fetched": 1536,
+            "pages": 1536,
+            "provider_calls": 2692,
+            "work": 66309,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 2224290,
+            "samples_fetched": 1536,
+            "pages": 1536,
+            "provider_calls": 2692,
+            "work": 66309,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 2494838,
+            "samples_fetched": 1536,
+            "pages": 1536,
+            "provider_calls": 2692,
+            "work": 66309,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.0327321967404317
+      },
+      {
+        "profile": "release-min",
+        "id": "unique-512-page1",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 10964353,
+            "samples_fetched": 6144,
+            "pages": 6144,
+            "provider_calls": 10756,
+            "work": 495325,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 10904774,
+            "samples_fetched": 6144,
+            "pages": 6144,
+            "provider_calls": 10756,
+            "work": 495325,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 11064802,
+            "samples_fetched": 6144,
+            "pages": 6144,
+            "provider_calls": 10756,
+            "work": 495325,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 9707584,
+            "samples_fetched": 6144,
+            "pages": 6144,
+            "provider_calls": 10756,
+            "work": 371050,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 9698595,
+            "samples_fetched": 6144,
+            "pages": 6144,
+            "provider_calls": 10756,
+            "work": 371050,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 9920672,
+            "samples_fetched": 6144,
+            "pages": 6144,
+            "provider_calls": 10756,
+            "work": 371050,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.1294625933702969
+      },
+      {
+        "profile": "release-min",
+        "id": "unique-128-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 2119872,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 73459,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 2399499,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 73459,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 2164291,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 73459,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 2031082,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 66821,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 2035872,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 66821,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 2060082,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 66821,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.0630781306486852
+      },
+      {
+        "profile": "release-min",
+        "id": "unique-512-page17",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 10412728,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 497373,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 10649786,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 497373,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 10428308,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 497373,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 9073420,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 373098,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 9262599,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 373098,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 9302158,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 373098,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.1258511784867293
+      },
+      {
+        "profile": "release-min",
+        "id": "unique-128-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 2151891,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 73459,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 2129811,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 73459,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 2148651,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 73459,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 2061182,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 66821,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 2052992,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 66821,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 2073851,
+            "samples_fetched": 2048,
+            "pages": 1024,
+            "provider_calls": 2180,
+            "work": 66821,
+            "workspace_peak": 161149,
+            "output_samples": 128,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.0424363302221735
+      },
+      {
+        "profile": "release-min",
+        "id": "unique-512-page1024",
+        "before": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 10502447,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 497373,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 10439427,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 497373,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 10544847,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 497373,
+            "workspace_peak": 632552,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "after": [
+          {
+            "iteration": 0,
+            "elapsed_ns": 9205949,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 373098,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 1,
+            "elapsed_ns": 9318738,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 373098,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          },
+          {
+            "iteration": 2,
+            "elapsed_ns": 9372547,
+            "samples_fetched": 8192,
+            "pages": 4096,
+            "provider_calls": 8708,
+            "work": 373098,
+            "workspace_peak": 630504,
+            "output_samples": 512,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            }
+          }
+        ],
+        "median_time_ratio": 1.1270246035461025
+      }
+    ],
+    "scope": "6 complete generated instantaneous range reduction queries, both optimized profiles, three repetitions with alternating pair order. Workspace is tracked query memory; elapsed_ns is synthetic query timing, not Agent throughput or process RSS."
+  },
+  "preserved_failed_attempts": {
+    "baseline_optional_helper_path": {
+      "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/baseline-setup-attempt.json",
+      "sha256": "8572f68f1aaada77ec12985833f21a4a93828d1232d35994296af45056043980"
+    }
+  },
+  "causal_controls": {
+    "complete_result_statistics_release_work_red": {
+      "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/red-proof.json",
+      "sha256": "31de3e8cafec9077a487ebc441c2426da57dac5fc149aaaad93216a756cfc7b5"
+    },
+    "first_green": {
+      "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/first-green.stdout",
+      "sha256": "b027c31f5b0a73b2c34589b736aabec78f578b546caee35b66536c3a4231c64e"
+    },
+    "current_source_named_units": [
+      {
+        "profile": "release",
+        "passed": 555,
+        "runtime_seconds": 79.07,
+        "stdout": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/release-unit.stdout",
+          "sha256": "7e2c82adb1bc97b890296e95a932a003d438d32d7f0eea1cd4813b7b2e55801f"
+        }
+      },
+      {
+        "profile": "release-min",
+        "passed": 555,
+        "runtime_seconds": 146.53,
+        "stdout": {
+          "netdata_repository_path": "src/crates/promql-engine/tests/promql-conformance/.tmp/range-unique-final-yigkg49h/release-min-unit.stdout",
+          "sha256": "f915bf236f6d3a0597649724e0b58dfab021e06c67160f2fd4d50d55b7a24cf1"
+        }
+      }
+    ],
+    "required_named_controls": [
+      "range_helper_errors_follow_series_before_step_order",
+      "preparation_entries_observe_controls_on_failure_and_cancellation",
+      "empty_raw_matrices_and_passthroughs_do_not_replay_a_missing_clock",
+      "range_parameter_exhaustion_uses_completed_scalar_length",
+      "initial_raw_read_errors_follow_scalar_indexing_and_empty_range_acquisition",
+      "mixed_aliases_keep_typed_matrix_lists_and_distinct_vector_consumption",
+      "ordinary_range_reducers_keep_typed_membership_extrema_metadata_and_negative_time_sentinels",
+      "numerical_range_folds_preserve_overflow_compensation_and_mixed_diagnostics",
+      "native_range_folds_keep_integer_stale_compensated_and_overflow_outcomes",
+      "signed_matrix_parents_consume_sorted_heads_by_caller_position",
+      "signed_aggregate_body_exhaustion_is_independent_of_parameter_exhaustion",
+      "range_function_duplicate_detection_includes_disjoint_timelines",
+      "delayed_cleanup_failure_keeps_owned_infos_while_ordinary_evaluation_failure_discards_them",
+      "range_hash_collisions_wait_for_later_provider_errors_and_observe_controls",
+      "absent_over_time_validates_all_series_before_global_presence",
+      "fixed_direct_clocks_freeze_wrapped_lookups_at_the_scope_start",
+      "wrapped_duration_dispatch_keeps_raw_and_evaluator_clocks_separate",
+      "vector_consumers_keep_histograms_before_the_first_collision_and_block_later_heads"
+    ],
+    "reference_dispositions": {
+      "netdata_repository_path": ".tmp/prepare-unique-fwe0r5m1/final-reference-scan.json",
+      "sha256": "86be42a39cf8858180c15b6b05b43f48256a46eba6c29b09338305bbbb8197e5"
+    }
+  },
+  "limitations": [
+    "Finite inputs do not prove arbitrary-input equivalence.",
+    "Fixture timings and tracked query workspace are not production disk throughput or RSS.",
+    "Standalone foreign callers do not qualify a whole foreign Netdata Agent.",
+    "Caller ASan/UBSan does not instrument the Rust archive; MSRV is compile-only.",
+    "Kind-aware streaming duplicate checks, delayed cleanup and generic merge identities are intentionally retained.",
+    "Hash collisions can require repeated probes; other preparation/final replay costs remain, and raw reads are unchanged.",
+    "Earlier qualification cohorts preserve their actual source and binary identities."
+  ]
+}

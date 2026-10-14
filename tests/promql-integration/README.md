@@ -81,6 +81,11 @@ binds the removal of redundant per-series preparation scans to fresh containing 
 512-series numeric ranges use about 43% less recorded work and run about 1.4× faster, with unchanged outputs/reads
 and a 96-byte workspace reduction. These are synthetic query measurements; storage and provider contracts are unchanged.
 
+The [range uniqueness qualification](../../src/crates/promql-engine/tests/promql-conformance/range-uniqueness-qualification.json)
+binds indexed preparation duplicate checks to fresh containing storage/API cohorts. Generated 512-series instant
+range reductions use about 25% less tracked work, run about 1.1× faster and reduce peak workspace by 2 KiB,
+with unchanged results and reads. The measurements cover synthetic queries; raw paging and provider contracts remain unchanged.
+
 The [projected-label qualification](../../src/crates/promql-engine/tests/promql-conformance/projected-label-qualification.json)
 binds compact join-label construction to fresh containing storage/API cohorts. Generated label-heavy joins use
 about 21% less tracked query workspace with unchanged outputs and reads. Contexts references, provider metadata,
