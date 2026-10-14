@@ -208,3 +208,9 @@ Requested and unverified values retain their acquisition, label validation and h
 Agent passes the same 672 storage records and 82 HTTP/readiness checks with both codecs and ordinary owned exits.
 Separate engine measurements preserve every observed read and workspace peak while reducing metadata work; the
 contained conformance guide records complete outcomes, small-query costs and shared-host timing limits.
+
+The subsequent sparse-membership route enumerates the existing set bitmap instead of scanning inactive descriptors.
+Its freshly linked Debug Agent passes 672 storage records and 82 HTTP/readiness checks under both codecs, using
+ordinary reads and normal exits. Separate complete engine queries preserve measured reads and workspace peaks;
+sparse cases use roughly 8–10% less work. The contained conformance guide records dense/tiny tradeoffs and the
+finite source-bound measurements. Storage, contexts metadata, provider ownership and API contracts are unchanged.

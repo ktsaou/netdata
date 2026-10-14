@@ -616,21 +616,35 @@ impl<'a> Step<'a> {
         control.check()?;
         let completed = replay.completed.borrow();
         if let Some(step) = completed.as_ref().filter(|step| step.key == key) {
-            let mut offset = 0;
-            for side in 0..2 {
-                for row in 0..self.plan.sides[side].rows.len() {
+            let left = self.plan.sides[0].rows.len();
+            let rows = left + self.plan.sides[1].rows.len();
+            // Ascending bits retain physical row order across the side boundary.
+            for (index, &members) in step.members.iter().enumerate() {
+                control.check()?;
+                account.work(1);
+                let base = index * 64;
+                let remaining = rows - base;
+                let mut bits = if remaining < 64 {
+                    members & ((1u64 << remaining) - 1)
+                } else {
+                    members
+                };
+                while bits != 0 {
                     control.check()?;
                     account.work(1);
-                    let position = offset + row;
-                    if step.members[position / 64] & (1 << (position % 64)) != 0 {
-                        self.active[side].push(Active {
-                            row,
-                            kind: 1,
-                            reserved: false,
-                        });
-                    }
+                    let position = base + bits.trailing_zeros() as usize;
+                    let (side, row) = if position < left {
+                        (0, position)
+                    } else {
+                        (1, position - left)
+                    };
+                    self.active[side].push(Active {
+                        row,
+                        kind: 1,
+                        reserved: false,
+                    });
+                    bits &= bits - 1;
                 }
-                offset += self.plan.sides[side].rows.len();
             }
             control.check()?;
             self.phase = Phase::Begin;
@@ -1450,7 +1464,17 @@ mod tests {
         control: &Control,
         account: &QueryAccounting,
     ) -> Plan {
+        discovery_plan_shape([count, count], disjoint_right, matching, control, account)
+    }
+    fn discovery_plan_shape(
+        counts: [usize; 2],
+        disjoint_right: bool,
+        matching: &VectorMatching,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Plan {
         let sides = [0, 1].map(|side| {
+            let count = counts[side];
             let mut rows = AccountedVec::new(account, MemoryKind::Workspace);
             for position in 0..count {
                 let value = if disjoint_right && side == 1 {
@@ -2752,8 +2776,149 @@ mod tests {
     }
 
     #[test]
+    fn set_discovery_sparse_reconstruction_avoids_inactive_rows() {
+        let mut work = Vec::new();
+        for count in [128, 512] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let matching = VectorMatching::default();
+            let mut plan = discovery_plan_names(count, true, &matching, &control, &account);
+            plan.certify_set_discovery(&control, &account).unwrap();
+            let key = discovery_key();
+            let last = count - 1;
+            let members = [&[0, last][..], &[last][..]];
+            let cold = {
+                let mut step = Step::new(&plan, &matching, TokenKind::LOR, false, &account);
+                step.enable_set_discovery(key, &control, &account).unwrap();
+                discovery_trace(&mut step, members, &control, &account)
+            };
+            assert_eq!(cold.scans, 2);
+            assert_eq!(cold.rereads, [(0, 0), (0, last), (1, last)]);
+            assert_eq!(
+                cold.outputs,
+                [
+                    (0, b"00000000".to_vec(), 1.0f64.to_bits()),
+                    (
+                        last,
+                        format!("{last:08}").into_bytes(),
+                        (count as f64).to_bits()
+                    ),
+                    (
+                        count + last,
+                        format!("r{last:08}").into_bytes(),
+                        (1000.0 + count as f64).to_bits()
+                    )
+                ]
+            );
+            let before = account.snapshot().work;
+            let mut step = Step::new(&plan, &matching, TokenKind::LOR, false, &account);
+            step.enable_set_discovery(key, &control, &account).unwrap();
+            let reconstruction_work = account.snapshot().work - before;
+            let warm = discovery_trace(&mut step, [&[], &[]], &control, &account);
+            assert_eq!(warm.scans, 0);
+            assert_eq!(warm.rereads, cold.rereads);
+            assert_eq!(warm.outputs, cold.outputs);
+            assert!(plan.has_completed_set_discovery());
+            println!(
+                "{{\"sparse_rows_per_side\":{count},\"active\":3,\"reconstruction_work\":{reconstruction_work}}}"
+            );
+            work.push((2 * count, reconstruction_work));
+            drop(step);
+            drop(plan);
+            account.snapshot().assert_memory_released();
+        }
+        assert!(
+            work.iter().all(|(rows, work)| *work <= (*rows / 16) as u64),
+            "sparse reconstruction must avoid scanning inactive rows: {work:?}"
+        );
+    }
+
+    #[test]
+    fn set_discovery_bitmap_preserves_side_tail_and_physical_order() {
+        for counts in [
+            [0, 0],
+            [0, 1],
+            [1, 0],
+            [0, 65],
+            [65, 0],
+            [1, 1],
+            [63, 1],
+            [64, 1],
+            [65, 65],
+            [129, 129],
+        ] {
+            for operator in [TokenKind::LOR, TokenKind::LAND, TokenKind::LUNLESS] {
+                for density in 0..3 {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let matching = VectorMatching::default();
+                    let mut plan =
+                        discovery_plan_shape(counts, false, &matching, &control, &account);
+                    plan.certify_set_discovery(&control, &account).unwrap();
+                    let members = counts.map(|count| match density {
+                        0 => Vec::new(),
+                        1 => [0, 1, 63, 64, 65, 128]
+                            .into_iter()
+                            .filter(|row| *row < count)
+                            .collect(),
+                        _ => (0..count).collect(),
+                    });
+                    let cold = {
+                        let mut step = Step::new(&plan, &matching, operator, false, &account);
+                        step.enable_set_discovery(discovery_key(), &control, &account)
+                            .unwrap();
+                        discovery_trace(&mut step, [&members[0], &members[1]], &control, &account)
+                    };
+                    assert_eq!(cold.scans, 2);
+                    let rows = counts.iter().sum::<usize>();
+                    if rows < 2 {
+                        assert!(!plan.has_set_discovery());
+                        assert!(!plan.has_completed_set_discovery());
+                        drop(plan);
+                        account.snapshot().assert_memory_released();
+                        continue;
+                    }
+                    if rows % 64 != 0 {
+                        let mut completed = plan.replay.as_ref().unwrap().completed.borrow_mut();
+                        let last = completed.as_mut().unwrap().members.last_mut().unwrap();
+                        *last |= u64::MAX << (rows % 64);
+                    }
+                    let before = account.snapshot().work;
+                    let mut step = Step::new(&plan, &matching, operator, false, &account);
+                    step.enable_set_discovery(discovery_key(), &control, &account)
+                        .unwrap();
+                    assert_eq!(
+                        account.snapshot().work - before,
+                        (rows.div_ceil(64) + members[0].len() + members[1].len()) as u64
+                    );
+                    for (side, members) in members.iter().enumerate() {
+                        assert_eq!(
+                            step.active[side]
+                                .iter()
+                                .map(|active| active.row)
+                                .collect::<Vec<_>>(),
+                            *members
+                        );
+                    }
+                    let warm = discovery_trace(&mut step, [&[], &[]], &control, &account);
+                    assert_eq!(warm.scans, 0);
+                    assert_eq!(warm.rereads, cold.rereads);
+                    assert_eq!(warm.outputs, cold.outputs);
+                    assert!(plan.has_completed_set_discovery());
+                    drop(step);
+                    drop(plan);
+                    account.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
     fn set_discovery_cancellation_stops_reconstruction_and_publication() {
-        for budget in [1, 63, 64, 65, 127, 128, 258] {
+        let mut terminal_work = 0;
+        for boundary in 0..=8 {
             let engine = EngineAccounting::default();
             let account = engine.query();
             let control = Control::default();
@@ -2767,16 +2932,38 @@ mod tests {
                 discovery_trace(&mut cold, [&[0, 128], &[64]], &control, &account);
             }
             let mut warm = Step::new(&plan, &matching, TokenKind::LOR, false, &account);
-            let result =
+            let before = account.snapshot().work;
+            let result = if boundary == 0 {
+                warm.enable_set_discovery(discovery_key(), &control, &account)
+            } else {
+                let budget = if boundary == 8 {
+                    terminal_work
+                } else {
+                    boundary
+                };
                 crate::test_storage::interrupt_after_work(&account, &control, budget, || {
                     warm.enable_set_discovery(discovery_key(), &control, &account)
-                });
-            assert!(
-                matches!(result, Err(Interrupted::Cancelled)),
-                "budget {budget}"
-            );
-            assert!(matches!(warm.phase, Phase::StartLeft));
+                })
+            };
+            if boundary == 0 {
+                assert!(result.is_ok());
+                assert!(matches!(warm.phase, Phase::Begin));
+                terminal_work = account.snapshot().work - before;
+                assert_eq!(terminal_work, 8);
+            } else {
+                assert!(
+                    matches!(result, Err(Interrupted::Cancelled)),
+                    "boundary {boundary}"
+                );
+                assert!(matches!(warm.phase, Phase::StartLeft));
+                assert_eq!(account.snapshot().work - before, boundary);
+                if boundary == 8 {
+                    assert_eq!(warm.active[0].len(), 2);
+                    assert_eq!(warm.active[1].len(), 1);
+                }
+            }
             assert!(plan.has_completed_set_discovery());
+            assert_eq!(plan.set_prefix(&discovery_key()), None);
             drop(warm);
             drop(plan);
             account.snapshot().assert_memory_released();

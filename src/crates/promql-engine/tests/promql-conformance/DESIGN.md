@@ -727,6 +727,11 @@ integration, and Alertmanager remains excluded.
   reconstruction retains original side order, Begin, choice, selected/unverified rereads, duplicate/diagnostic
   completion and positive Vector truncation. Completed prefixes can omit the nonselected acquisitions described
   below; the original discovery-only cohort retained every reread. Pair replay still publishes only after Done.
+- **Reconstruction:** warm discovery enumerates the existing membership words and their lowest set bits in ascending
+  physical position. The actual left-side length maps positions across sides; final padding is ignored. Work and
+  controls cover every word, including zero words, and every active row, followed by the existing final poll.
+  No additional buffer or field is retained. Sparse reconstruction avoids inactive descriptor visits; dense
+  reconstruction adds one work unit per bitmap word.
 - **Final evaluation:** the successful end of roster preparation clears only set discovery snapshots. Both ordinary
   and standalone derived-matrix consumers therefore perform a complete first final discovery; eligibility and Pair
   state survive. Failed preparation drops its local state.

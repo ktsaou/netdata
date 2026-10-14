@@ -108,7 +108,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-active-group-distribution` for sparse/native,
   control and complete-query qualification. Keep failed deep derived-replay witnesses separate from passing panels.
 - Set discovery reuse MUST retain suppressed inputs, selected/unverified rereads and cold first final discovery.
-  Check original aliases, exact keys, bit boundaries and successful preparation clearing; see
+  Check physical side-row order, empty sides, tail padding, zero-word and final reconstruction controls, original
+  aliases, exact keys and successful preparation clearing; calibrate control budgets against actual traversal. See
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-set-input-discovery`.
 - Completed set-prefix reuse MUST grant credit only after successful operand/label/hash/seen/control phases, retain
   fresh requested values, reuse only canonical immutable descriptor hashes, calibrate post-seen controls and preserve

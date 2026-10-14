@@ -2763,6 +2763,46 @@ The empty `release-min` median increases from 67.740µs to 71.055µs, about 4.9%
 sets can add 248 bytes of metadata; no universal speedup or memory decrease is claimed. At that source, prefix and
 later projection/histogram replay remained independent opportunities; the prefix correction is qualified below.
 
+### Sparse reconstruction from existing membership words
+
+Warm discovery now enumerates the existing bitmap words and their lowest set bits in ascending physical position.
+The actual left-side length maps positions across sides; unused final-word padding is ignored. This preserves
+physical row order even when descriptor ordinals run backward. Every word, including an empty word, and every
+active row is charged and polled; the final check still precedes Begin. No new buffer, field or matching cache is added.
+
+The unchanged-runtime regression compares complete cold/warm labels, ordinals, float bits, rereads and release
+before its work bound. With three active inputs, 128/512 rows per side previously charged 256/1,024 visits;
+current reconstruction charges 7/19. Side lengths 0/1/63/64/65/129, all set operators, empty/sparse/dense membership,
+cross-side words and unused tail bits are checked. Fewer than two descriptors retain the existing generic route.
+The cancellation control measures eight actual word/member charges for its sparse 129/129 fixture, exercises
+each charge and the final check, and preserves the completed owner and frontier while releasing partial arrays.
+
+The matched query experiment retains 69 cases per profile at pages 1/17/1024, including sparse and dense 128/512
+source-series sets. All 828 responses preserve complete outcomes, reads, calls, pages, backing and workspace peaks.
+Sparse inputs have all series initially and two at later ticks, with an explicit 100ms lookback.
+
+| Sparse source series, page 17 | Whole-query work, before → after | Workspace bytes, unchanged | Release ratio | Release-min ratio |
+| --- | --- | --- | --- | --- |
+| 128 | 3,240,399 → 2,989,479 | 542,528 | 1.074 | 1.114 |
+| 512 | 42,184,524 → 38,108,892 | 2,130,848 | 1.133 | 1.189 |
+
+Ratios divide the previous median time by the current median. The 512-series sparse range falls from 270.784ms
+to 238.893ms in release and 489.880ms to 411.951ms in release-min. Dense reconstruction adds one work unit per
+word; the dense 128/512 whole-query increase stays below 0.089%. Latency varies across the other workloads.
+The 7,200-response warmed tiny/raw panel observes ratios 1.008–1.039 in release and 1.034–1.058 in release-min.
+These are alternating synthetic queries on a shared host during SRE replay, not isolated-machine, disk-throughput
+or process-RSS measurements. The initial slower padded dense case remains recorded separately from its follow-up.
+
+The padded 32-series/page-1 release case initially measured 0.894×. A separate 960-response follow-up after bulk
+SRE replay, with 105 warmed observations per phase/profile/case, measures 0.993× for that case in release and
+1.014× in release-min. The larger initial slowdown is not reproduced; the release median is still about 0.7%
+slower. Both observations remain preserved, and neither establishes universal throughput.
+
+[Bitmap reconstruction qualification](set-member-bitmap-qualification.json) binds the actual sources/binaries,
+596 units per profile, 128,652 builtin, 2,070 focused and 231,540 exact SRE comparisons, 132 ARM owner executions
+over 128 distinct target/profile/test slots, and 18 C/C++ callers. The freshly rebuilt Agent passes 672 storage
+records and 82 HTTP/readiness checks. Historical cohorts retain their original identities.
+
 ## Completed set-operand prefixes
 
 The current exact set-discovery owner records one successfully completed kept prefix. During a later targeted

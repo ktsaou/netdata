@@ -3,6 +3,15 @@ use super::*;
 use crate::{result::OwnedValue, test_storage::FixtureProvider};
 
 fn nested_set_observations(count: usize, page_size: usize, padding: usize) -> QueryObservations {
+    nested_set_case(count, page_size, padding, false)
+}
+
+fn nested_set_case(
+    count: usize,
+    page_size: usize,
+    padding: usize,
+    sparse: bool,
+) -> QueryObservations {
     fn point(index: usize) -> crate::value::Sample {
         crate::value::Sample {
             time_ms: (index as i64 + 2) * 1000,
@@ -13,8 +22,11 @@ fn nested_set_observations(count: usize, page_size: usize, padding: usize) -> Qu
     let engine = Engine::default();
     let control = Control::default();
     let mut provider = FixtureProvider::new(3, page_size, count);
-    for series in &mut provider.series {
+    for (position, series) in provider.series.iter_mut().enumerate() {
         series.source.sample = point;
+        if sparse && position != 0 && position != count - 1 {
+            series.source.count = 1;
+        }
         if padding != 0 {
             series
                 .labels
@@ -24,7 +36,10 @@ fn nested_set_observations(count: usize, page_size: usize, padding: usize) -> Qu
     let query = engine
                 .compile(
                     b"sum(label_replace(counter_total,\"branch\",\"a\",\"instance\",\".*\") or label_replace(counter_total,\"branch\",\"b\",\"instance\",\".*\"))",
-                    EngineOptions::default(),
+                    EngineOptions {
+                        lookback_ms: if sparse { 100 } else { 300000 },
+                        ..EngineOptions::default()
+                    },
                     &control,
                 )
                 .unwrap();
@@ -53,13 +68,24 @@ fn nested_set_observations(count: usize, page_size: usize, padding: usize) -> Qu
         .collect();
     assert_eq!(
         points,
-        [2000, 3000, 4000].map(|time| (time, (2.0 * count as f64).to_bits()))
+        [2000, 3000, 4000].map(|time| {
+            let value = if sparse && time != 2000 {
+                4.0
+            } else {
+                2.0 * count as f64
+            };
+            (time, value.to_bits())
+        })
     );
     let observed = &report.observations;
     assert_eq!(observed.output_samples, 3);
     assert_eq!(
         observed.statistics.samples.total_queryable_samples,
-        6 * count as u64
+        if sparse {
+            2 * count as u64 + 8
+        } else {
+            6 * count as u64
+        }
     );
     assert_eq!(
         observed.samples_fetched,
@@ -78,7 +104,7 @@ fn nested_set_observations(count: usize, page_size: usize, padding: usize) -> Qu
         1
     );
     println!(
-        "{{\"nested_set_rows\":{count},\"page_size\":{page_size},\"label_bytes\":{padding},\"fetched\":{},\"read\":{},\"queryable\":{},\"work\":{},\"workspace_peak\":{}}}",
+        "{{\"nested_set_rows\":{count},\"page_size\":{page_size},\"label_bytes\":{padding},\"sparse\":{sparse},\"fetched\":{},\"read\":{},\"queryable\":{},\"work\":{},\"workspace_peak\":{}}}",
         observed.samples_fetched,
         observed.statistics.samples.samples_read,
         observed.statistics.samples.total_queryable_samples,
@@ -90,6 +116,15 @@ fn nested_set_observations(count: usize, page_size: usize, padding: usize) -> Qu
     drop((report, query));
     engine.accounting.snapshot().assert_memory_released();
     observations
+}
+
+#[test]
+fn nested_set_sparse_members_preserve_complete_paged_results() {
+    for page_size in [1, 17, 1024] {
+        for count in [128, 512] {
+            nested_set_case(count, page_size, 0, true);
+        }
+    }
 }
 
 #[test]
