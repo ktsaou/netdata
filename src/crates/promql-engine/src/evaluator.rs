@@ -4,7 +4,7 @@ use crate::{
     accounting::{AccountedBox, AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
     aggregation::Group,
     annotations::{AnnotationBuilder, AnnotationKind},
-    evaluator_roster::{Descriptor, Rosters, group_key, projection_index},
+    evaluator_roster::{Descriptor, Rosters, copy_group_key, projection_index},
     float_functions::FloatFunction,
     frontend::{
         ast::{Expr, NodeId, ParsedExpression, ValueType, VectorSelector},
@@ -3236,13 +3236,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         unreachable!()
                     };
                     let views = sample.labels.views_checked(self.account, self.control)?;
-                    let mut labels = sample.labels.copy_checked(
-                        self.account,
-                        MemoryKind::Workspace,
-                        self.control,
-                    )?;
-                    group_key(
-                        &mut labels,
+                    let labels = copy_group_key(
+                        &sample.labels,
                         grouping.as_deref(),
                         *without,
                         self.control,

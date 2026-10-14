@@ -5,7 +5,7 @@ use crate::{
     annotations::{AnnotationBuilder, AnnotationKind},
     binary_labels,
     evaluator::{EvaluatedSample, EvaluationError, EvaluationOptions},
-    evaluator_roster::{Descriptor, group_key},
+    evaluator_roster::{Descriptor, copy_group_key},
     float_text::{FloatTextStyle, float_text},
     frontend::{
         Span,
@@ -228,10 +228,8 @@ impl Plan {
         for row in &*rows {
             control.check()?;
             account.work(1);
-            let mut labels = row
-                .labels
-                .copy_checked(account, MemoryKind::Workspace, control)?;
-            group_key(&mut labels, grouping.as_deref(), *without, control, account)?;
+            let labels =
+                copy_group_key(&row.labels, grouping.as_deref(), *without, control, account)?;
             let hash = if !without && grouping.as_ref().is_none_or(|names| names.is_empty()) {
                 0
             } else {

@@ -214,3 +214,10 @@ Its freshly linked Debug Agent passes 672 storage records and 82 HTTP/readiness 
 ordinary reads and normal exits. Separate complete engine queries preserve measured reads and workspace peaks;
 sparse cases use roughly 8–10% less work. The contained conformance guide records dense/tiny tradeoffs and the
 finite source-bound measurements. Storage, contexts metadata, provider ownership and API contracts are unchanged.
+
+The subsequent copied-grouping route constructs only selected grouping fields while retaining contexts/provider
+ownership and full input/ranking labels. Its freshly linked Debug Agent passes 672 storage records and 82
+HTTP/readiness checks under both codecs, using ordinary client reads and normal owned exits. Separate matched
+Rust engine queries reduce quantile/nested-group peak workspace and copied allocation volume. Raw transfer-path
+and top-k peaks remain unchanged. The contained conformance guide records original slower timings and their
+separate follow-up; these are finite generated-data measurements, not production disk or process-RSS claims.

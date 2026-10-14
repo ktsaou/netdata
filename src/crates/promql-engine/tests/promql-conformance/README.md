@@ -2164,6 +2164,9 @@ results and their finite evidence limits are recorded separately in the standalo
 
 ## Compact group and join lookups
 
+The later [copied grouping-label construction](#copied-grouping-label-construction) change reduces discarded
+metadata copies while preserving these grouping identities and ordering controls.
+
 Grouping, TOPK/BOTTOMK, both LIMIT operators, aggregate QUANTILE and vector matching use compact accounted indexes
 over their existing metadata arrays. Indexes preserve each owner's original equality and first writer; they never
 drive reductions or output order. Binary signatures/cache keys still compare complete encoded bytes, including
@@ -2913,3 +2916,67 @@ The 7,200-response warmed small-query panel preserves every complete outcome. Ra
 changes from 20.570µs to 20.790µs and 30.990µs to 31.560µs respectively. Both measurement processes run on a shared
 host while SRE replay is active. These finite synthetic timings and tracked peaks are not CPU-isolated, production
 disk-throughput or process-RSS evidence. Membership reconstruction and later projection/replay remain separate costs.
+
+## Copied grouping-label construction
+
+Four copied grouping paths now copy only selected fields: prepared copied roster groups, quantile groups,
+temporary top-k group keys and per-evaluation aggregate lookup. They use the existing checked filtered-copy
+owner and share the exact by/without predicate with the in-place transfer path. Transferred descriptor labels
+still retain their existing capacity. Full input and ranking labels remain owned by their original plans.
+
+Grouping preserves raw empty values, original label order, first hash matches and existing binding positions.
+`by` can explicitly keep `__name__`; `without` excludes it. `__type__` and `__unit__` follow ordinary grouping
+selection. Binary result projection has different reserved-name/reset semantics and is not reused here.
+Diagnostic views, output reset, parameter validation, warnings and numerical operations retain their phases.
+
+A retained quantile-plan regression keeps two fields from 8, 17 and 65 input labels. The unchanged native owner
+retains 1,039, 3,343 and 12,559 bytes, including its group descriptor. Direct construction retains 655 bytes in
+all three shapes; current ARM32 retains 463 bytes. Complete group labels/hash and release are checked before
+the capacity comparison. These are isolated owned group bytes, not total query memory or process RSS.
+
+Controls cover omitted labels, long retained values, long grouping names, raw empty keys, source ordering,
+ordinary type/unit names, collision/first-writer behavior and partial release. A completion poll follows the
+last accounted copy charge before returning the key; the terminal interruption is calibrated from actual work.
+No new metadata provider, view/cache, persistent plan field, raw sample array or implicit query cap is added.
+
+The matched panel retains 3,024 complete alternating responses across 504 query/profile groups: six grouping
+expressions, instant/range, pages 1/17/1024, zero/tiny/128/512 groups and short/64 KiB omitted values. Complete
+results, fetched samples, provider calls, pages, output counts, temporary backing and release agree. All larger
+cases acquire fewer workspace bytes and charge less work. Quantile and nested copied-group peaks decrease;
+top-k and raw ownership-transfer peaks remain unchanged.
+
+For 512 groups, two source series/group, short omitted values and page 17:
+
+| Query | Peak workspace before → after, bytes | Release timing ratio | Release-min ratio |
+| --- | --- | --- | --- |
+| Quantile, instant | 3,146,758 → 2,556,934 | 1.045 | 1.010 |
+| Quantile, range | 3,147,165 → 2,557,341 | 1.042 | 0.992 |
+| Top-k, instant | 2,964,992 → 2,964,992 | 1.195 | 0.999 |
+| Top-k, range | 3,059,360 → 3,059,360 | 1.051 | 0.960 |
+| Sum of top-k, instant | 5,021,056 → 4,431,232 | 1.128 | 1.059 |
+| Sum of top-k, range | 5,077,397 → 4,487,573 | 1.098 | 1.002 |
+| Raw sum, instant | 1,986,792 → 1,986,792 | 1.158 | 1.171 |
+| Raw sum, range | 1,986,792 → 1,986,792 | 1.306 | 1.174 |
+
+Ratios divide the old median by the new median. Quantile peak savings approach 19% in the short-label cases,
+but retained input/output metadata dominate the 64 KiB cases. The original larger-case timing ratios span
+0.719–1.326; several cases are slower. Those measurements ran alongside qualification on a shared host and
+remain retained. They do not establish a universal speedup, process RSS bound or production disk throughput.
+
+A separate warmed tiny panel checks 34,560 complete responses in 48 query/profile groups at cardinalities 0/1/4,
+discarding the first 20 repetitions and retaining 300 timings per phase/group. Ratios span 0.981–1.248 for release and 0.974–1.172
+for release-min. Empty/tiny costs remain visible rather than being counted as large-query speed gains.
+
+The slower-case follow-up runs after the owned bulk SRE replay and other qualification tasks finish. It retains
+480 complete responses across ten evidenced profile/case pairs, with three alternating binary pairs, eight
+repetitions and two discarded warmups (18 timings per phase/group). Complete results and resource counters
+match the original measurements. Ratios span 0.970–1.244. The original 0.719x quantile case measures 0.997x;
+the 0.823x top-k range measures 1.084x, and the 0.862x nested sum range measures 1.116x. Two release-min range
+cases remain about 3% slower. These observations remain disclosed; lower allocation volume does not guarantee
+lower elapsed time for every query on a shared host.
+
+[Copied grouping qualification](grouped-label-qualification.json) binds the actual red/development/final phases,
+600 units per profile, 128,652 retained builtin and 2,070 focused comparisons, and 231,540 exact SRE comparisons.
+All 18 C/C++ callers, 72 distinct ARM target/profile grouping checks, 672 storage records and 82 live HTTP/readiness
+checks pass. The cohort preserves all 46 preceding ledger objects and their source/binary identities. Caller
+sanitizers exclude Rust instrumentation; ARM checks execute the library and callers, not a complete foreign Agent.

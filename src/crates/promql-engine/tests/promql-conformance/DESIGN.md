@@ -776,3 +776,22 @@ integration, and Alertmanager remains excluded.
   failures, actual final sources/binaries, complete results, causal owners, integration and matched measurements.
   [Canonical skipped hashes](set-prefix-hash-qualification.json) separately binds the subsequent hash reuse,
   complete work-only regression, terminal seen control and unchanged measured reads/workspace.
+
+## Copied grouping-label construction
+
+- **Choice:** four copied grouping consumers construct only the selected label fields through the existing
+  checked filtered-copy owner. They share the exact selection predicate with in-place grouping.
+- **Scope:** copied roster groups, quantile groups, temporary top-k group keys and per-evaluation aggregate lookup.
+  The roster branch that transfers owned descriptors still filters those labels in place.
+- **Identity:** keep raw empty values and source order. `by` may explicitly select `__name__`; `without` excludes
+  it. Ordinary `__type__` and `__unit__` fields follow grouping names. Binary result projection has different
+  reserved-name/reset rules and does not define grouping selection.
+- **Phases:** original grouping hashes, first hash matches, binding positions, full ranking descriptors,
+  diagnostic views, output reset, parameters, warnings and numerical operations remain in place.
+- **Controls:** omitted label visits and retained byte copies remain checked and accounted. A final poll follows
+  the last copy charge before the grouped key returns; interruption drops every partial copied buffer.
+- **Limits:** copied keys avoid discarded payloads and input-sized unused outer capacity. Input metadata,
+  output cardinality, full ranking labels and transferred descriptor capacity remain. This adds no raw-history
+  cache, metadata provider, persistent view or query limit.
+- **Evidence:** [copied grouping qualification](grouped-label-qualification.json) binds the actual capacity red,
+  final sources/executables, complete query measurements, interruption controls and containing-Agent checks.

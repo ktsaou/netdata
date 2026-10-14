@@ -2,6 +2,88 @@
 use super::*;
 use crate::{result::OwnedValue, test_storage::FixtureProvider};
 
+#[test]
+fn quantile_group_keys_do_not_retain_discarded_label_capacity() {
+    let mut retained = Vec::new();
+    for count in [8, 17, 65] {
+        let engine = Engine::default();
+        let control = Control::default();
+        let query = engine
+            .compile(
+                b"quantile by(group,job)(0.5,m)",
+                EngineOptions::default(),
+                &control,
+            )
+            .unwrap();
+        let account = engine.accounting.query();
+        let mut labels = crate::result::OwnedLabels::new(&account, MemoryKind::Workspace);
+        for (name, value) in [
+            (b"__name__".as_slice(), b"m".as_slice()),
+            (b"group", b"g"),
+            (b"job", b"worker"),
+        ] {
+            labels.push(name, value, &account, MemoryKind::Workspace);
+        }
+        for position in 3..count {
+            labels.push(
+                format!("tag_{position:03}").as_bytes(),
+                b"discarded metadata",
+                &account,
+                MemoryKind::Workspace,
+            );
+        }
+        let hash = crate::label_hash::full(&labels, &control, &account).unwrap();
+        let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+        rows.push(crate::evaluator_roster::Descriptor {
+            labels,
+            ordinal: 0,
+            hash,
+            drop_name: false,
+            first_order: 0,
+            sources: 0..1,
+            kinds: 1,
+            heads: Default::default(),
+        });
+        let mut parameters = crate::topk::Parameters::new(true);
+        parameters.push(0.5, &account);
+        let mut plan = crate::quantile_aggregate::Plan::new(parameters, &account);
+        let mut expected = crate::result::OwnedLabels::new(&account, MemoryKind::Workspace);
+        for (name, value) in [(b"group".as_slice(), b"g".as_slice()), (b"job", b"worker")] {
+            expected.push(name, value, &account, MemoryKind::Workspace);
+        }
+        let expected_hash = crate::label_hash::grouping(&expected, &control, &account).unwrap();
+        let groups = plan
+            .prepare_rows(
+                rows,
+                &query.expression,
+                query.expression.root,
+                &control,
+                &account,
+            )
+            .unwrap();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(
+            groups[0].labels.compare(&expected),
+            std::cmp::Ordering::Equal
+        );
+        assert_eq!(groups[0].hash, expected_hash);
+        assert!(groups[0].whole_drop_name.is_none());
+        let before_drop = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+        drop(groups);
+        let bytes = before_drop - account.snapshot().memory[MemoryKind::Workspace as usize].current;
+        println!("{{\"grouping_input_labels\":{count},\"retained_group_bytes\":{bytes}}}");
+        retained.push(bytes);
+        drop((plan, query, expected));
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.accounting.snapshot().assert_memory_released();
+    }
+    assert!(
+        retained.iter().all(|bytes| *bytes == retained[0]),
+        "two kept grouping labels must not retain input-sized capacity: {retained:?}"
+    );
+}
+
 fn nested_set_observations(count: usize, page_size: usize, padding: usize) -> QueryObservations {
     nested_set_case(count, page_size, padding, false)
 }

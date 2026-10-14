@@ -1115,11 +1115,8 @@ impl Rosters {
             for descriptor in self.nodes[child.0].output.as_deref().unwrap_or(&[]) {
                 control.check()?;
                 account.work(1);
-                let mut labels =
-                    descriptor
-                        .labels
-                        .copy_checked(account, MemoryKind::Workspace, control)?;
-                group_key(&mut labels, grouping, without, control, account)?;
+                let labels =
+                    copy_group_key(&descriptor.labels, grouping, without, control, account)?;
                 let hash = if !without && grouping.is_none_or(|names| names.is_empty()) {
                     0
                 } else {
@@ -1221,13 +1218,37 @@ pub(crate) fn group_key(
     account: &QueryAccounting,
 ) -> Result<(), Interrupted> {
     labels.retain_labels_checked(account, control, |label| {
-        let name = &*label.name;
-        let found = crate::binary_labels::named(name, grouping.unwrap_or(&[]), control, account)?;
-        Ok(if without {
-            name != b"__name__" && !found
-        } else {
-            found
-        })
+        keep_group_label(&label.name, grouping, without, control, account)
+    })
+}
+
+pub(crate) fn copy_group_key(
+    labels: &OwnedLabels,
+    grouping: Option<&[AccountedVec<u8>]>,
+    without: bool,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<OwnedLabels, Interrupted> {
+    let result =
+        labels.copy_filtered_checked(account, MemoryKind::Workspace, control, |label| {
+            keep_group_label(&label.name, grouping, without, control, account)
+        })?;
+    control.check()?;
+    Ok(result)
+}
+
+fn keep_group_label(
+    name: &[u8],
+    grouping: Option<&[AccountedVec<u8>]>,
+    without: bool,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<bool, Interrupted> {
+    let found = crate::binary_labels::named(name, grouping.unwrap_or(&[]), control, account)?;
+    Ok(if without {
+        name != b"__name__" && !found
+    } else {
+        found
     })
 }
 
@@ -1419,7 +1440,14 @@ mod tests {
                 owned.extend_from_slice(name);
                 owned
             });
+            let copied =
+                copy_group_key(&labels, Some(&names), without, &control, &account).unwrap();
             group_key(&mut labels, Some(&names), without, &control, &account).unwrap();
+            assert_eq!(copied.compare(&labels), std::cmp::Ordering::Equal);
+            assert_eq!(
+                label_hash::grouping(&copied, &control, &account).unwrap(),
+                label_hash::grouping(&labels, &control, &account).unwrap()
+            );
             assert_eq!(
                 labels
                     .0
@@ -1448,6 +1476,173 @@ mod tests {
             None
         );
         account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn copied_group_keys_keep_named_metadata_empty_values_and_source_order() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut source = OwnedLabels::new(&account, MemoryKind::Workspace);
+        for (name, value) in [
+            (b"__name__".as_slice(), b"m".as_slice()),
+            (b"__type__", b"counter"),
+            (b"__unit__", b"bytes"),
+            (b"a", b""),
+            (b"b", b"value"),
+        ] {
+            source.push(name, value, &account, MemoryKind::Workspace);
+        }
+        let names = [b"a".as_slice(), b"__name__", b"__type__", b"__unit__"].map(|name| {
+            let mut result = AccountedVec::new(&account, MemoryKind::Workspace);
+            result.extend_from_slice(name);
+            result
+        });
+        for (grouping, without, expected) in [
+            (
+                Some(names.as_slice()),
+                false,
+                vec![b"__name__".as_slice(), b"__type__", b"__unit__", b"a"],
+            ),
+            (Some(names.as_slice()), true, vec![b"b".as_slice()]),
+            (None, false, vec![]),
+            (
+                None,
+                true,
+                vec![b"__type__".as_slice(), b"__unit__", b"a", b"b"],
+            ),
+        ] {
+            let copied = copy_group_key(&source, grouping, without, &control, &account).unwrap();
+            assert_eq!(
+                copied
+                    .0
+                    .iter()
+                    .map(|label| &*label.name)
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            if let Some(label) = copied.0.iter().find(|label| &*label.name == b"a") {
+                assert!(label.value.is_empty());
+            }
+            let mut transferred = source
+                .copy_checked(&account, MemoryKind::Workspace, &control)
+                .unwrap();
+            group_key(&mut transferred, grouping, without, &control, &account).unwrap();
+            assert_eq!(copied.compare(&transferred), std::cmp::Ordering::Equal);
+        }
+        assert_eq!(source.0.len(), 5);
+        drop((source, names));
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn copied_group_key_cancellation_releases_omitted_and_partial_byte_walks() {
+        for case in 0..3 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut source = OwnedLabels::new(&account, MemoryKind::Workspace);
+            let mut names = AccountedVec::new(&account, MemoryKind::Workspace);
+            match case {
+                0 => {
+                    for index in 0..10_000 {
+                        source.push(
+                            format!("tag_{index:05}").as_bytes(),
+                            b"omitted",
+                            &account,
+                            MemoryKind::Workspace,
+                        );
+                    }
+                }
+                1 => {
+                    source.push(b"a", &vec![b'x'; 65_536], &account, MemoryKind::Workspace);
+                    let mut name = AccountedVec::new(&account, MemoryKind::Workspace);
+                    name.extend_from_slice(b"a");
+                    names.push(name);
+                }
+                _ => {
+                    let value = vec![b'a'; 16_384];
+                    source.push(&value, b"value", &account, MemoryKind::Workspace);
+                    let mut name = AccountedVec::new(&account, MemoryKind::Workspace);
+                    name.extend_from_slice(&value);
+                    names.push(name);
+                }
+            }
+            let before = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+            let budget = if case == 0 { 64 } else { 8192 };
+            let result =
+                crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                    copy_group_key(&source, Some(&names), false, &control, &account)
+                });
+            assert!(matches!(result, Err(Interrupted::Cancelled)), "case {case}");
+            assert_eq!(
+                account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                before
+            );
+            drop((source, names));
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn copied_group_key_polls_after_its_final_accounted_charge() {
+        let mut terminal_work = 0;
+        for boundary in 0..3 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut source = OwnedLabels::new(&account, MemoryKind::Workspace);
+            source.push(b"a", b"kept", &account, MemoryKind::Workspace);
+            source.push(b"b", &vec![b'x'; 65_536], &account, MemoryKind::Workspace);
+            let mut name = AccountedVec::new(&account, MemoryKind::Workspace);
+            name.extend_from_slice(b"a");
+            let before = account.snapshot();
+            let operation = || {
+                copy_group_key(
+                    &source,
+                    Some(std::slice::from_ref(&name)),
+                    false,
+                    &control,
+                    &account,
+                )
+            };
+            let result = if boundary == 0 {
+                operation()
+            } else {
+                let budget = if boundary == 1 { 1 } else { terminal_work };
+                crate::test_storage::interrupt_after_work(&account, &control, budget, operation)
+            };
+            if boundary == 0 {
+                let labels = result.unwrap();
+                assert_eq!(labels.0.len(), 1);
+                assert_eq!(&*labels.0[0].name, b"a");
+                assert_eq!(&*labels.0[0].value, b"kept");
+                terminal_work = account.snapshot().work - before.work;
+                assert!(terminal_work > 1 && terminal_work < 65_536);
+                drop(labels);
+            } else {
+                assert!(
+                    matches!(result, Err(Interrupted::Cancelled)),
+                    "boundary {boundary}"
+                );
+                if boundary == 2 {
+                    assert_eq!(account.snapshot().work - before.work, terminal_work);
+                }
+            }
+            assert_eq!(
+                account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                before.memory[MemoryKind::Workspace as usize].current
+            );
+            println!("{{\"group_copy_boundary\":{boundary},\"terminal_work\":{terminal_work}}}");
+            drop((source, name));
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
     }
 
     #[test]
