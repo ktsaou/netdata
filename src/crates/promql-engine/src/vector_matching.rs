@@ -795,11 +795,8 @@ impl<'a> Step<'a> {
         {
             return Ok(false);
         }
-        let hash = label_hash::full(
-            &self.plan.sides[operand.side].rows[operand.row].labels,
-            control,
-            account,
-        )?;
+        // The successful prefix validated these exact immutable descriptor labels.
+        let hash = self.plan.sides[operand.side].rows[operand.row].hash;
         self.record_seen(hash, control, account)?;
         control.check()?;
         self.phase = Phase::Pairs;
@@ -2319,6 +2316,121 @@ mod tests {
                 "budget {budget}"
             );
             assert_eq!(plan.set_prefix(&key), Some(65));
+            drop(result);
+            drop(step);
+            drop(plan);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    fn pending_prefix_skip<'a>(
+        plan: &'a Plan,
+        matching: &'a VectorMatching,
+        key: &ReplayKey,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Step<'a> {
+        let mut step = Step::new(plan, matching, TokenKind::LOR, false, account);
+        step.enable_set_discovery(*key, control, account).unwrap();
+        assert!(matches!(step.phase, Phase::Begin));
+        step.prepare_active(0, control, account).unwrap();
+        step.phase = Phase::Pairs;
+        let progress = Some(SetProgress {
+            key,
+            target: Some(999),
+        });
+        for row in [0, 1] {
+            assert!(step.choose(control, account).unwrap());
+            assert!(
+                matches!(step.choice, Some(Choice::Set(Operand { side: 0, row: selected, .. })) if selected == row)
+            );
+            step.phase = Phase::ReadLeft;
+            assert!(step.skip_set_prefix(progress, control, account).unwrap());
+        }
+        assert!(step.choose(control, account).unwrap());
+        assert!(matches!(
+            step.choice,
+            Some(Choice::Set(Operand {
+                side: 1,
+                row: 0,
+                ..
+            }))
+        ));
+        step.phase = Phase::ReadLeft;
+        assert_eq!(step.seen.len(), 2);
+        step
+    }
+
+    #[test]
+    fn set_prefix_skipped_hashes_poll_after_seen_reconstruction() {
+        let key = discovery_key();
+        let members = [&[0, 1][..], &[0][..]];
+        let mut terminal_work = 0;
+        for boundary in 0..3 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let matching = VectorMatching::default();
+            let mut plan = discovery_plan_names(65, true, &matching, &control, &account);
+            plan.certify_set_discovery(&control, &account).unwrap();
+            {
+                let mut first = Step::new(&plan, &matching, TokenKind::LOR, false, &account);
+                first.enable_set_discovery(key, &control, &account).unwrap();
+                discovery_trace_scoped(
+                    &mut first,
+                    members,
+                    Some(SetProgress {
+                        key: &key,
+                        target: None,
+                    }),
+                    None,
+                    &control,
+                    &account,
+                );
+            }
+            assert_eq!(plan.set_prefix(&key), Some(65));
+            let mut step = pending_prefix_skip(&plan, &matching, &key, &control, &account);
+            let before = account.snapshot().work;
+            let budget = if boundary == 1 { 1 } else { terminal_work };
+            let mut operation = || {
+                step.skip_set_prefix(
+                    Some(SetProgress {
+                        key: &key,
+                        target: Some(999),
+                    }),
+                    &control,
+                    &account,
+                )
+            };
+            let result = if boundary == 0 {
+                operation()
+            } else {
+                crate::test_storage::interrupt_after_work(&account, &control, budget, operation)
+            };
+            if boundary == 0 {
+                assert!(matches!(result, Ok(true)));
+                assert!(matches!(step.phase, Phase::Pairs));
+                assert_eq!(step.seen.len(), 3);
+                terminal_work = account.snapshot().work - before;
+                assert!(terminal_work > 1);
+            } else {
+                assert!(matches!(
+                    result,
+                    Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                ));
+                assert!(matches!(step.phase, Phase::ReadLeft));
+                if boundary == 2 {
+                    assert_eq!(step.seen.len(), 3);
+                    assert_eq!(account.snapshot().work - before, terminal_work);
+                }
+            }
+            assert!(!step.duplicate);
+            assert_eq!(plan.set_prefix(&key), Some(65));
+            println!(
+                "{{\"skipped_hash_boundary\":{boundary},\"work\":{},\"terminal_work\":{terminal_work},\"seen\":{}}}",
+                account.snapshot().work - before,
+                step.seen.len()
+            );
             drop(result);
             drop(step);
             drop(plan);

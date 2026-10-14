@@ -8738,5 +8738,25 @@
     "complete_performance_responses": 576,
     "complete_small_timing_responses": 7200,
     "caveat": "No observed new workspace; selected/unverified acquisition, skipped full hashing, warm reconstruction and projection/histogram work remain. Serial same-Plan ownership is required. Historical cohorts preserve their own sources/binaries."
+  },
+  "set_operand_hash_qualification": {
+    "status": "pass",
+    "qualification": {
+      "path": "set-prefix-hash-qualification.json",
+      "sha256": "83f3061f7fec12ebd4408e19d4d94a1487a4518a954355268a526d094b6288e1"
+    },
+    "scope": "Finite canonical skipped set-hash qualification: immutable canonical full hashes replace repeated hashing only for verified nonselected operands; fresh requested/unverified/All values, field validation, seen/deferred errors, exact current scopes and bounded raw paging preserved. No public/default/ABI/reference/storage change. Not arbitrary-input proof or whole-core readiness.",
+    "fixture_units_per_profile": 593,
+    "builtin_comparisons": 128652,
+    "focused_comparisons": 2070,
+    "sre_exact_comparisons": 231540,
+    "foreign_executed_owner_checks": 120,
+    "foreign_distinct_target_profile_tests": 116,
+    "c_embedding_artifacts": 1033,
+    "live_http_and_readiness_checks": 82,
+    "storage_records": 672,
+    "complete_performance_responses": 684,
+    "complete_small_timing_responses": 7200,
+    "caveat": "No observed new workspace; selected/unverified acquisition, canonical skipped-hash provenance, warm reconstruction and projection/histogram work remain. Serial same-Plan ownership is required. Historical cohorts preserve their own sources/binaries."
   }
 }

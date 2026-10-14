@@ -746,9 +746,11 @@ integration, and Alertmanager remains excluded.
 - **Authority:** discovery alone grants no prefix credit. Fresh acquisition, value presence, label copying, full
   hashing, seen bookkeeping and the terminal control check must succeed before progress advances. Choices visit
   kept rows in ascending flat left/right order; excluded matching rows need no operand credit.
-- **Phases:** skipped operands still fully hash immutable descriptor labels and reconstruct the original seen and
-  deferred-duplicate state. Unverified prefixes/suffixes, selected errors, original Vector truncation and Finished
-  checks retain their paths. No extra draining manufactures completion.
+- **Phases:** skipped operands reuse the immutable descriptor's canonical full hash and reconstruct the original
+  seen and deferred-duplicate state. Raw construction and every label projection create that hash with the exact
+  owned labels; copies and merges preserve the pair. Successful fresh emission validates those bytes before
+  granting credit. This does not generalize to grouping hashes or arbitrary descriptors. Unverified prefixes/suffixes,
+  selected errors, original Vector truncation and Finished checks retain their paths. No extra draining manufactures completion.
 - **Scope:** initialization and advancement share one Matrix/owner/filter predicate. An inactive context cannot
   read or update progress. An eligible All context seeds success without skipping. Every skip/update checks the
   actual effective frame key; replacement, new discovery publication and preparation clearing reset progress.
@@ -762,7 +764,10 @@ integration, and Alertmanager remains excluded.
   run sequentially and reentrant queries own fresh Rosters. Key identity alone would not protect future overlapping
   same-Plan A→B→A Steps; shared/interleaved Rosters or ancestor redirects must revisit the certificate.
 - **Controls:** fresh publication and skipped seen reconstruction poll after their accounted work. Interrupted
-  queries discard their local state. Full hashing of skipped labels and warm bitmap/index reconstruction remain
-  separate measured costs.
+  queries discard their local state. Requested/unverified operands retain full hashing; warm bitmap/index
+  reconstruction remains a separate measured cost. Helper-terminal cancellation is calibrated after actual seen
+  reconstruction, independently of the enclosing loop's final work charge and completion poll.
 - **Evidence:** [set prefix qualification](set-prefix-qualification.json) binds meaningful acquisition/control
   failures, actual final sources/binaries, complete results, causal owners, integration and matched measurements.
+  [Canonical skipped hashes](set-prefix-hash-qualification.json) separately binds the subsequent hash reuse,
+  complete work-only regression, terminal seen control and unchanged measured reads/workspace.

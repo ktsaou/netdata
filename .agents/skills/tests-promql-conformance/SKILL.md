@@ -107,12 +107,12 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Active histogram distribution MUST retain group identity, skipped ranges and pre-sort bound/ordinal order; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-active-group-distribution` for sparse/native,
   control and complete-query qualification. Keep failed deep derived-replay witnesses separate from passing panels.
-
 - Set discovery reuse MUST retain suppressed inputs, selected/unverified rereads and cold first final discovery.
   Check original aliases, exact keys, bit boundaries and successful preparation clearing; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-set-input-discovery`.
 - Completed set-prefix reuse MUST grant credit only after successful operand/label/hash/seen/control phases, retain
-  fresh requested values, reconstruct deferred duplicates and preserve All/Done and serial same-Plan ownership; see
+  fresh requested values, reuse only canonical immutable descriptor hashes, calibrate post-seen controls and preserve
+  deferred duplicates, All/Done and serial same-Plan ownership; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-set-operand-prefixes`.
 
 ## Evidence

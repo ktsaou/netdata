@@ -2,8 +2,7 @@
 use super::*;
 use crate::{result::OwnedValue, test_storage::FixtureProvider};
 
-#[test]
-fn nested_set_prefix_reuses_successful_operands() {
+fn nested_set_observations(count: usize, page_size: usize, padding: usize) -> QueryObservations {
     fn point(index: usize) -> crate::value::Sample {
         crate::value::Sample {
             time_ms: (index as i64 + 2) * 1000,
@@ -11,83 +10,95 @@ fn nested_set_prefix_reuses_successful_operands() {
             value: crate::value::SampleValue::Float(1.0),
         }
     }
-    let mut reads = Vec::new();
-    for page_size in [1, 17, 1024] {
-        for count in [16, 32, 64] {
-            let engine = Engine::default();
-            let control = Control::default();
-            let mut provider = FixtureProvider::new(3, page_size, count);
-            for series in &mut provider.series {
-                series.source.sample = point;
-            }
-            let query = engine
+    let engine = Engine::default();
+    let control = Control::default();
+    let mut provider = FixtureProvider::new(3, page_size, count);
+    for series in &mut provider.series {
+        series.source.sample = point;
+        if padding != 0 {
+            series
+                .labels
+                .push((b"padding".to_vec(), vec![b'x'; padding]));
+        }
+    }
+    let query = engine
                 .compile(
                     b"sum(label_replace(counter_total,\"branch\",\"a\",\"instance\",\".*\") or label_replace(counter_total,\"branch\",\"b\",\"instance\",\".*\"))",
                     EngineOptions::default(),
                     &control,
                 )
                 .unwrap();
-            let report = query.collect_reported(
-                &provider,
-                QueryRequest::Range {
-                    start_ms: 2000,
-                    end_ms: 4000,
-                    step_ms: 1000,
-                },
-                &control,
-            );
-            let result = report.result.as_ref().unwrap();
-            assert!(report.annotations.is_empty());
-            assert_eq!(result.series.len(), 1);
-            assert!(result.series[0].labels.0.is_empty());
-            let points: Vec<_> = result.series[0]
-                .points
-                .iter()
-                .map(|point| {
-                    let OwnedValue::Float(value) = point.value else {
-                        panic!("float set sum");
-                    };
-                    (point.time_ms, value.to_bits())
-                })
-                .collect();
-            assert_eq!(
-                points,
-                [2000, 3000, 4000].map(|time| (time, (2.0 * count as f64).to_bits()))
-            );
-            let observed = &report.observations;
-            assert_eq!(observed.output_samples, 3);
-            assert_eq!(
-                observed.statistics.samples.total_queryable_samples,
-                6 * count as u64
-            );
-            assert_eq!(
-                observed.samples_fetched,
-                provider.series[0]
-                    .source
-                    .counters
-                    .samples_returned
-                    .load(std::sync::atomic::Ordering::Relaxed) as u64
-            );
-            assert_eq!(
-                provider.series[0]
-                    .source
-                    .counters
-                    .peak
-                    .load(std::sync::atomic::Ordering::Relaxed),
-                1
-            );
-            println!(
-                "{{\"nested_set_rows\":{count},\"page_size\":{page_size},\"fetched\":{},\"read\":{},\"queryable\":{},\"work\":{},\"workspace_peak\":{}}}",
-                observed.samples_fetched,
-                observed.statistics.samples.samples_read,
-                observed.statistics.samples.total_queryable_samples,
-                observed.work,
-                observed.memory[MemoryKind::Workspace as usize].peak
-            );
-            reads.push((count, page_size, observed.samples_fetched));
-            provider.assert_closed();
-            drop((report, query));
-            engine.accounting.snapshot().assert_memory_released();
+    let report = query.collect_reported(
+        &provider,
+        QueryRequest::Range {
+            start_ms: 2000,
+            end_ms: 4000,
+            step_ms: 1000,
+        },
+        &control,
+    );
+    let result = report.result.as_ref().unwrap();
+    assert!(report.annotations.is_empty());
+    assert_eq!(result.series.len(), 1);
+    assert!(result.series[0].labels.0.is_empty());
+    let points: Vec<_> = result.series[0]
+        .points
+        .iter()
+        .map(|point| {
+            let OwnedValue::Float(value) = point.value else {
+                panic!("float set sum");
+            };
+            (point.time_ms, value.to_bits())
+        })
+        .collect();
+    assert_eq!(
+        points,
+        [2000, 3000, 4000].map(|time| (time, (2.0 * count as f64).to_bits()))
+    );
+    let observed = &report.observations;
+    assert_eq!(observed.output_samples, 3);
+    assert_eq!(
+        observed.statistics.samples.total_queryable_samples,
+        6 * count as u64
+    );
+    assert_eq!(
+        observed.samples_fetched,
+        provider.series[0]
+            .source
+            .counters
+            .samples_returned
+            .load(std::sync::atomic::Ordering::Relaxed) as u64
+    );
+    assert_eq!(
+        provider.series[0]
+            .source
+            .counters
+            .peak
+            .load(std::sync::atomic::Ordering::Relaxed),
+        1
+    );
+    println!(
+        "{{\"nested_set_rows\":{count},\"page_size\":{page_size},\"label_bytes\":{padding},\"fetched\":{},\"read\":{},\"queryable\":{},\"work\":{},\"workspace_peak\":{}}}",
+        observed.samples_fetched,
+        observed.statistics.samples.samples_read,
+        observed.statistics.samples.total_queryable_samples,
+        observed.work,
+        observed.memory[MemoryKind::Workspace as usize].peak
+    );
+    let observations = observed.clone();
+    provider.assert_closed();
+    drop((report, query));
+    engine.accounting.snapshot().assert_memory_released();
+    observations
+}
+
+#[test]
+fn nested_set_prefix_reuses_successful_operands() {
+    let mut reads = Vec::new();
+    for page_size in [1, 17, 1024] {
+        for count in [16, 32, 64] {
+            let observations = nested_set_observations(count, page_size, 0);
+            reads.push((count, page_size, observations.samples_fetched));
         }
     }
     assert!(
@@ -95,6 +106,20 @@ fn nested_set_prefix_reuses_successful_operands() {
             .iter()
             .all(|(count, _, fetched)| *fetched <= 1000 * *count as u64),
         "completed set prefixes must avoid repeated operand acquisition: {reads:?}"
+    );
+}
+
+#[test]
+fn nested_set_prefix_reuses_canonical_label_hashes() {
+    let mut work = Vec::new();
+    for page_size in [1, 17, 1024] {
+        let observations =
+            [16, 32, 64].map(|count| nested_set_observations(count, page_size, 65536));
+        work.push((page_size, observations.map(|observed| observed.work)));
+    }
+    assert!(
+        work.iter().all(|(_, work)| work[2] <= 3 * work[1]),
+        "doubling large-label set rows must use at most three times the work: {work:?}"
     );
 }
 

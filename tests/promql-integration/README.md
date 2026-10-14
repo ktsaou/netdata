@@ -202,3 +202,9 @@ reads and normal exits. The source-bound engine cohort measures the same deep qu
 preceding discovery-only build, with unchanged 189,077-byte tracked workspace; these remain synthetic Rust engine
 measurements. See the contained conformance guide's completed set-operand prefix section for exact sources,
 small-query tradeoffs and the current serial same-Plan ownership requirement.
+
+The subsequent canonical-hash route reuses the already computed descriptor hash for verified skipped operands.
+Requested and unverified values retain their acquisition, label validation and hashing. Its freshly linked Debug
+Agent passes the same 672 storage records and 82 HTTP/readiness checks with both codecs and ordinary owned exits.
+Separate engine measurements preserve every observed read and workspace peak while reducing metadata work; the
+contained conformance guide records complete outcomes, small-query costs and shared-host timing limits.

@@ -2766,8 +2766,8 @@ later projection/histogram replay remained independent opportunities; the prefix
 ## Completed set-operand prefixes
 
 The current exact set-discovery owner records one successfully completed kept prefix. During a later targeted
-Matrix body, verified nonselected operands reconstruct full-hash/seen/duplicate state from immutable descriptor
-labels without rereading values, copying labels or emitting filtered samples. The requested operand stays fresh.
+Matrix body, verified nonselected operands reconstruct seen/duplicate state with the immutable descriptor's
+canonical full hash without rereading values, copying labels or emitting filtered samples. The requested operand stays fresh.
 Discovery grants no credit; success includes the original operand, label, hash, seen and terminal control phases.
 
 Initialization and advancement share the Matrix/owner/filter predicate. All bodies seed progress while returning
@@ -2785,16 +2785,18 @@ an overlapping A→B→A incarnation.
 Causal owners check fresh requested and unverified reads, backward/sparse targets, All seeding/Done, discovery
 without credit, missing suffixes, failed acquisitions, all eleven key fields, reset/clear and all three set
 operators. A genuine unequal-label full-hash collision retains exact-byte matching signatures and the original
-deferred Finished duplicate error. Calibrated cancellation must precede terminal credit and skipped reconstruction.
+deferred Finished duplicate error. Calibrated cancellation must precede terminal credit and successful skipped
+reconstruction. A direct helper control measures its actual post-seen boundary; whole-body budgets alone do not
+establish that boundary because the surrounding loop also polls.
 Complete workload controls check labels, ticks, float bits, diagnostics, logical totals, useful/fetched reads,
 single-cursor paging and release before imposing the new acquisition bound.
 
 [Set prefix qualification](set-prefix-qualification.json) retains the actual source-bound cohorts and measured
 tradeoffs. Existing discovery-only, red, provisional and failed control/helper receipts preserve their original
-identities. Full hashing of skipped labels, active-membership reconstruction and later projection/histogram work
+identities. Full hashing of requested/unverified operands, active-membership reconstruction and later projection/histogram work
 remain independent costs; reduced reads are not a general production disk-throughput or process-RSS claim.
 
-Both profiles pass 591 units, 128,652 builtin comparisons, 2,070 focused comparisons and 231,540 exact SRE
+The preceding prefix cohort passes 591 units per profile, 128,652 builtin comparisons, 2,070 focused comparisons and 231,540 exact SRE
 comparisons. ARM64 and ARM32 execute 112 discovery/prefix owner checks across both profiles, covering 108 distinct
 target/profile/test slots because one test belongs to both selectors. Compiled layouts match the prior discovery
 cohort: `ReplayRows/Replay/CompletedStep/Plan/Step` remain `48/64/128/328/680` bytes on AMD64/ARM64 and
@@ -2827,3 +2829,47 @@ twenty repetitions. Ratios range from 0.981 to 1.749 in `release` and 1.007 to 1
 These synthetic measurements ran on a shared host while SRE replay was also active. They establish neither a
 universal speedup, CPU isolation, production disk throughput nor process RSS. Historical measurements retain their
 actual sources and binaries.
+
+### Canonical hashes for skipped set operands
+
+Verified skipped operands reuse their descriptor's canonical full hash. Raw construction and every label projection
+compute that hash with the exact owned label bytes; copying and merging preserve the pair. Fresh emission copies
+the same prototype and validates its bytes before granting prefix credit. Grouping hashes and arbitrary descriptors
+do not qualify for this shortcut. Requested, cold and unverified operands retain their full hashing and errors.
+
+The complete work regression first checks values, labels, timestamps, diagnostics, logical totals, provider fetches,
+single-cursor paging and release. With unchanged runtime, doubling the largest input count exceeded its work bound;
+the new implementation passes. A directly calibrated skipped helper reconstructs two earlier hashes, then exercises
+the final seen insertion. Cancellation at the actual terminal work prevents the phase transition and releases state.
+The original whole-body budgets remain general controls; their outer polls do not prove the helper's terminal check.
+
+[Canonical hash qualification](set-prefix-hash-qualification.json) binds 593 units per profile, 128,652 builtin,
+2,070 focused and 231,540 exact SRE comparisons. ARM64 and ARM32 execute 120 discovery/prefix checks covering 116
+distinct target/profile/test slots; the existing layouts are unchanged. Fresh C/C++ qualification retains 18 caller
+variants, ABI3 rejection, layouts and the native caller sanitizer/abort checks. The rebuilt Debug Agent passes 672
+storage records and 82 HTTP/readiness checks under both codecs. Historical cohorts keep their own identities.
+
+The matched panel compares 684 complete responses in 114 query/profile groups, with pages 1/17/1024 and three
+alternating pairs. It adds 64KiB label padding to the 16/32/64-input shapes to exercise the redundant byte work.
+Every group's fetched samples, calls, pages, output count, temporary backing and tracked workspace peak are unchanged.
+Page-17 disjoint-set sums are:
+
+| Input series | Label padding per series | Work before → after | Workspace peak, bytes | `release` ratio | `release-min` ratio |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 16 | 0 | 430,286 → 302,318 | 79,463 | 1.193 | 1.151 |
+| 32 | 0 | 1,319,608 → 799,480 | 145,448 | 1.320 | 1.296 |
+| 64 | 0 | 4,521,637 → 2,424,613 | 277,808 | 1.465 | 1.445 |
+| 16 | 65,536 | 466,066,922 → 270,877,034 | 6,540,693 | 1.964 | 2.919 |
+| 32 | 65,536 | 1,335,302,374 → 541,949,926 | 12,946,448 | 2.541 | 4.517 |
+| 64 | 65,536 | 4,283,339,878 → 1,084,744,294 | 25,846,224 | 3.513 | 7.028 |
+
+Ratios divide the preceding published build's median query time by the current median. The ordinary 64-input case
+falls from 30.283ms to 20.664ms in `release`; its padded case falls from 356.337ms to 101.426ms. The six-group
+histogram sum improves by 1.142/1.112 in the two profiles, with unchanged reads and peak. Separate direct units use
+`counter_total` labels and report their own useful-read/logical statistics; their counts differ from these `m` inputs.
+
+The 7,200-response warmed small-query panel preserves every complete outcome. Ratios range from 0.989 to 1.103 in
+`release` and 0.976 to 1.016 in `release-min`; some tiny medians are up to about 2.4% slower. The raw-gauge control
+changes from 20.570µs to 20.790µs and 30.990µs to 31.560µs respectively. Both measurement processes run on a shared
+host while SRE replay is active. These finite synthetic timings and tracked peaks are not CPU-isolated, production
+disk-throughput or process-RSS evidence. Membership reconstruction and later projection/replay remain separate costs.
