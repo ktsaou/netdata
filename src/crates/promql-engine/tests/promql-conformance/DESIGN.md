@@ -656,3 +656,21 @@ integration, and Alertmanager remains excluded.
   guarantee. Raw reads, numerical evaluation and public interfaces are unchanged.
 - **Evidence:** [range uniqueness qualification](range-uniqueness-qualification.json) records complete work,
   collision/error/control checks and both-profile/page comparisons, alongside current caller and Agent cohorts.
+
+## Validated average acquisition reuse
+
+- **Choice:** the initial ordinary raw-matrix average accumulates provisionally during acquisition. A successful
+  float-only acquisition can omit its separate consuming traversal. Bounds must fit the current non-wrapping
+  window; statistics projection, buffered windows and anchored reductions keep their original path.
+- **Authority:** the original ordered average accumulator preserves compensation, overflow switching, NaN bits,
+  signed zero and stale handling. Complete acquisition, page validation and the final control check precede read
+  credit, finalization and publication. Generic reader callers still validate before invoking their helpers.
+- **Histograms:** allocation state includes stale histograms. Populated native/mixed acquisitions retain consuming
+  validation and its saved progress, with no repeated float accumulation. Later native arithmetic uses the original
+  acquisition-then-consumption path, preserving failures and diagnostics.
+- **Ownership:** reuse adds no raw samples, value array, backing store, cache or public interface. The existing
+  page, stack accumulator and saved traversal state suffice. Callback errors remain tied to actual operations.
+- **Boundaries:** wider private bounds can expose earlier-window values during acquisition; they retain ordinary
+  consumption. This optimization targets physical reads and leaves other preparation and replay costs in place.
+- **Evidence:** [average reuse qualification](average-read-reuse-qualification.json) binds complete results and
+  credits, saved-state comparisons, calibrated failures, C execution phases, memory and matched query measurements.

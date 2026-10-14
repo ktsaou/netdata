@@ -1116,6 +1116,163 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
                                          "{\"unique_binary_replay\":\"pass\",\"cases\":9,\"page_sizes\":3}");
 }
 
+typedef struct {
+    fixture source;
+    netdata_promql_float_histogram_t stale;
+    uint64_t fail_on_cursor, failed_cursor;
+    unsigned stale_histogram;
+    void *latest_cursor;
+} average_fixture;
+
+static uint32_t average_cursor_open(void *context, void *series, netdata_promql_bounds_t bounds,
+                                    const netdata_promql_callback_control_t *control,
+                                    netdata_promql_cursor_open_t *out, netdata_promql_bytes_t *error) {
+    average_fixture *f = (average_fixture *)context;
+    uint32_t status = cursor_open(&f->source, series, bounds, control, out, error);
+    if (status == NETDATA_PROMQL_OK) f->latest_cursor = out->handle;
+    return status;
+}
+
+static uint32_t average_cursor_next(void *context, void *handle,
+                                    const netdata_promql_callback_control_t *control,
+                                    netdata_promql_page_t *out, netdata_promql_resources_t *resources,
+                                    netdata_promql_bytes_t *error) {
+    average_fixture *f = (average_fixture *)context;
+    assert(handle == f->latest_cursor);
+    if (f->fail_on_cursor && f->source.opened[3] == f->fail_on_cursor) {
+        f->failed_cursor = f->source.opened[3];
+        f->source.failure = 6;
+    }
+    uint32_t status = cursor_next(&f->source, handle, control, out, resources, error);
+    if (status == NETDATA_PROMQL_OK && f->stale_histogram) {
+        cursor *c = (cursor *)handle;
+        for (uint64_t i = 0; i < out->samples.len; i++) {
+            if (c->page[i].time_ms == 2000) {
+                c->page[i].value.kind = NETDATA_PROMQL_VALUE_FLOAT_HISTOGRAM;
+                c->page[i].value.payload.float_histogram = &f->stale;
+            }
+        }
+    }
+    return status;
+}
+
+typedef struct {
+    delivery output;
+    average_fixture *input;
+    unsigned arm_after;
+    uint64_t first_output_cursors;
+} average_delivery;
+
+static uint32_t average_begin(void *context, const netdata_promql_output_header_t *header,
+                              const netdata_promql_callback_control_t *control,
+                              netdata_promql_bytes_t *error) {
+    average_delivery *d = (average_delivery *)context;
+    assert(header->value_type == NETDATA_PROMQL_TYPE_MATRIX && header->reserved == 0);
+    assert(header->start_ms == 2000 && header->end_ms == 9000 && header->step_ms == 1000);
+    return output_status(&d->output, 1, control, error);
+}
+
+static uint32_t average_chunk(void *context, const netdata_promql_chunk_t *chunk,
+                              const netdata_promql_callback_control_t *control,
+                              netdata_promql_bytes_t *error) {
+    average_delivery *d = (average_delivery *)context;
+    uint32_t position = d->output.calls[1];
+    if (position == 0) d->first_output_cursors = d->input->source.opened[3];
+    assert(chunk->kind == NETDATA_PROMQL_CHUNK_SERIES && chunk->reserved == 0);
+    const netdata_promql_series_chunk_t *series = &chunk->payload.series;
+    assert(series->series_id == 0 && series->labels.len == 1 && series->points.len == 1);
+    assert(series->labels.data[0].name.len == 4 && memcmp(series->labels.data[0].name.data, "zone", 4) == 0);
+    const netdata_promql_bytes_t expected_label = d->input->source.labels[1].value;
+    assert(series->labels.data[0].value.len == expected_label.len);
+    assert(memcmp(series->labels.data[0].value.data, expected_label.data, (size_t)expected_label.len) == 0);
+    assert(series->points.data[0].time_ms == 2000 + (int64_t)position * 1000);
+    assert(series->points.data[0].value.kind == NETDATA_PROMQL_VALUE_FLOAT);
+    assert(series->points.data[0].value.payload.float_bits == netdata_promql_double_bits(d->input->stale_histogram ? 1.0 : 1.5));
+    uint32_t status = output_status(&d->output, 2, control, error);
+    if (d->arm_after && d->output.calls[1] == 1) d->input->source.failure = 6;
+    if (d->arm_after && d->output.calls[1] == 2) {
+        *error = text("second average output failure");
+        return NETDATA_PROMQL_OUTPUT_ERROR;
+    }
+    return status;
+}
+
+static uint32_t average_commit(void *context, const netdata_promql_query_observations_t *observations,
+                               const netdata_promql_callback_control_t *control,
+                               netdata_promql_bytes_t *error) {
+    average_delivery *d = (average_delivery *)context;
+    assert(!d->arm_after && d->output.calls[1] == 8 && observations->output_samples == 8);
+    statistics_valid(&observations->statistics);
+    assert(observations->statistics.samples.total_queryable_samples == (d->input->stale_histogram ? 8u : 16u));
+    assert(observations->statistics.samples.samples_read == (d->input->stale_histogram ? 16u : 32u));
+    assert(observations->samples_fetched == d->input->source.samples_returned);
+    assert(observations->pages == d->input->source.pages_returned);
+    assert(observations->memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
+    released(&d->input->source);
+    return output_status(&d->output, 3, control, error);
+}
+
+static void average_read_reuse(netdata_promql_engine_t *engine) {
+    const uint64_t page_sizes[] = {1, 17, 1024};
+    for (unsigned page = 0; page < 3; page++) {
+        uint64_t first_output_cursors[2] = {0, 0};
+        for (unsigned arm = 0; arm < 5; arm++) {
+            average_fixture source;
+            memset(&source, 0, sizeof(source));
+            init_fixture(&source.source, 2, page_sizes[page]);
+            source.source.labels[0].value = text("counter_total");
+            source.stale_histogram = arm >= 3;
+            source.stale.sum_bits = UINT64_C(0x7ff0000000000002);
+            if (arm == 1 || arm == 4) {
+                source.fail_on_cursor = first_output_cursors[source.stale_histogram];
+                assert(source.fail_on_cursor > 8);
+            }
+            netdata_promql_provider_t input = provider(&source.source);
+            input.context = &source;
+            input.cursor_open = average_cursor_open;
+            input.cursor_next = average_cursor_next;
+            netdata_promql_query_t *query = compile(engine, "avg_over_time(counter_total[5m])");
+            netdata_promql_request_t request = instant(2000);
+            request.kind = NETDATA_PROMQL_REQUEST_RANGE;
+            request.end_ms = 9000; request.step_ms = 1000;
+            average_delivery output;
+            memset(&output, 0, sizeof(output));
+            output.input = &source;
+            output.arm_after = arm == 2;
+            output.output.failure = arm == 1 || arm == 4 ? 2 : 0;
+            netdata_promql_output_t table = delivery_table(&output.output);
+            table.context = &output;
+            table.begin = average_begin; table.chunk = average_chunk; table.commit = average_commit;
+            netdata_promql_report_t *report = NULL;
+            uint32_t status = netdata_promql_execute(query, &input, &request, NULL, &table, &report);
+            int normal = arm == 0 || arm == 3;
+            assert(status == (normal ? NETDATA_PROMQL_OK : NETDATA_PROMQL_PROVIDER_ERROR));
+            assert(report && output.output.calls[0] == 1);
+            assert(output.output.calls[1] == (normal ? 8u : arm == 2 ? 1u : 0u));
+            assert(output.output.calls[2] == (normal ? 1u : 0u) && output.output.calls[3] == (normal ? 0u : 1u));
+            if (normal) {
+                first_output_cursors[source.stale_histogram] = output.first_output_cursors;
+                assert(source.source.opened[3] == (source.stale_histogram ? 32u : 16u));
+                assert(source.source.samples_returned == (page_sizes[page] == 1 ? 48u : 64u) * (source.stale_histogram ? 2u : 1u));
+            } else {
+                if (arm != 2) assert(source.failed_cursor == source.fail_on_cursor && output.first_output_cursors == 0);
+                static const uint8_t message[] = {'p','r','o','v','i','d','e','r',0,255,'f','a','i','l','u','r','e'};
+                netdata_promql_error_t error;
+                assert(netdata_promql_report_error(report, 0, &error) == NETDATA_PROMQL_OK);
+                assert(error.kind == NETDATA_PROMQL_ERROR_PROVIDER && error.message.len >= sizeof(message));
+                assert(memcmp(error.message.data + error.message.len - sizeof(message), message, sizeof(message)) == 0);
+            }
+            released(&source.source);
+            netdata_promql_query_observations_t observed;
+            assert(netdata_promql_report_observations(report, &observed) == NETDATA_PROMQL_OK);
+            assert(observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
+            assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+            assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+        }
+    }
+    puts("{\"average_read_reuse\":\"pass\",\"cases\":15,\"page_sizes\":3}");
+}
+
 static void output_delivery(netdata_promql_engine_t *engine) {
     for (unsigned test = 0; test < 6; test++) {
         netdata_promql_query_t *query = compile(engine, "m");
@@ -1793,6 +1950,8 @@ int main(void) {
     four_series_float_query(engine, FOUR_SERIES_NUMERIC);
     balanced(engine, &idle);
     four_series_float_query(engine, FOUR_SERIES_RATE);
+    balanced(engine, &idle);
+    average_read_reuse(engine);
     balanced(engine, &idle);
     assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
     foreign_allocation_lifetime();

@@ -745,28 +745,77 @@ pub(crate) fn fold<S: Series>(
         options.matrix = options.matrix.map(|window| window.with_progress(progress));
     }
     let mut step = FoldStep::new(kind, options.start_timestamps);
+    let reuse_initial_average = kind == FoldKind::Avg
+        && options.anchor_start_ms.is_none()
+        && options.matrix.is_some_and(|window| {
+            !window.statistics
+                && window.buffer_ms.is_none()
+                && window.reduce_delta
+                && window.range_ms > 0
+                && window
+                    .end_ms
+                    .checked_sub(window.range_ms)
+                    .and_then(|lower| lower.checked_add(1))
+                    .is_some_and(|lower| {
+                        bounds.is_some_and(|bounds| {
+                            bounds.start_ms >= lower
+                                && bounds.end_ms <= window.end_ms
+                                && bounds.start_ms <= bounds.end_ms
+                        })
+                    })
+        });
     loop {
         let mut position = 0u64;
-        let progress = scan_matrix::<_, StorageError>(
-            series,
-            bounds,
-            options.matrix,
-            control,
-            account,
-            |sample| {
-                control.check()?;
-                let include = options.anchor_start_ms.is_none_or(|start_ms| {
-                    sample.time_ms > start_ms
-                        || anchor.is_some_and(|(_, _, index)| index == position)
-                });
-                position += 1;
-                if include {
+        let progress = if reuse_initial_average && !step.native_pass {
+            let window = options.matrix.expect("certified average window");
+            let acquisition = crate::matrix_reader::probe::<_, StorageError>(
+                series,
+                bounds,
+                window,
+                control,
+                account,
+                |sample| {
                     step.receive(sample, control, account)
-                        .map_err(FoldError::storage)?;
-                }
-                Ok(())
-            },
-        )?;
+                        .map_err(FoldError::storage)
+                },
+            )?;
+            let progress = if acquisition.populated && acquisition.histograms_allocated {
+                crate::matrix_reader::consume::<_, StorageError>(
+                    series,
+                    bounds,
+                    window.with_progress(Some(acquisition.progress)),
+                    control,
+                    account,
+                    |_| Ok(()),
+                )?
+                .progress
+            } else {
+                account.samples_read(acquisition.progress.sample_units);
+                acquisition.progress
+            };
+            Some(progress)
+        } else {
+            scan_matrix::<_, StorageError>(
+                series,
+                bounds,
+                options.matrix,
+                control,
+                account,
+                |sample| {
+                    control.check()?;
+                    let include = options.anchor_start_ms.is_none_or(|start_ms| {
+                        sample.time_ms > start_ms
+                            || anchor.is_some_and(|(_, _, index)| index == position)
+                    });
+                    position += 1;
+                    if include {
+                        step.receive(sample, control, account)
+                            .map_err(FoldError::storage)?;
+                    }
+                    Ok(())
+                },
+            )?
+        };
         if let Some(mut result) = step
             .finish_pass(control, account)
             .map_err(FoldError::storage)?
@@ -847,12 +896,523 @@ mod tests {
         assert_eq!(account.current_samples(), 0);
     }
     use crate::{
-        accounting::EngineAccounting,
+        accounting::{EngineAccounting, MemoryKind},
         histogram::{FloatHistogram, Span},
-        test_storage::{GeneratedSeries, interrupt_during},
+        storage::{Cancellation, LabelRef, ProviderResources, SampleCursor, SamplePage},
+        test_storage::{GeneratedCursor, GeneratedSeries, interrupt_during},
         value::{Sample, SampleValue},
     };
-    use std::sync::atomic::Ordering;
+    use std::{cell::RefCell, sync::atomic::Ordering};
+
+    fn average_options() -> FoldOptions {
+        FoldOptions {
+            start_timestamps: false,
+            anchor_start_ms: None,
+            matrix: Some(MatrixWindow {
+                first_end_ms: 2000,
+                end_ms: 2000,
+                range_ms: 2000,
+                buffer_ms: None,
+                step_ms: 0,
+                data_bounds: TimeBounds {
+                    start_ms: 1,
+                    end_ms: 2000,
+                },
+                statistics: false,
+                reduce_delta: true,
+                resume: None,
+            }),
+        }
+    }
+
+    fn average_pair(index: usize) -> Sample {
+        Sample {
+            time_ms: (index as i64 + 1) * 1000,
+            start_time_ms: 0,
+            value: SampleValue::Float(index as f64 + 1.0),
+        }
+    }
+    fn average_native(index: usize) -> Sample {
+        Sample {
+            value: SampleValue::FloatHistogram(FloatHistogram {
+                count: (index + 1) as f64,
+                sum: (index + 1) as f64,
+                ..FloatHistogram::default()
+            }),
+            ..average_pair(index)
+        }
+    }
+    fn average_mixed(index: usize) -> Sample {
+        if index == 0 {
+            average_pair(index)
+        } else {
+            average_native(index)
+        }
+    }
+    fn average_stale_histogram(index: usize) -> Sample {
+        if index == 0 {
+            average_pair(index)
+        } else {
+            let mut sample = average_native(index);
+            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.sum = f64::from_bits(crate::value::STALE_NAN_BITS);
+            sample
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum AverageOperation {
+        Next(usize, usize),
+        Seek(usize, i64),
+        Close(usize),
+    }
+    struct AverageSeries {
+        source: GeneratedSeries,
+        failure: Option<AverageOperation>,
+        cancel_at: Option<AverageOperation>,
+        cancellation: Cancellation,
+        operations: RefCell<Vec<AverageOperation>>,
+    }
+    impl AverageSeries {
+        fn observe(&self, operation: AverageOperation) -> Result<(), StorageError> {
+            self.operations.borrow_mut().push(operation);
+            if self.cancel_at == Some(operation) {
+                self.cancellation.cancel();
+            }
+            if self.failure == Some(operation) {
+                return Err(StorageError::Provider(
+                    b"average operation failed".to_vec().into(),
+                ));
+            }
+            Ok(())
+        }
+    }
+    struct AverageCursor<'a> {
+        inner: GeneratedCursor<'a>,
+        source: &'a AverageSeries,
+        ordinal: usize,
+        next_calls: usize,
+    }
+    impl Series for AverageSeries {
+        type Cursor<'a> = AverageCursor<'a>;
+        fn label_count(&self) -> usize {
+            0
+        }
+        fn label(&self, _: usize) -> LabelRef<'_> {
+            panic!("unlabelled average fixture")
+        }
+        fn resources(&self) -> ProviderResources {
+            ProviderResources::default()
+        }
+        fn cursor(
+            &self,
+            bounds: TimeBounds,
+            control: &Control,
+        ) -> Result<Self::Cursor<'_>, StorageError> {
+            let inner = self.source.cursor(bounds, control)?;
+            Ok(AverageCursor {
+                inner,
+                source: self,
+                ordinal: self.source.counters.opened.load(Ordering::Relaxed),
+                next_calls: 0,
+            })
+        }
+    }
+    impl SampleCursor for AverageCursor<'_> {
+        fn resources(&self) -> ProviderResources {
+            self.inner.resources()
+        }
+        fn max_page_samples(&self) -> usize {
+            self.inner.max_page_samples()
+        }
+        fn seek(&mut self, target: i64, control: &Control) -> Result<(), StorageError> {
+            self.source
+                .observe(AverageOperation::Seek(self.ordinal, target))?;
+            self.inner.seek(target, control)
+        }
+        fn next(
+            &mut self,
+            control: &Control,
+            resources: &mut ProviderResources,
+        ) -> Result<Option<SamplePage<'_>>, StorageError> {
+            let call = self.next_calls;
+            self.next_calls += 1;
+            self.source
+                .observe(AverageOperation::Next(self.ordinal, call))?;
+            self.inner.next(control, resources)
+        }
+    }
+    impl Drop for AverageCursor<'_> {
+        fn drop(&mut self) {
+            self.source
+                .observe(AverageOperation::Close(self.ordinal))
+                .unwrap();
+        }
+    }
+    fn assert_average_closed(source: &GeneratedSeries, account: &QueryAccounting) {
+        assert_eq!(
+            source.counters.opened.load(Ordering::Relaxed),
+            source.counters.closed.load(Ordering::Relaxed)
+        );
+        assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn average_acquisition_failures_and_native_consumption_keep_their_phases() {
+        let mut failures = 0;
+        for page in [1, 17, 1024] {
+            for (sample, expected_cursors, expected_read, expected_kind) in [
+                (average_pair as fn(usize) -> Sample, 1, 2, 0),
+                (average_stale_histogram, 2, 1, 1),
+                (average_mixed, 2, 12, 2),
+                (average_native, 4, 44, 3),
+            ] {
+                let control = Control::default();
+                let normal = AverageSeries {
+                    source: GeneratedSeries::new(2, page, sample),
+                    failure: None,
+                    cancel_at: None,
+                    cancellation: control.cancellation.clone(),
+                    operations: RefCell::new(Vec::new()),
+                };
+                let account = EngineAccounting::default().query();
+                let output = fold(
+                    &normal,
+                    TimeBounds {
+                        start_ms: 1,
+                        end_ms: 2000,
+                    },
+                    FoldKind::Avg,
+                    average_options(),
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                assert!(output.nonempty);
+                match (expected_kind, &output.value) {
+                    (0, Some(OwnedValue::Float(value))) => {
+                        assert_eq!(value.to_bits(), 1.5f64.to_bits())
+                    }
+                    (1, Some(OwnedValue::Float(value))) => {
+                        assert_eq!(value.to_bits(), 1.0f64.to_bits())
+                    }
+                    (2, None) => assert_eq!(
+                        output.annotations,
+                        [Some(AnnotationKind::MixedFloatsHistograms), None]
+                    ),
+                    (3, Some(OwnedValue::Histogram(value))) => {
+                        assert_eq!(value.as_ref().count.to_bits(), 1.5f64.to_bits());
+                        assert_eq!(value.as_ref().sum.to_bits(), 1.5f64.to_bits());
+                    }
+                    _ => panic!("complete average output kind"),
+                }
+                if expected_kind != 2 {
+                    assert_eq!(output.annotations, [None, None]);
+                }
+                assert_eq!(
+                    normal.source.counters.opened.load(Ordering::Relaxed),
+                    expected_cursors
+                );
+                assert_eq!(
+                    account.snapshot().statistics.samples.samples_read,
+                    expected_read
+                );
+                drop(output);
+                assert_average_closed(&normal.source, &account);
+                let operations = normal.operations.into_inner();
+                for operation in operations
+                    .into_iter()
+                    .filter(|op| !matches!(op, AverageOperation::Close(_)))
+                {
+                    let control = Control::default();
+                    let source = AverageSeries {
+                        source: GeneratedSeries::new(2, page, sample),
+                        failure: Some(operation),
+                        cancel_at: None,
+                        cancellation: control.cancellation.clone(),
+                        operations: RefCell::new(Vec::new()),
+                    };
+                    let account = EngineAccounting::default().query();
+                    let output = fold(
+                        &source,
+                        TimeBounds {
+                            start_ms: 1,
+                            end_ms: 2000,
+                        },
+                        FoldKind::Avg,
+                        average_options(),
+                        &control,
+                        &account,
+                    );
+                    assert!(
+                        matches!(&output, Err(StorageError::Provider(message)) if message.as_ref() == b"average operation failed"),
+                        "{operation:?}"
+                    );
+                    if matches!(
+                        operation,
+                        AverageOperation::Next(1, _) | AverageOperation::Seek(1, _)
+                    ) {
+                        assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+                    }
+                    drop(output);
+                    assert_average_closed(&source.source, &account);
+                    failures += 1;
+                }
+            }
+        }
+        println!("{{\"avg_reuse_operation_failures\":{failures}}}");
+        assert!(failures >= 72);
+    }
+
+    #[test]
+    fn average_reuse_cancellation_discards_provisional_credits_and_result() {
+        for page in [1, 17, 1024] {
+            for sample in [
+                average_pair as fn(usize) -> Sample,
+                average_stale_histogram,
+                average_native,
+            ] {
+                for cancel_at in [AverageOperation::Next(1, 0), AverageOperation::Close(1)] {
+                    let control = Control::default();
+                    let source = AverageSeries {
+                        source: GeneratedSeries::new(2, page, sample),
+                        failure: None,
+                        cancel_at: Some(cancel_at),
+                        cancellation: control.cancellation.clone(),
+                        operations: RefCell::new(Vec::new()),
+                    };
+                    let account = EngineAccounting::default().query();
+                    let output = fold(
+                        &source,
+                        TimeBounds {
+                            start_ms: 1,
+                            end_ms: 2000,
+                        },
+                        FoldKind::Avg,
+                        average_options(),
+                        &control,
+                        &account,
+                    );
+                    assert!(matches!(
+                        output,
+                        Err(StorageError::Interrupted(Interrupted::Cancelled))
+                    ));
+                    assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+                    drop(output);
+                    assert_average_closed(&source.source, &account);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn wider_average_bounds_keep_the_consuming_window() {
+        fn sample(index: usize) -> Sample {
+            Sample {
+                time_ms: [1200, 1800, 2100, 3200, 3800][index],
+                value: SampleValue::Float([1.0, 2.0, 9.0, 3.0, 4.0][index]),
+                start_time_ms: 0,
+            }
+        }
+        for page in [1, 17, 1024] {
+            let source = GeneratedSeries::new(5, page, sample);
+            let account = EngineAccounting::default().query();
+            let bounds = TimeBounds {
+                start_ms: 0,
+                end_ms: 10_000,
+            };
+            let mut options = average_options();
+            options.matrix = Some(MatrixWindow {
+                first_end_ms: 2000,
+                end_ms: 4000,
+                range_ms: 1000,
+                step_ms: 2000,
+                data_bounds: bounds,
+                ..options.matrix.unwrap()
+            });
+            let output = fold(
+                &source,
+                bounds,
+                FoldKind::Avg,
+                options,
+                &Control::default(),
+                &account,
+            )
+            .unwrap();
+            let Some(OwnedValue::Float(value)) = &output.value else {
+                panic!("float average")
+            };
+            assert_eq!(value.to_bits(), 3.5f64.to_bits());
+            assert_eq!(output.annotations, [None, None]);
+            assert_eq!(account.snapshot().statistics.samples.samples_read, 2);
+            assert_eq!(source.counters.opened.load(Ordering::Relaxed), 2);
+            drop(output);
+            assert_average_closed(&source, &account);
+        }
+    }
+
+    #[test]
+    fn average_reuse_preserves_overflow_nan_zero_and_stale_values() {
+        fn overflow(index: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float(f64::MAX),
+                ..average_pair(index)
+            }
+        }
+        fn negative_zero(index: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float(-0.0),
+                ..average_pair(index)
+            }
+        }
+        fn nan(index: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float(if index == 0 {
+                    f64::from_bits(0x7ff8_0000_0000_1234)
+                } else {
+                    1.0
+                }),
+                ..average_pair(index)
+            }
+        }
+        fn stale(index: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float(if index == 0 {
+                    1.0
+                } else {
+                    f64::from_bits(crate::value::STALE_NAN_BITS)
+                }),
+                ..average_pair(index)
+            }
+        }
+        fn empty(index: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float(f64::from_bits(crate::value::STALE_NAN_BITS)),
+                ..average_pair(index)
+            }
+        }
+        for page in [1, 17, 1024] {
+            for (sample, expected, read) in [
+                (overflow as fn(usize) -> Sample, Some(f64::MAX.to_bits()), 2),
+                (negative_zero, Some(0.0f64.to_bits()), 2),
+                (nan, Some(0x7ff8_0000_0000_1234), 2),
+                (stale, Some(1.0f64.to_bits()), 1),
+                (empty, None, 0),
+            ] {
+                let source = GeneratedSeries::new(2, page, sample);
+                let account = EngineAccounting::default().query();
+                let output = fold(
+                    &source,
+                    TimeBounds {
+                        start_ms: 1,
+                        end_ms: 2000,
+                    },
+                    FoldKind::Avg,
+                    average_options(),
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
+                assert_eq!(output.nonempty, expected.is_some());
+                assert_eq!(output.annotations, [None, None]);
+                assert_eq!(
+                    output.value.as_ref().map(|value| match value {
+                        OwnedValue::Float(value) => value.to_bits(),
+                        _ => panic!("float average"),
+                    }),
+                    expected
+                );
+                assert_eq!(account.snapshot().statistics.samples.samples_read, read);
+                assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+                drop(output);
+                assert_average_closed(&source, &account);
+            }
+        }
+    }
+
+    #[test]
+    fn average_reuse_keeps_long_histories_page_bounded_and_interruptible() {
+        for page in [1, 17, 1024] {
+            let mut previous_peaks = None;
+            for count in [2048, 100_000] {
+                let source = GeneratedSeries::new(count, page, crate::test_storage::counter);
+                let mut options = average_options();
+                let bounds = TimeBounds {
+                    start_ms: 1,
+                    end_ms: count as i64 * 1000,
+                };
+                options.matrix = Some(MatrixWindow {
+                    first_end_ms: bounds.end_ms,
+                    end_ms: bounds.end_ms,
+                    range_ms: bounds.end_ms,
+                    data_bounds: bounds,
+                    ..options.matrix.unwrap()
+                });
+                let account = EngineAccounting::default().query();
+                let output = fold(
+                    &source,
+                    bounds,
+                    FoldKind::Avg,
+                    options,
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
+                let Some(OwnedValue::Float(value)) = &output.value else {
+                    panic!("float average")
+                };
+                assert_eq!(value.to_bits(), ((count as f64 + 1.0) / 2.0).to_bits());
+                assert_eq!(output.annotations, [None, None]);
+                assert_eq!(
+                    account.snapshot().statistics.samples.samples_read,
+                    count as u64
+                );
+                assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+                drop(output);
+                assert_average_closed(&source, &account);
+                let snapshot = account.snapshot();
+                let peaks = [
+                    MemoryKind::Workspace,
+                    MemoryKind::ProviderHeld,
+                    MemoryKind::BorrowedView,
+                ]
+                .map(|kind| snapshot.memory[kind as usize].peak);
+                if let Some(previous) = previous_peaks {
+                    assert_eq!(peaks, previous);
+                }
+                previous_peaks = Some(peaks);
+            }
+            let source = GeneratedSeries::new(100_000, page, crate::test_storage::counter);
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let bounds = TimeBounds {
+                start_ms: 1,
+                end_ms: 100_000_000,
+            };
+            let mut options = average_options();
+            options.matrix = Some(MatrixWindow {
+                first_end_ms: bounds.end_ms,
+                end_ms: bounds.end_ms,
+                range_ms: bounds.end_ms,
+                data_bounds: bounds,
+                ..options.matrix.unwrap()
+            });
+            let output = interrupt_during(&account, &control, || {
+                fold(&source, bounds, FoldKind::Avg, options, &control, &account)
+            });
+            assert!(matches!(
+                output,
+                Err(StorageError::Interrupted(Interrupted::Cancelled))
+            ));
+            assert!(source.counters.samples_returned.load(Ordering::Relaxed) > 0);
+            assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+            drop(output);
+            assert_average_closed(&source, &account);
+        }
+    }
 
     #[test]
     fn streamed_membership_and_average_counts_preserve_u32_rollover() {

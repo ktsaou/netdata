@@ -129,7 +129,7 @@ impl MatrixWindow {
 }
 
 pub(crate) struct Acquisition {
-    populated: bool,
+    pub(crate) populated: bool,
     pub(crate) histograms_allocated: bool,
     pub(crate) progress: Progress,
 }
@@ -297,13 +297,34 @@ pub(crate) fn acquire<S: Series, E: From<StorageError> + From<Interrupted>>(
     visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), E>,
 ) -> Result<Acquisition, E> {
     let bounds = bounds.into();
-    let acquisition = replay(series, bounds, window, false, control, account, |_| {
-        Ok::<_, E>(())
-    })?;
+    let acquisition = probe(series, bounds, window, control, account, |_| Ok::<_, E>(()))?;
     if !acquisition.populated {
         return Ok(acquisition);
     }
     let window = window.with_progress(Some(acquisition.progress));
+    consume(series, bounds, window, control, account, visit)
+}
+
+/// Provisional aggregation must not introduce helper errors before validation completes.
+pub(crate) fn probe<S: Series, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    bounds: Option<TimeBounds>,
+    window: MatrixWindow,
+    control: &Control,
+    account: &QueryAccounting,
+    visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), E>,
+) -> Result<Acquisition, E> {
+    replay(series, bounds, window, false, control, account, visit)
+}
+
+pub(crate) fn consume<S: Series, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    bounds: Option<TimeBounds>,
+    window: MatrixWindow,
+    control: &Control,
+    account: &QueryAccounting,
+    visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), E>,
+) -> Result<Acquisition, E> {
     replay(series, bounds, window, true, control, account, visit)
 }
 
@@ -665,6 +686,126 @@ mod tests {
             },
             ..window()
         }
+    }
+
+    fn before_epoch(index: usize) -> Sample {
+        let mut sample = disjoint(index);
+        sample.time_ms -= 6000;
+        sample
+    }
+    fn near_minimum(index: usize) -> Sample {
+        let mut sample = disjoint(index);
+        sample.time_ms += i64::MIN + 10_000;
+        sample
+    }
+    fn near_maximum(index: usize) -> Sample {
+        let mut sample = disjoint(index);
+        sample.time_ms += i64::MAX - 10_000;
+        sample
+    }
+
+    #[test]
+    fn clipped_float_probes_preserve_complete_consuming_progress() {
+        let mut cases = 0;
+        for page in [1, 17, 1024] {
+            for count in [0, 2, 3, 8] {
+                for step_ms in [500, 1000, 2000] {
+                    for clipped in [false, true] {
+                        for (offset, sample) in [
+                            (0, disjoint as fn(usize) -> Sample),
+                            (-6000, before_epoch),
+                            (i64::MIN + 10_000, near_minimum),
+                            (i64::MAX - 10_000, near_maximum),
+                        ] {
+                            let original = GeneratedSeries::new(count, page, sample);
+                            let provisional = GeneratedSeries::new(count, page, sample);
+                            let original_account = EngineAccounting::default().query();
+                            let provisional_account = EngineAccounting::default().query();
+                            let control = Control::default();
+                            let mut original_progress = None;
+                            let mut provisional_progress = None;
+                            for relative_end in
+                                [2000, 2000 + step_ms, 2000 + 2 * step_ms, 2000 + 2 * step_ms]
+                            {
+                                let end_ms = offset + relative_end;
+                                let data_bounds = TimeBounds {
+                                    start_ms: offset + if clipped { 1500 } else { 0 },
+                                    end_ms: offset + if clipped { 4500 } else { 10_000 },
+                                };
+                                let bounds = TimeBounds {
+                                    start_ms: (end_ms - 999).max(data_bounds.start_ms),
+                                    end_ms: end_ms.min(data_bounds.end_ms),
+                                };
+                                let bounds = (bounds.start_ms <= bounds.end_ms).then_some(bounds);
+                                let physical = MatrixWindow {
+                                    first_end_ms: offset + 2000,
+                                    end_ms,
+                                    step_ms,
+                                    data_bounds,
+                                    ..disjoint_window(end_ms)
+                                };
+                                let mut expected = Vec::new();
+                                let consumed = acquire::<_, StorageError>(
+                                    &original,
+                                    bounds,
+                                    physical.with_progress(original_progress),
+                                    &control,
+                                    &original_account,
+                                    |sample| {
+                                        let SampleValueRef::Float(value) = sample.value else {
+                                            unreachable!()
+                                        };
+                                        expected.push((sample.time_ms, value.to_bits()));
+                                        Ok(())
+                                    },
+                                )
+                                .unwrap();
+                                let mut actual = Vec::new();
+                                let acquired = probe::<_, StorageError>(
+                                    &provisional,
+                                    bounds,
+                                    physical.with_progress(provisional_progress),
+                                    &control,
+                                    &provisional_account,
+                                    |sample| {
+                                        let SampleValueRef::Float(value) = sample.value else {
+                                            unreachable!()
+                                        };
+                                        actual.push((sample.time_ms, value.to_bits()));
+                                        Ok(())
+                                    },
+                                )
+                                .unwrap();
+                                assert_eq!(actual, expected);
+                                assert_eq!(acquired.populated, consumed.populated);
+                                assert_eq!(
+                                    acquired.histograms_allocated,
+                                    consumed.histograms_allocated
+                                );
+                                assert_eq!(
+                                    acquired.progress, consumed.progress,
+                                    "page {page}, count {count}, step {step_ms}, clipped {clipped}, offset {offset}, end {relative_end}"
+                                );
+                                assert_eq!(
+                                    provisional_account
+                                        .snapshot()
+                                        .statistics
+                                        .samples
+                                        .samples_read,
+                                    0
+                                );
+                                original_progress = Some(consumed.progress);
+                                provisional_progress = Some(acquired.progress);
+                                cases += 1;
+                            }
+                            assert_closed(&original, &original_account);
+                            assert_closed(&provisional, &provisional_account);
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(cases, 1152);
     }
 
     #[test]

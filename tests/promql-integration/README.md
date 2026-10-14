@@ -137,11 +137,17 @@ size. Close/shutdown require retired owners, zero active operations and released
 claim state, caches and logs. Unrelated collection, streaming, ML, health and RTC activity is disabled. Two real
 hosts are seeded with gauge and incremental dimensions through Netdata's fixed-clock collection path.
 
-Ordinary HTTP requests check fleet/host scope, exact/underscore names, gauge sums, counter resets/rates, form
-precedence, discovery, plain/gzip 100,000-point ranges, syntax errors and explicit timeouts. Native initial-load
+Ordinary HTTP requests check fleet/host scope, exact/underscore names, gauge sums, instant/range averages,
+counter resets/rates, form precedence, discovery, plain/gzip 100,000-point ranges, syntax errors and explicit
+timeouts. Native initial-load
 checks use private SQLite preparation and partial-scan failures, successful creator ownership and concurrent
 query references. A failed initial attempt returns the specific unavailable error and is not replayed. Actual API waiters also cover cancellation while UNLOADED or
 LOADING, completion of the one original attempt, and abandonment of a queued load.
+
+The average cases query constant local/child gauges collected into real DBengine pages. They check three scoped
+instant averages and a fleet range average with exact HTTP results for both page codecs. The current average-engine
+cohort records 66 combined HTTP/readiness checks and 672 storage records in
+[the library qualification](../../src/crates/promql-engine/tests/promql-conformance/average-read-reuse-qualification.json).
 
 The runner requests the fixture Agent's native `/exit` endpoint and waits for that exact child to exit normally.
 It sends no signal to a running Agent or unrelated process; its PID, command, exit status and logs are retained.

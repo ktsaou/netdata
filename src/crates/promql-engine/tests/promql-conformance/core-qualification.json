@@ -8651,5 +8651,21 @@
     "caller_artifacts": 734,
     "storage_records": 672,
     "live_checks": 58
+  },
+  "average_acquisition_reuse_qualification": {
+    "status": "qualified_on_recorded_finite_inputs",
+    "scope": "Certified initial ordinary raw-matrix Avg accumulation during complete acquisition omits float-only consuming replay; native/mixed and later native arithmetic retain their validation, read credit and progress phases.",
+    "qualification": {
+      "repository_path": "tests/promql-conformance/average-read-reuse-qualification.json",
+      "sha256": "5b6299e3e1cc23f7f76e2e873ad4ebd59e8106cbe226fd3dcbe2b57fedfdf543"
+    },
+    "source_files": 144,
+    "fixture_units_per_profile": 562,
+    "builtin_comparisons": 128652,
+    "focused_comparisons": 2070,
+    "sre_comparisons": 231540,
+    "caller_artifacts": 734,
+    "storage_records": 672,
+    "live_checks": 66
   }
 }

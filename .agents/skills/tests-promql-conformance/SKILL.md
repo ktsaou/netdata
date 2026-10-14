@@ -97,6 +97,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   capacity independently of inputs. See `src/crates/promql-engine/tests/promql-conformance/README.md#compact-one-to-one-result-labels`.
 - Single-series head optimizations MUST retain generic multiplicity/kind handling and meaningful control polling;
   see `src/crates/promql-engine/tests/promql-conformance/README.md#single-series-range-head-preparation` for causal controls.
+- Average acquisition reuse MUST preserve full saved traversal state, completed validation before read credit,
+  stale-histogram consumption and later native arithmetic phases; see
+  `src/crates/promql-engine/tests/promql-conformance/README.md#validated-average-acquisition-reuse` for causal controls.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
 
 ## Evidence

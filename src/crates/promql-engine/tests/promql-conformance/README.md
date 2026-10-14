@@ -2575,3 +2575,39 @@ Regex backend build/cache/search, standard hash-table operations, allocations, b
 atomic from this interface. Checks surround those operations, but cannot interrupt them internally. Partitioning
 input would change anchors and capture behavior. Backend/table memory remains explicitly estimated under the
 existing contract, and every admission limit remains disabled.
+
+## Validated average acquisition reuse
+
+Ordinary `avg_over_time` raw-matrix folds can accumulate floats during acquisition and reuse that completed
+accumulator. The shortcut applies only to the initial pass, a positive non-wrapping window, and valid bounds
+contained in that window. Statistics projection, buffering, anchored reductions and wider bounds keep ordinary
+replay. Generic reader callbacks still run after acquisition validation.
+
+No read credit, result or diagnostic is published from an incomplete acquisition. Native or mixed allocations,
+including a stale histogram, retain consuming validation and its saved state. Later native arithmetic still
+follows complete acquisition. The ordered numerical accumulator and raw page lifetimes are unchanged.
+
+Focused controls compare all saved-state fields in 1152 cases, inject 90 actual read/seek failures, and check
+cancellation, wider bounds, overflow, NaN payloads, signed zero, stale values and 2048/100000-point histories.
+Fifteen C cases check full results/credits, first-final provider failures, later failures after output and stale
+histogram fallback. Six native traces confirm the actual final-execution phase; output begin is insufficient.
+
+[Average reuse qualification](average-read-reuse-qualification.json) records the final source, binaries,
+complete comparisons and measured changes. Fixture timings and tracked workspace are separate from production
+disk throughput and process RSS. Earlier qualification evidence retains its original source and binary bindings.
+
+The matched fixture evaluates eight range ticks over two floats per series. Three alternating baseline/candidate
+pairs cover both profiles, 128/512 series and pages 1/17/1024. All 72 complete responses match; fetched entries
+halve and tracked workspace peaks stay equal in all 12 groups. Median timing ratios range from 1.250 to 1.388.
+Page 17 illustrates the recorded result:
+
+| Series | Fetched before → after | Work before → after | Workspace peak before/after | Release time ratio | Release-min time ratio |
+| --- | --- | --- | --- | --- | --- |
+| 128 | 16,384 → 8,192 | 454,955 → 429,611 | 161,558 bytes | 1.327 | 1.352 |
+| 512 | 65,536 → 32,768 | 2,647,680 → 2,546,304 | 630,504 bytes | 1.268 | 1.250 |
+
+The final cohort passes 562 units per profile, 128,652 retained builtin comparisons, 2,070 focused comparisons and
+231,540 exact SRE comparisons. Native/ARM64/ARM32 C qualification retains 734 artifacts and runs the average
+controls in every current caller. The fresh Debug Agent passes 672 storage records and 66 live HTTP/readiness
+checks, including the new instant/range average cases. These finite cohorts do not prove arbitrary-input behavior,
+foreign whole-Agent execution, total RSS or production disk throughput.
