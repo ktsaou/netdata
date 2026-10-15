@@ -25,6 +25,10 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Selector backend capture tables are omitted for boolean-only consumers. The
+  [capture-table panel](#selector-backend-capture-tables) records both native optimized profiles, compiled ARM
+  selector originals, short actual C/C++ calls and source-distinguished test-only correction. Of 484 complete native
+  query groups, 200 lower estimated regex peak/acquired memory and none increase; engine-owned observations match.
 - Boolean selector fallback avoids unused capture results. The [selector panel](#boolean-selector-search) records
   484 complete native matches, 504 compiled ARM matches and 21,320 original regex cases per profile/target.
   Of 484 resource groups, 328 acquire less workspace and do less work; total query peaks mostly stay unchanged.
@@ -3909,3 +3913,96 @@ All 2 slower final median groups remain in the report. Engine-accounted bytes ar
 do not measure isolated foreign allocation savings. There is no new Go, SRE, live-Agent/DBengine, full foreign-unit,
 regex/frontend, layout, sanitizer or CI-pass qualification. All 59 prior ledger objects retain their content and
 actual source/binary identities.
+
+## Selector backend capture tables
+
+Selector fallback compiles explicit capture markers into backend empty states. One shared private construction path
+keeps the original parsed names, flat program and prefix/OnePass decisions before that translation. Implicit group
+zero remains. Capture-producing GoRegex entry points and label replacement keep the full backend representation.
+No extra matcher field, retained cache, query limit or public ABI is introduced.
+
+The [capture-table qualification](selector-capture-tables-qualification.json) records finite evidence:
+
+- The original runtime completes 21 matching/accounting checks across seven capture-bearing patterns, then fails
+  only the final unused-storage bound. The selected implementation retains two implicit-group slots. Named, sparse,
+  duplicate-name, repeated and nullable captures have smaller backend cache reports; names and prefix bytes match
+  full capture consumers. A named invalid-byte example changes 3,424 to 1,952 estimated cache bytes.
+- Partial-construction cancellation occurs at 76 work units after the backend has acquired memory, in both policies.
+  The test checks complete release. Borrowed program ownership, independent concurrent search accounts, full capture
+  offsets/replacements, ordinary unwind and small-stack controls complement that witness.
+- Both native profiles pass 18 selected optimized regex units and all 21,320 original regex outcomes each. ARM64 and
+  ARM32 pass eight focused units and 11,188 original anchored selector outcomes per profile. The originals call the
+  actual upstream FastRegexMatcher interface; unanchored Find endpoints do not establish whole-subject acceptance.
+- Complete query results and diagnostics match the accepted source for 484 native and 504 compiled ARM queries.
+  Native logical counters and engine-owned memory observations are exact. No new language, SRE or live-Agent
+  qualification is claimed by this panel.
+- Eight linked C/C++ callers exercise capture-bearing positive/negative selectors, missing labels, nullable/invalid
+  byte subjects and full `$1` replacement queries, including output/provider failures at pages 1/17/1024. Both native
+  profiles and foreign release profiles run the short `c_embedding.c` entry with `--regex-only`; the default entry
+  still selects the complete embedding suite.
+- The final test-only correction uses the same standard parser directly with inert Work so it also compiles without
+  the fixtures feature. Exact inverse and production-prefix checks preserve earlier runtime binaries' actual source
+  identities; fresh production/fixture Debug checks, strict lint and MSRV evidence cover that correction.
+
+Across 484 native resource groups, 200 reduce estimated regex peak and cumulative acquired bytes, none increase,
+while all other memory and logical observations remain unchanged. For 4,096 series and three range ticks:
+
+| Selector/count case | Estimated regex peak | Estimated acquired regex bytes | Engine Workspace peak, unchanged |
+|---|---:|---:|---:|
+| Numeric capture | 1,824 → 992 B | 24,281,088 → 13,205,504 | 1,251,560 B |
+| Four explicit captures | 5,088 → 992 B | 67,731,456 → 13,205,504 | 1,251,560 B |
+
+These are opaque backend reports under the existing estimate contract. Cumulative allocation is not concurrent RAM;
+this panel does not measure process RSS or total device memory.
+
+An initial const specialization increases release fixture ELF `.text` by 46,496 bytes. It was replaced before broad
+qualification with the shared constructor. Against the accepted fixture, selected release `.text` changes
+2,993,077 → 2,987,221 bytes; release-min changes 1,807,941 → 1,808,389 bytes. These executable sections do not measure
+an installed Agent's total footprint. GNU `size` aggregate text categories are recorded separately.
+
+The first fixed timing panel checks 320 complete warm/measured responses: eight cases/profile, five alternating
+pairs. All results and each binary's own nonelapsed observations match. Eleven of 16 medians are slower; retain all
+of them. Ratios divide the accepted median by the candidate median, so values above one mean faster:
+
+| Profile | Case | Before → candidate, ms | Ratio |
+|---|---|---:|---:|
+| release | `ascii-n32-numeric-pos-count-range` | 0.337 → 0.342 | 0.988× |
+| release | `ascii-n4096-numeric-pos-count-range` | 38.799 → 39.058 | 0.993× |
+| release | `ascii-n4096-numeric-neg-count-range` | 50.959 → 52.984 | 0.962× |
+| release | `ascii-n4096-captures-pos-count-range` | 40.691 → 39.008 | 1.043× |
+| release | `ascii-n4096-literal-pos-count-range` | 11.998 → 12.503 | 0.960× |
+| release | `ascii-n4096-alternation-pos-count-range` | 20.693 → 20.717 | 0.999× |
+| release | `ascii-n4096-replace-capture-direct-range` | 274.582 → 275.544 | 0.997× |
+| release | `bytes-n32-non-digit-pos-direct-range` | 0.147 → 0.143 | 1.028× |
+| release-min | `ascii-n32-numeric-pos-count-range` | 0.557 → 0.557 | 0.999× |
+| release-min | `ascii-n4096-numeric-pos-count-range` | 68.876 → 67.347 | 1.023× |
+| release-min | `ascii-n4096-numeric-neg-count-range` | 88.287 → 85.185 | 1.036× |
+| release-min | `ascii-n4096-captures-pos-count-range` | 75.961 → 67.461 | 1.126× |
+| release-min | `ascii-n4096-literal-pos-count-range` | 19.666 → 19.807 | 0.993× |
+| release-min | `ascii-n4096-alternation-pos-count-range` | 33.141 → 33.710 | 0.983× |
+| release-min | `ascii-n4096-replace-capture-direct-range` | 373.477 → 377.462 | 0.989× |
+| release-min | `bytes-n32-non-digit-pos-direct-range` | 0.234 → 0.237 | 0.986× |
+
+These shared-host measurements have no CPU exclusivity or frequency control. Their original slower controls remain
+in the report alongside the separately fixed baseline/candidate/baseline follow-up; neither panel proves a universal
+throughput improvement.
+
+The focused follow-up checks 450 more complete responses on one allowed CPU. Each fixed case has five rotating
+baseline/candidate/baseline triples, four measured executions after a warmup. All results and own nonelapsed
+observations match. Median ratios are:
+
+| Profile | Case | Baseline 1 / candidate | Baseline 2 / candidate | Candidate slower than both, triples |
+|---|---|---:|---:|---:|
+| release | `ascii-n4096-numeric-neg-count-range` | 0.993× | 0.987× | 3/5 |
+| release | `ascii-n4096-literal-pos-count-range` | 0.938× | 0.932× | 2/5 |
+| release | `ascii-n4096-replace-capture-direct-range` | 1.027× | 1.004× | 0/5 |
+| release-min | `ascii-n4096-captures-pos-count-range` | 1.116× | 1.111× | 0/5 |
+| release-min | `ascii-n4096-literal-pos-count-range` | 0.993× | 0.982× | 3/5 |
+| release-min | `ascii-n4096-replace-capture-direct-range` | 0.972× | 0.938× | 4/5 |
+
+The original slower results remain. The identical replacement baseline binaries themselves differ by about 3.7% in
+the release-min medians; large individual host-time outliers also remain in the raw record. This does not prove all
+candidate slowdowns are host noise. The checked instruction structures of 16 hot owners are identical after removing
+specified relocations while retaining internal branch offsets, ordinary constants and registers. That comparison
+excludes physical placement and relocated data/GOT contents. Small compilation-only argument/branch changes remain;
+no new per-row search instructions were found in those inspected owners.

@@ -93,8 +93,13 @@ The [README](README.md#standalone-expression-core) summarizes implementation and
   separate limitations described under decision 17 below.
 - **Boolean execution:** selector fallback requests no capture outputs from the same PikeVM search and Input.
   Capture consumers retain their owned ranges. Shared search setup finishes capture export while the cache and
-  estimate remain alive. Normalization/offsets, raw prefix checks, fresh execution-local caches and full initial
-  backend slot tables remain. The [selector panel](selector-boolean-qualification.json) measures this finite change.
+  estimate remain alive. Normalization/offsets, raw prefix checks and fresh execution-local caches remain.
+  The [boolean-search panel](selector-boolean-qualification.json) measures output-buffer removal.
+- **Backend construction:** a shared private compilation policy omits explicit capture markers only for selectors.
+  Original parsing, frontend names, flat-program prefix/OnePass analysis and implicit group zero remain intact.
+  Full capture consumers retain their backend groups. The
+  [capture-table panel](selector-capture-tables-qualification.json) separates dependency estimates, query timings and
+  fixture binary size; no mode is retained in each compiled matcher.
 - **Evidence:** [Go-compatible regex frontend](README.md#owned-go-compatible-regex-frontend),
   [pinned dependencies](../../Cargo.toml).
 

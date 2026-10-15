@@ -1071,9 +1071,10 @@ impl Program {
             work,
         )?;
         optimize_contains(&mut tree, work)?;
-        program.regex = Some(GoRegex::compile_label_replace_work(
+        program.regex = Some(GoRegex::compile_anchored_work(
             &string::canonical(&tree, work)?,
             work,
+            false,
         )?);
         let root = tree.root;
         clear_capture(&mut tree, root, work)?;
@@ -1190,6 +1191,97 @@ impl Program {
 mod tests {
     use super::*;
     use crate::accounting::EngineAccounting;
+
+    #[test]
+    fn selector_backend_keeps_only_implicit_capture_storage() {
+        let engine = EngineAccounting::default();
+        let compiled = engine.query();
+        let context = AllocationContext::new(&compiled, MemoryKind::Compiled);
+        let searched = engine.query();
+        let scratch = AllocationContext::new(&searched, MemoryKind::Workspace);
+        let mut compact = true;
+        let mut checks = 0;
+        for (pattern, subjects) in [
+            (
+                b"(?P<x>a[^0-9]+c)".as_slice(),
+                [
+                    (b"a\xffbc".as_slice(), true),
+                    (b"a\xff9c", false),
+                    (b"", false),
+                ]
+                .as_slice(),
+            ),
+            (
+                b"(a){0}(b+)".as_slice(),
+                [(b"bbb".as_slice(), true), (b"ab", false), (b"", false)].as_slice(),
+            ),
+            (
+                b"(a?)*".as_slice(),
+                [(b"".as_slice(), true), (b"aaa", true), (b"b", false)].as_slice(),
+            ),
+            (
+                b"((a*)*)".as_slice(),
+                [(b"".as_slice(), true), (b"aaa", true), (b"ab", false)].as_slice(),
+            ),
+            (
+                b"(?P<x>a+)|(?P<x>b+)".as_slice(),
+                [(b"aaa".as_slice(), true), (b"bbb", true), (b"ab", false)].as_slice(),
+            ),
+            (
+                b"^a((b))c$".as_slice(),
+                [(b"abc".as_slice(), true), (b"ab", false), (b"", false)].as_slice(),
+            ),
+            (
+                b"([a-c]){2,5}".as_slice(),
+                [(b"abc".as_slice(), true), (b"a", false), (b"abcdef", false)].as_slice(),
+            ),
+        ] {
+            let selector = Program::compile(pattern, Work::new(Some(&context), None)).unwrap();
+            if pattern == b"(?P<x>a[^0-9]+c)" {
+                assert!(selector.matcher.is_none(), "witness must use VM fallback");
+            }
+            let regex = selector.regex.as_ref().expect("capture-bearing backend");
+            let full = GoRegex::compile_label_replace_in(pattern, Some(&context)).unwrap();
+            assert_eq!(regex.names(), full.names());
+            assert_eq!(&*regex.prefix, &*full.prefix);
+            let retained = compiled.snapshot();
+            for &(subject, expected) in subjects {
+                assert_eq!(
+                    selector.matches(subject, Work::new(Some(&scratch), None)),
+                    Ok(expected)
+                );
+                assert_eq!(
+                    regex.matches_work(subject, Work::new(Some(&scratch), None)),
+                    Ok(expected)
+                );
+                assert_eq!(full.captures(subject).is_some(), expected);
+                assert_eq!(compiled.snapshot(), retained);
+                searched.snapshot().assert_memory_released();
+                checks += 1;
+            }
+            let slots = regex.program.create_captures().slots().len();
+            let full_slots = full.program.create_captures().slots().len();
+            let cache = regex.program.create_cache().memory_usage();
+            let full_cache = full.program.create_cache().memory_usage();
+            let states = regex.program.get_nfa().states().len();
+            let full_states = full.program.get_nfa().states().len();
+            println!(
+                "{{\"selector_backend_slots\":{slots},\"full_backend_slots\":{full_slots},\"selector_cache_bytes\":{cache},\"full_cache_bytes\":{full_cache},\"selector_states\":{states},\"full_states\":{full_states}}}"
+            );
+            assert!(full_slots > 2);
+            compact &= slots == 2 && cache < full_cache && states < full_states;
+        }
+        assert_eq!(checks, 21);
+        drop(scratch);
+        drop(searched);
+        drop(context);
+        drop(compiled);
+        engine.snapshot().assert_memory_released();
+        assert!(
+            compact,
+            "selector backend retained unused explicit capture groups"
+        );
+    }
 
     #[test]
     fn folded_and_contains_matcher_walks_are_cooperative() {

@@ -69832,5 +69832,23 @@
       "Intermediate affinity controls select one allowed CPU without exclusivity/frequency control; they do not prove instruction-level timing attribution.",
       "No new full-unit, regex/frontend, Go/SRE, live Agent/DBengine, layout, sanitizer or CI-pass qualification. Existing identities remain unchanged."
     ]
+  },
+  "selector_capture_tables_qualification": {
+    "status": "qualified_private_selector_backend_representation",
+    "receipt": "selector-capture-tables-qualification.json",
+    "sha256": "35d8593af41d25259df17d6a998b5d9fa24977e2ec81f665bc781f6bc1298799",
+    "scope": "Omit explicit backend capture groups only for boolean selector fallback; preserve full frontend/prefix/group-zero and full capture consumers. Finite evidence, not arbitrary-input or universal performance proof.",
+    "native_original_regex_outcomes": 42640,
+    "foreign_original_selector_outcomes": 44752,
+    "complete_native_queries": 484,
+    "complete_foreign_queries": 504,
+    "selected_native_optimized_units": 36,
+    "selected_foreign_units": 32,
+    "actual_c_callers": 8,
+    "lower_estimated_regex_peak_groups": 200,
+    "higher_estimated_regex_groups": 0,
+    "original_timing_responses": 320,
+    "focused_followup_responses": 450,
+    "qualification_attribution": "Native/foreign production and optimized unit artifacts retain the actual shared-source manifest used by their compilers. The only later source change is a test helper under cfg(test); its complete inverse and byte-identical production prefix are checked. Fresh final Debug/strict lint/MSRV checks use checked-source. Earlier cohorts keep their original identities."
   }
 }

@@ -159,12 +159,16 @@ impl GoRegex {
         pattern: &[u8],
         context: Option<&AllocationContext>,
     ) -> Result<Self, Buffer<u8>> {
-        inert(Self::compile_work(pattern, Work::new(context, None)))
+        inert(Self::compile_work(pattern, Work::new(context, None), true))
     }
-    fn compile_work(pattern: &[u8], work: Work<'_>) -> Result<Self, Failure<Buffer<u8>>> {
+    fn compile_work(
+        pattern: &[u8],
+        work: Work<'_>,
+        capture_groups: bool,
+    ) -> Result<Self, Failure<Buffer<u8>>> {
         work.step(0)?;
         let tree = syntax_result(syntax::parse_standard_in(pattern, syntax::PERL, work), work)?;
-        Self::from_tree(tree, work)
+        Self::from_tree(tree, work, capture_groups)
     }
     pub fn compile_label_replace(pattern: &[u8]) -> Result<Self, Vec<u8>> {
         Self::compile_label_replace_in(pattern, None).map_err(Buffer::into_unobserved)
@@ -173,9 +177,10 @@ impl GoRegex {
         pattern: &[u8],
         context: Option<&AllocationContext>,
     ) -> Result<Self, Buffer<u8>> {
-        inert(Self::compile_label_replace_work(
+        inert(Self::compile_anchored_work(
             pattern,
             Work::new(context, None),
+            true,
         ))
     }
     pub(crate) fn compile_label_replace_checked(
@@ -183,24 +188,30 @@ impl GoRegex {
         context: Option<&AllocationContext>,
         control: &Control,
     ) -> Result<Result<Self, Buffer<u8>>, Interrupted> {
-        separate(Self::compile_label_replace_work(
+        separate(Self::compile_anchored_work(
             pattern,
             Work::new(context, Some(control)),
+            true,
         ))
     }
-    fn compile_label_replace_work(
+    fn compile_anchored_work(
         pattern: &[u8],
         work: Work<'_>,
+        capture_groups: bool,
     ) -> Result<Self, Failure<Buffer<u8>>> {
         work.step(0)?;
         let mut anchored = work.copy(b"^(?s:")?;
         work.extend(&mut anchored, pattern)?;
         work.extend(&mut anchored, b")$")?;
-        Self::compile_work(&anchored, work)
+        Self::compile_work(&anchored, work, capture_groups)
     }
-    fn from_tree(mut tree: Tree, work: Work<'_>) -> Result<Self, Failure<Buffer<u8>>> {
+    fn from_tree(
+        mut tree: Tree,
+        work: Work<'_>,
+        capture_groups: bool,
+    ) -> Result<Self, Failure<Buffer<u8>>> {
         let flat = program::Program::compile(&mut tree, work)?;
-        let (program, prefix, estimate) = nfa::build(&flat, work)?;
+        let (program, prefix, estimate) = nfa::build(&flat, work, capture_groups)?;
         work.step(0)?;
         Ok(Self {
             program,
@@ -631,7 +642,9 @@ mod tests {
     #[test]
     fn nfa_construction_owns_new_buffers_independently_of_borrowed_program() {
         use super::{Work, nfa, program, syntax};
-        for tracked_source in [false, true] {
+        for (tracked_source, capture_groups) in
+            [(false, false), (false, true), (true, false), (true, true)]
+        {
             let source_engine = EngineAccounting::default();
             let source_account = source_engine.query();
             let source_context = AllocationContext::new(&source_account, MemoryKind::Compiled);
@@ -642,7 +655,8 @@ mod tests {
             let engine = EngineAccounting::default();
             let account = engine.query();
             let context = AllocationContext::new(&account, MemoryKind::Workspace);
-            let built = nfa::build(&flat, Work::new(Some(&context), None)).unwrap();
+            let work = Work::new(Some(&context), None);
+            let built = nfa::build(&flat, work, capture_groups).unwrap();
             let (vm, prefix, estimate) = &built;
             let expected = vm.get_nfa().memory_usage() as u64;
             assert!(expected > 0);
@@ -667,6 +681,55 @@ mod tests {
             drop(source_context);
             drop(source_account);
             source_engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn partial_capture_backend_construction_releases_on_cancellation() {
+        use super::{Failure, Work, nfa, program, syntax};
+        use crate::{
+            storage::{Control, Interrupted},
+            test_storage::interrupt_after_work,
+        };
+        let mut tree =
+            syntax::parse_standard_in(b"(?P<x>([a-c]+|d?))*", syntax::PERL, Work::default())
+                .unwrap();
+        let flat = program::Program::compile(&mut tree, Work::default()).unwrap();
+        for capture_groups in [false, true] {
+            let engine = EngineAccounting::default();
+            let complete = engine.query();
+            let context = AllocationContext::new(&complete, MemoryKind::Workspace);
+            let work = Work::new(Some(&context), None);
+            let built = nfa::build(&flat, work, capture_groups).unwrap();
+            // Each final patch-loop instruction charges one unit after the builder has allocated.
+            let limit = complete.snapshot().work - (flat.instructions.len() / 2) as u64;
+            drop(built);
+            complete.snapshot().assert_memory_released();
+            drop(context);
+            drop(complete);
+
+            let account = engine.query();
+            let context = AllocationContext::new(&account, MemoryKind::Workspace);
+            let control = Control::default();
+            let result = interrupt_after_work(&account, &control, limit, || {
+                let work = Work::new(Some(&context), Some(&control));
+                nfa::build(&flat, work, capture_groups)
+            });
+            assert!(matches!(
+                result,
+                Err(Failure::Interrupted(Interrupted::Cancelled))
+            ));
+            let observed = account.snapshot();
+            assert_eq!(observed.work, limit);
+            assert!(observed.memory[MemoryKind::RegexEstimate as usize].acquired > 0);
+            observed.assert_memory_released();
+            println!(
+                "{{\"partial_capture_backend\":{capture_groups},\"cancelled_work\":{limit},\"regex_estimate_acquired\":{}}}",
+                observed.memory[MemoryKind::RegexEstimate as usize].acquired
+            );
+            drop(context);
+            drop(account);
+            engine.snapshot().assert_memory_released();
         }
     }
 
@@ -821,7 +884,7 @@ mod tests {
                         let mut tree = tree;
                         program::Program::compile(&mut tree, work)?;
                     }
-                    "nfa" => match nfa::build(flat.as_ref().unwrap(), work) {
+                    "nfa" => match nfa::build(flat.as_ref().unwrap(), work, true) {
                         Err(Failure::Interrupted(error)) => return Err(error),
                         other => {
                             other.unwrap();
@@ -1165,7 +1228,7 @@ mod tests {
         let engine = EngineAccounting::default();
         let compiled = engine.query();
         let context = AllocationContext::new(&compiled, MemoryKind::Compiled);
-        let matcher = Selector::compile_in(b"a[^0-9]+c", Some(&context)).unwrap();
+        let matcher = Selector::compile_in(b"(?P<x>a[^0-9]+c)", Some(&context)).unwrap();
         let retained = compiled.snapshot();
         let barrier = std::sync::Barrier::new(3);
         std::thread::scope(|scope| {

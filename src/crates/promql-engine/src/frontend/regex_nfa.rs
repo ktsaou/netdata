@@ -124,7 +124,11 @@ fn look(bits: usize) -> Look {
 
 type Built = (PikeVM, Buffer<u8>, Option<MemoryLease>);
 
-fn construct(program: &Program, work: Work<'_>) -> Result<Built, Failure<Box<BuildError>>> {
+fn construct(
+    program: &Program,
+    work: Work<'_>,
+    capture_groups: bool,
+) -> Result<Built, Failure<Box<BuildError>>> {
     work.step(0)?;
     let context = work.context;
     let (prefix, prefix_instructions) = program.prefix(work)?;
@@ -169,6 +173,8 @@ fn construct(program: &Program, work: Work<'_>) -> Result<Built, Failure<Box<Bui
             Code::Nop => change!(builder, add_empty())?,
             Code::Alt => change!(builder, add_union(Vec::new()))?,
             Code::Empty => change!(builder, add_look(StateID::ZERO, look(instruction.arg)))?,
+            // Keep frontend capture boundaries for prefix analysis; selectors only omit backend markers.
+            Code::Capture if !capture_groups => change!(builder, add_empty())?,
             Code::Capture if instruction.arg % 2 == 0 => change!(
                 builder,
                 add_capture_start(StateID::ZERO, (instruction.arg / 2) as u32, None)
@@ -267,8 +273,12 @@ fn construct(program: &Program, work: Work<'_>) -> Result<Built, Failure<Box<Bui
     Ok((vm, prefix, estimate))
 }
 
-pub fn build(program: &Program, work: Work<'_>) -> Result<Built, Failure<Buffer<u8>>> {
-    match construct(program, work) {
+pub fn build(
+    program: &Program,
+    work: Work<'_>,
+    capture_groups: bool,
+) -> Result<Built, Failure<Buffer<u8>>> {
+    match construct(program, work, capture_groups) {
         Ok(value) => Ok(value),
         Err(Failure::Interrupted(error)) => Err(Failure::Interrupted(error)),
         Err(Failure::Error(error)) => Err(Failure::Error(

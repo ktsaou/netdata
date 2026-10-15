@@ -76,6 +76,10 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   these counts with RAM bytes or recreate upstream's materialized matrices to match its physical peak.
 - Retained generic runners may use process-signalling timeout helpers. For a new qualification without explicit
   signal approval, use a recorded Popen/communicate owner and preserve child identity/completion receipts.
+- Selector backend qualification MUST use anchored-selector originals; unanchored Find endpoints do not establish
+  whole-subject acceptance. Prefix/group-zero, sparse/nullable captures, partial-construction ownership, full capture
+  controls and binary-footprint checks are in
+  `src/crates/promql-engine/tests/promql-conformance/README.md#selector-backend-capture-tables`.
 - Follow the conformance README for pinned differential panels; preserve its stated tolerance and bit diagnostics.
 - Shared grouping/ranking/quantile changes MUST include the complete retained reducer panels and separate declared
   ordering controls in `src/crates/promql-engine/tests/promql-conformance/README.md#compact-group-and-join-lookups`.

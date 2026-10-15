@@ -1,0 +1,2180 @@
+{
+  "schema_version": 1,
+  "status": "qualified_private_selector_backend_representation",
+  "scope": "Omit explicit backend capture groups only for boolean selector fallback; preserve full frontend/prefix/group-zero and full capture consumers. Finite evidence, not arbitrary-input or universal performance proof.",
+  "accepted_commit": "173b05aa670e9fd28beb44e084a8e8167438a865",
+  "qualified_sources": {
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/crates/promql-engine/src/absence.rs": "afb4f330f5dff938c2eebfa64574b3cf9693cbd94b43a9cf60752b8094a14889",
+    "src/crates/promql-engine/src/accounting.rs": "606fabc7bc4204d1e0596806adf4a907dc40bea7b1152d4ef0584de6b001ad62",
+    "src/crates/promql-engine/src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/crates/promql-engine/src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "cd9808645a6e43b7bcd49ca11c33bd1470dd53c432c43231374b0eecc2081c6b",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "3823e8b6c8f74beeeb13a6ecb5de12669b041a07081eb6555476c2574d302b7a",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "046ab8fbd5783160210010d72ac04e501dcbb6f369e29628141ef332bcbd085c",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/crates/promql-engine/src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/crates/promql-engine/src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/crates/promql-engine/src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+    "src/crates/promql-engine/src/evaluator.rs": "a694b8dbe36f510bac01d444a12074e638f86678a2494e5b6e34d9515391d767",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "5ac98cbe4f6cf2e920eabc7030979c26699f92b432c19ccb6da5572becce835c",
+    "src/crates/promql-engine/src/execution.rs": "68a15542641508e4ce8dfa5e659f50550a1bb728adab732b567292e1cf5347ba",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "26b2e1b9d62b7f7160f7d0e60b158307c9e91736ac2aaa2be51210b34b9b3829",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/crates/promql-engine/src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/crates/promql-engine/src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/crates/promql-engine/src/lookup_tests.rs": "bb1786f683c75b849d9afa2751e7304968d6d4ccb9484cdafa66fe4880e8eaf8",
+    "src/crates/promql-engine/src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/crates/promql-engine/src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/crates/promql-engine/src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/crates/promql-engine/src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+    "src/crates/promql-engine/src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/crates/promql-engine/src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+    "src/crates/promql-engine/src/result.rs": "75658360d24544d09cf1a630ee1467ea44d6d960dffea504ee29c55eab4ebc3e",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+    "src/crates/promql-engine/src/scheduled_output.rs": "0d4adb4cd20eb224269f51caf93a3bf12ed8016652834e7d01272af853324fc0",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/crates/promql-engine/src/storage.rs": "f213a16e64507e031b6c8fd58725763115a99cde489f875da20b8385b28141d5",
+    "src/crates/promql-engine/src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/crates/promql-engine/src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+    "src/crates/promql-engine/src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "0c23099b6a96bed8ddac87ce7589e2780124c2157a64c7c2b4a65ee93570c8ab",
+    "src/crates/promql-engine/src/vector_sort.rs": "e9055ee5cc4575fc6862282217557bfbd1f1d4a54885f1762d1adab02af612a4",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "0d117caaf95e0d64f7200268f4b703c3599a72abb7f14b71e17e69daf6cc0782",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "4703d09604b1820341de1c3ff41a3476bce29360f0e1984a93d060db7572fb0c"
+  },
+  "final_test_only_correction": {
+    "status": "pass",
+    "path": "src/crates/promql-engine/src/frontend/regex.rs",
+    "before_sha256": "26b2e1b9d62b7f7160f7d0e60b158307c9e91736ac2aaa2be51210b34b9b3829",
+    "after_sha256": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+    "production_prefix_sha256": "e5eeae2fac75a41d45125a41819e6d6fe780ae54bf20f75b841c991bb0707617",
+    "exact_inverse": true,
+    "all_other_145_source_hashes_unchanged": true,
+    "qualified_runtime_source": "shared-source.json",
+    "original_source_copy": "shared-regex.rs",
+    "reason": "Use the same standard parser with inert Work directly so the unit also compiles without the fixtures feature. No production bytes changed."
+  },
+  "final_source_manifest": {
+    "path": ".tmp/selector-backend-24540ndv/checked-source.json",
+    "sha256": "4c27bebde67362454e6bd5c003e5193a411f837d48cb0b75e260d67ab3f2f760",
+    "owners": 146
+  },
+  "attribution": "Native/foreign production and optimized unit artifacts retain the actual shared-source manifest used by their compilers. The only later source change is a test helper under cfg(test); its complete inverse and byte-identical production prefix are checked. Fresh final Debug/strict lint/MSRV checks use checked-source. Earlier cohorts keep their original identities.",
+  "runtime": {
+    "construction": "Shared private runtime parameter only during regex compilation; no retained GoRegex field or new per-label mode branch.",
+    "preserved": [
+      "Original parsed names and validation",
+      "Original flat Program and prefix/OnePass analysis before backend translation",
+      "Implicit group-zero capture markers",
+      "Full capture, replacement and inspection entry points",
+      "ObservedBuilder before/after checks and estimates",
+      "Fresh execution-owned search caches",
+      "No limits or storage/metadata/API changes"
+    ],
+    "old_runtime_witness": {
+      "semantic_checks_before_final_bound": 21,
+      "patterns": 7,
+      "expected_final_bound_failure": true,
+      "rows": [
+        {
+          "selector_backend_slots": 4,
+          "full_backend_slots": 4,
+          "selector_cache_bytes": 3424,
+          "full_cache_bytes": 3424,
+          "selector_states": 42,
+          "full_states": 42
+        },
+        {
+          "selector_backend_slots": 6,
+          "full_backend_slots": 6,
+          "selector_cache_bytes": 1440,
+          "full_cache_bytes": 1440,
+          "selector_states": 12,
+          "full_states": 12
+        },
+        {
+          "selector_backend_slots": 4,
+          "full_backend_slots": 4,
+          "selector_cache_bytes": 1184,
+          "full_cache_bytes": 1184,
+          "selector_states": 14,
+          "full_states": 14
+        },
+        {
+          "selector_backend_slots": 6,
+          "full_backend_slots": 6,
+          "selector_cache_bytes": 1888,
+          "full_cache_bytes": 1888,
+          "selector_states": 16,
+          "full_states": 16
+        },
+        {
+          "selector_backend_slots": 6,
+          "full_backend_slots": 6,
+          "selector_cache_bytes": 2000,
+          "full_cache_bytes": 2000,
+          "selector_states": 17,
+          "full_states": 17
+        },
+        {
+          "selector_backend_slots": 6,
+          "full_backend_slots": 6,
+          "selector_cache_bytes": 2000,
+          "full_cache_bytes": 2000,
+          "selector_states": 17,
+          "full_states": 17
+        },
+        {
+          "selector_backend_slots": 4,
+          "full_backend_slots": 4,
+          "selector_cache_bytes": 2144,
+          "full_cache_bytes": 2144,
+          "selector_states": 26,
+          "full_states": 26
+        }
+      ]
+    },
+    "partial_builder_cancellation": {
+      "policies": [
+        false,
+        true
+      ],
+      "work": 76,
+      "nonzero_backend_acquisition_before_interruption": true,
+      "full_release": true
+    }
+  },
+  "native": {
+    "profiles": [
+      "release",
+      "release-min"
+    ],
+    "selected_regex_units": {
+      "release": [
+        "frontend::regex::selector::tests::folded_and_contains_matcher_walks_are_cooperative",
+        "frontend::regex::selector::tests::prefix_table_keys_retry_growth_and_normalization_use_separate_owners",
+        "frontend::regex::selector::tests::selector_backend_keeps_only_implicit_capture_storage",
+        "frontend::regex::tests::boolean_selector_matching_does_not_export_capture_ranges",
+        "frontend::regex::tests::checked_regex_shortcuts_preserve_deadline_errors",
+        "frontend::regex::tests::compilation_scratch_errors_and_shared_matchers_keep_their_owners",
+        "frontend::regex::tests::compile_execute_and_drop_with_a_small_caller_stack",
+        "frontend::regex::tests::concurrent_searches_share_compilation_and_keep_separate_scratch_accounts",
+        "frontend::regex::tests::new_class_buffers_use_work_without_reparenting_the_consumed_input",
+        "frontend::regex::tests::newly_simplified_node_buffers_use_work_while_existing_tree_keeps_its_owner",
+        "frontend::regex::tests::nfa_construction_owns_new_buffers_independently_of_borrowed_program",
+        "frontend::regex::tests::normalization_expansion_and_failed_prefix_scratch_are_observed",
+        "frontend::regex::tests::owned_regex_compile_stages_release_partial_buffers_on_cancellation",
+        "frontend::regex::tests::owned_subject_capture_and_replacement_walks_return_cancellation",
+        "frontend::regex::tests::partial_capture_backend_construction_releases_on_cancellation",
+        "frontend::regex::tests::regex_compilation_search_and_retained_results_release_on_unwind",
+        "frontend::regex::tests::search_buffers_and_returned_captures_use_the_execution_owner",
+        "frontend::regex::tests::singleton_literal_reuse_retains_every_syntax_buffer_owner"
+      ],
+      "release-min": [
+        "frontend::regex::selector::tests::folded_and_contains_matcher_walks_are_cooperative",
+        "frontend::regex::selector::tests::prefix_table_keys_retry_growth_and_normalization_use_separate_owners",
+        "frontend::regex::selector::tests::selector_backend_keeps_only_implicit_capture_storage",
+        "frontend::regex::tests::boolean_selector_matching_does_not_export_capture_ranges",
+        "frontend::regex::tests::checked_regex_shortcuts_preserve_deadline_errors",
+        "frontend::regex::tests::compilation_scratch_errors_and_shared_matchers_keep_their_owners",
+        "frontend::regex::tests::compile_execute_and_drop_with_a_small_caller_stack",
+        "frontend::regex::tests::concurrent_searches_share_compilation_and_keep_separate_scratch_accounts",
+        "frontend::regex::tests::new_class_buffers_use_work_without_reparenting_the_consumed_input",
+        "frontend::regex::tests::newly_simplified_node_buffers_use_work_while_existing_tree_keeps_its_owner",
+        "frontend::regex::tests::nfa_construction_owns_new_buffers_independently_of_borrowed_program",
+        "frontend::regex::tests::normalization_expansion_and_failed_prefix_scratch_are_observed",
+        "frontend::regex::tests::owned_regex_compile_stages_release_partial_buffers_on_cancellation",
+        "frontend::regex::tests::owned_subject_capture_and_replacement_walks_return_cancellation",
+        "frontend::regex::tests::partial_capture_backend_construction_releases_on_cancellation",
+        "frontend::regex::tests::regex_compilation_search_and_retained_results_release_on_unwind",
+        "frontend::regex::tests::search_buffers_and_returned_captures_use_the_execution_owner",
+        "frontend::regex::tests::singleton_literal_reuse_retains_every_syntax_buffer_owner"
+      ]
+    },
+    "original_regex_outcomes": 42640,
+    "complete_queries": 484,
+    "binaries": {
+      "release": {
+        "promql-query-fixture": {
+          "path": ".tmp/selector-backend-24540ndv/shared-native-release/promql-query-fixture",
+          "sha256": "76d9f00e3af830747ff38224c850fc3b6dd1a008ea6d48b7d89bde93722f8022",
+          "file_bytes": 5390584
+        },
+        "promql-frontend-fixture": {
+          "path": ".tmp/selector-backend-24540ndv/shared-native-release/promql-frontend-fixture",
+          "sha256": "c9cec5cfa95f4d1be6868caa221a3787652575adf6d08312223806bd439ccbc0",
+          "file_bytes": 2650576
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/selector-backend-24540ndv/shared-native-release/libnetdata_promql_engine.a",
+          "sha256": "f646f3018baba12c3f7469cd29c4be199adb45987d21416615024c8ba073ba0c",
+          "file_bytes": 38873300
+        },
+        "unit": {
+          "path": ".tmp/selector-backend-24540ndv/shared-native-release/unit",
+          "sha256": "943520e757590c2800a7c4e4865491bf42d368d56874336749ea669e76cc758c"
+        }
+      },
+      "release-min": {
+        "promql-query-fixture": {
+          "path": ".tmp/selector-backend-24540ndv/shared-native-release-min/promql-query-fixture",
+          "sha256": "a833e043ad9e46e6f38b4c5ee215160a54e0d29188e75c906e09e46d05b51ea9",
+          "file_bytes": 3458776
+        },
+        "promql-frontend-fixture": {
+          "path": ".tmp/selector-backend-24540ndv/shared-native-release-min/promql-frontend-fixture",
+          "sha256": "62e31352199c3d430c968476702a7555f59ac119e2b9bd3bba7f38836182ceb0",
+          "file_bytes": 1805664
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/selector-backend-24540ndv/shared-native-release-min/libnetdata_promql_engine.a",
+          "sha256": "c9d1e84d0b352ea99ac0484d592b9c7200ea5761ea76d4eec37a9105bf650829",
+          "file_bytes": 54052120
+        },
+        "unit": {
+          "path": ".tmp/selector-backend-24540ndv/shared-native-release-min/unit",
+          "sha256": "e0c9fba8d391ba22d8d076df2c5c004fcf63cfcb0aa05daa642767a4f62a39d6"
+        }
+      }
+    },
+    "c_callers": {
+      "shared-native-release-c": {
+        "binary_sha256": "44418230970b992733f4331434d3a55ab7af7b3e08ea86647abd4b50ed3c5efe",
+        "records": [
+          {
+            "protocol_primitives": "pass"
+          },
+          {
+            "direct_float_map_replay": "pass",
+            "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+            "cases": 9,
+            "page_sizes": 3
+          },
+          {
+            "native_regex_embedding": "pass"
+          }
+        ]
+      },
+      "shared-native-release-cpp": {
+        "binary_sha256": "da54ffe9798edb47920ecc7e7ed185f1009bc1609de26f057203a0020e677405",
+        "records": [
+          {
+            "protocol_primitives": "pass"
+          },
+          {
+            "direct_float_map_replay": "pass",
+            "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+            "cases": 9,
+            "page_sizes": 3
+          },
+          {
+            "native_regex_embedding": "pass"
+          }
+        ]
+      },
+      "shared-native-release-min-c": {
+        "binary_sha256": "670f6ce18423e1a9c6188a31b7b2428efdd356b3f1dab181f603cc972b084e47",
+        "records": [
+          {
+            "protocol_primitives": "pass"
+          },
+          {
+            "direct_float_map_replay": "pass",
+            "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+            "cases": 9,
+            "page_sizes": 3
+          },
+          {
+            "native_regex_embedding": "pass"
+          }
+        ]
+      },
+      "shared-native-release-min-cpp": {
+        "binary_sha256": "aea46cd7eebb59acd862362cdd5e3b0bb13c8bf6c55f552ad7217a74868d8352",
+        "records": [
+          {
+            "protocol_primitives": "pass"
+          },
+          {
+            "direct_float_map_replay": "pass",
+            "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+            "cases": 9,
+            "page_sizes": 3
+          },
+          {
+            "native_regex_embedding": "pass"
+          }
+        ]
+      }
+    }
+  },
+  "foreign": {
+    "aarch64-unknown-linux-gnu": {
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "selected_units": {
+        "release": [
+          "frontend::regex::selector::tests::selector_backend_keeps_only_implicit_capture_storage",
+          "frontend::regex::tests::partial_capture_backend_construction_releases_on_cancellation",
+          "frontend::regex::tests::nfa_construction_owns_new_buffers_independently_of_borrowed_program",
+          "frontend::regex::tests::search_buffers_and_returned_captures_use_the_execution_owner",
+          "frontend::regex::tests::boolean_selector_matching_does_not_export_capture_ranges",
+          "frontend::regex::tests::concurrent_searches_share_compilation_and_keep_separate_scratch_accounts",
+          "frontend::regex::tests::regex_compilation_search_and_retained_results_release_on_unwind",
+          "frontend::regex::tests::compile_execute_and_drop_with_a_small_caller_stack"
+        ],
+        "release-min": [
+          "frontend::regex::selector::tests::selector_backend_keeps_only_implicit_capture_storage",
+          "frontend::regex::tests::partial_capture_backend_construction_releases_on_cancellation",
+          "frontend::regex::tests::nfa_construction_owns_new_buffers_independently_of_borrowed_program",
+          "frontend::regex::tests::search_buffers_and_returned_captures_use_the_execution_owner",
+          "frontend::regex::tests::boolean_selector_matching_does_not_export_capture_ranges",
+          "frontend::regex::tests::concurrent_searches_share_compilation_and_keep_separate_scratch_accounts",
+          "frontend::regex::tests::regex_compilation_search_and_retained_results_release_on_unwind",
+          "frontend::regex::tests::compile_execute_and_drop_with_a_small_caller_stack"
+        ]
+      },
+      "counts": {
+        "release": {
+          "original_regex": 11188,
+          "complete_queries": 126
+        },
+        "release-min": {
+          "original_regex": 11188,
+          "complete_queries": 126
+        }
+      },
+      "binaries": {
+        "release": {
+          "promql-query-fixture": {
+            "path": ".tmp/selector-backend-24540ndv/shared-aarch64-unknown-linux-gnu-release/promql-query-fixture",
+            "sha256": "bd70b70e4c8f0de2a9e580fbcf552ae1a6ca48ced484ba7dd420d242edb51a99",
+            "file_bytes": 4857904
+          },
+          "promql-frontend-fixture": {
+            "path": ".tmp/selector-backend-24540ndv/shared-aarch64-unknown-linux-gnu-release/promql-frontend-fixture",
+            "sha256": "a3581d0a38c61173939191c7747a35b787fa3d0cf386c8aa7ab5792df2567cbc",
+            "file_bytes": 2394944
+          },
+          "libnetdata_promql_engine.a": {
+            "path": ".tmp/selector-backend-24540ndv/shared-aarch64-unknown-linux-gnu-release/libnetdata_promql_engine.a",
+            "sha256": "71f2e52d5e2f852059dd89b76c557f5739efd8cc81fb8b48b53e7ca0cc2e04fe",
+            "file_bytes": 39318172
+          },
+          "unit": {
+            "path": ".tmp/selector-backend-24540ndv/shared-aarch64-unknown-linux-gnu-release/unit",
+            "sha256": "c3ba2d9e4cac3ea835a23e7b791270c6351a401d3916573e5ed96f77d7779579"
+          }
+        },
+        "release-min": {
+          "promql-query-fixture": {
+            "path": ".tmp/selector-backend-24540ndv/shared-aarch64-unknown-linux-gnu-release-min/promql-query-fixture",
+            "sha256": "7577f5f6643515df53f9663ab2f81d29aa5122c27217453b06b00b018d907a88",
+            "file_bytes": 3728808
+          },
+          "promql-frontend-fixture": {
+            "path": ".tmp/selector-backend-24540ndv/shared-aarch64-unknown-linux-gnu-release-min/promql-frontend-fixture",
+            "sha256": "51b7924be7e27c88b2c0b191a9108c8c6d644828571b643e260dde5ca95b42d8",
+            "file_bytes": 1967312
+          },
+          "libnetdata_promql_engine.a": {
+            "path": ".tmp/selector-backend-24540ndv/shared-aarch64-unknown-linux-gnu-release-min/libnetdata_promql_engine.a",
+            "sha256": "efc17f74522cfd1f27bc0f0648336f148ed4b7d57fe76069065964a57415c497",
+            "file_bytes": 57298402
+          },
+          "unit": {
+            "path": ".tmp/selector-backend-24540ndv/shared-aarch64-unknown-linux-gnu-release-min/unit",
+            "sha256": "6b034554008663cf901a4ef8b6f2ff660b25e3e1fad6402498194c8cf7f20195"
+          }
+        }
+      },
+      "c_callers": {
+        "shared-aarch64-unknown-linux-gnu-release-c": {
+          "binary_sha256": "d354e07111e12bd0be0a34b932ad5b71a99eb8e4637ec6367036a7467e2b9677",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        },
+        "shared-aarch64-unknown-linux-gnu-release-cpp": {
+          "binary_sha256": "b2fc94c9f7626e21590bb76762761d5601285a0e217e43a3397fa178e1417784",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        }
+      }
+    },
+    "armv7-unknown-linux-gnueabihf": {
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "selected_units": {
+        "release": [
+          "frontend::regex::selector::tests::selector_backend_keeps_only_implicit_capture_storage",
+          "frontend::regex::tests::partial_capture_backend_construction_releases_on_cancellation",
+          "frontend::regex::tests::nfa_construction_owns_new_buffers_independently_of_borrowed_program",
+          "frontend::regex::tests::search_buffers_and_returned_captures_use_the_execution_owner",
+          "frontend::regex::tests::boolean_selector_matching_does_not_export_capture_ranges",
+          "frontend::regex::tests::concurrent_searches_share_compilation_and_keep_separate_scratch_accounts",
+          "frontend::regex::tests::regex_compilation_search_and_retained_results_release_on_unwind",
+          "frontend::regex::tests::compile_execute_and_drop_with_a_small_caller_stack"
+        ],
+        "release-min": [
+          "frontend::regex::selector::tests::selector_backend_keeps_only_implicit_capture_storage",
+          "frontend::regex::tests::partial_capture_backend_construction_releases_on_cancellation",
+          "frontend::regex::tests::nfa_construction_owns_new_buffers_independently_of_borrowed_program",
+          "frontend::regex::tests::search_buffers_and_returned_captures_use_the_execution_owner",
+          "frontend::regex::tests::boolean_selector_matching_does_not_export_capture_ranges",
+          "frontend::regex::tests::concurrent_searches_share_compilation_and_keep_separate_scratch_accounts",
+          "frontend::regex::tests::regex_compilation_search_and_retained_results_release_on_unwind",
+          "frontend::regex::tests::compile_execute_and_drop_with_a_small_caller_stack"
+        ]
+      },
+      "counts": {
+        "release": {
+          "original_regex": 11188,
+          "complete_queries": 126
+        },
+        "release-min": {
+          "original_regex": 11188,
+          "complete_queries": 126
+        }
+      },
+      "binaries": {
+        "release": {
+          "promql-query-fixture": {
+            "path": ".tmp/selector-backend-24540ndv/shared-armv7-unknown-linux-gnueabihf-release/promql-query-fixture",
+            "sha256": "d8c2223abeedc87956c1b3a5095409c7683b2698ee5b8fa428dea835fb31916e",
+            "file_bytes": 4861580
+          },
+          "promql-frontend-fixture": {
+            "path": ".tmp/selector-backend-24540ndv/shared-armv7-unknown-linux-gnueabihf-release/promql-frontend-fixture",
+            "sha256": "9eae14d0949ad1af581542012584c9f92fa6ca99e72c923257cb2011c7ee0858",
+            "file_bytes": 2169568
+          },
+          "libnetdata_promql_engine.a": {
+            "path": ".tmp/selector-backend-24540ndv/shared-armv7-unknown-linux-gnueabihf-release/libnetdata_promql_engine.a",
+            "sha256": "b5b9b6e5e8ffb87233fdfac767f56e749ca4dbc0322dd7777a8b906091411671",
+            "file_bytes": 34430278
+          },
+          "unit": {
+            "path": ".tmp/selector-backend-24540ndv/shared-armv7-unknown-linux-gnueabihf-release/unit",
+            "sha256": "5df1c15e0cbe9861758b30e1a132aaad10ce7ecaf73a0957c0132e6270639e73"
+          }
+        },
+        "release-min": {
+          "promql-query-fixture": {
+            "path": ".tmp/selector-backend-24540ndv/shared-armv7-unknown-linux-gnueabihf-release-min/promql-query-fixture",
+            "sha256": "66ed4090ace61b9578cdff87a0726f1521c8f5b983a64deec1d5b030b7e672d7",
+            "file_bytes": 3183268
+          },
+          "promql-frontend-fixture": {
+            "path": ".tmp/selector-backend-24540ndv/shared-armv7-unknown-linux-gnueabihf-release-min/promql-frontend-fixture",
+            "sha256": "8a121a5334cb1fd93eaf5e3b130422ede35f0d10f91344e7b6d9a6513ce1c912",
+            "file_bytes": 1554540
+          },
+          "libnetdata_promql_engine.a": {
+            "path": ".tmp/selector-backend-24540ndv/shared-armv7-unknown-linux-gnueabihf-release-min/libnetdata_promql_engine.a",
+            "sha256": "7c886d30aba705aaaa274b57cb1a590bd0ba94964685de70442679a3bc096265",
+            "file_bytes": 50642960
+          },
+          "unit": {
+            "path": ".tmp/selector-backend-24540ndv/shared-armv7-unknown-linux-gnueabihf-release-min/unit",
+            "sha256": "72f6d040fcd8bc56bb34618db5501f60f8a134e1a2397b92ed5960f40a9a1ccf"
+          }
+        }
+      },
+      "c_callers": {
+        "shared-armv7-unknown-linux-gnueabihf-release-c": {
+          "binary_sha256": "01bd873d2ed5c058ea8ffb7a491abf25f50ce5b69e0a97811279b55c787c0eb6",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        },
+        "shared-armv7-unknown-linux-gnueabihf-release-cpp": {
+          "binary_sha256": "98b96937da21d5a732d35c1c99e219311d87ee5de629b4ee5762b8d6b601a178",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "final_checks": {
+    "format": "pass",
+    "strict_clippy": [
+      "production all-targets",
+      "fixtures all-targets"
+    ],
+    "minimum_rust": "1.91.0 all-targets compile-only",
+    "selected_current_debug_units": {
+      "production": 18,
+      "fixtures": 18
+    }
+  },
+  "resources": {
+    "observed_groups": 484,
+    "lower_estimated_acquired_groups": 200,
+    "lower_estimated_peak_groups": 200,
+    "higher_estimated_groups": 0,
+    "logical_and_other_memory_observations": "Exact equality asserted in native qualification.",
+    "native_backend_cache_rows": [
+      {
+        "profile": "release",
+        "rows": [
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 4,
+            "selector_cache_bytes": 1952,
+            "full_cache_bytes": 3424,
+            "selector_states": 40,
+            "full_states": 42
+          },
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 6,
+            "selector_cache_bytes": 512,
+            "full_cache_bytes": 1440,
+            "selector_states": 10,
+            "full_states": 12
+          },
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 4,
+            "selector_cache_bytes": 608,
+            "full_cache_bytes": 1184,
+            "selector_states": 12,
+            "full_states": 14
+          },
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 6,
+            "selector_cache_bytes": 608,
+            "full_cache_bytes": 1888,
+            "selector_states": 12,
+            "full_states": 16
+          },
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 6,
+            "selector_cache_bytes": 656,
+            "full_cache_bytes": 2000,
+            "selector_states": 13,
+            "full_states": 17
+          },
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 6,
+            "selector_cache_bytes": 656,
+            "full_cache_bytes": 2000,
+            "selector_states": 13,
+            "full_states": 17
+          },
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 4,
+            "selector_cache_bytes": 800,
+            "full_cache_bytes": 2144,
+            "selector_states": 16,
+            "full_states": 26
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "rows": [
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 4,
+            "selector_cache_bytes": 1952,
+            "full_cache_bytes": 3424,
+            "selector_states": 40,
+            "full_states": 42
+          },
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 6,
+            "selector_cache_bytes": 512,
+            "full_cache_bytes": 1440,
+            "selector_states": 10,
+            "full_states": 12
+          },
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 4,
+            "selector_cache_bytes": 608,
+            "full_cache_bytes": 1184,
+            "selector_states": 12,
+            "full_states": 14
+          },
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 6,
+            "selector_cache_bytes": 608,
+            "full_cache_bytes": 1888,
+            "selector_states": 12,
+            "full_states": 16
+          },
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 6,
+            "selector_cache_bytes": 656,
+            "full_cache_bytes": 2000,
+            "selector_states": 13,
+            "full_states": 17
+          },
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 6,
+            "selector_cache_bytes": 656,
+            "full_cache_bytes": 2000,
+            "selector_states": 13,
+            "full_states": 17
+          },
+          {
+            "selector_backend_slots": 2,
+            "full_backend_slots": 4,
+            "selector_cache_bytes": 800,
+            "full_cache_bytes": 2144,
+            "selector_states": 16,
+            "full_states": 26
+          }
+        ]
+      }
+    ],
+    "timing_case_resources": [
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n32-numeric-pos-count-range",
+        "before_estimate": {
+          "acquired": 189696,
+          "current": 0,
+          "overflowed": false,
+          "peak": 1824,
+          "released": 189696
+        },
+        "after_estimate": {
+          "acquired": 103168,
+          "current": 0,
+          "overflowed": false,
+          "peak": 992,
+          "released": 103168
+        },
+        "workspace_peak": 14912,
+        "output_samples": 3,
+        "work": 11009
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-numeric-pos-count-range",
+        "before_estimate": {
+          "acquired": 24281088,
+          "current": 0,
+          "overflowed": false,
+          "peak": 1824,
+          "released": 24281088
+        },
+        "after_estimate": {
+          "acquired": 13205504,
+          "current": 0,
+          "overflowed": false,
+          "peak": 992,
+          "released": 13205504
+        },
+        "workspace_peak": 1251560,
+        "output_samples": 3,
+        "work": 1423961
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-numeric-neg-count-range",
+        "before_estimate": {
+          "acquired": 17743872,
+          "current": 0,
+          "overflowed": false,
+          "peak": 1824,
+          "released": 17743872
+        },
+        "after_estimate": {
+          "acquired": 9650176,
+          "current": 0,
+          "overflowed": false,
+          "peak": 992,
+          "released": 9650176
+        },
+        "workspace_peak": 2282323,
+        "output_samples": 3,
+        "work": 1944137
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-captures-pos-count-range",
+        "before_estimate": {
+          "acquired": 67731456,
+          "current": 0,
+          "overflowed": false,
+          "peak": 5088,
+          "released": 67731456
+        },
+        "after_estimate": {
+          "acquired": 13205504,
+          "current": 0,
+          "overflowed": false,
+          "peak": 992,
+          "released": 13205504
+        },
+        "workspace_peak": 1251560,
+        "output_samples": 3,
+        "work": 1423961
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-literal-pos-count-range",
+        "before_estimate": {
+          "acquired": 0,
+          "current": 0,
+          "overflowed": false,
+          "peak": 0,
+          "released": 0
+        },
+        "after_estimate": {
+          "acquired": 0,
+          "current": 0,
+          "overflowed": false,
+          "peak": 0,
+          "released": 0
+        },
+        "workspace_peak": 368872,
+        "output_samples": 3,
+        "work": 522030
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-alternation-pos-count-range",
+        "before_estimate": {
+          "acquired": 0,
+          "current": 0,
+          "overflowed": false,
+          "peak": 0,
+          "released": 0
+        },
+        "after_estimate": {
+          "acquired": 0,
+          "current": 0,
+          "overflowed": false,
+          "peak": 0,
+          "released": 0
+        },
+        "workspace_peak": 731880,
+        "output_samples": 3,
+        "work": 912371
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-replace-capture-direct-range",
+        "before_estimate": {
+          "acquired": 11602516,
+          "current": 0,
+          "overflowed": false,
+          "peak": 4004,
+          "released": 11602516
+        },
+        "after_estimate": {
+          "acquired": 11602516,
+          "current": 0,
+          "overflowed": false,
+          "peak": 4004,
+          "released": 11602516
+        },
+        "workspace_peak": 2995816,
+        "output_samples": 12288,
+        "work": 30825571
+      },
+      {
+        "profile": "release",
+        "id": "boolean-bytes-n32-non-digit-pos-direct-range",
+        "before_estimate": {
+          "acquired": 62464,
+          "current": 0,
+          "overflowed": false,
+          "peak": 1952,
+          "released": 62464
+        },
+        "after_estimate": {
+          "acquired": 62464,
+          "current": 0,
+          "overflowed": false,
+          "peak": 1952,
+          "released": 62464
+        },
+        "workspace_peak": 14664,
+        "output_samples": 30,
+        "work": 4115
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n32-numeric-pos-count-range",
+        "before_estimate": {
+          "acquired": 189696,
+          "current": 0,
+          "overflowed": false,
+          "peak": 1824,
+          "released": 189696
+        },
+        "after_estimate": {
+          "acquired": 103168,
+          "current": 0,
+          "overflowed": false,
+          "peak": 992,
+          "released": 103168
+        },
+        "workspace_peak": 14912,
+        "output_samples": 3,
+        "work": 11009
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-numeric-pos-count-range",
+        "before_estimate": {
+          "acquired": 24281088,
+          "current": 0,
+          "overflowed": false,
+          "peak": 1824,
+          "released": 24281088
+        },
+        "after_estimate": {
+          "acquired": 13205504,
+          "current": 0,
+          "overflowed": false,
+          "peak": 992,
+          "released": 13205504
+        },
+        "workspace_peak": 1251560,
+        "output_samples": 3,
+        "work": 1423961
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-numeric-neg-count-range",
+        "before_estimate": {
+          "acquired": 17743872,
+          "current": 0,
+          "overflowed": false,
+          "peak": 1824,
+          "released": 17743872
+        },
+        "after_estimate": {
+          "acquired": 9650176,
+          "current": 0,
+          "overflowed": false,
+          "peak": 992,
+          "released": 9650176
+        },
+        "workspace_peak": 2282323,
+        "output_samples": 3,
+        "work": 1944137
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-captures-pos-count-range",
+        "before_estimate": {
+          "acquired": 67731456,
+          "current": 0,
+          "overflowed": false,
+          "peak": 5088,
+          "released": 67731456
+        },
+        "after_estimate": {
+          "acquired": 13205504,
+          "current": 0,
+          "overflowed": false,
+          "peak": 992,
+          "released": 13205504
+        },
+        "workspace_peak": 1251560,
+        "output_samples": 3,
+        "work": 1423961
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-literal-pos-count-range",
+        "before_estimate": {
+          "acquired": 0,
+          "current": 0,
+          "overflowed": false,
+          "peak": 0,
+          "released": 0
+        },
+        "after_estimate": {
+          "acquired": 0,
+          "current": 0,
+          "overflowed": false,
+          "peak": 0,
+          "released": 0
+        },
+        "workspace_peak": 368872,
+        "output_samples": 3,
+        "work": 522030
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-alternation-pos-count-range",
+        "before_estimate": {
+          "acquired": 0,
+          "current": 0,
+          "overflowed": false,
+          "peak": 0,
+          "released": 0
+        },
+        "after_estimate": {
+          "acquired": 0,
+          "current": 0,
+          "overflowed": false,
+          "peak": 0,
+          "released": 0
+        },
+        "workspace_peak": 731880,
+        "output_samples": 3,
+        "work": 912371
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-replace-capture-direct-range",
+        "before_estimate": {
+          "acquired": 11602516,
+          "current": 0,
+          "overflowed": false,
+          "peak": 4004,
+          "released": 11602516
+        },
+        "after_estimate": {
+          "acquired": 11602516,
+          "current": 0,
+          "overflowed": false,
+          "peak": 4004,
+          "released": 11602516
+        },
+        "workspace_peak": 2995816,
+        "output_samples": 12288,
+        "work": 30825571
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-bytes-n32-non-digit-pos-direct-range",
+        "before_estimate": {
+          "acquired": 62464,
+          "current": 0,
+          "overflowed": false,
+          "peak": 1952,
+          "released": 62464
+        },
+        "after_estimate": {
+          "acquired": 62464,
+          "current": 0,
+          "overflowed": false,
+          "peak": 1952,
+          "released": 62464
+        },
+        "workspace_peak": 14664,
+        "output_samples": 30,
+        "work": 4115
+      }
+    ],
+    "scope": "Opaque backend reports remain dependency estimates under8.C; same engine-owned workspace and logical query observations. No process-RSS or total-device-memory claim."
+  },
+  "fixture_binary_footprint": {
+    "release": {
+      "gnu_size_categories": {
+        "before": {
+          "text": 4148646,
+          "data": 255104,
+          "bss": 1548
+        },
+        "candidate": {
+          "text": 4142346,
+          "data": 255064,
+          "bss": 3828
+        }
+      },
+      "elf_text_bytes": {
+        "before": 2993077,
+        "candidate": 2987221
+      }
+    },
+    "release-min": {
+      "gnu_size_categories": {
+        "before": {
+          "text": 2670937,
+          "data": 242056,
+          "bss": 1284
+        },
+        "candidate": {
+          "text": 2671437,
+          "data": 242056,
+          "bss": 788
+        }
+      },
+      "elf_text_bytes": {
+        "before": 1807941,
+        "candidate": 1808389
+      }
+    }
+  },
+  "rejected_const_trial": {
+    "profile": "release only",
+    "gnu_size_categories": {
+      "before": {
+        "text": 4148646,
+        "data": 255104,
+        "bss": 1548
+      },
+      "candidate": {
+        "text": 4177358,
+        "data": 255224,
+        "bss": 1396
+      }
+    },
+    "elf_text_bytes": {
+      "before": 2993077,
+      "candidate": 3039573
+    },
+    "receipt": {
+      "path": ".tmp/selector-backend-24540ndv/final-native-release-build.json",
+      "sha256": "7d5a4658cdf219a7fc5b28208ac7a5b86182f1cd0595ccbc0b05540e0fa0638e"
+    },
+    "disposition": "Rejected constructor duplication; no rejected release-min or broad-expression qualification claimed."
+  },
+  "timing": {
+    "complete_checked_responses": 320,
+    "groups": [
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n32-numeric-pos-count-range",
+        "expression": "count(m{host=~\"(worker|db)-[0-9]+\"})",
+        "before_ns": [
+          337377,
+          335137,
+          360787,
+          341097,
+          322237
+        ],
+        "after_ns": [
+          341517,
+          327937,
+          351777,
+          348727,
+          327467
+        ],
+        "before_median_ns": 337377,
+        "after_median_ns": 341517,
+        "ratio": 0.9878776166340182,
+        "faster_pairs": 2
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-numeric-pos-count-range",
+        "expression": "count(m{host=~\"(worker|db)-[0-9]+\"})",
+        "before_ns": [
+          38120072,
+          39712280,
+          40189775,
+          38799077,
+          37668956
+        ],
+        "after_ns": [
+          38993055,
+          39787569,
+          38076183,
+          40661801,
+          39057784
+        ],
+        "before_median_ns": 38799077,
+        "after_median_ns": 39057784,
+        "ratio": 0.9933763011234841,
+        "faster_pairs": 1
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-numeric-neg-count-range",
+        "expression": "count(m{host!~\"(worker|db)-[0-9]+\"})",
+        "before_ns": [
+          50763511,
+          52750904,
+          53264740,
+          50958789,
+          50159445
+        ],
+        "after_ns": [
+          50746621,
+          59669838,
+          48626798,
+          55695020,
+          52983932
+        ],
+        "before_median_ns": 50958789,
+        "after_median_ns": 52983932,
+        "ratio": 0.9617781670110855,
+        "faster_pairs": 2
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-captures-pos-count-range",
+        "expression": "count(m{host=~\"((worker)|(db))-([0-9]+)\"})",
+        "before_ns": [
+          40691452,
+          41977972,
+          40798801,
+          40399744,
+          40217255
+        ],
+        "after_ns": [
+          39007815,
+          47575376,
+          37419407,
+          56634293,
+          38791317
+        ],
+        "before_median_ns": 40691452,
+        "after_median_ns": 39007815,
+        "ratio": 1.0431615305804747,
+        "faster_pairs": 3
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-literal-pos-count-range",
+        "expression": "count(m{host=~\"worker-17\"})",
+        "before_ns": [
+          11997683,
+          15814712,
+          12015083,
+          11899384,
+          11828884
+        ],
+        "after_ns": [
+          12267091,
+          14174555,
+          12151332,
+          12944686,
+          12502979
+        ],
+        "before_median_ns": 11997683,
+        "after_median_ns": 12502979,
+        "ratio": 0.9595859514760442,
+        "faster_pairs": 1
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-alternation-pos-count-range",
+        "expression": "count(m{host=~\"worker-17|db-7\"})",
+        "before_ns": [
+          20736842,
+          20693033,
+          20908191,
+          20579663,
+          20436805
+        ],
+        "after_ns": [
+          20674023,
+          21088530,
+          20365586,
+          22204800,
+          20717203
+        ],
+        "before_median_ns": 20693033,
+        "after_median_ns": 20717203,
+        "ratio": 0.9988333367202127,
+        "faster_pairs": 2
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-replace-capture-direct-range",
+        "expression": "label_replace(m, \"copy\", \"${1}:${2}\", \"host\", \"(worker|db)-([0-9]+)\")",
+        "before_ns": [
+          271652668,
+          275021320,
+          278327424,
+          274582244,
+          273496832
+        ],
+        "after_ns": [
+          275543916,
+          271935085,
+          276109991,
+          279934141,
+          272312532
+        ],
+        "before_median_ns": 274582244,
+        "after_median_ns": 275543916,
+        "ratio": 0.9965099138679585,
+        "faster_pairs": 3
+      },
+      {
+        "profile": "release",
+        "id": "boolean-bytes-n32-non-digit-pos-direct-range",
+        "expression": "m{host=~\"a[^0-9]+c\"}",
+        "before_ns": [
+          141159,
+          146989,
+          188249,
+          140939,
+          154159
+        ],
+        "after_ns": [
+          144839,
+          142649,
+          142779,
+          148948,
+          143049
+        ],
+        "before_median_ns": 146989,
+        "after_median_ns": 143049,
+        "ratio": 1.027543009737922,
+        "faster_pairs": 3
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n32-numeric-pos-count-range",
+        "expression": "count(m{host=~\"(worker|db)-[0-9]+\"})",
+        "before_ns": [
+          590595,
+          556716,
+          553245,
+          553846,
+          579665
+        ],
+        "after_ns": [
+          556175,
+          558085,
+          557095,
+          558686,
+          554425
+        ],
+        "before_median_ns": 556716,
+        "after_median_ns": 557095,
+        "ratio": 0.9993196851524426,
+        "faster_pairs": 2
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-numeric-pos-count-range",
+        "expression": "count(m{host=~\"(worker|db)-[0-9]+\"})",
+        "before_ns": [
+          72786442,
+          68868344,
+          68876274,
+          67132268,
+          69373111
+        ],
+        "after_ns": [
+          67313706,
+          65980518,
+          67692423,
+          68387718,
+          67346646
+        ],
+        "before_median_ns": 68876274,
+        "after_median_ns": 67346646,
+        "ratio": 1.022712756920367,
+        "faster_pairs": 4
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-numeric-neg-count-range",
+        "expression": "count(m{host!~\"(worker|db)-[0-9]+\"})",
+        "before_ns": [
+          92405584,
+          86899308,
+          83902123,
+          90817717,
+          88286887
+        ],
+        "after_ns": [
+          85244932,
+          84007141,
+          85185112,
+          86312734,
+          84752535
+        ],
+        "before_median_ns": 88286887,
+        "after_median_ns": 85185112,
+        "ratio": 1.0364121725871536,
+        "faster_pairs": 4
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-captures-pos-count-range",
+        "expression": "count(m{host=~\"((worker)|(db))-([0-9]+)\"})",
+        "before_ns": [
+          75960927,
+          83009490,
+          74216201,
+          75781798,
+          77591294
+        ],
+        "after_ns": [
+          68248279,
+          67461176,
+          67037809,
+          71196755,
+          67310257
+        ],
+        "before_median_ns": 75960927,
+        "after_median_ns": 67461176,
+        "ratio": 1.1259947054584403,
+        "faster_pairs": 5
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-literal-pos-count-range",
+        "expression": "count(m{host=~\"worker-17\"})",
+        "before_ns": [
+          19462443,
+          27514848,
+          19172005,
+          20047878,
+          19665952
+        ],
+        "after_ns": [
+          19792941,
+          20012268,
+          19445363,
+          20586654,
+          19807020
+        ],
+        "before_median_ns": 19665952,
+        "after_median_ns": 19807020,
+        "ratio": 0.9928778786511046,
+        "faster_pairs": 1
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-alternation-pos-count-range",
+        "expression": "count(m{host=~\"worker-17|db-7\"})",
+        "before_ns": [
+          33140762,
+          43977505,
+          32884375,
+          32942714,
+          33698198
+        ],
+        "after_ns": [
+          33252752,
+          33709598,
+          33213182,
+          34712149,
+          34190944
+        ],
+        "before_median_ns": 33140762,
+        "after_median_ns": 33709598,
+        "ratio": 0.9831253994782139,
+        "faster_pairs": 1
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-replace-capture-direct-range",
+        "expression": "label_replace(m, \"copy\", \"${1}:${2}\", \"host\", \"(worker|db)-([0-9]+)\")",
+        "before_ns": [
+          370455570,
+          383770072,
+          373476955,
+          372629152,
+          373685983
+        ],
+        "after_ns": [
+          378155087,
+          371891248,
+          373416446,
+          389667514,
+          377461812
+        ],
+        "before_median_ns": 373476955,
+        "after_median_ns": 377461812,
+        "ratio": 0.9894430194702716,
+        "faster_pairs": 2
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-bytes-n32-non-digit-pos-direct-range",
+        "expression": "m{host=~\"a[^0-9]+c\"}",
+        "before_ns": [
+          229638,
+          249028,
+          230938,
+          233979,
+          233729
+        ],
+        "after_ns": [
+          236998,
+          238168,
+          236348,
+          235948,
+          252598
+        ],
+        "before_median_ns": 233729,
+        "after_median_ns": 236998,
+        "ratio": 0.9862066346551448,
+        "faster_pairs": 1
+      }
+    ],
+    "pairs": [
+      {
+        "profile": "release",
+        "pair": 0,
+        "ratios": {
+          "boolean-ascii-n32-numeric-pos-count-range": 0.9878776166340182,
+          "boolean-ascii-n4096-numeric-pos-count-range": 0.977611833697052,
+          "boolean-ascii-n4096-numeric-neg-count-range": 1.0003328300420238,
+          "boolean-ascii-n4096-captures-pos-count-range": 1.0431615305804747,
+          "boolean-ascii-n4096-literal-pos-count-range": 0.9780381510172216,
+          "boolean-ascii-n4096-alternation-pos-count-range": 1.00303854745639,
+          "boolean-ascii-n4096-replace-capture-direct-range": 0.9858779389634573,
+          "boolean-bytes-n32-non-digit-pos-direct-range": 0.9745924785451432
+        }
+      },
+      {
+        "profile": "release",
+        "pair": 1,
+        "ratios": {
+          "boolean-ascii-n32-numeric-pos-count-range": 1.0219554365625105,
+          "boolean-ascii-n4096-numeric-pos-count-range": 0.9981077255561907,
+          "boolean-ascii-n4096-numeric-neg-count-range": 0.8840463753228223,
+          "boolean-ascii-n4096-captures-pos-count-range": 0.8823466156105629,
+          "boolean-ascii-n4096-literal-pos-count-range": 1.1157113574288575,
+          "boolean-ascii-n4096-alternation-pos-count-range": 0.981245871570944,
+          "boolean-ascii-n4096-replace-capture-direct-range": 1.011349160774896,
+          "boolean-bytes-n32-non-digit-pos-direct-range": 1.0304243282462549
+        }
+      },
+      {
+        "profile": "release",
+        "pair": 2,
+        "ratios": {
+          "boolean-ascii-n32-numeric-pos-count-range": 1.0256128172109036,
+          "boolean-ascii-n4096-numeric-pos-count-range": 1.055509555671586,
+          "boolean-ascii-n4096-numeric-neg-count-range": 1.0953783138260513,
+          "boolean-ascii-n4096-captures-pos-count-range": 1.0903112654885205,
+          "boolean-ascii-n4096-literal-pos-count-range": 0.9887873197769594,
+          "boolean-ascii-n4096-alternation-pos-count-range": 1.0266432303985753,
+          "boolean-ascii-n4096-replace-capture-direct-range": 1.0080309770463902,
+          "boolean-bytes-n32-non-digit-pos-direct-range": 1.3184641999173548
+        }
+      },
+      {
+        "profile": "release",
+        "pair": 3,
+        "ratios": {
+          "boolean-ascii-n32-numeric-pos-count-range": 0.978120420844959,
+          "boolean-ascii-n4096-numeric-pos-count-range": 0.9541898304012653,
+          "boolean-ascii-n4096-numeric-neg-count-range": 0.9149613197014742,
+          "boolean-ascii-n4096-captures-pos-count-range": 0.7133441923606251,
+          "boolean-ascii-n4096-literal-pos-count-range": 0.9192485626920576,
+          "boolean-ascii-n4096-alternation-pos-count-range": 0.9268114551808618,
+          "boolean-ascii-n4096-replace-capture-direct-range": 0.9808815852868764,
+          "boolean-bytes-n32-non-digit-pos-direct-range": 0.9462295566237882
+        }
+      },
+      {
+        "profile": "release",
+        "pair": 4,
+        "ratios": {
+          "boolean-ascii-n32-numeric-pos-count-range": 0.98402892505199,
+          "boolean-ascii-n4096-numeric-pos-count-range": 0.9644417102619033,
+          "boolean-ascii-n4096-numeric-neg-count-range": 0.9466916309646479,
+          "boolean-ascii-n4096-captures-pos-count-range": 1.0367592056748163,
+          "boolean-ascii-n4096-literal-pos-count-range": 0.946085248963467,
+          "boolean-ascii-n4096-alternation-pos-count-range": 0.9864654509587998,
+          "boolean-ascii-n4096-replace-capture-direct-range": 1.004349046998689,
+          "boolean-bytes-n32-non-digit-pos-direct-range": 1.077665694971653
+        }
+      },
+      {
+        "profile": "release-min",
+        "pair": 0,
+        "ratios": {
+          "boolean-ascii-n32-numeric-pos-count-range": 1.0618869959994606,
+          "boolean-ascii-n4096-numeric-pos-count-range": 1.0813019565435902,
+          "boolean-ascii-n4096-numeric-neg-count-range": 1.0840009116319078,
+          "boolean-ascii-n4096-captures-pos-count-range": 1.1130086811419817,
+          "boolean-ascii-n4096-literal-pos-count-range": 0.9833022288097559,
+          "boolean-ascii-n4096-alternation-pos-count-range": 0.9966321584451115,
+          "boolean-ascii-n4096-replace-capture-direct-range": 0.9796392610738567,
+          "boolean-bytes-n32-non-digit-pos-direct-range": 0.968944885610849
+        }
+      },
+      {
+        "profile": "release-min",
+        "pair": 1,
+        "ratios": {
+          "boolean-ascii-n32-numeric-pos-count-range": 0.9975469686517286,
+          "boolean-ascii-n4096-numeric-pos-count-range": 1.0437678588700985,
+          "boolean-ascii-n4096-numeric-neg-count-range": 1.0344276327651718,
+          "boolean-ascii-n4096-captures-pos-count-range": 1.230477956684301,
+          "boolean-ascii-n4096-literal-pos-count-range": 1.3748990369307468,
+          "boolean-ascii-n4096-alternation-pos-count-range": 1.3045989157153401,
+          "boolean-ascii-n4096-replace-capture-direct-range": 1.0319416605362006,
+          "boolean-bytes-n32-non-digit-pos-direct-range": 1.0455980652312653
+        }
+      },
+      {
+        "profile": "release-min",
+        "pair": 2,
+        "ratios": {
+          "boolean-ascii-n32-numeric-pos-count-range": 0.9930891499654457,
+          "boolean-ascii-n4096-numeric-pos-count-range": 1.017488678164172,
+          "boolean-ascii-n4096-numeric-neg-count-range": 0.9849388118430835,
+          "boolean-ascii-n4096-captures-pos-count-range": 1.1070797525617222,
+          "boolean-ascii-n4096-literal-pos-count-range": 0.9859422526594129,
+          "boolean-ascii-n4096-alternation-pos-count-range": 0.9901001054340413,
+          "boolean-ascii-n4096-replace-capture-direct-range": 1.0001620416043486,
+          "boolean-bytes-n32-non-digit-pos-direct-range": 0.977110024201601
+        }
+      },
+      {
+        "profile": "release-min",
+        "pair": 3,
+        "ratios": {
+          "boolean-ascii-n32-numeric-pos-count-range": 0.9913368153130739,
+          "boolean-ascii-n4096-numeric-pos-count-range": 0.9816421714788026,
+          "boolean-ascii-n4096-numeric-neg-count-range": 1.0521937238136843,
+          "boolean-ascii-n4096-captures-pos-count-range": 1.0643996064146464,
+          "boolean-ascii-n4096-literal-pos-count-range": 0.9738288699076596,
+          "boolean-ascii-n4096-alternation-pos-count-range": 0.9490254838442875,
+          "boolean-ascii-n4096-replace-capture-direct-range": 0.9562746151838565,
+          "boolean-bytes-n32-non-digit-pos-direct-range": 0.9916549409191856
+        }
+      },
+      {
+        "profile": "release-min",
+        "pair": 4,
+        "ratios": {
+          "boolean-ascii-n32-numeric-pos-count-range": 1.0455246426477882,
+          "boolean-ascii-n4096-numeric-pos-count-range": 1.0300900656582066,
+          "boolean-ascii-n4096-numeric-neg-count-range": 1.0417020210663905,
+          "boolean-ascii-n4096-captures-pos-count-range": 1.1527410153849211,
+          "boolean-ascii-n4096-literal-pos-count-range": 0.9928778786511046,
+          "boolean-ascii-n4096-alternation-pos-count-range": 0.9855884060995801,
+          "boolean-ascii-n4096-replace-capture-direct-range": 0.9899967920463435,
+          "boolean-bytes-n32-non-digit-pos-direct-range": 0.925300279495483
+        }
+      }
+    ],
+    "slower_groups": 11,
+    "scope": "Five fixed alternating warm/measured pairs/profile for eight preselected cases, shared host and no CPU isolation/frequency control. Full results and each binary own nonelapsed observations match. No universal throughput claim."
+  },
+  "focused_followup": {
+    "complete_checked_responses": 450,
+    "groups": [
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-numeric-neg-count-range",
+        "batch_requests": 4,
+        "times_ns": {
+          "baseline1": [
+            227535001,
+            210037721,
+            235076900,
+            203970242,
+            207159635
+          ],
+          "candidate": [
+            231512809,
+            2300993793,
+            202647074,
+            200456730,
+            211513271
+          ],
+          "baseline2": [
+            225423539,
+            201017775,
+            208755243,
+            227965217,
+            206291453
+          ]
+        },
+        "medians_ns": {
+          "baseline1": 210037721,
+          "candidate": 211513271,
+          "baseline2": 208755243
+        },
+        "baseline1_over_baseline2": 1.0061434528856361,
+        "baseline1_over_candidate": 0.9930238419886193,
+        "baseline2_over_candidate": 0.9869604966772983,
+        "candidate_slower_than_both_triples": 3
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-literal-pos-count-range",
+        "batch_requests": 4,
+        "times_ns": {
+          "baseline1": [
+            58041371,
+            49022634,
+            54995347,
+            48719737,
+            48207450
+          ],
+          "candidate": [
+            52272898,
+            515106465,
+            47902824,
+            47634485,
+            62447716
+          ],
+          "baseline2": [
+            52928043,
+            47602805,
+            48725445,
+            49402920,
+            48276339
+          ]
+        },
+        "medians_ns": {
+          "baseline1": 49022634,
+          "candidate": 52272898,
+          "baseline2": 48725445
+        },
+        "baseline1_over_baseline2": 1.0060992567640994,
+        "baseline1_over_candidate": 0.9378212396029775,
+        "baseline2_over_candidate": 0.9321359033891712,
+        "candidate_slower_than_both_triples": 2
+      },
+      {
+        "profile": "release",
+        "id": "boolean-ascii-n4096-replace-capture-direct-range",
+        "batch_requests": 4,
+        "times_ns": {
+          "baseline1": [
+            1144751998,
+            1121525105,
+            1097431288,
+            1131581854,
+            1149070311
+          ],
+          "candidate": [
+            1141279717,
+            1090410587,
+            1093009216,
+            1101833864,
+            1103547328
+          ],
+          "baseline2": [
+            6792406602,
+            1136386046,
+            1105839542,
+            1101518075,
+            1093378572
+          ]
+        },
+        "medians_ns": {
+          "baseline1": 1131581854,
+          "candidate": 1101833864,
+          "baseline2": 1105839542
+        },
+        "baseline1_over_baseline2": 1.0232785237118966,
+        "baseline1_over_candidate": 1.026998616553684,
+        "baseline2_over_candidate": 1.003635464593054,
+        "candidate_slower_than_both_triples": 0
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-captures-pos-count-range",
+        "batch_requests": 4,
+        "times_ns": {
+          "baseline1": [
+            300985717,
+            309875366,
+            304087352,
+            305874348,
+            311284113
+          ],
+          "candidate": [
+            298797655,
+            295886789,
+            273905806,
+            272518958,
+            274161292
+          ],
+          "baseline2": [
+            299308770,
+            305352862,
+            305495031,
+            298894085,
+            304589179
+          ]
+        },
+        "medians_ns": {
+          "baseline1": 305874348,
+          "candidate": 274161292,
+          "baseline2": 304589179
+        },
+        "baseline1_over_baseline2": 1.0042193521260976,
+        "baseline1_over_candidate": 1.1156729885851282,
+        "baseline2_over_candidate": 1.1109853501857585,
+        "candidate_slower_than_both_triples": 0
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-literal-pos-count-range",
+        "batch_requests": 4,
+        "times_ns": {
+          "baseline1": [
+            76060174,
+            81396642,
+            79318948,
+            77560352,
+            81188843
+          ],
+          "candidate": [
+            89247498,
+            81023405,
+            79865246,
+            79598338,
+            79552826
+          ],
+          "baseline2": [
+            77938911,
+            79328009,
+            78393147,
+            76449132,
+            78513355
+          ]
+        },
+        "medians_ns": {
+          "baseline1": 79318948,
+          "candidate": 79865246,
+          "baseline2": 78393147
+        },
+        "baseline1_over_baseline2": 1.0118097185204211,
+        "baseline1_over_candidate": 0.9931597531171443,
+        "baseline2_over_candidate": 0.9815677146978299,
+        "candidate_slower_than_both_triples": 3
+      },
+      {
+        "profile": "release-min",
+        "id": "boolean-ascii-n4096-replace-capture-direct-range",
+        "batch_requests": 4,
+        "times_ns": {
+          "baseline1": [
+            1586970412,
+            1527423044,
+            1565415434,
+            1506250593,
+            1621967258
+          ],
+          "candidate": [
+            1611469664,
+            1504197581,
+            1610032065,
+            1537051802,
+            1638241527
+          ],
+          "baseline2": [
+            1497622474,
+            1564758191,
+            1545359676,
+            1487629503,
+            1509981844
+          ]
+        },
+        "medians_ns": {
+          "baseline1": 1565415434,
+          "candidate": 1610032065,
+          "baseline2": 1509981844
+        },
+        "baseline1_over_baseline2": 1.0367114281673442,
+        "baseline1_over_candidate": 0.9722883587414763,
+        "baseline2_over_candidate": 0.9378582432145536,
+        "candidate_slower_than_both_triples": 4
+      }
+    ],
+    "plan": {
+      "triples": 5,
+      "measured_repetitions": 4,
+      "cpu": 28,
+      "cases": {
+        "release": [
+          "boolean-ascii-n4096-numeric-neg-count-range",
+          "boolean-ascii-n4096-literal-pos-count-range",
+          "boolean-ascii-n4096-replace-capture-direct-range"
+        ],
+        "release-min": [
+          "boolean-ascii-n4096-captures-pos-count-range",
+          "boolean-ascii-n4096-literal-pos-count-range",
+          "boolean-ascii-n4096-replace-capture-direct-range"
+        ]
+      },
+      "reason": "Follow the two largest release slowdowns and ordinary replacement controls; retain strongest size-profile benefit as control. Chosen after original panel, before follow-up. No iterative selection or replacement of original data."
+    },
+    "scope": "Five fixed rotating baseline/candidate/baseline triples/profile, four measured queries plus warmup/case/process, one allowed CPU. Shared host; no exclusivity or frequency control. Does not replace any original slower timing."
+  },
+  "selected_hot_codegen": {
+    "comparisons": 16,
+    "normalization": "Preserve mnemonics, registers, ordinary constants, conditionals and function-relative internal branch/call offsets. Preserve external demangled targets; remove RIP-relative relocation displacement and comments.",
+    "scope": "Sixteen selected hot-owner comparisons. No physical layout, relocated data/GOT, full-binary, total-runtime or causal timing equivalence claim.",
+    "groups": [
+      {
+        "profile": "release",
+        "owner": "LabelOperation::apply",
+        "code_bytes": 4217,
+        "normalized_bytes": 18350,
+        "normalized_sha256": "5521a997e286bc40bd809864cfd0066bfe7443c43a4c6b0f43a38a644fcbf648",
+        "equal": true
+      },
+      {
+        "profile": "release",
+        "owner": "GoRegex::captures_work",
+        "code_bytes": 409,
+        "normalized_bytes": 2385,
+        "normalized_sha256": "e5f31e3f8e704601298d7325806a3a6fb7c82ede6793dba691d49d26873e8019",
+        "equal": true
+      },
+      {
+        "profile": "release",
+        "owner": "GoRegex::captures_subject",
+        "code_bytes": 1595,
+        "normalized_bytes": 7367,
+        "normalized_sha256": "131a9e68e2c1ded8fad286e9df0527f0b3a3d3e68f7e60508b9dde9f136cd44f",
+        "equal": true
+      },
+      {
+        "profile": "release",
+        "owner": "Subject::new",
+        "code_bytes": 1473,
+        "normalized_bytes": 7116,
+        "normalized_sha256": "481bf6f171a3a0a3a6838a5895cd7445c1df8b38feee2e6ab4839005d7dbcc8c",
+        "equal": true
+      },
+      {
+        "profile": "release",
+        "owner": "Work::valid_utf8",
+        "code_bytes": 1558,
+        "normalized_bytes": 6349,
+        "normalized_sha256": "c9cd7b023331e4f4b52678da86542b6b8b8ad6e43d5275d7a4f9beabb31bd36e",
+        "equal": true
+      },
+      {
+        "profile": "release",
+        "owner": "PikeVM::search_slots",
+        "code_bytes": 461,
+        "normalized_bytes": 1917,
+        "normalized_sha256": "76e8c36a13bd7861b46d41ab844f3834d5250e826b2bab414ef39c5e3ff5d8b4",
+        "equal": true
+      },
+      {
+        "profile": "release",
+        "owner": "PikeVM::search_slots_imp",
+        "code_bytes": 268,
+        "normalized_bytes": 1239,
+        "normalized_sha256": "aadb1b264f8d948c8741af4f3a8d473dd153956bbf9ff77447b4cc3862515557",
+        "equal": true
+      },
+      {
+        "profile": "release",
+        "owner": "PikeVM::search_imp",
+        "code_bytes": 9844,
+        "normalized_bytes": 40282,
+        "normalized_sha256": "58251cbdd372a22f5406c3f2d93ef0b3e5f39f541d1e7c44554cfbb557944d60",
+        "equal": true
+      },
+      {
+        "profile": "release",
+        "owner": "QueryAccounting::work",
+        "code_bytes": 220,
+        "normalized_bytes": 1028,
+        "normalized_sha256": "137cf5b7a97a9c55413e37890507de91853d4b02925919464df490b675eabd03",
+        "equal": true
+      },
+      {
+        "profile": "release-min",
+        "owner": "LabelOperation::apply",
+        "code_bytes": 5626,
+        "normalized_bytes": 26854,
+        "normalized_sha256": "433a59d2ac40adbe4ee25013cf06e6f3ba64e87e50cf2de2453a52c9001c841f",
+        "equal": true
+      },
+      {
+        "profile": "release-min",
+        "owner": "Subject::new",
+        "code_bytes": 593,
+        "normalized_bytes": 3457,
+        "normalized_sha256": "353a253b7abfa229fa03e0c8ad37829be0ba0d7b36c8629a984d886fb4b60c2d",
+        "equal": true
+      },
+      {
+        "profile": "release-min",
+        "owner": "Work::valid_utf8",
+        "code_bytes": 157,
+        "normalized_bytes": 965,
+        "normalized_sha256": "5154bac8a9d70c89a745a93dc0408876d3597a2e2a65ebd1a0f7af86f44fd3eb",
+        "equal": true
+      },
+      {
+        "profile": "release-min",
+        "owner": "PikeVM::search_slots",
+        "code_bytes": 398,
+        "normalized_bytes": 2349,
+        "normalized_sha256": "51a75712d62e783446a636dd3b66579f8cdd7a1ef6dd34c22543d5ea35cd89c6",
+        "equal": true
+      },
+      {
+        "profile": "release-min",
+        "owner": "PikeVM::search_slots_imp",
+        "code_bytes": 273,
+        "normalized_bytes": 1475,
+        "normalized_sha256": "9b9f5ddec6ebe3561cc4e88636da95b78edfa3481f054ad3833c4565f6eeecb4",
+        "equal": true
+      },
+      {
+        "profile": "release-min",
+        "owner": "PikeVM::search_imp",
+        "code_bytes": 5342,
+        "normalized_bytes": 30111,
+        "normalized_sha256": "59014cfc92701bc7da7679cdd7f24689b2e4191cfa7b3ef276e122d3e3b5fa49",
+        "equal": true
+      },
+      {
+        "profile": "release-min",
+        "owner": "QueryAccounting::work",
+        "code_bytes": 65,
+        "normalized_bytes": 468,
+        "normalized_sha256": "f7cd43b51f0b0f26edd7395ce5081a0fa1b72eadc821bde0eecb3eea9bd90eda",
+        "equal": true
+      }
+    ]
+  },
+  "performance_assessment": "Retain the unused-storage removal with its measured main-case gains and all slower controls. Sixteen selected hot-owner instruction structures are unchanged after stated relocation normalization. Compilation adds a private policy argument/branch; physical layout and shared-host effects remain unresolved timing factors. The data do not prove zero regression or a universal speed gain.",
+  "limitations": [
+    "Opaque dependency memory reports remain estimates, not exact allocator bytes or process RSS.",
+    "Fixture binary sections do not establish installed Agent footprint.",
+    "Shared-host timing has no CPU exclusivity or frequency control; slower controls and large outliers are retained.",
+    "Normalization excludes physical placement and relocated data/GOT; it does not establish full-binary or total-runtime equivalence.",
+    "Selected units and finite regex/query/caller panels, not a fresh complete language/SRE/live-Agent suite.",
+    "QEMU is compiled foreign execution, not hardware performance.",
+    "No new CI pass, public ABI, rule/Cloud design, limits, storage format or metadata provider claim."
+  ],
+  "receipts": {
+    "baseline-receipt.json": {
+      "path": ".tmp/selector-backend-24540ndv/baseline-receipt.json",
+      "sha256": "a754fbae37dd71592a25471d0bffa64cd30c4cf5ba122d67724556cfa575daa8"
+    },
+    "old-runtime-witness.json": {
+      "path": ".tmp/selector-backend-24540ndv/old-runtime-witness.json",
+      "sha256": "ceb5ffeddd7a4dd22648121337d733b2983a94adfad88591a6b0b391e2df9cda"
+    },
+    "shared-pilot-receipt.json": {
+      "path": ".tmp/selector-backend-24540ndv/shared-pilot-receipt.json",
+      "sha256": "8988121dafc44b5ce68714b5eac7aae8f3a91f4b85bc7a72fec9e0f942c4da55"
+    },
+    "shared-native-release-build.json": {
+      "path": ".tmp/selector-backend-24540ndv/shared-native-release-build.json",
+      "sha256": "cc6740d240d5ae4cf767eb4b459a5dceb51f016943b5d26dc9292843ff1c7476"
+    },
+    "shared-native-release-min-build.json": {
+      "path": ".tmp/selector-backend-24540ndv/shared-native-release-min-build.json",
+      "sha256": "b20f8430a67daf44c517a91db265a1be1d67ebe1131a586bc0e963a859412571"
+    },
+    "final-native-release-build.json": {
+      "path": ".tmp/selector-backend-24540ndv/final-native-release-build.json",
+      "sha256": "7d5a4658cdf219a7fc5b28208ac7a5b86182f1cd0595ccbc0b05540e0fa0638e"
+    },
+    "native-qualification.json": {
+      "path": ".tmp/selector-backend-24540ndv/native-qualification.json",
+      "sha256": "588999170b89ba99d17a52d4bf4fe5c0be9ebfd92b923567144c199c7bab3003"
+    },
+    "foreign-aarch64-unknown-linux-gnu.json": {
+      "path": ".tmp/selector-backend-24540ndv/foreign-aarch64-unknown-linux-gnu.json",
+      "sha256": "7e78503afb6dd906467132d3b8d0b362e8bf09f33bfdb45b39a01239a780b8c7"
+    },
+    "foreign-armv7-unknown-linux-gnueabihf.json": {
+      "path": ".tmp/selector-backend-24540ndv/foreign-armv7-unknown-linux-gnueabihf.json",
+      "sha256": "d73e3b0630f2f5d579b1d558f6e734ef385f1dee2dda50ae63b645343a1d377f"
+    },
+    "resource-analysis.json": {
+      "path": ".tmp/selector-backend-24540ndv/resource-analysis.json",
+      "sha256": "8dfa969c6a2b744bd81d19155f44c74474974912a163943e3343586b0c11f91f"
+    },
+    "timing-receipt.json": {
+      "path": ".tmp/selector-backend-24540ndv/timing-receipt.json",
+      "sha256": "47dd885d0ab51206ea9b01587e41d1cd796d433b8aaeea3fec9f18c90b8ca59e"
+    },
+    "followup-receipt.json": {
+      "path": ".tmp/selector-backend-24540ndv/followup-receipt.json",
+      "sha256": "9358ba65ee11ef721d968e97bcdf99b8b582d0f897683d277979d45726cf9bcc"
+    },
+    "hot-codegen-proof.json": {
+      "path": ".tmp/selector-backend-24540ndv/hot-codegen-proof.json",
+      "sha256": "b3f1d290dd3bdd5a14b51853f6de68a7a627ef9994e17bda529368dbbe6ba152"
+    },
+    "test-only-correction.json": {
+      "path": ".tmp/selector-backend-24540ndv/test-only-correction.json",
+      "sha256": "cd1a3746e5ee146e57719bdb42105f21a3e14470655539d405369b21dca23355"
+    },
+    "final-static-checks.json": {
+      "path": ".tmp/selector-backend-24540ndv/final-static-checks.json",
+      "sha256": "edecdeef48d3a678a8ae8036217beb6d7b9a137a73416df46bea7802ac8d699d"
+    },
+    "skill-amendment.json": {
+      "path": ".tmp/selector-backend-24540ndv/skill-amendment.json",
+      "sha256": "19b6a0b244290448f10a8fb98701b490a43e814a42846c7ce34c9a25462ffb9f"
+    }
+  },
+  "assembly": {
+    "path": ".tmp/selector-backend-24540ndv/report.py",
+    "sha256": "f073dcf70c453c8582a019b436fb5cd8a8037e5e2d8034c136cd2e70160bf7dc"
+  }
+}

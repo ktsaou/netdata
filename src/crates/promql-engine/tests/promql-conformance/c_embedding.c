@@ -1790,8 +1790,8 @@ static void protocol_primitives(netdata_promql_engine_t *engine) {
     assert(netdata_promql_selector_matches(selector, labels, NULL, &matched) == NETDATA_PROMQL_OK && matched == 0);
     assert(netdata_promql_selector_release(selector) == NETDATA_PROMQL_OK);
     const char *fallback_selectors[] = {
-        "{zone=~\"a[^0-9]+c\"}", "{zone!~\"a[^0-9]+c\"}",
-        "{zone=~\"[a-c]*\"}", "{zone!~\"[a-c]*\"}"
+        "{zone=~\"(?P<x>a[^0-9]+c)\"}", "{zone!~\"(?P<x>a[^0-9]+c)\"}",
+        "{zone=~\"(([a-c])*)\"}", "{zone!~\"(([a-c])*)\"}"
     };
     const char *fallback_subjects[] = {"abc", "a9c", "", "a\xff" "bc", "\xef\xbf\xbd"};
     const uint32_t fallback_expected[2][5] = {{1, 0, 0, 1, 0}, {1, 0, 1, 0, 0}};
@@ -1943,7 +1943,7 @@ static void metadata_discovery(netdata_promql_engine_t *engine) {
     puts("{\"metadata_discovery\":\"pass\",\"cases\":7}");
 }
 
-int main(void) {
+int main(int argc, char **argv) {
     assert(netdata_promql_abi_version() == NETDATA_PROMQL_ABI_VERSION);
     netdata_promql_engine_options_t options;
     assert(netdata_promql_engine_options_default(&options) == NETDATA_PROMQL_OK);
@@ -1953,6 +1953,17 @@ int main(void) {
     assert(netdata_promql_engine_create(&options, &engine) == NETDATA_PROMQL_OK);
     netdata_promql_engine_observations_t idle;
     assert(netdata_promql_engine_observations(engine, &idle) == NETDATA_PROMQL_OK);
+    if (argc == 2 && strcmp(argv[1], "--regex-only") == 0) {
+        protocol_primitives(engine);
+        balanced(engine, &idle);
+        four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP,
+            "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m");
+        balanced(engine, &idle);
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        puts("{\"native_regex_embedding\":\"pass\"}");
+        return 0;
+    }
+    assert(argc == 1);
     const uint64_t sizes[] = {1, 7, 1024};
     for (unsigned i = 0; i < 3; i++) {
         uint64_t first_samples, second_samples;
