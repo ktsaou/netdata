@@ -1304,7 +1304,29 @@ impl CompiledQuery {
         else {
             return None;
         };
-        if function.name != "rate" || arguments.len() != 1 {
+        if arguments.len() != 1 {
+            return None;
+        }
+        let grid = crate::query_scopes::Grid::from(header);
+        let same_grid = |node| {
+            rosters
+                .producer_clock(node)
+                .is_some_and(|clock| clock.grid == grid)
+                && crate::query_scopes::Grid::from(prepared.source_header(node, header)) == grid
+                && crate::query_scopes::Grid::from(prepared.scope_header(node, header)) == grid
+        };
+        if function.name == "abs" {
+            let selector = arguments[0];
+            // The earned marker includes prepared-child and projected-label uniqueness checks.
+            return (matches!(
+                self.expression.arena[selector].expression,
+                Expr::Selector(_)
+            ) && rosters.scheduled_selector(node) == Some(selector)
+                && same_grid(node)
+                && same_grid(selector))
+            .then_some(selector);
+        }
+        if function.name != "rate" {
             return None;
         }
         let matrix = arguments[0];
@@ -1324,13 +1346,7 @@ impl CompiledQuery {
         {
             return None;
         }
-        let grid = crate::query_scopes::Grid::from(header);
-        if rosters
-            .producer_clock(node)
-            .is_none_or(|clock| clock.grid != grid)
-            || crate::query_scopes::Grid::from(prepared.source_header(node, header)) != grid
-            || crate::query_scopes::Grid::from(prepared.scope_header(node, header)) != grid
-        {
+        if !same_grid(node) {
             return None;
         }
         let range_ns = prepared.range(matrix, range);
@@ -6012,6 +6028,189 @@ mod tests {
                 assert_eq!(identities, expected, "{expression}, page={page_size}");
                 provider.assert_closed();
                 drop((output, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn completed_abs_join_preserves_cold_pair_and_warm_selected_failures() {
+        fn provider(page: usize) -> FixtureProvider {
+            let mut provider = FixtureProvider::new(3, page, 8);
+            provider.filter_selectors = true;
+            for (index, series) in provider.series.iter_mut().enumerate() {
+                series.labels = vec![
+                    (
+                        b"__name__".to_vec(),
+                        if index < 4 { b"a" } else { b"b" }.to_vec(),
+                    ),
+                    (
+                        b"instance".to_vec(),
+                        [2, 0, 3, 1, 3, 1, 0, 2][index].to_string().into_bytes(),
+                    ),
+                ];
+                series.source.counters = Default::default();
+            }
+            provider
+        }
+        let request = QueryRequest::Range {
+            start_ms: 1000,
+            end_ms: 3000,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            for expression in [
+                "abs(a) / on(instance) b",
+                "a / on(instance) abs(b)",
+                "abs(a) / on(instance) abs(b)",
+            ] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let compiled = engine
+                    .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let calibration = provider(page);
+                let account = compiled.execution_accounting();
+                {
+                    let header = compiled.header(request).unwrap();
+                    let prepared = Prepared::new(
+                        &compiled.expression,
+                        &compiled.preprocessing,
+                        header,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let header = prepared.evaluator_header();
+                    prepared.activate(header, &control, &account).unwrap();
+                    let options = compiled.evaluation_options(header, header.start_ms, &prepared);
+                    let bounds = crate::query_bounds::find(
+                        &compiled.expression,
+                        options,
+                        &prepared,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let scope = calibration.open(bounds, &control).unwrap();
+                    let catalog = Catalog::new(
+                        &scope,
+                        &compiled.expression,
+                        &prepared,
+                        options,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let rosters = compiled
+                        .prepare_rosters(
+                            &catalog,
+                            &prepared,
+                            bounds,
+                            &control,
+                            &account,
+                            &mut Annotations::default(),
+                        )
+                        .unwrap();
+                    assert_eq!(rosters.descriptors(compiled.expression.root).len(), 4);
+                }
+                calibration.assert_closed();
+                account.snapshot().assert_memory_released();
+                drop(account);
+                let baseline: Vec<_> = calibration
+                    .series
+                    .iter()
+                    .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
+                    .collect();
+                for (index, &count) in baseline.iter().enumerate() {
+                    assert_eq!(
+                        count,
+                        if (index < 4 && expression.starts_with("abs"))
+                            || (index >= 4 && expression.ends_with("abs(b)"))
+                        {
+                            8
+                        } else {
+                            7
+                        }
+                    );
+                }
+                for phase in ["none", "discovery", "pair", "selected"] {
+                    let mut input = provider(page);
+                    // Canonical output1 maps to physical right row5; row7 is a later discovery input.
+                    let target = if phase == "discovery" { 7 } else { 5 };
+                    let acquisition = baseline[target]
+                        + match phase {
+                            "discovery" => 1,
+                            "pair" => 2,
+                            _ => 3,
+                        };
+                    if phase != "none" {
+                        input.series[target].source.fail_acquisition = Some(acquisition);
+                    }
+                    let mut sink = RecordingSink::default();
+                    let report = compiled.execute_reported(&input, request, &control, &mut sink);
+                    if phase == "none" {
+                        report.result.as_ref().unwrap();
+                        assert!(sink.committed && !sink.aborted);
+                        assert_eq!(sink.chunks, 12);
+                        assert_eq!(report.observations.output_samples, 12);
+                        assert_eq!(
+                            report
+                                .observations
+                                .statistics
+                                .samples
+                                .total_queryable_samples,
+                            24
+                        );
+                    } else {
+                        assert!(
+                            matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                            StorageError::Provider(bytes)))) if &**bytes == b"injected page failure")
+                        );
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        let points = usize::from(phase != "discovery");
+                        assert_eq!(sink.chunks, points, "{expression} {phase} page{page}");
+                        assert_eq!(report.observations.output_samples, points as u64);
+                        assert_eq!(
+                            input.series[target]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            acquisition
+                        );
+                        if phase == "selected" {
+                            for index in [0, 2, 4, 7] {
+                                assert_eq!(
+                                    input.series[index]
+                                        .source
+                                        .counters
+                                        .opened
+                                        .load(Ordering::Relaxed),
+                                    baseline[index] + 2,
+                                    "unselected physical row{index} must not be reacquired after completed first delivery"
+                                );
+                            }
+                        }
+                        report.assert_retained_callback_error_memory();
+                    }
+                    assert!(report.annotations.is_empty());
+                    println!(
+                        "{{\"abs_join_phase\":\"{phase}\",\"expression\":\"{expression}\",\"page_size\":{page},\"target\":{target},\"preparation_acquisitions\":{},\"acquisitions\":{},\"output_samples\":{}}}",
+                        baseline[target],
+                        input.series[target]
+                            .source
+                            .counters
+                            .opened
+                            .load(Ordering::Relaxed),
+                        report.observations.output_samples
+                    );
+                    input.assert_closed();
+                    drop(report);
+                }
+                drop(compiled);
                 engine.accounting.snapshot().assert_memory_released();
             }
         }

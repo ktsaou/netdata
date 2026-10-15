@@ -3,6 +3,239 @@ use super::*;
 use crate::{result::OwnedValue, test_storage::FixtureProvider};
 
 #[test]
+fn completed_abs_join_avoids_repeated_operand_reads() {
+    fn point(index: usize) -> crate::value::Sample {
+        crate::value::Sample {
+            time_ms: (index as i64 + 1) * 1000,
+            start_time_ms: 0,
+            value: crate::value::SampleValue::Float(-(index as f64 + 1.0)),
+        }
+    }
+    let mut observations = Vec::new();
+    for page_size in [1, 17, 1024] {
+        for count in [32, 128] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let mut provider = FixtureProvider::new(3, page_size, count);
+            for series in &mut provider.series {
+                series.source.sample = point;
+            }
+            let query = engine
+                .compile(
+                    b"abs(counter_total) / on(instance) counter_total",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Range {
+                    start_ms: 1000,
+                    end_ms: 3000,
+                    step_ms: 1000,
+                },
+                &control,
+            );
+            let result = report.result.as_ref().unwrap();
+            assert_eq!(result.series.len(), count);
+            assert!(report.annotations.is_empty());
+            let mut instances: Vec<_> = (0..count).map(|index| index.to_string()).collect();
+            instances.sort();
+            for (instance, series) in instances.iter().zip(&*result.series) {
+                assert_eq!(series.labels.0.len(), 1);
+                assert_eq!(&*series.labels.0[0].name, b"instance");
+                assert_eq!(&*series.labels.0[0].value, instance.as_bytes());
+                let points: Vec<_> = series
+                    .points
+                    .iter()
+                    .map(|point| {
+                        let OwnedValue::Float(value) = point.value else {
+                            panic!("float abs pair");
+                        };
+                        (point.time_ms, value.to_bits())
+                    })
+                    .collect();
+                assert_eq!(
+                    points,
+                    [
+                        (1000, (-1.0f64).to_bits()),
+                        (2000, (-1.0f64).to_bits()),
+                        (3000, (-1.0f64).to_bits())
+                    ]
+                );
+            }
+            let observed = &report.observations;
+            assert_eq!(observed.output_samples, 3 * count as u64);
+            assert_eq!(
+                observed.statistics.samples.total_queryable_samples,
+                6 * count as u64
+            );
+            assert!(observed.statistics.samples.samples_read <= observed.samples_fetched);
+            let counters = &provider.series[0].source.counters;
+            assert_eq!(
+                observed.samples_fetched,
+                counters
+                    .samples_returned
+                    .load(std::sync::atomic::Ordering::Relaxed) as u64
+            );
+            assert_eq!(counters.peak.load(std::sync::atomic::Ordering::Relaxed), 1);
+            println!(
+                "{{\"abs_join_rows\":{count},\"page_size\":{page_size},\"fetched\":{},\"read\":{},\"queryable\":{},\"work\":{},\"workspace_peak\":{}}}",
+                observed.samples_fetched,
+                observed.statistics.samples.samples_read,
+                observed.statistics.samples.total_queryable_samples,
+                observed.work,
+                observed.memory[MemoryKind::Workspace as usize].peak
+            );
+            observations.push((observed.samples_fetched, observed.work));
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+    assert!(
+        observations
+            .chunks_exact(2)
+            .all(|pair| pair[1].0 <= pair[0].0 * 6 && pair[1].1 <= pair[0].1 * 8),
+        "completed abs joins must avoid repeated full operand reads: {observations:?}"
+    );
+}
+
+#[test]
+fn completed_abs_join_preserves_sparse_native_membership_and_wrapper_ordinals() {
+    fn point<const MIXED: bool, const ID: usize>(index: usize) -> crate::value::Sample {
+        use crate::value::{Sample, SampleValue};
+        let stale = f64::from_bits(crate::value::STALE_NAN_BITS);
+        let mixed = [
+            [-1.0, -4.0, stale],
+            [-10.0, 0.0, -9.0],
+            [0.0; 3],
+            [-10.0, -30.0, -5.0],
+        ];
+        let peer = [
+            [2.0, 3.0, stale],
+            [2.0, 2.0, 8.0],
+            [3.0; 3],
+            [20.0, 20.0, stale],
+        ];
+        Sample {
+            time_ms: (index as i64 + 1) * 1000,
+            start_time_ms: 0,
+            value: if MIXED && (ID == 2 || ID == 1 && index == 1) {
+                SampleValue::FloatHistogram(crate::histogram::FloatHistogram::default())
+            } else {
+                SampleValue::Float(if MIXED {
+                    mixed[ID][index]
+                } else {
+                    peer[ID][index]
+                })
+            },
+        }
+    }
+    for page in [1, 17, 1024] {
+        for delayed in [false, true] {
+            for route in ["left", "right", "both"] {
+                let mut provider = FixtureProvider::new(3, page, 8);
+                provider.filter_selectors = true;
+                let samples: [fn(usize) -> crate::value::Sample; 8] = [
+                    point::<true, 2>,
+                    point::<true, 0>,
+                    point::<true, 3>,
+                    point::<true, 1>,
+                    point::<false, 3>,
+                    point::<false, 1>,
+                    point::<false, 0>,
+                    point::<false, 2>,
+                ];
+                for (index, series) in provider.series.iter_mut().enumerate() {
+                    series.labels = vec![
+                        (
+                            b"__name__".to_vec(),
+                            if (index < 4) == (route != "right") {
+                                b"a"
+                            } else {
+                                b"b"
+                            }
+                            .to_vec(),
+                        ),
+                        (
+                            b"instance".to_vec(),
+                            [2, 0, 3, 1, 3, 1, 0, 2][index].to_string().into_bytes(),
+                        ),
+                    ];
+                    series.source.sample = samples[index];
+                }
+                let expression = match route {
+                    "left" => "abs(a) - on(instance) b",
+                    "right" => "a - on(instance) abs(b)",
+                    _ => "abs(a) - on(instance) abs(b)",
+                };
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        expression.as_bytes(),
+                        EngineOptions {
+                            delayed_name_removal: delayed,
+                            ..EngineOptions::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let report = query.collect_reported(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 3000,
+                        step_ms: 1000,
+                    },
+                    &control,
+                );
+                let result = report.result.as_ref().unwrap();
+                assert_eq!(result.series.len(), 3);
+                assert!(report.annotations.is_empty());
+                for (series, (id, expected)) in result.series.iter().zip([
+                    (0, vec![(1000, -1.0f64), (2000, 1.0)]),
+                    (1, vec![(1000, 8.0), (3000, 1.0)]),
+                    (3, vec![(1000, -10.0), (2000, 10.0)]),
+                ]) {
+                    assert_eq!(series.labels.0.len(), 1);
+                    assert_eq!(&*series.labels.0[0].name, b"instance");
+                    assert_eq!(&*series.labels.0[0].value, id.to_string().as_bytes());
+                    let points: Vec<_> = series
+                        .points
+                        .iter()
+                        .map(|p| {
+                            let OwnedValue::Float(value) = p.value else {
+                                panic!("float abs join");
+                            };
+                            (p.time_ms, value.to_bits())
+                        })
+                        .collect();
+                    let expected: Vec<_> = expected
+                        .into_iter()
+                        .map(|(t, v)| (t, (if route == "right" { -v } else { v }).to_bits()))
+                        .collect();
+                    assert_eq!(points, expected, "{route} page{page} delayed{delayed}");
+                }
+                assert_eq!(report.observations.output_samples, 6);
+                assert_eq!(
+                    provider.series[0]
+                        .source
+                        .counters
+                        .peak
+                        .load(std::sync::atomic::Ordering::Relaxed),
+                    1
+                );
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+}
+
+#[test]
 fn completed_sort_emission_avoids_repeated_sorted_operands() {
     let mut observations = Vec::new();
     for page in [1, 17, 1024] {

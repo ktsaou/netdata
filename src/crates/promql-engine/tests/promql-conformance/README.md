@@ -3194,3 +3194,69 @@ and exact per-phase resource checks after owned builds/qualification close. CPU 
 not replace the initial observations or prove their cause; no universal throughput or production-disk claim follows.
 Initial analytic-expectation, active-parent inventory and timing-selection failures retain their actual development
 phases. Corrected qualification binds closed writers and the actual current source and executables.
+
+## Completed direct abs join scans
+
+The existing completed one-to-one float join route also accepts a direct `abs(selector)` operand. The operand must
+have earned the existing scheduled-selector certificate, including prepared-child and projected-label uniqueness.
+Its wrapper and leaf producer/source/scope grids must match the evaluator. The ordinary selector scheduling proof,
+root/matching restrictions and unique-float side/pair certificates remain authoritative.
+
+The first final body still completes discovery, arithmetic, filtering, duplicates and diagnostics before publishing
+reuse. Later rows acquire their selected wrapper operands afresh. Wrapper ordinals retain their existing mapping to
+physical sources; no raw values, timeline, new cache representation or provider requirement is introduced.
+
+`abs` ignores native histogram points. A changing float/native history can therefore qualify through its actual
+float output rows. Sparse ordinals, stale membership and different side orders remain significant. Projected aliases
+that fail the existing uniqueness proof retain ordinary evaluation: disjoint float/native aliases can still succeed,
+while an unwrapped side retaining both metric names can report the original many-to-one error.
+
+The [abs join qualification](abs-join-qualification.json) records 1,854 complete native accepted-engine matches and
+3,708 compiled ARM64/ARM32 matches across both profiles. It covers left/right/both operands, negative values and
+signed zero, comparison/boolean results, native/mixed histories, aliases, fractional/precise clocks and rate peers.
+Nested, indirect, fixed, grouped and delayed-name controls retain their existing evaluation routes.
+
+Both native builds pass 621 units. Each foreign build runs the three focused owners. Twelve actual C/C++ callers
+include 27 direct abs cases each. The cold/warm unit independently measures preparation acquisitions, then checks
+later discovery, later pair delivery and fresh second-canonical selection failures. The warm failure checks confirm
+that unrelated sources were not reacquired. These qualify compiled library/caller behavior; earlier language, SRE, oracle
+and containing-Agent cohorts retain their actual historical identities.
+
+For `abs(m) / on(id) n`, distinct negative inputs, reversed right order, page17 and three range ticks:
+
+| Series per side | Fetched entries before → after | Recorded work before → after | Workspace peak before → after |
+|---|---:|---:|---:|
+| 32 | 51,072 → 4,200 | 1,403,196 → 138,777 | 105,022 → 105,022 B |
+| 128 | 794,112 → 16,872 | 22,528,213 → 607,043 | 409,002 → 409,002 B |
+
+The 128-series case reduces acquired workspace from 154,371,524 to 5,111,263 bytes. Allocation traffic is cumulative;
+it is not retained RAM. Across the complete native panel, 330 query/profile groups fetch fewer entries, and
+168 groups raise workspace peak by at most 172 bytes to retain membership metadata. Empty and single-series cases
+remain unchanged; the larger representative peaks above also remain unchanged. Raw samples stay paged on both axes.
+
+The qualification separately retains 3,840 warmed complete-query responses for empty/single/four/128-series inputs,
+raw/left/right/both-abs/fixed shapes, instant/range execution and both profiles. Timings use alternating pairs with
+complete result/resource checks. Native qualification had finished; foreign fixture runs could still be active.
+
+| Profile | 128-series range shape | Median before → after | Before/after ratio |
+|---|---|---:|---:|
+| release | Left abs | 494.35 → 13.18 ms | 37.49× |
+| release | Right abs | 493.99 → 13.05 ms | 37.85× |
+| release | Both abs | 554.60 → 15.35 ms | 36.14× |
+| release-min | Left abs | 856.12 → 21.65 ms | 39.54× |
+| release-min | Right abs | 841.66 → 21.53 ms | 39.08× |
+| release-min | Both abs | 955.25 → 25.43 ms | 37.56× |
+
+The raw/fixed large controls have ratios from 0.975 to 1.016. Some small release medians are slower: the empty
+both-abs instant case changes from 10,955 to 11,904.5 ns (ratio 0.920), and the four-series both-abs instant case
+from 167,523.5 to 179,243.5 ns (ratio 0.935). These observations remain in the qualification.
+
+After all owned qualification jobs closed, a targeted repeat checked 3,072 complete responses with 36 retained
+samples per phase/query. Its ratios span 0.944–1.163. The release empty and four-series both-abs instant cases have
+ratios 1.058 and 1.041; release-min retains slower medians of 16,495 → 17,470 ns and 268,508 → 282,637.5 ns
+(ratios 0.944 and 0.950). Both panels remain intact; the repeat does not replace the initial observations or prove
+their cause.
+
+Timings measure generated inputs on a shared host, without isolated CPU or production disk/RSS claims. A final
+test-comment clarification retains a distinct final-source identity alongside the actual compiled sources;
+executable tokens and line counts are unchanged.

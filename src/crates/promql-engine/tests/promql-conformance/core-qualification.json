@@ -8868,5 +8868,15 @@
     "warmed_complete_responses": 4608,
     "warmed_concern_repeat_responses": 2304,
     "caveat": "One private pure-proof call-site removal; full first-pass/certification rules and results/resources retained. Allocation traffic falls with unchanged measured peaks. Timings and earlier broader source-bound evidence retain their scope; no universal speed/RSS or new language coverage claim."
+  },
+  "direct_abs_join_qualification": {
+    "status": "pass",
+    "receipt": "tests/promql-conformance/abs-join-qualification.json",
+    "sha256": "e1030013420e5469af3ad797790bea40ebac33105e3c99a3dd5f7e32c062188a",
+    "scope": "Finite current qualification of existing completed unique-float join reuse for direct abs(selector) operands. Earned schedule marker, wrapper/leaf producer/source/scope grids, complete first delivery and fresh selected wrapper ordinals remain mandatory. No feature drop, new raw-value/history/cache representation, public/default/ABI/storage/reference change.",
+    "native_complete_matches": 1854,
+    "foreign_complete_matches": 3708,
+    "native_units_per_profile": 621,
+    "actual_c_callers": 12
   }
 }

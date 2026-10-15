@@ -622,6 +622,25 @@ integration, and Alertmanager remains excluded.
   source and executables, complete raw/rate/mixed/fallback/native/precise controls, native units/C callers and timing.
   Earlier language, SRE, ARM and Agent cohorts retain their actual historical source identities.
 
+## Completed direct abs join scans
+
+- **Choice:** extend the existing completed one-to-one float join certificate to direct `abs(selector)` operands
+  with an earned scheduled-selector marker and matching wrapper/leaf producer/source/scope grids. Keep the shared
+  selector proof and every existing root, matching, uniqueness, exact-key and successful-Done requirement.
+- **Ownership:** reuse existing pair bindings and the accounted current-step membership bitmap. Later outputs read
+  the selected wrapper operands afresh through their canonical-to-physical mapping. No raw value/history array,
+  new cache representation, provider policy or public interface is introduced.
+- **Compatibility:** actual float wrapper rows can qualify after `abs` filters native points. Stale/changing
+  membership and sparse source positions remain significant. Unproven aliases, fixed/nested/indirect/grouped and
+  delayed-name shapes retain ordinary evaluation and their original errors.
+- **Tradeoff:** representative 32/128-series peaks stay unchanged while reads/work/allocation traffic fall. Smaller
+  qualifying cases can add up to 172 bytes at peak for membership metadata. Allocation traffic and tracked peak are
+  distinct from RSS; the goal does not introduce an arbitrary cardinality threshold or enabled resource cap.
+- **Evidence:** [abs join qualification](abs-join-qualification.json) retains the meaningful complete-query scaling
+  red, sparse/native controls, separately calibrated preparation/cold/warm errors, complete native/foreign matches,
+  actual C/C++ callers and warmed timings. Compiled source identities remain separate from a final comment-only
+  correction; earlier broader cohorts retain their actual historical sources and executables.
+
 ## Compact one-to-one result labels
 
 - **Choice:** one-to-one projection with no included fields copies only retained labels. It removes empty values,
