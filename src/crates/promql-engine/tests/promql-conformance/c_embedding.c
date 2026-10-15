@@ -1976,6 +1976,14 @@ int main(void) {
     balanced(engine, &idle);
     four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "year(m) / on(zone) year(m)");
     balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "round(m,.5) / on(zone) m");
+    balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "clamp_min(m,0) / on(zone) m");
+    balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "clamp_max(m,4) / on(zone) m");
+    balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "clamp(m,0,4) / on(zone) m");
+    balanced(engine, &idle);
     average_read_reuse(engine);
     balanced(engine, &idle);
     assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);

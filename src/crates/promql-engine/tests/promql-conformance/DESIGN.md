@@ -624,25 +624,33 @@ integration, and Alertmanager remains excluded.
 
 ## Completed direct float-map join scans
 
-- **Choice:** recognize the shared typed `PointwiseFunction::Float` class at validated actual arity one. Current
-  members include ordinary mathematical maps, default round and explicit-vector calendars. Require a direct
-  selector, earned marker and identical wrapper/leaf producer/source/scope grids. Preserve all outer root,
-  matching, uniqueness, selector-schedule, exact-key and successful-Done requirements.
+- **Choice:** recognize the shared typed `PointwiseFunction::Float` class with a nonempty vector argument and the
+  earned marker for pure scalar parameters. This includes ordinary mathematical maps, default/parameterized round,
+  clamps and explicit-vector calendars. Require a direct selector and identical wrapper/leaf producer/source/scope
+  grids. Preserve all outer root, matching, uniqueness, selector-schedule, exact-key and successful-Done gates.
+  The separate direct rate branch keeps its actual-arity-one restriction.
 - **Ownership:** reuse existing pair bindings and accounted current-scope membership. Later outputs read selected
-  wrapper operands afresh through canonical-to-physical mapping. Release the previous completed scope before
-  replacement, and publish only the successfully completed candidate. No raw history array or new cache is added.
-- **Compatibility:** native points retain existing filtering; domain NaNs remain present floats. Sparse/stale and
-  reordered physical sources retain wrapper ordinals. Aliases and unsupported schedules use ordinary evaluation.
-  Valid parameterized round/clamps, zero-argument calendars, timestamp/native helpers and indirect shapes remain
-  supported through their existing paths. No numerical/default/ABI/storage/reference contract changes.
-- **Tradeoff:** repeated reads, work and allocation traffic fall in qualifying range queries. Representative
-  128-series peaks remain unchanged. Small range cases add 82–312 B at peak in the recorded panel through existing
-  join reuse owners. Aggregate peaks do not attribute every allocation instant; tracked bytes are not RSS.
-  Some rejected mixed-kind certificates add 32 cumulative bytes and 16 work units without raising the peak.
-  No arbitrary cardinality threshold or enabled resource cap is introduced.
-- **Evidence:** [float-map join qualification](float-map-join-qualification.json) binds the meaningful scaling red,
-  complete native/compiled-ARM results, current C/C++ callers, registry NaN/membership controls and every timing
-  group. The [initial abs qualification](abs-join-qualification.json) retains its earlier source/binary identities.
+  wrapper operands afresh through canonical-to-physical mapping. First-final delivery drains all pairs before
+  publishing membership. Release the previous completion before replacement. No raw history array, purity walk,
+  function whitelist, additional runtime state or cache is introduced.
+- **Parameters and omission:** normal evaluation computes scalar arguments before reading the vector. Full clamp
+  can emit an empty scope; completed empty and populated membership remains exact-key-specific. NaN bounds produce
+  present float NaNs, and native values retain normal filtering. Sparse/stale and reordered inputs preserve wrapper
+  ordinals. Source-reading scalar parameters, zero-argument clocks, indirect shapes and unsupported schedules retain
+  ordinary evaluation. No numerical/default/ABI/storage/reference contract changes.
+- **Failure phases:** separately calibrate preparation and actual first/fourth/completed output acquisitions.
+  Preserve first-empty, next-scope, cold pair suffix, warm selected and last-empty provider failures and provisional
+  abort. Actual surviving private frames establish parameter-phase interruption before vector acquisition; a work
+  budget alone is not phase evidence.
+- **Tradeoff:** repeated reads, work and allocation traffic fall in qualifying ranges. All 384 scaling peaks in
+  each retained one-argument/parameter cohort remain unchanged. Existing reuse owners raise some small-case peaks:
+  82–312 B in the earlier one-argument cohort and 146–312 B in the parameter cohort. Some mixed-kind rejected
+  certificates add 32 cumulative bytes and 16 work units with unchanged peaks. These are measured finite costs,
+  not a global peak-memory reduction. Accounted bytes are not RSS; caps remain disabled.
+- **Evidence:** [parameter-map qualification](parameter-map-join-qualification.json) binds the current parameter,
+  changing-membership, interruption, complete native/compiled-ARM, actual C/C++ and timing panels, including every
+  slower group and distinct development failure. The [one-argument cohort](float-map-join-qualification.json) and
+  [initial abs cohort](abs-join-qualification.json) retain their actual source/binary identities.
 
 ## Compact one-to-one result labels
 

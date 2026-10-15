@@ -4480,6 +4480,175 @@ mod filter_tests {
     use crate::accounting::EngineAccounting;
 
     #[test]
+    fn float_map_parameters_interrupt_before_vector_acquisition() {
+        use crate::frontend::{ast::ParserOptions, parser, regex::Selector};
+        use crate::storage::Provider;
+        use std::sync::atomic::Ordering;
+
+        let mut parameter = "time()".to_owned();
+        for _ in 0..6 {
+            parameter = format!("({parameter}+{parameter})");
+        }
+        for page in [1, 17, 1024] {
+            for position in [0, 1] {
+                let source = if position == 0 {
+                    format!("clamp(counter_total, {parameter}/16, 100)")
+                } else {
+                    format!("clamp(counter_total, 0, {parameter}/16)")
+                };
+                for interrupted in [true, false] {
+                    let parsed =
+                        parser::parse(source.as_bytes(), ParserOptions::default(), |pattern| {
+                            Selector::compile_in(pattern, None)
+                        });
+                    assert!(parsed.errors.is_empty(), "{:?}", parsed.errors);
+                    let expression = ParsedExpression {
+                        source: source.as_bytes().to_vec().into(),
+                        arena: parsed.arena,
+                        root: parsed.root.unwrap(),
+                    };
+                    let account = EngineAccounting::default().query();
+                    let control = Control::default();
+                    let preprocessing = crate::evaluator_order::preprocess(
+                        &expression,
+                        MemoryKind::Workspace,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let prepared = Prepared::new(
+                        &expression,
+                        &preprocessing,
+                        crate::result::OutputHeader {
+                            value_type: ValueType::Vector,
+                            start_ms: 2000,
+                            end_ms: 2000,
+                            step_ms: 0,
+                        },
+                        60_000,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let header = prepared.evaluator_header();
+                    let options = EvaluationOptions {
+                        time_ms: 2000,
+                        start_ms: header.start_ms,
+                        end_ms: header.end_ms,
+                        step_ms: header.step_ms,
+                        lookback_ms: 2000,
+                        start_timestamps: false,
+                        delayed_name_removal: false,
+                    };
+                    let bounds = crate::query_bounds::find(
+                        &expression,
+                        options,
+                        &prepared,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let provider = crate::test_storage::FixtureProvider::new(3, page, 1);
+                    let scope = provider.open(bounds, &control).unwrap();
+                    let catalog = Catalog::new(
+                        &scope,
+                        &expression,
+                        &prepared,
+                        options,
+                        60_000,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    for (index, node) in expression.arena.nodes.iter().enumerate() {
+                        if matches!(node.expression, Expr::Selector(_)) {
+                            drop(
+                                catalog
+                                    .expand(NodeId(index), &control, &account)
+                                    .map_err(|failure| failure.error)
+                                    .unwrap(),
+                            );
+                        }
+                    }
+                    let rosters =
+                        Rosters::new(&account, expression.arena.nodes.len(), &control).unwrap();
+                    let timestamps = vec![false; expression.arena.nodes.len()];
+                    let counters = &provider.series[0].source.counters;
+                    let before = counters.opened.load(Ordering::Relaxed);
+                    let mut machine = Machine::new(
+                        &catalog,
+                        &expression,
+                        expression.root,
+                        options,
+                        &control,
+                        &account,
+                        EvaluationMetadata {
+                            prepared: &prepared,
+                            rosters: &rosters,
+                            timestamp_selectors: &timestamps,
+                            data_bounds: bounds,
+                            annotations: None,
+                            binary_preparation: None,
+                            histogram_preparation: None,
+                            info_preparation: None,
+                            count_preparation: None,
+                        },
+                    );
+                    if interrupted {
+                        let result = crate::test_storage::interrupt_after_work(
+                            &account,
+                            &control,
+                            32,
+                            || machine.next(),
+                        );
+                        assert!(matches!(
+                            result,
+                            Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                        ));
+                        let active = machine
+                            .frames
+                            .iter()
+                            .position(|frame| {
+                                frame.node == expression.root
+                                    && matches!(frame.state, State::Parameters {
+                                        function: ParameterizedFunction::Pointwise(FloatFunction::Clamp),
+                                        position: active,
+                                        ..
+                                    } if active == position)
+                            })
+                            .expect("interruption must occur inside the requested clamp parameter");
+                        assert!(machine.frames[active + 1..].iter().any(|frame| {
+                            expression.arena[frame.node].value_type == ValueType::Scalar
+                                && !matches!(frame.state, State::Enter)
+                        }));
+                        assert_eq!(counters.opened.load(Ordering::Relaxed), before);
+                    } else {
+                        let sample = machine.next().unwrap().unwrap();
+                        let OwnedValue::Float(value) = sample.value else {
+                            panic!("clamp must yield a float");
+                        };
+                        assert_eq!(
+                            value.to_bits(),
+                            if position == 0 { 8.0f64 } else { 2.0 }.to_bits()
+                        );
+                        assert!(counters.opened.load(Ordering::Relaxed) > before);
+                        assert!(machine.next().unwrap().is_none());
+                        drop(sample);
+                    }
+                    drop(machine);
+                    drop(rosters);
+                    drop(catalog);
+                    drop(scope);
+                    drop(prepared);
+                    drop(preprocessing);
+                    provider.assert_closed();
+                    account.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
     fn set_discovery_scope_shares_the_existing_activation_predicate() {
         let account = EngineAccounting::default().query();
         let cache = std::cell::RefCell::new(crate::vector_matching::Cache::new(&account));

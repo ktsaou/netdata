@@ -1304,7 +1304,7 @@ impl CompiledQuery {
         else {
             return None;
         };
-        if arguments.len() != 1 {
+        if arguments.is_empty() {
             return None;
         }
         let grid = crate::query_scopes::Grid::from(header);
@@ -1315,7 +1315,7 @@ impl CompiledQuery {
                 && crate::query_scopes::Grid::from(prepared.source_header(node, header)) == grid
                 && crate::query_scopes::Grid::from(prepared.scope_header(node, header)) == grid
         };
-        // Typed arity one excludes clamp parameters and calendar clock defaults.
+        // The earned schedule proves pure scalar parameters and excludes calendar clock defaults.
         if matches!(
             PointwiseFunction::parse(function.name),
             Some(PointwiseFunction::Float(..))
@@ -1330,7 +1330,7 @@ impl CompiledQuery {
                 && same_grid(selector))
             .then_some(selector);
         }
-        if function.name != "rate" {
+        if function.name != "rate" || arguments.len() != 1 {
             return None;
         }
         let matrix = arguments[0];
@@ -6037,43 +6037,128 @@ mod tests {
         }
     }
 
+    fn float_map_join_provider(page: usize) -> FixtureProvider {
+        let mut provider = FixtureProvider::new(3, page, 8);
+        provider.filter_selectors = true;
+        for (index, series) in provider.series.iter_mut().enumerate() {
+            series.labels = vec![
+                (
+                    b"__name__".to_vec(),
+                    if index < 4 { b"a" } else { b"b" }.to_vec(),
+                ),
+                (
+                    b"instance".to_vec(),
+                    [2, 0, 3, 1, 3, 1, 0, 2][index].to_string().into_bytes(),
+                ),
+            ];
+            series.source.counters = Default::default();
+        }
+        provider
+    }
+
+    fn float_map_join_unit_provider(page: usize) -> FixtureProvider {
+        let mut provider = float_map_join_provider(page);
+        for series in &mut provider.series {
+            series.source.sample = |index| crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(1.0),
+            };
+        }
+        provider
+    }
+
+    fn float_map_join_preparation(
+        compiled: &CompiledQuery,
+        calibration: &FixtureProvider,
+        request: QueryRequest,
+        control: &Control,
+    ) -> (usize, Vec<usize>) {
+        let account = compiled.execution_accounting();
+        let descriptors = {
+            let header = compiled.header(request).unwrap();
+            let prepared = Prepared::new(
+                &compiled.expression,
+                &compiled.preprocessing,
+                header,
+                compiled.options.no_step_subquery_interval_ms,
+                control,
+                &account,
+            )
+            .unwrap();
+            let header = prepared.evaluator_header();
+            prepared.activate(header, control, &account).unwrap();
+            let options = compiled.evaluation_options(header, header.start_ms, &prepared);
+            let bounds = crate::query_bounds::find(
+                &compiled.expression,
+                options,
+                &prepared,
+                control,
+                &account,
+            )
+            .unwrap();
+            let scope = calibration.open(bounds, control).unwrap();
+            let catalog = Catalog::new(
+                &scope,
+                &compiled.expression,
+                &prepared,
+                options,
+                compiled.options.no_step_subquery_interval_ms,
+                control,
+                &account,
+            )
+            .unwrap();
+            let rosters = compiled
+                .prepare_rosters(
+                    &catalog,
+                    &prepared,
+                    bounds,
+                    control,
+                    &account,
+                    &mut Annotations::default(),
+                )
+                .unwrap();
+            rosters.descriptors(compiled.expression.root).len()
+        };
+        calibration.assert_closed();
+        account.snapshot().assert_memory_released();
+        drop(account);
+        let baseline = calibration
+            .series
+            .iter()
+            .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
+            .collect();
+        (descriptors, baseline)
+    }
+
     #[test]
     fn completed_float_map_join_preserves_cold_pair_and_warm_selected_failures() {
-        fn provider(page: usize) -> FixtureProvider {
-            let mut provider = FixtureProvider::new(3, page, 8);
-            provider.filter_selectors = true;
-            for (index, series) in provider.series.iter_mut().enumerate() {
-                series.labels = vec![
-                    (
-                        b"__name__".to_vec(),
-                        if index < 4 { b"a" } else { b"b" }.to_vec(),
-                    ),
-                    (
-                        b"instance".to_vec(),
-                        [2, 0, 3, 1, 3, 1, 0, 2][index].to_string().into_bytes(),
-                    ),
-                ];
-                series.source.counters = Default::default();
-            }
-            provider
-        }
         let request = QueryRequest::Range {
             start_ms: 1000,
             end_ms: 3000,
             step_ms: 1000,
         };
         for page in [1, 17, 1024] {
-            for function in ["abs", "ceil", "round", "year"] {
+            for (function, parameters) in [
+                ("abs", ""),
+                ("ceil", ""),
+                ("round", ""),
+                ("year", ""),
+                ("round", ", .5"),
+                ("clamp_min", ", 0"),
+                ("clamp_max", ", 4"),
+                ("clamp", ", 0, 4"),
+            ] {
                 for route in ["left", "right", "both"] {
                     let left_wrapped = route != "right";
                     let right_wrapped = route != "left";
                     let left = if left_wrapped {
-                        format!("{function}(a)")
+                        format!("{function}(a{parameters})")
                     } else {
                         "a".into()
                     };
                     let right = if right_wrapped {
-                        format!("{function}(b)")
+                        format!("{function}(b{parameters})")
                     } else {
                         "b".into()
                     };
@@ -6083,62 +6168,10 @@ mod tests {
                     let compiled = engine
                         .compile(expression.as_bytes(), EngineOptions::default(), &control)
                         .unwrap();
-                    let calibration = provider(page);
-                    let account = compiled.execution_accounting();
-                    {
-                        let header = compiled.header(request).unwrap();
-                        let prepared = Prepared::new(
-                            &compiled.expression,
-                            &compiled.preprocessing,
-                            header,
-                            compiled.options.no_step_subquery_interval_ms,
-                            &control,
-                            &account,
-                        )
-                        .unwrap();
-                        let header = prepared.evaluator_header();
-                        prepared.activate(header, &control, &account).unwrap();
-                        let options =
-                            compiled.evaluation_options(header, header.start_ms, &prepared);
-                        let bounds = crate::query_bounds::find(
-                            &compiled.expression,
-                            options,
-                            &prepared,
-                            &control,
-                            &account,
-                        )
-                        .unwrap();
-                        let scope = calibration.open(bounds, &control).unwrap();
-                        let catalog = Catalog::new(
-                            &scope,
-                            &compiled.expression,
-                            &prepared,
-                            options,
-                            compiled.options.no_step_subquery_interval_ms,
-                            &control,
-                            &account,
-                        )
-                        .unwrap();
-                        let rosters = compiled
-                            .prepare_rosters(
-                                &catalog,
-                                &prepared,
-                                bounds,
-                                &control,
-                                &account,
-                                &mut Annotations::default(),
-                            )
-                            .unwrap();
-                        assert_eq!(rosters.descriptors(compiled.expression.root).len(), 4);
-                    }
-                    calibration.assert_closed();
-                    account.snapshot().assert_memory_released();
-                    drop(account);
-                    let baseline: Vec<_> = calibration
-                        .series
-                        .iter()
-                        .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
-                        .collect();
+                    let calibration = float_map_join_provider(page);
+                    let (descriptors, baseline) =
+                        float_map_join_preparation(&compiled, &calibration, request, &control);
+                    assert_eq!(descriptors, 4);
                     for (index, &count) in baseline.iter().enumerate() {
                         assert_eq!(
                             count,
@@ -6150,7 +6183,7 @@ mod tests {
                         );
                     }
                     for phase in ["none", "discovery", "pair", "selected"] {
-                        let mut input = provider(page);
+                        let mut input = float_map_join_provider(page);
                         // Canonical output1 maps to physical right row5; row7 is a later discovery input.
                         let target = if phase == "discovery" { 7 } else { 5 };
                         let acquisition = baseline[target]
@@ -6228,6 +6261,179 @@ mod tests {
                     engine.accounting.snapshot().assert_memory_released();
                 }
             }
+        }
+    }
+
+    #[test]
+    fn completed_float_map_join_preserves_empty_populated_empty_scopes_and_nan_presence() {
+        let request = QueryRequest::Range {
+            start_ms: 1000,
+            end_ms: 3000,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for (expression, expected) in [
+                    (
+                        "clamp(a, 0, .5-(time()-2)^2) / on(instance) b",
+                        [(2000, 0.5)].as_slice(),
+                    ),
+                    (
+                        "clamp(a, NaN, .5-(time()-2)^2) > bool on(instance) b",
+                        [(1000, 0.0), (2000, 0.0), (3000, 0.0)].as_slice(),
+                    ),
+                    (
+                        "clamp(a, 0, NaN) > bool on(instance) b",
+                        [(1000, 0.0), (2000, 0.0), (3000, 0.0)].as_slice(),
+                    ),
+                ] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let input = float_map_join_unit_provider(page);
+                    let compiled = engine
+                        .compile(expression.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let report = compiled.collect_reported(&input, request, &control);
+                    let output = report.result.as_ref().unwrap();
+                    assert_eq!(output.series.len(), 4, "{expression} page{page}");
+                    for (id, row) in output.series.iter().enumerate() {
+                        assert_eq!(row.labels.0.len(), 1);
+                        assert_eq!(&*row.labels.0[0].name, b"instance");
+                        assert_eq!(&*row.labels.0[0].value, id.to_string().as_bytes());
+                        assert_eq!(row.points.len(), expected.len());
+                        for (point, &(time_ms, value)) in row.points.iter().zip(expected) {
+                            assert_eq!(point.time_ms, time_ms);
+                            let OwnedValue::Float(actual) = point.value else {
+                                panic!("{expression} must emit a float");
+                            };
+                            assert_eq!(actual.to_bits(), f64::to_bits(value), "{expression}");
+                        }
+                    }
+                    assert_eq!(
+                        report.observations.output_samples,
+                        4 * expected.len() as u64
+                    );
+                    assert_eq!(
+                        report
+                            .observations
+                            .statistics
+                            .samples
+                            .total_queryable_samples,
+                        24
+                    );
+                    assert!(report.annotations.is_empty());
+                    input.assert_closed();
+                    drop((report, compiled));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn completed_float_map_join_preserves_faults_across_empty_scope_replacement() {
+        let request = QueryRequest::Range {
+            start_ms: 1000,
+            end_ms: 3000,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let compiled = engine
+                .compile(
+                    b"clamp(a, 0, .5-(time()-2)^2) / on(instance) b",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let calibration = float_map_join_unit_provider(page);
+            let (descriptors, baseline) =
+                float_map_join_preparation(&compiled, &calibration, request, &control);
+            assert_eq!(
+                descriptors, 4,
+                "an empty first tick must still reach final evaluation"
+            );
+            for fail_after in [Some(1), Some(4), None] {
+                let input = float_map_join_unit_provider(page);
+                let mut sink = RecordingSink {
+                    fail_after,
+                    ..RecordingSink::default()
+                };
+                let report = compiled.execute_reported(&input, request, &control, &mut sink);
+                if let Some(outputs) = fail_after {
+                    assert!(matches!(&report.result, Err(ExecutionError::Sink(bytes))
+                        if &**bytes == b"sink failure"));
+                    assert!(sink.begun && sink.aborted && !sink.committed);
+                    assert_eq!(sink.chunks, outputs);
+                    assert_eq!(report.observations.output_samples, outputs as u64 - 1);
+                } else {
+                    report.result.as_ref().unwrap();
+                    assert!(sink.committed && !sink.aborted);
+                    assert_eq!(sink.chunks, 4);
+                    assert_eq!(report.observations.output_samples, 4);
+                }
+                for (index, &preparation) in baseline.iter().enumerate() {
+                    // Cold delivery finishes every pair before later rows may reuse its membership.
+                    let final_acquisitions = match fail_after {
+                        Some(1) => 2 + usize::from([1, 6].contains(&index)),
+                        Some(4) => 3 + usize::from(![1, 6].contains(&index)),
+                        None => 4 + usize::from(![1, 6].contains(&index)),
+                        _ => unreachable!(),
+                    };
+                    assert_eq!(
+                        input.series[index]
+                            .source
+                            .counters
+                            .opened
+                            .load(Ordering::Relaxed),
+                        preparation + final_acquisitions,
+                        "page{page} output{fail_after:?} physical{index}"
+                    );
+                }
+                assert!(report.annotations.is_empty());
+                report.assert_retained_callback_error_memory();
+                input.assert_closed();
+                drop(report);
+            }
+            for (phase, target, final_acquisition, outputs) in [
+                ("first-empty-left", 2, 1, 0),
+                ("first-empty-right", 7, 1, 0),
+                ("next-scope", 7, 2, 0),
+                ("cold-pair-suffix", 5, 3, 1),
+                ("warm-selected", 5, 4, 1),
+                ("last-empty", 7, 5, 4),
+            ] {
+                let mut input = float_map_join_unit_provider(page);
+                let acquisition = baseline[target] + final_acquisition;
+                input.series[target].source.fail_acquisition = Some(acquisition);
+                let mut sink = RecordingSink::default();
+                let report = compiled.execute_reported(&input, request, &control, &mut sink);
+                assert!(matches!(&report.result, Err(ExecutionError::Evaluation(
+                    EvaluationError::Storage(StorageError::Provider(bytes))))
+                    if &**bytes == b"injected page failure"));
+                assert!(sink.begun && sink.aborted && !sink.committed);
+                assert_eq!(sink.chunks, outputs, "{phase} page{page}");
+                assert_eq!(report.observations.output_samples, outputs as u64);
+                assert_eq!(
+                    input.series[target]
+                        .source
+                        .counters
+                        .opened
+                        .load(Ordering::Relaxed),
+                    acquisition
+                );
+                assert!(report.annotations.is_empty());
+                report.assert_retained_callback_error_memory();
+                println!(
+                    "{{\"float_map_join_empty_scope_phase\":\"{phase}\",\"page_size\":{page},\"target\":{target},\"preparation_acquisitions\":{},\"acquisitions\":{acquisition},\"output_samples\":{outputs}}}",
+                    baseline[target]
+                );
+                input.assert_closed();
+                drop(report);
+            }
+            drop(compiled);
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 

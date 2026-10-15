@@ -120,7 +120,16 @@ fn completed_float_map_join_avoids_repeated_operand_reads() {
         }
     }
     let mut observations = Vec::new();
-    for function in ["abs", "ceil", "round", "year"] {
+    for (function, left) in [
+        ("abs", "abs(counter_total)"),
+        ("ceil", "ceil(counter_total)"),
+        ("round", "round(counter_total)"),
+        ("year", "year(counter_total)"),
+        ("round-param", "round(counter_total, .5)"),
+        ("clamp-min", "clamp_min(counter_total, -4)"),
+        ("clamp-max", "clamp_max(counter_total, 0)"),
+        ("clamp", "clamp(counter_total, -4, 0)"),
+    ] {
         for page_size in [1, 17, 1024] {
             for count in [32, 128] {
                 let engine = Engine::default();
@@ -134,7 +143,7 @@ fn completed_float_map_join_avoids_repeated_operand_reads() {
                 } else {
                     "counter_total"
                 };
-                let expression = format!("{function}(counter_total) / on(instance) {right}");
+                let expression = format!("{left} / on(instance) {right}");
                 let query = engine
                     .compile(expression.as_bytes(), EngineOptions::default(), &control)
                     .unwrap();
@@ -245,7 +254,16 @@ fn completed_float_map_join_preserves_sparse_native_membership_and_wrapper_ordin
             },
         }
     }
-    for function in ["abs", "ceil", "round", "year"] {
+    for (function, parameters) in [
+        ("abs", ""),
+        ("ceil", ""),
+        ("round", ""),
+        ("year", ""),
+        ("round", ", .5"),
+        ("clamp_min", ", 0"),
+        ("clamp_max", ", -2"),
+        ("clamp", ", -2, 2"),
+    ] {
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
                 for route in ["left", "right", "both"] {
@@ -280,9 +298,11 @@ fn completed_float_map_join_preserves_sparse_native_membership_and_wrapper_ordin
                         series.source.sample = samples[index];
                     }
                     let expression = match route {
-                        "left" => format!("{function}(a) - on(instance) b"),
-                        "right" => format!("a - on(instance) {function}(b)"),
-                        _ => format!("{function}(a) - on(instance) {function}(b)"),
+                        "left" => format!("{function}(a{parameters}) - on(instance) b"),
+                        "right" => format!("a - on(instance) {function}(b{parameters})"),
+                        _ => format!(
+                            "{function}(a{parameters}) - on(instance) {function}(b{parameters})"
+                        ),
                     };
                     let engine = Engine::default();
                     let control = Control::default();
@@ -324,6 +344,31 @@ fn completed_float_map_join_preserves_sparse_native_membership_and_wrapper_ordin
                             (1, vec![(1000, 1967.0), (3000, 1961.0)]),
                             (3, vec![(1000, 1949.0), (2000, 1949.0)]),
                         ],
+                        "clamp_min" => vec![
+                            (0, vec![(1000, -2.0), (2000, -3.0)]),
+                            (1, vec![(1000, -2.0), (3000, -8.0)]),
+                            (3, vec![(1000, -20.0), (2000, -20.0)]),
+                        ],
+                        "clamp_max" if route == "both" => vec![
+                            (0, vec![(1000, 0.0), (2000, -2.0)]),
+                            (1, vec![(1000, -8.0), (3000, -7.0)]),
+                            (3, vec![(1000, -8.0), (2000, -28.0)]),
+                        ],
+                        "clamp_max" => vec![
+                            (0, vec![(1000, -4.0), (2000, -7.0)]),
+                            (1, vec![(1000, -12.0), (3000, -17.0)]),
+                            (3, vec![(1000, -30.0), (2000, -50.0)]),
+                        ],
+                        "clamp" if route == "both" => vec![
+                            (0, vec![(1000, -3.0), (2000, -4.0)]),
+                            (1, vec![(1000, -4.0), (3000, -4.0)]),
+                            (3, vec![(1000, -4.0), (2000, -4.0)]),
+                        ],
+                        "clamp" => vec![
+                            (0, vec![(1000, -3.0), (2000, -5.0)]),
+                            (1, vec![(1000, -4.0), (3000, -10.0)]),
+                            (3, vec![(1000, -22.0), (2000, -22.0)]),
+                        ],
                         _ => vec![
                             (0, vec![(1000, -3.0), (2000, -7.0)]),
                             (1, vec![(1000, -12.0), (3000, -17.0)]),
@@ -350,7 +395,7 @@ fn completed_float_map_join_preserves_sparse_native_membership_and_wrapper_ordin
                             .collect();
                         assert_eq!(
                             points, expected,
-                            "{function} {route} page{page} delayed{delayed}"
+                            "{function}{parameters} {route} page{page} delayed{delayed}"
                         );
                     }
                     assert_eq!(report.observations.output_samples, 6);

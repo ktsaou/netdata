@@ -8917,5 +8917,19 @@
     "lower_fetched_groups": 2514,
     "higher_workspace_peak_groups": 2442,
     "higher_workspace_peak_maximum_bytes": 312
+  },
+  "parameter_map_join_qualification": {
+    "status": "pass",
+    "receipt": "parameter-map-join-qualification.json",
+    "sha256": "7e0d0e9b9a6807905b39a4f98937afa8b8af1d7711020d53ee623a41149aacd4",
+    "scope": "Completed direct Float-map one-to-one joins with existing earned pure-scalar-parameter schedule proof;parameterized round and clamp families.",
+    "complete_native_matches": 6664,
+    "complete_foreign_matches": 4352,
+    "native_units_per_profile": 630,
+    "actual_c_callers": 12,
+    "records_per_caller": 40,
+    "lower_fetched_groups": 1374,
+    "higher_workspace_peak_groups": 186,
+    "higher_workspace_peak_maximum_bytes": 312
   }
 }

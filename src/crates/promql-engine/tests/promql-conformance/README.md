@@ -3388,10 +3388,11 @@ Earlier cohorts keep their actual source and binary identities; all 52 previous 
 
 ## Completed direct float-map join scans
 
-The completed direct join route now uses the existing typed `PointwiseFunction::Float` class after checking actual
-arity one. This covers all 32 current one-argument members: ordinary mathematical maps, default `round` and calendar
-functions with an explicit vector. The runtime has no second function-name list. Valid parameterized round/clamps,
-zero-argument calendars, timestamp/native helpers and indirect shapes keep their ordinary supported evaluation.
+The initial completed direct-join extension used the existing typed `PointwiseFunction::Float` class after checking
+actual arity one. That cohort covered all 32 one-argument members: ordinary mathematical maps, default `round` and
+explicit-vector calendars. At that checkpoint, parameterized round/clamps kept ordinary evaluation. The
+[parameterized extension](#completed-parameterized-float-map-joins) below records the current additional eligibility;
+this earlier cohort and its numbers retain their original source and binary identities.
 
 Eligibility still requires a direct selector, an earned scheduled-selector marker, matching wrapper/leaf producer,
 source and scope grids, and all existing root/matching/uniqueness restrictions. The first final body must complete
@@ -3402,14 +3403,14 @@ remain present floats; native histogram points use the existing filtering owner.
 The [float-map join qualification](float-map-join-qualification.json) records 10,372 complete native accepted-engine
 matches and 3,656 compiled ARM64/ARM32 matches. It covers all 32 maps, ordinary and special values, native/stale
 membership, aliases, boolean/filter outcomes, offsets/fixed/precise fallbacks, and pages 1/17/1024. Three invalid
-clamps per native profile preserve their compile errors and absent observations. Both native profiles pass 627
-units and format/lint/MSRV checks; each foreign profile runs four focused owners. Twelve actual C/C++ callers pass
-36 records each with the current `FOUR_SERIES_FLOAT_MAP` fixture and `direct_float_map_replay` parser category.
+clamps per native profile preserve their compile errors and absent observations. Both native profiles passed 627
+units and format/lint/MSRV checks; each foreign profile ran four focused owners. Twelve actual C/C++ callers passed
+36 records each with that checkpoint’s `FOUR_SERIES_FLOAT_MAP` fixture and `direct_float_map_replay` parser category.
 
 The broadened growth test first ran against the original abs-only runtime. All 24 complete query/value/clock/label,
 logical-statistics and cleanup checks passed before the fixed growth bound failed for ceil/round/year at all three
 page sizes. Abs controls passed. The actual unit exit 101, a separate evidence-reader exit 1, and the successful
-closed-stream finalizer retain their distinct identities. Current growth, sparse wrapper ordinals and independently
+closed-stream finalizer retain their distinct identities. That checkpoint’s growth, sparse wrapper ordinals and independently
 calibrated preparation/cold-pair/warm-selected error tests pass. The registry query additionally checks that domain
 NaNs are present and compare false, while infinities retain normal comparison behavior.
 
@@ -3459,3 +3460,84 @@ Earlier expression, SRE and broader integration cohorts keep their source/binary
 objects remain unchanged. Query JSON does not export basic-statistics snapshots; actual unit/C assertions cover
 their unchanged owners. No new original-Go capture, live Agent, full foreign unit suite or caller sanitizer claim
 is made. See the [initial abs cohort](#completed-direct-abs-join-scans) for its separate earlier measurements.
+
+
+## Completed parameterized float-map joins
+
+Completed direct joins now admit parameterized `round`, `clamp_min`, `clamp_max` and `clamp` when the existing
+scheduled-selector marker proves that every scalar parameter reads no series. Literal, unary, parenthesized,
+binary scalar arithmetic and `time()` follow that existing proof. The preliminary actual-arity-one restriction
+is removed; the separate direct `rate` branch retains it. No new purity walk, function list or runtime state is added.
+
+The shared typed Float class, direct selector and all wrapper/leaf producer/source/scope grids remain required.
+Root, matching, unique-kind, clock and successful-completion gates remain in place. Parameters still evaluate
+through the normal evaluator before vector acquisition. Source-reading `scalar(n)` and even `scalar(vector(.5))`
+do not earn this conservative marker and retain ordinary evaluation. Zero-argument calendars, indirect shapes
+and clock/native helpers also retain their existing paths.
+
+A full clamp can omit every row for a tick. Reuse keeps the current exact scope and actual membership.
+With four IDs and constant inputs of 1, `clamp(a, 0, .5-(time()-2)^2) / on(instance) b` emits nothing at seconds 1
+and 3, and exactly four points of 0.5 at second 2. NaN bounds remain present floats; boolean comparisons emit
+positive zero. Sparse native/stale controls check independently calculated clipped values and shuffled physical
+positions. Raw samples remain paged across both axes.
+
+The [parameter-map qualification](parameter-map-join-qualification.json) records 6,664 complete native
+accepted/candidate matches and 4,352 compiled ARM64/ARM32 matches at pages 1/17/1024. It covers 17 parameter forms,
+ordinary/special/native/stale inputs, aliases, arithmetic/filter/boolean joins, changing membership, source-reading
+scalar parameters, and retained fallbacks and one-argument maps. Errors remain errors; three invalid clamps per
+native profile have no observation record. Both native profiles pass all 630 units, format, strict production and
+fixture Clippy, and MSRV 1.91 compile-only checks. Each foreign target/profile runs seven focused owners. Twelve
+actual C/C++ callers pass 40 records each, including four new parameterized queries in the existing Float-map category.
+
+The old runtime passes all 48 growth-test result/label/clock/statistics/credit/release checks before its fixed bound
+fails in all 12 new parameter-map/page groups. All 12 existing one-argument groups pass the bound. Current growth
+and cleanup checks pass. The original baseline-reader mistake and two development test failures remain separate
+from the corrected passing owners and keep their actual source/build identities.
+
+Failure controls calibrate preparation separately from final evaluation. First- and fourth-output failures and
+normal completion measure actual acquisition landmarks. They distinguish first-empty scans, the next scope,
+the cold populated pair suffix, later selected reads and the last empty scope. The first successful body must
+finish every pair before publishing reusable membership. Late failures still abort provisional output. A separate
+private-frame test proves cancellation inside each scalar clamp parameter before any new vector cursor opens;
+uninterrupted twins reach the vector and yield independently expected values.
+
+Of 6,658 exported native resource groups, 1,374 fetch fewer entries and acquire less workspace; none fetch more.
+For 128 series per operand, page size 17 and three range ticks, `round(m, .5) / on(id) n` changes as follows:
+
+| Observation | Before | After |
+|---|---:|---:|
+| Fetched sample entries | 595,584 | 12,654 |
+| Accounted work | 22,330,494 | 603,634 |
+| Acquired workspace bytes | 154,382,468 | 5,122,207 |
+| Peak workspace bytes | 412,234 | 412,234 |
+
+All 384 scaling-group peaks and all 3,266 instant observation groups match exactly. In 186 small range groups,
+existing completed-join metadata adds 146–312 bytes at peak, at most 1.43% in this panel. No provider or
+borrowed-page peak increases. Another 96 mixed right-wrapper range groups reject reuse after conservative checks:
+each adds 32 cumulative workspace bytes and 16 work units, with unchanged reads and peaks. These costs are retained.
+There is no global peak-memory reduction claim. Pair bindings and one exact-scope bitmap remain the existing owners;
+old completions release before replacement. Accounted owner bytes are neither allocator overhead nor process RSS.
+
+Warm measurements follow closure of all owned qualification runs: 26 fixed cases per profile, five alternating
+pairs, one warm then one measured query per active dataset, and 1,040 checked responses. Every complete result and
+each variant's own nonelapsed observations match its qualified run. These examples use 128 series per operand and page17:
+
+| Profile | Expression | Median before → after | Before/after ratio |
+|---|---|---:|---:|
+| release | `round(m, .5) / on(id) n` | 492.467 → 12.709 ms | 38.750× |
+| release | `clamp(m, 0, Inf) / on(id) n` | 512.747 → 13.191 ms | 38.871× |
+| release-min | `round(m, .5) / on(id) n` | 842.250 → 22.317 ms | 37.740× |
+| release-min | `clamp(m, 0, Inf) / on(id) n` | 862.755 → 22.246 ms | 38.782× |
+
+All 52 median ratios span 0.838–38.871.
+15 medians are slower; the two lowest ratios are:
+
+- `scaling-n0-page17-clamp-min-left-range`, release-min: 21950 → 26200 ns, 0.838×.
+- `scaling-n0-page17-clamp-max-left-range`, release: 14890 → 15520 ns, 0.959×.
+
+All samples and medians, including empty/raw/rate/abs/data-dependent/instant controls, remain in the receipt.
+These are shared-host engine timings, without CPU isolation, production DBengine or universal speedup claims.
+The unchanged pinned numerical, reference, storage, contexts, ABI and disabled-cap contracts remain authoritative.
+No new original-Go capture, SRE or live-Agent replay, full foreign unit suite, layout, sanitizer or RSS claim is made.
+Earlier cohorts and all 54 prior ledger objects retain their actual identities. Query JSON does not export basic
+statistics; current unit/C assertions cover the unchanged owners.
