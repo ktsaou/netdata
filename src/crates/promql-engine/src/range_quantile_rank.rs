@@ -81,11 +81,11 @@ impl Selector {
         } else {
             u64::MAX << (shift + 4)
         };
-        account.work(1);
+        // No control or fallible operation separates these three work units.
+        account.work(3);
         let key = ordered_key(value);
         let digit = ((key >> shift) & 15) as usize;
         for lane in 0..2 {
-            account.work(1);
             if key & mask == self.prefixes[lane] {
                 self.counters[lane][digit] += 1;
             }
@@ -119,5 +119,86 @@ impl Selector {
             return Ok(None);
         }
         Ok(Some(self.prefixes))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{accounting::EngineAccounting, storage::Interrupted};
+
+    #[test]
+    fn rank_accounting_preserves_saturation_and_sticky_overflow() {
+        for reserve in 0..=4u64 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            account.work(u64::MAX - reserve);
+            let before = account.snapshot();
+            let mut selector = Selector::new(Plan::new(0.5, 2));
+            let bits = [
+                0x7ff8_0000_0000_0042,
+                0x8000_0000_0000_0000,
+                0,
+                0x7ff0_0000_0000_0000,
+                0xfff0_0000_0000_0000,
+            ][reserve as usize];
+            selector.receive(f64::from_bits(bits), &account);
+            let after = account.snapshot();
+            assert_eq!(after.work, (u64::MAX - reserve).saturating_add(3));
+            assert_eq!(after.counter_overflowed, reserve < 3);
+            assert_eq!(after.memory, before.memory);
+            assert_eq!(
+                after.statistics.samples.total_queryable_samples,
+                before.statistics.samples.total_queryable_samples
+            );
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        account.work(u64::MAX);
+        account.work(1);
+        let before = account.snapshot();
+        assert!(before.counter_overflowed);
+        let mut selector = Selector::new(Plan::new(0.5, 2));
+        selector.receive(1.0, &account);
+        let after = account.snapshot();
+        assert_eq!(after.work, u64::MAX);
+        assert!(after.counter_overflowed);
+        assert_eq!(after.memory, before.memory);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn rank_accounting_keeps_interruption_at_the_next_existing_poll() {
+        for budget in 1..=4 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut selector = Selector::new(Plan::new(0.5, 2));
+            let before = account.snapshot();
+            crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                selector.receive(1.0, &account);
+            });
+            let after = account.snapshot();
+            assert_eq!(after.work - before.work, 3);
+            assert_eq!(after.memory, before.memory);
+            if budget <= 3 {
+                assert!(matches!(
+                    selector.finish_pass(&control, &account),
+                    Err(StorageError::Interrupted(Interrupted::Cancelled))
+                ));
+                assert_eq!(account.snapshot().work, after.work);
+            } else {
+                control.check().unwrap();
+            }
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
     }
 }

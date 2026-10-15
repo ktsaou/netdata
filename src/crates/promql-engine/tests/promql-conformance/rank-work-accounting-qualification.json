@@ -1,0 +1,4171 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "scope": "Private exact temporal quantile/MAD rank work-charge batching; no language/storage/ABI/default change.",
+  "accepted_predecessor": "c0ba478d0a18b696316a592ed6a680f908f4500b",
+  "assembly_helper": {
+    "netdata_repository_path": ".tmp/rank-work-osfrc2mz/assemble.py",
+    "sha256": "0e105bc953b358e89d29f57e5e3612a197c6ef73e1e28ff122a80fe6f8a03a52"
+  },
+  "guard_sources": {
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/crates/promql-engine/src/absence.rs": "afb4f330f5dff938c2eebfa64574b3cf9693cbd94b43a9cf60752b8094a14889",
+    "src/crates/promql-engine/src/accounting.rs": "3691f58a62ed5c9c40e8ac22348ee7a121a262278510a8dc355be6ede84b609d",
+    "src/crates/promql-engine/src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/crates/promql-engine/src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "7c38cd156a78a22b263f6d90dc92dc2f6f4aa14a0e57a63755c2d5d82a67b375",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "f30191c1e27d7521e216578a48a1b019a28e6226ed1e38b503f7d47fe1b65015",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "fc4ca73ae808c092f67bdec1745f2492a518d09aec0156bae20486d9f14a3783",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/crates/promql-engine/src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/crates/promql-engine/src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/crates/promql-engine/src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+    "src/crates/promql-engine/src/evaluator.rs": "f26082642daea5b1501394fbdbfe2953c52c1da1434d5f203b412cda4a141392",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "5ac98cbe4f6cf2e920eabc7030979c26699f92b432c19ccb6da5572becce835c",
+    "src/crates/promql-engine/src/execution.rs": "ab37ec37f7deb5a7b42f26a6ed7d03560a4ecde0839f2fba03ab8c27be74fe71",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "44dd8f64aa08e0e5e7c71d17214450de4cff3156ee96e75e64f056922dcd4228",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "9586e2ecfd17bd4b59a61c270856de046c2948441ea6423b8562d572e39b105f",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "58778f43b7548806d708bb78df0450db888619247a841c30cd9d1e731623eedf",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/crates/promql-engine/src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/crates/promql-engine/src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/crates/promql-engine/src/lookup_tests.rs": "b025ba8faa9e56c3335e535a24196783d88f17b93dc1ae66f303465c341a61d5",
+    "src/crates/promql-engine/src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/crates/promql-engine/src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/crates/promql-engine/src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/crates/promql-engine/src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+    "src/crates/promql-engine/src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/crates/promql-engine/src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+    "src/crates/promql-engine/src/result.rs": "75658360d24544d09cf1a630ee1467ea44d6d960dffea504ee29c55eab4ebc3e",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+    "src/crates/promql-engine/src/scheduled_output.rs": "0d4adb4cd20eb224269f51caf93a3bf12ed8016652834e7d01272af853324fc0",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/crates/promql-engine/src/storage.rs": "fdac6d49e370a3a95ac1726334ecfcf01dd760ef6d93634549913d9e91c34102",
+    "src/crates/promql-engine/src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/crates/promql-engine/src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+    "src/crates/promql-engine/src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "0c23099b6a96bed8ddac87ce7589e2780124c2157a64c7c2b4a65ee93570c8ab",
+    "src/crates/promql-engine/src/vector_sort.rs": "e9055ee5cc4575fc6862282217557bfbd1f1d4a54885f1762d1adab02af612a4",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "9769e06dd787aed74a01ea58cf257d71cd789e9c1c38e7fd8e869c5826347353",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "3b1f96eb84e2680dcec6a28486c6c31354613546dc619833ff93ed108e68ef77"
+  },
+  "sources": {
+    "Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/absence.rs": "afb4f330f5dff938c2eebfa64574b3cf9693cbd94b43a9cf60752b8094a14889",
+    "src/accounting.rs": "3691f58a62ed5c9c40e8ac22348ee7a121a262278510a8dc355be6ede84b609d",
+    "src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/c_abi/provider.rs": "7c38cd156a78a22b263f6d90dc92dc2f6f4aa14a0e57a63755c2d5d82a67b375",
+    "src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/c_abi/tests.rs": "f30191c1e27d7521e216578a48a1b019a28e6226ed1e38b503f7d47fe1b65015",
+    "src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/c_abi/tests/pages.rs": "fc4ca73ae808c092f67bdec1745f2492a518d09aec0156bae20486d9f14a3783",
+    "src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+    "src/evaluator.rs": "f26082642daea5b1501394fbdbfe2953c52c1da1434d5f203b412cda4a141392",
+    "src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/evaluator_roster.rs": "5ac98cbe4f6cf2e920eabc7030979c26699f92b432c19ccb6da5572becce835c",
+    "src/execution.rs": "ab37ec37f7deb5a7b42f26a6ed7d03560a4ecde0839f2fba03ab8c27be74fe71",
+    "src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/frontend/regex.rs": "44dd8f64aa08e0e5e7c71d17214450de4cff3156ee96e75e64f056922dcd4228",
+    "src/frontend/regex_nfa.rs": "9586e2ecfd17bd4b59a61c270856de046c2948441ea6423b8562d572e39b105f",
+    "src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/frontend/regex_selector.rs": "58778f43b7548806d708bb78df0450db888619247a841c30cd9d1e731623eedf",
+    "src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+    "src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/lookup_tests.rs": "b025ba8faa9e56c3335e535a24196783d88f17b93dc1ae66f303465c341a61d5",
+    "src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+    "src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+    "src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+    "src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+    "src/result.rs": "75658360d24544d09cf1a630ee1467ea44d6d960dffea504ee29c55eab4ebc3e",
+    "src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+    "src/scheduled_output.rs": "0d4adb4cd20eb224269f51caf93a3bf12ed8016652834e7d01272af853324fc0",
+    "src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/storage.rs": "fdac6d49e370a3a95ac1726334ecfcf01dd760ef6d93634549913d9e91c34102",
+    "src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+    "src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+    "src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+    "src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/vector_matching.rs": "0c23099b6a96bed8ddac87ce7589e2780124c2157a64c7c2b4a65ee93570c8ab",
+    "src/vector_sort.rs": "e9055ee5cc4575fc6862282217557bfbd1f1d4a54885f1762d1adab02af612a4",
+    "tests/promql-conformance/c_embedding.c": "9769e06dd787aed74a01ea58cf257d71cd789e9c1c38e7fd8e869c5826347353",
+    "tests/promql-conformance/c_embedding.py": "3b1f96eb84e2680dcec6a28486c6c31354613546dc619833ff93ed108e68ef77"
+  },
+  "binaries": {
+    "release": {
+      "promql-query-fixture": {
+        "path": ".tmp/rank-work-osfrc2mz/candidate-release/promql-query-fixture",
+        "sha256": "e8504308bd7868a40069723949336a9283bcda18db25b8d1a8853b0dbee147d5"
+      },
+      "libnetdata_promql_engine.a": {
+        "path": ".tmp/rank-work-osfrc2mz/candidate-release/libnetdata_promql_engine.a",
+        "sha256": "739310a28c72849c287eea16496ecedc23c95c0194c26de9c6cfe09f912481f1"
+      },
+      "unit": {
+        "path": ".tmp/rank-work-osfrc2mz/candidate-release/unit",
+        "sha256": "d469ee6c20c2b5617b225db25bee85c186a4d214336f9ca1f6f514adc473ae2f"
+      }
+    },
+    "release-min": {
+      "promql-query-fixture": {
+        "path": ".tmp/rank-work-osfrc2mz/candidate-release-min/promql-query-fixture",
+        "sha256": "6555fa8e60c15d0b9adcfc9bda6c2c48b1dc171eb38ace0551bbdec367d44da9"
+      },
+      "libnetdata_promql_engine.a": {
+        "path": ".tmp/rank-work-osfrc2mz/candidate-release-min/libnetdata_promql_engine.a",
+        "sha256": "0718117074592bca80ca97545af72fdd0197634064f770ed6f7c689671c19c0c"
+      },
+      "unit": {
+        "path": ".tmp/rank-work-osfrc2mz/candidate-release-min/unit",
+        "sha256": "33e33b32238d41a810903d3d68b3988d043f6e847a9404917f6fcbcf188d2e58"
+      }
+    }
+  },
+  "foreign_binaries": {
+    "aarch64-unknown-linux-gnu": {
+      "release": {
+        "query": {
+          "path": ".tmp/rank-work-osfrc2mz/candidate-aarch64-unknown-linux-gnu-release/promql-query-fixture",
+          "sha256": "d1caa09cbe89ca99409b8b93d3eebd0af250f849e999001fb19b91f25fd43bb1"
+        },
+        "unit": {
+          "path": ".tmp/rank-work-osfrc2mz/candidate-aarch64-unknown-linux-gnu-release/unit",
+          "sha256": "965af6a34a4c49b727ddd58918b88987fd1197b9270b9683e614f3d80d0ee308"
+        }
+      },
+      "release-min": {
+        "query": {
+          "path": ".tmp/rank-work-osfrc2mz/candidate-aarch64-unknown-linux-gnu-release-min/promql-query-fixture",
+          "sha256": "6af8a82c867b4a84fe04259ea3df78a3dfc2f62cf4f435de74800787101c5094"
+        },
+        "unit": {
+          "path": ".tmp/rank-work-osfrc2mz/candidate-aarch64-unknown-linux-gnu-release-min/unit",
+          "sha256": "9e1bec475ab640dc799891460da152aa28afa70fd3dbadfe572857fe579ad30a"
+        }
+      }
+    },
+    "armv7-unknown-linux-gnueabihf": {
+      "release": {
+        "query": {
+          "path": ".tmp/rank-work-osfrc2mz/candidate-armv7-unknown-linux-gnueabihf-release/promql-query-fixture",
+          "sha256": "0bdcf3ba0e897c42ca42999e8dbbc343cb0b2e5082dda669b565eebb9cf72b8a"
+        },
+        "unit": {
+          "path": ".tmp/rank-work-osfrc2mz/candidate-armv7-unknown-linux-gnueabihf-release/unit",
+          "sha256": "c0904a17259322e74f927f5ea41e19023db6c38ad7440d612c99c65073cec39b"
+        }
+      },
+      "release-min": {
+        "query": {
+          "path": ".tmp/rank-work-osfrc2mz/candidate-armv7-unknown-linux-gnueabihf-release-min/promql-query-fixture",
+          "sha256": "882a84dcaebbf4590eaa145d054859d3aa79b52b48375b7f2dd76d2b8d9a4fb4"
+        },
+        "unit": {
+          "path": ".tmp/rank-work-osfrc2mz/candidate-armv7-unknown-linux-gnueabihf-release-min/unit",
+          "sha256": "a6fbb4bae24b7da0e831d2f812d29ae93dba7c2fd0490452e286e61e685a4c57"
+        }
+      }
+    }
+  },
+  "accepted_build_reuse": {
+    "receipt": {
+      "netdata_repository_path": ".tmp/rank-work-osfrc2mz/before-build-receipt.json",
+      "sha256": "7b53668029eba59408b36e6771fac8f20324dfe54280c989d3455dc69205f6d5"
+    },
+    "scope": "Verified physical copies of actual final Stage34 native production builds; all146 compiled-source guards equal accepted current c0ba commit. Historical compiler execution is reused explicitly, not relabeled as a fresh build."
+  },
+  "baseline": {
+    "netdata_repository_path": ".tmp/rank-work-osfrc2mz/baseline-receipt.json",
+    "sha256": "0e9628fa78adfab09de6b5339bdd20401c2a9f2377417ba3bf5125a3eb6befce"
+  },
+  "literal_source_change": {
+    "netdata_repository_path": ".tmp/rank-work-osfrc2mz/source-change-proof.json",
+    "sha256": "19c2713be364e9411f0b19ba25ec2504979eda1d893a9ca0958990041799bc25"
+  },
+  "old_charge_contract_tests": {
+    "netdata_repository_path": ".tmp/rank-work-osfrc2mz/old-charge-contract-receipt.json",
+    "sha256": "91dab2a63d4384abf59053d0476a842977a6b33815ef6cc07bd4b6bdf23f6ca0"
+  },
+  "old_charge_contract_scope": "Both new invariant tests pass with the original runtime charges. This is an optimization; no prior correctness failure or timer-based red is claimed.",
+  "complete_native_matches": 936,
+  "complete_foreign_matches": 800,
+  "retained_reducer_outcomes": 56124,
+  "retained_temporal_outcomes": 14664,
+  "native_units_per_profile": 626,
+  "foreign_focused_units_per_profile": 5,
+  "actual_native_c_callers": 4,
+  "records_per_caller": 32,
+  "native_qualification": {
+    "netdata_repository_path": ".tmp/rank-work-osfrc2mz/native-qualification-receipt.json",
+    "sha256": "3a98cfb184b4fd4b3b8d9e14ecdee2ac8d7e6a132cf2cea8da6c3a1d90b10b1f"
+  },
+  "foreign_qualification": [
+    {
+      "netdata_repository_path": ".tmp/rank-work-osfrc2mz/foreign-aarch64-unknown-linux-gnu-receipt.json",
+      "sha256": "db988a10ee00f9b2c2ac7596a2a598a77b54e74a528f0d675afced78e29ce8d0"
+    },
+    {
+      "netdata_repository_path": ".tmp/rank-work-osfrc2mz/foreign-armv7-unknown-linux-gnueabihf-receipt.json",
+      "sha256": "d44f69f35712bd101b97974f50a8e8d1dcdc9859d98f04d5ac7f25115a4e40c7"
+    }
+  ],
+  "comparisons": {
+    "netdata_repository_path": ".tmp/rank-work-osfrc2mz/comparison-receipt.json",
+    "sha256": "b9c1e4368847a8b245fb0f8cda7adc526d7250a831cfd7a301dd1bc99ac8e665"
+  },
+  "retained_reducers": {
+    "netdata_repository_path": ".tmp/rank-work-osfrc2mz/indexed-reducer-receipt.json",
+    "sha256": "5f57e3541f46ee14eab3f4191d7e5a8f533ff08675358227288f168d4c9da189"
+  },
+  "retained_temporal": {
+    "netdata_repository_path": ".tmp/rank-work-osfrc2mz/temporal-panels-receipt.json",
+    "sha256": "8bf0c59768acb6cf8a50c25770b3ea9a6be9f30bdff6ee9e3c9e63e424097811"
+  },
+  "resources": {
+    "groups": 936,
+    "unchanged_nonelapsed_groups": 936,
+    "representative_rows": [
+      {
+        "profile": "release",
+        "cohort": "baseline",
+        "id": "quantile-distinct-n1-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 7,
+          "pages": 7,
+          "work": 948,
+          "provider_calls": 19,
+          "output_samples": 1,
+          "workspace_peak": 21347,
+          "workspace_acquired": 64566,
+          "provider_peak": 0,
+          "borrowed_peak": 272,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "baseline",
+        "id": "quantile-ambiguous-n1-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 7,
+          "pages": 7,
+          "work": 948,
+          "provider_calls": 19,
+          "output_samples": 1,
+          "workspace_peak": 21347,
+          "workspace_acquired": 64566,
+          "provider_peak": 0,
+          "borrowed_peak": 272,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "baseline",
+        "id": "quantile-distinct-n512-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 19968,
+          "pages": 1209,
+          "work": 1874330,
+          "provider_calls": 2423,
+          "output_samples": 1,
+          "workspace_peak": 22278,
+          "workspace_acquired": 38508934,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "baseline",
+        "id": "quantile-ambiguous-n512-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 20992,
+          "pages": 1271,
+          "work": 1976326,
+          "provider_calls": 2553,
+          "output_samples": 1,
+          "workspace_peak": 39134,
+          "workspace_acquired": 40549222,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 8192
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "baseline",
+        "id": "quantile-distinct-n4096-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 159744,
+          "pages": 9399,
+          "work": 14983594,
+          "provider_calls": 18803,
+          "output_samples": 1,
+          "workspace_peak": 22278,
+          "workspace_acquired": 307230982,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "baseline",
+        "id": "quantile-ambiguous-n4096-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 167936,
+          "pages": 9881,
+          "work": 15797326,
+          "provider_calls": 23935,
+          "output_samples": 1,
+          "workspace_peak": 39134,
+          "workspace_acquired": 323232742,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 11386880
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "mad",
+        "id": "stage35-mad-n1-page17-raw-instant",
+        "unchanged_observations": {
+          "samples_fetched": 132,
+          "pages": 132,
+          "work": 773,
+          "provider_calls": 269,
+          "output_samples": 1,
+          "workspace_peak": 7379,
+          "workspace_acquired": 19048,
+          "provider_peak": 0,
+          "borrowed_peak": 272,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "mad",
+        "id": "stage35-mad-n1-page17-raw-range",
+        "unchanged_observations": {
+          "samples_fetched": 2376,
+          "pages": 792,
+          "work": 6517,
+          "provider_calls": 1589,
+          "output_samples": 3,
+          "workspace_peak": 7903,
+          "workspace_acquired": 69920,
+          "provider_peak": 0,
+          "borrowed_peak": 816,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "mad",
+        "id": "stage35-mad-n1-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 135,
+          "pages": 135,
+          "work": 14998,
+          "provider_calls": 275,
+          "output_samples": 1,
+          "workspace_peak": 14883,
+          "workspace_acquired": 569302,
+          "provider_peak": 0,
+          "borrowed_peak": 272,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "mad",
+        "id": "stage35-mad-n1-page17-computed-range",
+        "unchanged_observations": {
+          "samples_fetched": 1197,
+          "pages": 399,
+          "work": 90383,
+          "provider_calls": 803,
+          "output_samples": 3,
+          "workspace_peak": 16873,
+          "workspace_acquired": 2429890,
+          "provider_peak": 0,
+          "borrowed_peak": 816,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "mad",
+        "id": "stage35-mad-n512-page17-raw-instant",
+        "unchanged_observations": {
+          "samples_fetched": 34914,
+          "pages": 2112,
+          "work": 118854,
+          "provider_calls": 2249,
+          "output_samples": 1,
+          "workspace_peak": 7379,
+          "workspace_acquired": 145768,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "mad",
+        "id": "stage35-mad-n512-page17-raw-range",
+        "unchanged_observations": {
+          "samples_fetched": 210276,
+          "pages": 12672,
+          "work": 714423,
+          "provider_calls": 13469,
+          "output_samples": 3,
+          "workspace_peak": 7903,
+          "workspace_acquired": 830240,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "mad",
+        "id": "stage35-mad-n512-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 69120,
+          "pages": 4185,
+          "work": 6478394,
+          "provider_calls": 8375,
+          "output_samples": 1,
+          "workspace_peak": 15814,
+          "workspace_acquired": 134433062,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release",
+        "cohort": "mad",
+        "id": "stage35-mad-n512-page17-computed-range",
+        "unchanged_observations": {
+          "samples_fetched": 205086,
+          "pages": 12369,
+          "work": 19288437,
+          "provider_calls": 24743,
+          "output_samples": 3,
+          "workspace_peak": 16873,
+          "workspace_acquired": 399053362,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "baseline",
+        "id": "quantile-distinct-n1-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 7,
+          "pages": 7,
+          "work": 948,
+          "provider_calls": 19,
+          "output_samples": 1,
+          "workspace_peak": 21347,
+          "workspace_acquired": 64566,
+          "provider_peak": 0,
+          "borrowed_peak": 272,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "baseline",
+        "id": "quantile-ambiguous-n1-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 7,
+          "pages": 7,
+          "work": 948,
+          "provider_calls": 19,
+          "output_samples": 1,
+          "workspace_peak": 21347,
+          "workspace_acquired": 64566,
+          "provider_peak": 0,
+          "borrowed_peak": 272,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "baseline",
+        "id": "quantile-distinct-n512-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 19968,
+          "pages": 1209,
+          "work": 1874330,
+          "provider_calls": 2423,
+          "output_samples": 1,
+          "workspace_peak": 22278,
+          "workspace_acquired": 38508934,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "baseline",
+        "id": "quantile-ambiguous-n512-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 20992,
+          "pages": 1271,
+          "work": 1976326,
+          "provider_calls": 2553,
+          "output_samples": 1,
+          "workspace_peak": 39134,
+          "workspace_acquired": 40549222,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 8192
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "baseline",
+        "id": "quantile-distinct-n4096-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 159744,
+          "pages": 9399,
+          "work": 14983594,
+          "provider_calls": 18803,
+          "output_samples": 1,
+          "workspace_peak": 22278,
+          "workspace_acquired": 307230982,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "baseline",
+        "id": "quantile-ambiguous-n4096-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 167936,
+          "pages": 9881,
+          "work": 15797326,
+          "provider_calls": 23935,
+          "output_samples": 1,
+          "workspace_peak": 39134,
+          "workspace_acquired": 323232742,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 11386880
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "mad",
+        "id": "stage35-mad-n1-page17-raw-instant",
+        "unchanged_observations": {
+          "samples_fetched": 132,
+          "pages": 132,
+          "work": 773,
+          "provider_calls": 269,
+          "output_samples": 1,
+          "workspace_peak": 7379,
+          "workspace_acquired": 19048,
+          "provider_peak": 0,
+          "borrowed_peak": 272,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "mad",
+        "id": "stage35-mad-n1-page17-raw-range",
+        "unchanged_observations": {
+          "samples_fetched": 2376,
+          "pages": 792,
+          "work": 6517,
+          "provider_calls": 1589,
+          "output_samples": 3,
+          "workspace_peak": 7903,
+          "workspace_acquired": 69920,
+          "provider_peak": 0,
+          "borrowed_peak": 816,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "mad",
+        "id": "stage35-mad-n1-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 135,
+          "pages": 135,
+          "work": 14998,
+          "provider_calls": 275,
+          "output_samples": 1,
+          "workspace_peak": 14883,
+          "workspace_acquired": 569302,
+          "provider_peak": 0,
+          "borrowed_peak": 272,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "mad",
+        "id": "stage35-mad-n1-page17-computed-range",
+        "unchanged_observations": {
+          "samples_fetched": 1197,
+          "pages": 399,
+          "work": 90383,
+          "provider_calls": 803,
+          "output_samples": 3,
+          "workspace_peak": 16873,
+          "workspace_acquired": 2429890,
+          "provider_peak": 0,
+          "borrowed_peak": 816,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "mad",
+        "id": "stage35-mad-n512-page17-raw-instant",
+        "unchanged_observations": {
+          "samples_fetched": 34914,
+          "pages": 2112,
+          "work": 118854,
+          "provider_calls": 2249,
+          "output_samples": 1,
+          "workspace_peak": 7379,
+          "workspace_acquired": 145768,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "mad",
+        "id": "stage35-mad-n512-page17-raw-range",
+        "unchanged_observations": {
+          "samples_fetched": 210276,
+          "pages": 12672,
+          "work": 714423,
+          "provider_calls": 13469,
+          "output_samples": 3,
+          "workspace_peak": 7903,
+          "workspace_acquired": 830240,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "mad",
+        "id": "stage35-mad-n512-page17-computed-instant",
+        "unchanged_observations": {
+          "samples_fetched": 69120,
+          "pages": 4185,
+          "work": 6478394,
+          "provider_calls": 8375,
+          "output_samples": 1,
+          "workspace_peak": 15814,
+          "workspace_acquired": 134433062,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "cohort": "mad",
+        "id": "stage35-mad-n512-page17-computed-range",
+        "unchanged_observations": {
+          "samples_fetched": 205086,
+          "pages": 12369,
+          "work": 19288437,
+          "provider_calls": 24743,
+          "output_samples": 3,
+          "workspace_peak": 16873,
+          "workspace_acquired": 399053362,
+          "provider_peak": 0,
+          "borrowed_peak": 4624,
+          "backing_written_bytes": 0
+        }
+      }
+    ],
+    "all_rows_receipt": {
+      "netdata_repository_path": ".tmp/rank-work-osfrc2mz/comparison-receipt.json",
+      "sha256": "b9c1e4368847a8b245fb0f8cda7adc526d7250a831cfd7a301dd1bc99ac8e665"
+    },
+    "scope": "Every exported nonelapsed field is exactly equal before/current, including work, reads, pages, output samples,memory,references and temporary backing. Accounted owner bytes are not process RSS."
+  },
+  "timing": {
+    "receipt": {
+      "netdata_repository_path": ".tmp/rank-work-osfrc2mz/timing-receipt.json",
+      "sha256": "a22acbf9fefb4537a63d8cab70ca31ba0d3c2a243a9c47c55e5d28d15b11b72e"
+    },
+    "complete_responses": 1520,
+    "rows": [
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n0-page17-raw-instant",
+        "case": {
+          "count": 0,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,m[1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 12320,
+        "after_ns": 12630,
+        "after_before": 1.0251623376623376,
+        "before_after": 0.9754552652414885,
+        "before_samples_ns": [
+          13690,
+          15940,
+          12320,
+          12170,
+          12140
+        ],
+        "after_samples_ns": [
+          13960,
+          16120,
+          12250,
+          12150,
+          12630
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n0-page17-raw-range",
+        "case": {
+          "count": 0,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,m[1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 13360,
+        "after_ns": 13520,
+        "after_before": 1.0119760479041917,
+        "before_after": 0.9881656804733728,
+        "before_samples_ns": [
+          13410,
+          12850,
+          13160,
+          17560,
+          13360
+        ],
+        "after_samples_ns": [
+          13520,
+          14060,
+          12890,
+          18270,
+          13240
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n0-page17-computed-instant",
+        "case": {
+          "count": 0,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[1s:1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 18990,
+        "after_ns": 19490,
+        "after_before": 1.0263296471827277,
+        "before_after": 0.9743458183683941,
+        "before_samples_ns": [
+          19880,
+          18990,
+          24210,
+          18660,
+          18659
+        ],
+        "after_samples_ns": [
+          20630,
+          19120,
+          23709,
+          18480,
+          19490
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n0-page17-computed-range",
+        "case": {
+          "count": 0,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[1s:1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 21800,
+        "after_ns": 21420,
+        "after_before": 0.9825688073394495,
+        "before_after": 1.0177404295051353,
+        "before_samples_ns": [
+          21800,
+          26160,
+          22400,
+          20439,
+          20380
+        ],
+        "after_samples_ns": [
+          21700,
+          26500,
+          21019,
+          20100,
+          21420
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n1-page17-raw-instant",
+        "case": {
+          "count": 1,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,m[1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 22370,
+        "after_ns": 23210,
+        "after_before": 1.0375502905677245,
+        "before_after": 0.9638087031451961,
+        "before_samples_ns": [
+          22869,
+          21990,
+          21930,
+          27150,
+          22370
+        ],
+        "after_samples_ns": [
+          23030,
+          22559,
+          34360,
+          26810,
+          23210
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n1-page17-raw-range",
+        "case": {
+          "count": 1,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,m[1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 45949,
+        "after_ns": 45379,
+        "after_before": 0.9875949422185466,
+        "before_after": 1.0125608761762048,
+        "before_samples_ns": [
+          52860,
+          45949,
+          52899,
+          43440,
+          44189
+        ],
+        "after_samples_ns": [
+          45379,
+          45350,
+          48489,
+          44299,
+          45880
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n1-page17-computed-instant",
+        "case": {
+          "count": 1,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[1s:1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 56120,
+        "after_ns": 55559,
+        "after_before": 0.9900035637918746,
+        "before_after": 1.0100973739628143,
+        "before_samples_ns": [
+          71710,
+          56120,
+          51549,
+          50449,
+          58559
+        ],
+        "after_samples_ns": [
+          55559,
+          57770,
+          50480,
+          51350,
+          58389
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n1-page17-computed-range",
+        "case": {
+          "count": 1,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[1s:1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 146019,
+        "after_ns": 132679,
+        "after_before": 0.9086420260377074,
+        "before_after": 1.1005434168180346,
+        "before_samples_ns": [
+          129939,
+          156729,
+          157219,
+          146019,
+          129319
+        ],
+        "after_samples_ns": [
+          132679,
+          260568,
+          127888,
+          135698,
+          130779
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n2-page17-raw-instant",
+        "case": {
+          "count": 2,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,m[2s])",
+          "first_ms": 2000
+        },
+        "before_ns": 55930,
+        "after_ns": 55080,
+        "after_before": 0.9848024316109423,
+        "before_after": 1.0154320987654322,
+        "before_samples_ns": [
+          78819,
+          55930,
+          56700,
+          54319,
+          53849
+        ],
+        "after_samples_ns": [
+          65740,
+          55080,
+          87650,
+          52820,
+          53919
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n2-page17-raw-range",
+        "case": {
+          "count": 2,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,m[2s])",
+          "first_ms": 2000
+        },
+        "before_ns": 271417,
+        "after_ns": 268798,
+        "after_before": 0.9903506412641803,
+        "before_after": 1.0097433760667862,
+        "before_samples_ns": [
+          298297,
+          255678,
+          275317,
+          251118,
+          271417
+        ],
+        "after_samples_ns": [
+          267778,
+          272397,
+          336298,
+          263637,
+          268798
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n2-page17-computed-instant",
+        "case": {
+          "count": 2,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[2s:1s])",
+          "first_ms": 2000
+        },
+        "before_ns": 266077,
+        "after_ns": 262067,
+        "after_before": 0.984929174637417,
+        "before_after": 1.0153014305502028,
+        "before_samples_ns": [
+          271118,
+          266077,
+          287977,
+          256928,
+          261658
+        ],
+        "after_samples_ns": [
+          292148,
+          262727,
+          261397,
+          261908,
+          262067
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n2-page17-computed-range",
+        "case": {
+          "count": 2,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[2s:1s])",
+          "first_ms": 2000
+        },
+        "before_ns": 975872,
+        "after_ns": 981071,
+        "after_before": 1.0053275429564532,
+        "before_after": 0.9947006893486812,
+        "before_samples_ns": [
+          974962,
+          982022,
+          998191,
+          961342,
+          975872
+        ],
+        "after_samples_ns": [
+          984712,
+          1041822,
+          968562,
+          978522,
+          981071
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n13-page17-computed-instant",
+        "case": {
+          "count": 13,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[13s:1s])",
+          "first_ms": 13000
+        },
+        "before_ns": 1229899,
+        "after_ns": 1249440,
+        "after_before": 1.0158882965186573,
+        "before_after": 0.9843601933666283,
+        "before_samples_ns": [
+          1225140,
+          1254510,
+          1221820,
+          1234000,
+          1229899
+        ],
+        "after_samples_ns": [
+          1249440,
+          1239329,
+          1319199,
+          1251880,
+          1231680
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n13-page17-computed-range",
+        "case": {
+          "count": 13,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[13s:1s])",
+          "first_ms": 13000
+        },
+        "before_ns": 3758948,
+        "after_ns": 3792768,
+        "after_before": 1.008997198152249,
+        "before_after": 0.9910830295973811,
+        "before_samples_ns": [
+          3758948,
+          3865757,
+          3788808,
+          3727579,
+          3746519
+        ],
+        "after_samples_ns": [
+          4179425,
+          3852547,
+          3734309,
+          3792768,
+          3768768
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-ambiguous-n13-page17-computed-instant",
+        "case": {
+          "count": 13,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[13s:1s])",
+          "first_ms": 13000
+        },
+        "before_ns": 1466548,
+        "after_ns": 1481337,
+        "after_before": 1.0100842249963862,
+        "before_after": 0.9900164513544183,
+        "before_samples_ns": [
+          1439798,
+          1493348,
+          1466548,
+          1445028,
+          1481898
+        ],
+        "after_samples_ns": [
+          1475768,
+          1475748,
+          1490307,
+          1481337,
+          1487897
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-ambiguous-n13-page17-computed-range",
+        "case": {
+          "count": 13,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[13s:1s])",
+          "first_ms": 13000
+        },
+        "before_ns": 4406083,
+        "after_ns": 4492213,
+        "after_before": 1.0195479749246668,
+        "before_after": 0.9808268218804407,
+        "before_samples_ns": [
+          4396193,
+          4477863,
+          4368963,
+          4421813,
+          4406083
+        ],
+        "after_samples_ns": [
+          4506562,
+          4450653,
+          4517372,
+          4492213,
+          4459963
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n512-page1-computed-instant",
+        "case": {
+          "count": 512,
+          "pattern": "distinct",
+          "page_size": 1,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 50374009,
+        "after_ns": 50578338,
+        "after_before": 1.0040562386051108,
+        "before_after": 0.9959601479985365,
+        "before_samples_ns": [
+          49933893,
+          51543230,
+          50085212,
+          50374009,
+          50563659
+        ],
+        "after_samples_ns": [
+          51604760,
+          50036943,
+          50578338,
+          50749556,
+          50455248
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n512-page17-computed-instant",
+        "case": {
+          "count": 512,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 44996025,
+        "after_ns": 45244823,
+        "after_before": 1.005529332868848,
+        "before_after": 0.9945010725315468,
+        "before_samples_ns": [
+          44996025,
+          45107274,
+          44816476,
+          44862845,
+          45422621
+        ],
+        "after_samples_ns": [
+          46376523,
+          44957035,
+          45019765,
+          46143955,
+          45244823
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n512-page17-computed-range",
+        "case": {
+          "count": 512,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 130721680,
+        "after_ns": 132625523,
+        "after_before": 1.0145640952594857,
+        "before_after": 0.9856449727251971,
+        "before_samples_ns": [
+          130539380,
+          130966907,
+          130721680,
+          129846857,
+          133048360
+        ],
+        "after_samples_ns": [
+          135296640,
+          132275586,
+          132427925,
+          132625523,
+          176664046
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n512-page1024-computed-instant",
+        "case": {
+          "count": 512,
+          "pattern": "distinct",
+          "page_size": 1024,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 45227112,
+        "after_ns": 46004086,
+        "after_before": 1.0171793856746811,
+        "before_after": 0.9831107610745706,
+        "before_samples_ns": [
+          45078093,
+          45227112,
+          44818666,
+          45378741,
+          45635799
+        ],
+        "after_samples_ns": [
+          46159705,
+          44898116,
+          45617360,
+          46004086,
+          60014749
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-ambiguous-n512-page1-computed-instant",
+        "case": {
+          "count": 512,
+          "pattern": "ambiguous",
+          "page_size": 1,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 54749413,
+        "after_ns": 54384046,
+        "after_before": 0.9933265585879432,
+        "before_after": 1.0067182754295259,
+        "before_samples_ns": [
+          52539701,
+          54749413,
+          52774509,
+          59046278,
+          55162669
+        ],
+        "after_samples_ns": [
+          54384046,
+          53779311,
+          54347276,
+          55207269,
+          65460693
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-ambiguous-n512-page17-computed-instant",
+        "case": {
+          "count": 512,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 47207056,
+        "after_ns": 48254348,
+        "after_before": 1.0221850733500517,
+        "before_after": 0.978296422117236,
+        "before_samples_ns": [
+          46780299,
+          48156058,
+          47207056,
+          46946638,
+          47925570
+        ],
+        "after_samples_ns": [
+          47917550,
+          48254348,
+          48977421,
+          48346007,
+          47750801
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-ambiguous-n512-page17-computed-range",
+        "case": {
+          "count": 512,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 137254335,
+        "after_ns": 141861876,
+        "after_before": 1.0335693659511738,
+        "before_after": 0.9675209356458814,
+        "before_samples_ns": [
+          142407051,
+          141188121,
+          136231223,
+          136429592,
+          137254335
+        ],
+        "after_samples_ns": [
+          144670012,
+          140657006,
+          141861876,
+          142464151,
+          138305476
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-ambiguous-n512-page1024-computed-instant",
+        "case": {
+          "count": 512,
+          "pattern": "ambiguous",
+          "page_size": 1024,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 47085327,
+        "after_ns": 47649993,
+        "after_before": 1.0119923983962138,
+        "before_after": 0.988149714943295,
+        "before_samples_ns": [
+          53053057,
+          47368354,
+          47085327,
+          46794860,
+          46924998
+        ],
+        "after_samples_ns": [
+          47399574,
+          51939737,
+          48077519,
+          47649993,
+          46560632
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n4096-page17-raw-instant",
+        "case": {
+          "count": 4096,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,m[4096s])",
+          "first_ms": 4096000
+        },
+        "before_ns": 9267533,
+        "after_ns": 9282323,
+        "after_before": 1.0015958939666036,
+        "before_after": 0.9984066488528788,
+        "before_samples_ns": [
+          9964486,
+          9032914,
+          9267533,
+          9072234,
+          9793418
+        ],
+        "after_samples_ns": [
+          9686839,
+          10742671,
+          8786086,
+          8671578,
+          9282323
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n4096-page17-computed-instant",
+        "case": {
+          "count": 4096,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[4096s:1s])",
+          "first_ms": 4096000
+        },
+        "before_ns": 366944768,
+        "after_ns": 365922037,
+        "after_before": 0.9972128475749245,
+        "before_after": 1.0027949423554394,
+        "before_samples_ns": [
+          403746129,
+          362527674,
+          366944768,
+          357994563,
+          369577047
+        ],
+        "after_samples_ns": [
+          356847111,
+          369963162,
+          365922037,
+          380609344,
+          365045795
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-distinct-n4096-page17-computed-range",
+        "case": {
+          "count": 4096,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[4096s:1s])",
+          "first_ms": 4096000
+        },
+        "before_ns": 1057561574,
+        "after_ns": 1053067550,
+        "after_before": 0.995750579341681,
+        "before_after": 1.0042675552959541,
+        "before_samples_ns": [
+          1093540231,
+          1057561574,
+          1030261062,
+          1043671402,
+          1101063285
+        ],
+        "after_samples_ns": [
+          1120609706,
+          1053067550,
+          1060138704,
+          1049668602,
+          1041707261
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-ambiguous-n4096-page17-raw-instant",
+        "case": {
+          "count": 4096,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,m[4096s])",
+          "first_ms": 4096000
+        },
+        "before_ns": 16968109,
+        "after_ns": 16977589,
+        "after_before": 1.000558695138038,
+        "before_after": 0.9994416168279253,
+        "before_samples_ns": [
+          17310335,
+          16968109,
+          16697060,
+          16665090,
+          17702343
+        ],
+        "after_samples_ns": [
+          19930583,
+          17404015,
+          16547092,
+          16403223,
+          16977589
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-ambiguous-n4096-page17-computed-instant",
+        "case": {
+          "count": 4096,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[4096s:1s])",
+          "first_ms": 4096000
+        },
+        "before_ns": 394464188,
+        "after_ns": 395221111,
+        "after_before": 1.0019188636713454,
+        "before_after": 0.9980848113146465,
+        "before_samples_ns": [
+          422838790,
+          402159424,
+          394464188,
+          387353798,
+          392693853
+        ],
+        "after_samples_ns": [
+          392514954,
+          395221111,
+          407723997,
+          401170553,
+          394962445
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "quantile-ambiguous-n4096-page17-computed-range",
+        "case": {
+          "count": 4096,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[4096s:1s])",
+          "first_ms": 4096000
+        },
+        "before_ns": 1162864399,
+        "after_ns": 1156802797,
+        "after_before": 0.9947873526739552,
+        "before_after": 1.0052399613968084,
+        "before_samples_ns": [
+          1268810888,
+          1158492091,
+          1166900543,
+          1146747252,
+          1162864399
+        ],
+        "after_samples_ns": [
+          1151502378,
+          1234652765,
+          1156802797,
+          1162225653,
+          1142601999
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "stage35-mad-n1-page17-raw-instant",
+        "case": {
+          "count": 1,
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time(m[1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 79209,
+        "after_ns": 75619,
+        "after_before": 0.9546768675276799,
+        "before_after": 1.047474840979119,
+        "before_samples_ns": [
+          78409,
+          80109,
+          111689,
+          76160,
+          79209
+        ],
+        "after_samples_ns": [
+          75619,
+          113988,
+          75100,
+          75939,
+          74769
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "stage35-mad-n1-page17-computed-instant",
+        "case": {
+          "count": 1,
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time((m*1)[1s:1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 503896,
+        "after_ns": 487616,
+        "after_before": 0.9676917459158239,
+        "before_after": 1.0333869274182963,
+        "before_samples_ns": [
+          522675,
+          486256,
+          493236,
+          503896,
+          521106
+        ],
+        "after_samples_ns": [
+          480716,
+          807034,
+          490516,
+          487616,
+          474506
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "stage35-mad-n32-page17-raw-instant",
+        "case": {
+          "count": 32,
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time(m[32s])",
+          "first_ms": 32000
+        },
+        "before_ns": 218198,
+        "after_ns": 213699,
+        "after_before": 0.9793811125674846,
+        "before_after": 1.021052976382669,
+        "before_samples_ns": [
+          266568,
+          218128,
+          218488,
+          215648,
+          218198
+        ],
+        "after_samples_ns": [
+          208628,
+          323787,
+          213699,
+          220948,
+          205769
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "stage35-mad-n32-page17-computed-instant",
+        "case": {
+          "count": 32,
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time((m*1)[32s:1s])",
+          "first_ms": 32000
+        },
+        "before_ns": 10096156,
+        "after_ns": 10126995,
+        "after_before": 1.0030545288721766,
+        "before_after": 0.9969547728620386,
+        "before_samples_ns": [
+          12275568,
+          10096156,
+          16458163,
+          10050066,
+          10079496
+        ],
+        "after_samples_ns": [
+          10126995,
+          11663182,
+          10102006,
+          10228635,
+          10015536
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "stage35-mad-n512-page17-raw-instant",
+        "case": {
+          "count": 512,
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time(m[512s])",
+          "first_ms": 512000
+        },
+        "before_ns": 2296801,
+        "after_ns": 2124262,
+        "after_before": 0.9248785593527693,
+        "before_after": 1.081223031810577,
+        "before_samples_ns": [
+          2306321,
+          2296801,
+          3860238,
+          2244671,
+          2241762
+        ],
+        "after_samples_ns": [
+          2145632,
+          2274121,
+          2120982,
+          2124262,
+          2122702
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "stage35-mad-n512-page17-raw-range",
+        "case": {
+          "count": 512,
+          "page_size": 17,
+          "route": "raw",
+          "mode": "range",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time(m[512s])",
+          "first_ms": 512000
+        },
+        "before_ns": 13416558,
+        "after_ns": 12788253,
+        "after_before": 0.9531694343661019,
+        "before_after": 1.0491314177159303,
+        "before_samples_ns": [
+          14003903,
+          13416558,
+          14852776,
+          13390668,
+          13304789
+        ],
+        "after_samples_ns": [
+          12788253,
+          13892754,
+          12679324,
+          12687524,
+          12851063
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "stage35-mad-n512-page17-computed-instant",
+        "case": {
+          "count": 512,
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time((m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 159237912,
+        "after_ns": 159645378,
+        "after_before": 1.0025588504325527,
+        "before_after": 0.9974476805711219,
+        "before_samples_ns": [
+          162713062,
+          157679924,
+          176258050,
+          159237912,
+          157850913
+        ],
+        "after_samples_ns": [
+          158005661,
+          163513035,
+          157341207,
+          159645378,
+          166474831
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "stage35-mad-n512-page17-computed-range",
+        "case": {
+          "count": 512,
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time((m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 474230973,
+        "after_ns": 497171133,
+        "after_before": 1.0483733904069568,
+        "before_after": 0.953858624370293,
+        "before_samples_ns": [
+          488639571,
+          471860472,
+          474230973,
+          466276540,
+          476697283
+        ],
+        "after_samples_ns": [
+          475073635,
+          500605931,
+          468421832,
+          541512172,
+          497171133
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n0-page17-raw-instant",
+        "case": {
+          "count": 0,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,m[1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 16750,
+        "after_ns": 16339,
+        "after_before": 0.9754626865671642,
+        "before_after": 1.0251545382214333,
+        "before_samples_ns": [
+          18540,
+          21310,
+          16570,
+          16750,
+          16400
+        ],
+        "after_samples_ns": [
+          18160,
+          18960,
+          16050,
+          16339,
+          15870
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n0-page17-raw-range",
+        "case": {
+          "count": 0,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,m[1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 19649,
+        "after_ns": 20560,
+        "after_before": 1.0463636826301592,
+        "before_after": 0.9556906614785993,
+        "before_samples_ns": [
+          19870,
+          19649,
+          19280,
+          24070,
+          19410
+        ],
+        "after_samples_ns": [
+          19260,
+          21310,
+          19210,
+          22710,
+          20560
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n0-page17-computed-instant",
+        "case": {
+          "count": 0,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[1s:1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 27130,
+        "after_ns": 26489,
+        "after_before": 0.9763730187983782,
+        "before_after": 1.024198723998641,
+        "before_samples_ns": [
+          27130,
+          41790,
+          30320,
+          25780,
+          26290
+        ],
+        "after_samples_ns": [
+          26730,
+          26489,
+          29840,
+          25310,
+          25170
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n0-page17-computed-range",
+        "case": {
+          "count": 0,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[1s:1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 30779,
+        "after_ns": 31219,
+        "after_before": 1.014295461191072,
+        "before_after": 0.9859060187706205,
+        "before_samples_ns": [
+          32319,
+          48480,
+          30520,
+          30779,
+          29720
+        ],
+        "after_samples_ns": [
+          31219,
+          33590,
+          32579,
+          29830,
+          31059
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n1-page17-raw-instant",
+        "case": {
+          "count": 1,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,m[1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 31000,
+        "after_ns": 31940,
+        "after_before": 1.0303225806451612,
+        "before_after": 0.9705698184095178,
+        "before_samples_ns": [
+          31000,
+          36780,
+          30619,
+          34689,
+          30400
+        ],
+        "after_samples_ns": [
+          31940,
+          30170,
+          46580,
+          34470,
+          29569
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n1-page17-raw-range",
+        "case": {
+          "count": 1,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,m[1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 67040,
+        "after_ns": 65579,
+        "after_before": 0.9782070405727924,
+        "before_after": 1.022278473291755,
+        "before_samples_ns": [
+          67040,
+          68089,
+          71449,
+          66959,
+          66129
+        ],
+        "after_samples_ns": [
+          69449,
+          65579,
+          70130,
+          65059,
+          64080
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n1-page17-computed-instant",
+        "case": {
+          "count": 1,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[1s:1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 78969,
+        "after_ns": 76930,
+        "after_before": 0.9741797414175183,
+        "before_after": 1.0265046145846874,
+        "before_samples_ns": [
+          76189,
+          80760,
+          74289,
+          87989,
+          78969
+        ],
+        "after_samples_ns": [
+          77029,
+          77199,
+          76679,
+          73349,
+          76930
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n1-page17-computed-range",
+        "case": {
+          "count": 1,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[1s:1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 203618,
+        "after_ns": 209839,
+        "after_before": 1.0305523087349842,
+        "before_after": 0.9703534614633124,
+        "before_samples_ns": [
+          205168,
+          208088,
+          200438,
+          203618,
+          198918
+        ],
+        "after_samples_ns": [
+          210388,
+          253928,
+          209839,
+          203838,
+          192759
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n2-page17-raw-instant",
+        "case": {
+          "count": 2,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,m[2s])",
+          "first_ms": 2000
+        },
+        "before_ns": 79850,
+        "after_ns": 78969,
+        "after_before": 0.9889668127739512,
+        "before_after": 1.0111562765135687,
+        "before_samples_ns": [
+          102879,
+          81639,
+          79850,
+          79689,
+          79670
+        ],
+        "after_samples_ns": [
+          87179,
+          102939,
+          78969,
+          78140,
+          78029
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n2-page17-raw-range",
+        "case": {
+          "count": 2,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,m[2s])",
+          "first_ms": 2000
+        },
+        "before_ns": 395567,
+        "after_ns": 399457,
+        "after_before": 1.0098339851403175,
+        "before_after": 0.990261780366848,
+        "before_samples_ns": [
+          387707,
+          395567,
+          410737,
+          410426,
+          389547
+        ],
+        "after_samples_ns": [
+          418076,
+          402597,
+          399457,
+          397867,
+          383237
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n2-page17-computed-instant",
+        "case": {
+          "count": 2,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[2s:1s])",
+          "first_ms": 2000
+        },
+        "before_ns": 415037,
+        "after_ns": 422587,
+        "after_before": 1.0181911492228404,
+        "before_after": 0.9821338564603265,
+        "before_samples_ns": [
+          410386,
+          416636,
+          415037,
+          411257,
+          415577
+        ],
+        "after_samples_ns": [
+          425516,
+          431496,
+          422587,
+          418866,
+          400727
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n2-page17-computed-range",
+        "case": {
+          "count": 2,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[2s:1s])",
+          "first_ms": 2000
+        },
+        "before_ns": 1564657,
+        "after_ns": 1561197,
+        "after_before": 0.9977886527206922,
+        "before_after": 1.002216248173677,
+        "before_samples_ns": [
+          1563517,
+          1601556,
+          1554207,
+          1564657,
+          1564967
+        ],
+        "after_samples_ns": [
+          1561197,
+          1599367,
+          2441709,
+          1529328,
+          1510828
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n13-page17-computed-instant",
+        "case": {
+          "count": 13,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[13s:1s])",
+          "first_ms": 13000
+        },
+        "before_ns": 1964213,
+        "after_ns": 1912473,
+        "after_before": 0.9736586612551694,
+        "before_after": 1.0270539767097366,
+        "before_samples_ns": [
+          1949664,
+          1979394,
+          2025043,
+          1947684,
+          1964213
+        ],
+        "after_samples_ns": [
+          1947614,
+          1960704,
+          1912473,
+          1907364,
+          1884255
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n13-page17-computed-range",
+        "case": {
+          "count": 13,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[13s:1s])",
+          "first_ms": 13000
+        },
+        "before_ns": 5960391,
+        "after_ns": 5896441,
+        "after_before": 0.989270838104413,
+        "before_after": 1.0108455252922908,
+        "before_samples_ns": [
+          5904391,
+          6094729,
+          5960391,
+          5862651,
+          6082079
+        ],
+        "after_samples_ns": [
+          6623375,
+          5896441,
+          5898581,
+          5843611,
+          5836942
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-ambiguous-n13-page17-computed-instant",
+        "case": {
+          "count": 13,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[13s:1s])",
+          "first_ms": 13000
+        },
+        "before_ns": 2250051,
+        "after_ns": 2206562,
+        "after_before": 0.9806719936570326,
+        "before_after": 1.0197089408772562,
+        "before_samples_ns": [
+          2190242,
+          2289101,
+          2296631,
+          2188312,
+          2250051
+        ],
+        "after_samples_ns": [
+          2463130,
+          2259801,
+          2197291,
+          2206562,
+          2176862
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-ambiguous-n13-page17-computed-range",
+        "case": {
+          "count": 13,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[13s:1s])",
+          "first_ms": 13000
+        },
+        "before_ns": 6786733,
+        "after_ns": 6786793,
+        "after_before": 1.0000088407780297,
+        "before_after": 0.9999911593001289,
+        "before_samples_ns": [
+          6719034,
+          6952732,
+          6995531,
+          6757623,
+          6786733
+        ],
+        "after_samples_ns": [
+          6920982,
+          6786793,
+          6877673,
+          6676294,
+          6616265
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n512-page1-computed-instant",
+        "case": {
+          "count": 512,
+          "pattern": "distinct",
+          "page_size": 1,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 81903328,
+        "after_ns": 79734806,
+        "after_before": 0.9735233957770312,
+        "before_after": 1.0271966799542975,
+        "before_samples_ns": [
+          80617387,
+          82436913,
+          83621353,
+          81492721,
+          81903328
+        ],
+        "after_samples_ns": [
+          81992786,
+          79863195,
+          79734806,
+          79620277,
+          78123109
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n512-page17-computed-instant",
+        "case": {
+          "count": 512,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 72463666,
+        "after_ns": 70333383,
+        "after_before": 0.9706020531724133,
+        "before_after": 1.0302883624977914,
+        "before_samples_ns": [
+          70926869,
+          72463666,
+          72764444,
+          70008287,
+          73651716
+        ],
+        "after_samples_ns": [
+          75604130,
+          74477079,
+          70333383,
+          69796328,
+          69957657
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n512-page17-computed-range",
+        "case": {
+          "count": 512,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 208526361,
+        "after_ns": 207027044,
+        "after_before": 0.9928099402262144,
+        "before_after": 1.0072421311294963,
+        "before_samples_ns": [
+          209036417,
+          207436720,
+          208526361,
+          204312097,
+          208547023
+        ],
+        "after_samples_ns": [
+          206683286,
+          207695258,
+          207027044,
+          201619530,
+          216705264
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n512-page1024-computed-instant",
+        "case": {
+          "count": 512,
+          "pattern": "distinct",
+          "page_size": 1024,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 70859119,
+        "after_ns": 70555642,
+        "after_before": 0.9957171779118507,
+        "before_after": 1.0043012435490275,
+        "before_samples_ns": [
+          70859119,
+          72879312,
+          70856409,
+          69322352,
+          71261746
+        ],
+        "after_samples_ns": [
+          70402483,
+          71437134,
+          70555642,
+          70156305,
+          82020577
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-ambiguous-n512-page1-computed-instant",
+        "case": {
+          "count": 512,
+          "pattern": "ambiguous",
+          "page_size": 1,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 85785214,
+        "after_ns": 86133781,
+        "after_before": 1.0040632526719582,
+        "before_after": 0.9959531905374037,
+        "before_samples_ns": [
+          86131282,
+          87236633,
+          85445888,
+          84713094,
+          85785214
+        ],
+        "after_samples_ns": [
+          86133781,
+          93267382,
+          84181208,
+          84554746,
+          89457475
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-ambiguous-n512-page17-computed-instant",
+        "case": {
+          "count": 512,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 76603582,
+        "after_ns": 77014037,
+        "after_before": 1.0053581698046443,
+        "before_after": 0.9946703871659137,
+        "before_samples_ns": [
+          75565279,
+          76344113,
+          77080067,
+          76869529,
+          76603582
+        ],
+        "after_samples_ns": [
+          77014037,
+          117690889,
+          73951894,
+          74076322,
+          87554780
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-ambiguous-n512-page17-computed-range",
+        "case": {
+          "count": 512,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 223282919,
+        "after_ns": 217931744,
+        "after_before": 0.9760341049643838,
+        "before_after": 1.0245543623052913,
+        "before_samples_ns": [
+          222323955,
+          251992439,
+          220806579,
+          223282919,
+          223901114
+        ],
+        "after_samples_ns": [
+          217222739,
+          294608114,
+          218798876,
+          216096779,
+          217931744
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-ambiguous-n512-page1024-computed-instant",
+        "case": {
+          "count": 512,
+          "pattern": "ambiguous",
+          "page_size": 1024,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 75603700,
+        "after_ns": 74490360,
+        "after_before": 0.9852740011401558,
+        "before_after": 1.0149460950383378,
+        "before_samples_ns": [
+          75603700,
+          114697374,
+          74768606,
+          75723139,
+          75456001
+        ],
+        "after_samples_ns": [
+          73907624,
+          81127663,
+          75623440,
+          72780144,
+          74490360
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n4096-page17-raw-instant",
+        "case": {
+          "count": 4096,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,m[4096s])",
+          "first_ms": 4096000
+        },
+        "before_ns": 13287360,
+        "after_ns": 12695024,
+        "after_before": 0.9554210919249573,
+        "before_after": 1.0466589113970954,
+        "before_samples_ns": [
+          13374459,
+          17745042,
+          13147041,
+          13287360,
+          13131211
+        ],
+        "after_samples_ns": [
+          12336617,
+          13748195,
+          12695024,
+          12355247,
+          13994083
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n4096-page17-computed-instant",
+        "case": {
+          "count": 4096,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[4096s:1s])",
+          "first_ms": 4096000
+        },
+        "before_ns": 577227495,
+        "after_ns": 576875599,
+        "after_before": 0.9993903686102132,
+        "before_after": 1.0006100032669263,
+        "before_samples_ns": [
+          577227495,
+          577988961,
+          572468597,
+          566023192,
+          580523952
+        ],
+        "after_samples_ns": [
+          576875599,
+          616302341,
+          569302784,
+          631829063,
+          559227740
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-distinct-n4096-page17-computed-range",
+        "case": {
+          "count": 4096,
+          "pattern": "distinct",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[4096s:1s])",
+          "first_ms": 4096000
+        },
+        "before_ns": 1654579854,
+        "after_ns": 1655650668,
+        "after_before": 1.0006471818192464,
+        "before_after": 0.9993532367541678,
+        "before_samples_ns": [
+          1653634258,
+          1654579854,
+          1762943232,
+          1647251160,
+          1677649560
+        ],
+        "after_samples_ns": [
+          1674751463,
+          1683222994,
+          1655650668,
+          1618151801,
+          1654631882
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-ambiguous-n4096-page17-raw-instant",
+        "case": {
+          "count": 4096,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,m[4096s])",
+          "first_ms": 4096000
+        },
+        "before_ns": 21445441,
+        "after_ns": 20832347,
+        "after_before": 0.971411452905072,
+        "before_after": 1.029429905329438,
+        "before_samples_ns": [
+          21445441,
+          21233662,
+          21376582,
+          22236354,
+          21689609
+        ],
+        "after_samples_ns": [
+          20832347,
+          21567189,
+          20750767,
+          20753357,
+          24461296
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-ambiguous-n4096-page17-computed-instant",
+        "case": {
+          "count": 4096,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "expression": "quantile_over_time(0.5,(m*1)[4096s:1s])",
+          "first_ms": 4096000
+        },
+        "before_ns": 624133459,
+        "after_ns": 613803794,
+        "after_before": 0.983449589425072,
+        "before_after": 1.0168289363815826,
+        "before_samples_ns": [
+          621324227,
+          651377258,
+          620352919,
+          686088001,
+          624133459
+        ],
+        "after_samples_ns": [
+          620098929,
+          609755846,
+          613803794,
+          614008592,
+          604967709
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "quantile-ambiguous-n4096-page17-computed-range",
+        "case": {
+          "count": 4096,
+          "pattern": "ambiguous",
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "expression": "quantile_over_time(0.5,(m*1)[4096s:1s])",
+          "first_ms": 4096000
+        },
+        "before_ns": 1815876451,
+        "after_ns": 1773498432,
+        "after_before": 0.9766624987197435,
+        "before_after": 1.0238951544784902,
+        "before_samples_ns": [
+          1801579174,
+          1820634380,
+          1815876451,
+          1783975322,
+          1907994729
+        ],
+        "after_samples_ns": [
+          1800635504,
+          1773498432,
+          1840226200,
+          1753327806,
+          1753423978
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "stage35-mad-n1-page17-raw-instant",
+        "case": {
+          "count": 1,
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time(m[1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 118189,
+        "after_ns": 116349,
+        "after_before": 0.9844317153034546,
+        "before_after": 1.0158144891662155,
+        "before_samples_ns": [
+          116739,
+          119739,
+          118189,
+          127449,
+          116449
+        ],
+        "after_samples_ns": [
+          116349,
+          116889,
+          116929,
+          112029,
+          112639
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "stage35-mad-n1-page17-computed-instant",
+        "case": {
+          "count": 1,
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time((m*1)[1s:1s])",
+          "first_ms": 1000
+        },
+        "before_ns": 781614,
+        "after_ns": 772234,
+        "after_before": 0.9879991914167351,
+        "before_after": 1.0121465773327774,
+        "before_samples_ns": [
+          794293,
+          758664,
+          832863,
+          774764,
+          781614
+        ],
+        "after_samples_ns": [
+          772234,
+          758334,
+          777144,
+          781564,
+          767523
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "stage35-mad-n32-page17-raw-instant",
+        "case": {
+          "count": 32,
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time(m[32s])",
+          "first_ms": 32000
+        },
+        "before_ns": 314157,
+        "after_ns": 303757,
+        "after_before": 0.9668955331251572,
+        "before_after": 1.034237894106144,
+        "before_samples_ns": [
+          323627,
+          306128,
+          334987,
+          314157,
+          313538
+        ],
+        "after_samples_ns": [
+          297018,
+          303757,
+          310387,
+          306248,
+          296867
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "stage35-mad-n32-page17-computed-instant",
+        "case": {
+          "count": 32,
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time((m*1)[32s:1s])",
+          "first_ms": 32000
+        },
+        "before_ns": 16006277,
+        "after_ns": 15815758,
+        "after_before": 0.98809723210463,
+        "before_after": 1.0120461504279465,
+        "before_samples_ns": [
+          15901987,
+          16006277,
+          16384863,
+          15601410,
+          16077976
+        ],
+        "after_samples_ns": [
+          16070276,
+          15807708,
+          15987626,
+          15815758,
+          15795109
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "stage35-mad-n512-page17-raw-instant",
+        "case": {
+          "count": 512,
+          "page_size": 17,
+          "route": "raw",
+          "mode": "instant",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time(m[512s])",
+          "first_ms": 512000
+        },
+        "before_ns": 3246993,
+        "after_ns": 2978365,
+        "after_before": 0.9172686852112093,
+        "before_after": 1.0901931093066162,
+        "before_samples_ns": [
+          3246993,
+          3142034,
+          3253093,
+          3245563,
+          3274962
+        ],
+        "after_samples_ns": [
+          2977886,
+          3091054,
+          2954655,
+          2978365,
+          3046545
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "stage35-mad-n512-page17-raw-range",
+        "case": {
+          "count": 512,
+          "page_size": 17,
+          "route": "raw",
+          "mode": "range",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time(m[512s])",
+          "first_ms": 512000
+        },
+        "before_ns": 19387168,
+        "after_ns": 18397796,
+        "after_before": 0.9489676883183764,
+        "before_after": 1.0537766588997943,
+        "before_samples_ns": [
+          19180180,
+          19387168,
+          22860779,
+          19013521,
+          19902484
+        ],
+        "after_samples_ns": [
+          18466906,
+          18101118,
+          19675516,
+          18397796,
+          18381847
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "stage35-mad-n512-page17-computed-instant",
+        "case": {
+          "count": 512,
+          "page_size": 17,
+          "route": "computed",
+          "mode": "instant",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time((m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 253599675,
+        "after_ns": 252061538,
+        "after_before": 0.993934783236611,
+        "before_after": 1.0061022280995524,
+        "before_samples_ns": [
+          253599675,
+          255229422,
+          251052497,
+          246591305,
+          259248639
+        ],
+        "after_samples_ns": [
+          295830193,
+          252061538,
+          253192639,
+          245722532,
+          247952044
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "stage35-mad-n512-page17-computed-range",
+        "case": {
+          "count": 512,
+          "page_size": 17,
+          "route": "computed",
+          "mode": "range",
+          "family": "mad",
+          "pattern": "distinct",
+          "expression": "mad_over_time((m*1)[512s:1s])",
+          "first_ms": 512000
+        },
+        "before_ns": 773207641,
+        "after_ns": 733550117,
+        "after_before": 0.9487103827004213,
+        "before_after": 1.0540624601931594,
+        "before_samples_ns": [
+          773207641,
+          856870396,
+          761332193,
+          804668204,
+          750339927
+        ],
+        "after_samples_ns": [
+          768114225,
+          731124224,
+          742296683,
+          730677140,
+          733550117
+        ]
+      }
+    ],
+    "scope": "Fresh accepted-engine complete baseline/resource observations; extra36 MAD cases/profile have independent exact positive-data outcomes. Warm timing38cases/profile:original30quantile controls plusMAD1/32/512 raw/computed instant and512 raw/computed three-tick range. Five alternating before/current pairs,per-case active dataset,warm then measure. All slow controls retained; shared-host engine elapsed only.",
+    "concern_repeat": {
+      "receipt": {
+        "netdata_repository_path": ".tmp/rank-work-osfrc2mz/timing-concern-receipt.json",
+        "sha256": "895483be9c6614f1eca42cb77bd8e09f7ca338876972abe04f819f83011192c5"
+      },
+      "complete_responses": 624,
+      "rows": [
+        {
+          "profile": "release",
+          "id": "stage35-mad-n512-page17-computed-range",
+          "before_ns": 541493675.0,
+          "after_ns": 479502047.5,
+          "before_after": 1.1292833426326505,
+          "before_samples_ns": [
+            592323032,
+            554692832,
+            565494788,
+            546774642,
+            553999682,
+            548914292,
+            580617682,
+            574646672,
+            566106266,
+            578279337,
+            585482408,
+            560099327,
+            481641660,
+            536212708,
+            474054155,
+            475658010,
+            471533711,
+            467998096,
+            472277184,
+            468412662,
+            469384194,
+            466258364,
+            473403476,
+            468369265
+          ],
+          "after_samples_ns": [
+            503158510,
+            494336557,
+            491762763,
+            482370425,
+            468136726,
+            470274415,
+            469577312,
+            467903270,
+            461110436,
+            481909954,
+            470125639,
+            520286529,
+            476764318,
+            479529351,
+            478388383,
+            470649730,
+            476239956,
+            479474744,
+            490695235,
+            491388819,
+            484482267,
+            491765476,
+            476840303,
+            480433308
+          ],
+          "phase_medians_ns": {
+            "before": {
+              "0": 565800527.0,
+              "3": 471905447.5
+            },
+            "after": {
+              "1": 476092184.5,
+              "2": 479502047.5
+            }
+          }
+        },
+        {
+          "profile": "release",
+          "id": "quantile-ambiguous-n512-page17-computed-range",
+          "before_ns": 162926852.5,
+          "after_ns": 139282779.5,
+          "before_after": 1.1697558957746101,
+          "before_samples_ns": [
+            165369089,
+            167157372,
+            167774745,
+            171769676,
+            179096844,
+            167876795,
+            168511358,
+            172746127,
+            172228982,
+            170460599,
+            172561229,
+            177238822,
+            138878096,
+            140043015,
+            141399882,
+            142183765,
+            143361663,
+            145244925,
+            160484616,
+            140878337,
+            142837628,
+            140433112,
+            139220244,
+            138271833
+          ],
+          "after_samples_ns": [
+            138556134,
+            136325766,
+            141423577,
+            138815753,
+            137185488,
+            137806522,
+            137345176,
+            136257547,
+            135251877,
+            134661692,
+            137011900,
+            137055820,
+            139749806,
+            143166382,
+            145655298,
+            140356350,
+            140211762,
+            144977564,
+            140418579,
+            138738645,
+            140303761,
+            145080893,
+            142032043,
+            141938864
+          ],
+          "phase_medians_ns": {
+            "before": {
+              "0": 171115137.5,
+              "3": 141139109.5
+            },
+            "after": {
+              "1": 137120654.0,
+              "2": 141178721.5
+            }
+          }
+        },
+        {
+          "profile": "release",
+          "id": "stage35-mad-n512-page17-raw-instant",
+          "before_ns": 2655494.5,
+          "after_ns": 2200303.0,
+          "before_after": 1.2068767347042657,
+          "before_samples_ns": [
+            3113610,
+            3308868,
+            2992421,
+            3081190,
+            2997191,
+            3427307,
+            3287368,
+            3124829,
+            3409766,
+            2758883,
+            3193189,
+            2799242,
+            2517545,
+            2513175,
+            2517825,
+            2518875,
+            2504285,
+            2509186,
+            2506526,
+            2552106,
+            2504136,
+            2503056,
+            2508546,
+            2525345
+          ],
+          "after_samples_ns": [
+            2210739,
+            2179079,
+            2249738,
+            2803422,
+            2181708,
+            2190778,
+            2160599,
+            2202229,
+            2187539,
+            2185059,
+            2201628,
+            2198368,
+            2591875,
+            2235398,
+            2184538,
+            2192269,
+            2197309,
+            2823663,
+            2255848,
+            2222329,
+            2203169,
+            2196138,
+            2227468,
+            2198978
+          ],
+          "phase_medians_ns": {
+            "before": {
+              "0": 3119219.5,
+              "3": 2511180.5
+            },
+            "after": {
+              "1": 2194573.0,
+              "2": 2212749.0
+            }
+          }
+        },
+        {
+          "profile": "release",
+          "id": "quantile-distinct-n4096-page17-raw-instant",
+          "before_ns": 10923723.5,
+          "after_ns": 8815279.0,
+          "before_after": 1.239180688438789,
+          "before_samples_ns": [
+            13312030,
+            15199671,
+            12921513,
+            13003032,
+            13039903,
+            12821935,
+            12945343,
+            12783095,
+            12839304,
+            12934104,
+            13080622,
+            12928363,
+            8974383,
+            8995533,
+            8934973,
+            8888423,
+            8951843,
+            8940553,
+            8944722,
+            8927863,
+            8945682,
+            8933233,
+            8954793,
+            9064352
+          ],
+          "after_samples_ns": [
+            8797724,
+            8826214,
+            8804144,
+            8935742,
+            8880144,
+            8938913,
+            8895133,
+            8863843,
+            8877624,
+            8911623,
+            8813834,
+            8816724,
+            9560737,
+            8728805,
+            8687566,
+            8709855,
+            9263830,
+            8669066,
+            8671435,
+            8707325,
+            8731645,
+            8743805,
+            8750665,
+            8836294
+          ],
+          "phase_medians_ns": {
+            "before": {
+              "0": 12939723.5,
+              "3": 8945202.0
+            },
+            "after": {
+              "1": 8870733.5,
+              "2": 8730225.0
+            }
+          }
+        },
+        {
+          "profile": "release",
+          "id": "quantile-distinct-n1-page17-raw-instant",
+          "before_ns": 23620.0,
+          "after_ns": 21254.5,
+          "before_after": 1.1112940789009387,
+          "before_samples_ns": [
+            25129,
+            24750,
+            22660,
+            24879,
+            25310,
+            29800,
+            27990,
+            24530,
+            22710,
+            24580,
+            27100,
+            27600,
+            22100,
+            20580,
+            20480,
+            20389,
+            20450,
+            25620,
+            21619,
+            20130,
+            20110,
+            20349,
+            25249,
+            20160
+          ],
+          "after_samples_ns": [
+            26850,
+            21910,
+            21200,
+            21069,
+            21210,
+            27260,
+            21130,
+            20580,
+            20520,
+            20159,
+            25830,
+            20910,
+            23000,
+            21580,
+            21170,
+            42580,
+            22410,
+            25690,
+            21250,
+            20630,
+            21050,
+            21400,
+            25760,
+            21259
+          ],
+          "phase_medians_ns": {
+            "before": {
+              "0": 25004.0,
+              "3": 20465.0
+            },
+            "after": {
+              "1": 21165.0,
+              "2": 21490.0
+            }
+          }
+        },
+        {
+          "profile": "release",
+          "id": "quantile-distinct-n0-page17-raw-range",
+          "before_ns": 14115.0,
+          "after_ns": 12579.5,
+          "before_after": 1.1220636750268294,
+          "before_samples_ns": [
+            16700,
+            17490,
+            15440,
+            19609,
+            14280,
+            17289,
+            14850,
+            14980,
+            13820,
+            18399,
+            15930,
+            13950,
+            13080,
+            12459,
+            13740,
+            15640,
+            12410,
+            12409,
+            12330,
+            12229,
+            12290,
+            15770,
+            12470,
+            11920
+          ],
+          "after_samples_ns": [
+            15740,
+            12660,
+            12210,
+            15930,
+            12480,
+            12330,
+            12349,
+            12140,
+            26449,
+            16160,
+            12869,
+            12320,
+            13080,
+            12640,
+            12559,
+            15900,
+            12600,
+            12480,
+            14470,
+            12460,
+            12190,
+            16040,
+            12230,
+            12280
+          ],
+          "phase_medians_ns": {
+            "before": {
+              "0": 15685.0,
+              "3": 12434.5
+            },
+            "after": {
+              "1": 12570.0,
+              "2": 12579.5
+            }
+          }
+        },
+        {
+          "profile": "release-min",
+          "id": "stage35-mad-n512-page17-computed-range",
+          "before_ns": 757199203.0,
+          "after_ns": 741266613.5,
+          "before_after": 1.0214937368145747,
+          "before_samples_ns": [
+            768942184,
+            790835983,
+            763046243,
+            818361048,
+            762356323,
+            750331292,
+            752784909,
+            757041699,
+            757356707,
+            756731344,
+            856838415,
+            782068431,
+            777300666,
+            821411640,
+            734873249,
+            736606023,
+            742141872,
+            738987513,
+            737498098,
+            743799869,
+            835306315,
+            775177858,
+            740555264,
+            741045540
+          ],
+          "after_samples_ns": [
+            741433389,
+            735338040,
+            738750708,
+            737124875,
+            741099838,
+            826323180,
+            746482388,
+            737075571,
+            737168281,
+            729816104,
+            737934486,
+            738341954,
+            742389144,
+            741684373,
+            737945180,
+            739985881,
+            748083964,
+            740453479,
+            780204587,
+            798275414,
+            758894145,
+            753889444,
+            749213000,
+            759953379
+          ],
+          "phase_medians_ns": {
+            "before": {
+              "1": 762701283.0,
+              "2": 741593706.0
+            },
+            "after": {
+              "0": 738138220.0,
+              "3": 748648482.0
+            }
+          }
+        },
+        {
+          "profile": "release-min",
+          "id": "quantile-ambiguous-n512-page17-computed-range",
+          "before_ns": 222739162.5,
+          "after_ns": 223170695.5,
+          "before_after": 0.9980663545496725,
+          "before_samples_ns": [
+            225111819,
+            224071449,
+            225976991,
+            227262708,
+            223433876,
+            224361177,
+            226026580,
+            224031331,
+            222823872,
+            224126220,
+            222654453,
+            220925271,
+            246517249,
+            230961358,
+            215962104,
+            218365351,
+            218327102,
+            220141784,
+            216981534,
+            219875657,
+            217933326,
+            220582800,
+            220184864,
+            217479570
+          ],
+          "after_samples_ns": [
+            223002123,
+            247309867,
+            300769278,
+            223243731,
+            222374100,
+            222606987,
+            224042973,
+            219541187,
+            224138223,
+            219662586,
+            217489328,
+            215042121,
+            224120842,
+            223066811,
+            223200550,
+            224669646,
+            223140841,
+            221995692,
+            246920842,
+            248796024,
+            238840230,
+            224207812,
+            218794263,
+            221267710
+          ],
+          "phase_medians_ns": {
+            "before": {
+              "1": 224098834.5,
+              "2": 219120504.0
+            },
+            "after": {
+              "0": 222804555.0,
+              "3": 223660696.0
+            }
+          }
+        },
+        {
+          "profile": "release-min",
+          "id": "stage35-mad-n512-page17-raw-instant",
+          "before_ns": 3232404.0,
+          "after_ns": 3047061.0,
+          "before_after": 1.060826809834132,
+          "before_samples_ns": [
+            3236908,
+            3242059,
+            3228839,
+            3245689,
+            3234609,
+            3250789,
+            3288679,
+            3256519,
+            3234989,
+            3244539,
+            3230199,
+            3242949,
+            3189950,
+            3176839,
+            3164389,
+            3169899,
+            3165920,
+            3172140,
+            3169990,
+            3344258,
+            3188869,
+            3246368,
+            3182879,
+            3186949
+          ],
+          "after_samples_ns": [
+            2935932,
+            2959402,
+            3333708,
+            2946961,
+            2948951,
+            2929441,
+            2947521,
+            2928091,
+            2927071,
+            2924151,
+            2937151,
+            2917811,
+            3094510,
+            3080781,
+            3073261,
+            3074380,
+            3101641,
+            3071941,
+            3071451,
+            3048681,
+            3045441,
+            3072171,
+            3128360,
+            3096941
+          ],
+          "phase_medians_ns": {
+            "before": {
+              "1": 3242504.0,
+              "2": 3179859.0
+            },
+            "after": {
+              "0": 2936541.5,
+              "3": 3073820.5
+            }
+          }
+        },
+        {
+          "profile": "release-min",
+          "id": "quantile-distinct-n4096-page17-raw-instant",
+          "before_ns": 13252677.0,
+          "after_ns": 13187008.0,
+          "before_after": 1.004979825598043,
+          "before_samples_ns": [
+            13103173,
+            13168372,
+            13286452,
+            13158333,
+            13160893,
+            13141032,
+            13116813,
+            13128313,
+            13117483,
+            13398240,
+            13147483,
+            13155702,
+            13269532,
+            13311441,
+            13393201,
+            13321221,
+            13395110,
+            14677638,
+            13221543,
+            13235822,
+            14845027,
+            15541480,
+            15802538,
+            14956786
+          ],
+          "after_samples_ns": [
+            14019184,
+            13754357,
+            13768497,
+            13729767,
+            13773236,
+            13801386,
+            13798766,
+            13850625,
+            13883976,
+            13817026,
+            13853126,
+            13829585,
+            12182302,
+            12175343,
+            12118903,
+            12135894,
+            12199183,
+            12199533,
+            12644249,
+            12266382,
+            12211932,
+            12222292,
+            12119763,
+            12168043
+          ],
+          "phase_medians_ns": {
+            "before": {
+              "1": 13151592.5,
+              "2": 13394155.5
+            },
+            "after": {
+              "0": 13809206.0,
+              "3": 12190742.5
+            }
+          }
+        },
+        {
+          "profile": "release-min",
+          "id": "quantile-distinct-n1-page17-raw-instant",
+          "before_ns": 32280.0,
+          "after_ns": 28995.0,
+          "before_after": 1.1132953957578893,
+          "before_samples_ns": [
+            29760,
+            29279,
+            29159,
+            29040,
+            29160,
+            33270,
+            45470,
+            29789,
+            28969,
+            28810,
+            33070,
+            28770,
+            32000,
+            29950,
+            29639,
+            32560,
+            44769,
+            48850,
+            43480,
+            45350,
+            44939,
+            45349,
+            47720,
+            42989
+          ],
+          "after_samples_ns": [
+            30199,
+            28740,
+            29360,
+            28970,
+            40859,
+            34320,
+            29210,
+            28960,
+            29020,
+            28940,
+            32859,
+            29049,
+            29299,
+            28900,
+            28410,
+            28570,
+            28469,
+            44039,
+            29229,
+            28510,
+            27890,
+            27809,
+            34239,
+            28710
+          ],
+          "phase_medians_ns": {
+            "before": {
+              "1": 29219.5,
+              "2": 44124.5
+            },
+            "after": {
+              "0": 29129.5,
+              "3": 28640.0
+            }
+          }
+        },
+        {
+          "profile": "release-min",
+          "id": "quantile-distinct-n0-page17-raw-range",
+          "before_ns": 24925.0,
+          "after_ns": 18215.0,
+          "before_after": 1.3683777106780126,
+          "before_samples_ns": [
+            19340,
+            18750,
+            18530,
+            21910,
+            18660,
+            18930,
+            18840,
+            20550,
+            18830,
+            21640,
+            18720,
+            18699,
+            28790,
+            28640,
+            28330,
+            33199,
+            28880,
+            30410,
+            28970,
+            28870,
+            27940,
+            31870,
+            29120,
+            28340
+          ],
+          "after_samples_ns": [
+            18480,
+            18009,
+            18180,
+            21660,
+            19500,
+            18030,
+            18340,
+            17810,
+            18020,
+            22070,
+            20830,
+            17780,
+            18880,
+            18120,
+            17920,
+            21930,
+            18550,
+            18250,
+            19649,
+            18100,
+            18170,
+            21979,
+            18070,
+            17720
+          ],
+          "phase_medians_ns": {
+            "before": {
+              "1": 18835.0,
+              "2": 28875.0
+            },
+            "after": {
+              "0": 18260.0,
+              "3": 18210.0
+            }
+          }
+        }
+      ],
+      "scope": "Fixed unchanged-source follow-up for actual initial4.6percent slower release computedMADrange and matched ambiguous computed range,rawMAD benefit,large raw quantile,and tiny one-point/empty controls. ABBA release and BAAB release-min; each phase warms then measures12 times per active dataset. All initial timings retained. Full outputs and every exported nonelapsed observation checked. No cause,CPU isolation,production DBengine or RSS claim."
+    },
+    "interpretation": "All initial samples and slower median groups remain intact. The fixed follow-up does not replace earlier observations or prove their cause. Repeat phases vary even for empty controls that classify no float. Generated shared-host engine elapsed measurements do not establish universal throughput, CPU isolation or production DBengine timing."
+  },
+  "source_derived_lock_reduction": {
+    "per_classified_float": 2,
+    "scope": "Three non-failing work1 calls become one existing work3 call. This removes two observation mutex acquisitions per classified float,32*N over16 rank traversals and64*N across MAD medians. This is a source-derived local count,not a measured whole-query lock statistic."
+  },
+  "controls": [
+    "Near-u64-MAX work saturation and sticky overflow preserve completed totals without new allocation.",
+    "Work budgets1/2/3/4 preserve normal receive return and interruption at the next existing finish-pass poll.",
+    "The independent caller charge, float/native/stale4/1/0 behavior and finish-pass variable charges remain.",
+    "Literal key/digit/lane arithmetic, sample order, interpolation and MAD deviation arithmetic remain.",
+    "All936 native query/profile observations are exact nonelapsed matches;72 MAD outcomes additionally have independent analytic expected results.",
+    "Original reducer order failures27/7/2 per panel remain separate from approved9.A policy passes.",
+    "Four current C/C++ callers retain32 records each,including six existing scheduled quantile cases."
+  ],
+  "closed_execution_binding": {
+    "netdata_repository_path": ".tmp/rank-work-osfrc2mz/closed-execution-binding.json",
+    "sha256": "c8538d84df2cfdee714f7e0ac46e74cf7e4b8ae5623c28a5b076239c637b7404"
+  },
+  "limitations": [
+    "Finite source-bound qualification does not prove every possible input or a global performance optimum.",
+    "No new original-Go capture,full foreign C roster,containing-Agent,live DBengine or SRE execution.",
+    "Prior broader cohorts retain their actual source and binary identities.",
+    "Query JSON observations do not export basic statistics. Their unchanged owners retain native unit and actual C assertion coverage; the936 JSON matches are not new basic-statistics snapshot comparisons.",
+    "Concurrent snapshots may skip old within-helper work+1/work+2 states; no control,callback or fallible operation separates those charges. Completed work and next-poll behavior are unchanged.",
+    "Raw samples remain paged across both axes. General exact quantile backing stays provider-owned.",
+    "Resource caps remain disabled; no fields,caches,history arrays,metadata owners or policies are added.",
+    "Retained scratch originals and receipts are local evidence; shipped helpers describe replay procedures."
+  ]
+}

@@ -25,6 +25,9 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Exact temporal rank accounting passes 626 units/profile and 936 complete native matches with every exported
+  nonelapsed observation unchanged, plus 800 compiled ARM matches. The [accounting panel](#exact-rank-work-accounting)
+  records saturation/control tests, retained reducer/temporal panels and paired whole-query measurements.
 - Scheduled derived quantile ranks pass 624 final units/profile, 864 complete native and 776 compiled ARM matches,
   plus 56,124 retained reducer and 14,664 temporal outcomes. All 864 measured memory peaks remain unchanged; 408 cases
   fetch fewer entries. The [rank traversal panel](#scheduled-derived-quantile-rank-traversals) records the complete
@@ -3324,3 +3327,54 @@ to the fully qualified prototype artifacts; the reports retain both source ident
 and foreign queries execute the final sources. The first timing harness attempt stopped before any query because it
 selected the wrong active fixture dataset; its failed artifacts remain separate from the corrected measurements.
 Earlier full language/SRE/Agent/foreign-C cohorts retain their original source and binary identities.
+
+
+## Exact rank work accounting
+
+The shared temporal quantile/MAD selector now records its three unconditional work units through one existing
+`work(3)` call. No control check, callback or fallible operation separated the original calls. Literal key, digit,
+lane and numerical operations retain their order. The caller's separate charge and all finish-pass charges remain.
+Source inspection establishes two fewer accounting-mutex acquisitions per classified float; it is not a measured
+whole-query lock count. This change adds no field, allocation, raw history, cache or query cap.
+
+The [work-accounting qualification](rank-work-accounting-qualification.json) binds 936 complete native matches and
+800 compiled ARM64/ARM32 matches. Every exported native nonelapsed observation matches exactly, including work,
+page reads, output counts, all memory owners and temporary backing. The baseline includes 72 independently
+analytic MAD outcomes. Both native profiles pass 626 units, format/lint/MSRV checks and four C/C++ callers with
+32 records each. Each foreign profile executes five focused tests. All 56,124 retained reducer and 14,664 retained
+temporal/backing/scheduled outcomes pass their existing declared contracts; raw ordering differences stay separate.
+
+The two new tests also pass with the original charges. They check saturation near `u64::MAX`, sticky overflow,
+unchanged memory and interruption at the next existing poll. This is an optimization, with no claimed previous
+correctness failure. Concurrent snapshots may skip the old intermediate work+1/work+2 states inside the helper;
+completed work and actual control boundaries remain unchanged.
+
+Warm measurements run after all owned qualifiers close: 38 cases per profile, five alternating before/current
+pairs, one warm then one measured query for each active dataset, and 1,520 complete checked responses. Examples are:
+
+| Profile | Case | Median before → after | Before/after ratio |
+|---|---|---:|---:|
+| release | `quantile-distinct-n4096-page17-raw-instant` | 9.268 → 9.282 ms | 0.998× |
+| release | `quantile-distinct-n4096-page17-computed-instant` | 366.945 → 365.922 ms | 1.003× |
+| release | `stage35-mad-n512-page17-raw-instant` | 2.297 → 2.124 ms | 1.081× |
+| release-min | `quantile-distinct-n4096-page17-raw-instant` | 13.287 → 12.695 ms | 1.047× |
+| release-min | `quantile-distinct-n4096-page17-computed-instant` | 577.227 → 576.876 ms | 1.001× |
+| release-min | `stage35-mad-n512-page17-raw-instant` | 3.247 → 2.978 ms | 1.090× |
+
+All 76 median ratios span 0.954–1.101; 32 medians are slower. The two lowest ratios are:
+
+- `stage35-mad-n512-page17-computed-range`, release: 474.231 → 497.171 ms, 0.954×.
+- `quantile-distinct-n0-page17-raw-range`, release-min: 19,649 → 20,560 ns, 0.956×.
+
+The slower computed MAD range triggers an unchanged-source follow-up: six fixed affected/matched cases, 624 checked
+responses, 24 measured samples per variant/group, ABBA phase order in release and BAAB in release-min. Its 12 median
+ratios span 0.998–1.368. The release computed MAD range repeats at 541.494 → 479.502 ms (1.129×).
+Both panels remain intact; the repeat does not establish the earlier cause.
+Repeat phases also vary on empty controls that classify no floats. These ratios do not isolate the saved locks or
+establish a universal quantile speedup.
+The public receipt retains every timing sample and median. These are generated shared-host engine timings,
+without CPU isolation, production DBengine or process-RSS claims. Accepted baseline binaries are verified copies
+of the preceding stage's actual final builds, with their original compiler receipt. Candidate builds are fresh.
+Query JSON does not export basic statistics; their unchanged owners retain unit and C assertion coverage.
+No original-Go capture, live Agent, SRE replay or full foreign C caller roster was rerun for this private change.
+Earlier cohorts keep their actual source and binary identities; all 52 previous ledger objects are unchanged.

@@ -898,3 +898,21 @@ integration, and Alertmanager remains excluded.
   growth red, complete driver/control failures, final-source and byte-equivalence identities, both native profiles,
   compiled ARM owners/queries, real C/C++ callers, all required reducer/temporal outcomes and warm paired timings.
   Finite source-bound evidence does not prove every input or globally optimal performance.
+
+
+## Exact rank work accounting
+
+- **Choice:** the shared temporal quantile/MAD selector uses one existing `work(3)` call in place of three
+  non-failing `work(1)` calls. The call remains after shift/mask construction and before ordered-key classification.
+- **Preserved phases:** no control, callback, allocation or returned error separates the original charges.
+  Retain the caller's fourth work unit, finish-pass variable charges and every existing interruption boundary.
+  Do not batch charges across fallible or control-sensitive operations.
+- **Arithmetic:** literal key/digit/lane operations, numerical values, MAD deviations and operation order stay fixed.
+  Work uses the existing saturating counter and sticky-overflow owner. No deferred `3*N` computation is introduced.
+- **Observability:** completed totals and interruption at the next poll are unchanged. A concurrent snapshot can
+  skip former intermediate within-helper work+1/work+2 totals, as with other existing `work(amount)` calls.
+- **Ownership:** no field, array, allocation, cache, raw history, metadata owner, cap or ABI/storage/default change.
+  Source-derived savings are two mutex acquisitions per classified float; whole-query benefit requires measurement.
+- **Evidence:** [work-accounting qualification](rank-work-accounting-qualification.json) binds original-charge
+  invariant tests, exact complete results and nonelapsed observations, native/compiled-ARM/C owners, retained
+  reducer/temporal panels and every warm timing group, including slower controls.

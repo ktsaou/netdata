@@ -8890,5 +8890,18 @@
     "retained_temporal_outcomes": 14664,
     "native_units_per_profile": 624,
     "actual_native_c_callers": 4
+  },
+  "rank_work_accounting_qualification": {
+    "status": "pass",
+    "receipt": "rank-work-accounting-qualification.json",
+    "sha256": "6f402a41c0ba2ab56733cf8f8734510dc478021370c63ea05658f7f87f4f1a7c",
+    "scope": "Private exact temporal quantile/MAD rank work-charge batching; no language/storage/ABI/default change.",
+    "native_complete_matches": 936,
+    "foreign_complete_matches": 800,
+    "unchanged_nonelapsed_groups": 936,
+    "retained_reducer_outcomes": 56124,
+    "retained_temporal_outcomes": 14664,
+    "native_units_per_profile": 626,
+    "actual_native_c_callers": 4
   }
 }
