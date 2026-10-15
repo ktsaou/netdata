@@ -880,44 +880,16 @@ impl CompiledQuery {
         )? {
             return Ok(());
         }
-        if let Expr::Binary {
-            left,
-            right,
-            operator,
-            matching: Some(matching),
-            ..
-        } = &self.expression.arena[self.expression.root].expression
-            && match matching.cardinality {
-                crate::frontend::ast::Cardinality::OneToOne => true,
-                crate::frontend::ast::Cardinality::ManyToOne
-                | crate::frontend::ast::Cardinality::OneToMany => header.step_ms > 0,
-                crate::frontend::ast::Cardinality::ManyToMany => false,
-            }
-            && matching.fill_left.is_none()
-            && matching.fill_right.is_none()
-            && (operator.is_comparison()
-                || matches!(
-                    operator,
-                    TokenKind::ADD
-                        | TokenKind::SUB
-                        | TokenKind::MUL
-                        | TokenKind::DIV
-                        | TokenKind::MOD
-                        | TokenKind::POW
-                        | TokenKind::ATAN2
-                ))
-            && !self.options.delayed_name_removal
-            && [self.expression.root, *left, *right]
-                .into_iter()
-                .all(|node| {
-                    !prepared.flags().invariants[node.0]
-                        && !prepared.flags().boundaries[node.0]
-                        && rosters.matrix(node).is_none()
-                })
+        if let Some((left, right, matching)) = self.binary_replay_root(header)
+            && [self.expression.root, left, right].into_iter().all(|node| {
+                !prepared.flags().invariants[node.0]
+                    && !prepared.flags().boundaries[node.0]
+                    && rosters.matrix(node).is_none()
+            })
         {
             let selectors = [
                 self.binary_replay_operand(
-                    *left,
+                    left,
                     evaluator_header,
                     prepared,
                     &rosters,
@@ -925,7 +897,7 @@ impl CompiledQuery {
                     account,
                 )?,
                 self.binary_replay_operand(
-                    *right,
+                    right,
                     evaluator_header,
                     prepared,
                     &rosters,
@@ -1256,6 +1228,172 @@ impl CompiledQuery {
         Ok(Some(copies))
     }
 
+    fn binary_replay_root(
+        &self,
+        header: OutputHeader,
+    ) -> Option<(NodeId, NodeId, &crate::frontend::ast::VectorMatching)> {
+        let Expr::Binary {
+            left,
+            right,
+            operator,
+            matching: Some(matching),
+            ..
+        } = &self.expression.arena[self.expression.root].expression
+        else {
+            return None;
+        };
+        let cardinality = match matching.cardinality {
+            crate::frontend::ast::Cardinality::OneToOne => true,
+            crate::frontend::ast::Cardinality::ManyToOne
+            | crate::frontend::ast::Cardinality::OneToMany => header.step_ms > 0,
+            crate::frontend::ast::Cardinality::ManyToMany => false,
+        };
+        (cardinality
+            && matching.fill_left.is_none()
+            && matching.fill_right.is_none()
+            && (operator.is_comparison()
+                || matches!(
+                    operator,
+                    TokenKind::ADD
+                        | TokenKind::SUB
+                        | TokenKind::MUL
+                        | TokenKind::DIV
+                        | TokenKind::MOD
+                        | TokenKind::POW
+                        | TokenKind::ATAN2
+                ))
+            && !self.options.delayed_name_removal)
+            .then_some((*left, *right, matching))
+    }
+
+    fn binary_replay_map_child(
+        &self,
+        node: NodeId,
+        prepared: &Prepared,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<NodeId>, Interrupted> {
+        if let Expr::Call {
+            function: Some(function),
+            ..
+        } = &self.expression.arena[node].expression
+            && !matches!(
+                PointwiseFunction::parse(function.name),
+                Some(PointwiseFunction::Float(..))
+            )
+        {
+            return Ok(None);
+        }
+        let Some(child) = crate::scheduled_expression::vector_child(
+            &self.expression,
+            prepared,
+            node,
+            control,
+            account,
+        )?
+        else {
+            return Ok(None);
+        };
+        Ok(
+            crate::scheduled_expression::pure_map(&self.expression, node, control, account)?
+                .then_some(child),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn group_replay_selector(
+        &self,
+        node: NodeId,
+        header: OutputHeader,
+        prepared: &Prepared,
+        rosters: &Rosters,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<NodeId>, Interrupted> {
+        let Some((left, right, _)) = self.binary_replay_root(header) else {
+            return Ok(None);
+        };
+        if [self.expression.root, left, right]
+            .into_iter()
+            .any(|node| prepared.flags().invariants[node.0] || prepared.flags().boundaries[node.0])
+        {
+            return Ok(None);
+        }
+        let mut demanded = false;
+        'operands: for mut current in [left, right] {
+            loop {
+                control.check()?;
+                account.work(1);
+                if prepared.flags().invariants[current.0] || prepared.flags().boundaries[current.0]
+                {
+                    break;
+                }
+                if current == node {
+                    demanded = true;
+                    break 'operands;
+                }
+                current = if let Expr::Aggregate {
+                    operator,
+                    expression: Some(child),
+                    parameter: None,
+                    ..
+                } = &self.expression.arena[current].expression
+                    && crate::aggregation::ordinary(*operator)
+                {
+                    prepared.preprocessing.child(
+                        &self.expression,
+                        current,
+                        *child,
+                        control,
+                        account,
+                    )?
+                } else if let Some(child) =
+                    self.binary_replay_map_child(current, prepared, control, account)?
+                {
+                    child
+                } else {
+                    break;
+                };
+            }
+        }
+        if !demanded {
+            return Ok(None);
+        }
+        let Expr::Aggregate {
+            operator,
+            expression: Some(child),
+            parameter: None,
+            ..
+        } = &self.expression.arena[node].expression
+        else {
+            return Ok(None);
+        };
+        if !crate::aggregation::ordinary(*operator) {
+            return Ok(None);
+        }
+        let child =
+            prepared
+                .preprocessing
+                .child(&self.expression, node, *child, control, account)?;
+        let Some(selector) =
+            self.binary_replay_operand(child, header, prepared, rosters, control, account)?
+        else {
+            return Ok(None);
+        };
+        let Expr::Selector(value) = &self.expression.arena[selector].expression else {
+            unreachable!("resolved grouped selector")
+        };
+        Ok(crate::evaluator::supports_selector_schedule(
+            selector,
+            value,
+            prepared,
+            self.timestamp_selectors[selector.0],
+            prepared.lookback_ms(self.options.lookback_ms),
+            header.into(),
+        )
+        .then_some(selector))
+    }
+
     fn is_replay_window_function(name: &str) -> bool {
         // Preserve the established rate short circuit before the full range dispatcher.
         name == "rate"
@@ -1304,34 +1442,22 @@ impl CompiledQuery {
             {
                 return Ok(None);
             }
+            if let Some(plan) = rosters.group_replay(node) {
+                // A group resolves a supported leaf without promising one raw point per result.
+                return Ok(Some(plan.selector()));
+            }
             if let Expr::Call {
                 function: Some(function),
                 ..
             } = &self.expression.arena[node].expression
+                && Self::is_replay_window_function(function.name)
             {
-                if Self::is_replay_window_function(function.name) {
-                    return Ok(self.binary_replay_selector(node, header, prepared, rosters));
-                }
-                if !matches!(
-                    PointwiseFunction::parse(function.name),
-                    Some(PointwiseFunction::Float(..))
-                ) {
-                    return Ok(None);
-                }
+                return Ok(self.binary_replay_selector(node, header, prepared, rosters));
             }
-            let Some(child) = crate::scheduled_expression::vector_child(
-                &self.expression,
-                prepared,
-                node,
-                control,
-                account,
-            )?
+            let Some(child) = self.binary_replay_map_child(node, prepared, control, account)?
             else {
                 return Ok(None);
             };
-            if !crate::scheduled_expression::pure_map(&self.expression, node, control, account)? {
-                return Ok(None);
-            }
             // Pair replay still evaluates this operand; no raw-point marker is granted.
             node = child;
         }
@@ -1963,6 +2089,8 @@ impl CompiledQuery {
                     }
                 )
             {
+                let replay_selector =
+                    self.group_replay_selector(node, header, prepared, &rosters, control, account)?;
                 rosters.prepare_groups(
                     node,
                     prepared.preprocessing.child(
@@ -1974,6 +2102,7 @@ impl CompiledQuery {
                     )?,
                     grouping.as_deref(),
                     *without,
+                    replay_selector,
                     account,
                     control,
                 )?;
@@ -6699,6 +6828,12 @@ mod tests {
                 )
                 .unwrap();
             for position in 0..compiled.expression.arena.nodes.len() {
+                if let Some(plan) = rosters.group_replay(NodeId(position)) {
+                    assert!(
+                        !plan.has_completion(),
+                        "preparation retained contributor progress"
+                    );
+                }
                 if let Some(plan) = rosters.sorting(NodeId(position))
                     && let Some(progress) = plan.emission_progress()
                 {
@@ -6870,6 +7005,190 @@ mod tests {
                 )
             {
                 window_join_failures(function.name, true);
+            }
+        }
+    }
+
+    #[test]
+    fn grouped_aggregate_joins_keep_cold_nonmember_and_warm_selected_errors() {
+        let request = QueryRequest::Range {
+            start_ms: 2000,
+            end_ms: 3000,
+            step_ms: 1000,
+        };
+        let provider = |page| {
+            let mut input = float_map_join_unit_provider(page);
+            for (index, row) in input.series.iter_mut().enumerate() {
+                row.labels[0].1 = if index < 4 { b"a_total" } else { b"b_total" }.to_vec();
+                row.labels[1].1 = ((index % 4) / 2).to_string().into_bytes();
+                row.labels
+                    .push((b"member".to_vec(), (index % 2).to_string().into_bytes()));
+            }
+            input
+        };
+        let acquisitions = |input: &FixtureProvider| {
+            input
+                .series
+                .iter()
+                .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
+                .collect::<Vec<_>>()
+        };
+        for operator in [
+            "sum", "avg", "count", "min", "max", "group", "stdvar", "stddev",
+        ] {
+            for (left_template, right_template, selected, window_side) in [
+                (
+                    "{op} by(instance)({metric})",
+                    "{op} by(instance)({metric})",
+                    7,
+                    0,
+                ),
+                (
+                    "{op} without(member)(rate({metric}[3s]))",
+                    "{op} by(instance)({metric})",
+                    7,
+                    1,
+                ),
+                (
+                    "{op} by(instance)({metric})",
+                    "{op} without(member)(rate({metric}[3s]))",
+                    3,
+                    2,
+                ),
+                (
+                    "clamp_min({op} by(instance)(abs({metric})),0)",
+                    "clamp_min({op} by(instance)(abs({metric})),0)",
+                    7,
+                    0,
+                ),
+                (
+                    "sum by(instance)({op} by(instance,member)({metric}))",
+                    "sum by(instance)({op} by(instance,member)({metric}))",
+                    7,
+                    0,
+                ),
+            ] {
+                let left = left_template
+                    .replace("{op}", operator)
+                    .replace("{metric}", "a_total");
+                let right = right_template
+                    .replace("{op}", operator)
+                    .replace("{metric}", "b_total");
+                let expression = format!("({left}+1) / on(instance) ({right}+1)");
+                for page in [1, 17, 1024] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let compiled = engine
+                        .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                        .unwrap();
+                    let calibration = provider(page);
+                    let (descriptors, prepared) =
+                        float_map_join_preparation(&compiled, &calibration, request, &control);
+                    assert_eq!(descriptors, 2);
+                    let mut landmarks = Vec::new();
+                    for outputs in [1, 2] {
+                        let input = provider(page);
+                        let mut sink = RecordingSink {
+                            fail_after: Some(outputs),
+                            ..RecordingSink::default()
+                        };
+                        let report =
+                            compiled.execute_reported(&input, request, &control, &mut sink);
+                        assert!(
+                            matches!(&report.result, Err(ExecutionError::Sink(bytes)) if &**bytes == b"sink failure")
+                        );
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        assert_eq!(sink.chunks, outputs);
+                        assert_eq!(report.observations.output_samples, outputs as u64 - 1);
+                        landmarks.push(acquisitions(&input));
+                        report.assert_retained_callback_error_memory();
+                        input.assert_closed();
+                    }
+                    assert!(
+                        landmarks[1][selected] > landmarks[0][selected],
+                        "second group must freshly read its last member: {expression}"
+                    );
+                    for (phase, acquisition, outputs) in [
+                        ("cold-nonmember", prepared[selected] + 1, 0),
+                        ("warm-selected", landmarks[0][selected] + 1, 1),
+                    ] {
+                        let mut input = provider(page);
+                        input.series[selected].source.fail_acquisition = Some(acquisition);
+                        let mut sink = RecordingSink {
+                            fail_after: Some(outputs + 1),
+                            ..RecordingSink::default()
+                        };
+                        let report =
+                            compiled.execute_reported(&input, request, &control, &mut sink);
+                        assert!(matches!(&report.result, Err(ExecutionError::Evaluation(
+                            EvaluationError::Storage(StorageError::Provider(bytes)))) if &**bytes == b"injected page failure"));
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        assert_eq!(sink.chunks, outputs, "{phase} {expression} page{page}");
+                        assert_eq!(report.observations.output_samples, outputs as u64);
+                        assert_eq!(acquisitions(&input)[selected], acquisition);
+                        assert!(report.annotations.is_empty());
+                        report.assert_retained_callback_error_memory();
+                        input.assert_closed();
+                        println!(
+                            "{{\"group_contributor_phase\":\"{phase}\",\"query\":{expression:?},\"page\":{page},\"target\":{selected},\"acquisition\":{acquisition},\"output_samples\":{outputs}}}"
+                        );
+                    }
+                    {
+                        let input = provider(page);
+                        let cancelled = Control::default();
+                        let mut sink = RecordingSink {
+                            cancel: Some(cancelled.cancellation.clone()),
+                            ..RecordingSink::default()
+                        };
+                        let report =
+                            compiled.execute_reported(&input, request, &cancelled, &mut sink);
+                        assert!(matches!(
+                            report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                                Interrupted::Cancelled
+                            )))
+                        ));
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        assert_eq!(sink.chunks, 2);
+                        input.assert_closed();
+                    }
+                    let input = provider(page);
+                    let report = compiled.collect_reported(&input, request, &control);
+                    let result = report.result.as_ref().unwrap();
+                    let raw: f64 = match operator {
+                        "sum" | "count" => 2.0,
+                        "stdvar" | "stddev" => 0.0,
+                        _ => 1.0,
+                    };
+                    let window: f64 = match operator {
+                        "count" => 2.0,
+                        "group" => 1.0,
+                        _ => 0.0,
+                    };
+                    let expected: f64 = match window_side {
+                        1 => (window + 1.0) / (raw + 1.0),
+                        2 => (raw + 1.0) / (window + 1.0),
+                        _ => 1.0,
+                    };
+                    assert!(report.annotations.is_empty());
+                    assert_eq!(result.series.len(), 2);
+                    assert_eq!(report.observations.output_samples, 4);
+                    for (ordinal, series) in result.series.iter().enumerate() {
+                        assert_eq!(series.labels.0.len(), 1);
+                        assert_eq!(&*series.labels.0[0].name, b"instance");
+                        assert_eq!(&*series.labels.0[0].value, ordinal.to_string().as_bytes());
+                        assert_eq!(series.points.len(), 2);
+                        for (tick, point) in series.points.iter().enumerate() {
+                            assert_eq!(point.time_ms, (tick as i64 + 2) * 1000);
+                            assert!(
+                                matches!(point.value, OwnedValue::Float(value) if value.to_bits() == expected.to_bits())
+                            );
+                        }
+                    }
+                    input.assert_closed();
+                    drop((report, compiled));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
             }
         }
     }

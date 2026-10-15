@@ -332,6 +332,7 @@ struct NodeRoster {
     output: Option<AccountedVec<Descriptor>>,
     sources: Option<AccountedVec<usize>>,
     groups: Option<AccountedVec<GroupDescriptor>>,
+    group_replay: Option<AccountedBox<crate::aggregate_replay::Plan>>,
     annotations: Option<AnnotationBuilder>,
     projection: Option<AccountedVec<(usize, usize)>>,
     binary: Option<AccountedBox<crate::vector_matching::Plan>>,
@@ -744,6 +745,9 @@ impl Rosters {
             if let Some(plan) = &roster.sorting {
                 plan.clear_emission();
             }
+            if let Some(plan) = &roster.group_replay {
+                plan.clear();
+            }
         }
         control.check()?;
         Ok(())
@@ -1101,6 +1105,9 @@ impl Rosters {
     pub(crate) fn groups(&self, node: NodeId) -> Option<&[GroupDescriptor]> {
         self.nodes[node.0].groups.as_deref()
     }
+    pub(crate) fn group_replay(&self, node: NodeId) -> Option<&crate::aggregate_replay::Plan> {
+        self.nodes[node.0].group_replay.as_deref()
+    }
     pub(crate) fn finish_group_flags(
         &mut self,
         node: NodeId,
@@ -1123,17 +1130,26 @@ impl Rosters {
     pub(crate) fn annotations(&mut self, node: NodeId, annotations: AnnotationBuilder) {
         self.nodes[node.0].annotations = Some(annotations);
     }
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn prepare_groups(
         &mut self,
         node: NodeId,
         child: NodeId,
         grouping: Option<&[AccountedVec<u8>]>,
         without: bool,
+        replay_selector: Option<NodeId>,
         account: &QueryAccounting,
         control: &Control,
     ) -> Result<(), Interrupted> {
         let mut groups = AccountedVec::<GroupDescriptor>::new(account, MemoryKind::Workspace);
         let mut index = PositionIndex::new(account);
+        let mut replay = replay_selector.map(|selector| {
+            crate::aggregate_replay::Builder::new(
+                selector,
+                without || grouping.is_some_and(|names| !names.is_empty()),
+                account,
+            )
+        });
         if self.nodes[child.0].sources.is_some() {
             for descriptor in self.nodes[child.0].output.as_deref().unwrap_or(&[]) {
                 control.check()?;
@@ -1145,15 +1161,14 @@ impl Rosters {
                 } else {
                     label_hash::grouping(&labels, control, account)?
                 };
-                if index
-                    .find(
-                        hash,
-                        |position| Ok(groups[position].hash == hash),
-                        control,
-                        account,
-                    )?
-                    .is_none()
-                {
+                let position = if let Some(position) = index.find(
+                    hash,
+                    |position| Ok(groups[position].hash == hash),
+                    control,
+                    account,
+                )? {
+                    position
+                } else {
                     let position = groups.len();
                     groups.push(GroupDescriptor {
                         hash,
@@ -1167,6 +1182,10 @@ impl Rosters {
                         control,
                         account,
                     )?;
+                    position
+                };
+                if let Some(replay) = &mut replay {
+                    replay.record(position, descriptor.ordinal, control, account)?;
                 }
             }
         } else if let Some(mut descriptors) = self.take_output(child) {
@@ -1185,15 +1204,14 @@ impl Rosters {
                 } else {
                     label_hash::grouping(&descriptor.labels, control, account)?
                 };
-                if index
-                    .find(
-                        hash,
-                        |position| Ok(groups[position].hash == hash),
-                        control,
-                        account,
-                    )?
-                    .is_none()
-                {
+                let position = if let Some(position) = index.find(
+                    hash,
+                    |position| Ok(groups[position].hash == hash),
+                    control,
+                    account,
+                )? {
+                    position
+                } else {
                     let position = groups.len();
                     groups.push(GroupDescriptor {
                         hash,
@@ -1207,8 +1225,18 @@ impl Rosters {
                         control,
                         account,
                     )?;
+                    position
+                };
+                if let Some(replay) = &mut replay {
+                    replay.record(position, descriptor.ordinal, control, account)?;
                 }
             }
+        }
+        if let Some(replay) = replay {
+            self.nodes[node.0].group_replay = Some(AccountedBox::new(
+                replay.finish(groups.len(), control, account)?,
+                &AllocationContext::new(account, MemoryKind::Workspace),
+            ));
         }
         self.nodes[node.0].groups = Some(groups);
         Ok(())

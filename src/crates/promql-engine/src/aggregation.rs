@@ -17,6 +17,20 @@ use tokens::TokenKind;
 
 const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 
+pub(crate) fn ordinary(operator: TokenKind) -> bool {
+    matches!(
+        operator,
+        TokenKind::SUM
+            | TokenKind::AVG
+            | TokenKind::COUNT
+            | TokenKind::MIN
+            | TokenKind::MAX
+            | TokenKind::GROUP
+            | TokenKind::STDVAR
+            | TokenKind::STDDEV
+    )
+}
+
 #[derive(Debug)]
 pub(crate) struct Group<'a> {
     labels: &'a OwnedLabels,

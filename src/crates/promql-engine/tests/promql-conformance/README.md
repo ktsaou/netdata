@@ -4580,3 +4580,103 @@ engine measurements on a shared host, without CPU/frequency isolation. They do n
 disk I/O, concurrent throughput, device performance or RSS. Raw samples stay paged across both axes; owned output
 and derived metadata/state may grow. No language feature is added or dropped. Earlier broad language, SRE and
 live-Agent cohorts retain their own identities.
+
+
+## Grouped aggregate contributors
+
+Ordinary grouped operands can now reuse complete join discovery and evaluate only the selected group's original
+contributors. This covers SUM/AVG/COUNT/MIN/MAX/GROUP/STDVAR/STDDEV, by/without, admitted Float maps and nested
+ordinary aggregates over supported raw or per-series window leaves. Actual Pair certification still requires Float
+outputs, unambiguous identities and the existing root, cardinality, clock and option guards. This is a performance
+change; no language feature is added or dropped. Admission remains rooted at the eligible vector-matching expression;
+other enclosing expression shapes can retain ordinary execution.
+
+Existing group projection records child **output ordinals**, including aliases and hash-only group collisions,
+before child labels are moved or dropped. The plan retains accounted identities and ranges. It retains no child
+labels, raw samples or aggregate payload cache. Sorted membership controls inclusion in the original traversal;
+it does not reorder reducer arithmetic. Singletons address their group directly. Nested plans own different active
+ordinal unions and keep mutable borrows inside each operation. Raw samples remain paged across both axes.
+
+The first complete ReplayKey must traverse the full child and reach successful Done. Only subsequent selections
+on that key may skip nonmembers. Preparation credit clears before final delivery; clock/flag/bounds changes require
+another full traversal. The aggregate certificate never grants the raw one-point scheduling marker. Selected values
+follow their original evaluator, including the existing cache of completed same-key window folds. Consequently, a
+window-backed operand need not open a new cursor on every replay. Cold/warm failure controls use mixed window/raw
+operands in both directions and inject errors into the genuinely read raw side; symmetric windows remain in
+complete numerical coverage.
+
+The old production runtime completes all 192 result/order/release cases, then fails only the final test-only work
+bound. The candidate passes the bound for all eight operators across raw/window/mapped/nested shapes, pages and
+source order. The retained driver correction reuses the original terminal result; it does not rerun the causal case.
+Run these units with the `grouped_aggregate_joins` filter and the direct clock/ownership units with
+`aggregate_replay::tests`, under either optimized Cargo profile. Existing hash-collision and late-group owners run
+in the full library suite.
+
+`group_contributor_cases.cases()` supplies 720 distinct-value original cases. Use it as the `inputs` argument of the
+existing `cursor_calls.capture`/`qualify` APIs, with `construction_errors=True`; qualify with `exact_numeric=True`
+and `ordered=False` (range row order remains enforced). It includes both option profiles, by/without, maps, nested
+aggregates, Rate/Fold operands, booleans, fixed/offset/cardinality fallbacks and stale/native/mixed/NaN/infinity/zero
+states. All 4,320 native comparisons pass at pages1/17/1024 with no numeric bit differences. Both profiles pass all
+668 library units. Seven earlier focused Debug owners pass; no full Debug-suite claim is made.
+
+The shared projection change also replays all retained TOPK/LIMIT/aggregate-quantile panels: 56,124 separate
+policy-qualified comparisons across both profiles/pages. Their strict original reports retain 27/7/2 ordering
+disagreements per panel, with 32/10/8 independently retained declared-policy boundaries. Those strict reports are
+not rewritten or counted as exact original passes. Another 4,532 complete retained window outcomes pass at page17
+across both profiles, covering the factored root gate and established window terminals.
+
+ARM64 and ARM32 execute 2,880 complete grouped outcomes at page17 across both profiles under QEMU, plus 16 focused
+unit executions. Twelve actual C/C++ programs assert 4,608 grouped success/cold-nonmember-provider/cancellation/output
+arms across all three pages. Four native callers also assert 3,264 prior-window control arms; two predecessor C
+programs assert 768 grouped arms. All eight memory kinds and three basic sample statistics are exported; 1,536 native
+before/candidate observations retain every statistic difference. Pass `--aggregate-joins-only` to a caller compiled
+from `c_embedding.c` for the new mode. Its normalized ratios prove ownership phases, not individual numerical dispatch.
+
+The **original causal baseline** is separate from the timing dataset below. At 32 groups with four members per side,
+three stored samples and two output instants, both optimized profiles have these counters:
+
+| Original baseline | Work units before → after | Fetched samples | Workspace acquired | Workspace peak |
+| --- | ---: | ---: | ---: | ---: |
+| raw grouped ratio | 81,673,811 → 605,429 | 1,675,008 → 9,936 | 529,075,824 → 3,796,048 B | 123,952 → 125,832 B |
+| rate grouped ratio | 79,893,257 → 745,769 | 49,152 → 49,152 | 442,451,312 → 5,975,504 B | 245,968 → 249,728 B |
+
+Standalone work is unchanged in that baseline; raw/rate workspace peaks rise 32/64 B. The optional roster pointer
+adds a native per-node cost even when no contributor plan is demanded. Demanded plans add membership/construction
+storage. Across all 4,320 new native paired cases, workspace peak rises by 32–1888 B. All memory categories,
+allocation-traffic increases and other costs are retained in the qualification. These are tracked bytes, not RSS.
+
+The **fixed timing panel** uses `group_contributor_cases.performance_cases()` and six retained controls. Its distinct
+values and by(cluster,zone) queries differ from the causal baseline. There are seven alternating before/candidate
+pairs per profile, with complete reference/warm/measured results and each binary's own nonelapsed counters checked:
+2,856 responses across 34 cases. Representative joined medians are:
+
+| Timing workload | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| raw, 32 groups × 4 members | 1531.73 → 11.02 ms | 2729.24 → 19.45 ms |
+| rate, 32 groups × 4 members | 1173.81 → 19.31 ms | 2127.60 → 33.71 ms |
+| raw, 8 groups × 64 members | 473.03 → 38.35 ms | 808.15 → 69.58 ms |
+| rate, 8 groups × 64 members | 422.22 → 72.94 ms | 708.36 → 121.00 ms |
+
+Standalone and existing-query medians from the same fixed panel are retained, including slower candidate medians:
+
+| Timing control | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| standalone raw, 32 groups | 2.26 → 2.28 ms | 3.91 → 3.90 ms |
+| standalone rate, 32 groups | 5.77 → 5.71 ms | 9.75 → 10.05 ms |
+| existing raw direct | 4.03 → 3.93 ms | 6.78 → 6.96 ms |
+| existing raw clamp | 4.98 → 4.94 ms | 8.71 → 8.90 ms |
+| existing rate direct | 5.40 → 5.50 ms | 9.32 → 9.41 ms |
+| existing rate clamp | 7.00 → 7.07 ms | 11.99 → 12.12 ms |
+| existing sum_over_time direct | 4.72 → 4.65 ms | 8.11 → 8.13 ms |
+| existing sum_over_time clamp | 5.98 → 5.87 ms | 10.41 → 10.51 ms |
+
+The larger standalone rate control at eight groups × 64 members measures 22.69 → 22.74 ms in release and
+36.72 → 39.09 ms in release-min. The latter is an observed 6.5% slowdown. This shared-host panel does not establish
+its cause; the complete timing arrays and all other control cases remain in the qualification.
+
+Format, strict production/fixture Clippy and installed Rust1.91 all-targets fixture compilation pass; MSRV evidence
+is compile-only. Query-fixture `.text` grows 48,656/8,496 B in release/release-min. The
+[qualification](group-contributor-qualification.json) binds actual source, input, compiler, binary and process evidence.
+Timings use a synthetic engine/provider on a shared host without CPU/frequency isolation. They do not establish
+live HTTP, DBengine disk I/O, concurrent throughput, device performance or RSS. Owned output and derived metadata
+can grow; all implicit caps remain disabled. Earlier language, SRE and live-Agent panels retain their identities.

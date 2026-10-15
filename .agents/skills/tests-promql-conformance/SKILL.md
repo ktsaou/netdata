@@ -111,6 +111,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-per-series-fold-join-discovery` for the
   shared Rate/Fold proof, global-absence exclusion, original-operand phases, numerical/name distinctions,
   clock/fallback boundaries, calibrated failures, C statistics and Pair costs. Window outputs earn no raw-point marker.
+- Grouped-contributor changes MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#grouped-aggregate-contributors` for output ordinals,
+  cold completion, nested membership ownership, existing window-cache phases and measured metadata costs.
 - Callback failure controls MUST establish their actual phase: output begin precedes preparation. The same guide
   records calibrated cursor landmarks and native traces for the first-final rate case.
 - Label projection MUST preserve virtual reset and reserved-name errors before matching; measure retained vector

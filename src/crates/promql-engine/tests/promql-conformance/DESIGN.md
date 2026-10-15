@@ -1125,3 +1125,24 @@ integration, and Alertmanager remains excluded.
   boundary controls establish clock/fallback outcomes; they cannot install a multi-row Pair.
 - **Costs:** reuse existing membership metadata. Small-query peaks may rise; allocation traffic, tracked peaks,
   fetched samples and timings are reported separately. Neither reduced work nor allocation traffic proves lower RSS.
+
+## Grouped aggregate contributors
+
+- **Choice:** ordinary aggregate operands retain accounted group-to-child output ordinal membership, built during
+  existing label projection. The existing hash-only grouping authority, alias unions, first labels and source order
+  remain unchanged. Membership retains identities; values still pass through the original reducers.
+- **Admission:** build the private plan only along eligible root arithmetic/comparison operand paths, including
+  admitted Float maps, ordinary nested aggregates and supported raw/window leaves. Keep the actual Float output,
+  cardinality and complete Pair proof. The aggregate certificate never grants a one-raw-point scheduling marker.
+- **Completion:** a full child traversal must reach successful Done for the exact clock before membership filters
+  later requests. Clear preparation credit before final delivery. Singleton group lookup is direct; nested requests
+  use sorted/deduplicated accounted ordinal unions without changing arithmetic traversal order. RefCell borrows stay
+  inside each operation and nested plans own different active unions.
+- **Ownership and failures:** selected values follow ordinary acquisition, including existing completed-window-fold
+  reuse. Preserve cold nonmember failures, genuinely read warm selected failures and provisional output cleanup.
+  Exact-key changes force full traversal. No raw-history array, copied child labels or aggregate payload cache is added.
+- **Costs and evidence:** the optional roster pointer has a per-node cost even for standalone queries. Demanded plans
+  add member/group metadata and temporary construction storage; lower allocation traffic does not imply a lower
+  peak. The [procedure and measurements](README.md#grouped-aggregate-contributors) and
+  [qualification](group-contributor-qualification.json) keep complete original outcomes, actual callback phases,
+  resource counters and fixed paired timings separate from historical broader cohorts.

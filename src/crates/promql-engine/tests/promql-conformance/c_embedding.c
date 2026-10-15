@@ -982,10 +982,12 @@ static void print_json_string(const char *value) {
 
 typedef struct {
     fixture source;
-    netdata_promql_label_t labels[4][2];
+    netdata_promql_label_t labels[4][3];
     uint64_t fail_on_cursor, failed_cursor;
+    uint64_t last_nonmember_cursor;
     void *latest_cursor;
     uint32_t latest_series;
+    unsigned aggregate_members;
 } join_fixture;
 
 static uint32_t join_selection_next(void *context, void *handle,
@@ -1004,7 +1006,7 @@ static uint32_t join_selection_next(void *context, void *handle,
     f->source.opened[2]++;
     out->handle = (void *)(uintptr_t)(*position + 1);
     out->labels.data = f->labels[(*position)++];
-    out->labels.len = 2;
+    out->labels.len = f->aggregate_members ? 3 : 2;
     return NETDATA_PROMQL_OK;
 }
 
@@ -1017,6 +1019,7 @@ static uint32_t join_cursor_open(void *context, void *series, netdata_promql_bou
     if (status == NETDATA_PROMQL_OK) {
         f->latest_cursor = out->handle;
         f->latest_series = (uint32_t)((uintptr_t)series - 1);
+        if (f->latest_series == 3) f->last_nonmember_cursor = f->source.opened[3];
     }
     return status;
 }
@@ -1049,6 +1052,7 @@ typedef struct {
     uint8_t expect_sort_warning;
     uint32_t annotation_chunks;
     uint64_t first_output_cursors;
+    uint64_t first_nonmember_cursor;
 } join_delivery;
 
 static uint32_t join_begin(void *context, const netdata_promql_output_header_t *header,
@@ -1068,7 +1072,10 @@ static uint32_t join_chunk(void *context, const netdata_promql_chunk_t *chunk,
                             netdata_promql_bytes_t *error) {
     join_delivery *d = (join_delivery *)context;
     uint32_t position = d->output.calls[1];
-    if (position == 0) d->first_output_cursors = d->input->source.opened[3];
+    if (position == 0) {
+        d->first_output_cursors = d->input->source.opened[3];
+        d->first_nonmember_cursor = d->input->last_nonmember_cursor;
+    }
     if (chunk->kind == NETDATA_PROMQL_CHUNK_ANNOTATIONS) {
         static const char warning[] = "PromQL warning: sort is ineffective for range queries since results are always ordered by labels";
         assert(d->expect_sort_warning && !d->arm_after && position == 8 && d->annotation_chunks == 0);
@@ -1081,12 +1088,12 @@ static uint32_t join_chunk(void *context, const netdata_promql_chunk_t *chunk,
     }
     assert(chunk->kind == NETDATA_PROMQL_CHUNK_SERIES && chunk->reserved == 0);
     const netdata_promql_series_chunk_t *series = &chunk->payload.series;
-    unsigned rows = grouped_query(d->query_kind) ? 3u : 4u;
+    unsigned rows = d->input->aggregate_members ? 2u : grouped_query(d->query_kind) ? 3u : 4u;
     assert(series->series_id == position % rows && series->labels.len == 1 && series->points.len == 1);
     assert(series->labels.data[0].name.len == 4 && memcmp(series->labels.data[0].name.data, "zone", 4) == 0);
     assert(series->labels.data[0].value.len == 1 && series->labels.data[0].value.data[0] == '0' + position % rows);
     int64_t time_ms = d->query_kind == FOUR_SERIES_JOIN || d->query_kind == FOUR_SERIES_FLOAT_MAP || grouped_query(d->query_kind) ? (position < rows ? 1000 : 2000) :
-                      d->query_kind == FOUR_SERIES_RATE ? (position < 4 ? 2000 : 3000) : 2000;
+                      d->query_kind == FOUR_SERIES_RATE ? (position < rows ? 2000 : 3000) : 2000;
     assert(series->points.data[0].time_ms == time_ms);
     assert(series->points.data[0].value.kind == NETDATA_PROMQL_VALUE_FLOAT);
     double expected = d->query_kind == FOUR_SERIES_GROUP_LEFT ? .25 :
@@ -1108,7 +1115,7 @@ static uint32_t join_commit(void *context, const netdata_promql_query_observatio
                              const netdata_promql_callback_control_t *control,
                              netdata_promql_bytes_t *error) {
     join_delivery *d = (join_delivery *)context;
-    uint32_t points = d->query_kind == FOUR_SERIES_NUMERIC ? 4 : grouped_query(d->query_kind) ? 6 : 8;
+    uint32_t points = d->query_kind == FOUR_SERIES_NUMERIC || d->input->aggregate_members ? 4 : grouped_query(d->query_kind) ? 6 : 8;
     assert(!d->arm_after && d->output.calls[1] == points + d->annotation_chunks && observations->output_samples == points);
     assert(d->annotation_chunks == (d->expect_sort_warning ? 1u : 0u));
     assert(observations->memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
@@ -1117,14 +1124,18 @@ static uint32_t join_commit(void *context, const netdata_promql_query_observatio
     return output_status(&d->output, 3, control, error);
 }
 
-static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t query_kind, const char *expression_override) {
+static void four_series_float_query_members(netdata_promql_engine_t *engine, uint8_t query_kind,
+                                           const char *expression_override, unsigned aggregate_members) {
+    assert(!aggregate_members || query_kind == FOUR_SERIES_RATE);
     const uint64_t page_sizes[] = {1, 17, 1024};
     for (unsigned page = 0; page < 3; page++) {
         uint64_t first_output_cursors = 0;
+        uint64_t first_failure_cursor = 0;
         unsigned variants = query_kind == FOUR_SERIES_NUMERIC ? 2u : query_kind == FOUR_SERIES_RATE ? 4u : 3u;
         for (unsigned arm = 0; arm < variants; arm++) {
             join_fixture source;
             memset(&source, 0, sizeof(source));
+            source.aggregate_members = aggregate_members;
             init_fixture(&source.source, 2, page_sizes[page]);
             if (query_kind == FOUR_SERIES_RATE) source.source.labels[0].value = text("m_total");
             static const uint8_t zones[] = {'0', '1', '2', '3'};
@@ -1132,7 +1143,12 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
                 source.labels[row][0] = source.source.labels[0];
                 if (grouped_query(query_kind) && row == 3) source.labels[row][0].value = text("n");
                 source.labels[row][1].name = text("zone");
-                source.labels[row][1].value = bytes(&zones[row], 1);
+                source.labels[row][1].value = bytes(&zones[aggregate_members ? row / 2 : row], 1);
+                if (aggregate_members) {
+                    source.labels[row][2] = source.labels[row][1];
+                    source.labels[row][1].name = text("member");
+                    source.labels[row][1].value = bytes(&zones[row % 2], 1);
+                }
             }
             netdata_promql_provider_t input = provider(&source.source);
             input.context = &source;
@@ -1141,8 +1157,8 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
             input.cursor_next = join_cursor_next;
             if (query_kind == FOUR_SERIES_RATE && arm == 1) {
                 assert(first_output_cursors > 4);
-                // Normal output identifies the last required first-final acquisition.
-                source.fail_on_cursor = first_output_cursors;
+                // Grouped inputs calibrate the last nonmember read before the first output.
+                source.fail_on_cursor = first_failure_cursor;
             }
             const char *expression = query_kind == FOUR_SERIES_NUMERIC ? "quantile_over_time(.5,m[2s])" :
                                      query_kind == FOUR_SERIES_RATE ? "rate(m_total[3s]) / on(zone) rate(m_total[3s])" : "m / on(zone) m";
@@ -1179,14 +1195,18 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
                 NETDATA_PROMQL_PROVIDER_ERROR : arm == 2 ? NETDATA_PROMQL_CANCELLED : NETDATA_PROMQL_OUTPUT_ERROR;
             assert(status == expected);
             if (query_kind == FOUR_SERIES_RATE) {
-                if (!arm) first_output_cursors = output.first_output_cursors;
+                if (!arm) {
+                    first_output_cursors = output.first_output_cursors;
+                    first_failure_cursor = aggregate_members ? output.first_nonmember_cursor : first_output_cursors;
+                    assert(first_failure_cursor > 0 && first_failure_cursor <= first_output_cursors);
+                }
                 if (arm == 1) {
-                    assert(source.failed_cursor == first_output_cursors && source.latest_series == 3);
+                    assert(source.failed_cursor == first_failure_cursor && source.latest_series == 3);
                     assert(output.first_output_cursors == 0);
                 }
             }
             assert(report && output.output.calls[0] == 1);
-            unsigned chunks = !arm ? (query_kind == FOUR_SERIES_NUMERIC ? 4u : grouped_query(query_kind) ? 6u : 8u) :
+            unsigned chunks = !arm ? (query_kind == FOUR_SERIES_NUMERIC || aggregate_members ? 4u : grouped_query(query_kind) ? 6u : 8u) :
                               query_kind != FOUR_SERIES_RATE ? arm : arm == 1 ? 0u : 1u;
             chunks += output.annotation_chunks;
             assert(output.annotation_chunks == (!arm && output.expect_sort_warning ? 1u : 0u));
@@ -1211,7 +1231,8 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
             }
             if (query_kind == FOUR_SERIES_RATE && expression_override) {
                 statistics_valid(&observations.statistics);
-                fputs("{\"mapped_rate_case\":\"pass\",\"expression\":", stdout);
+                fputs(aggregate_members ? "{\"group_contributor_case\":\"pass\",\"expression\":" :
+                                          "{\"mapped_rate_case\":\"pass\",\"expression\":", stdout);
                 print_json_string(expression_override);
                 printf(",\"page\":%" PRIu64 ",\"arm\":%u,\"status\":%u,\"output_samples\":%" PRIu64
                        ",\"work\":%" PRIu64 ",\"fetched\":%" PRIu64 ",\"statistics\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 "],\"memory\":[",
@@ -1248,6 +1269,10 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
     puts(query_kind == FOUR_SERIES_NUMERIC ? "{\"instant_numeric_folds\":\"pass\",\"cases\":6,\"page_sizes\":3}" :
          query_kind == FOUR_SERIES_RATE ? "{\"direct_rate_replay\":\"pass\",\"cases\":12,\"page_sizes\":3}" :
                                          "{\"unique_binary_replay\":\"pass\",\"cases\":9,\"page_sizes\":3}");
+}
+
+static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t query_kind, const char *expression_override) {
+    four_series_float_query_members(engine, query_kind, expression_override, 0);
 }
 
 typedef struct {
@@ -2299,6 +2324,27 @@ int main(int argc, char **argv) {
         }
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
         puts("{\"window_fold_embedding\":\"pass\",\"functions\":17,\"cases\":816}");
+        return 0;
+    }
+    if (argc == 2 && strcmp(argv[1], "--aggregate-joins-only") == 0) {
+        const char *operators[] = {"sum", "avg", "count", "min", "max", "group", "stdvar", "stddev"};
+        const char *templates[] = {
+            "(%s by(zone)(m_total)+1) / on(zone) (%s by(zone)(m_total)+1)",
+            "(%s without(member)(rate(m_total[3s]))+1) / on(zone) (%s without(member)(rate(m_total[3s]))+1)",
+            "(clamp_min(%s by(zone)(abs(m_total)),0)+1) / on(zone) (clamp_min(%s by(zone)(abs(m_total)),0)+1)",
+            "(sum by(zone)(%s by(zone,member)(m_total))+1) / on(zone) (sum by(zone)(%s by(zone,member)(m_total))+1)"
+        };
+        for (unsigned op = 0; op < sizeof(operators) / sizeof(operators[0]); op++) {
+            for (unsigned t = 0; t < sizeof(templates) / sizeof(templates[0]); t++) {
+                char expression[256];
+                int length = snprintf(expression, sizeof(expression), templates[t], operators[op], operators[op]);
+                assert(length > 0 && (size_t)length < sizeof(expression));
+                four_series_float_query_members(engine, FOUR_SERIES_RATE, expression, 1);
+                balanced(engine, &idle);
+            }
+        }
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        puts("{\"group_contributor_embedding\":\"pass\",\"operators\":8,\"cases\":384}");
         return 0;
     }
     if (argc == 2 && strcmp(argv[1], "--regex-only") == 0) {

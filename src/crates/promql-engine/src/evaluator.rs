@@ -621,8 +621,41 @@ pub(crate) enum RowFilter<'a> {
     All,
     Ordinals(&'a [usize]),
     One(usize),
+    Contributors(&'a crate::aggregate_replay::Plan),
 }
 impl RowFilter<'_> {
+    pub(crate) fn singleton(self) -> Option<usize> {
+        match self {
+            Self::One(value) => Some(value),
+            Self::Ordinals([value]) => Some(*value),
+            Self::Contributors(plan) => plan.singleton(),
+            _ => None,
+        }
+    }
+    pub(crate) fn visit_ordinals(
+        self,
+        control: &Control,
+        account: &QueryAccounting,
+        mut visit: impl FnMut(usize) -> Result<(), Interrupted>,
+    ) -> Result<(), Interrupted> {
+        match self {
+            Self::All => (),
+            Self::One(value) => {
+                control.check()?;
+                account.work(1);
+                visit(value)?;
+            }
+            Self::Ordinals(values) => {
+                for &value in values {
+                    control.check()?;
+                    account.work(1);
+                    visit(value)?;
+                }
+            }
+            Self::Contributors(plan) => plan.visit_members(control, account, visit)?,
+        }
+        control.check()
+    }
     pub(crate) fn accepts(
         self,
         ordinal: usize,
@@ -637,6 +670,9 @@ impl RowFilter<'_> {
                 crate::evaluator_order::contains(values, &ordinal, control, account)
             }
             Self::One(value) => Ok(value == ordinal),
+            Self::Contributors(plan) => {
+                Ok(plan.next_ordinal(ordinal, control, account)? == Some(ordinal))
+            }
         }
     }
     fn next_ordinal(
@@ -648,6 +684,7 @@ impl RowFilter<'_> {
         match self {
             Self::All => Ok(Some(start)),
             Self::One(value) => Ok((value >= start).then_some(value)),
+            Self::Contributors(plan) => plan.next_ordinal(start, control, account),
             Self::Ordinals(values) => {
                 let mut next = None;
                 for value in values {
@@ -2675,34 +2712,34 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 operator,
                 ..
             } => {
-                if !matches!(
-                    operator,
-                    TokenKind::SUM
-                        | TokenKind::AVG
-                        | TokenKind::COUNT
-                        | TokenKind::MIN
-                        | TokenKind::MAX
-                        | TokenKind::GROUP
-                        | TokenKind::STDVAR
-                        | TokenKind::STDDEV
-                ) {
+                if !crate::aggregation::ordinary(*operator) {
                     return Err(EvaluationError::Unsupported("aggregation kernel"));
                 }
                 let mut groups = AccountedVec::new(self.account, MemoryKind::Workspace);
-                for (ordinal, labels) in self
+                let descriptors = self
                     .rosters
                     .groups(node)
-                    .ok_or(EvaluationError::Invalid("aggregation roster is missing"))?
-                    .iter()
-                    .enumerate()
-                {
-                    if !self.frames[index]
-                        .filter
-                        .accepts(ordinal, self.control, self.account)?
-                    {
-                        continue;
+                    .ok_or(EvaluationError::Invalid("aggregation roster is missing"))?;
+                let filter = self.frames[index].filter;
+                if let Some(ordinal) = filter.singleton() {
+                    self.control.check()?;
+                    self.account.work(1);
+                    if let Some(labels) = descriptors.get(ordinal) {
+                        groups.push(Group::new(labels, ordinal));
                     }
-                    groups.push(Group::new(labels, ordinal));
+                } else if let RowFilter::Contributors(plan) = filter {
+                    plan.visit_members(self.control, self.account, |ordinal| {
+                        if let Some(labels) = descriptors.get(ordinal) {
+                            groups.push(Group::new(labels, ordinal));
+                        }
+                        Ok(())
+                    })?;
+                } else {
+                    for (ordinal, labels) in descriptors.iter().enumerate() {
+                        if filter.accepts(ordinal, self.control, self.account)? {
+                            groups.push(Group::new(labels, ordinal));
+                        }
+                    }
                 }
                 let lookup = if groups.len() > 1 {
                     let mut lookup = crate::position_index::PositionIndex::new(self.account);
@@ -2738,7 +2775,23 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     lookup,
                     collecting: true,
                 };
-                self.push_all(*child)?;
+                let child_filter = if let Some(plan) = self.rosters.group_replay(node)
+                    && plan.activate(
+                        filter,
+                        crate::vector_matching::ReplayKey::new(
+                            self.options,
+                            self.step_index,
+                            self.prepared.lookback_ns(self.options.lookback_ms),
+                            self.data_bounds,
+                        ),
+                        self.control,
+                        self.account,
+                    )? {
+                    RowFilter::Contributors(plan)
+                } else {
+                    RowFilter::All
+                };
+                self.push_filtered(*child, child_filter, false, OutputMode::Vector)?;
                 Ok(None)
             }
             Expr::Aggregate {
@@ -2941,7 +2994,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             match self.frames[index].filter {
                                 RowFilter::All => None,
                                 RowFilter::Ordinals(values) => Some(values),
-                                RowFilter::One(_) => None,
+                                RowFilter::One(_) | RowFilter::Contributors(_) => None,
                             },
                             self.account,
                         ),
@@ -4158,6 +4211,18 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     collecting,
                 } => {
                     if *collecting {
+                        if let Some(plan) = self.rosters.group_replay(node) {
+                            plan.complete(
+                                crate::vector_matching::ReplayKey::new(
+                                    self.options,
+                                    self.step_index,
+                                    self.prepared.lookback_ns(self.options.lookback_ms),
+                                    self.data_bounds,
+                                ),
+                                self.control,
+                                self.account,
+                            )?;
+                        }
                         *collecting = false;
                         // Positions cease to identify the same groups after reversal and removal.
                         *lookup = None;

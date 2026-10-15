@@ -15,6 +15,7 @@ mod fixture_codec;
 
 mod absence;
 pub mod accounting;
+mod aggregate_replay;
 mod aggregation;
 pub mod annotations;
 mod binary_labels;

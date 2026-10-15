@@ -69964,5 +69964,19 @@
     "candidate_c_cpp_asserted_arms": 9792,
     "approved_exception_kernel_executions": 6,
     "boundary_scope": "Single-ID boundary fixtures cannot install the multi-row Pair. They establish complete clock/fallback outcomes; multi-ID mapped cases separately cover ordinary fractional offsets."
+  },
+  "group_contributor_qualification": {
+    "receipt": "group-contributor-qualification.json",
+    "sha256": "82c6a97b9a0befe8dbd5cded5ed68f5b7a8ce727f6e4053ee41965a48f177ef8",
+    "status": "qualified_grouped_aggregate_contributors",
+    "meaning": "Reuse complete grouped discovery and select original child output contributors for all eight ordinary aggregate operands. Preserve arithmetic, failure phases, paging and conservative root/leaf/clock/Pair gates.",
+    "native_complete_original_comparisons": 4320,
+    "foreign_complete_original_comparisons": 2880,
+    "retained_reducer_policy_comparisons": 56124,
+    "retained_window_comparisons": 4532,
+    "native_units_per_profile": 668,
+    "candidate_grouped_c_cpp_arms": 4608,
+    "candidate_window_c_cpp_control_arms": 3264,
+    "boundary_scope": "All8ordinary aggregates; source-defined contributor order, exact cold completion, nested ordinal unions and conservative fallback. No raw-point certificate, raw array, metadata authority, payload cache, dependency or ABI change."
   }
 }
