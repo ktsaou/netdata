@@ -4375,8 +4375,9 @@ across both axes, and earlier broad language/SRE/live-Agent/CI cohorts retain th
 ## Completed mapped rate join discovery
 
 Joins such as `clamp_min(rate(m_total[5m]),0) / on(id) n_total` can reuse completed discovery through pure Float
-functions, vector/scalar operations, unary expressions and parentheses. The proof ends at the existing ordinary
-direct-rate checks. It shares the existing wrapper-purity predicate and checks every effective producer/source/
+functions, vector/scalar operations, unary expressions and parentheses. This original cohort ended at the ordinary
+direct-rate checks; the [family extension](#completed-range-rate-join-discovery) now admits the complete existing
+range-rate class. It shares the existing wrapper-purity predicate and checks every effective producer/source/
 scope grid against the original header. Rate receives no raw-point schedule marker.
 
 Pair replay still evaluates the original operand ordinal and its complete subtree, including fresh scalar
@@ -4426,3 +4427,74 @@ The [qualification](mapped-rate-join-qualification.json) preserves actual origin
 all resource increases, timing samples and failed development fixture checks. The old runtime completes all24
 mapped regression cases before its final test-only work bound fails; current optimized suites pass that bound.
 Earlier broad language, SRE, live-Agent and Debug cohorts retain their own identities and are not reattributed.
+
+## Completed range-rate join discovery
+
+Completed binary discovery now covers the whole existing `RangeFunction::Rate` class: `rate`, `increase`,
+`delta`, `irate` and `idelta`. One private predicate preserves the established `rate` short circuit and uses
+the typed dispatcher for other members. Its membership is checked against that dispatcher for every registered
+function name. Pure Float/scalar/unary/parenthesis wrappers use the same terminal proof.
+
+The original subtree and physical ordinal still own evaluation. Arity, raw Matrix/Selector shape, source and
+scope grids, full successful cold discovery, exact keys and matching cardinality retain their existing gates.
+Fixed/invariant/extended or unproven shapes fall back; checked duration addition and separately truncated physical
+and extrapolation endpoints remain distinct. No raw-point marker, value/history cache, Pair layout, ABI, provider,
+storage, metadata, dependency or implicit limit changes.
+
+Seven alternating before/candidate pairs per profile measure the same 64 shuffled pairs at two timestamps and
+page17. All560 warm/measured complete outputs and their own nonelapsed observations match qualified results:
+
+| Function | Shape | Release before → after | Release-min before → after |
+| --- | --- | ---: | ---: |
+| `increase` | direct | 69.71 → 5.33 ms | 120.57 → 9.07 ms |
+| `increase` | clamp | 86.87 → 6.86 ms | 151.67 → 11.83 ms |
+| `delta` | direct | 68.22 → 4.59 ms | 119.51 → 7.89 ms |
+| `delta` | clamp | 84.94 → 5.82 ms | 152.28 → 10.12 ms |
+| `irate` | direct | 68.07 → 4.67 ms | 119.42 → 7.98 ms |
+| `irate` | clamp | 84.90 → 5.91 ms | 150.86 → 10.23 ms |
+| `idelta` | direct | 68.72 → 4.63 ms | 118.91 → 8.00 ms |
+| `idelta` | clamp | 85.38 → 5.92 ms | 151.01 → 10.28 ms |
+
+For `increase`, direct/clamp work falls4,977,311→274,480 and6,171,795→352,545. Workspace allocation traffic
+falls19,807,492→1,694,194 B and21,138,726→2,001,300 B; peaks stay169,576 B and191,678 B. These are
+cumulative requested bytes and tracked peaks, not RSS. The other new members retain the same large-case peaks.
+Across4470 native query pairs, workspace peaks stay equal in3930 and rise in540 by at most312 B. All eight
+memory kinds, ownership fields, work and read increases remain in the qualification.
+
+Existing `rate` controls are measured separately; retain their costs:
+
+| Existing control | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| direct | 5.36 → 5.39 ms | 9.09 → 9.09 ms |
+| clamp | 6.89 → 6.87 ms | 11.93 → 11.90 ms |
+
+The first candidate repeated an approximately3.3% release-min rate-control cost. One bounded refinement
+preserves the old `rate` short circuit; its separate504-response panel measures1.45%/1.22% direct/clamp cost,
+with0.35%/0.02% same-binary arm variation. Setup classification runs only once/four times for these shapes;
+major hot-owner instructions remain equivalent while addresses shift. This does not establish the cause of
+the remaining cost or a universal zero-cost result. No further layout experiments are part of this cohort.
+
+The [input generator](range_rate_cases.py) reuses the preceding mapped-rate fixtures and adds distinguishing
+reset results, all25mixed-function combinations in each feature profile, instant typed tails, gauge hints,
+start times and15nonempty fractional/overflow boundaries. Equal-function ratios alone do not prove dispatch.
+All745 pinned complete outcomes pass both optimized native profiles at pages1/17/1024:4470comparisons with
+zero numeric bit differences. Each final native profile passes all661library units with none ignored.
+
+Final ARM64/ARM32 query fixtures and static archives execute2980complete page17 comparisons across both
+profiles under QEMU. Twelve actual final C/C++ programs assert2880success, cold-provider, cancellation and
+output-error arms across all three page sizes. All960native paired C observations preserve the three exported
+basic sample-statistics fields; native query JSON does not export those fields. The earlier28focused foreign
+unit executions and745Debug comparisons retain their first-candidate source/binary identities; they are not
+final-source foreign unit-suite or Debug claims. Both final native suites assert the predicate membership,
+complete result/order/release behavior, work bound and calibrated cold-suffix/warm-selected failures.
+
+The old production runtime completes120complete regression cases before failing only the final test-only work
+bound. That bound is not an enabled query cap. Format, strict production/fixture Clippy and installed Rust1.91.0
+all-targets fixture compilation pass; the latter is a compile-only MSRV check.
+
+Final native query-fixture `.text` changes: release -16 B, release-min +32 B. The
+[qualification](range-rate-join-qualification.json) binds actual source/compiler/input/binary versions, the
+first candidate and bounded refinement, all timing samples and resource increases. These are synthetic engine
+measurements on a shared host, not live DBengine disk I/O, HTTP, concurrent throughput, device performance or
+RSS. No language feature is added or dropped. Raw inputs stay paged on both axes; complete owned results and
+derived metadata/state may grow. Earlier broad language, SRE and live-Agent evidence retains its own identity.

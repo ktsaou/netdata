@@ -1641,6 +1641,38 @@ fn mapped_rate_join_avoids_repeating_full_child_discovery() {
 }
 
 #[test]
+fn range_rate_joins_avoid_repeating_full_child_discovery() {
+    for function in crate::frontend::functions::FUNCTIONS {
+        assert_eq!(
+            CompiledQuery::is_replay_rate_function(function.name),
+            matches!(
+                RangeFunction::parse(function.name),
+                Some(RangeFunction::Rate(_))
+            ),
+            "replay admission must match the typed owner for {}",
+            function.name
+        );
+    }
+    let mut work = Vec::new();
+    for function in ["increase", "delta", "irate", "idelta"] {
+        for template in [
+            "{f}(m_total[5m]) / on(instance) {f}(n_total[5m])",
+            "clamp_min({f}(m_total[5m]),0) / on(instance) {f}(n_total[5m])",
+            "{f}(m_total[5m]) / on(instance) abs({f}(n_total[5m]))",
+            "abs(clamp_min({f}(m_total[5m]),-time())) / on(instance) abs({f}(n_total[5m]))",
+            "(100 * +{f}(m_total[5m])) / on(instance) ({f}(n_total[5m]) * 100)",
+        ] {
+            let expression = template.replace("{f}", function);
+            work.extend(rate_join_discovery_cases(expression.as_bytes()));
+        }
+    }
+    assert!(
+        work.iter().all(|value| *value < 1_650_000),
+        "range-rate joins must avoid repeated whole-child discovery: {work:?}"
+    );
+}
+
+#[test]
 fn direct_rate_join_preserves_membership_order_and_mixed_operands() {
     fn point<const LEFT: bool, const ID: usize>(index: usize) -> crate::value::Sample {
         let missing = index == 2 && ((LEFT && ID == 0) || (!LEFT && ID == 1));

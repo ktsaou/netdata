@@ -612,9 +612,10 @@ integration, and Alertmanager remains excluded.
 
 ## Completed direct rate join scans
 
-- **Choice:** the existing bare-root one-to-one float join certificate also accepts ordinary direct
-  `rate(raw_selector[range])` operands. Producer, source and scope grids must match the effective evaluator grid.
-  Fixed, invariant, anchored, smoothed, wrapped and unsupported computed shapes retain ordinary replay.
+- **Choice:** the original direct-rate cohort admitted `rate(raw_selector[range])` to the float join certificate.
+  The current [operand proof](#completed-mapped-rate-join-discovery) also covers pure wrappers and the complete
+  existing rate-function family. Producer, source and scope grids must match the effective evaluator grid.
+  Fixed, invariant, anchored, smoothed and unproven computed shapes retain ordinary replay.
 - **Clocks:** certification checks the nanosecond range-plus-offset sum and both physical/extrapolation window
   endpoints before reuse. Physical selection and extrapolation truncate different expressions; fractional inputs
   retain their full existing arithmetic. A failed eligibility check uses ordinary evaluation without a new error.
@@ -653,7 +654,7 @@ integration, and Alertmanager remains excluded.
   projections and supported timestamp or histogram count/sum/avg conversions can qualify as outer operands.
   Require an actual raw Selector and
   identical outer/leaf producer/source/scope grids. Preserve all root, matching, uniqueness, selector-schedule,
-  exact-key and successful-Done gates. The separate direct rate branch keeps its actual-arity-one restriction.
+  exact-key and successful-Done gates. The separate direct rate-family branch keeps its actual-arity-one restriction.
 - **Ownership:** reuse existing pair bindings and accounted current-scope membership. Later outputs read selected
   wrapper operands afresh through canonical-to-physical mapping. First-final delivery drains all pairs before
   publishing membership. Release the previous completion before replacement. No raw history array, purity walk,
@@ -1074,12 +1075,14 @@ integration, and Alertmanager remains excluded.
 ## Completed mapped rate join discovery
 
 - **Choice:** extend the existing binary operand proof through pure Float functions, vector/scalar operations,
-  unary expressions and parentheses ending at the unchanged ordinary direct-rate proof. Return immediately for
-  already-supported raw, earned-marker and direct-rate operands. Share the existing wrapper-purity predicate;
+  unary expressions and parentheses ending at the ordinary direct range-rate proof. Both terminals use the existing
+  `RangeFunction::Rate` class: `rate`, `increase`, `delta`, `irate` and `idelta`. One private predicate retains the
+  established `rate` short circuit before typed classification; its registered-name membership is tested. Return immediately for
+  already-supported raw, earned-marker and direct rate-family operands. Share the existing wrapper-purity predicate;
   preserve its scheduled caller's child, earned-marker, then scalar-purity order.
 - **Authority:** use the original output header for producer/source/scope grid checks at every effective wrapper.
-  Keep fixed/invariant/matrix exclusions and the direct-rate arity, selector, extended-window and checked endpoint
-  rules. Resolve left before right and propagate interruption immediately. Rate receives no raw-point marker.
+  Keep fixed/invariant/matrix exclusions and the direct rate-family arity, selector, extended-window and checked endpoint
+  rules. Resolve left before right and propagate interruption immediately. Window outputs receive no raw-point marker.
 - **Evaluation:** the existing Pair requests the original operand ordinal and evaluates its complete subtree,
   including fresh scalar parameters. Full successful cold discovery, Float/source/head/alias uniqueness, exact
   scope keys, matching cardinality, diagnostics and cancellation retain their existing owners. Grouped joins can
@@ -1087,10 +1090,14 @@ integration, and Alertmanager remains excluded.
 - **Memory:** no raw value, history, new cache or Pair representation is added. Newly eligible queries can use the
   existing accounted Pair maps and one-step membership bitmap; their small-query peak cost must remain visible.
   Lower cumulative allocation traffic does not imply lower peak memory or process RSS.
-- **Evidence:** [qualification](mapped-rate-join-qualification.json) and
+- **Original mapped-rate evidence:** [qualification](mapped-rate-join-qualification.json) and
   [measured scope](README.md#completed-mapped-rate-join-discovery) bind complete pinned expressions, the causal
   old-runtime work regression, calibrated source/output failures, actual C/C++ consumers and optimized timings.
   Public interfaces, contexts authority, storage, raw paging, dependencies and disabled caps remain unchanged.
+- **Family evidence:** [range-rate qualification](range-rate-join-qualification.json) and the
+  [measured scope](README.md#completed-range-rate-join-discovery) separately bind all five numerical dispatches,
+  mixed-family joins, resets and typed-tail behavior. Numerical and diagnostic owners remain unchanged; equal-function
+  ratios alone do not establish correct dispatch. Earlier rate-only measurements retain their original identities.
 - **Measured result:** 804 native comparisons, 18 supplemental candidate boundary outcomes, 536 compiled ARM
   comparisons, 659 native units/profile and actual C/C++ consumers pass. Four 64-pair mapped shapes improve
   9.3–13.2× in the fixed shared-host timing panel; no live DBengine or concurrent-throughput claim follows.

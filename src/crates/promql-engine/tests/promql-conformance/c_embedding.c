@@ -2252,6 +2252,27 @@ int main(int argc, char **argv) {
         puts("{\"mapped_rate_embedding\":\"pass\",\"mapped_cases\":36,\"direct_cases\":12}");
         return 0;
     }
+    if (argc == 2 && strcmp(argv[1], "--range-rates-only") == 0) {
+        const char *functions[] = {"rate", "increase", "delta", "irate", "idelta"};
+        const char *templates[] = {
+            "%s(m_total[3s]) / on(zone) %s(m_total[3s])",
+            "clamp_min(%s(m_total[3s]),0) / on(zone) %s(m_total[3s])",
+            "%s(m_total[3s]) / on(zone) abs(%s(m_total[3s]))",
+            "abs(clamp_min(%s(m_total[3s]),-time())) / on(zone) abs(%s(m_total[3s]))"
+        };
+        for (unsigned f = 0; f < sizeof(functions) / sizeof(functions[0]); f++) {
+            for (unsigned t = 0; t < sizeof(templates) / sizeof(templates[0]); t++) {
+                char expression[256];
+                int length = snprintf(expression, sizeof(expression), templates[t], functions[f], functions[f]);
+                assert(length > 0 && (size_t)length < sizeof(expression));
+                four_series_float_query(engine, FOUR_SERIES_RATE, expression);
+                balanced(engine, &idle);
+            }
+        }
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        puts("{\"range_rate_embedding\":\"pass\",\"functions\":5,\"cases\":240}");
+        return 0;
+    }
     if (argc == 2 && strcmp(argv[1], "--regex-only") == 0) {
         protocol_primitives(engine);
         balanced(engine, &idle);

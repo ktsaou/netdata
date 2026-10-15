@@ -69941,5 +69941,16 @@
     "foreign_complete_comparisons": 536,
     "supplemental_candidate_boundary_comparisons": 18,
     "basic_sample_statistics_scope": "144actual native mapped C observation pairs;native JSON omits these fields."
+  },
+  "range_rate_join_qualification": {
+    "receipt": "range-rate-join-qualification.json",
+    "sha256": "eb95fc3b4ade6a652aac0201d63ab2dc58994e873956a293d6ad37df4ee4af5a",
+    "status": "qualified_range_rate_join_discovery",
+    "meaning": "Admit exactly the existing RangeFunction::Rate family at both direct and mapped binary replay terminals. Preserve every existing guard, numerical owner and original-operand replay authority.",
+    "native_complete_comparisons": 4470,
+    "foreign_complete_comparisons": 2980,
+    "native_units_per_profile": 661,
+    "basic_sample_statistics_scope": "960actual native C comparison arms; native query JSON omits these fields.",
+    "historical_coverage_scope": "28focused foreign units and745Debug comparisons retain first-candidate source/binary identities; final production foreign query/static archives and actual C/C++ callers are rebuilt."
   }
 }

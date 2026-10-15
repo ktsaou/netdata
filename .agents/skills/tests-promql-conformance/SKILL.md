@@ -107,11 +107,10 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-unique-float-join-scans` for its causal controls.
 - Instant fold reuse MUST preserve required final initialization and exact-key checks, including absent summaries;
   see `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-numeric-folds` for causal controls.
-- Direct rate join certification MUST preserve physical ordinals and effective clocks, including distinct window
-  truncation; see `src/crates/promql-engine/tests/promql-conformance/README.md#completed-direct-rate-join-scans`.
-- Mapped rate joins retain the original operand subtree and full cold-discovery authority without granting rate a
-  raw-point marker; see `src/crates/promql-engine/tests/promql-conformance/README.md#completed-mapped-rate-join-discovery`
-  for changing scopes, scalar phases, calibrated source failures, C statistics and Pair metadata costs.
+- Rate-family joins MUST preserve original subtrees/physical ordinals, full cold discovery, effective clocks and
+  distinct physical/extrapolation truncation. Do not grant window outputs a raw-point marker. Follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#completed-range-rate-join-discovery`
+  for numerical/tail distinctions, changing scopes, scalar phases, calibrated failures, C statistics and Pair costs.
 - Callback failure controls MUST establish their actual phase: output begin precedes preparation. The same guide
   records calibrated cursor landmarks and native traces for the first-final rate case.
 - Label projection MUST preserve virtual reset and reserved-name errors before matching; measure retained vector

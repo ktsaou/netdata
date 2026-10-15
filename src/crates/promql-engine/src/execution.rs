@@ -1256,6 +1256,11 @@ impl CompiledQuery {
         Ok(Some(copies))
     }
 
+    fn is_replay_rate_function(name: &str) -> bool {
+        // Preserve the established rate short circuit before the full range dispatcher.
+        name == "rate" || matches!(RangeFunction::parse(name), Some(RangeFunction::Rate(_)))
+    }
+
     fn binary_replay_grid_matches(
         &self,
         node: NodeId,
@@ -1298,7 +1303,7 @@ impl CompiledQuery {
                 ..
             } = &self.expression.arena[node].expression
             {
-                if function.name == "rate" {
+                if Self::is_replay_rate_function(function.name) {
                     return Ok(self.binary_replay_selector(node, header, prepared, rosters));
                 }
                 if !matches!(
@@ -1355,7 +1360,7 @@ impl CompiledQuery {
         else {
             return None;
         };
-        if function.name != "rate" || arguments.len() != 1 {
+        if !Self::is_replay_rate_function(function.name) || arguments.len() != 1 {
             return None;
         }
         let matrix = arguments[0];
@@ -6707,8 +6712,7 @@ mod tests {
         (descriptors, baseline)
     }
 
-    #[test]
-    fn mapped_rate_join_preserves_cold_suffix_and_warm_selected_failures() {
+    fn range_rate_join_failures(function: &str) {
         let request = QueryRequest::Range {
             start_ms: 2000,
             end_ms: 3000,
@@ -6729,7 +6733,7 @@ mod tests {
             input
         };
         for page in [1, 17, 1024] {
-            for (expression, selected) in [
+            for (template, selected) in [
                 ("clamp_min(rate(a_total[3s]),0) / on(instance) b_total", 5),
                 (
                     "abs(clamp_min(rate(a_total[3s]),-time())) / on(instance) b_total",
@@ -6738,6 +6742,7 @@ mod tests {
                 ("a_total / on(instance) abs(rate(b_total[3s]))", 3),
                 ("a_total / on(instance) (100*+rate(b_total[3s]))", 3),
             ] {
+                let expression = template.replace("rate(", &format!("{function}("));
                 let engine = Engine::default();
                 let control = Control::default();
                 let compiled = engine
@@ -6826,6 +6831,18 @@ mod tests {
                 drop((report, compiled));
                 engine.accounting.snapshot().assert_memory_released();
             }
+        }
+    }
+
+    #[test]
+    fn mapped_rate_join_preserves_cold_suffix_and_warm_selected_failures() {
+        range_rate_join_failures("rate");
+    }
+
+    #[test]
+    fn range_rate_joins_preserve_cold_suffix_and_warm_selected_failures() {
+        for function in ["increase", "delta", "irate", "idelta"] {
+            range_rate_join_failures(function);
         }
     }
 

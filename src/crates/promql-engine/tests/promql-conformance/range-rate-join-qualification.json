@@ -1,0 +1,2516 @@
+{
+  "schema_version": 1,
+  "status": "qualified_range_rate_join_discovery",
+  "scope": "Admit exactly the existing RangeFunction::Rate family at both direct and mapped binary replay terminals. Preserve every existing guard, numerical owner and original-operand replay authority.",
+  "accepted_predecessor": "eb1834cd78a16e001536b37e02dd709a697d2b53",
+  "qualified_sources": {
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/crates/promql-engine/src/absence.rs": "5daad198a2b483ef9c32557667c47005b2c275359128ed0e2d08741a562a28c3",
+    "src/crates/promql-engine/src/accounting.rs": "606fabc7bc4204d1e0596806adf4a907dc40bea7b1152d4ef0584de6b001ad62",
+    "src/crates/promql-engine/src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/crates/promql-engine/src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "cd9808645a6e43b7bcd49ca11c33bd1470dd53c432c43231374b0eecc2081c6b",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "3823e8b6c8f74beeeb13a6ecb5de12669b041a07081eb6555476c2574d302b7a",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "046ab8fbd5783160210010d72ac04e501dcbb6f369e29628141ef332bcbd085c",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/crates/promql-engine/src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/crates/promql-engine/src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/crates/promql-engine/src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+    "src/crates/promql-engine/src/evaluator.rs": "e4b01e05f4cf73c2f9a9b1b8cc61abf2e4ceff7022d2204d3941618bdf89d288",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "2d2bb41a69de99aef79771384ac7b45ef7e7f384d5b4ad259caa7ca324a85cba",
+    "src/crates/promql-engine/src/execution.rs": "172ca3fb719f0656bc2e94913731246b67dd20c70b3104960dcc901c86413019",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/crates/promql-engine/src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/crates/promql-engine/src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/crates/promql-engine/src/lookup_tests.rs": "2a0d69c0bd43578d43ad860ce3a93cc985f393add84d9f21b4d3025875fcdc70",
+    "src/crates/promql-engine/src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/crates/promql-engine/src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/crates/promql-engine/src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/crates/promql-engine/src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+    "src/crates/promql-engine/src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/crates/promql-engine/src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+    "src/crates/promql-engine/src/result.rs": "45824bd559e4fb07341f2c9af18133e150f3aca2d7bddf7c7f0434abcde435b9",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "d9cbfe1215ec64f0d0dcb2268bca56d82c2d5c9b6ba0e3df88227bd12c35fc55",
+    "src/crates/promql-engine/src/scheduled_output.rs": "39ec08bc49800551bca460de854fcb8a92fc0f85f83bb48e86e0183aa11c931e",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/crates/promql-engine/src/storage.rs": "f213a16e64507e031b6c8fd58725763115a99cde489f875da20b8385b28141d5",
+    "src/crates/promql-engine/src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/crates/promql-engine/src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+    "src/crates/promql-engine/src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "f89a287b75e8aac6c57a40fdbe4eb15cab9936b64f23348019cf439133003e93",
+    "src/crates/promql-engine/src/vector_sort.rs": "d6daacd7bcde56a2984acbd52b8037ee5efbed3668d8d488271011d50aed41be",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "d19057992b8a3327d75b0d79ff400da970ffba8147bc86a08297f325ae6e6456",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "4703d09604b1820341de1c3ff41a3476bce29360f0e1984a93d060db7572fb0c"
+  },
+  "reference": {
+    "module": "github.com/prometheus/prometheus@v0.315.0",
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go": "1.27.1 AMD64 retained FMA-on",
+    "cases": 745,
+    "fresh_originals": 745,
+    "capture_lineage": "30 original baseline cases followed by715 fresh original controls; unchanged verified executable, no Go build.",
+    "result_kinds": {
+      "matrix": 681,
+      "vector": 40,
+      "error": 24
+    },
+    "nonempty_success_results": 671,
+    "distinguishing_reset_float_bits": {
+      "rate": "3ff8000000000000",
+      "increase": "4012000000000000",
+      "delta": "c02b000000000000",
+      "irate": "3ff0000000000000",
+      "idelta": "c026000000000000"
+    },
+    "nonempty_boundary_cases": 15
+  },
+  "algorithm": [
+    "One private predicate preserves the established rate-name fast branch and uses existing RangeFunction::Rate classification for other members; native tests check membership against the typed owner for every registered function name. No duplicate production five-name list.",
+    "Preserve actual arity1, raw Matrix/Selector shape, source/producer/scope grids, fixed/invariant/extended exclusions, checked duration addition and separately rounded physical/extrapolation endpoints.",
+    "Preserve full cold successful discovery, Float/source/head/hash uniqueness, exact scope keys and matching-cardinality gates.",
+    "Pair still evaluates the original operand subtree/ordinal; numerical dispatch, scalar phases, diagnostics, omissions and terminal control keep their current owners.",
+    "No raw-point marker, new raw/value/history cache, Pair representation, ABI, provider, storage, metadata, dependency or implicit cap."
+  ],
+  "regression": {
+    "complete_cases_before_old_work_failure": 120,
+    "expected_exit": 101,
+    "work_bound_is_test_only": true
+  },
+  "native": {
+    "release": {
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-native-release/promql-query-fixture",
+          "sha256": "967cc9471a8c693d62565b723bcee6be433392da9d36620925aa7e10da345681",
+          "file_bytes": 5483712
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-native-release/libnetdata_promql_engine.a",
+          "sha256": "8de0c01eebad2e1a21d3c7cd1af1497a86bc59447f8dfa4d1b7b9df2eca9e619",
+          "file_bytes": 39111244
+        },
+        "unit": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-native-release/unit",
+          "sha256": "03f740a0c823bb017844d41c2e38dc7103d3266782b62111bc720a8f194543a3",
+          "file_bytes": 24119584
+        }
+      },
+      "library_units_passed": 661,
+      "elf_text_bytes": {
+        "before": 3067893,
+        "candidate": 3067877
+      }
+    },
+    "release-min": {
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-native-release-min/promql-query-fixture",
+          "sha256": "aa524704c8cb80e211d1f0dfe2c34b8b6087358e0a72eb8d22a81dfce9645c7c",
+          "file_bytes": 3469264
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-native-release-min/libnetdata_promql_engine.a",
+          "sha256": "404ad27d38c933ab1f63a2dee44d6c90f6d919e266bafb89e24d4010f7ab7bbe",
+          "file_bytes": 54086866
+        },
+        "unit": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-native-release-min/unit",
+          "sha256": "d7290ef334aab55921c2b34c8fa53cd5697ec4ae4f88502474306c90539ee94a",
+          "file_bytes": 13399416
+        }
+      },
+      "library_units_passed": 661,
+      "elf_text_bytes": {
+        "before": 1813941,
+        "candidate": 1813973
+      }
+    }
+  },
+  "native_complete_original_comparisons": 4470,
+  "native_before_comparisons": 4470,
+  "native_before_reused_closed_outcomes": 60,
+  "native_pages": [
+    1,
+    17,
+    1024
+  ],
+  "native_bit_differences": 0,
+  "debug_complete_page17_comparisons": 0,
+  "first_candidate_debug_complete_page17_comparisons": 745,
+  "full_debug_suite_claim": false,
+  "foreign": {
+    "aarch64-unknown-linux-gnu:release": {
+      "complete_queries": 745,
+      "focused_units": [],
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-aarch64-unknown-linux-gnu-release/promql-query-fixture",
+          "sha256": "a68393fdad2cfe7a449f909cdd3b5b0a11567e0350126a331c254ec467f469d7",
+          "file_bytes": 4864088
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-aarch64-unknown-linux-gnu-release/libnetdata_promql_engine.a",
+          "sha256": "9c616667b3382b27439568fcb99dc143dcf97b1e6311a0d7708162b423d7435b",
+          "file_bytes": 39426766
+        }
+      },
+      "c_cpp_programs": 2,
+      "c_cpp_asserted_arms": 480,
+      "earlier_focused_units": {
+        "names": [
+          "execution::lookup_tests::direct_rate_join_avoids_repeating_full_child_discovery",
+          "execution::lookup_tests::mapped_rate_join_avoids_repeating_full_child_discovery",
+          "execution::lookup_tests::range_rate_joins_avoid_repeating_full_child_discovery",
+          "execution::tests::mapped_rate_join_preserves_cold_suffix_and_warm_selected_failures",
+          "execution::tests::range_rate_joins_preserve_cold_suffix_and_warm_selected_failures",
+          "range_rates::tests::instant_typed_tails_preserve_source_equal_time_insertion",
+          "range_rates::tests::instant_equal_selected_times_finish_before_histogram_warnings"
+        ],
+        "source_manifest": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/candidate-source.json",
+          "sha256": "18b3b6369327bc9558aa5db0edf734a0a86d5177ce242f83f76625d895f6be38"
+        },
+        "unit_binary": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/qualified-aarch64-unknown-linux-gnu-release/unit",
+          "sha256": "90b26257dd862c06888a47e3f503dfb316cf1996c36da7b3643231a544d7c201"
+        },
+        "receipt": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/qualified-aarch64-unknown-linux-gnu-release.json",
+          "sha256": "4705e942b39fd4d30952ffccfb313c87178874f1126db8d597b46d618c809f9d"
+        }
+      }
+    },
+    "armv7-unknown-linux-gnueabihf:release": {
+      "complete_queries": 745,
+      "focused_units": [],
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-armv7-unknown-linux-gnueabihf-release/promql-query-fixture",
+          "sha256": "e9b3cacf182e988dd16c74c8867341b261f681fa7fb8e76a35129d89d03ca695",
+          "file_bytes": 4877532
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-armv7-unknown-linux-gnueabihf-release/libnetdata_promql_engine.a",
+          "sha256": "10eeee32a5169bc75ce9aadafefb8790e5a67fc49c98ce6c45d64d9e6c08885b",
+          "file_bytes": 34497960
+        }
+      },
+      "c_cpp_programs": 2,
+      "c_cpp_asserted_arms": 480,
+      "earlier_focused_units": {
+        "names": [
+          "execution::lookup_tests::direct_rate_join_avoids_repeating_full_child_discovery",
+          "execution::lookup_tests::mapped_rate_join_avoids_repeating_full_child_discovery",
+          "execution::lookup_tests::range_rate_joins_avoid_repeating_full_child_discovery",
+          "execution::tests::mapped_rate_join_preserves_cold_suffix_and_warm_selected_failures",
+          "execution::tests::range_rate_joins_preserve_cold_suffix_and_warm_selected_failures",
+          "range_rates::tests::instant_typed_tails_preserve_source_equal_time_insertion",
+          "range_rates::tests::instant_equal_selected_times_finish_before_histogram_warnings"
+        ],
+        "source_manifest": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/candidate-source.json",
+          "sha256": "18b3b6369327bc9558aa5db0edf734a0a86d5177ce242f83f76625d895f6be38"
+        },
+        "unit_binary": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/qualified-armv7-unknown-linux-gnueabihf-release/unit",
+          "sha256": "74cc3e549b159702a9b9441080b2947a98921141d8699dc2f09557968a1031e0"
+        },
+        "receipt": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/qualified-armv7-unknown-linux-gnueabihf-release.json",
+          "sha256": "1005cc4a3e23beab446fe04d81dd948b17b6bc27a71dede38b9ecfbe772370aa"
+        }
+      }
+    },
+    "aarch64-unknown-linux-gnu:release-min": {
+      "complete_queries": 745,
+      "focused_units": [],
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-aarch64-unknown-linux-gnu-release-min/promql-query-fixture",
+          "sha256": "462b6b23b8afe12436a8344c99a4f0df088062a443f4961f5bd6202d12d71279",
+          "file_bytes": 3794864
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-aarch64-unknown-linux-gnu-release-min/libnetdata_promql_engine.a",
+          "sha256": "a666067a0ee1b7ad68c91608b07c5728bdb9f2af6b10df91de513e0cd4cc8554",
+          "file_bytes": 57336884
+        }
+      },
+      "c_cpp_programs": 2,
+      "c_cpp_asserted_arms": 480,
+      "earlier_focused_units": {
+        "names": [
+          "execution::lookup_tests::direct_rate_join_avoids_repeating_full_child_discovery",
+          "execution::lookup_tests::mapped_rate_join_avoids_repeating_full_child_discovery",
+          "execution::lookup_tests::range_rate_joins_avoid_repeating_full_child_discovery",
+          "execution::tests::mapped_rate_join_preserves_cold_suffix_and_warm_selected_failures",
+          "execution::tests::range_rate_joins_preserve_cold_suffix_and_warm_selected_failures",
+          "range_rates::tests::instant_typed_tails_preserve_source_equal_time_insertion",
+          "range_rates::tests::instant_equal_selected_times_finish_before_histogram_warnings"
+        ],
+        "source_manifest": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/candidate-source.json",
+          "sha256": "18b3b6369327bc9558aa5db0edf734a0a86d5177ce242f83f76625d895f6be38"
+        },
+        "unit_binary": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/qualified-aarch64-unknown-linux-gnu-release-min/unit",
+          "sha256": "a1748ebd0d8b901a07f6371bcfa0948deb17bfd49fdad9c6030c3f4562a0bcd1"
+        },
+        "receipt": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/qualified-aarch64-unknown-linux-gnu-release-min.json",
+          "sha256": "86b8cb7051b7f2ea6be384dcefaef05ace473caf417cdae826eddbc490815939"
+        }
+      }
+    },
+    "armv7-unknown-linux-gnueabihf:release-min": {
+      "complete_queries": 745,
+      "focused_units": [],
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-armv7-unknown-linux-gnueabihf-release-min/promql-query-fixture",
+          "sha256": "93e2423e1c3c5c226524251cb914ae0a900492f11e061163c0f47efee12b17de",
+          "file_bytes": 3189612
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-armv7-unknown-linux-gnueabihf-release-min/libnetdata_promql_engine.a",
+          "sha256": "7a742e4f0e9e974d482c6cafab8aa5cb74b3386898996dcdca35ee16d92fe6a1",
+          "file_bytes": 50676854
+        }
+      },
+      "c_cpp_programs": 2,
+      "c_cpp_asserted_arms": 480,
+      "earlier_focused_units": {
+        "names": [
+          "execution::lookup_tests::direct_rate_join_avoids_repeating_full_child_discovery",
+          "execution::lookup_tests::mapped_rate_join_avoids_repeating_full_child_discovery",
+          "execution::lookup_tests::range_rate_joins_avoid_repeating_full_child_discovery",
+          "execution::tests::mapped_rate_join_preserves_cold_suffix_and_warm_selected_failures",
+          "execution::tests::range_rate_joins_preserve_cold_suffix_and_warm_selected_failures",
+          "range_rates::tests::instant_typed_tails_preserve_source_equal_time_insertion",
+          "range_rates::tests::instant_equal_selected_times_finish_before_histogram_warnings"
+        ],
+        "source_manifest": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/candidate-source.json",
+          "sha256": "18b3b6369327bc9558aa5db0edf734a0a86d5177ce242f83f76625d895f6be38"
+        },
+        "unit_binary": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/qualified-armv7-unknown-linux-gnueabihf-release-min/unit",
+          "sha256": "9fcbb85fd7471e7f25168c2fc6624e556ca1d9b3c27eb2eaa831adb50f1fb798"
+        },
+        "receipt": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/qualified-armv7-unknown-linux-gnueabihf-release-min.json",
+          "sha256": "0080e0134c4ae9aaa846f8c7ea0dc76e0b574bef18cef58a30742b45b3b6c10f"
+        }
+      }
+    }
+  },
+  "foreign_complete_original_comparisons": 2980,
+  "focused_foreign_unit_executions": 0,
+  "first_candidate_focused_foreign_unit_executions": 28,
+  "full_foreign_unit_suite_claim": false,
+  "c_cpp": {
+    "candidate_programs": 12,
+    "asserted_candidate_arms": 2880,
+    "before_native_programs": 2,
+    "asserted_before_arms": 480,
+    "native_paired_statistics": 960,
+    "statistics_fields": [
+      "total_queryable_samples",
+      "samples_read",
+      "peak_samples"
+    ],
+    "statistics_all_equal": true,
+    "scope": "Actual complete direct/left/right/both family C calls, success/cold-provider/cancellation/output arms. Native query JSON does not export the three basic sample fields."
+  },
+  "resources": {
+    "paired_complete_native_queries": 4470,
+    "change_columns": [
+      "lower",
+      "same",
+      "higher",
+      "minimum_delta",
+      "maximum_delta"
+    ],
+    "memory": {
+      "Compiled": {
+        "current": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ]
+      },
+      "Workspace": {
+        "current": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          3930,
+          540,
+          0,
+          312
+        ],
+        "acquired": [
+          1284,
+          3102,
+          84,
+          -20161554,
+          32
+        ],
+        "released": [
+          1284,
+          3102,
+          84,
+          -20161554,
+          32
+        ]
+      },
+      "Result": {
+        "current": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ]
+      },
+      "ProviderHeld": {
+        "current": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ]
+      },
+      "BorrowedView": {
+        "current": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          816,
+          3654,
+          0,
+          -8705088,
+          0
+        ],
+        "released": [
+          816,
+          3654,
+          0,
+          -8705088,
+          0
+        ]
+      },
+      "RegexEstimate": {
+        "current": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ]
+      },
+      "SharedCacheReference": {
+        "current": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ]
+      },
+      "Accounting": {
+        "current": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "work_and_reads": {
+      "work": [
+        1308,
+        3078,
+        84,
+        -5819250,
+        15
+      ],
+      "samples_fetched": [
+        816,
+        3654,
+        0,
+        -32004,
+        0
+      ],
+      "pages": [
+        816,
+        3654,
+        0,
+        -32004,
+        0
+      ],
+      "provider_calls": [
+        816,
+        3654,
+        0,
+        -56007,
+        0
+      ]
+    },
+    "cancellation_references": {
+      "engine_owned": {
+        "current": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ]
+      },
+      "external": {
+        "current": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          4470,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          816,
+          3654,
+          0,
+          -16002,
+          0
+        ],
+        "released": [
+          816,
+          3654,
+          0,
+          -16002,
+          0
+        ]
+      }
+    },
+    "representative_release_page17": [
+      {
+        "id": "range-producer-rate-direct-pairs64",
+        "before": {
+          "work": 274480,
+          "samples_fetched": 7548,
+          "pages": 3774,
+          "provider_calls": 8962,
+          "workspace": {
+            "acquired": 1694194,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1694194
+          }
+        },
+        "candidate": {
+          "work": 274480,
+          "samples_fetched": 7548,
+          "pages": 3774,
+          "provider_calls": 8962,
+          "workspace": {
+            "acquired": 1694194,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1694194
+          }
+        }
+      },
+      {
+        "id": "range-producer-rate-clamp-pairs64",
+        "before": {
+          "work": 352545,
+          "samples_fetched": 9596,
+          "pages": 4798,
+          "provider_calls": 11266,
+          "workspace": {
+            "acquired": 2001300,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 2001300
+          }
+        },
+        "candidate": {
+          "work": 352545,
+          "samples_fetched": 9596,
+          "pages": 4798,
+          "provider_calls": 11266,
+          "workspace": {
+            "acquired": 2001300,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 2001300
+          }
+        }
+      },
+      {
+        "id": "range-producer-increase-direct-pairs64",
+        "before": {
+          "work": 4977311,
+          "samples_fetched": 39552,
+          "pages": 19776,
+          "provider_calls": 48967,
+          "workspace": {
+            "acquired": 19807492,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19807492
+          }
+        },
+        "candidate": {
+          "work": 274480,
+          "samples_fetched": 7548,
+          "pages": 3774,
+          "provider_calls": 8962,
+          "workspace": {
+            "acquired": 1694194,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1694194
+          }
+        }
+      },
+      {
+        "id": "range-producer-increase-clamp-pairs64",
+        "before": {
+          "work": 6171795,
+          "samples_fetched": 41600,
+          "pages": 20800,
+          "provider_calls": 51271,
+          "workspace": {
+            "acquired": 21138726,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21138726
+          }
+        },
+        "candidate": {
+          "work": 352545,
+          "samples_fetched": 9596,
+          "pages": 4798,
+          "provider_calls": 11266,
+          "workspace": {
+            "acquired": 2001300,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 2001300
+          }
+        }
+      },
+      {
+        "id": "range-producer-delta-direct-pairs64",
+        "before": {
+          "work": 4970399,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 267568,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "range-producer-delta-clamp-pairs64",
+        "before": {
+          "work": 6162579,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 343329,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "range-producer-irate-direct-pairs64",
+        "before": {
+          "work": 4971167,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 268336,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "range-producer-irate-clamp-pairs64",
+        "before": {
+          "work": 6163603,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 344353,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "range-producer-idelta-direct-pairs64",
+        "before": {
+          "work": 4971167,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 268336,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "range-producer-idelta-clamp-pairs64",
+        "before": {
+          "work": 6163603,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 344353,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      }
+    ],
+    "interpretation": "Acquired/released bytes are cumulative traffic; peak is tracked requested storage, not RSS. New eligible cases may pay existing Pair metadata. References remain balanced; physical acquisition counts may fall."
+  },
+  "timing": {
+    "responses_checked": 560,
+    "groups": [
+      {
+        "profile": "release",
+        "id": "range-producer-rate-direct-pairs64",
+        "before_ns": [
+          6911884,
+          5242207,
+          5454016,
+          6232119,
+          5336806,
+          5244446,
+          5361206
+        ],
+        "candidate_ns": [
+          5334866,
+          5611634,
+          5447516,
+          5278327,
+          5389365,
+          5320546,
+          5745733
+        ],
+        "before_median_ns": 5361206,
+        "candidate_median_ns": 5389365,
+        "median_ratio_before_over_candidate": 0.9947750801810603,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "range-producer-rate-clamp-pairs64",
+        "before_ns": [
+          9263404,
+          6754275,
+          6879734,
+          7050192,
+          6899093,
+          6660655,
+          6887154
+        ],
+        "candidate_ns": [
+          6874163,
+          7040522,
+          6923493,
+          6827984,
+          6806114,
+          6756935,
+          7315320
+        ],
+        "before_median_ns": 6887154,
+        "candidate_median_ns": 6874163,
+        "median_ratio_before_over_candidate": 1.001889830078222,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "range-producer-increase-direct-pairs64",
+        "before_ns": [
+          75138522,
+          69046892,
+          69712527,
+          74882865,
+          67534285,
+          67467345,
+          69841396
+        ],
+        "candidate_ns": [
+          5375956,
+          5345236,
+          5332586,
+          5263437,
+          5328827,
+          5278837,
+          6159600
+        ],
+        "before_median_ns": 69712527,
+        "candidate_median_ns": 5332586,
+        "median_ratio_before_over_candidate": 13.0729306569083,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "range-producer-increase-clamp-pairs64",
+        "before_ns": [
+          86845256,
+          86280501,
+          87164773,
+          104656799,
+          88800950,
+          86865596,
+          85325079
+        ],
+        "candidate_ns": [
+          6927713,
+          6834894,
+          6983262,
+          6844863,
+          6852054,
+          6861024,
+          7584178
+        ],
+        "before_median_ns": 86865596,
+        "candidate_median_ns": 6861024,
+        "median_ratio_before_over_candidate": 12.660733441538756,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "range-producer-delta-direct-pairs64",
+        "before_ns": [
+          68282409,
+          68215340,
+          69185672,
+          88141146,
+          68220239,
+          66925290,
+          67822112
+        ],
+        "candidate_ns": [
+          4574663,
+          4547712,
+          4638352,
+          4539873,
+          4591842,
+          4600962,
+          5353856
+        ],
+        "before_median_ns": 68220239,
+        "candidate_median_ns": 4591842,
+        "median_ratio_before_over_candidate": 14.856835013051407,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "range-producer-delta-clamp-pairs64",
+        "before_ns": [
+          84938042,
+          84566635,
+          85346648,
+          86340101,
+          84903053,
+          85233859,
+          82949058
+        ],
+        "candidate_ns": [
+          5900042,
+          7139851,
+          5766563,
+          5823312,
+          5784932,
+          5802372,
+          6060991
+        ],
+        "before_median_ns": 84938042,
+        "candidate_median_ns": 5823312,
+        "median_ratio_before_over_candidate": 14.585864882389952,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "range-producer-irate-direct-pairs64",
+        "before_ns": [
+          69842646,
+          68068790,
+          69352540,
+          69405700,
+          66975609,
+          66969669,
+          67318697
+        ],
+        "candidate_ns": [
+          4688291,
+          4668362,
+          4684171,
+          4546602,
+          4633712,
+          4589783,
+          4919070
+        ],
+        "before_median_ns": 68068790,
+        "candidate_median_ns": 4668362,
+        "median_ratio_before_over_candidate": 14.58087226311927,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "range-producer-irate-clamp-pairs64",
+        "before_ns": [
+          84305007,
+          84419567,
+          87140693,
+          87337942,
+          84106239,
+          84901862,
+          85431298
+        ],
+        "candidate_ns": [
+          5947621,
+          5898122,
+          6043300,
+          5854992,
+          5908492,
+          5826142,
+          6263078
+        ],
+        "before_median_ns": 84901862,
+        "candidate_median_ns": 5908492,
+        "median_ratio_before_over_candidate": 14.369463815809516,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "range-producer-idelta-direct-pairs64",
+        "before_ns": [
+          69406220,
+          70149004,
+          70214183,
+          68723435,
+          67074548,
+          67508345,
+          68708765
+        ],
+        "candidate_ns": [
+          4649862,
+          4612212,
+          4626552,
+          4570802,
+          4681341,
+          4572462,
+          5228997
+        ],
+        "before_median_ns": 68723435,
+        "candidate_median_ns": 4626552,
+        "median_ratio_before_over_candidate": 14.854136514622553,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "range-producer-idelta-clamp-pairs64",
+        "before_ns": [
+          85539137,
+          85044741,
+          84962881,
+          86014423,
+          85379668,
+          84739864,
+          86494599
+        ],
+        "candidate_ns": [
+          5941051,
+          5798183,
+          5901352,
+          5866412,
+          5987921,
+          5924051,
+          6020311
+        ],
+        "before_median_ns": 85379668,
+        "candidate_median_ns": 5924051,
+        "median_ratio_before_over_candidate": 14.41237896162609,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "range-producer-rate-direct-pairs64",
+        "before_ns": [
+          9002066,
+          9091865,
+          9265004,
+          9064505,
+          9160435,
+          9095075,
+          9083305
+        ],
+        "candidate_ns": [
+          9090016,
+          9071566,
+          9050535,
+          9085415,
+          9126445,
+          9234784,
+          9154285
+        ],
+        "before_median_ns": 9091865,
+        "candidate_median_ns": 9090016,
+        "median_ratio_before_over_candidate": 1.0002034099829968,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "range-producer-rate-clamp-pairs64",
+        "before_ns": [
+          11740044,
+          11590925,
+          11959471,
+          11981862,
+          12371718,
+          11933672,
+          11674674
+        ],
+        "candidate_ns": [
+          11724503,
+          15030107,
+          11557915,
+          11826543,
+          12023822,
+          11937432,
+          11898232
+        ],
+        "before_median_ns": 11933672,
+        "candidate_median_ns": 11898232,
+        "median_ratio_before_over_candidate": 1.0029785937944393,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "range-producer-increase-direct-pairs64",
+        "before_ns": [
+          119577757,
+          119594107,
+          120568059,
+          119877134,
+          146726154,
+          122196956,
+          125885615
+        ],
+        "candidate_ns": [
+          9053215,
+          9069605,
+          8934147,
+          9013996,
+          9145715,
+          9259054,
+          9670231
+        ],
+        "before_median_ns": 120568059,
+        "candidate_median_ns": 9069605,
+        "median_ratio_before_over_candidate": 13.2936394694146,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "range-producer-increase-clamp-pairs64",
+        "before_ns": [
+          150845100,
+          151297026,
+          151671463,
+          150361524,
+          153605827,
+          152351088,
+          173595314
+        ],
+        "candidate_ns": [
+          11785353,
+          11814633,
+          11593785,
+          12178580,
+          11881353,
+          11895192,
+          11833013
+        ],
+        "before_median_ns": 151671463,
+        "candidate_median_ns": 11833013,
+        "median_ratio_before_over_candidate": 12.817653711696252,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "range-producer-delta-direct-pairs64",
+        "before_ns": [
+          117145907,
+          116658101,
+          119452159,
+          121154305,
+          120643359,
+          119511338,
+          121043645
+        ],
+        "candidate_ns": [
+          7849006,
+          7859215,
+          7760627,
+          8158023,
+          7894555,
+          8048264,
+          7966584
+        ],
+        "before_median_ns": 119511338,
+        "candidate_median_ns": 7894555,
+        "median_ratio_before_over_candidate": 15.138451502332938,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "range-producer-delta-clamp-pairs64",
+        "before_ns": [
+          152284289,
+          147596857,
+          152459297,
+          149617060,
+          153336300,
+          154657299,
+          148697478
+        ],
+        "candidate_ns": [
+          10168406,
+          10048877,
+          10072667,
+          10087897,
+          10222227,
+          10315385,
+          10115387
+        ],
+        "before_median_ns": 152284289,
+        "candidate_median_ns": 10115387,
+        "median_ratio_before_over_candidate": 15.054717036530585,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "range-producer-irate-direct-pairs64",
+        "before_ns": [
+          120857497,
+          119423179,
+          118140899,
+          119306950,
+          121435532,
+          122160956,
+          116734581
+        ],
+        "candidate_ns": [
+          7931405,
+          8030664,
+          7920465,
+          7878406,
+          7982424,
+          8062204,
+          8060574
+        ],
+        "before_median_ns": 119423179,
+        "candidate_median_ns": 7982424,
+        "median_ratio_before_over_candidate": 14.960766178293712,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "range-producer-irate-clamp-pairs64",
+        "before_ns": [
+          149960117,
+          150857630,
+          149417552,
+          153371950,
+          152409777,
+          152493727,
+          150261216
+        ],
+        "candidate_ns": [
+          10233016,
+          10255556,
+          10034727,
+          10191306,
+          10779161,
+          10335465,
+          10231156
+        ],
+        "before_median_ns": 150857630,
+        "candidate_median_ns": 10233016,
+        "median_ratio_before_over_candidate": 14.742245101541911,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "range-producer-idelta-direct-pairs64",
+        "before_ns": [
+          117350505,
+          118539176,
+          118860314,
+          119225711,
+          119410188,
+          118909663,
+          119535507
+        ],
+        "candidate_ns": [
+          7962624,
+          7952435,
+          8002165,
+          8012364,
+          8108863,
+          8078603,
+          7962315
+        ],
+        "before_median_ns": 118909663,
+        "candidate_median_ns": 8002165,
+        "median_ratio_before_over_candidate": 14.85968647234842,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "range-producer-idelta-clamp-pairs64",
+        "before_ns": [
+          151643594,
+          172870169,
+          148323981,
+          151009829,
+          151650274,
+          150902490,
+          149531532
+        ],
+        "candidate_ns": [
+          10256996,
+          10332785,
+          10278225,
+          10269256,
+          10444984,
+          10328635,
+          10220896
+        ],
+        "before_median_ns": 151009829,
+        "candidate_median_ns": 10278225,
+        "median_ratio_before_over_candidate": 14.692208917395757,
+        "slower_candidate_median": false
+      }
+    ],
+    "measurement": "Seven alternating before/candidate pairs per profile. Ten fixed64-pair cases each have warm and measured execution; all560complete results and each binary own nonelapsed observations must match qualified outputs.",
+    "limits": "Shared host without CPU/frequency isolation. Synthetic provider,engine preparation/execution; not HTTP,live DBengine disk throughput,concurrency throughput or processRSS."
+  },
+  "static": {
+    "format": "pass",
+    "strict_clippy": [
+      "production",
+      "fixtures"
+    ],
+    "msrv": "Installed Rust1.91.0, all-targets fixtures compilation only."
+  },
+  "input_generator": {
+    "path": "src/crates/promql-engine/tests/promql-conformance/range_rate_cases.py",
+    "sha256": "4c8bd0552f1b742dac5060b6501056d25150a97d231ec09e530f0508ea8e7eeb"
+  },
+  "historical_input_versions": {
+    "versions": [
+      {
+        "original_path": "src/crates/promql-engine/tests/promql-conformance/range_rate_cases.py",
+        "original_sha256": "78deb0c48f08e1cd7f2462050b2579f430c65c13a89a705c7d9a93aa1e6ad817",
+        "snapshot": {
+          "path": ".tmp/range-producer-joins-di8ijy5v/first-range_rate_cases.py",
+          "sha256": "78deb0c48f08e1cd7f2462050b2579f430c65c13a89a705c7d9a93aa1e6ad817"
+        },
+        "current_sha256": "4c8bd0552f1b742dac5060b6501056d25150a97d231ec09e530f0508ea8e7eeb",
+        "change": "Only split one equivalent import statement for Ruff I001; all745 emitted query inputs remain exactly equal."
+      }
+    ],
+    "interpretation": "Earlier cohort and process records retain their actual input hashes. Resolve only the declared earlier generator version against its exact retained bytes; no receipt or original result is rewritten."
+  },
+  "refinement": {
+    "first_candidate_qualification": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/first-qualified-report.json",
+      "sha256": "6667cf99d6776bc974042c8c75fa0d64e732e17ee09c952abdbb861df5e6c8c4"
+    },
+    "first_candidate_source_manifest": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/candidate-source.json",
+      "sha256": "18b3b6369327bc9558aa5db0edf734a0a86d5177ce242f83f76625d895f6be38"
+    },
+    "probe_source_manifest": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/probe-source.json",
+      "sha256": "f1391f050c60997b0d63db2ba9d785651ab303d67230a546bb1d078189db8133"
+    },
+    "final_source_manifest": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-source.json",
+      "sha256": "1751a35ecd2b4fac5630a03f33aedbab76135e935ab2b0724c0fb88a269fc025"
+    },
+    "source_changes_from_first": [
+      "src/crates/promql-engine/src/execution.rs",
+      "src/crates/promql-engine/src/lookup_tests.rs"
+    ],
+    "initial_fixed_timing": {
+      "responses_checked": 560,
+      "groups": [
+        {
+          "profile": "release",
+          "id": "range-producer-rate-direct-pairs64",
+          "before_ns": [
+            5512116,
+            5778293,
+            5377876,
+            5347877,
+            5424746,
+            5354076,
+            5313817
+          ],
+          "candidate_ns": [
+            5287137,
+            5380267,
+            5412997,
+            5368757,
+            5340306,
+            5410807,
+            5319917
+          ],
+          "before_median_ns": 5377876,
+          "candidate_median_ns": 5368757,
+          "median_ratio_before_over_candidate": 1.0016985309634987,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release",
+          "id": "range-producer-rate-clamp-pairs64",
+          "before_ns": [
+            6908424,
+            7290861,
+            6908174,
+            6725316,
+            6890394,
+            6889425,
+            6902954
+          ],
+          "candidate_ns": [
+            6828834,
+            6909644,
+            6900134,
+            6841385,
+            6907454,
+            6931324,
+            6828145
+          ],
+          "before_median_ns": 6902954,
+          "candidate_median_ns": 6900134,
+          "median_ratio_before_over_candidate": 1.00040868771534,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release",
+          "id": "range-producer-increase-direct-pairs64",
+          "before_ns": [
+            72374325,
+            69637467,
+            70752079,
+            68081000,
+            68932893,
+            69719857,
+            67629764
+          ],
+          "candidate_ns": [
+            5360707,
+            5384686,
+            5363507,
+            5358697,
+            5345416,
+            5413326,
+            5931452
+          ],
+          "before_median_ns": 69637467,
+          "candidate_median_ns": 5363507,
+          "median_ratio_before_over_candidate": 12.983569705418489,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release",
+          "id": "range-producer-increase-clamp-pairs64",
+          "before_ns": [
+            87345515,
+            85114012,
+            90018704,
+            85605958,
+            85947596,
+            87556592,
+            84240630
+          ],
+          "candidate_ns": [
+            6816876,
+            6904355,
+            6917804,
+            6822155,
+            6805236,
+            6946064,
+            6837794
+          ],
+          "before_median_ns": 85947596,
+          "candidate_median_ns": 6837794,
+          "median_ratio_before_over_candidate": 12.569491856584156,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release",
+          "id": "range-producer-delta-direct-pairs64",
+          "before_ns": [
+            69478119,
+            68408717,
+            70368252,
+            67078219,
+            66726241,
+            78670335,
+            66624992
+          ],
+          "candidate_ns": [
+            4554333,
+            4711062,
+            4567403,
+            4593863,
+            4561713,
+            4617583,
+            4697732
+          ],
+          "before_median_ns": 68408717,
+          "candidate_median_ns": 4593863,
+          "median_ratio_before_over_candidate": 14.891327190210069,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release",
+          "id": "range-producer-delta-clamp-pairs64",
+          "before_ns": [
+            86543941,
+            85607138,
+            86877119,
+            82562653,
+            84219940,
+            121950365,
+            83627435
+          ],
+          "candidate_ns": [
+            5823143,
+            5875082,
+            5874962,
+            5813842,
+            5795603,
+            5888183,
+            5813823
+          ],
+          "before_median_ns": 85607138,
+          "candidate_median_ns": 5823143,
+          "median_ratio_before_over_candidate": 14.701191092164489,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release",
+          "id": "range-producer-irate-direct-pairs64",
+          "before_ns": [
+            69395339,
+            84503917,
+            68473916,
+            66727641,
+            67750093,
+            92845200,
+            67104418
+          ],
+          "candidate_ns": [
+            4618142,
+            4776541,
+            4612203,
+            4634842,
+            4587833,
+            4640413,
+            4756362
+          ],
+          "before_median_ns": 68473916,
+          "candidate_median_ns": 4634842,
+          "median_ratio_before_over_candidate": 14.773732524215497,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release",
+          "id": "range-producer-irate-clamp-pairs64",
+          "before_ns": [
+            84665076,
+            85951116,
+            85930226,
+            82220296,
+            85366701,
+            87734381,
+            83781294
+          ],
+          "candidate_ns": [
+            5867883,
+            5928412,
+            5900782,
+            5892033,
+            5875413,
+            5917172,
+            5908942
+          ],
+          "before_median_ns": 85366701,
+          "candidate_median_ns": 5900782,
+          "median_ratio_before_over_candidate": 14.467014880400598,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release",
+          "id": "range-producer-idelta-direct-pairs64",
+          "before_ns": [
+            68627116,
+            69085042,
+            68404618,
+            66738781,
+            68133559,
+            68060240,
+            67983701
+          ],
+          "candidate_ns": [
+            4602213,
+            4656743,
+            4601163,
+            4655142,
+            4586583,
+            4642502,
+            4592903
+          ],
+          "before_median_ns": 68133559,
+          "candidate_median_ns": 4602213,
+          "median_ratio_before_over_candidate": 14.804520998919433,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release",
+          "id": "range-producer-idelta-clamp-pairs64",
+          "before_ns": [
+            90664518,
+            87387874,
+            85272341,
+            84020881,
+            85452209,
+            84628216,
+            83651884
+          ],
+          "candidate_ns": [
+            5849823,
+            5964652,
+            5914772,
+            5912652,
+            5851682,
+            5942882,
+            5873523
+          ],
+          "before_median_ns": 85272341,
+          "candidate_median_ns": 5912652,
+          "median_ratio_before_over_candidate": 14.422012491179931,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release-min",
+          "id": "range-producer-rate-direct-pairs64",
+          "before_ns": [
+            9176626,
+            9683042,
+            9057626,
+            9038427,
+            9032206,
+            8963527,
+            9104236
+          ],
+          "candidate_ns": [
+            9394224,
+            9191066,
+            9292325,
+            9243206,
+            9301795,
+            9436233,
+            9257736
+          ],
+          "before_median_ns": 9057626,
+          "candidate_median_ns": 9292325,
+          "median_ratio_before_over_candidate": 0.9747427043285722,
+          "slower_candidate_median": true
+        },
+        {
+          "profile": "release-min",
+          "id": "range-producer-rate-clamp-pairs64",
+          "before_ns": [
+            11915834,
+            12096002,
+            11700035,
+            11704145,
+            11599686,
+            11524437,
+            12230451
+          ],
+          "candidate_ns": [
+            12213932,
+            11937994,
+            12028182,
+            11962433,
+            12090203,
+            13680819,
+            12118752
+          ],
+          "before_median_ns": 11704145,
+          "candidate_median_ns": 12090203,
+          "median_ratio_before_over_candidate": 0.9680685262273926,
+          "slower_candidate_median": true
+        },
+        {
+          "profile": "release-min",
+          "id": "range-producer-increase-direct-pairs64",
+          "before_ns": [
+            118995579,
+            148588390,
+            119986800,
+            121702376,
+            119429045,
+            120617205,
+            122023184
+          ],
+          "candidate_ns": [
+            9280085,
+            9282585,
+            9273945,
+            9193456,
+            9294975,
+            9402034,
+            9186836
+          ],
+          "before_median_ns": 120617205,
+          "candidate_median_ns": 9280085,
+          "median_ratio_before_over_candidate": 12.997424592554918,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release-min",
+          "id": "range-producer-increase-clamp-pairs64",
+          "before_ns": [
+            151290508,
+            154562271,
+            153887597,
+            177983001,
+            156674624,
+            154468122,
+            154794228
+          ],
+          "candidate_ns": [
+            11966953,
+            11956863,
+            11906513,
+            12018953,
+            12061853,
+            12128022,
+            11990263
+          ],
+          "before_median_ns": 154562271,
+          "candidate_median_ns": 11990263,
+          "median_ratio_before_over_candidate": 12.89064893739195,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release-min",
+          "id": "range-producer-delta-direct-pairs64",
+          "before_ns": [
+            119337676,
+            119729673,
+            117761179,
+            120335277,
+            117455690,
+            168019952,
+            119440645
+          ],
+          "candidate_ns": [
+            8009555,
+            8005976,
+            7986435,
+            8039395,
+            8112644,
+            8011955,
+            8180094
+          ],
+          "before_median_ns": 119440645,
+          "candidate_median_ns": 8011955,
+          "median_ratio_before_over_candidate": 14.907802777224784,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release-min",
+          "id": "range-producer-delta-clamp-pairs64",
+          "before_ns": [
+            150331145,
+            151330887,
+            150539664,
+            164864028,
+            150994770,
+            155013577,
+            151378636
+          ],
+          "candidate_ns": [
+            10359276,
+            10276967,
+            10315137,
+            10429486,
+            10448716,
+            10574625,
+            10324487
+          ],
+          "before_median_ns": 151330887,
+          "candidate_median_ns": 10359276,
+          "median_ratio_before_over_candidate": 14.608249360283478,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release-min",
+          "id": "range-producer-irate-direct-pairs64",
+          "before_ns": [
+            119091748,
+            119496155,
+            118842099,
+            132898737,
+            119039218,
+            120424657,
+            119447934
+          ],
+          "candidate_ns": [
+            8117974,
+            8087305,
+            8094524,
+            8334953,
+            8189584,
+            8091955,
+            8074765
+          ],
+          "before_median_ns": 119447934,
+          "candidate_median_ns": 8094524,
+          "median_ratio_before_over_candidate": 14.75663473232027,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release-min",
+          "id": "range-producer-irate-clamp-pairs64",
+          "before_ns": [
+            151139319,
+            152473397,
+            149017245,
+            152558197,
+            152699016,
+            152089481,
+            151233868
+          ],
+          "candidate_ns": [
+            10467156,
+            10727193,
+            10392656,
+            10485735,
+            10610574,
+            10619934,
+            10710524
+          ],
+          "before_median_ns": 152089481,
+          "candidate_median_ns": 10610574,
+          "median_ratio_before_over_candidate": 14.333765637938155,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release-min",
+          "id": "range-producer-idelta-direct-pairs64",
+          "before_ns": [
+            120213659,
+            122154203,
+            118583371,
+            119053898,
+            118975628,
+            120927472,
+            119865481
+          ],
+          "candidate_ns": [
+            8089335,
+            9627692,
+            7990156,
+            8091974,
+            8184744,
+            7985516,
+            8165894
+          ],
+          "before_median_ns": 119865481,
+          "candidate_median_ns": 8091974,
+          "median_ratio_before_over_candidate": 14.812885088360392,
+          "slower_candidate_median": false
+        },
+        {
+          "profile": "release-min",
+          "id": "range-producer-idelta-clamp-pairs64",
+          "before_ns": [
+            149812719,
+            154598340,
+            157966754,
+            150169976,
+            152005671,
+            151082089,
+            151398716
+          ],
+          "candidate_ns": [
+            10435716,
+            10501255,
+            10458225,
+            10454155,
+            10591304,
+            10473086,
+            15135077
+          ],
+          "before_median_ns": 151398716,
+          "candidate_median_ns": 10473086,
+          "median_ratio_before_over_candidate": 14.455979450565001,
+          "slower_candidate_median": false
+        }
+      ],
+      "measurement": "Seven alternating before/candidate pairs per profile. Ten fixed64-pair cases each have warm and measured execution; all560complete results and each binary own nonelapsed observations must match qualified outputs.",
+      "limits": "Shared host without CPU/frequency isolation. Synthetic provider,engine preparation/execution; not HTTP,live DBengine disk throughput,concurrency throughput or processRSS."
+    },
+    "control_panels": {
+      "rate-only-timing.json": {
+        "responses_checked": 504,
+        "groups": [
+          {
+            "panel": "before-candidate",
+            "id": "range-producer-rate-direct-pairs64",
+            "arm0_ns": [
+              9040247.0,
+              9185150.0,
+              9074571.5,
+              8833308.5,
+              8926828.0,
+              9021582.0,
+              9002362.0
+            ],
+            "arm1_ns": [
+              9343589.0,
+              9218855.0,
+              9290794.5,
+              9544317.5,
+              9150380.0,
+              9333284.5,
+              9326244.5
+            ],
+            "arm0_median_ns": 9021582.0,
+            "arm1_median_ns": 9326244.5,
+            "ratio_arm0_over_arm1": 0.967332777947222
+          },
+          {
+            "panel": "before-candidate",
+            "id": "range-producer-rate-clamp-pairs64",
+            "arm0_ns": [
+              11701364.5,
+              12186791.0,
+              11675485.5,
+              11594980.5,
+              11525616.5,
+              11737340.0,
+              11830449.0
+            ],
+            "arm1_ns": [
+              12100302.0,
+              12021497.5,
+              12062477.0,
+              12290990.5,
+              11944848.0,
+              12116266.5,
+              12090727.0
+            ],
+            "arm0_median_ns": 11701364.5,
+            "arm1_median_ns": 12090727.0,
+            "ratio_arm0_over_arm1": 0.9677966014781411
+          },
+          {
+            "panel": "before-before",
+            "id": "range-producer-rate-direct-pairs64",
+            "arm0_ns": [
+              9238715.0,
+              9081206.0,
+              9051757.0,
+              8990612.0,
+              9206070.5,
+              9175230.5,
+              9003347.0
+            ],
+            "arm1_ns": [
+              9399854.0,
+              9058641.0,
+              9078811.5,
+              9044166.0,
+              9042541.5,
+              8924822.5,
+              9083012.0
+            ],
+            "arm0_median_ns": 9081206.0,
+            "arm1_median_ns": 9058641.0,
+            "ratio_arm0_over_arm1": 1.0024909917503078
+          },
+          {
+            "panel": "before-before",
+            "id": "range-producer-rate-clamp-pairs64",
+            "arm0_ns": [
+              13148533.0,
+              11870498.5,
+              11690205.0,
+              11752784.5,
+              11825919.0,
+              11612345.5,
+              11737810.0
+            ],
+            "arm1_ns": [
+              11839764.0,
+              11678275.0,
+              11743740.0,
+              11725900.0,
+              11594665.5,
+              11540136.5,
+              11679715.0
+            ],
+            "arm0_median_ns": 11752784.5,
+            "arm1_median_ns": 11679715.0,
+            "ratio_arm0_over_arm1": 1.0062561029956638
+          }
+        ],
+        "measurement": "One fixed control-only release-min panel:7 alternating process pairs,8 measured repetitions per query/process after one warm query. Also7 identically ordered before/before pairs. Every504complete result and own nonelapsed observation matches the qualified control.",
+        "limits": "Shared host, no CPU/frequency/address isolation. The same-binary arm comparison observes this panel; it cannot prove no implementation cost on every device."
+      },
+      "rate-only-probe-timing.json": {
+        "responses_checked": 504,
+        "groups": [
+          {
+            "panel": "before-candidate",
+            "id": "range-producer-rate-direct-pairs64",
+            "arm0_ns": [
+              9111604.5,
+              9106619.5,
+              9141524.5,
+              9184103.5,
+              9107734.5,
+              9102709.5,
+              8896481.5
+            ],
+            "arm1_ns": [
+              9239359.0,
+              9242014.0,
+              9159714.5,
+              9505106.0,
+              9211903.5,
+              11476584.5,
+              8965741.0
+            ],
+            "arm0_median_ns": 9107734.5,
+            "arm1_median_ns": 9239359.0,
+            "ratio_arm0_over_arm1": 0.985753935960276
+          },
+          {
+            "panel": "before-candidate",
+            "id": "range-producer-rate-clamp-pairs64",
+            "arm0_ns": [
+              11772467.0,
+              11876451.5,
+              11835127.0,
+              11958026.0,
+              11711353.0,
+              11922456.0,
+              11519949.5
+            ],
+            "arm1_ns": [
+              11917556.0,
+              11836461.5,
+              11979015.5,
+              12204774.0,
+              12583691.0,
+              13688261.5,
+              11753462.5
+            ],
+            "arm0_median_ns": 11835127.0,
+            "arm1_median_ns": 11979015.5,
+            "ratio_arm0_over_arm1": 0.9879882866834925
+          },
+          {
+            "panel": "before-before",
+            "id": "range-producer-rate-direct-pairs64",
+            "arm0_ns": [
+              9030775.0,
+              8946026.0,
+              9127289.5,
+              9078944.5,
+              9219223.0,
+              9020960.0,
+              8999695.5
+            ],
+            "arm1_ns": [
+              9133284.5,
+              8924960.5,
+              9077270.0,
+              8999600.5,
+              9128229.0,
+              8989615.5,
+              8941066.0
+            ],
+            "arm0_median_ns": 9030775.0,
+            "arm1_median_ns": 8999600.5,
+            "ratio_arm0_over_arm1": 1.0034639870958717
+          },
+          {
+            "panel": "before-before",
+            "id": "range-producer-rate-clamp-pairs64",
+            "arm0_ns": [
+              11722642.5,
+              11713173.0,
+              11706582.5,
+              11764392.5,
+              11863187.0,
+              11710227.5,
+              11644304.0
+            ],
+            "arm1_ns": [
+              11748137.5,
+              11494429.5,
+              11710758.0,
+              11740412.5,
+              11880721.5,
+              11582244.0,
+              11631669.0
+            ],
+            "arm0_median_ns": 11713173.0,
+            "arm1_median_ns": 11710758.0,
+            "ratio_arm0_over_arm1": 1.0002062206391764
+          }
+        ],
+        "measurement": "One fixed control-only release-min panel:7 alternating process pairs,8 measured repetitions per query/process after one warm query. Also7 identically ordered before/before pairs. Every504complete result and own nonelapsed observation matches the qualified control.",
+        "limits": "Shared host, no CPU/frequency/address isolation. The same-binary arm comparison observes this panel; it cannot prove no implementation cost on every device."
+      }
+    },
+    "probe_page17_complete_matches": 745,
+    "final_first_candidate_complete_nonelapsed_matches": 4470,
+    "foreign_reuse_assessment": "The final short-circuit predicate preserves the finite registered-name membership, asserted in both full native suites. All final production ARM query/static archives and C/C++ callers are rebuilt and executed. The earlier28focused foreign units and745Debug outcomes remain first-candidate evidence with their original source/binary bindings; no final-source foreign unit or Debug claim.",
+    "timing_assessment": "The first candidate measured a repeatable3.3% release-min rate-control cost. The single principled old-rate short-circuit refinement reduced the isolated control costs to1.45%/1.22%; retain all final timing increases. Hot-owner instruction equivalence and address shifts do not establish a cause. No further placement experiments."
+  },
+  "receipts": {
+    "baseline.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/baseline.json",
+      "sha256": "348d1da165297ed441b4c956d10c5f3c07d34797b302352392316d5493a834f6"
+    },
+    "old-runtime-regression.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/old-runtime-regression.json",
+      "sha256": "bec1c6528808d516c7ecf54b93d91424a779c8ea9088332b850728eac0dbf722"
+    },
+    "pilot.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/pilot.json",
+      "sha256": "804d17b1f79f0731dfc3e80008facd5afe6f725c2d3d1361962914f3e0990393"
+    },
+    "controls.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/controls.json",
+      "sha256": "222983ee63633a4509204b621a6226d1e4017f8398a5f43217de2258731829a4"
+    },
+    "debug-family.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/debug-family.json",
+      "sha256": "b697c554e58a89dbf23fe4cf89ae2cda8cc6b83cd62704d8d2677be27378e42b"
+    },
+    "panels-before.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/panels-before.json",
+      "sha256": "8b0b9bdf427d8fba0b0e4541f3d19bc657fb0e9552f53574f2fdb368e517fd59"
+    },
+    "refined-panels-candidate-release.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-panels-candidate-release.json",
+      "sha256": "b4ab7cabbbe88a7c7396a8b217b8cd867370190b6d0d1a2f08d2c865469a913c"
+    },
+    "refined-panels-candidate-release-min.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-panels-candidate-release-min.json",
+      "sha256": "c5fbca05193a837196717509af5317e6a7b43c4ddf74637429e872723e885a97"
+    },
+    "refined-panels-candidate.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-panels-candidate.json",
+      "sha256": "47ab5e5e06a2e5860e4beb84069a10f8a92bc3ec3947842874016895f2d2f933"
+    },
+    "native-callers-before.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/native-callers-before.json",
+      "sha256": "7ff74979d6a7d4af2e13e2a6cbd7b5eb63d21329aeef13bc39340dd6ff29ab28"
+    },
+    "refined-native-callers-candidate.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-native-callers-candidate.json",
+      "sha256": "fb44c3cd4d98f8061372588ce4a457cad0b69442294567ddebc5b723427aac25"
+    },
+    "refined-static-receipt.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-static-receipt.json",
+      "sha256": "5c15726796f5677e5c2ac63f2ec0c25d3157f0d85cf76f3d7c1717a52c4f9c9c"
+    },
+    "generator-finalization.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/generator-finalization.json",
+      "sha256": "22877b6f5b742c268e916f4af45d3241c55577ab60839b0ac089332e5d85c80c"
+    },
+    "refined-timing.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-timing.json",
+      "sha256": "f179550f18a4914b50e81265679799e5f80d7b58cff631aae396bc984d07bad4"
+    },
+    "timing.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/timing.json",
+      "sha256": "1671e0de235f199cd893aed8179b274af9dad189df5cd1d0952c20548fdd053c"
+    },
+    "rate-only-timing.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/rate-only-timing.json",
+      "sha256": "2fb7d0f9f341054154f18b0dd953ee3a34eeeeb3a366c089da9591af44983078"
+    },
+    "rate-only-probe-timing.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/rate-only-probe-timing.json",
+      "sha256": "e123008aee8dea828e3e7cd346fded985c80372c3dd290b23f12ff539b484086"
+    },
+    "fast-probe.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/fast-probe.json",
+      "sha256": "a20313d8fd1b3ac77503df5b5a92ff7785bed5dfdb030700b12ae74657d7f2c0"
+    },
+    "refined-qualified-native-release.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-native-release.json",
+      "sha256": "592b51f039cb516ea654d7fe4f0d7464e48ff8dcd8175d82e005d554f7ac8775"
+    },
+    "refined-qualified-native-release-min.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-native-release-min.json",
+      "sha256": "cf0e597870ba7df6037f6b8ca4802c855dc5c07718723fb1cbd699dab96bbf7d"
+    },
+    "refined-qualified-aarch64-unknown-linux-gnu-release.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-aarch64-unknown-linux-gnu-release.json",
+      "sha256": "eeb8010e1e939de54c1bcf0935f7a686d684cef09e8dbd52769452500e63fe84"
+    },
+    "refined-qualified-aarch64-unknown-linux-gnu-release-min.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-aarch64-unknown-linux-gnu-release-min.json",
+      "sha256": "ed0642d02db361b0bb43e16099b9d4b21b2e4b7200de5466b6d364b9b15b49ff"
+    },
+    "refined-qualified-armv7-unknown-linux-gnueabihf-release.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-armv7-unknown-linux-gnueabihf-release.json",
+      "sha256": "1c764363a9d0c0f2e68f38badba670dcd66cb45b2c76d436d48f1845ee7e544d"
+    },
+    "refined-qualified-armv7-unknown-linux-gnueabihf-release-min.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/refined-qualified-armv7-unknown-linux-gnueabihf-release-min.json",
+      "sha256": "13417b3203cf214ce6186ccd2d6a44b86ad067681c1d8bf30c5df255154c219f"
+    },
+    "qualified-aarch64-unknown-linux-gnu-release.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/qualified-aarch64-unknown-linux-gnu-release.json",
+      "sha256": "4705e942b39fd4d30952ffccfb313c87178874f1126db8d597b46d618c809f9d"
+    },
+    "qualified-aarch64-unknown-linux-gnu-release-min.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/qualified-aarch64-unknown-linux-gnu-release-min.json",
+      "sha256": "86b8cb7051b7f2ea6be384dcefaef05ace473caf417cdae826eddbc490815939"
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/qualified-armv7-unknown-linux-gnueabihf-release.json",
+      "sha256": "1005cc4a3e23beab446fe04d81dd948b17b6bc27a71dede38b9ecfbe772370aa"
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release-min.json": {
+      "path": ".tmp/range-producer-joins-di8ijy5v/qualified-armv7-unknown-linux-gnueabihf-release-min.json",
+      "sha256": "0080e0134c4ae9aaa846f8c7ea0dc76e0b574bef18cef58a30742b45b3b6c10f"
+    }
+  },
+  "closed_process_records_verified": 301,
+  "limitations": [
+    "Finite same-input evidence, not equivalence for every possible PromQL input or global optimality.",
+    "Synthetic shared-host engine timings, not HTTP,live DBengine disk I/O,concurrent-query throughput,device performance or RSS.",
+    "No new language feature, query API, distributed execution or alert scheduler.",
+    "Raw samples stay paged across both axes; derived metadata/state and owned results may grow. Caps remain disabled.",
+    "Earlier broad language/SRE/live-Agent cohorts retain their actual source and binary identities."
+  ]
+}
