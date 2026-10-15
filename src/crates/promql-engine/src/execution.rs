@@ -934,61 +934,6 @@ impl CompiledQuery {
                 }
             }
         }
-        if header.step_ms > 0
-            && header.start_ms < header.end_ms
-            && crate::vector_sort::is_sort(&self.expression.arena[self.expression.root].expression)
-            && rosters.descriptors(self.expression.root).len() >= 2
-        {
-            let root = self.expression.root;
-            let Expr::Call { arguments, .. } = &self.expression.arena[root].expression else {
-                unreachable!("typed sorting call")
-            };
-            let selector = arguments[0];
-            if let Expr::Selector(value) = &self.expression.arena[selector].expression
-                && !value.anchored
-                && !value.smoothed
-                && value.modifiers.original_offset == 0
-                && value.modifiers.offset == 0
-                && value.modifiers.original_offset_expression.is_none()
-                && value.modifiers.timestamp.is_none()
-                && value.modifiers.start_or_end.is_none()
-                && prepared.preprocessing.child(
-                    &self.expression,
-                    root,
-                    selector,
-                    control,
-                    account,
-                )? == selector
-                && [root, selector].into_iter().all(|node| {
-                    !prepared.flags().invariants[node.0]
-                        && !prepared.flags().boundaries[node.0]
-                        && rosters.matrix(node).is_none()
-                        && same_header(prepared.source_header(node, evaluator_header))
-                        && same_header(prepared.scope_header(node, evaluator_header))
-                        && rosters
-                            .producer_clock(node)
-                            .is_some_and(|clock| clock.grid == evaluator_header.into())
-                })
-            {
-                let supported = crate::evaluator::supports_selector_schedule(
-                    selector,
-                    value,
-                    prepared,
-                    self.timestamp_selectors[selector.0],
-                    prepared.lookback_ms(self.options.lookback_ms),
-                    evaluator_header.into(),
-                );
-                if supported {
-                    rosters.certify_sort_emit(
-                        root,
-                        selector,
-                        catalog.len(selector),
-                        control,
-                        account,
-                    )?;
-                }
-            }
-        }
         let mut traversal = crate::query_scopes::Traversal::new(
             evaluator_header.into(),
             !prepared.flags().boundaries[self.expression.root.0]
@@ -1446,6 +1391,69 @@ impl CompiledQuery {
             shortcut: !prepared.flags().boundaries[node.0]
                 && self.helper_shortcut(node, control, account)?,
         })
+    }
+
+    fn certify_sort_emission<Q: QueryProvider>(
+        &self,
+        node: NodeId,
+        catalog: &Catalog<'_, Q>,
+        prepared: &Prepared,
+        rosters: &mut Rosters,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        let header = prepared.header;
+        let evaluator_header = prepared.evaluator_header();
+        if header.step_ms <= 0
+            || header.start_ms >= header.end_ms
+            || rosters.descriptors(node).len() < 2
+        {
+            return Ok(());
+        }
+        let Expr::Call { arguments, .. } = &self.expression.arena[node].expression else {
+            unreachable!("typed sorting call")
+        };
+        let selector = arguments[0];
+        let same_header = |other: OutputHeader| {
+            other.value_type == evaluator_header.value_type
+                && other.start_ms == evaluator_header.start_ms
+                && other.end_ms == evaluator_header.end_ms
+                && other.step_ms == evaluator_header.step_ms
+        };
+        if let Expr::Selector(value) = &self.expression.arena[selector].expression
+            && !value.anchored
+            && !value.smoothed
+            && value.modifiers.original_offset == 0
+            && value.modifiers.offset == 0
+            && value.modifiers.original_offset_expression.is_none()
+            && value.modifiers.timestamp.is_none()
+            && value.modifiers.start_or_end.is_none()
+            && prepared
+                .preprocessing
+                .child(&self.expression, node, selector, control, account)?
+                == selector
+            && [node, selector].into_iter().all(|node| {
+                !prepared.flags().invariants[node.0]
+                    && !prepared.flags().boundaries[node.0]
+                    && rosters.matrix(node).is_none()
+                    && same_header(prepared.source_header(node, evaluator_header))
+                    && same_header(prepared.scope_header(node, evaluator_header))
+                    && rosters
+                        .producer_clock(node)
+                        .is_some_and(|clock| clock.grid == evaluator_header.into())
+            })
+            && crate::evaluator::supports_selector_schedule(
+                selector,
+                value,
+                prepared,
+                self.timestamp_selectors[selector.0],
+                prepared.lookback_ms(self.options.lookback_ms),
+                evaluator_header.into(),
+            )
+        {
+            rosters.certify_sort_emit(node, selector, catalog.len(selector), control, account)?;
+        }
+        Ok(())
     }
 
     fn prepare_rosters<Q: QueryProvider>(
@@ -2736,6 +2744,16 @@ impl CompiledQuery {
                 control,
                 account,
             )?;
+            if crate::vector_sort::is_sort(expression) {
+                self.certify_sort_emission(
+                    node,
+                    catalog,
+                    prepared,
+                    &mut rosters,
+                    control,
+                    account,
+                )?;
+            }
             rosters.annotations(node, annotations);
             for child in children(&self.expression, prepared, node, control, account)? {
                 let child = child?;
@@ -2749,8 +2767,8 @@ impl CompiledQuery {
                 rosters.release_output(child);
             }
         }
-        // Final consumption must perform its own complete first discovery.
-        rosters.clear_set_discovery(control, account)?;
+        // Final consumption must validate its own first delivery, even on the same key.
+        rosters.clear_replay_progress(control, account)?;
         Ok(rosters)
     }
 
@@ -6029,6 +6047,117 @@ mod tests {
     }
 
     #[test]
+    fn nested_sort_range_avoids_repeated_permutation_prefixes() {
+        let mut observations = Vec::new();
+        for (expression, timestamps) in [
+            ("abs(sort(counter_total))", false),
+            ("timestamp(sort_desc(counter_total))", true),
+            ("abs(sort_by_label(counter_total,\"instance\"))", false),
+        ] {
+            for page in [1, 17, 1024] {
+                for count in [32, 128] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut input = FixtureProvider::new(3, page, count);
+                    for series in &mut input.series {
+                        series.source.counters = Default::default();
+                        series.source.sample = |index| crate::value::Sample {
+                            time_ms: (index as i64 + 1) * 1000,
+                            start_time_ms: 0,
+                            value: crate::value::SampleValue::Float(1.0),
+                        };
+                    }
+                    input.series.reverse();
+                    let query = engine
+                        .compile(
+                            expression.as_bytes(),
+                            EngineOptions {
+                                parser: ParserOptions {
+                                    experimental_functions: true,
+                                    ..ParserOptions::default()
+                                },
+                                ..EngineOptions::default()
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &input,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    );
+                    let output = report.result.as_ref().unwrap();
+                    let mut identities: Vec<_> = (0..count).map(|i| i.to_string()).collect();
+                    identities.sort();
+                    assert_eq!(output.series.len(), count);
+                    assert_eq!(report.annotations.len(), 1);
+                    for (row, identity) in output.series.iter().zip(&identities) {
+                        assert_eq!(row.labels.0.len(), 2);
+                        assert_eq!(&*row.labels.0[0].name, b"instance");
+                        assert_eq!(&*row.labels.0[0].value, identity.as_bytes());
+                        assert_eq!(&*row.labels.0[1].name, b"job");
+                        assert_eq!(&*row.labels.0[1].value, b"worker");
+                        assert_eq!(row.points.len(), 3);
+                        for (position, point) in row.points.iter().enumerate() {
+                            assert_eq!(point.time_ms, (position as i64 + 1) * 1000);
+                            let expected = if timestamps {
+                                (position + 1) as f64
+                            } else {
+                                1.0
+                            };
+                            assert_eq!(float_bits(point), expected.to_bits());
+                        }
+                    }
+                    assert_eq!(report.observations.output_samples, 3 * count as u64);
+                    assert_eq!(
+                        report
+                            .observations
+                            .statistics
+                            .samples
+                            .total_queryable_samples,
+                        3 * count as u64
+                    );
+                    let fetched: usize = input
+                        .series
+                        .iter()
+                        .map(|row| row.source.counters.samples_returned.load(Ordering::Relaxed))
+                        .sum();
+                    assert_eq!(report.observations.samples_fetched, fetched as u64);
+                    assert!(
+                        input.series.iter().all(|row| row
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed)
+                            == 1)
+                    );
+                    println!(
+                        "{{\"nested_sort_growth\":{expression:?},\"rows\":{count},\"page_size\":{page},\"fetched\":{},\"work\":{}}}",
+                        report.observations.samples_fetched, report.observations.work
+                    );
+                    observations.push((
+                        report.observations.samples_fetched,
+                        report.observations.work,
+                    ));
+                    input.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+        assert!(
+            observations
+                .chunks_exact(2)
+                .all(|pair| pair[1].0 <= pair[0].0 * 8 && pair[1].1 <= pair[0].1 * 8),
+            "nested sorts must avoid repeated permutation prefixes: {observations:?}"
+        );
+    }
+
+    #[test]
     fn composed_float_map_join_avoids_repeated_all_row_reads() {
         let mut observations = Vec::new();
         for (expression, expected) in [
@@ -6230,6 +6359,13 @@ mod tests {
                     &mut Annotations::default(),
                 )
                 .unwrap();
+            for position in 0..compiled.expression.arena.nodes.len() {
+                if let Some(plan) = rosters.sorting(NodeId(position))
+                    && let Some(progress) = plan.emission_progress()
+                {
+                    assert_eq!(progress, 0, "preparation retained sort progress");
+                }
+            }
             rosters.descriptors(compiled.expression.root).len()
         };
         calibration.assert_closed();
@@ -6643,6 +6779,163 @@ mod tests {
                 drop(compiled);
                 engine.accounting.snapshot().assert_memory_released();
             }
+        }
+    }
+
+    #[test]
+    fn nested_sort_prefix_preserves_preparation_reset_suffix_and_selected_failures() {
+        fn provider(page: usize) -> FixtureProvider {
+            fn sample(value: f64) -> crate::value::Sample {
+                crate::value::Sample {
+                    time_ms: 1000,
+                    start_time_ms: 0,
+                    value: crate::value::SampleValue::Float(value),
+                }
+            }
+            let values: [fn(usize) -> crate::value::Sample; 4] = [
+                |_| sample(2.0),
+                |_| sample(4.0),
+                |_| sample(1.0),
+                |_| sample(3.0),
+            ];
+            let mut input = FixtureProvider::new(1, page, 4);
+            for (series, generator) in input.series.iter_mut().zip(values) {
+                series.source.sample = generator;
+                series.source.counters = Default::default();
+            }
+            input
+        }
+        let request = QueryRequest::Range {
+            start_ms: 1000,
+            end_ms: 1001,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let bare = engine
+                .compile(b"sort(counter_total)", EngineOptions::default(), &control)
+                .unwrap();
+            let compiled = engine
+                .compile(
+                    b"abs(sort(counter_total))",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let (bare_rows, base) =
+                float_map_join_preparation(&bare, &provider(page), request, &control);
+            let (rows, prepared) =
+                float_map_join_preparation(&compiled, &provider(page), request, &control);
+            assert_eq!((bare_rows, rows), (4, 4));
+            assert_eq!(
+                prepared
+                    .iter()
+                    .zip(&base)
+                    .map(|(p, b)| p - b)
+                    .collect::<Vec<_>>(),
+                [1, 1, 2, 2]
+            );
+            for (phase, target, acquisition, outputs) in [
+                ("none", 0, 0, 4),
+                ("preparation-prefix", 2, base[2] + 1, 0),
+                ("same-key-cold-prefix", 2, prepared[2] + 1, 0),
+                ("unverified-suffix", 3, prepared[3] + 1, 1),
+                ("fresh-selected", 2, prepared[2] + 2, 2),
+            ] {
+                let mut input = provider(page);
+                if phase != "none" {
+                    input.series[target].source.fail_acquisition = Some(acquisition);
+                }
+                let account = compiled.execution_accounting();
+                let mut sink = RecordingSink::default();
+                let mut report =
+                    compiled.execute_reported_in(&input, request, &control, &mut sink, &account);
+                if phase == "none" {
+                    report.result.as_ref().unwrap();
+                    assert!(sink.begun && sink.committed && !sink.aborted);
+                    assert_eq!(sink.chunks, 5);
+                    assert_eq!(report.observations.output_samples, 4);
+                    assert_eq!(
+                        report
+                            .observations
+                            .statistics
+                            .samples
+                            .total_queryable_samples,
+                        4
+                    );
+                    let acquired: Vec<_> = input
+                        .series
+                        .iter()
+                        .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
+                        .collect();
+                    assert_eq!(
+                        acquired
+                            .iter()
+                            .zip(&prepared)
+                            .map(|(a, p)| a - p)
+                            .collect::<Vec<_>>(),
+                        [1, 1, 2, 2]
+                    );
+                    let output = compiled.collect_reported(&provider(page), request, &control);
+                    let result = output.result.as_ref().unwrap();
+                    assert_eq!(result.series.len(), 4);
+                    for ((row, value), id) in
+                        result.series.iter().zip([2.0_f64, 4.0, 1.0, 3.0]).zip(0..4)
+                    {
+                        assert_eq!(row.labels.0.len(), 2);
+                        assert_eq!(&*row.labels.0[0].name, b"instance");
+                        assert_eq!(&*row.labels.0[0].value, id.to_string().as_bytes());
+                        assert_eq!(&*row.labels.0[1].name, b"job");
+                        assert_eq!(&*row.labels.0[1].value, b"worker");
+                        assert_eq!(row.points.len(), 1);
+                        assert_eq!(row.points[0].time_ms, 1000);
+                        assert_eq!(float_bits(&row.points[0]), value.to_bits());
+                    }
+                } else {
+                    assert!(
+                        matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes)))) if &**bytes == b"injected page failure")
+                    );
+                    assert!(sink.begun && sink.aborted && !sink.committed);
+                    assert_eq!(sink.chunks, outputs, "{phase},page={page}");
+                    assert_eq!(report.observations.output_samples, outputs as u64);
+                    assert_eq!(
+                        input.series[target]
+                            .source
+                            .counters
+                            .opened
+                            .load(Ordering::Relaxed),
+                        acquisition
+                    );
+                    if phase == "same-key-cold-prefix" {
+                        for (position, series) in input.series.iter().enumerate() {
+                            if position != target {
+                                assert_eq!(
+                                    series.source.counters.opened.load(Ordering::Relaxed),
+                                    prepared[position]
+                                );
+                            }
+                        }
+                    }
+                    drop(std::mem::take(&mut report.annotations));
+                    report.observations = account.snapshot();
+                    report.assert_retained_callback_error_memory();
+                }
+                println!(
+                    "{{\"nested_sort_failure\":\"{phase}\",\"page_size\":{page},\"chunks\":{},\"prepared\":{prepared:?},\"acquisitions\":{}}}",
+                    sink.chunks,
+                    input.series[target]
+                        .source
+                        .counters
+                        .opened
+                        .load(Ordering::Relaxed)
+                );
+                input.assert_closed();
+                drop(report);
+                account.snapshot().assert_memory_released();
+            }
+            drop((bare, compiled));
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -8844,7 +9137,7 @@ mod tests {
                         &account,
                     )
                     .unwrap();
-                    let mut rosters = compiled
+                    let rosters = compiled
                         .prepare_rosters(
                             &catalog,
                             &prepared,
@@ -8855,26 +9148,13 @@ mod tests {
                         )
                         .unwrap();
                     let root = compiled.expression.root;
-                    let Expr::Call { arguments, .. } = &compiled.expression.arena[root].expression
-                    else {
-                        panic!("sort")
-                    };
-                    let selector = arguments[0];
                     assert_eq!(
                         rosters.sorting(root).unwrap().emission_state(),
-                        (false, false)
+                        (true, false)
                     );
                     for phase in 0..3 {
                         if phase == 1 {
-                            rosters
-                                .certify_sort_emit(
-                                    root,
-                                    selector,
-                                    catalog.len(selector),
-                                    &control,
-                                    &account,
-                                )
-                                .unwrap();
+                            rosters.clear_replay_progress(&control, &account).unwrap();
                         }
                         let before: usize = provider
                             .series
@@ -8924,7 +9204,7 @@ mod tests {
                         assert_eq!(outputs, filter.len());
                         assert_eq!(
                             rosters.sorting(root).unwrap().emission_state(),
-                            (phase > 0, phase > 0 && eligible)
+                            (true, eligible)
                         );
                     }
                 }

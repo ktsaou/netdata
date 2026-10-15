@@ -3814,11 +3814,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 State::Sort(step) => {
                     let target = match filter {
                         RowFilter::Ordinals([target])
-                            if node == self.expression.root
-                                && matches!(mode, OutputMode::Matrix)
-                                && bypass_order =>
+                            if matches!(mode, OutputMode::Matrix) && bypass_order =>
                         {
-                            Some(*target)
+                            Some(if node == self.expression.root {
+                                crate::vector_sort::Target::Complete(*target)
+                            } else {
+                                crate::vector_sort::Target::Prefix(*target)
+                            })
                         }
                         _ => None,
                     };
@@ -3850,7 +3852,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             self.push_filtered(arguments[0], filter, false, OutputMode::Vector)?;
                         }
                         crate::vector_sort::Action::Sample(sample) => {
-                            if filter.accepts(sample.ordinal, self.control, self.account)?
+                            let accepted =
+                                filter.accepts(sample.ordinal, self.control, self.account)?;
+                            if matches!(target, Some(crate::vector_sort::Target::Prefix(_))) {
+                                step.complete_prefix(self.control, self.account)?;
+                            }
+                            if accepted
                                 && let Some(sample) =
                                     self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                             {

@@ -1,0 +1,1892 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "scope": "Finite private nested-sort prefix reuse in the existing paged engine. No new language feature, ABI, provider contract, limit, dependency or raw sample cache.",
+  "accepted_commit": "42738269b60862ac8cc32c4e5a950d4654b99cf1",
+  "qualified_source_manifest": {
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/crates/promql-engine/src/absence.rs": "afb4f330f5dff938c2eebfa64574b3cf9693cbd94b43a9cf60752b8094a14889",
+    "src/crates/promql-engine/src/accounting.rs": "606fabc7bc4204d1e0596806adf4a907dc40bea7b1152d4ef0584de6b001ad62",
+    "src/crates/promql-engine/src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/crates/promql-engine/src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "cd9808645a6e43b7bcd49ca11c33bd1470dd53c432c43231374b0eecc2081c6b",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "3823e8b6c8f74beeeb13a6ecb5de12669b041a07081eb6555476c2574d302b7a",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "046ab8fbd5783160210010d72ac04e501dcbb6f369e29628141ef332bcbd085c",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/crates/promql-engine/src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/crates/promql-engine/src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/crates/promql-engine/src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+    "src/crates/promql-engine/src/evaluator.rs": "ff907b6d4091a2bf44434c1cb105c77bd2e6e0e332142af3617e784826cf8e09",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "941527d48daed0a62d8d6df60328b12af04a9335af112c6710c5942a4d23b279",
+    "src/crates/promql-engine/src/execution.rs": "4b51b980205ea7b9337333c1cbd869873d2f5b0e3f70b065dd75a7bec8eb6b1f",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/crates/promql-engine/src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/crates/promql-engine/src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/crates/promql-engine/src/lookup_tests.rs": "bb1786f683c75b849d9afa2751e7304968d6d4ccb9484cdafa66fe4880e8eaf8",
+    "src/crates/promql-engine/src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/crates/promql-engine/src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/crates/promql-engine/src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/crates/promql-engine/src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+    "src/crates/promql-engine/src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/crates/promql-engine/src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+    "src/crates/promql-engine/src/result.rs": "75658360d24544d09cf1a630ee1467ea44d6d960dffea504ee29c55eab4ebc3e",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+    "src/crates/promql-engine/src/scheduled_output.rs": "0d4adb4cd20eb224269f51caf93a3bf12ed8016652834e7d01272af853324fc0",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/crates/promql-engine/src/storage.rs": "f213a16e64507e031b6c8fd58725763115a99cde489f875da20b8385b28141d5",
+    "src/crates/promql-engine/src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/crates/promql-engine/src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+    "src/crates/promql-engine/src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "0c23099b6a96bed8ddac87ce7589e2780124c2157a64c7c2b4a65ee93570c8ab",
+    "src/crates/promql-engine/src/vector_sort.rs": "d6daacd7bcde56a2984acbd52b8037ee5efbed3668d8d488271011d50aed41be",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "ff58a241675895b493d42029c6b572dd50c11f5939b21fe9a2f7c492af87f50d",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "4703d09604b1820341de1c3ff41a3476bce29360f0e1984a93d060db7572fb0c"
+  },
+  "final_source_manifest": {
+    "base": "qualified_source_manifest",
+    "replacements": {
+      "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "e3da2fe0f4c598818b9dce9b4d75552efcf75c655dab2875fce0dc35f196c53f"
+    }
+  },
+  "consumer_only_correction": {
+    "status": "pass",
+    "unchanged_other_guarded_inputs": 145,
+    "changed_only": "src/crates/promql-engine/tests/promql-conformance/c_embedding.c",
+    "before_sha256": "ff58a241675895b493d42029c6b572dd50c11f5939b21fe9a2f7c492af87f50d",
+    "after_sha256": "e3da2fe0f4c598818b9dce9b4d75552efcf75c655dab2875fce0dc35f196c53f",
+    "old_consumer_source": ".tmp/sort-wrapper-bqmi3n9g/qualified-c_embedding.c",
+    "scope": "C fixture consumer now validates standard sort warning chunks and counts them. All Rust/Cargo/header inputs remain exact; prior native binaries/units/static/original/query cohorts retain their actual qualified compiler manifest."
+  },
+  "attribution": "Native optimized library/query/unit, original and preservation cohorts retain the exact qualified compiler manifest. Only the later C fixture warning consumer differs; all 145 other guarded files, including every Rust/Cargo/header input, are identical. Final C clients and compiled foreign cohorts use final_source_manifest. Earlier panels retain their own sources and binaries.",
+  "runtime": {
+    "state": "The existing snapshot atomic word holds zero, a successful contiguous permutation-prefix length, or usize::MAX for successful full Done. No new array, cache or Step field.",
+    "targeting": "Root Matrix+bypass singleton delivery requires complete Done. Nested Matrix+bypass singleton delivery skips only previously completed nonselected permutation positions. Selected catalog values remain freshly acquired.",
+    "grant": "Machine completes the caller filter check, then checks control, charges work, checks control again and credits that exact live snapshot before parent truncation. Prefix credit never downgrades a later prefix or Done.",
+    "preparation": "Reuse the unchanged direct-selector certificate immediately after each sort node finishes its own preparation, before parent consumption. At successful shared preparation exit, all preparation Machines have dropped; clear progress while retaining the exact permutation/key/certificate. Same-key one-effective-tick final delivery begins cold.",
+    "fallbacks": "Computed sort inputs, instant, shifted/modifier, native/mixed, uncertified and non-singleton contexts keep ordinary supported evaluation."
+  },
+  "regressions": {
+    "old_runtime_growth": "Debug old-runtime regression verifies all 18 complete output/statistics/provider/release groups before failing its final read-growth bound. Candidate passes in both optimized full-unit suites and selected foreign execution.",
+    "prefix_domains": "Distinct fresh values; sparse catalog ordinals 7/23/99; permutation 2/0/1; nonmonotone selected requests; absent targets; prefix N distinct from Done; all key fields and old-live-owner replacement; every calibrated cold/warm interruption boundary.",
+    "actual_query_failures": "Four distinct values produce permutation 2/0/3/1. All pages 1/17/1024 calibrate preparation delta 1/1/2/2 and verify preparation-prefix/cold-final/unverified-suffix/fresh-selected faults with 0/0/1/2 provisional samples, no output commit and complete provider/output/diagnostic cleanup."
+  },
+  "native": {
+    "release": {
+      "sources": "qualified_source_manifest",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/sort-wrapper-bqmi3n9g/qualified-native-release/promql-query-fixture",
+          "sha256": "75c754fe3d33e2890e4f314215a81994d9883e814a9fd05f7573425cea5dd0d6",
+          "file_bytes": 5402464
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/sort-wrapper-bqmi3n9g/qualified-native-release/libnetdata_promql_engine.a",
+          "sha256": "9006f2c39213c9782707487ef0fc623b8d95860d19beb51a6723beb36bc56d3e",
+          "file_bytes": 39029584
+        },
+        "unit": {
+          "path": ".tmp/sort-wrapper-bqmi3n9g/qualified-native-release/unit",
+          "sha256": "d4ba08d5e8f22723e24534ae1a15f08777a096601364a842d22b90303c37ddf3",
+          "file_bytes": 23296352
+        }
+      },
+      "passed_units": 643,
+      "unit_ids_sha256": "bac6219b8083cca0ed6ecad439feadec97cc2da80d756706fd171383403b1eaa",
+      "elf_text_bytes": {
+        "before": 2987221,
+        "candidate": 2993429,
+        "change": 6208
+      },
+      "receipt": {
+        "path": ".tmp/sort-wrapper-bqmi3n9g/qualified-native-release.json",
+        "sha256": "70627ac0d34785191e21cff927d4a403b1c8447ccdd0594993868e213325cb56"
+      }
+    },
+    "release-min": {
+      "sources": "qualified_source_manifest",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/sort-wrapper-bqmi3n9g/qualified-native-release-min/promql-query-fixture",
+          "sha256": "d007aea95e7dd20a4b12b4e2f452037c2bf1086143bcb8a824dc17a086f4ff24",
+          "file_bytes": 3458880
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/sort-wrapper-bqmi3n9g/qualified-native-release-min/libnetdata_promql_engine.a",
+          "sha256": "58ee8949bb0ac816c2d8da99d6d3e0b57f87bcca3e36e896917a237740bfa4cd",
+          "file_bytes": 54042812
+        },
+        "unit": {
+          "path": ".tmp/sort-wrapper-bqmi3n9g/qualified-native-release-min/unit",
+          "sha256": "6825da0b6c793ed7a9dd221e3ba8f61052550f3b6ce4686304a62a994665ea50",
+          "file_bytes": 13061824
+        }
+      },
+      "passed_units": 643,
+      "unit_ids_sha256": "bac6219b8083cca0ed6ecad439feadec97cc2da80d756706fd171383403b1eaa",
+      "elf_text_bytes": {
+        "before": 1808389,
+        "candidate": 1807909,
+        "change": -480
+      },
+      "receipt": {
+        "path": ".tmp/sort-wrapper-bqmi3n9g/qualified-native-release-min.json",
+        "sha256": "872e94b943b7195215a360f8f3aff0363ba08c8b2658f1201b3c0601f8c217f7"
+      }
+    }
+  },
+  "complete_native_queries": {
+    "responses": 1644,
+    "per_profile": 822,
+    "scope": "822 complete cases/profile: retained analytic/special panels, coupled wrappers, changing ranks/staleness/NaN, and exact name-removal errors. Both actual optimized profiles; original-source qualification is separate.",
+    "extra_independent_changing_rank_rows_per_profile": 24,
+    "exact_duplicate_errors_per_profile": 36
+  },
+  "pinned_original_sort_comparisons": 456,
+  "foreign": {
+    "aarch64-unknown-linux-gnu": {
+      "release": {
+        "sources": "final_source_manifest",
+        "binaries": {
+          "promql-query-fixture": {
+            "path": ".tmp/sort-wrapper-bqmi3n9g/checked-aarch64-unknown-linux-gnu-release/promql-query-fixture",
+            "sha256": "79fa7fc2a3280b81805fdb41c774d2a71e879b38cdc7cfb9ef78e5dbe7ae6243",
+            "file_bytes": 4858480
+          },
+          "libnetdata_promql_engine.a": {
+            "path": ".tmp/sort-wrapper-bqmi3n9g/checked-aarch64-unknown-linux-gnu-release/libnetdata_promql_engine.a",
+            "sha256": "a235282a54eba99253cde7e141fa37938ec263f6b993da213b23c81c1d0959ca",
+            "file_bytes": 39345666
+          },
+          "unit": {
+            "path": ".tmp/sort-wrapper-bqmi3n9g/checked-aarch64-unknown-linux-gnu-release/unit",
+            "sha256": "cac041d5f20d65bf511b4495be9295f35c85c7474b42de814c4450398e734226"
+          }
+        },
+        "focused_units": [
+          "vector_sort::tests::nested_prefix_uses_permutation_positions_and_fresh_sparse_values",
+          "vector_sort::tests::nested_prefix_belongs_to_each_exact_snapshot_owner",
+          "vector_sort::tests::nested_prefix_interruption_grants_only_completed_handoffs",
+          "execution::tests::nested_sort_range_avoids_repeated_permutation_prefixes",
+          "execution::tests::nested_sort_prefix_preserves_preparation_reset_suffix_and_selected_failures",
+          "vector_sort::tests::emission_completion_waits_for_successful_done_handoff",
+          "execution::tests::sort_emission_actual_machine_context_and_preparation_keep_cold_delivery",
+          "vector_sort::tests::emission_snapshot_traits_and_accounted_layouts_remain_explicit"
+        ],
+        "complete_queries": 210,
+        "actual_callers": {
+          "gcc": {
+            "binary_sha256": "e0f10087b7fdd57afa64b0e97caded881c18fa6ad1d9fd3992b8b48b8667cb9a",
+            "records": [
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "abs(sort(m)) / on(zone) m",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "m / on(zone) abs(sort_desc(m))",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "sort_prefix_only": "pass"
+              }
+            ]
+          },
+          "g++": {
+            "binary_sha256": "c7836c87e361f5e40dd890d85c948f2dd22abc07a7e77ef34358208c57683e2c",
+            "records": [
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "abs(sort(m)) / on(zone) m",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "m / on(zone) abs(sort_desc(m))",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "sort_prefix_only": "pass"
+              }
+            ]
+          }
+        },
+        "receipt": {
+          "path": ".tmp/sort-wrapper-bqmi3n9g/checked-aarch64-unknown-linux-gnu-release.json",
+          "sha256": "e7b36b75ec2e59e34d2fd177dff616eb7be5d468f652d363dafea0cf618ecd99"
+        }
+      },
+      "release-min": {
+        "sources": "final_source_manifest",
+        "binaries": {
+          "promql-query-fixture": {
+            "path": ".tmp/sort-wrapper-bqmi3n9g/checked-aarch64-unknown-linux-gnu-release-min/promql-query-fixture",
+            "sha256": "a27ff1d3f451bfea0fa702ddbd30e3e58c10bfe2ddf00aabd7ff7d6729bbd615",
+            "file_bytes": 3725912
+          },
+          "libnetdata_promql_engine.a": {
+            "path": ".tmp/sort-wrapper-bqmi3n9g/checked-aarch64-unknown-linux-gnu-release-min/libnetdata_promql_engine.a",
+            "sha256": "e93e2f6ac8b192edf61b877ab58de21a9beae10751f3999c2e2506e748d64ec9",
+            "file_bytes": 57286630
+          },
+          "unit": {
+            "path": ".tmp/sort-wrapper-bqmi3n9g/checked-aarch64-unknown-linux-gnu-release-min/unit",
+            "sha256": "6413fd4c9a1e3bbc6eaf38bff2d44b099e94478775a8bc7f136199e81bc07c43"
+          }
+        },
+        "focused_units": [
+          "vector_sort::tests::nested_prefix_uses_permutation_positions_and_fresh_sparse_values",
+          "vector_sort::tests::nested_prefix_belongs_to_each_exact_snapshot_owner",
+          "vector_sort::tests::nested_prefix_interruption_grants_only_completed_handoffs",
+          "execution::tests::nested_sort_range_avoids_repeated_permutation_prefixes",
+          "execution::tests::nested_sort_prefix_preserves_preparation_reset_suffix_and_selected_failures",
+          "vector_sort::tests::emission_completion_waits_for_successful_done_handoff",
+          "execution::tests::sort_emission_actual_machine_context_and_preparation_keep_cold_delivery",
+          "vector_sort::tests::emission_snapshot_traits_and_accounted_layouts_remain_explicit"
+        ],
+        "complete_queries": 210,
+        "actual_callers": {
+          "gcc": {
+            "binary_sha256": "4f21538b725bee7cd05b735a3a64101a00e0a1d0f80c4432e9e2296cd2720576",
+            "records": [
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "abs(sort(m)) / on(zone) m",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "m / on(zone) abs(sort_desc(m))",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "sort_prefix_only": "pass"
+              }
+            ]
+          },
+          "g++": {
+            "binary_sha256": "ab356da286b8f3fe900f139ee148ca67899b4e04d6a1f06a505162ac68332621",
+            "records": [
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "abs(sort(m)) / on(zone) m",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "m / on(zone) abs(sort_desc(m))",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "sort_prefix_only": "pass"
+              }
+            ]
+          }
+        },
+        "receipt": {
+          "path": ".tmp/sort-wrapper-bqmi3n9g/checked-aarch64-unknown-linux-gnu-release-min.json",
+          "sha256": "5fbc2c5d7d83792153f0d6bbc605b663da99f57c8ba2736a0af2f4bfc7c6be2b"
+        }
+      }
+    },
+    "armv7-unknown-linux-gnueabihf": {
+      "release": {
+        "sources": "final_source_manifest",
+        "binaries": {
+          "promql-query-fixture": {
+            "path": ".tmp/sort-wrapper-bqmi3n9g/checked-armv7-unknown-linux-gnueabihf-release/promql-query-fixture",
+            "sha256": "b9c9614964c0b3fb2f0c07f66e6a3e151f898e6352df77c44a840c92243e66c9",
+            "file_bytes": 4872384
+          },
+          "libnetdata_promql_engine.a": {
+            "path": ".tmp/sort-wrapper-bqmi3n9g/checked-armv7-unknown-linux-gnueabihf-release/libnetdata_promql_engine.a",
+            "sha256": "f0860bc08c0579d8255a2eded5455c503980c9df3bf199d1c657babbf217416c",
+            "file_bytes": 34459500
+          },
+          "unit": {
+            "path": ".tmp/sort-wrapper-bqmi3n9g/checked-armv7-unknown-linux-gnueabihf-release/unit",
+            "sha256": "be1f11a8ca4ca98f1bac42b1b3e8e73c9601c779360b9d936e42feb343080d1d"
+          }
+        },
+        "focused_units": [
+          "vector_sort::tests::nested_prefix_uses_permutation_positions_and_fresh_sparse_values",
+          "vector_sort::tests::nested_prefix_belongs_to_each_exact_snapshot_owner",
+          "vector_sort::tests::nested_prefix_interruption_grants_only_completed_handoffs",
+          "execution::tests::nested_sort_range_avoids_repeated_permutation_prefixes",
+          "execution::tests::nested_sort_prefix_preserves_preparation_reset_suffix_and_selected_failures",
+          "vector_sort::tests::emission_completion_waits_for_successful_done_handoff",
+          "execution::tests::sort_emission_actual_machine_context_and_preparation_keep_cold_delivery",
+          "vector_sort::tests::emission_snapshot_traits_and_accounted_layouts_remain_explicit"
+        ],
+        "complete_queries": 210,
+        "actual_callers": {
+          "gcc": {
+            "binary_sha256": "a8cdd7109b245aa22c5eaa0694e73fa724bba500ca94346fff914e93e72bc8e2",
+            "records": [
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "abs(sort(m)) / on(zone) m",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "m / on(zone) abs(sort_desc(m))",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "sort_prefix_only": "pass"
+              }
+            ]
+          },
+          "g++": {
+            "binary_sha256": "4901e91dc3c3f66dc4474c28fcaaca6be4d14b3b0ca2daa4f220260644584a14",
+            "records": [
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "abs(sort(m)) / on(zone) m",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "m / on(zone) abs(sort_desc(m))",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "sort_prefix_only": "pass"
+              }
+            ]
+          }
+        },
+        "receipt": {
+          "path": ".tmp/sort-wrapper-bqmi3n9g/checked-armv7-unknown-linux-gnueabihf-release.json",
+          "sha256": "cb2e3d566e58bce330ab9d2d5ca3eace146b90c5044a513d2ddd011f69fb653a"
+        }
+      },
+      "release-min": {
+        "sources": "final_source_manifest",
+        "binaries": {
+          "promql-query-fixture": {
+            "path": ".tmp/sort-wrapper-bqmi3n9g/checked-armv7-unknown-linux-gnueabihf-release-min/promql-query-fixture",
+            "sha256": "386e1c8d36f070f20c9c777b8e7593c6cd99f57817568fd007f2cd19a76320d4",
+            "file_bytes": 3183488
+          },
+          "libnetdata_promql_engine.a": {
+            "path": ".tmp/sort-wrapper-bqmi3n9g/checked-armv7-unknown-linux-gnueabihf-release-min/libnetdata_promql_engine.a",
+            "sha256": "b1dbac15a1bcbfead0002b8de6773a6e2e37af2c8c918f28dbf17571449c7616",
+            "file_bytes": 50634460
+          },
+          "unit": {
+            "path": ".tmp/sort-wrapper-bqmi3n9g/checked-armv7-unknown-linux-gnueabihf-release-min/unit",
+            "sha256": "57f8303b1be3c76b6a2ac955fd48a3066c4d7935cc88c589d560ed5c73f0dcf7"
+          }
+        },
+        "focused_units": [
+          "vector_sort::tests::nested_prefix_uses_permutation_positions_and_fresh_sparse_values",
+          "vector_sort::tests::nested_prefix_belongs_to_each_exact_snapshot_owner",
+          "vector_sort::tests::nested_prefix_interruption_grants_only_completed_handoffs",
+          "execution::tests::nested_sort_range_avoids_repeated_permutation_prefixes",
+          "execution::tests::nested_sort_prefix_preserves_preparation_reset_suffix_and_selected_failures",
+          "vector_sort::tests::emission_completion_waits_for_successful_done_handoff",
+          "execution::tests::sort_emission_actual_machine_context_and_preparation_keep_cold_delivery",
+          "vector_sort::tests::emission_snapshot_traits_and_accounted_layouts_remain_explicit"
+        ],
+        "complete_queries": 210,
+        "actual_callers": {
+          "gcc": {
+            "binary_sha256": "1a5755db249d53d8df1119afd73df36e334e6c852f14066a15fc29afa877d114",
+            "records": [
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "abs(sort(m)) / on(zone) m",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "m / on(zone) abs(sort_desc(m))",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "sort_prefix_only": "pass"
+              }
+            ]
+          },
+          "g++": {
+            "binary_sha256": "36671d0324dd7f6954feb4fdec4864eb23a3f64747b4d9cecdb42f9cf05ef695",
+            "records": [
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "abs(sort(m)) / on(zone) m",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "direct_float_map_replay": "pass",
+                "expression": "m / on(zone) abs(sort_desc(m))",
+                "cases": 9,
+                "page_sizes": 3
+              },
+              {
+                "sort_prefix_only": "pass"
+              }
+            ]
+          }
+        },
+        "receipt": {
+          "path": ".tmp/sort-wrapper-bqmi3n9g/checked-armv7-unknown-linux-gnueabihf-release-min.json",
+          "sha256": "bd34ef9dd5b7ae5fc266bd0ed1b65cc7162508d2c42f7e848590da4db65961df"
+        }
+      }
+    }
+  },
+  "actual_native_c_callers": {
+    "native-sort-checked-release-gcc": {
+      "binary_sha256": "c625588ab904e3b42714accd660b698bd2b13e4e64122b7aec210d7162b6604d",
+      "records": [
+        {
+          "direct_float_map_replay": "pass",
+          "expression": "abs(sort(m)) / on(zone) m",
+          "cases": 9,
+          "page_sizes": 3
+        },
+        {
+          "direct_float_map_replay": "pass",
+          "expression": "m / on(zone) abs(sort_desc(m))",
+          "cases": 9,
+          "page_sizes": 3
+        },
+        {
+          "sort_prefix_only": "pass"
+        }
+      ]
+    },
+    "native-sort-checked-release-gpp": {
+      "binary_sha256": "cb3d67eaa82d2953bc2025e110279b37906794191463b1270003a4672a9a079a",
+      "records": [
+        {
+          "direct_float_map_replay": "pass",
+          "expression": "abs(sort(m)) / on(zone) m",
+          "cases": 9,
+          "page_sizes": 3
+        },
+        {
+          "direct_float_map_replay": "pass",
+          "expression": "m / on(zone) abs(sort_desc(m))",
+          "cases": 9,
+          "page_sizes": 3
+        },
+        {
+          "sort_prefix_only": "pass"
+        }
+      ]
+    },
+    "native-sort-checked-release-min-gcc": {
+      "binary_sha256": "8330ab053a4d0eed4750790e80e968782fd3b05da63c5d3542c313e81401a474",
+      "records": [
+        {
+          "direct_float_map_replay": "pass",
+          "expression": "abs(sort(m)) / on(zone) m",
+          "cases": 9,
+          "page_sizes": 3
+        },
+        {
+          "direct_float_map_replay": "pass",
+          "expression": "m / on(zone) abs(sort_desc(m))",
+          "cases": 9,
+          "page_sizes": 3
+        },
+        {
+          "sort_prefix_only": "pass"
+        }
+      ]
+    },
+    "native-sort-checked-release-min-gpp": {
+      "binary_sha256": "e37d1550caaa25a7e1bdc3dd3d6c30773f2368ec923a5cddfbfe6db087351075",
+      "records": [
+        {
+          "direct_float_map_replay": "pass",
+          "expression": "abs(sort(m)) / on(zone) m",
+          "cases": 9,
+          "page_sizes": 3
+        },
+        {
+          "direct_float_map_replay": "pass",
+          "expression": "m / on(zone) abs(sort_desc(m))",
+          "cases": 9,
+          "page_sizes": 3
+        },
+        {
+          "sort_prefix_only": "pass"
+        }
+      ]
+    }
+  },
+  "resources": {
+    "groups": 1644,
+    "samples_fetched": {
+      "lower": 252,
+      "equal": 1392,
+      "higher": 0
+    },
+    "work": {
+      "lower": 252,
+      "equal": 1374,
+      "higher": 18
+    },
+    "workspace_acquired": {
+      "lower": 252,
+      "equal": 1392,
+      "higher": 0
+    },
+    "workspace_peak": {
+      "lower": 0,
+      "equal": 1644,
+      "higher": 0
+    },
+    "higher_work_groups": [
+      {
+        "profile": "release",
+        "id": "abs_sort-range-sort-n2-page1",
+        "before": 10161,
+        "candidate": 10183,
+        "increase": 22
+      },
+      {
+        "profile": "release",
+        "id": "abs_sort-range-sort-n2-page17",
+        "before": 10221,
+        "candidate": 10243,
+        "increase": 22
+      },
+      {
+        "profile": "release",
+        "id": "abs_sort-range-sort-n2-page1024",
+        "before": 10221,
+        "candidate": 10243,
+        "increase": 22
+      },
+      {
+        "profile": "release",
+        "id": "duplicate-1-range-delayed0-page1",
+        "before": 4268,
+        "candidate": 4275,
+        "increase": 7
+      },
+      {
+        "profile": "release",
+        "id": "duplicate-1-range-delayed1-page1",
+        "before": 7689,
+        "candidate": 7705,
+        "increase": 16
+      },
+      {
+        "profile": "release",
+        "id": "duplicate-1-range-delayed0-page17",
+        "before": 4300,
+        "candidate": 4307,
+        "increase": 7
+      },
+      {
+        "profile": "release",
+        "id": "duplicate-1-range-delayed1-page17",
+        "before": 7742,
+        "candidate": 7758,
+        "increase": 16
+      },
+      {
+        "profile": "release",
+        "id": "duplicate-1-range-delayed0-page1024",
+        "before": 4300,
+        "candidate": 4307,
+        "increase": 7
+      },
+      {
+        "profile": "release",
+        "id": "duplicate-1-range-delayed1-page1024",
+        "before": 7742,
+        "candidate": 7758,
+        "increase": 16
+      },
+      {
+        "profile": "release-min",
+        "id": "abs_sort-range-sort-n2-page1",
+        "before": 10161,
+        "candidate": 10183,
+        "increase": 22
+      },
+      {
+        "profile": "release-min",
+        "id": "abs_sort-range-sort-n2-page17",
+        "before": 10221,
+        "candidate": 10243,
+        "increase": 22
+      },
+      {
+        "profile": "release-min",
+        "id": "abs_sort-range-sort-n2-page1024",
+        "before": 10221,
+        "candidate": 10243,
+        "increase": 22
+      },
+      {
+        "profile": "release-min",
+        "id": "duplicate-1-range-delayed0-page1",
+        "before": 4268,
+        "candidate": 4275,
+        "increase": 7
+      },
+      {
+        "profile": "release-min",
+        "id": "duplicate-1-range-delayed1-page1",
+        "before": 7689,
+        "candidate": 7705,
+        "increase": 16
+      },
+      {
+        "profile": "release-min",
+        "id": "duplicate-1-range-delayed0-page17",
+        "before": 4300,
+        "candidate": 4307,
+        "increase": 7
+      },
+      {
+        "profile": "release-min",
+        "id": "duplicate-1-range-delayed1-page17",
+        "before": 7742,
+        "candidate": 7758,
+        "increase": 16
+      },
+      {
+        "profile": "release-min",
+        "id": "duplicate-1-range-delayed0-page1024",
+        "before": 4300,
+        "candidate": 4307,
+        "increase": 7
+      },
+      {
+        "profile": "release-min",
+        "id": "duplicate-1-range-delayed1-page1024",
+        "before": 7742,
+        "candidate": 7758,
+        "increase": 16
+      }
+    ],
+    "large_nested_range": [
+      {
+        "profile": "release",
+        "id": "abs_sort-range-sort-n512-page17",
+        "family": "baseline-inputs.jsonl",
+        "count": 512,
+        "page_size": 17,
+        "function": "abs_sort",
+        "mode": "range",
+        "expression": "abs(sort(m))",
+        "result_kind": "matrix",
+        "samples_fetched": 276792,
+        "work": 13584489,
+        "pages": 92264,
+        "provider_calls": 185044,
+        "output_samples": 1536,
+        "workspace_peak": 1042984,
+        "workspace_acquired": 72016376,
+        "external_references_acquired": 92265,
+        "before": {
+          "external_references_acquired": 874095,
+          "samples_fetched": 2622282,
+          "work": 98796797,
+          "pages": 874094,
+          "provider_calls": 1748704,
+          "workspace_peak": 1042984,
+          "workspace_acquired": 545023526
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "abs_sort-range-sort-n512-page17",
+        "family": "baseline-inputs.jsonl",
+        "count": 512,
+        "page_size": 17,
+        "function": "abs_sort",
+        "mode": "range",
+        "expression": "abs(sort(m))",
+        "result_kind": "matrix",
+        "samples_fetched": 276792,
+        "work": 13584489,
+        "pages": 92264,
+        "provider_calls": 185044,
+        "output_samples": 1536,
+        "workspace_peak": 1042984,
+        "workspace_acquired": 72016376,
+        "external_references_acquired": 92265,
+        "before": {
+          "external_references_acquired": 874095,
+          "samples_fetched": 2622282,
+          "work": 98796797,
+          "pages": 874094,
+          "provider_calls": 1748704,
+          "workspace_peak": 1042984,
+          "workspace_acquired": 545023526
+        }
+      }
+    ]
+  },
+  "measured_layouts": {
+    "accepted_debug": {
+      "sort_plan": 168,
+      "sort_plan_allocation": 192,
+      "sort_snapshot": 96,
+      "sort_snapshot_allocation": 128,
+      "sort_step": 4704,
+      "sort_step_allocation": 4728
+    },
+    "native-release": {
+      "sort_plan": 168,
+      "sort_plan_allocation": 192,
+      "sort_snapshot": 96,
+      "sort_snapshot_allocation": 128,
+      "sort_step": 4704,
+      "sort_step_allocation": 4728
+    },
+    "native-release-min": {
+      "sort_plan": 168,
+      "sort_plan_allocation": 192,
+      "sort_snapshot": 96,
+      "sort_snapshot_allocation": 128,
+      "sort_step": 4704,
+      "sort_step_allocation": 4728
+    },
+    "aarch64-unknown-linux-gnu-release": {
+      "sort_plan": 168,
+      "sort_plan_allocation": 192,
+      "sort_snapshot": 96,
+      "sort_snapshot_allocation": 128,
+      "sort_step": 4704,
+      "sort_step_allocation": 4728
+    },
+    "aarch64-unknown-linux-gnu-release-min": {
+      "sort_plan": 168,
+      "sort_plan_allocation": 192,
+      "sort_snapshot": 96,
+      "sort_snapshot_allocation": 128,
+      "sort_step": 4704,
+      "sort_step_allocation": 4728
+    },
+    "armv7-unknown-linux-gnueabihf-release": {
+      "sort_plan": 112,
+      "sort_plan_allocation": 128,
+      "sort_snapshot": 80,
+      "sort_snapshot_allocation": 112,
+      "sort_step": 4088,
+      "sort_step_allocation": 4104
+    },
+    "armv7-unknown-linux-gnueabihf-release-min": {
+      "sort_plan": 112,
+      "sort_plan_allocation": 128,
+      "sort_snapshot": 80,
+      "sort_snapshot_allocation": 112,
+      "sort_step": 4088,
+      "sort_step_allocation": 4104
+    }
+  },
+  "timing": {
+    "ordinary_qualification_responses": 8,
+    "timed_panel_checked_responses": 400,
+    "groups": [
+      {
+        "profile": "release",
+        "id": "abs_sort-range-sort-n512-page17",
+        "before_ns": [
+          1843344747,
+          1906098941,
+          1848709549,
+          1954940915,
+          1890299324
+        ],
+        "candidate_ns": [
+          234034648,
+          226021236,
+          218912607,
+          233879839,
+          266570010
+        ],
+        "before_median_ns": 1890299324,
+        "candidate_median_ns": 233879839,
+        "median_ratio_before_over_candidate": 8.082352596454456,
+        "paired_ratios": [
+          7.876375411729634,
+          8.433273681416377,
+          8.444966118374351,
+          8.358740639461447,
+          7.091192756454486
+        ],
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "abs_sort-range-sort-n128-page17",
+        "before_ns": [
+          141411736,
+          145440312,
+          140610913,
+          141260418,
+          153319534
+        ],
+        "candidate_ns": [
+          44849828,
+          43222112,
+          42289050,
+          42364400,
+          54297967
+        ],
+        "before_median_ns": 141411736,
+        "candidate_median_ns": 43222112,
+        "median_ratio_before_over_candidate": 3.271745165992814,
+        "paired_ratios": [
+          3.153005090677271,
+          3.3649515322157324,
+          3.3249957849608824,
+          3.3344132809623175,
+          2.823669880678958
+        ],
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "abs_sort-range-sort-n2-page17",
+        "before_ns": [
+          183359,
+          181338,
+          180768,
+          197818,
+          195438
+        ],
+        "candidate_ns": [
+          184178,
+          185878,
+          195528,
+          181388,
+          212818
+        ],
+        "before_median_ns": 183359,
+        "candidate_median_ns": 185878,
+        "median_ratio_before_over_candidate": 0.9864481003669073,
+        "paired_ratios": [
+          0.9955532148247891,
+          0.9755753773980783,
+          0.9245120903400025,
+          1.0905793106489956,
+          0.9183339755095904
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "abs_sort-range-sort-n0-page17",
+        "before_ns": [
+          13970,
+          18520,
+          13510,
+          18510,
+          14380
+        ],
+        "candidate_ns": [
+          13900,
+          19560,
+          13740,
+          19020,
+          20140
+        ],
+        "before_median_ns": 14380,
+        "candidate_median_ns": 19020,
+        "median_ratio_before_over_candidate": 0.7560462670872765,
+        "paired_ratios": [
+          1.0050359712230217,
+          0.9468302658486708,
+          0.9832605531295487,
+          0.973186119873817,
+          0.7140019860973188
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "sort-range-sort-n512-page17",
+        "before_ns": [
+          149413658,
+          171969316,
+          149844835,
+          152895569,
+          162278919
+        ],
+        "candidate_ns": [
+          157660607,
+          168858072,
+          152691780,
+          152630090,
+          162768734
+        ],
+        "before_median_ns": 152895569,
+        "candidate_median_ns": 157660607,
+        "median_ratio_before_over_candidate": 0.9697766100824412,
+        "paired_ratios": [
+          0.9476917591722833,
+          1.018425201491108,
+          0.9813549557153634,
+          1.0017393621401913,
+          0.9969907304187793
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "abs_sort-instant-sort-n512-page17",
+        "before_ns": [
+          28307130,
+          29647198,
+          28901924,
+          28149601,
+          31668251
+        ],
+        "candidate_ns": [
+          29884955,
+          30785587,
+          31145315,
+          28159631,
+          29031783
+        ],
+        "before_median_ns": 28901924,
+        "candidate_median_ns": 29884955,
+        "median_ratio_before_over_candidate": 0.9671061575966904,
+        "paired_ratios": [
+          0.9472033670453912,
+          0.9630220141652651,
+          0.9279701939119896,
+          0.9996438163554061,
+          1.0908131615615893
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "coupled-label-asc-range-n33-page17",
+        "before_ns": [
+          8686866,
+          8997503,
+          8666896,
+          8537058,
+          9516009
+        ],
+        "candidate_ns": [
+          2244051,
+          2261620,
+          2544298,
+          2226272,
+          2228951
+        ],
+        "before_median_ns": 8686866,
+        "candidate_median_ns": 2244051,
+        "median_ratio_before_over_candidate": 3.8710644276801194,
+        "paired_ratios": [
+          3.8710644276801194,
+          3.978344284185672,
+          3.406399722045138,
+          3.834687765017033,
+          4.269276893031744
+        ],
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "coupled-round-range-n33-page17",
+        "before_ns": [
+          13664324,
+          14227639,
+          14235009,
+          14358788,
+          14009630
+        ],
+        "candidate_ns": [
+          7902043,
+          7623965,
+          8867545,
+          7693514,
+          7700545
+        ],
+        "before_median_ns": 14227639,
+        "candidate_median_ns": 7700545,
+        "median_ratio_before_over_candidate": 1.8476145519570368,
+        "paired_ratios": [
+          1.7292140779289609,
+          1.8661731789167448,
+          1.6052931222790525,
+          1.8663497590307887,
+          1.8193036986343174
+        ],
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "plain-range-sort-n512-page17",
+        "before_ns": [
+          6818542,
+          7042770,
+          6945711,
+          6770392,
+          6830782
+        ],
+        "candidate_ns": [
+          6932121,
+          6898891,
+          7798243,
+          6994320,
+          7051971
+        ],
+        "before_median_ns": 6830782,
+        "candidate_median_ns": 6994320,
+        "median_ratio_before_over_candidate": 0.9766184561186791,
+        "paired_ratios": [
+          0.983615548545676,
+          1.0208553809590557,
+          0.8906763997992881,
+          0.9679843072664677,
+          0.9686344427678446
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "abs-range-sort-n512-page17",
+        "before_ns": [
+          14597466,
+          15070282,
+          14598966,
+          14752335,
+          14665355
+        ],
+        "candidate_ns": [
+          16183293,
+          15054812,
+          18732171,
+          15393629,
+          15030802
+        ],
+        "before_median_ns": 14665355,
+        "candidate_median_ns": 15393629,
+        "median_ratio_before_over_candidate": 0.9526899082730914,
+        "paired_ratios": [
+          0.9020083860559158,
+          1.0010275784247589,
+          0.7793525907915319,
+          0.9583402977946266,
+          0.975686793026746
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "abs_sort-range-sort-n512-page17",
+        "before_ns": [
+          3149129626,
+          3302432878,
+          3136164773,
+          3196422479,
+          3221850731
+        ],
+        "candidate_ns": [
+          361849369,
+          388877458,
+          373520149,
+          361087135,
+          368276124
+        ],
+        "before_median_ns": 3196422479,
+        "candidate_median_ns": 368276124,
+        "median_ratio_before_over_candidate": 8.67941816124903,
+        "paired_ratios": [
+          8.702874443868382,
+          8.49221987559896,
+          8.396239885308034,
+          8.852219226807955,
+          8.748464863825927
+        ],
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "abs_sort-range-sort-n128-page17",
+        "before_ns": [
+          238268111,
+          241519753,
+          239276972,
+          239418371,
+          248055018
+        ],
+        "candidate_ns": [
+          74215788,
+          75483607,
+          70500470,
+          70516799,
+          70991075
+        ],
+        "before_median_ns": 239418371,
+        "candidate_median_ns": 70991075,
+        "median_ratio_before_over_candidate": 3.372513671612946,
+        "paired_ratios": [
+          3.210477412164646,
+          3.199631848541631,
+          3.393976976323704,
+          3.3951962425293867,
+          3.494171880056754
+        ],
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "abs_sort-range-sort-n2-page17",
+        "before_ns": [
+          300498,
+          298878,
+          295987,
+          301087,
+          303707
+        ],
+        "candidate_ns": [
+          316667,
+          443376,
+          298438,
+          297087,
+          295257
+        ],
+        "before_median_ns": 300498,
+        "candidate_median_ns": 298438,
+        "median_ratio_before_over_candidate": 1.0069026062364712,
+        "paired_ratios": [
+          0.9489400537473118,
+          0.6740960268485439,
+          0.9917872388904898,
+          1.0134640694476702,
+          1.0286191351940852
+        ],
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "abs_sort-range-sort-n0-page17",
+        "before_ns": [
+          20320,
+          24510,
+          21039,
+          24530,
+          21160
+        ],
+        "candidate_ns": [
+          21010,
+          26030,
+          20740,
+          26180,
+          20050
+        ],
+        "before_median_ns": 21160,
+        "candidate_median_ns": 21010,
+        "median_ratio_before_over_candidate": 1.0071394574012376,
+        "paired_ratios": [
+          0.9671584959543075,
+          0.9416058394160584,
+          1.0144165863066539,
+          0.9369747899159664,
+          1.0553615960099751
+        ],
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "sort-range-sort-n512-page17",
+        "before_ns": [
+          250528387,
+          252542250,
+          248509863,
+          246810818,
+          258458309
+        ],
+        "candidate_ns": [
+          242830372,
+          257372948,
+          247532202,
+          250620745,
+          250314848
+        ],
+        "before_median_ns": 250528387,
+        "candidate_median_ns": 250314848,
+        "median_ratio_before_over_candidate": 1.0008530816358125,
+        "paired_ratios": [
+          1.0317012033404125,
+          0.9812307469081794,
+          1.0039496315715724,
+          0.9847980381671916,
+          1.0325328723608118
+        ],
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "abs_sort-instant-sort-n512-page17",
+        "before_ns": [
+          47230078,
+          47833953,
+          46942870,
+          47640104,
+          48738225
+        ],
+        "candidate_ns": [
+          47308987,
+          50033654,
+          48036371,
+          48856884,
+          48003981
+        ],
+        "before_median_ns": 47640104,
+        "candidate_median_ns": 48036371,
+        "median_ratio_before_over_candidate": 0.9917506882441224,
+        "paired_ratios": [
+          0.9983320505256221,
+          0.9560355715774826,
+          0.9772359781299882,
+          0.9750950142460989,
+          1.015295481431009
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "coupled-label-asc-range-n33-page17",
+        "before_ns": [
+          15337899,
+          14920663,
+          14778234,
+          15033942,
+          15034962
+        ],
+        "candidate_ns": [
+          3811688,
+          3771688,
+          3771138,
+          3856547,
+          3774607
+        ],
+        "before_median_ns": 15033942,
+        "candidate_median_ns": 3774607,
+        "median_ratio_before_over_candidate": 3.98291583733088,
+        "paired_ratios": [
+          4.023912502807155,
+          3.95596427912383,
+          3.918773060015306,
+          3.8982908804171195,
+          3.983186064138598
+        ],
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "coupled-round-range-n33-page17",
+        "before_ns": [
+          22848406,
+          23121543,
+          23161193,
+          23054923,
+          23298231
+        ],
+        "candidate_ns": [
+          12755872,
+          12452664,
+          12672762,
+          12623903,
+          12507293
+        ],
+        "before_median_ns": 23121543,
+        "candidate_median_ns": 12623903,
+        "median_ratio_before_over_candidate": 1.8315684935158327,
+        "paired_ratios": [
+          1.791206904553448,
+          1.8567547474179018,
+          1.8276357592764703,
+          1.8262912032831684,
+          1.862771664500064
+        ],
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "plain-range-sort-n512-page17",
+        "before_ns": [
+          10260883,
+          10060135,
+          10444821,
+          10121804,
+          12198905
+        ],
+        "candidate_ns": [
+          10462071,
+          10596450,
+          10362451,
+          10803887,
+          10205093
+        ],
+        "before_median_ns": 10260883,
+        "candidate_median_ns": 10462071,
+        "median_ratio_before_over_candidate": 0.9807697730210395,
+        "paired_ratios": [
+          0.9807697730210395,
+          0.9493872948015609,
+          1.0079488916280521,
+          0.9368668887410614,
+          1.1953742116803836
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "abs-range-sort-n512-page17",
+        "before_ns": [
+          22998395,
+          23621409,
+          23648939,
+          23430321,
+          23318391
+        ],
+        "candidate_ns": [
+          23588949,
+          23642969,
+          23806387,
+          23662468,
+          25447234
+        ],
+        "before_median_ns": 23430321,
+        "candidate_median_ns": 23662468,
+        "median_ratio_before_over_candidate": 0.9901892313177137,
+        "paired_ratios": [
+          0.9749648023741965,
+          0.9990881009910388,
+          0.9933863126731495,
+          0.9901892313177137,
+          0.9163428528224324
+        ],
+        "slower_candidate_median": true
+      }
+    ],
+    "slower_groups": [
+      {
+        "profile": "release",
+        "id": "abs_sort-range-sort-n2-page17",
+        "before_ns": [
+          183359,
+          181338,
+          180768,
+          197818,
+          195438
+        ],
+        "candidate_ns": [
+          184178,
+          185878,
+          195528,
+          181388,
+          212818
+        ],
+        "before_median_ns": 183359,
+        "candidate_median_ns": 185878,
+        "median_ratio_before_over_candidate": 0.9864481003669073,
+        "paired_ratios": [
+          0.9955532148247891,
+          0.9755753773980783,
+          0.9245120903400025,
+          1.0905793106489956,
+          0.9183339755095904
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "abs_sort-range-sort-n0-page17",
+        "before_ns": [
+          13970,
+          18520,
+          13510,
+          18510,
+          14380
+        ],
+        "candidate_ns": [
+          13900,
+          19560,
+          13740,
+          19020,
+          20140
+        ],
+        "before_median_ns": 14380,
+        "candidate_median_ns": 19020,
+        "median_ratio_before_over_candidate": 0.7560462670872765,
+        "paired_ratios": [
+          1.0050359712230217,
+          0.9468302658486708,
+          0.9832605531295487,
+          0.973186119873817,
+          0.7140019860973188
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "sort-range-sort-n512-page17",
+        "before_ns": [
+          149413658,
+          171969316,
+          149844835,
+          152895569,
+          162278919
+        ],
+        "candidate_ns": [
+          157660607,
+          168858072,
+          152691780,
+          152630090,
+          162768734
+        ],
+        "before_median_ns": 152895569,
+        "candidate_median_ns": 157660607,
+        "median_ratio_before_over_candidate": 0.9697766100824412,
+        "paired_ratios": [
+          0.9476917591722833,
+          1.018425201491108,
+          0.9813549557153634,
+          1.0017393621401913,
+          0.9969907304187793
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "abs_sort-instant-sort-n512-page17",
+        "before_ns": [
+          28307130,
+          29647198,
+          28901924,
+          28149601,
+          31668251
+        ],
+        "candidate_ns": [
+          29884955,
+          30785587,
+          31145315,
+          28159631,
+          29031783
+        ],
+        "before_median_ns": 28901924,
+        "candidate_median_ns": 29884955,
+        "median_ratio_before_over_candidate": 0.9671061575966904,
+        "paired_ratios": [
+          0.9472033670453912,
+          0.9630220141652651,
+          0.9279701939119896,
+          0.9996438163554061,
+          1.0908131615615893
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "plain-range-sort-n512-page17",
+        "before_ns": [
+          6818542,
+          7042770,
+          6945711,
+          6770392,
+          6830782
+        ],
+        "candidate_ns": [
+          6932121,
+          6898891,
+          7798243,
+          6994320,
+          7051971
+        ],
+        "before_median_ns": 6830782,
+        "candidate_median_ns": 6994320,
+        "median_ratio_before_over_candidate": 0.9766184561186791,
+        "paired_ratios": [
+          0.983615548545676,
+          1.0208553809590557,
+          0.8906763997992881,
+          0.9679843072664677,
+          0.9686344427678446
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "abs-range-sort-n512-page17",
+        "before_ns": [
+          14597466,
+          15070282,
+          14598966,
+          14752335,
+          14665355
+        ],
+        "candidate_ns": [
+          16183293,
+          15054812,
+          18732171,
+          15393629,
+          15030802
+        ],
+        "before_median_ns": 14665355,
+        "candidate_median_ns": 15393629,
+        "median_ratio_before_over_candidate": 0.9526899082730914,
+        "paired_ratios": [
+          0.9020083860559158,
+          1.0010275784247589,
+          0.7793525907915319,
+          0.9583402977946266,
+          0.975686793026746
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "abs_sort-instant-sort-n512-page17",
+        "before_ns": [
+          47230078,
+          47833953,
+          46942870,
+          47640104,
+          48738225
+        ],
+        "candidate_ns": [
+          47308987,
+          50033654,
+          48036371,
+          48856884,
+          48003981
+        ],
+        "before_median_ns": 47640104,
+        "candidate_median_ns": 48036371,
+        "median_ratio_before_over_candidate": 0.9917506882441224,
+        "paired_ratios": [
+          0.9983320505256221,
+          0.9560355715774826,
+          0.9772359781299882,
+          0.9750950142460989,
+          1.015295481431009
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "plain-range-sort-n512-page17",
+        "before_ns": [
+          10260883,
+          10060135,
+          10444821,
+          10121804,
+          12198905
+        ],
+        "candidate_ns": [
+          10462071,
+          10596450,
+          10362451,
+          10803887,
+          10205093
+        ],
+        "before_median_ns": 10260883,
+        "candidate_median_ns": 10462071,
+        "median_ratio_before_over_candidate": 0.9807697730210395,
+        "paired_ratios": [
+          0.9807697730210395,
+          0.9493872948015609,
+          1.0079488916280521,
+          0.9368668887410614,
+          1.1953742116803836
+        ],
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "abs-range-sort-n512-page17",
+        "before_ns": [
+          22998395,
+          23621409,
+          23648939,
+          23430321,
+          23318391
+        ],
+        "candidate_ns": [
+          23588949,
+          23642969,
+          23806387,
+          23662468,
+          25447234
+        ],
+        "before_median_ns": 23430321,
+        "candidate_median_ns": 23662468,
+        "median_ratio_before_over_candidate": 0.9901892313177137,
+        "paired_ratios": [
+          0.9749648023741965,
+          0.9990881009910388,
+          0.9933863126731495,
+          0.9901892313177137,
+          0.9163428528224324
+        ],
+        "slower_candidate_median": true
+      }
+    ],
+    "measurement": "One warm and one measured complete query per case/process; five alternating pairs/profile. Median engine elapsed_ns, with every sample and slower group retained. Includes all engine query phases, excludes process startup and JSON transport.",
+    "limits": "Shared host without exclusive CPU/frequency control. Fixed synthetic fixtures, not live DBengine/HTTP throughput or process RSS. Before and candidate retain their actual compiler-source manifests; final C-consumer-only correction does not reattribute native binaries."
+  },
+  "checks": {
+    "format": "pass",
+    "strict_all_target_production_clippy": "pass",
+    "strict_all_target_fixture_clippy": "pass",
+    "installed_rust_1_91_all_target_fixture_compile": "pass; compile-only"
+  },
+  "excluded_attempts": [
+    "Initial test source used an unavailable EngineOptions field and then omitted the retained job label; neither is the growth witness. Their source/output phases remain separate.",
+    "Initial preservation readers assumed owned diagnostic text for a static error and exact physical reference acquisition equality. Complete closed output was reused after correcting the readers; no result was changed.",
+    "Initial short C consumer rejected the correct range-sort warning. Its correction changes only that consumer source; native Rust artifacts retain their actual compiler identity.",
+    "Initial timing packet grouped multiple datasets before requests, but the fixture retains only its current dataset. Its failed process is excluded. Corrected inputs emit each dataset immediately before its requests; case roster, alternating pairs and policy are unchanged. The eight passing ordinary responses are reused with original guards."
+  ],
+  "limitations": [
+    "No arbitrary-input or complete production PromQL proof, new language feature, universal polynomial nested-work bound, universal speed or process RSS claim.",
+    "Workspace peaks are unchanged; allocation traffic and physical sample-entry counters are not RAM, HTTP throughput or DBengine disk I/O.",
+    "Every slower timing group and fixed work/text cost is retained. Shared-host timings have no exclusive CPU/frequency control and do not establish causality for small changes.",
+    "Native C fixtures run the short sort roster, not the default full C suite. Foreign execution is selected library/caller qualification under QEMU, not full foreign suites or Agent builds.",
+    "Historical language/SRE/live-Agent/DBengine/API/CI cohorts retain their exact identities and are not fresh runs of this change. Empty CI evidence is not a passing check.",
+    "Repeated cold sorts across preparation clock owners and uncertified outer sorts remain separate performance opportunities. Same-cardinality abs/round fixtures have identical reads; there is no evidenced parameter dispatch regression."
+  ],
+  "receipts": {
+    "baseline-receipt.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/baseline-receipt.json",
+      "sha256": "52de4dbee35ad968d5a46df0071e60a0bfc2e3d17450dc4502f6cc10e67f426f"
+    },
+    "witness-ready-receipt.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/witness-ready-receipt.json",
+      "sha256": "f4915b3fdaf13389e1a832a505045e17ab26556478f50d7935bda17aa1891812"
+    },
+    "controls-receipt.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/controls-receipt.json",
+      "sha256": "ba7e02848fd6b740c4d2a93da1122e0f1d3b1f03b8515457faf4c3e5d30352af"
+    },
+    "static-receipt.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/static-receipt.json",
+      "sha256": "0764942166fee0f8b2357515d4858d99d35092d32274ad0481364cb2c3a68394"
+    },
+    "preservation-checked-before.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/preservation-checked-before.json",
+      "sha256": "75cc88a28dd4dde2a1e33b1260480c19e515e6310af1d17a399f1087b06e7393"
+    },
+    "preservation-final-candidate.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/preservation-final-candidate.json",
+      "sha256": "268931120410ef9f0d67c264c56237b35c4882f6b8e936682e3a58e8bf0bd626"
+    },
+    "originals-receipt.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/originals-receipt.json",
+      "sha256": "1d96795f9f63023ed1a09df30d0271d8bb68eee7367f1a8ce4c72112e9fde262"
+    },
+    "native-callers-checked.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/native-callers-checked.json",
+      "sha256": "633e782cbc85ccaa776aa288b6ee2c03f9343a5b8613aa127f956d2657686190"
+    },
+    "timing-checked-receipt.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/timing-checked-receipt.json",
+      "sha256": "03cf5ff7c2e9296b600ac3106704dbf476cbfffc1d4715d95f2e0a46e2c9d478"
+    },
+    "qualified-native-release.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/qualified-native-release.json",
+      "sha256": "70627ac0d34785191e21cff927d4a403b1c8447ccdd0594993868e213325cb56"
+    },
+    "qualified-native-release-min.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/qualified-native-release-min.json",
+      "sha256": "872e94b943b7195215a360f8f3aff0363ba08c8b2658f1201b3c0601f8c217f7"
+    },
+    "checked-aarch64-unknown-linux-gnu-release.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/checked-aarch64-unknown-linux-gnu-release.json",
+      "sha256": "e7b36b75ec2e59e34d2fd177dff616eb7be5d468f652d363dafea0cf618ecd99"
+    },
+    "checked-aarch64-unknown-linux-gnu-release-min.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/checked-aarch64-unknown-linux-gnu-release-min.json",
+      "sha256": "5fbc2c5d7d83792153f0d6bbc605b663da99f57c8ba2736a0af2f4bfc7c6be2b"
+    },
+    "checked-armv7-unknown-linux-gnueabihf-release.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/checked-armv7-unknown-linux-gnueabihf-release.json",
+      "sha256": "cb2e3d566e58bce330ab9d2d5ca3eace146b90c5044a513d2ddd011f69fb653a"
+    },
+    "checked-armv7-unknown-linux-gnueabihf-release-min.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/checked-armv7-unknown-linux-gnueabihf-release-min.json",
+      "sha256": "bd34ef9dd5b7ae5fc266bd0ed1b65cc7162508d2c42f7e848590da4db65961df"
+    }
+  },
+  "evidence": {
+    "qualified-source.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/qualified-source.json",
+      "sha256": "3fe9d27fe5b8b98fa6fcffc71c467d7f8814ab8aa266432ca3bb9b3b3c65516a"
+    },
+    "checked-source.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/checked-source.json",
+      "sha256": "319860b9e3556219e4ae61d58292048f57a14a338f1005619e0d3c786a507651"
+    },
+    "consumer-only-correction.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/consumer-only-correction.json",
+      "sha256": "e89158c2b0c529cbef04781b2b69f62abb8d161157b5c39724b8691d094d16f2"
+    },
+    "qualified-c_embedding.c": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/qualified-c_embedding.c",
+      "sha256": "ff58a241675895b493d42029c6b572dd50c11f5939b21fe9a2f7c492af87f50d"
+    },
+    "timing-plan.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/timing-plan.json",
+      "sha256": "ebd28bb222fee5b24a84bfb6367630d9952073c500018e37b5dde61eefd86f7b"
+    },
+    "timing-checked-plan.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/timing-checked-plan.json",
+      "sha256": "8adc1807e9989febb985b383cd3aa553659be24e2da89d629617526778673ef6"
+    },
+    "timing.py": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/timing.py",
+      "sha256": "b9f7d1aaba2f7cd2018d710bf3c4188868c6b9b406c6d80863b1a3909fc84ed4"
+    },
+    "timing_checked.py": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/timing_checked.py",
+      "sha256": "83e6cbae6c07422df2ec36920b7073f73874d3ab3c8d3d80dfc338f04a537beb"
+    },
+    "qualify.py": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/qualify.py",
+      "sha256": "434d7876374e4d817f3df500374eae9bca64ee2cf2bab2e79d2997bff61ab9f3"
+    },
+    "preservation-plan.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/preservation-plan.json",
+      "sha256": "39638e3f2ad969dbdcb940cebd82643f19ce55c15cdc20a660a838774ed09ef3"
+    },
+    "foreign-cases.json": {
+      "path": ".tmp/sort-wrapper-bqmi3n9g/foreign-cases.json",
+      "sha256": "5ba2ba72b66a85f0b849e99bb001fcc6e8558b3a12a5de73b7e36b46030d1e95"
+    }
+  }
+}

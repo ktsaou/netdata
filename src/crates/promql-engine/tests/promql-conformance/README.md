@@ -25,6 +25,9 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Nested eligible sorts reuse delivered permutation prefixes. The [nested-sort panel](#nested-vector-sort-prefixes)
+  records 1,644 complete native and 840 compiled ARM comparisons, unchanged workspace peaks, and 8.1–8.7× faster
+  fixed 512-series `abs(sort(m))` ranges. It also records slower ordinary/tiny controls and exact source attribution.
 - Selector backend capture tables are omitted for boolean-only consumers. The
   [capture-table panel](#selector-backend-capture-tables) records both native optimized profiles, compiled ARM
   selector originals, short actual C/C++ calls and source-distinguished test-only correction. Of 484 complete native
@@ -3096,7 +3099,8 @@ Historical cohorts retain their original identities.
 Bare `sort`, `sort_desc`, `sort_by_label` and `sort_by_label_desc` range queries can reuse a completed delivery
 certificate for their exact sorting snapshot. Eligibility requires an unchanged direct selector, unique float rows,
 consistent single-source metadata, matching effective grids and positive forward execution with unequal bounds.
-Instant, nested/computed, native/mixed, shifted/modifier and uncertified cases retain ordinary supported evaluation.
+Instant queries, computed sort inputs, native/mixed, shifted/modifier and uncertified cases retain ordinary supported
+evaluation. Eligible inner sorts also use the distinct [nested-prefix procedure](#nested-vector-sort-prefixes).
 
 The first final body reads every original sorted operand, including the suffix after a provisional selected result.
 Only successful `Done`, after its last control check, grants credit. Later same-snapshot bodies walk physical
@@ -3104,12 +3108,12 @@ permutation positions, skip certified nonselected operands and acquire the selec
 input positions, catalog ordinals and canonical output ordinals remain distinct. Sparse absent targets require no
 extra selected read after completed delivery.
 
-Preparation never grants this credit. Unequal bounds with one effective tick can retain an existing preparation
-permutation, but the first final Emit still runs completely. Exact time/start/end/step/position replacement starts
-without credit. An old live owner cannot credit a replacement. Effective lookback, precision, name handling and
-storage bounds remain fixed by the eligible query scope.
+Final execution clears any progress from preparation. Unequal bounds with one effective tick can retain an existing
+preparation permutation, but the first final root Emit still runs completely. Exact time/start/end/step/position
+replacement starts without credit. An old live owner cannot credit a replacement. Effective lookback, precision,
+name handling and storage bounds remain fixed by the eligible query scope.
 
-One Plan bool and one snapshot `AtomicBool` retain the state; the Step has no new field. Snapshot/Strong thread
+One Plan bool and one snapshot progress word retain the state; the Step has no new field. Snapshot/Strong thread
 traits remain intact, while the Plan remains confined to serial use. No raw values, history or new membership array
 is cached. The shared schedule predicate reads borrowed metadata and uses the same checked arithmetic directly,
 without constructing an evaluator solely to prove eligibility.
@@ -3127,9 +3131,11 @@ credit and release. Existing publication, callback, hash-collision, natural-orde
 remain separate. Whole-query memory, allocation traffic and elapsed time require complete matched measurements;
 these owner controls do not establish process RSS, production disk throughput or a universal work bound.
 
-The complete matched panel contains 4,392 responses across 732 query/profile groups, with three alternating
-before/final pairs, both profiles, pages 1/17/1024 and cardinalities 0 through 512. It includes 36 unequal-bounds,
-single-effective-tick cases per profile. All ordered results, diagnostics, output samples, backing and release match.
+The historical full-Done qualification below retains its original source/binary identity; it is not a fresh run of
+the nested-prefix extension. Its complete matched panel contains 4,392 responses across 732 query/profile groups,
+with three alternating before/final pairs, both profiles, pages 1/17/1024 and cardinalities 0 through 512. It includes
+36 unequal-bounds, single-effective-tick cases per profile. All ordered results, diagnostics, output samples, backing
+and release match.
 All 288 eligible groups reduce reads, pages, provider calls, work and acquired workspace bytes. The 444 fallback
 groups preserve reads and work. Every measured native workspace peak rises by exactly 8 bytes.
 
@@ -3180,6 +3186,75 @@ checks pass; the rebuilt/relinked Debug Agent passes 672 storage records, the ca
 and a separate additive 88-check HTTP probe, including six complete sort-related results over its own DBengine data.
 Historical ledger and caller inputs remain preserved. Foreign checks execute the library/callers, not a full foreign
 Agent; caller sanitizers exclude Rust instrumentation. These finite panels include no CI or arbitrary-input proof.
+
+## Nested vector-sort prefixes
+
+An eligible inner sort in a range expression such as `abs(sort(m))` can reuse a successfully delivered prefix.
+The prefix counts positions in its sorted permutation, rather than the largest physical or catalog ordinal seen.
+Selected values are always read afresh; unverified suffixes retain ordinary acquisition and failure behavior.
+Root sorts still require successful full `Done`. Computed sort inputs and other uncertified shapes remain supported
+through ordinary evaluation. No raw values, history, membership array, dependency or public API is added.
+
+The existing direct-selector proof is installed after each sort node completes preparation. Parent preparation
+can reuse progress, then the existing roster loop clears it after all preparation Machines drop. Final execution
+therefore starts cold even when unequal bounds contain one effective tick and retain the same permutation key.
+An old live Step credits its exact snapshot. A replacement starts at zero; partial progress cannot revoke Done.
+The single atomic word replaces the old bool within unchanged measured Plan/Snapshot/Step layouts on AMD64,
+ARM64 and ARM32. The Plan remains serial; the snapshot keeps its existing sharing traits.
+
+[Nested-sort qualification](nested-sort-prefixes-qualification.json) binds:
+
+- A meaningful old-runtime growth failure after all 18 complete result/statistics/release checks, followed by the
+  passing candidate. Sparse nonmonotone permutations, fresh values, absent targets, exact keys, old live owners,
+  preparation reset and every calibrated prefix interruption boundary have separate causal controls.
+- Actual four-series queries at pages 1/17/1024 preserve preparation-prefix, first-final, unverified-suffix and
+  selected-value failures with respectively 0/0/1/2 provisional samples, no commit and complete cleanup.
+- Both optimized native profiles pass 643 library tests each, 1,644 complete before/candidate results and 456
+  unchanged pinned Prometheus sort comparisons. The panel includes changing ranks, gaps, staleness, ordinary NaNs,
+  exact duplicate-label failures and coupled numeric/label/parameter/join wrappers.
+- Compiled ARM64/ARM32 execution passes 840 complete query comparisons and 32 focused unit executions. Twelve
+  actual C/C++ callers cover native and foreign profiles, normal delivery and provider/output failure paths.
+  This is selected foreign library/caller execution, not complete foreign suites or a rebuilt Agent.
+
+Of 1,644 native resource groups, 252 fetch fewer sample entries and acquire fewer workspace bytes; none increase
+either measure. Every workspace peak stays unchanged. Eighteen tiny/error groups charge 7, 16 or 22 additional
+work units. At 512 series, page 17 and three range ticks, both profiles measure:
+
+| `abs(sort(m))` observation | Before | Candidate |
+|---|---:|---:|
+| Fetched sample entries | 2,622,282 | 276,792 |
+| Accounted work | 98,796,797 | 13,584,489 |
+| Acquired workspace bytes | 545,023,526 | 72,016,376 |
+| Peak workspace bytes | 1,042,984 | 1,042,984 |
+
+Allocation traffic is cumulative, not peak RAM. Numeric comparator reads and repeated cold sorting phases remain;
+the change does not establish linear work for arbitrary nested expressions. Native query-fixture ELF text changes
+by +6,208 bytes in release and −480 bytes in release-min; this is not installed Agent footprint.
+
+The frozen timing panel checks 400 complete warm/measured responses across five alternating pairs per profile,
+after qualifying eight ordinary-control responses. Each measured response must preserve its complete expected
+result and that executable's own nonelapsed observations. Ratios are median before time divided by candidate time;
+values below one are slower.
+
+| Query, page 17 | Release ratio | Release-min ratio |
+|---|---:|---:|
+| `abs(sort(m))`, range, 512 series | 8.082 | 8.679 |
+| `abs(sort(m))`, range, 128 series | 3.272 | 3.373 |
+| `abs(sort(m))`, range, 2 series | 0.986 | 1.007 |
+| `abs(sort(m))`, range, empty | 0.756 | 1.007 |
+| `sort(m)`, range, 512 series | 0.970 | 1.001 |
+| `abs(sort(m))`, instant, 512 series | 0.967 | 0.992 |
+| `abs(sort_by_label(m,"id"))`, range, 33 series | 3.871 | 3.983 |
+| `round(sort(m),.5)`, range, 33 series | 1.848 | 1.832 |
+| `m`, range, 512 series | 0.977 | 0.981 |
+| `abs(m)`, range, 512 series | 0.953 | 0.990 |
+
+The empty release median rises from 14,380 to 19,020 ns. Every timing sample and slower group is retained; shared-host
+measurements have no CPU/frequency isolation and do not establish causality for the small changes. These are engine
+query timings over synthetic provider data, not HTTP throughput, production DBengine disk I/O or process RSS.
+Final C-consumer warning handling changes only that test source: native Rust artifacts keep their actual earlier
+compiler manifest, with all Rust/Cargo/header inputs byte-identical to final source. Earlier language, SRE, Agent
+and CI cohorts retain their identities; this panel adds no language feature or arbitrary-input compatibility proof.
 
 ## Borrowed binary scheduling proof
 

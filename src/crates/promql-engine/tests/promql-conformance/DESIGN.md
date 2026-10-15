@@ -895,27 +895,33 @@ integration, and Alertmanager remains excluded.
 
 ## Completed vector-sort emission
 
-- **Choice:** a private scalar certificate records successful full delivery through the exact immutable sort
-  snapshot. The first final body keeps all original reads, including operands after provisional output. Credit is
-  stored only after the terminal control check immediately before `Done`; sorting order alone grants none.
-- **Eligibility:** only positive forward ranges with unequal bounds, an exact root sorting call and its direct
-  unique float selector. Raw uniqueness, single-source/head/kind metadata, canonical correspondence and effective
-  source/scope/producer grids must agree. Shifted/modifier, instant, nested/computed, native/mixed and uncertified
-  shapes remain supported through ordinary evaluation. Unequal bounds with one effective tick retain the existing
-  preparation permutation while still requiring first-final full delivery.
-- **Reuse:** later same-snapshot bodies walk physical permutation positions, skip certified nonselected operands,
-  and acquire the selected catalog row afresh. Physical, catalog and canonical ordinals remain separate. No raw
-  values, history or new membership array is retained. Sparse/absent targets create no extra selected read.
-- **Ownership:** one Plan eligibility bool and one snapshot `AtomicBool`; no new Step field. The atomic preserves
-  Snapshot/Strong thread traits and does not make the Plan concurrently callable. Each replaced key starts without
-  credit; an old owner completing after replacement cannot credit a new owner. Effective lookback, name handling,
-  precision and data bounds remain fixed by this query scope.
-- **Memory:** the shared schedule predicate uses borrowed metadata and checked arithmetic directly. It creates no
-  evaluator solely for proof. Measured native matched-query workspace rises by 8 bytes; allocation traffic and reads
-  fall for eligible ranges. This is a fixed state tradeoff, not a lower-RSS claim.
-- **Evidence:** [completed sort-emission qualification](sort-emission-qualification.json) retains the complete-query
-  growth red, premature-completion red, actual suffix/warm-selected failures, sparse/key/context/charge controls,
-  target layouts and source-bound containing-Agent checks. Timing remains finite shared-host evidence.
+- **Choice:** one snapshot-owned progress word distinguishes no credit, a successfully delivered contiguous
+  permutation prefix, and successful full `Done`. Root consumers require full Done after the terminal control check.
+  Nested singleton consumers may reuse a prefix after the Machine completes its filter check, before a parent can
+  truncate that body. Sorting order or an uncompleted handoff grants no credit.
+- **Eligibility:** only positive forward ranges with unequal bounds and an unchanged direct unique-float selector.
+  Raw uniqueness, single-source/head/kind metadata, canonical correspondence and effective source/scope/producer
+  grids must agree with the prepared evaluator header. Both bare and nested eligible sorting calls use the proof;
+  computed sort inputs, shifted/modifier, instant, native/mixed and uncertified shapes keep ordinary evaluation.
+- **Preparation:** install the certificate after each sort node completes its own output, projection and statistics,
+  before parent consumption. After all preparation Machines drop, clear progress through the existing roster loop.
+  Retain the permutation/key/certificate, including unequal bounds with one effective tick; final delivery starts cold.
+- **Reuse:** root bodies keep the first complete operand traversal, including the suffix after provisional output.
+  Nested bodies skip only previously delivered nonselected permutation positions; selected values are freshly acquired,
+  and unvisited suffixes keep normal reads and failures when reached. Physical input positions, catalog ordinals and
+  canonical output ordinals remain distinct. Sparse/absent targets create no extra selected read.
+- **Ownership:** one Plan eligibility bool and one snapshot `AtomicUsize` replace the former snapshot bool without
+  changing measured layouts. Positive values are contiguous prefix lengths; `usize::MAX` alone means successful Done.
+  There is no new Step field. Snapshot/Strong thread traits remain intact; the Plan is serial. An old live owner
+  credits its exact snapshot and cannot grant progress to a replacement or reduce later progress.
+- **Memory:** no raw values, history, membership array or cache is added. The borrowed schedule proof still creates
+  no temporary evaluator. The nested-prefix panel preserves all measured whole-query workspace peaks and reduces
+  allocation traffic on eligible cases. These counters do not establish process RSS or a universal work bound.
+- **Evidence:** [root emission qualification](sort-emission-qualification.json) retains its original complete-query,
+  terminal, failure and containing-Agent identities.
+  [Nested-prefix qualification](nested-sort-prefixes-qualification.json) separately binds preparation reset,
+  sparse/nonmonotone owners, all prefix interruption boundaries, actual suffix and selected failures, complete
+  native/ARM results, layouts, C/C++ callers and finite timings, including slower controls.
 
 
 ## Scheduled derived quantile rank traversals

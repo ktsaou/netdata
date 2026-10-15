@@ -69850,5 +69850,21 @@
     "original_timing_responses": 320,
     "focused_followup_responses": 450,
     "qualification_attribution": "Native/foreign production and optimized unit artifacts retain the actual shared-source manifest used by their compilers. The only later source change is a test helper under cfg(test); its complete inverse and byte-identical production prefix are checked. Fresh final Debug/strict lint/MSRV checks use checked-source. Earlier cohorts keep their original identities."
+  },
+  "nested_sort_prefixes_qualification": {
+    "status": "qualified_private_nested_sort_prefixes",
+    "receipt": "nested-sort-prefixes-qualification.json",
+    "sha256": "7f6fbd8a2f70c4255f9fd54f9de84b587bd5c0ace824510926317d51fda00a92",
+    "scope": "Finite private nested-sort prefix reuse in the existing paged engine. No new language feature, ABI, provider contract, limit, dependency or raw sample cache.",
+    "complete_native_queries": 1644,
+    "pinned_original_sort_comparisons": 456,
+    "complete_foreign_queries": 840,
+    "native_units_per_profile": 643,
+    "focused_foreign_unit_executions": 32,
+    "actual_c_callers": 12,
+    "timed_panel_checked_responses": 400,
+    "lower_reads_and_allocation_groups": 252,
+    "unchanged_workspace_peak_groups": 1644,
+    "attribution": "Native Rust cohorts keep qualified_source_manifest; the only final input difference is the C warning consumer. Foreign and final C callers use the derived final_source_manifest. Historical identities are preserved."
   }
 }

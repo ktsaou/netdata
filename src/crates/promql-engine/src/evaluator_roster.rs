@@ -730,7 +730,7 @@ impl Rosters {
     pub(crate) fn binary(&self, node: NodeId) -> Option<&crate::vector_matching::Plan> {
         self.nodes[node.0].binary.as_deref()
     }
-    pub(crate) fn clear_set_discovery(
+    pub(crate) fn clear_replay_progress(
         &self,
         control: &Control,
         account: &QueryAccounting,
@@ -740,6 +740,9 @@ impl Rosters {
             account.work(1);
             if let Some(plan) = &roster.binary {
                 plan.clear_set_discovery();
+            }
+            if let Some(plan) = &roster.sorting {
+                plan.clear_emission();
             }
         }
         control.check()?;

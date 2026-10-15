@@ -968,6 +968,8 @@ typedef struct {
     join_fixture *input;
     uint32_t arm_after;
     uint8_t query_kind;
+    uint8_t expect_sort_warning;
+    uint32_t annotation_chunks;
     uint64_t first_output_cursors;
 } join_delivery;
 
@@ -989,6 +991,16 @@ static uint32_t join_chunk(void *context, const netdata_promql_chunk_t *chunk,
     join_delivery *d = (join_delivery *)context;
     uint32_t position = d->output.calls[1];
     if (position == 0) d->first_output_cursors = d->input->source.opened[3];
+    if (chunk->kind == NETDATA_PROMQL_CHUNK_ANNOTATIONS) {
+        static const char warning[] = "PromQL warning: sort is ineffective for range queries since results are always ordered by labels";
+        assert(d->expect_sort_warning && !d->arm_after && position == 8 && d->annotation_chunks == 0);
+        assert(chunk->reserved == 0 && chunk->payload.annotations.len == 1);
+        const netdata_promql_annotation_t *note = &chunk->payload.annotations.data[0];
+        assert(note->severity == NETDATA_PROMQL_WARNING && note->position_present <= 1 && note->occurrences > 0);
+        assert(note->raw_message.len == sizeof(warning) - 1 && memcmp(note->raw_message.data, warning, sizeof(warning) - 1) == 0);
+        d->annotation_chunks++;
+        return output_status(&d->output, 2, control, error);
+    }
     assert(chunk->kind == NETDATA_PROMQL_CHUNK_SERIES && chunk->reserved == 0);
     const netdata_promql_series_chunk_t *series = &chunk->payload.series;
     assert(series->series_id == position % 4 && series->labels.len == 1 && series->points.len == 1);
@@ -1015,7 +1027,8 @@ static uint32_t join_commit(void *context, const netdata_promql_query_observatio
                              netdata_promql_bytes_t *error) {
     join_delivery *d = (join_delivery *)context;
     uint32_t points = d->query_kind == FOUR_SERIES_NUMERIC ? 4 : 8;
-    assert(!d->arm_after && d->output.calls[1] == points && observations->output_samples == points);
+    assert(!d->arm_after && d->output.calls[1] == points + d->annotation_chunks && observations->output_samples == points);
+    assert(d->annotation_chunks == (d->expect_sort_warning ? 1u : 0u));
     assert(observations->memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
     statistics_valid(&observations->statistics);
     released(&d->input->source);
@@ -1063,6 +1076,8 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
             output.input = &source;
             output.arm_after = arm;
             output.query_kind = query_kind;
+            output.expect_sort_warning = expression_override &&
+                (strstr(expression_override, "sort(") || strstr(expression_override, "sort_desc("));
             if (query_kind == FOUR_SERIES_RATE) {
                 output.output.failure = arm == 1 || arm == 3 ? 2 : 0;
                 if (arm == 2) {
@@ -1090,6 +1105,8 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
             assert(report && output.output.calls[0] == 1);
             unsigned chunks = !arm ? (query_kind == FOUR_SERIES_NUMERIC ? 4u : 8u) :
                               query_kind != FOUR_SERIES_RATE ? arm : arm == 1 ? 0u : 1u;
+            chunks += output.annotation_chunks;
+            assert(output.annotation_chunks == (!arm && output.expect_sort_warning ? 1u : 0u));
             assert(output.output.calls[1] == chunks);
             assert(output.output.calls[2] == (arm ? 0u : 1u) && output.output.calls[3] == (arm ? 1u : 0u));
             released(&source.source);
@@ -1961,6 +1978,15 @@ int main(int argc, char **argv) {
         balanced(engine, &idle);
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
         puts("{\"native_regex_embedding\":\"pass\"}");
+        return 0;
+    }
+    if (argc == 2 && strcmp(argv[1], "--sort-only") == 0) {
+        four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP,
+            "abs(sort(m)) / on(zone) m");
+        four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP,
+            "m / on(zone) abs(sort_desc(m))");
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        puts("{\"sort_prefix_only\":\"pass\"}");
         return 0;
     }
     assert(argc == 1);
