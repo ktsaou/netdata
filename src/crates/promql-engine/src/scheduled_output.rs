@@ -468,6 +468,73 @@ mod tests {
     }
 
     #[test]
+    fn scheduled_maps_do_not_allocate_frame_storage_for_every_point() {
+        let mut excessive = Vec::new();
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let mut acquired = Vec::new();
+                for count in [64, 256] {
+                    let provider = FixtureProvider::new(count, page, 1);
+                    let counters = provider.series[0].source.counters.clone();
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            b"counter_total + 0",
+                            EngineOptions {
+                                lookback_ms: 1000,
+                                delayed_name_removal: delayed,
+                                ..EngineOptions::default()
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let mut sink = RowSink {
+                        points: [0, 0],
+                        factors: [1.0, 1.0],
+                        has_name: false,
+                        committed: false,
+                    };
+                    let report = query.execute_reported(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: count as i64 * 1000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                        &mut sink,
+                    );
+                    assert!(report.result.is_ok(), "{:?}", report.result);
+                    assert!(sink.committed);
+                    assert_eq!(sink.points, [count, 0]);
+                    assert_eq!(report.observations.output_samples, count as u64);
+                    assert_eq!(counters.peak.load(Ordering::Relaxed), 1);
+                    let workspace = report.observations.memory[MemoryKind::Workspace as usize];
+                    assert_eq!(workspace.current, 0);
+                    eprintln!(
+                        "scheduled-frames count{count} page{page} delayed{delayed} acquired{}",
+                        workspace.acquired
+                    );
+                    acquired.push(workspace.acquired);
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+                let marginal = acquired[1] - acquired[0];
+                let bound = (256 - 64) * 3 * 1024;
+                if marginal > bound {
+                    excessive.push((page, delayed, marginal, bound));
+                }
+            }
+        }
+        assert!(
+            excessive.is_empty(),
+            "completed scheduled points allocate frame storage repeatedly: {excessive:?}"
+        );
+    }
+
+    #[test]
     fn final_range_maps_have_linear_reads_and_history_independent_workspace() {
         let cases = [
             ("counter_total", [-2.0, -3.0], true),

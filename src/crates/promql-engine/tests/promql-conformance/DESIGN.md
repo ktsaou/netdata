@@ -1053,3 +1053,20 @@ integration, and Alertmanager remains excluded.
   1.28–1.34×; the 32 KiB-label release-min case slows 3.55%. Native fixture text grows 528/944 bytes. No universal
   lower-peak, faster-runtime, Agent-size or RSS guarantee follows. Public interfaces, contexts authority, raw paging,
   dependency set and disabled caps remain unchanged.
+
+## Scheduled evaluator frame reuse
+
+- **Choice:** move the metadata-only scheduled reader's already-held frame allocation through a shared fresh
+  constructor. Every point reruns `Frame::new` and all Machine defaults. Return only drained capacity no larger than
+  the donor; discard grown capacity without eager replacement. The separate raw reader retains its required frame.
+- **Phases:** take frames and annotations into the callback before fallible work. Keep parameter/index/filter/
+  selector/control/statistics phases, the visitor and second diagnostic drain. Release unused selected points before
+  returning empty storage; errors and panics drop active state before provider unwind. No raw values survive reuse.
+- **Evidence:** [qualification](scheduled-frame-reuse-qualification.json) and
+  [measured scope](README.md#scheduled-evaluator-frame-reuse) retain the old-runtime allocation failure, fresh-state/
+  growth/page/failure controls, 1,836 native and 1,224 compiled ARM original comparisons, 657 native units/profile
+  and actual C/C++ consumers. Workspace peaks fall in 1,296 native pairs and allocation traffic in 1,374; none rises.
+- **Tradeoffs:** the 256-tick map halves allocation traffic but lowers workspace peak by only 960 bytes. Shared-host
+  timings establish no throughput gain; all 20 groups, including nine slower medians, remain. Native fixture text
+  grows 41,008/2,976 bytes in release/release-min. No Agent-size or RSS result follows. Ordinary constructors, contexts
+  ownership, paging, interfaces, dependency set and disabled caps remain unchanged.

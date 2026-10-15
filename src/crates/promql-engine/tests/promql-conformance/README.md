@@ -4326,3 +4326,47 @@ All 20 groups remain in the report, including five slower candidate medians (0.1
 requested engine bytes, not isolated device throughput, Agent size, process RSS or fresh HTTP/DBengine results.
 The finite panels strengthen compatibility evidence; they add no language feature and do not prove all-input
 PromQL equivalence. Earlier broad language/SRE/live-Agent/CI cohorts retain their actual historical identities.
+
+## Scheduled evaluator frame reuse
+
+Scheduled evaluation now passes the row reader's existing frame allocation through fresh per-point construction.
+Only an empty vector, no larger than that original allocation, can survive a completed callback. Grown vectors are
+released without reserving a replacement. Unused selected points are released before reuse; parameters, clocks,
+annotations, selector guards, control checks and both evaluation drains keep their existing phases. Errors and
+panics drop the active evaluation before unwinding through the provider. Ordinary and raw-reader construction remain.
+
+The [frame reuse qualification](scheduled-frame-reuse-qualification.json) records:
+
+- Three new owner tests cover fresh state, bounded capacity, unused-point release, 34 variable-histogram-page and
+  callback/source-failure cases, and 12 complete streamed allocation cases. The unchanged runtime finishes those
+  12 semantic/release cases before failing the allocation bound; the candidate passes. That bound is test-only.
+- Thirty new original cases cover shallow/deep maps, filters, changing scalar parameters and fixed/start/end clocks.
+  Together with 276 preserved cases, both native profiles at pages 1/17/1,024 pass 1,836 complete pinned comparisons.
+  Before evidence explicitly reuses 1,716 closed outcomes and executes 120 new ones. Exported nonmemory/nonelapsed
+  observations, including work, reads and provider calls, match exactly. Native JSON omits basic sample statistics.
+- Workspace peak falls in 1,296 pairs and is equal in 540; allocation traffic falls in 1,374 and is equal in 462.
+  Neither increases. All observations of the other seven memory kinds match. The 672 paired native C arms also
+  preserve complete outcomes and work; their 384 scheduled arms additionally compare the three exported sample fields.
+- Both optimized native suites pass 657 units. Compiled ARM64/ARM32 under QEMU, both profiles, pass 1,224 complete
+  original comparisons and 24 focused unit executions. Twelve current C/C++ programs each pass 72 legacy and
+  96 scheduled arms; four predecessor native executions are explicitly reused. Full foreign/default C suites are
+  not claimed rerun. Formatting, strict production/fixture Clippy and installed Rust 1.91 fixture compilation pass.
+
+Representative release observations at page 17:
+
+| Query shape | Workspace acquired before → candidate (bytes) | Workspace peak before → candidate (bytes) |
+|---|---:|---:|
+| One series, 256 mapped ticks | 1,011,404 → 519,884 | 9,996 → 9,036 |
+| One series, 256 ticks, eight nested `abs` calls | 14,323,563 → 13,825,323 | 34,370 → 33,410 |
+| 64 series, 17 labels, three mapped ticks | 3,617,576 → 3,248,936 | 280,936 → 280,936 |
+
+Five alternating timing pairs per profile preserve all 400 warm/measured responses. These shared-host timings do
+not establish a throughput gain: nine of 20 candidate medians are slower, by 0.07–22.65%. The 256-tick map changes
+1.305→1.332 ms in release and 2.120→2.096 ms in release-min. All groups and raw timings remain in the report.
+Native fixture ELF `.text` grows 41,008 bytes (1.36%) in release and 2,976 bytes (0.16%) in release-min.
+
+Acquired bytes measure cumulative allocation traffic; peak bytes measure requested engine workspace. Neither is
+process RSS or allocator overhead. The unchanged 1,000-nested-sum/128 KiB small-stack test aborts both predecessor
+and candidate Debug binaries; all three new exact Debug tests and both full optimized suites pass. This change adds
+no language feature, cache, persistent field, public/provider interface, dependency or limit. Raw input stays paged
+across both axes, and earlier broad language/SRE/live-Agent/CI cohorts retain their actual historical identities.

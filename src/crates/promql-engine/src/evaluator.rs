@@ -785,7 +785,29 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         account: &'a QueryAccounting,
         metadata: EvaluationMetadata<'a>,
     ) -> Self {
-        let mut frames = AccountedVec::new(account, MemoryKind::Workspace);
+        Self::with_frames(
+            catalog,
+            expression,
+            root,
+            options,
+            control,
+            account,
+            metadata,
+            AccountedVec::new(account, MemoryKind::Workspace),
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn with_frames(
+        catalog: &'a Catalog<'q, Q>,
+        expression: &'a ParsedExpression,
+        root: NodeId,
+        options: EvaluationOptions,
+        control: &'a Control,
+        account: &'a QueryAccounting,
+        metadata: EvaluationMetadata<'a>,
+        mut frames: AccountedVec<Frame<'a>>,
+    ) -> Self {
+        debug_assert!(frames.is_empty());
         frames.push(Frame::new(
             root,
             RowFilter::All,
@@ -940,7 +962,21 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         options: EvaluationOptions,
         annotations: Option<&'b mut AnnotationBuilder>,
     ) -> Machine<'b, 'q, Q> {
-        Machine::new(
+        self.replay_with_frames(
+            node,
+            options,
+            annotations,
+            AccountedVec::new(self.account, MemoryKind::Workspace),
+        )
+    }
+    fn replay_with_frames<'b>(
+        &'b self,
+        node: NodeId,
+        options: EvaluationOptions,
+        annotations: Option<&'b mut AnnotationBuilder>,
+        frames: AccountedVec<Frame<'b>>,
+    ) -> Machine<'b, 'q, Q> {
+        Machine::with_frames(
             self.catalog,
             self.expression,
             node,
@@ -958,7 +994,25 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 info_preparation: self.info_preparation,
                 count_preparation: self.count_preparation,
             },
+            frames,
         )
+    }
+    fn recycle_scheduled_frames(
+        mut self,
+        capacity: usize,
+    ) -> (
+        Option<&'a mut AnnotationBuilder>,
+        Option<AccountedVec<Frame<'a>>>,
+    ) {
+        debug_assert!(self.frames.is_empty());
+        self.selected_point = None;
+        let annotations = self.annotations.take();
+        let frames = if self.frames.capacity() <= capacity {
+            Some(self.frames)
+        } else {
+            None
+        };
+        (annotations, frames)
     }
     pub(crate) fn supports_schedule(
         &self,
@@ -1025,14 +1079,15 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     }
 
     pub(crate) fn visit_scheduled_points<
+        'b,
         S: Series,
         E: From<EvaluationError> + From<StorageError> + From<Interrupted>,
     >(
-        &self,
+        &'b self,
         row: ScheduledRow,
         series: &S,
         grid: crate::query_scopes::Grid,
-        mut annotations: Option<&mut AnnotationBuilder>,
+        mut annotations: Option<&'b mut AnnotationBuilder>,
         mut visit: impl FnMut(i64, i64, Option<EvaluatedSample>) -> Result<bool, E>,
     ) -> Result<u64, E> {
         let header = grid.header(self.prepared.header);
@@ -1048,6 +1103,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             None,
         );
         leaf.primary_statistics = self.primary_statistics;
+        // This reader uses metadata only; recycle its existing idle allocation.
+        let capacity = leaf.frames.capacity();
+        leaf.frames.clear();
+        let mut frames = Some(std::mem::replace(
+            &mut leaf.frames,
+            AccountedVec::new(self.account, MemoryKind::Workspace),
+        ));
         leaf.visit_selected_series(
             row.selector,
             row.physical_ordinal,
@@ -1055,7 +1117,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             grid,
             None,
             |time, index, labels, value| {
-                let mut machine = self.replay(
+                let mut machine = self.replay_with_frames(
                     row.root,
                     EvaluationOptions {
                         time_ms: time,
@@ -1064,7 +1126,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         step_ms: header.step_ms,
                         ..self.options
                     },
-                    annotations.as_deref_mut(),
+                    annotations.take(),
+                    frames
+                        .take()
+                        .unwrap_or_else(|| AccountedVec::new(self.account, MemoryKind::Workspace)),
                 );
                 machine.set_step_index(index);
                 machine.restrict_one(row.ordinal);
@@ -1106,6 +1171,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     )
                     .into());
                 }
+                (annotations, frames) = machine.recycle_scheduled_frames(capacity);
                 Ok(done)
             },
         )
@@ -4514,6 +4580,412 @@ pub(crate) fn scalar_binary(
 mod filter_tests {
     use super::*;
     use crate::accounting::EngineAccounting;
+
+    #[test]
+    fn recycled_frames_keep_fresh_state_and_return_only_bounded_empty_storage() {
+        use crate::frontend::{ast::ParserOptions, parser, regex::Selector};
+        use crate::storage::Provider;
+
+        let engine = EngineAccounting::default();
+        {
+            let account = engine.query();
+            let control = Control::default();
+            let source = b"1+time()";
+            let parsed = parser::parse(source, ParserOptions::default(), |pattern| {
+                Selector::compile_in(pattern, None)
+            });
+            assert!(parsed.errors.is_empty());
+            let expression = ParsedExpression {
+                source: source.to_vec().into(),
+                arena: parsed.arena,
+                root: parsed.root.unwrap(),
+            };
+            let preprocessing = crate::evaluator_order::preprocess(
+                &expression,
+                MemoryKind::Workspace,
+                &control,
+                &account,
+            )
+            .unwrap();
+            let header = crate::result::OutputHeader {
+                value_type: ValueType::Matrix,
+                start_ms: 1000,
+                end_ms: 4000,
+                step_ms: 1000,
+            };
+            let prepared = Prepared::new(
+                &expression,
+                &preprocessing,
+                header,
+                60_000,
+                &control,
+                &account,
+            )
+            .unwrap();
+            let bounds = TimeBounds {
+                start_ms: 0,
+                end_ms: 4000,
+            };
+            let provider = crate::test_storage::FixtureProvider::new(0, 17, 0);
+            {
+                let scope = provider.open(bounds, &control).unwrap();
+                let options = EvaluationOptions {
+                    time_ms: 1000,
+                    start_ms: 1000,
+                    end_ms: 4000,
+                    step_ms: 1000,
+                    lookback_ms: 1000,
+                    start_timestamps: false,
+                    delayed_name_removal: false,
+                };
+                let catalog = Catalog::new(
+                    &scope,
+                    &expression,
+                    &prepared,
+                    options,
+                    60_000,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let rosters =
+                    Rosters::new(&account, expression.arena.nodes.len(), &control).unwrap();
+                let timestamps = vec![false; expression.arena.nodes.len()];
+                let mut builder = AnnotationBuilder::new(&account);
+                let annotation_pointer = &builder as *const AnnotationBuilder;
+                let mut annotations = Some(&mut builder);
+                let mut frames = AccountedVec::new(&account, MemoryKind::Workspace);
+                frames.push(Frame::new(
+                    expression.root,
+                    RowFilter::All,
+                    false,
+                    OutputMode::Matrix,
+                    options,
+                    false,
+                    None,
+                ));
+                let capacity = frames.capacity();
+                let pointer = frames.as_ptr();
+                frames.clear();
+                let mut spare = Some(frames);
+                for (index, grow) in [false, false, true, true].into_iter().enumerate() {
+                    let mut machine = Machine::with_frames(
+                        &catalog,
+                        &expression,
+                        expression.root,
+                        EvaluationOptions {
+                            time_ms: (index as i64 + 1) * 1000,
+                            ..options
+                        },
+                        &control,
+                        &account,
+                        EvaluationMetadata {
+                            prepared: &prepared,
+                            rosters: &rosters,
+                            timestamp_selectors: &timestamps,
+                            data_bounds: bounds,
+                            annotations: annotations.take(),
+                            binary_preparation: None,
+                            histogram_preparation: None,
+                            info_preparation: None,
+                            count_preparation: None,
+                        },
+                        spare
+                            .take()
+                            .unwrap_or_else(|| AccountedVec::new(&account, MemoryKind::Workspace)),
+                    );
+                    if !grow {
+                        assert_eq!(machine.frames.as_ptr(), pointer);
+                    } else {
+                        machine.frames.reserve(capacity + 1);
+                        assert!(machine.frames.capacity() > capacity);
+                    }
+                    let point = machine.next().unwrap().unwrap();
+                    let OwnedValue::Float(value) = point.value else {
+                        panic!("expected changing scalar");
+                    };
+                    assert_eq!(value.to_bits(), (index as f64 + 2.0).to_bits());
+                    assert_eq!(point.source_time_ms, (index as i64 + 1) * 1000);
+                    drop(point);
+                    assert!(machine.next().unwrap().is_none());
+                    let before = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+                    machine.selected_point = Some(SelectedPoint {
+                        labels: OwnedLabels::copy_from_checked(
+                            &[crate::storage::LabelRef {
+                                name: b"unused",
+                                value: b"point",
+                            }],
+                            &account,
+                            MemoryKind::Workspace,
+                            &control,
+                        )
+                        .unwrap(),
+                        value: Some((
+                            1000,
+                            0,
+                            crate::statistics::ValueParts::new(OwnedValue::Float(1.0), &account),
+                        )),
+                    });
+                    (annotations, spare) = machine.recycle_scheduled_frames(capacity);
+                    assert_eq!(spare.is_some(), !grow);
+                    assert_eq!(
+                        annotations.as_ref().map(|owner| &**owner as *const _),
+                        Some(annotation_pointer)
+                    );
+                    let after = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+                    assert!(after <= before);
+                    if let Some(frames) = &spare {
+                        assert!(frames.is_empty());
+                        assert_eq!(frames.capacity(), capacity);
+                        assert_eq!(frames.as_ptr(), pointer);
+                    }
+                }
+            }
+            provider.assert_closed();
+        }
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn scheduled_frame_cleanup_handles_variable_pages_and_callback_failures() {
+        use crate::frontend::{ast::ParserOptions, parser, regex::Selector};
+        use crate::storage::Provider;
+        use std::sync::atomic::Ordering;
+
+        fn variable(index: usize) -> crate::value::Sample {
+            let count = if index < 17 { 1 } else { 512 };
+            let mut point = crate::test_storage::counter(index);
+            point.value =
+                crate::value::SampleValue::FloatHistogram(crate::histogram::FloatHistogram {
+                    count: count as f64,
+                    sum: count as f64,
+                    positive_spans: Some(
+                        vec![crate::histogram::Span {
+                            offset: 0,
+                            length: count as u32,
+                        }]
+                        .into(),
+                    ),
+                    positive_buckets: Some(vec![1.0; count].into()),
+                    ..crate::histogram::FloatHistogram::default()
+                });
+            point
+        }
+
+        for page in [1, 17, 1024] {
+            for deep in [false, true] {
+                for mode in 0..6 {
+                    if mode == 5 && page >= 64 {
+                        continue;
+                    }
+                    let engine = EngineAccounting::default();
+                    {
+                        let account = engine.query();
+                        let control = Control::default();
+                        let mut source = "histogram_count(counter_total)+time()".to_owned();
+                        if deep {
+                            source = "abs(".repeat(5) + &source + &")".repeat(5);
+                        }
+                        let parsed =
+                            parser::parse(source.as_bytes(), ParserOptions::default(), |pattern| {
+                                Selector::compile_in(pattern, None)
+                            });
+                        assert!(parsed.errors.is_empty());
+                        let expression = ParsedExpression {
+                            source: source.as_bytes().to_vec().into(),
+                            arena: parsed.arena,
+                            root: parsed.root.unwrap(),
+                        };
+                        let selector = expression
+                            .arena
+                            .nodes
+                            .iter()
+                            .position(|node| matches!(node.expression, Expr::Selector(_)))
+                            .map(NodeId)
+                            .unwrap();
+                        let preprocessing = crate::evaluator_order::preprocess(
+                            &expression,
+                            MemoryKind::Workspace,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let header = crate::result::OutputHeader {
+                            value_type: ValueType::Matrix,
+                            start_ms: 1000,
+                            end_ms: 64000,
+                            step_ms: 1000,
+                        };
+                        let prepared = Prepared::new(
+                            &expression,
+                            &preprocessing,
+                            header,
+                            60_000,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let bounds = TimeBounds {
+                            start_ms: 0,
+                            end_ms: 64000,
+                        };
+                        let mut provider = crate::test_storage::FixtureProvider::new(64, page, 1);
+                        provider.series[0].source.sample = variable;
+                        provider.series[0].source.fail_page = match mode {
+                            4 => Some(0),
+                            5 => Some(2),
+                            _ => None,
+                        };
+                        let counters = provider.series[0].source.counters.clone();
+                        {
+                            let scope = provider.open(bounds, &control).unwrap();
+                            let options = EvaluationOptions {
+                                time_ms: 64000,
+                                start_ms: 1000,
+                                end_ms: 64000,
+                                step_ms: 1000,
+                                lookback_ms: 1000,
+                                start_timestamps: false,
+                                delayed_name_removal: false,
+                            };
+                            let catalog = Catalog::new(
+                                &scope,
+                                &expression,
+                                &prepared,
+                                options,
+                                60_000,
+                                &control,
+                                &account,
+                            )
+                            .unwrap();
+                            drop(
+                                catalog
+                                    .expand(selector, &control, &account)
+                                    .map_err(|failure| failure.error)
+                                    .unwrap(),
+                            );
+                            let rosters =
+                                Rosters::new(&account, expression.arena.nodes.len(), &control)
+                                    .unwrap();
+                            let timestamps = vec![false; expression.arena.nodes.len()];
+                            let mut annotations = AnnotationBuilder::new(&account);
+                            let machine = Machine::new(
+                                &catalog,
+                                &expression,
+                                expression.root,
+                                options,
+                                &control,
+                                &account,
+                                EvaluationMetadata {
+                                    prepared: &prepared,
+                                    rosters: &rosters,
+                                    timestamp_selectors: &timestamps,
+                                    data_bounds: bounds,
+                                    annotations: None,
+                                    binary_preparation: None,
+                                    histogram_preparation: None,
+                                    info_preparation: None,
+                                    count_preparation: None,
+                                },
+                            );
+                            let mut points = 0;
+                            let outcome =
+                                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                    catalog
+                                        .with_series(selector, 0, |series| {
+                                            machine.visit_scheduled_points(
+                                                ScheduledRow {
+                                                    root: expression.root,
+                                                    selector,
+                                                    physical_ordinal: 0,
+                                                    ordinal: 0,
+                                                    bypass_root: false,
+                                                },
+                                                series,
+                                                crate::query_scopes::Grid::from(header),
+                                                Some(&mut annotations),
+                                                |time, index, point| {
+                                                    points += 1;
+                                                    assert_eq!(index, points as i64 - 1);
+                                                    assert_eq!(time, points as i64 * 1000);
+                                                    let point =
+                                                        point.expect("histogram count point");
+                                                    assert_eq!(point.labels.0.len(), 2);
+                                                    assert_eq!(point.source_time_ms, time);
+                                                    assert_eq!(point.source_start_time_ms, 0);
+                                                    let OwnedValue::Float(value) = point.value
+                                                    else {
+                                                        panic!("expected histogram count");
+                                                    };
+                                                    let count =
+                                                        if points <= 17 { 1.0 } else { 512.0 };
+                                                    assert_eq!(
+                                                        value.to_bits(),
+                                                        (count + points as f64).to_bits()
+                                                    );
+                                                    if points == 3 {
+                                                        match mode {
+                                                            1 => return Ok(true),
+                                                            2 => {
+                                                                return Err(
+                                                                    EvaluationError::Invalid(
+                                                                        "callback fixture",
+                                                                    ),
+                                                                );
+                                                            }
+                                                            3 => panic!("callback fixture"),
+                                                            _ => (),
+                                                        }
+                                                    }
+                                                    Ok::<_, EvaluationError>(false)
+                                                },
+                                            )
+                                        })
+                                        .expect("fixture series")
+                                }));
+                            match mode {
+                                0 => {
+                                    assert!(outcome.unwrap().is_ok());
+                                    assert_eq!(points, 64);
+                                }
+                                1 => {
+                                    assert!(outcome.unwrap().is_ok());
+                                    assert_eq!(points, 3);
+                                }
+                                2 => {
+                                    assert!(matches!(
+                                        outcome.unwrap(),
+                                        Err(EvaluationError::Invalid("callback fixture"))
+                                    ));
+                                    assert_eq!(points, 3);
+                                }
+                                3 => {
+                                    assert!(outcome.is_err());
+                                    assert_eq!(points, 3);
+                                }
+                                4 => {
+                                    assert!(outcome.unwrap().is_err());
+                                    assert_eq!(points, 0);
+                                }
+                                _ => {
+                                    assert!(outcome.unwrap().is_err());
+                                    assert!(points > 0 && points < 64);
+                                }
+                            }
+                            assert_eq!(counters.active.load(Ordering::Relaxed), 0);
+                            assert_eq!(
+                                counters.opened.load(Ordering::Relaxed),
+                                counters.closed.load(Ordering::Relaxed)
+                            );
+                            assert_eq!(counters.peak.load(Ordering::Relaxed), 1);
+                        }
+                        provider.assert_closed();
+                    }
+                    engine.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
 
     #[test]
     fn float_map_parameters_interrupt_before_vector_acquisition() {

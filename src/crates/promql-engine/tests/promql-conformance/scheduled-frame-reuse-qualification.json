@@ -1,0 +1,2323 @@
+{
+  "schema_version": 1,
+  "status": "qualified_scheduled_frame_storage_recycling",
+  "scope": "Recycle only the existing scheduled leaf frame allocation through fresh Machine construction,retaining drained capacity no larger than the donor. Preserve complete outcomes,ordinary constructors,all operator/control/diagnostic phases and paged raw input. No language or public/provider interface change.",
+  "accepted_predecessor": "31b6acd3cb30551746a08d760144a0c574b33225",
+  "qualified_sources": {
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/crates/promql-engine/src/absence.rs": "5daad198a2b483ef9c32557667c47005b2c275359128ed0e2d08741a562a28c3",
+    "src/crates/promql-engine/src/accounting.rs": "606fabc7bc4204d1e0596806adf4a907dc40bea7b1152d4ef0584de6b001ad62",
+    "src/crates/promql-engine/src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/crates/promql-engine/src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "cd9808645a6e43b7bcd49ca11c33bd1470dd53c432c43231374b0eecc2081c6b",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "3823e8b6c8f74beeeb13a6ecb5de12669b041a07081eb6555476c2574d302b7a",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "046ab8fbd5783160210010d72ac04e501dcbb6f369e29628141ef332bcbd085c",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/crates/promql-engine/src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/crates/promql-engine/src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/crates/promql-engine/src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+    "src/crates/promql-engine/src/evaluator.rs": "e4b01e05f4cf73c2f9a9b1b8cc61abf2e4ceff7022d2204d3941618bdf89d288",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "2d2bb41a69de99aef79771384ac7b45ef7e7f384d5b4ad259caa7ca324a85cba",
+    "src/crates/promql-engine/src/execution.rs": "4da90a608301adfd7e0ce75a82f6660e20218b434c5ecfba1c8e0217483058e3",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/crates/promql-engine/src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/crates/promql-engine/src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/crates/promql-engine/src/lookup_tests.rs": "bb1786f683c75b849d9afa2751e7304968d6d4ccb9484cdafa66fe4880e8eaf8",
+    "src/crates/promql-engine/src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/crates/promql-engine/src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/crates/promql-engine/src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/crates/promql-engine/src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+    "src/crates/promql-engine/src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/crates/promql-engine/src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+    "src/crates/promql-engine/src/result.rs": "45824bd559e4fb07341f2c9af18133e150f3aca2d7bddf7c7f0434abcde435b9",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+    "src/crates/promql-engine/src/scheduled_output.rs": "39ec08bc49800551bca460de854fcb8a92fc0f85f83bb48e86e0183aa11c931e",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/crates/promql-engine/src/storage.rs": "f213a16e64507e031b6c8fd58725763115a99cde489f875da20b8385b28141d5",
+    "src/crates/promql-engine/src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/crates/promql-engine/src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+    "src/crates/promql-engine/src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "f89a287b75e8aac6c57a40fdbe4eb15cab9936b64f23348019cf439133003e93",
+    "src/crates/promql-engine/src/vector_sort.rs": "d6daacd7bcde56a2984acbd52b8037ee5efbed3668d8d488271011d50aed41be",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "30f629734ea49b31c8cab18b8485b22bd344edcc0c2956e750c9f4c6d87db805",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "4703d09604b1820341de1c3ff41a3476bce29360f0e1984a93d060db7572fb0c"
+  },
+  "source_manifest": {
+    "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-source.json",
+    "sha256": "6c1959b186a3798302da6b24bdd2db8418fed81c66028315d7f0ad8c7e6736fd"
+  },
+  "reference": {
+    "module": "github.com/prometheus/prometheus@v0.315.0",
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go": "1.27.1 AMD64 retained FMA route",
+    "fresh_cases": 30,
+    "reused_cases": 276,
+    "lineage": "30 fresh evaluations through the verified unchanged retained original executable. The276predecessor cases retain their original closed captures. No new Go build.",
+    "case_lineage": [
+      {
+        "family": "allocation",
+        "inputs": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/baseline-inputs.json",
+          "sha256": "f0f7094623e9369e1e9a725073ed89382d59026e518e8d4fa7a6316545106b87"
+        },
+        "original": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/baseline-original-results.json",
+          "sha256": "e17bfed3c92d0681f2480cf5b1c33d147e97e5b4549e58145a1a328d68bd8e89"
+        }
+      },
+      {
+        "family": "clocks",
+        "inputs": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/clock-inputs.json",
+          "sha256": "3411e8f6711b10990c1e662ccf4a0e77029ac864143eaedca4d34d90e5ed6cc5"
+        },
+        "original": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/clock-original-results.json",
+          "sha256": "c5b76ce6a4eb149a714677838f38e2d04c1972c431215e9ead7f9e534e8062d6"
+        }
+      },
+      {
+        "family": "long",
+        "cases": 4,
+        "inputs": {
+          "path": ".tmp/scheduled-label-transfer-895l5kat/baseline-inputs.json",
+          "sha256": "5c660e4744adb8277ae21e258c2db20c5cb351ebadfc9357bcb8e1bd6a4b07ee"
+        },
+        "original": {
+          "path": ".tmp/scheduled-label-transfer-895l5kat/baseline-original-results.json",
+          "sha256": "22624330066d73e1952608a39379259f7f96709879d9f52a09d2296d52f8861f"
+        }
+      },
+      {
+        "family": "semantic",
+        "cases": 100,
+        "inputs": {
+          "path": ".tmp/scheduled-label-transfer-895l5kat/semantic-inputs.json",
+          "sha256": "66f6c3309f41ad0f8052acf35a808e12665dcac14ab5ab7ff1a5641bc5e4fd78"
+        },
+        "original": {
+          "path": ".tmp/scheduled-label-transfer-895l5kat/semantic-original-results.json",
+          "sha256": "1517bf1534579a4beafbd22315f99aaa88addfd3acdb179ea7a76667f5694665"
+        }
+      },
+      {
+        "family": "baseline",
+        "cases": 27,
+        "inputs": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/baseline-inputs.json",
+          "sha256": "fd2bd6947e15364551a9750e71e990a172029a203baafe5e9678bbf56f19397b"
+        },
+        "original": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/baseline-original-results.json",
+          "sha256": "45f844157e3c9e979ac95f4e64ca52561f52863ea2f463eb72cde3dd09a391c2"
+        }
+      },
+      {
+        "family": "mutation",
+        "cases": 144,
+        "inputs": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/mutation-inputs.json",
+          "sha256": "c4321d28853fafb8e75d6f474cabfc06fde19f90ebcbf67437f6c29a4428b175"
+        },
+        "original": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/mutation-original-results.json",
+          "sha256": "c2ba620745881258ee3e68547bd3fbb7984bc915254336a4376e14f00524f4eb"
+        }
+      },
+      {
+        "family": "empty",
+        "cases": 1,
+        "inputs": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/empty-inputs.json",
+          "sha256": "2a0418ef4c33c0462f8c56b5fb084fd71d87524b4e1227fd6f133ec72a8e5bdb"
+        },
+        "original": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/empty-original-results.json",
+          "sha256": "219ab12cb84e92f5859e14fcca5f74c8942b7f9f22c175ba183756a8369c3d9f"
+        }
+      }
+    ],
+    "captures": [
+      {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/baseline.json",
+        "sha256": "7a321907dc3764d363f38034d004be365dc5e550558a3913237ca937cdaee805"
+      },
+      {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/clocks.json",
+        "sha256": "1bf02c24666c67d083c3fb40dc609f8f8e6fd2dedd28cfe76b8eb469ad75626d"
+      }
+    ]
+  },
+  "algorithm": [
+    "One shared constructor initializes fresh Machine fields and Frame::new state using a supplied empty accounted vector. Ordinary new/replay supply an empty vector;only the scheduled point path can recycle a donor.",
+    "The row-local leaf already holds a frame buffer throughout storage traversal. Only its metadata-only visit_selected_series path donates that allocation;the separate raw wrapper retains its required frame.",
+    "Each callback takes frames and the annotation owner locally,constructs fresh state,and retains original index/filter/bypass/physical-selector/selected-point setup,first next,visitor and second diagnostic drain.",
+    "Consuming cleanup runs only after second-next(None),releases any unused selected point,and returns annotations plus drained frames only when actual capacity is no larger than the donor. Grown frames are dropped without eager replacement.",
+    "Errors/panics drop the active owner before provider unwind. Between callbacks no raw value,map/parameter state or sample lease survives;idle frame bytes cannot exceed the already-held donor. No new field/cache/pool/unsafe conversion or query cap."
+  ],
+  "old_runtime_regression": {
+    "complete_streamed_cases_before_allocation_failure": 12,
+    "expected_test_exit": 101,
+    "failure": "completed scheduled points allocate frame storage repeatedly",
+    "receipt": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/old-runtime-regression.json",
+      "sha256": "ef98213d1b2533fa343392b2f190064b6e8f7727003146ec56ecd56e32bd0925"
+    },
+    "scope": "64/256ticks,pages1/17/1024,bothname modes;all12complete labels/values/clocks/provider-close/account-release cases finish before the final3072Bper additionaltick allocation bound. This is a test bound,not a runtime cap."
+  },
+  "native": {
+    "release": {
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release/promql-query-fixture",
+          "sha256": "953e6c648e0f63808bea41839079f1b686aea94583226791200318ec01648a99",
+          "file_bytes": 5480464
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release/libnetdata_promql_engine.a",
+          "sha256": "d2e0b368b6cee72408267713355212dcda63499ea92915457dbf92beceac2899",
+          "file_bytes": 39112852
+        },
+        "unit": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release/unit",
+          "sha256": "84008b494344db5cde08c0eab3e9f8959375742f229b31bd527cccc36619c17c",
+          "file_bytes": 23816936
+        }
+      },
+      "library_units_passed": 657,
+      "unit_ids_sha256": "371e0fcd3551887df8844b982245861de3d40fe1e4d62ac928cc72e499a04ff8",
+      "fixture_elf_text_bytes": {
+        "before": 3025285,
+        "candidate": 3066293
+      },
+      "compiler_receipt": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release.json",
+        "sha256": "fc82e3aec1ccf58f6ec96fc9bfa924093d0c35ab1de990ae7298a991fd286f58"
+      }
+    },
+    "release-min": {
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release-min/promql-query-fixture",
+          "sha256": "e747424968320b2e31e07f8375e3d6b4188ee8e9e1b5ff8cccc534924cd2a805",
+          "file_bytes": 3467760
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release-min/libnetdata_promql_engine.a",
+          "sha256": "eb30eba53cae02c76bba377901d37df452e3826168653e6dcc7934bcffefd906",
+          "file_bytes": 54101314
+        },
+        "unit": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release-min/unit",
+          "sha256": "79729fab0a880e887a3998b4019361bbd0e774e032c6c543f789f701853f6568",
+          "file_bytes": 13381832
+        }
+      },
+      "library_units_passed": 657,
+      "unit_ids_sha256": "371e0fcd3551887df8844b982245861de3d40fe1e4d62ac928cc72e499a04ff8",
+      "fixture_elf_text_bytes": {
+        "before": 1810245,
+        "candidate": 1813221
+      },
+      "compiler_receipt": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release-min.json",
+        "sha256": "3c00bf0594bf1e90b1b67c58b8cf1972da51fa7026e8742c5588f731490d324b"
+      }
+    }
+  },
+  "native_complete_original_comparisons": 1836,
+  "native_before_comparisons": 1836,
+  "native_before_reused_closed_outcomes": 1716,
+  "native_before_fresh_outcomes": 120,
+  "native_pages": [
+    1,
+    17,
+    1024
+  ],
+  "native_bit_differences": 0,
+  "foreign": {
+    "qualified-aarch64-unknown-linux-gnu-release.json": {
+      "target": "aarch64-unknown-linux-gnu",
+      "profile": "release",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release/promql-query-fixture",
+          "sha256": "8079bbe9123ef0b6b263ab0b1626a6b90b2bf1f077e912db8d14e2eac49803b0",
+          "file_bytes": 4865344
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release/libnetdata_promql_engine.a",
+          "sha256": "825968aa7c57ca4d4f6a5e6f99839238c55daef65b2e52e7190b50aa188b2a81",
+          "file_bytes": 39404270
+        },
+        "unit": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release/unit",
+          "sha256": "080609c80714b46d3cd348684a70b395c147e5c2cc9960680051bde93d534fc9"
+        }
+      },
+      "focused_units": [
+        "evaluator::filter_tests::recycled_frames_keep_fresh_state_and_return_only_bounded_empty_storage",
+        "evaluator::filter_tests::scheduled_frame_cleanup_handles_variable_pages_and_callback_failures",
+        "execution::scheduled_output::tests::scheduled_maps_do_not_allocate_frame_storage_for_every_point",
+        "evaluator::filter_tests::float_map_parameters_interrupt_before_vector_acquisition",
+        "execution::scheduled_output::tests::scheduled_final_ids_follow_the_first_productive_tick",
+        "execution::scheduled_output::tests::delayed_final_identity_collisions_keep_chronological_replay"
+      ],
+      "complete_queries": 306,
+      "actual_callers": {
+        "gcc": {
+          "binary": {
+            "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release/gcc-caller",
+            "sha256": "c03c0ccaf16d4f19aee6a7eb0e23c4ed14e5af27e2e05543a4afa9c7456551e5"
+          },
+          "modes": {
+            "owned": {
+              "checked_arms": 72,
+              "complete_records_sha256": "d1ab568208df5b78dac38c50fd120213863c07a75c4199a4105cf68ba59d031a"
+            },
+            "scheduled": {
+              "checked_arms": 96,
+              "complete_records_sha256": "2c5f8569a28880164429f175f657a402ff3d7c973a7d89e14af8e5353dd41436"
+            }
+          }
+        },
+        "g++": {
+          "binary": {
+            "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release/gpp-caller",
+            "sha256": "a6c6cb1047c33f83fc7f613c7a9a88348c90024090d198a81a48c986108b8b77"
+          },
+          "modes": {
+            "owned": {
+              "checked_arms": 72,
+              "complete_records_sha256": "d1ab568208df5b78dac38c50fd120213863c07a75c4199a4105cf68ba59d031a"
+            },
+            "scheduled": {
+              "checked_arms": 96,
+              "complete_records_sha256": "2c5f8569a28880164429f175f657a402ff3d7c973a7d89e14af8e5353dd41436"
+            }
+          }
+        }
+      },
+      "receipt": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release.json",
+        "sha256": "d754ab5ffb5fe4ba8f79c9e247e7a52d97fb817bc70236422cf9b180373b48fc"
+      }
+    },
+    "qualified-aarch64-unknown-linux-gnu-release-min.json": {
+      "target": "aarch64-unknown-linux-gnu",
+      "profile": "release-min",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release-min/promql-query-fixture",
+          "sha256": "e30c576e05a03b8dbd95c1a7e9a8493774351b3f34e875865a8a9cb3ebeb9cf7",
+          "file_bytes": 3794720
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release-min/libnetdata_promql_engine.a",
+          "sha256": "29d7df7e262e59e713606104c188ed94c36060eeb944cd90cd73783adb31d4aa",
+          "file_bytes": 57349084
+        },
+        "unit": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release-min/unit",
+          "sha256": "2800439b05ac287fd096f40af4ba200fc8725ed223d344d55d24dfeaf0b3fa0a"
+        }
+      },
+      "focused_units": [
+        "evaluator::filter_tests::recycled_frames_keep_fresh_state_and_return_only_bounded_empty_storage",
+        "evaluator::filter_tests::scheduled_frame_cleanup_handles_variable_pages_and_callback_failures",
+        "execution::scheduled_output::tests::scheduled_maps_do_not_allocate_frame_storage_for_every_point",
+        "evaluator::filter_tests::float_map_parameters_interrupt_before_vector_acquisition",
+        "execution::scheduled_output::tests::scheduled_final_ids_follow_the_first_productive_tick",
+        "execution::scheduled_output::tests::delayed_final_identity_collisions_keep_chronological_replay"
+      ],
+      "complete_queries": 306,
+      "actual_callers": {
+        "gcc": {
+          "binary": {
+            "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release-min/gcc-caller",
+            "sha256": "df435866fa2c918f402b211dc42e21b945dea7b13ed43d0628e6be5f7c3e1647"
+          },
+          "modes": {
+            "owned": {
+              "checked_arms": 72,
+              "complete_records_sha256": "d1ab568208df5b78dac38c50fd120213863c07a75c4199a4105cf68ba59d031a"
+            },
+            "scheduled": {
+              "checked_arms": 96,
+              "complete_records_sha256": "2c5f8569a28880164429f175f657a402ff3d7c973a7d89e14af8e5353dd41436"
+            }
+          }
+        },
+        "g++": {
+          "binary": {
+            "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release-min/gpp-caller",
+            "sha256": "680a6d42791ef91ae3594e8f2552dcd157cc2e02e6bfcc988a9110509cbebf7d"
+          },
+          "modes": {
+            "owned": {
+              "checked_arms": 72,
+              "complete_records_sha256": "d1ab568208df5b78dac38c50fd120213863c07a75c4199a4105cf68ba59d031a"
+            },
+            "scheduled": {
+              "checked_arms": 96,
+              "complete_records_sha256": "2c5f8569a28880164429f175f657a402ff3d7c973a7d89e14af8e5353dd41436"
+            }
+          }
+        }
+      },
+      "receipt": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release-min.json",
+        "sha256": "a054935ade152fdbfd5de9f4e9527a13e7a0127fd3b05871c4beb229c6492b16"
+      }
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release.json": {
+      "target": "armv7-unknown-linux-gnueabihf",
+      "profile": "release",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release/promql-query-fixture",
+          "sha256": "9513708797a72c34cec63dca8386a8cdf2dc06cdcbe4fabcedb1b1c37d5396a4",
+          "file_bytes": 4873768
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release/libnetdata_promql_engine.a",
+          "sha256": "9f7093d84d55205e908556d49537952b6018d27eedd459a5e3c29772ec618764",
+          "file_bytes": 34503742
+        },
+        "unit": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release/unit",
+          "sha256": "a8cdec7ce6e1c74dcfb523fe0ff839cf40e76fb2ecc4f2a0a2ad6bb424734047"
+        }
+      },
+      "focused_units": [
+        "evaluator::filter_tests::recycled_frames_keep_fresh_state_and_return_only_bounded_empty_storage",
+        "evaluator::filter_tests::scheduled_frame_cleanup_handles_variable_pages_and_callback_failures",
+        "execution::scheduled_output::tests::scheduled_maps_do_not_allocate_frame_storage_for_every_point",
+        "evaluator::filter_tests::float_map_parameters_interrupt_before_vector_acquisition",
+        "execution::scheduled_output::tests::scheduled_final_ids_follow_the_first_productive_tick",
+        "execution::scheduled_output::tests::delayed_final_identity_collisions_keep_chronological_replay"
+      ],
+      "complete_queries": 306,
+      "actual_callers": {
+        "gcc": {
+          "binary": {
+            "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release/gcc-caller",
+            "sha256": "12f8f4864ba6abf468dd8a002e12e2d5bc25446773b06272f7f92a6066ede382"
+          },
+          "modes": {
+            "owned": {
+              "checked_arms": 72,
+              "complete_records_sha256": "e7d2d85798c0922c8a62e639c6138a4c3e4d12103aaad3227cf106ac81c02b7f"
+            },
+            "scheduled": {
+              "checked_arms": 96,
+              "complete_records_sha256": "00dae78b6d1e67c43525d41eda5472f4a5744817bfe1f6148accdf36c258061a"
+            }
+          }
+        },
+        "g++": {
+          "binary": {
+            "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release/gpp-caller",
+            "sha256": "73b6fedcbff7a2906b7f8895deede416097e0aa49c7cf4a18dbe26edc551b574"
+          },
+          "modes": {
+            "owned": {
+              "checked_arms": 72,
+              "complete_records_sha256": "e7d2d85798c0922c8a62e639c6138a4c3e4d12103aaad3227cf106ac81c02b7f"
+            },
+            "scheduled": {
+              "checked_arms": 96,
+              "complete_records_sha256": "00dae78b6d1e67c43525d41eda5472f4a5744817bfe1f6148accdf36c258061a"
+            }
+          }
+        }
+      },
+      "receipt": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release.json",
+        "sha256": "01c1a3011e918c77eafc35b015bf4dbdba3ca0e1472199fa0a3205c595ee8b2a"
+      }
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release-min.json": {
+      "target": "armv7-unknown-linux-gnueabihf",
+      "profile": "release-min",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release-min/promql-query-fixture",
+          "sha256": "0d579d9776ccee928b8a7377f45247508f9a5b04fd5f60c1236cfd58616739ab",
+          "file_bytes": 3189532
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release-min/libnetdata_promql_engine.a",
+          "sha256": "e916145d73e3dd990c0f1b7ed9047f387fe6a84d8c2cf2f607effb0cfab07fd3",
+          "file_bytes": 50692354
+        },
+        "unit": {
+          "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release-min/unit",
+          "sha256": "aa74fd8fcebf371d1c79a9dfff0542db9002ebf74a9204d775f44fc8e42246d9"
+        }
+      },
+      "focused_units": [
+        "evaluator::filter_tests::recycled_frames_keep_fresh_state_and_return_only_bounded_empty_storage",
+        "evaluator::filter_tests::scheduled_frame_cleanup_handles_variable_pages_and_callback_failures",
+        "execution::scheduled_output::tests::scheduled_maps_do_not_allocate_frame_storage_for_every_point",
+        "evaluator::filter_tests::float_map_parameters_interrupt_before_vector_acquisition",
+        "execution::scheduled_output::tests::scheduled_final_ids_follow_the_first_productive_tick",
+        "execution::scheduled_output::tests::delayed_final_identity_collisions_keep_chronological_replay"
+      ],
+      "complete_queries": 306,
+      "actual_callers": {
+        "gcc": {
+          "binary": {
+            "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release-min/gcc-caller",
+            "sha256": "2127bf3080e8c8fa04df9eb1950b836f7da7f99b9e6da4571e5d98151b3749f8"
+          },
+          "modes": {
+            "owned": {
+              "checked_arms": 72,
+              "complete_records_sha256": "e7d2d85798c0922c8a62e639c6138a4c3e4d12103aaad3227cf106ac81c02b7f"
+            },
+            "scheduled": {
+              "checked_arms": 96,
+              "complete_records_sha256": "00dae78b6d1e67c43525d41eda5472f4a5744817bfe1f6148accdf36c258061a"
+            }
+          }
+        },
+        "g++": {
+          "binary": {
+            "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release-min/gpp-caller",
+            "sha256": "95c4d36c4bdcdf97db4736f4b04a9d972a133d80ff5e00aea0cc1baa7c32b2ef"
+          },
+          "modes": {
+            "owned": {
+              "checked_arms": 72,
+              "complete_records_sha256": "e7d2d85798c0922c8a62e639c6138a4c3e4d12103aaad3227cf106ac81c02b7f"
+            },
+            "scheduled": {
+              "checked_arms": 96,
+              "complete_records_sha256": "00dae78b6d1e67c43525d41eda5472f4a5744817bfe1f6148accdf36c258061a"
+            }
+          }
+        }
+      },
+      "receipt": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release-min.json",
+        "sha256": "2befa3f07df88660b055cb849bb2d5bef3aae41d67fb3c6d9221f1145cfb9840"
+      }
+    }
+  },
+  "foreign_complete_original_comparisons": 1224,
+  "focused_foreign_unit_executions": 24,
+  "foreign_scope": "Compiled ARM64/ARM32 under QEMU,both profiles;6focusedunits and306complete page17outcomes per cohort. Not full foreign suites.",
+  "actual_native_callers": {
+    "accepted-native-scheduled-labels-candidate-release-gcc": {
+      "role": "before",
+      "profile": "release",
+      "language": "c",
+      "binary": {
+        "path": ".tmp/scheduled-label-transfer-895l5kat/native-scheduled-labels-candidate-release-gcc-caller",
+        "sha256": "48aaa1d363e953f8b8dce5d26928e4cd6a025b407c8320c7794408174674ed1c"
+      },
+      "archive": {
+        "path": ".tmp/scheduled-label-transfer-895l5kat/qualified-native-release/libnetdata_promql_engine.a",
+        "sha256": "cb493d2fb5a82ca0bbc7b220cb53431f08b6babb7159ea4ea31bb2c9e9d27bcf",
+        "file_bytes": 39015158
+      },
+      "compiler_receipt": ".tmp/scheduled-label-transfer-895l5kat/qualified-native-release.json",
+      "reused_execution_role": "candidate",
+      "reused_execution_receipt": {
+        "path": ".tmp/scheduled-label-transfer-895l5kat/native-callers.json",
+        "sha256": "808315d179072dcf19f6eade1a758b15d0352a777f50ac9620ca256dbee1d7eb"
+      },
+      "modes": {
+        "owned": {
+          "checked_arms": 72,
+          "complete_records_sha256": "fdd16d2c61f8aa3f8dc5ccd2ae50f3d3936faaf438b32f13cf7e89a1fd5bf45e"
+        },
+        "scheduled": {
+          "checked_arms": 96,
+          "complete_records_sha256": "41e164abaab118f4cb76e3f48ed51e009cb2ff23b6151a1352ca7e1485df2e4b"
+        }
+      }
+    },
+    "accepted-native-scheduled-labels-candidate-release-gpp": {
+      "role": "before",
+      "profile": "release",
+      "language": "c++",
+      "binary": {
+        "path": ".tmp/scheduled-label-transfer-895l5kat/native-scheduled-labels-candidate-release-gpp-caller",
+        "sha256": "83195d52e10cc2feb8e93c5ef42e8dde757e495454c8e7ece948a9f3f08917d4"
+      },
+      "archive": {
+        "path": ".tmp/scheduled-label-transfer-895l5kat/qualified-native-release/libnetdata_promql_engine.a",
+        "sha256": "cb493d2fb5a82ca0bbc7b220cb53431f08b6babb7159ea4ea31bb2c9e9d27bcf",
+        "file_bytes": 39015158
+      },
+      "compiler_receipt": ".tmp/scheduled-label-transfer-895l5kat/qualified-native-release.json",
+      "reused_execution_role": "candidate",
+      "reused_execution_receipt": {
+        "path": ".tmp/scheduled-label-transfer-895l5kat/native-callers.json",
+        "sha256": "808315d179072dcf19f6eade1a758b15d0352a777f50ac9620ca256dbee1d7eb"
+      },
+      "modes": {
+        "owned": {
+          "checked_arms": 72,
+          "complete_records_sha256": "fdd16d2c61f8aa3f8dc5ccd2ae50f3d3936faaf438b32f13cf7e89a1fd5bf45e"
+        },
+        "scheduled": {
+          "checked_arms": 96,
+          "complete_records_sha256": "41e164abaab118f4cb76e3f48ed51e009cb2ff23b6151a1352ca7e1485df2e4b"
+        }
+      }
+    },
+    "accepted-native-scheduled-labels-candidate-release-min-gcc": {
+      "role": "before",
+      "profile": "release-min",
+      "language": "c",
+      "binary": {
+        "path": ".tmp/scheduled-label-transfer-895l5kat/native-scheduled-labels-candidate-release-min-gcc-caller",
+        "sha256": "b1ef95a0b5615a4deb252dc96b8807041d282204b83c1ffda2fe59db6e40f1a4"
+      },
+      "archive": {
+        "path": ".tmp/scheduled-label-transfer-895l5kat/qualified-native-release-min/libnetdata_promql_engine.a",
+        "sha256": "0c01804cab56c85927e9bc147ddff5890ce056109f6e379595f905f28c10db42",
+        "file_bytes": 54062658
+      },
+      "compiler_receipt": ".tmp/scheduled-label-transfer-895l5kat/qualified-native-release-min.json",
+      "reused_execution_role": "candidate",
+      "reused_execution_receipt": {
+        "path": ".tmp/scheduled-label-transfer-895l5kat/native-callers.json",
+        "sha256": "808315d179072dcf19f6eade1a758b15d0352a777f50ac9620ca256dbee1d7eb"
+      },
+      "modes": {
+        "owned": {
+          "checked_arms": 72,
+          "complete_records_sha256": "fdd16d2c61f8aa3f8dc5ccd2ae50f3d3936faaf438b32f13cf7e89a1fd5bf45e"
+        },
+        "scheduled": {
+          "checked_arms": 96,
+          "complete_records_sha256": "41e164abaab118f4cb76e3f48ed51e009cb2ff23b6151a1352ca7e1485df2e4b"
+        }
+      }
+    },
+    "accepted-native-scheduled-labels-candidate-release-min-gpp": {
+      "role": "before",
+      "profile": "release-min",
+      "language": "c++",
+      "binary": {
+        "path": ".tmp/scheduled-label-transfer-895l5kat/native-scheduled-labels-candidate-release-min-gpp-caller",
+        "sha256": "e260f81163c4cb9d8151409afb6607582cd76ad35dfc3799ed1769dee7f2cb94"
+      },
+      "archive": {
+        "path": ".tmp/scheduled-label-transfer-895l5kat/qualified-native-release-min/libnetdata_promql_engine.a",
+        "sha256": "0c01804cab56c85927e9bc147ddff5890ce056109f6e379595f905f28c10db42",
+        "file_bytes": 54062658
+      },
+      "compiler_receipt": ".tmp/scheduled-label-transfer-895l5kat/qualified-native-release-min.json",
+      "reused_execution_role": "candidate",
+      "reused_execution_receipt": {
+        "path": ".tmp/scheduled-label-transfer-895l5kat/native-callers.json",
+        "sha256": "808315d179072dcf19f6eade1a758b15d0352a777f50ac9620ca256dbee1d7eb"
+      },
+      "modes": {
+        "owned": {
+          "checked_arms": 72,
+          "complete_records_sha256": "fdd16d2c61f8aa3f8dc5ccd2ae50f3d3936faaf438b32f13cf7e89a1fd5bf45e"
+        },
+        "scheduled": {
+          "checked_arms": 96,
+          "complete_records_sha256": "41e164abaab118f4cb76e3f48ed51e009cb2ff23b6151a1352ca7e1485df2e4b"
+        }
+      }
+    },
+    "native-frames-candidate-release-gcc": {
+      "role": "candidate",
+      "profile": "release",
+      "language": "c",
+      "binary": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/native-frames-candidate-release-gcc-caller",
+        "sha256": "ad23969d3fdedc77e13616be7257072e1c7b54481649441a8e917a9a3ba0fbec"
+      },
+      "archive": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release/libnetdata_promql_engine.a",
+        "sha256": "d2e0b368b6cee72408267713355212dcda63499ea92915457dbf92beceac2899",
+        "file_bytes": 39112852
+      },
+      "compiler_receipt": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release.json",
+      "modes": {
+        "owned": {
+          "checked_arms": 72,
+          "complete_records_sha256": "d1ab568208df5b78dac38c50fd120213863c07a75c4199a4105cf68ba59d031a"
+        },
+        "scheduled": {
+          "checked_arms": 96,
+          "complete_records_sha256": "2c5f8569a28880164429f175f657a402ff3d7c973a7d89e14af8e5353dd41436"
+        }
+      }
+    },
+    "native-frames-candidate-release-gpp": {
+      "role": "candidate",
+      "profile": "release",
+      "language": "c++",
+      "binary": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/native-frames-candidate-release-gpp-caller",
+        "sha256": "1b246d67a49276c9b47b4bf5afac9ea035ad2eb1730832151473ec2b8f5ee7e1"
+      },
+      "archive": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release/libnetdata_promql_engine.a",
+        "sha256": "d2e0b368b6cee72408267713355212dcda63499ea92915457dbf92beceac2899",
+        "file_bytes": 39112852
+      },
+      "compiler_receipt": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release.json",
+      "modes": {
+        "owned": {
+          "checked_arms": 72,
+          "complete_records_sha256": "d1ab568208df5b78dac38c50fd120213863c07a75c4199a4105cf68ba59d031a"
+        },
+        "scheduled": {
+          "checked_arms": 96,
+          "complete_records_sha256": "2c5f8569a28880164429f175f657a402ff3d7c973a7d89e14af8e5353dd41436"
+        }
+      }
+    },
+    "native-frames-candidate-release-min-gcc": {
+      "role": "candidate",
+      "profile": "release-min",
+      "language": "c",
+      "binary": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/native-frames-candidate-release-min-gcc-caller",
+        "sha256": "12dc340246fd288b53294777257a5855828223d6f1323ce6b05848448e1b31d3"
+      },
+      "archive": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release-min/libnetdata_promql_engine.a",
+        "sha256": "eb30eba53cae02c76bba377901d37df452e3826168653e6dcc7934bcffefd906",
+        "file_bytes": 54101314
+      },
+      "compiler_receipt": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release-min.json",
+      "modes": {
+        "owned": {
+          "checked_arms": 72,
+          "complete_records_sha256": "d1ab568208df5b78dac38c50fd120213863c07a75c4199a4105cf68ba59d031a"
+        },
+        "scheduled": {
+          "checked_arms": 96,
+          "complete_records_sha256": "2c5f8569a28880164429f175f657a402ff3d7c973a7d89e14af8e5353dd41436"
+        }
+      }
+    },
+    "native-frames-candidate-release-min-gpp": {
+      "role": "candidate",
+      "profile": "release-min",
+      "language": "c++",
+      "binary": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/native-frames-candidate-release-min-gpp-caller",
+        "sha256": "97396adf71cfd081b5648b071285a4fb9f9504473dddea356e6be50e44a7f0e0"
+      },
+      "archive": {
+        "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release-min/libnetdata_promql_engine.a",
+        "sha256": "eb30eba53cae02c76bba377901d37df452e3826168653e6dcc7934bcffefd906",
+        "file_bytes": 54101314
+      },
+      "compiler_receipt": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release-min.json",
+      "modes": {
+        "owned": {
+          "checked_arms": 72,
+          "complete_records_sha256": "d1ab568208df5b78dac38c50fd120213863c07a75c4199a4105cf68ba59d031a"
+        },
+        "scheduled": {
+          "checked_arms": 96,
+          "complete_records_sha256": "2c5f8569a28880164429f175f657a402ff3d7c973a7d89e14af8e5353dd41436"
+        }
+      }
+    }
+  },
+  "actual_candidate_c_cpp_executables": 12,
+  "comparative_before_native_executables": 4,
+  "legacy_arms_per_caller": 72,
+  "scheduled_arms_per_caller": 96,
+  "caller_scope": "Four current native and eight current foreign C/C++ programs each execute72legacy+96scheduled arms. Four accepted Stage48 native programs and their closed168arms are explicitly reused as before evidence with original compilation/archive/binary/Csource bindings. Three pages,stream/collect,normal/provider failure. Only scheduled mode exports three sample fields;default full C suite not rerun.",
+  "resources": {
+    "complete_groups": 1836,
+    "unchanged_observations": "All complete outcomes and exported nonelapsed/nonmemory observations are identical,including work,reads,pages,provider calls,output,cancellation references and temporary backing. Native JSON omits basic sample statistics;those fields are not part of these1836paired observations.",
+    "work": {
+      "lower": 0,
+      "same": 1836,
+      "higher": 0,
+      "minimum_delta": 0,
+      "maximum_delta": 0
+    },
+    "memory": {
+      "Compiled": {
+        "current": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "Workspace": {
+        "current": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 1296,
+          "same": 540,
+          "higher": 0,
+          "minimum_delta": -960,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 1374,
+          "same": 462,
+          "higher": 0,
+          "minimum_delta": -498240,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 1374,
+          "same": 462,
+          "higher": 0,
+          "minimum_delta": -498240,
+          "maximum_delta": 0
+        }
+      },
+      "Result": {
+        "current": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "ProviderHeld": {
+        "current": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "BorrowedView": {
+        "current": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "RegexEstimate": {
+        "current": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "SharedCacheReference": {
+        "current": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "Accounting": {
+        "current": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1836,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      }
+    },
+    "representative": [
+      {
+        "id": "frame-raw-ticks256",
+        "profile": "release",
+        "page_size": 17,
+        "before": {
+          "workspace": {
+            "acquired": 11706,
+            "current": 0,
+            "overflowed": false,
+            "peak": 7002,
+            "released": 11706
+          },
+          "result": {
+            "acquired": 13042,
+            "current": 6994,
+            "overflowed": false,
+            "peak": 10066,
+            "released": 6048
+          },
+          "work": 4440,
+          "samples_fetched": 512
+        },
+        "candidate": {
+          "workspace": {
+            "acquired": 11706,
+            "current": 0,
+            "overflowed": false,
+            "peak": 7002,
+            "released": 11706
+          },
+          "result": {
+            "acquired": 13042,
+            "current": 6994,
+            "overflowed": false,
+            "peak": 10066,
+            "released": 6048
+          },
+          "work": 4440,
+          "samples_fetched": 512
+        }
+      },
+      {
+        "id": "frame-map-ticks256",
+        "profile": "release",
+        "page_size": 17,
+        "before": {
+          "workspace": {
+            "acquired": 1011404,
+            "current": 0,
+            "overflowed": false,
+            "peak": 9996,
+            "released": 1011404
+          },
+          "result": {
+            "acquired": 12937,
+            "current": 6889,
+            "overflowed": false,
+            "peak": 9961,
+            "released": 6048
+          },
+          "work": 120819,
+          "samples_fetched": 768
+        },
+        "candidate": {
+          "workspace": {
+            "acquired": 519884,
+            "current": 0,
+            "overflowed": false,
+            "peak": 9036,
+            "released": 519884
+          },
+          "result": {
+            "acquired": 12937,
+            "current": 6889,
+            "overflowed": false,
+            "peak": 9961,
+            "released": 6048
+          },
+          "work": 120819,
+          "samples_fetched": 768
+        }
+      },
+      {
+        "id": "frame-deep8-ticks256",
+        "profile": "release",
+        "page_size": 17,
+        "before": {
+          "workspace": {
+            "acquired": 14323563,
+            "current": 0,
+            "overflowed": false,
+            "peak": 34370,
+            "released": 14323563
+          },
+          "result": {
+            "acquired": 12937,
+            "current": 6889,
+            "overflowed": false,
+            "peak": 9961,
+            "released": 6048
+          },
+          "work": 1894821,
+          "samples_fetched": 2560
+        },
+        "candidate": {
+          "workspace": {
+            "acquired": 13825323,
+            "current": 0,
+            "overflowed": false,
+            "peak": 33410,
+            "released": 13825323
+          },
+          "result": {
+            "acquired": 12937,
+            "current": 6889,
+            "overflowed": false,
+            "peak": 9961,
+            "released": 6048
+          },
+          "work": 1894821,
+          "samples_fetched": 2560
+        }
+      },
+      {
+        "id": "labels-17-rows-64-map",
+        "profile": "release",
+        "page_size": 17,
+        "before": {
+          "workspace": {
+            "acquired": 3617576,
+            "current": 0,
+            "overflowed": false,
+            "peak": 280936,
+            "released": 3617576
+          },
+          "result": {
+            "acquired": 205152,
+            "current": 125184,
+            "overflowed": false,
+            "peak": 125762,
+            "released": 79968
+          },
+          "work": 680017,
+          "samples_fetched": 576
+        },
+        "candidate": {
+          "workspace": {
+            "acquired": 3248936,
+            "current": 0,
+            "overflowed": false,
+            "peak": 280936,
+            "released": 3248936
+          },
+          "result": {
+            "acquired": 205152,
+            "current": 125184,
+            "overflowed": false,
+            "peak": 125762,
+            "released": 79968
+          },
+          "work": 680017,
+          "samples_fetched": 576
+        }
+      },
+      {
+        "id": "frame-changing-round-ticks16",
+        "profile": "release",
+        "page_size": 17,
+        "before": {
+          "workspace": {
+            "acquired": 118284,
+            "current": 0,
+            "overflowed": false,
+            "peak": 13068,
+            "released": 118284
+          },
+          "result": {
+            "acquired": 1417,
+            "current": 1129,
+            "overflowed": false,
+            "peak": 1321,
+            "released": 288
+          },
+          "work": 8635,
+          "samples_fetched": 48
+        },
+        "candidate": {
+          "workspace": {
+            "acquired": 87564,
+            "current": 0,
+            "overflowed": false,
+            "peak": 12108,
+            "released": 87564
+          },
+          "result": {
+            "acquired": 1417,
+            "current": 1129,
+            "overflowed": false,
+            "peak": 1321,
+            "released": 288
+          },
+          "work": 8635,
+          "samples_fetched": 48
+        }
+      }
+    ],
+    "comparative_native_c_pairs": 672,
+    "comparative_native_c_memory": {
+      "Compiled": {
+        "current": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "Workspace": {
+        "current": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 240,
+          "same": 432,
+          "higher": 0,
+          "minimum_delta": -960,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 240,
+          "same": 432,
+          "higher": 0,
+          "minimum_delta": -3840,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 240,
+          "same": 432,
+          "higher": 0,
+          "minimum_delta": -3840,
+          "maximum_delta": 0
+        }
+      },
+      "Result": {
+        "current": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "ProviderHeld": {
+        "current": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "BorrowedView": {
+        "current": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "RegexEstimate": {
+        "current": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "SharedCacheReference": {
+        "current": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "Accounting": {
+        "current": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 672,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      }
+    },
+    "comparative_native_c_work": {
+      "lower": 0,
+      "same": 672,
+      "higher": 0,
+      "minimum_delta": 0,
+      "maximum_delta": 0
+    },
+    "comparative_native_c_statistics": {
+      "paired_scheduled_arms": 384,
+      "fields": [
+        "total_queryable_samples",
+        "samples_read",
+        "peak_samples"
+      ],
+      "scope": "Only96scheduled arms per native executable export these fields;all384paired arrays match. The288legacy pairs omit them."
+    },
+    "interpretation": "All8memory kinds/current/peak/acquired/released and overflow flags are compared. Acquired/released measure cumulative traffic. Requested engine bytes exclude allocator overhead and processRSS;finite nonincreases are not a universal bound."
+  },
+  "timing": {
+    "responses_checked": 400,
+    "groups": [
+      {
+        "profile": "release",
+        "id": "labels-1-rows-1-full",
+        "before_ns": [
+          28860,
+          16930,
+          16910,
+          16630,
+          16620
+        ],
+        "candidate_ns": [
+          16980,
+          16839,
+          20020,
+          16789,
+          16430
+        ],
+        "before_median_ns": 16910,
+        "candidate_median_ns": 16839,
+        "median_ratio_before_over_candidate": 1.0042164023991924,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "labels-17-rows-64-full",
+        "before_ns": [
+          1145211,
+          1174001,
+          1161941,
+          1140761,
+          1140011
+        ],
+        "candidate_ns": [
+          1139361,
+          1139441,
+          1278240,
+          1143191,
+          1175460
+        ],
+        "before_median_ns": 1145211,
+        "candidate_median_ns": 1143191,
+        "median_ratio_before_over_candidate": 1.0017669838198515,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "labels-17-rows-64-map",
+        "before_ns": [
+          4040868,
+          3989397,
+          4063757,
+          3966769,
+          4018798
+        ],
+        "candidate_ns": [
+          4483844,
+          4122097,
+          4105867,
+          4044257,
+          3892469
+        ],
+        "before_median_ns": 4018798,
+        "candidate_median_ns": 4105867,
+        "median_ratio_before_over_candidate": 0.9787940037999282,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "frame-raw-ticks256",
+        "before_ns": [
+          176398,
+          179918,
+          176698,
+          176618,
+          247468
+        ],
+        "candidate_ns": [
+          171079,
+          170478,
+          177389,
+          177589,
+          169749
+        ],
+        "before_median_ns": 176698,
+        "candidate_median_ns": 171079,
+        "median_ratio_before_over_candidate": 1.0328444753593369,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "frame-map-ticks256",
+        "before_ns": [
+          1306130,
+          1290420,
+          1299219,
+          1305100,
+          1860185
+        ],
+        "candidate_ns": [
+          1636947,
+          1335429,
+          1312490,
+          1331780,
+          1252480
+        ],
+        "before_median_ns": 1305100,
+        "candidate_median_ns": 1331780,
+        "median_ratio_before_over_candidate": 0.9799666611602517,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "frame-absolute-ticks256",
+        "before_ns": [
+          1164881,
+          1145141,
+          1156281,
+          1138201,
+          2010964
+        ],
+        "candidate_ns": [
+          1137051,
+          1143451,
+          1169931,
+          1167761,
+          1105071
+        ],
+        "before_median_ns": 1156281,
+        "candidate_median_ns": 1143451,
+        "median_ratio_before_over_candidate": 1.0112204195894707,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "frame-deep8-ticks256",
+        "before_ns": [
+          11608827,
+          11246400,
+          11453468,
+          11598226,
+          11598996
+        ],
+        "candidate_ns": [
+          11304440,
+          11431809,
+          11243890,
+          11276440,
+          12014663
+        ],
+        "before_median_ns": 11598226,
+        "candidate_median_ns": 11304440,
+        "median_ratio_before_over_candidate": 1.0259885496318262,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "frame-changing-round-ticks16",
+        "before_ns": [
+          139169,
+          140119,
+          140588,
+          141519,
+          141169
+        ],
+        "candidate_ns": [
+          140069,
+          150078,
+          144118,
+          139819,
+          146399
+        ],
+        "before_median_ns": 140588,
+        "candidate_median_ns": 144118,
+        "median_ratio_before_over_candidate": 0.9755061824338389,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "frame-fixed-scalar-ticks16",
+        "before_ns": [
+          101439,
+          97579,
+          99009,
+          155589,
+          98439
+        ],
+        "candidate_ns": [
+          98019,
+          104829,
+          99049,
+          98089,
+          94089
+        ],
+        "before_median_ns": 99009,
+        "candidate_median_ns": 98089,
+        "median_ratio_before_over_candidate": 1.0093792372233379,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "scheduled-label-empty-server-default-0",
+        "before_ns": [
+          15550,
+          15449,
+          16700,
+          15000,
+          14990
+        ],
+        "candidate_ns": [
+          15410,
+          15610,
+          15740,
+          15460,
+          14460
+        ],
+        "before_median_ns": 15449,
+        "candidate_median_ns": 15460,
+        "median_ratio_before_over_candidate": 0.9992884864165589,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-1-rows-1-full",
+        "before_ns": [
+          20580,
+          20960,
+          20220,
+          20300,
+          20560
+        ],
+        "candidate_ns": [
+          20240,
+          22510,
+          33230,
+          21500,
+          22909
+        ],
+        "before_median_ns": 20560,
+        "candidate_median_ns": 22510,
+        "median_ratio_before_over_candidate": 0.9133718347401155,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-17-rows-64-full",
+        "before_ns": [
+          1984054,
+          2012214,
+          1992383,
+          2018034,
+          2020193
+        ],
+        "candidate_ns": [
+          1997664,
+          2116923,
+          2530580,
+          2276902,
+          2041244
+        ],
+        "before_median_ns": 2012214,
+        "candidate_median_ns": 2116923,
+        "median_ratio_before_over_candidate": 0.9505371711677751,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-17-rows-64-map",
+        "before_ns": [
+          7568670,
+          7453071,
+          7414470,
+          8054415,
+          7528839
+        ],
+        "candidate_ns": [
+          7332291,
+          7250832,
+          9368245,
+          7990906,
+          7280631
+        ],
+        "before_median_ns": 7528839,
+        "candidate_median_ns": 7332291,
+        "median_ratio_before_over_candidate": 1.0268058100803692,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "frame-raw-ticks256",
+        "before_ns": [
+          239328,
+          229348,
+          233718,
+          276798,
+          234648
+        ],
+        "candidate_ns": [
+          287787,
+          231959,
+          332408,
+          324387,
+          229708
+        ],
+        "before_median_ns": 234648,
+        "candidate_median_ns": 287787,
+        "median_ratio_before_over_candidate": 0.8153530215054884,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "frame-map-ticks256",
+        "before_ns": [
+          2109453,
+          2106283,
+          2119853,
+          2175473,
+          2151423
+        ],
+        "candidate_ns": [
+          2096353,
+          2057763,
+          2388131,
+          2144662,
+          2081383
+        ],
+        "before_median_ns": 2119853,
+        "candidate_median_ns": 2096353,
+        "median_ratio_before_over_candidate": 1.0112099441267763,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "frame-absolute-ticks256",
+        "before_ns": [
+          1949364,
+          1937135,
+          1942134,
+          1961965,
+          2047294
+        ],
+        "candidate_ns": [
+          1939145,
+          1902555,
+          2343311,
+          1943754,
+          1900185
+        ],
+        "before_median_ns": 1949364,
+        "candidate_median_ns": 1939145,
+        "median_ratio_before_over_candidate": 1.0052698483094353,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "frame-deep8-ticks256",
+        "before_ns": [
+          21623746,
+          21424058,
+          24241645,
+          21426278,
+          21862654
+        ],
+        "candidate_ns": [
+          21555886,
+          21435458,
+          25862882,
+          22104442,
+          21945874
+        ],
+        "before_median_ns": 21623746,
+        "candidate_median_ns": 21945874,
+        "median_ratio_before_over_candidate": 0.9853217055743599,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "frame-changing-round-ticks16",
+        "before_ns": [
+          230858,
+          225518,
+          219318,
+          218188,
+          221168
+        ],
+        "candidate_ns": [
+          213918,
+          218358,
+          231848,
+          219198,
+          221558
+        ],
+        "before_median_ns": 221168,
+        "candidate_median_ns": 219198,
+        "median_ratio_before_over_candidate": 1.0089873082783603,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "frame-fixed-scalar-ticks16",
+        "before_ns": [
+          158459,
+          162189,
+          210188,
+          158009,
+          159748
+        ],
+        "candidate_ns": [
+          152219,
+          152349,
+          235728,
+          156229,
+          154009
+        ],
+        "before_median_ns": 159748,
+        "candidate_median_ns": 154009,
+        "median_ratio_before_over_candidate": 1.0372640559967274,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "scheduled-label-empty-server-default-0",
+        "before_ns": [
+          20020,
+          19760,
+          20089,
+          19880,
+          20010
+        ],
+        "candidate_ns": [
+          19670,
+          19670,
+          20410,
+          20700,
+          21190
+        ],
+        "before_median_ns": 20010,
+        "candidate_median_ns": 20410,
+        "median_ratio_before_over_candidate": 0.9804017638412543,
+        "slower_candidate_median": true
+      }
+    ],
+    "slower_groups": [
+      {
+        "profile": "release",
+        "id": "labels-17-rows-64-map",
+        "before_ns": [
+          4040868,
+          3989397,
+          4063757,
+          3966769,
+          4018798
+        ],
+        "candidate_ns": [
+          4483844,
+          4122097,
+          4105867,
+          4044257,
+          3892469
+        ],
+        "before_median_ns": 4018798,
+        "candidate_median_ns": 4105867,
+        "median_ratio_before_over_candidate": 0.9787940037999282,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "frame-map-ticks256",
+        "before_ns": [
+          1306130,
+          1290420,
+          1299219,
+          1305100,
+          1860185
+        ],
+        "candidate_ns": [
+          1636947,
+          1335429,
+          1312490,
+          1331780,
+          1252480
+        ],
+        "before_median_ns": 1305100,
+        "candidate_median_ns": 1331780,
+        "median_ratio_before_over_candidate": 0.9799666611602517,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "frame-changing-round-ticks16",
+        "before_ns": [
+          139169,
+          140119,
+          140588,
+          141519,
+          141169
+        ],
+        "candidate_ns": [
+          140069,
+          150078,
+          144118,
+          139819,
+          146399
+        ],
+        "before_median_ns": 140588,
+        "candidate_median_ns": 144118,
+        "median_ratio_before_over_candidate": 0.9755061824338389,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "scheduled-label-empty-server-default-0",
+        "before_ns": [
+          15550,
+          15449,
+          16700,
+          15000,
+          14990
+        ],
+        "candidate_ns": [
+          15410,
+          15610,
+          15740,
+          15460,
+          14460
+        ],
+        "before_median_ns": 15449,
+        "candidate_median_ns": 15460,
+        "median_ratio_before_over_candidate": 0.9992884864165589,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-1-rows-1-full",
+        "before_ns": [
+          20580,
+          20960,
+          20220,
+          20300,
+          20560
+        ],
+        "candidate_ns": [
+          20240,
+          22510,
+          33230,
+          21500,
+          22909
+        ],
+        "before_median_ns": 20560,
+        "candidate_median_ns": 22510,
+        "median_ratio_before_over_candidate": 0.9133718347401155,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-17-rows-64-full",
+        "before_ns": [
+          1984054,
+          2012214,
+          1992383,
+          2018034,
+          2020193
+        ],
+        "candidate_ns": [
+          1997664,
+          2116923,
+          2530580,
+          2276902,
+          2041244
+        ],
+        "before_median_ns": 2012214,
+        "candidate_median_ns": 2116923,
+        "median_ratio_before_over_candidate": 0.9505371711677751,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "frame-raw-ticks256",
+        "before_ns": [
+          239328,
+          229348,
+          233718,
+          276798,
+          234648
+        ],
+        "candidate_ns": [
+          287787,
+          231959,
+          332408,
+          324387,
+          229708
+        ],
+        "before_median_ns": 234648,
+        "candidate_median_ns": 287787,
+        "median_ratio_before_over_candidate": 0.8153530215054884,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "frame-deep8-ticks256",
+        "before_ns": [
+          21623746,
+          21424058,
+          24241645,
+          21426278,
+          21862654
+        ],
+        "candidate_ns": [
+          21555886,
+          21435458,
+          25862882,
+          22104442,
+          21945874
+        ],
+        "before_median_ns": 21623746,
+        "candidate_median_ns": 21945874,
+        "median_ratio_before_over_candidate": 0.9853217055743599,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "scheduled-label-empty-server-default-0",
+        "before_ns": [
+          20020,
+          19760,
+          20089,
+          19880,
+          20010
+        ],
+        "candidate_ns": [
+          19670,
+          19670,
+          20410,
+          20700,
+          21190
+        ],
+        "before_median_ns": 20010,
+        "candidate_median_ns": 20410,
+        "median_ratio_before_over_candidate": 0.9804017638412543,
+        "slower_candidate_median": true
+      }
+    ],
+    "measurement": "Five alternating before/candidate pairs per profile. Each of ten fixed cases has warm and measured execution; all400 complete responses and each binary own nonelapsed observations must match prior qualification.",
+    "limits": "Shared host without CPU/frequency isolation. Engine execution including preparation, synthetic in-memory provider; not HTTP, production DBengine disk I/O, process RSS or universal throughput."
+  },
+  "static": {
+    "format": "pass",
+    "strict_clippy": [
+      "production",
+      "fixtures"
+    ],
+    "msrv": "Installed Rust1.91.0, all-targets fixtures compilation only."
+  },
+  "receipts": {
+    "old-runtime-regression.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/old-runtime-regression.json",
+      "sha256": "ef98213d1b2533fa343392b2f190064b6e8f7727003146ec56ecd56e32bd0925"
+    },
+    "pilot.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/pilot.json",
+      "sha256": "f2b23d218ef1bcbfcc45e8c3dd3ff51934322ef3643a6a6c3165dd7d566227a8"
+    },
+    "clocks.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/clocks.json",
+      "sha256": "1bf02c24666c67d083c3fb40dc609f8f8e6fd2dedd28cfe76b8eb469ad75626d"
+    },
+    "baseline.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/baseline.json",
+      "sha256": "7a321907dc3764d363f38034d004be365dc5e550558a3913237ca937cdaee805"
+    },
+    "panels-before.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/panels-before.json",
+      "sha256": "0b70f44b9d7871100ff85fa53a9eebda87e89ff37002f43be870c2e3061f6954"
+    },
+    "panels-candidate.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/panels-candidate.json",
+      "sha256": "33c5062868e776b9168ab561fdd105f63ded9cbd156cabfc2ea7769e9f97d357"
+    },
+    "native-callers.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/native-callers.json",
+      "sha256": "8c9902625988ecf71d9f54f02311155426e6a85a9622f501aab321910c514034"
+    },
+    "static-receipt.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/static-receipt.json",
+      "sha256": "373e6beea12292241f2bb82a77dc5babe5544fc72e34ba7c864fe7936a3b9c47"
+    },
+    "timing.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/timing.json",
+      "sha256": "9f12a0e3fe5654cb39e3bd3744b7aa6812413a839441e78fbf30907fa8146ead"
+    },
+    "controls.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/controls.json",
+      "sha256": "da5332eacc8a52416b44189e1ba9490357d38547b016456c498550b4ab1c39a7"
+    },
+    "preparation.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/preparation.json",
+      "sha256": "72d6b3bd9a79b654aaf1619d33a6c61a3148a541f78ddb435611e4debdfb78ac"
+    },
+    "qualified-native-release.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release.json",
+      "sha256": "fc82e3aec1ccf58f6ec96fc9bfa924093d0c35ab1de990ae7298a991fd286f58"
+    },
+    "qualified-native-release-min.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-native-release-min.json",
+      "sha256": "3c00bf0594bf1e90b1b67c58b8cf1972da51fa7026e8742c5588f731490d324b"
+    },
+    "qualified-aarch64-unknown-linux-gnu-release.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release.json",
+      "sha256": "d754ab5ffb5fe4ba8f79c9e247e7a52d97fb817bc70236422cf9b180373b48fc"
+    },
+    "qualified-aarch64-unknown-linux-gnu-release-min.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-aarch64-unknown-linux-gnu-release-min.json",
+      "sha256": "a054935ade152fdbfd5de9f4e9527a13e7a0127fd3b05871c4beb229c6492b16"
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release.json",
+      "sha256": "01c1a3011e918c77eafc35b015bf4dbdba3ca0e1472199fa0a3205c595ee8b2a"
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release-min.json": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/qualified-armv7-unknown-linux-gnueabihf-release-min.json",
+      "sha256": "2befa3f07df88660b055cb849bb2d5bef3aae41d67fb3c6d9221f1145cfb9840"
+    }
+  },
+  "input_generator": {
+    "path": "src/crates/promql-engine/tests/promql-conformance/frame_cases.py",
+    "sha256": "d819081339be51d091023803741d1b7e76ab0e54c8099b89448f3c29985b72f5"
+  },
+  "historical_source_snapshots": {
+    "initial_compile_evaluator": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/initial-evaluator.rs",
+      "sha256": "745a12ab74d7ef9fb20fc37726f17c76783ff38b970c36512e9bce0ff1cb9033"
+    },
+    "passing_pilot_evaluator": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/borrow-evaluator.rs",
+      "sha256": "233ceb1044a3bbfc65b69fe93b5b947c341fdcf2e2ff0782fac17a39583af58a"
+    },
+    "old_runtime_regression_test_source": {
+      "path": ".tmp/scheduled-frame-reuse-nzwqjyw9/regression-scheduled-output.rs",
+      "sha256": "39ec08bc49800551bca460de854fcb8a92fc0f85f83bb48e86e0183aa11c931e"
+    },
+    "scope": "Exact bytes match their original source-manifest hashes. Initial compile E0621 was corrected with a private shared borrow lifetime;passing Debugpilot and final controls/optimized compilations remain distinct."
+  },
+  "known_debug_scope": {
+    "predecessor_test_exit": -6,
+    "test": "execution::tests::nested_evaluator_frames_use_a_small_caller_stack",
+    "scope": "The unchanged1000nested-sum/128KiB test aborts both actual accepted and candidate Debug binaries. All3new exact Debugunits pass. No full Debugsuite pass or new candidate stack regression is claimed;actual complete optimized profiles separately qualify the existing test."
+  },
+  "limitations": [
+    "Finite pinned expression evidence,not arbitrary-input equivalence. Thirtynew cases strengthen allocation/clock/deep/fresh-parameter controls;no new language feature.",
+    "Raw samples stay paged across both axes;metadata/operator/output state can grow and resource enforcement remains disabled.",
+    "Only original donor capacity can survive a callback;grown deep frames keep ordinary allocation fallback. No retained raw values or additional idle frame buffer.",
+    "All memory kinds,fixture code-size deltas and slower timing groups are retained. Requested engine bytes exclude allocator overhead,stack and processRSS;timings use a synthetic provider on a shared host.",
+    "Debugpilot/focused tests preserve actual source and binary identities;accepted Debugsmall-stack limitation is explicit. Earlier broad language/SRE/live-Agent/sanitizer/CI cohorts are not rerun or reattributed."
+  ]
+}

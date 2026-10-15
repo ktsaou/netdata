@@ -69918,5 +69918,18 @@
     "comparative_before_native_executables": 4,
     "timing_responses": 400,
     "attribution": "Actual final native/foreign frozen-source compilations;before retains predecessor binaries and1240explicit reused outcomes. Debug and earlier broad cohorts remain distinct."
+  },
+  "scheduled_frame_reuse_qualification": {
+    "status": "qualified_scheduled_frame_storage_recycling",
+    "receipt": "scheduled-frame-reuse-qualification.json",
+    "sha256": "b02fb8573e17ad97ad41de1e02881a3396860b86bbc883ac14e8c88ffeda2e19",
+    "native_comparisons": 1836,
+    "foreign_comparisons": 1224,
+    "native_units_per_profile": 657,
+    "focused_foreign_unit_executions": 24,
+    "actual_candidate_c_cpp_executables": 12,
+    "comparative_before_native_executables": 4,
+    "timing_responses": 400,
+    "attribution": "Actual final native/foreign frozen-source compilations;before retains accepted Stage48 binaries and1716explicit reused outcomes;four before C executions are closed Stage48 results. Debug and earlier broad cohorts remain distinct."
   }
 }
