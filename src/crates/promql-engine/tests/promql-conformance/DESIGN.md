@@ -1031,3 +1031,24 @@ integration, and Alertmanager remains excluded.
 - **Tradeoffs:** all 20 timing groups remain, including 13 slower medians; native fixture text grows 32,128/480 B in
   release/release-min. No universal lower-peak, faster-runtime, Agent-size or RSS guarantee follows. Existing contexts
   ownership, raw paging, public interfaces, dependency set and disabled caps remain unchanged.
+
+
+## Scheduled selector label ownership
+
+- **Choice:** keep ordinary borrowed selector copies. Move the already-owned scheduled point labels and existing
+  sample lease through one shared private completion helper. Remove only scheduled label views and the second
+  deep copy; the initial source copy remains.
+- **Phases:** retain selector identity/take-once guards and logical sample accounting, then explicitly check control
+  for present and absent points. Ordinary `None` remains lazy; ordinary `Some` keeps checked copying. Clock/name
+  completion, scalar parameter ordering, scheduling eligibility and the second diagnostic drain remain unchanged.
+- **Reason:** a consumed private scheduled point has no external label borrower. Copying it again provides no
+  additional lifetime guarantee. Moving the existing owner avoids allocation and byte-walk work without retaining
+  raw samples, adding state or changing a callback lifetime.
+- **Evidence:** [qualification](scheduled-label-transfer-qualification.json) and
+  [measured scope](README.md#scheduled-selector-label-ownership) record 1,656 native and 1,104 compiled ARM complete
+  comparisons, 654 native units/profile and actual C/C++ consumers. Workspace peaks fall in 864 pairs; allocation
+  traffic/work fall in 1,218, with no measured increases. Other memory kinds, logical statistics and reads match.
+- **Tradeoffs:** all 20 timing groups remain, including five slower medians. The 64-series/17-label map improves
+  1.28–1.34×; the 32 KiB-label release-min case slows 3.55%. Native fixture text grows 528/944 bytes. No universal
+  lower-peak, faster-runtime, Agent-size or RSS guarantee follows. Public interfaces, contexts authority, raw paging,
+  dependency set and disabled caps remain unchanged.

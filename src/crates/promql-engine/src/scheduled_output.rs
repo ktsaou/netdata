@@ -285,6 +285,126 @@ mod tests {
         engine.accounting.snapshot().assert_memory_released();
     }
 
+    #[test]
+    fn scheduled_maps_do_not_duplicate_large_label_payload_per_point() {
+        struct PayloadSink<'a> {
+            provider: &'a FixtureProvider,
+            expected: &'a [(Vec<u8>, Vec<u8>)],
+            count: usize,
+            points: usize,
+            committed: bool,
+        }
+        impl OutputSink for PayloadSink<'_> {
+            fn begin(&mut self, header: OutputHeader) -> Result<(), AccountedVec<u8>> {
+                assert_eq!(header.value_type, ValueType::Matrix);
+                assert_eq!(header.start_ms, 1000);
+                assert_eq!(header.end_ms, self.count as i64 * 1000);
+                assert_eq!(header.step_ms, 1000);
+                Ok(())
+            }
+            fn chunk(&mut self, chunk: OutputChunk<'_>) -> Result<(), AccountedVec<u8>> {
+                let OutputChunk::Series { labels, points, .. } = chunk else {
+                    panic!("unexpected scheduled payload output");
+                };
+                assert_eq!(labels.len(), self.expected.len());
+                for (label, (name, value)) in labels.iter().zip(self.expected) {
+                    assert_eq!(label.name, name.as_slice());
+                    assert_eq!(label.value, value.as_slice());
+                }
+                for point in points {
+                    self.points += 1;
+                    let SampleValueRef::Float(value) = point.value else {
+                        panic!("expected generated float");
+                    };
+                    assert_eq!(point.time_ms, self.points as i64 * 1000);
+                    assert_eq!(point.start_time_ms, 0);
+                    assert_eq!(value.to_bits(), (self.points as f64).to_bits());
+                }
+                Ok(())
+            }
+            fn commit(&mut self, observations: &QueryObservations) -> Result<(), AccountedVec<u8>> {
+                assert_eq!(self.points, self.count);
+                assert_eq!(observations.output_samples, self.count as u64);
+                self.provider.assert_closed();
+                self.committed = true;
+                Ok(())
+            }
+            fn abort(&mut self) {
+                self.committed = false;
+            }
+        }
+
+        const PAYLOAD: usize = 32 * 1024;
+        let mut excessive = Vec::new();
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for count in [64, 128] {
+                    let mut provider = FixtureProvider::new(count, page, 1);
+                    provider.series[0].labels.push((
+                        b"payload".to_vec(),
+                        (0..PAYLOAD).map(|index| index as u8).collect(),
+                    ));
+                    let expected = provider.series[0].labels[1..].to_vec();
+                    let counters = provider.series[0].source.counters.clone();
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            b"counter_total + 0",
+                            EngineOptions {
+                                lookback_ms: 1000,
+                                delayed_name_removal: delayed,
+                                ..EngineOptions::default()
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let mut sink = PayloadSink {
+                        provider: &provider,
+                        expected: &expected,
+                        count,
+                        points: 0,
+                        committed: false,
+                    };
+                    let report = query.execute_reported(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: count as i64 * 1000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                        &mut sink,
+                    );
+                    assert!(report.result.is_ok(), "{:?}", report.result);
+                    assert!(sink.committed);
+                    assert_eq!(counters.peak.load(Ordering::Relaxed), 1);
+                    assert_eq!(report.observations.output_samples, count as u64);
+                    assert_eq!(
+                        report.observations.memory[MemoryKind::Workspace as usize].current,
+                        0
+                    );
+                    let acquired =
+                        report.observations.memory[MemoryKind::Workspace as usize].acquired;
+                    let bound = ((3 * count + 16) * PAYLOAD + 256 * 1024) as u64;
+                    eprintln!(
+                        "scheduled-payload count{count} page{page} delayed{delayed} acquired{acquired} bound{bound}"
+                    );
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                    if acquired > bound {
+                        excessive.push((count, page, delayed, acquired, bound));
+                    }
+                }
+            }
+        }
+        assert!(
+            excessive.is_empty(),
+            "completed scheduled points duplicate label payload: {excessive:?}"
+        );
+    }
+
     fn scaled<const FACTOR: i32>(index: usize) -> crate::value::Sample {
         let mut sample = crate::test_storage::counter(index);
         sample.value = crate::value::SampleValue::Float((index + 1) as f64 * f64::from(FACTOR));

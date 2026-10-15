@@ -2446,40 +2446,57 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         value: Option<(i64, i64, crate::statistics::ValueParts)>,
     ) -> Result<Option<EvaluatedSample>, EvaluationError> {
         value
-            .map(|(source_time_ms, source_start_time_ms, value)| {
-                let (source_time_ms, source_start_time_ms) =
-                    if matches!(operation, SelectorOperation::Instant)
-                        && !self.timestamp_selectors[selector_node.0]
-                    {
-                        (self.options.time_ms, 0)
-                    } else {
-                        (source_time_ms, source_start_time_ms)
-                    };
-                let mut labels = OwnedLabels::copy_from_checked(
+            .map(|value| {
+                let labels = OwnedLabels::copy_from_checked(
                     series_labels,
                     self.account,
                     MemoryKind::Workspace,
                     self.control,
                 )?;
-                let drop_name = operation.drops_name();
-                if drop_name && !self.options.delayed_name_removal {
-                    drop_reserved(&mut labels, false, self.account, self.control)?;
-                }
-                let crate::statistics::ValueParts {
-                    value,
-                    float_samples,
-                } = value;
-                Ok::<_, EvaluationError>(EvaluatedSample {
-                    ordinal: series_ordinal,
+                self.finish_owned_selector_sample(
+                    selector_node,
+                    operation,
+                    series_ordinal,
                     labels,
-                    float_samples,
                     value,
-                    source_time_ms,
-                    source_start_time_ms,
-                    drop_name,
-                })
+                )
             })
             .transpose()
+    }
+    fn finish_owned_selector_sample(
+        &self,
+        selector_node: NodeId,
+        operation: SelectorOperation,
+        series_ordinal: usize,
+        mut labels: OwnedLabels,
+        value: (i64, i64, crate::statistics::ValueParts),
+    ) -> Result<EvaluatedSample, EvaluationError> {
+        let (source_time_ms, source_start_time_ms, value) = value;
+        let (source_time_ms, source_start_time_ms) =
+            if matches!(operation, SelectorOperation::Instant)
+                && !self.timestamp_selectors[selector_node.0]
+            {
+                (self.options.time_ms, 0)
+            } else {
+                (source_time_ms, source_start_time_ms)
+            };
+        let drop_name = operation.drops_name();
+        if drop_name && !self.options.delayed_name_removal {
+            drop_reserved(&mut labels, false, self.account, self.control)?;
+        }
+        let crate::statistics::ValueParts {
+            value,
+            float_samples,
+        } = value;
+        Ok(EvaluatedSample {
+            ordinal: series_ordinal,
+            labels,
+            float_samples,
+            value,
+            source_time_ms,
+            source_start_time_ms,
+            drop_name,
+        })
     }
 
     fn enter(&mut self, index: usize) -> Result<Option<EvaluatedSample>, EvaluationError> {
@@ -4035,14 +4052,19 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         if point.value.is_some() {
                             self.note_instant_sample(node, selector_node)?;
                         }
-                        let labels = point.labels.views_checked(self.account, self.control)?;
-                        self.finish_selector_sample(
-                            selector_node,
-                            operation,
-                            series_ordinal,
-                            &labels,
-                            point.value,
-                        )?
+                        self.control.check()?;
+                        point
+                            .value
+                            .map(|value| {
+                                self.finish_owned_selector_sample(
+                                    selector_node,
+                                    operation,
+                                    series_ordinal,
+                                    point.labels,
+                                    value,
+                                )
+                            })
+                            .transpose()?
                     } else {
                         catalog
                             .with_series(selector_node, series_ordinal, |series| {

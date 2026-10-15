@@ -2086,13 +2086,16 @@ static void label_copy_abort(void *context, const netdata_promql_accounting_cont
     output_abort(&((label_copy_output *)context)->output, account);
 }
 
-static void owned_label_outputs(netdata_promql_engine_t *engine) {
+static void owned_label_outputs(netdata_promql_engine_t *engine, unsigned scheduled) {
     static const char *names[] = {"zz00", "zz01", "zz02", "zz03", "zz04", "zz05", "zz06", "zz07",
                                   "zz08", "zz09", "zz10", "zz11", "zz12", "zz13", "zz14"};
-    const char *expressions[] = {"m", "label_replace(m,\"added\",\"north\",\"__name__\",\".*\")", "sum by(zone)(m)"};
+    const char *owned_expressions[] = {"m", "label_replace(m,\"added\",\"north\",\"__name__\",\".*\")", "sum by(zone)(m)"};
+    const char *scheduled_expressions[] = {"m+0", "0+m", "m>0", "timestamp(m)"};
+    const char **expressions = scheduled ? scheduled_expressions : owned_expressions;
+    unsigned expression_count = scheduled ? 4 : 3;
     const uint64_t counts[] = {9, 17}, pages[] = {1, 17, 1024};
     netdata_promql_engine_observations_t idle = engine_observations(engine);
-    for (unsigned ci = 0; ci < 2; ci++) for (unsigned shape = 0; shape < 3; shape++) {
+    for (unsigned ci = 0; ci < 2; ci++) for (unsigned shape = 0; shape < expression_count; shape++) {
         for (unsigned page = 0; page < 3; page++) for (unsigned streamed = 0; streamed < 2; streamed++) {
             for (unsigned failure = 0; failure < 2; failure++) {
                 fixture source;
@@ -2106,8 +2109,14 @@ static void owned_label_outputs(netdata_promql_engine_t *engine) {
                 label_copy_output output;
                 memset(&output, 0, sizeof(output));
                 output.source = &source;
-                output.label_count = shape == 2 ? 1 : source.label_count + (shape == 1);
-                if (shape == 2) output.expected[0] = source.labels[1];
+                output.label_count = scheduled ? source.label_count - (shape != 2) :
+                                                shape == 2 ? 1 : source.label_count + (shape == 1);
+                if (scheduled) {
+                    unsigned first = shape != 2;
+                    for (uint64_t label = first; label < source.label_count; label++)
+                        output.expected[label - first] = source.labels[label];
+                }
+                else if (shape == 2) output.expected[0] = source.labels[1];
                 else {
                     output.expected[0] = source.labels[0];
                     if (shape == 1) {
@@ -2161,14 +2170,22 @@ static void owned_label_outputs(netdata_promql_engine_t *engine) {
                         assert(actual.value_bits == netdata_promql_double_bits((double)point + 1));
                     }
                 }
-                printf("{\"owned_labels\":\"pass\",\"labels\":%" PRIu64 ",\"shape\":%u,\"page\":%" PRIu64 ",\"streamed\":%u,\"failure\":%u,\"work\":%" PRIu64 ",\"fetched\":%" PRIu64 ",\"memory\":[",
-                       counts[ci], shape, pages[page], streamed, failure, observed.work, observed.samples_fetched);
+                printf("{\"%s\":\"pass\",\"labels\":%" PRIu64 ",\"shape\":%u,\"page\":%" PRIu64 ",\"streamed\":%u,\"failure\":%u,\"work\":%" PRIu64 ",\"fetched\":%" PRIu64 ",\"memory\":[",
+                       scheduled ? "scheduled_labels" : "owned_labels", counts[ci], shape, pages[page], streamed, failure,
+                       observed.work, observed.samples_fetched);
                 for (unsigned kind = 0; kind < NETDATA_PROMQL_MEMORY_KINDS; kind++) {
                     netdata_promql_memory_observation_t memory = observed.memory[kind];
                     printf("%s[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 "]", kind ? "," : "",
                            memory.current, memory.peak, memory.acquired, memory.released);
                 }
-                puts("]}");
+                putchar(']');
+                if (scheduled) {
+                    statistics_valid(&observed.statistics);
+                    printf(",\"statistics\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 "]",
+                           observed.statistics.samples.total_queryable_samples,
+                           observed.statistics.samples.samples_read, observed.statistics.samples.peak_samples);
+                }
+                puts("}");
                 if (result) assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
                 assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
                 balanced(engine, &idle);
@@ -2188,7 +2205,12 @@ int main(int argc, char **argv) {
     netdata_promql_engine_observations_t idle;
     assert(netdata_promql_engine_observations(engine, &idle) == NETDATA_PROMQL_OK);
     if (argc == 2 && strcmp(argv[1], "--owned-labels-only") == 0) {
-        owned_label_outputs(engine);
+        owned_label_outputs(engine, 0);
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        return 0;
+    }
+    if (argc == 2 && strcmp(argv[1], "--scheduled-labels-only") == 0) {
+        owned_label_outputs(engine, 1);
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
         return 0;
     }

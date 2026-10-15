@@ -25,6 +25,10 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Scheduled selector points transfer their existing owned labels into sample completion. The
+  [label ownership panel](#scheduled-selector-label-ownership) records 1,656 native and 1,104 compiled ARM
+  comparisons, 654 native units/profile and actual C/C++ consumers. Workspace peaks fall in 864 cases; mapped
+  64-series timings improve 1.28–1.34×, with all slower controls and binary costs retained.
 - Eligible grouped float ranges reuse completed operand discovery. The
   [grouped-join panel](#completed-grouped-float-join-scans) records 1,692 native and 1,128 compiled ARM comparisons,
   647 native units/profile and 12 actual C/C++ callers. Fixed 64-series queries become 19× faster with unchanged
@@ -4253,3 +4257,69 @@ candidate slowdowns are host noise. The checked instruction structures of 16 hot
 specified relocations while retaining internal branch offsets, ordinary constants and registers. That comparison
 excludes physical placement and relocated data/GOT contents. Small compilation-only argument/branch changes remain;
 no new per-row search instructions were found in those inspected owners.
+
+
+## Scheduled selector label ownership
+
+A scheduled point already owns its source labels. Its selector completion now moves that owner through a shared
+private completion helper, removing a temporary label-view array and a second deep copy. Ordinary borrowed
+selectors still copy labels only for present samples and keep their checked copy and terminal control check.
+Scheduled selection retains its identity guard, take-once behavior and logical sample accounting, then explicitly
+checks control for both present and absent points. Timestamp rebinding, name removal, the existing sample lease,
+scalar-before-vector phases, scheduling admission and the second diagnostic drain remain unchanged.
+
+The first source-to-owned copy is still required. This change adds no cache, field, provider/metadata lifetime,
+public interface, dependency or limit. Raw data remains paged across both series and time.
+
+The [label transfer qualification](scheduled-label-transfer-qualification.json) records:
+
+- An end-to-end streamed regression: 64/128 ticks, pages 1/17/1,024, both name-removal modes and a 32 KiB arbitrary-byte
+  label. All 12 complete label/value/clock, provider-close and accounting-release cases finish before the unchanged
+  runtime fails its cumulative allocation bound. The candidate passes the same cases. This is a test bound;
+  runtime resource enforcement remains disabled.
+- `scheduled_label_cases.cases()` supplies 104 new cases: scalar operations on either side, filtering/boolean maps,
+  unary/composed maps, timestamps between source samples, sparse/stale/native histories, derived and ordinary parent
+  controls, empty selectors, name collisions and long labels. Another 172 unchanged owned-label cases retain their
+  original captures. Both native profiles at pages 1/17/1,024 pass 1,656 complete pinned comparisons with no paired
+  bit difference. The before panel explicitly reuses 1,240 closed predecessor outcomes and executes 416 new ones.
+- All complete outcomes and all nonelapsed/nonmemory/nonwork observations match, including logical sample
+  statistics, reads, pages, cursors, output, cancellation and temporary backing. Workspace peaks fall in 864 pairs
+  and remain equal in 792; acquired/released bytes and work fall in 1,218 and remain equal in 438. None increases.
+  Result memory and every observation of the other six memory kinds remain unchanged in these pairs.
+- Both complete native suites pass 654 units. Compiled ARM64/ARM32 under QEMU, both profiles, pass 1,104 complete
+  original comparisons and 24 focused unit executions. Twelve actual candidate C/C++ programs each pass 72 legacy
+  and 96 scheduled arms; four additional native predecessor programs link the same C source. The 672 paired native
+  arms retain reads, complete outcomes and logical statistics; all eight memory kinds and work are reported.
+  These modes cover streamed/collected results and provider failure at three page sizes. The default full C suite
+  is not claimed rerun.
+- Formatting, strict production/fixture Clippy and installed Rust 1.91 all-targets fixture compilation pass.
+
+Representative release observations at page 17:
+
+| Query shape | Workspace acquired before → candidate (bytes) | Workspace peak before → candidate (bytes) |
+|---|---:|---:|
+| 64 series, 17 labels, three mapped ticks | 6,101,672 → 3,617,576 | 280,936 → 280,936 |
+| One series, 32 KiB label, 64 mapped ticks | 8,786,860 → 4,522,668 | 141,511 → 108,252 |
+| Two series, source timestamps between ticks | 79,130 → 61,434 | 9,562 → 9,064 |
+
+Acquired bytes measure cumulative allocation traffic, not simultaneous RAM. The long-label case removes 4,264,192
+acquired bytes and 33,259 peak bytes. Complete result ownership and raw/provider storage observations are unchanged.
+
+Five alternating before/candidate timing pairs per profile retain all 400 warm/measured complete responses:
+
+| Profile | Case | Median before → candidate (ms) | Before/candidate ratio |
+|---|---|---:|---:|
+| release | 9 labels, 64 series, mapped | 3.073 → 2.466 | 1.246× |
+| release-min | 9 labels, 64 series, mapped | 5.470 → 4.476 | 1.222× |
+| release | 17 labels, 64 series, mapped | 5.249 → 3.929 | 1.336× |
+| release-min | 17 labels, 64 series, mapped | 9.413 → 7.334 | 1.283× |
+| release | 32 KiB label, 64 mapped ticks | 1.441 → 1.208 | 1.193× |
+| release-min | 32 KiB label, 64 mapped ticks | 3.692 → 3.823 | 0.966× |
+| release | Empty mapped selector | 0.014940 → 0.015150 | 0.986× |
+| release-min | Empty mapped selector | 0.020020 → 0.022000 | 0.910× |
+
+All 20 groups remain in the report, including five slower candidate medians (0.18–9.89%). Native fixture ELF
+`.text` grows 528 bytes in release and 944 bytes in release-min. These are shared-host synthetic engine timings and
+requested engine bytes, not isolated device throughput, Agent size, process RSS or fresh HTTP/DBengine results.
+The finite panels strengthen compatibility evidence; they add no language feature and do not prove all-input
+PromQL equivalence. Earlier broad language/SRE/live-Agent/CI cohorts retain their actual historical identities.

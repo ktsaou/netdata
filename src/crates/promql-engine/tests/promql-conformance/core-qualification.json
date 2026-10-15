@@ -69905,5 +69905,18 @@
     "comparative_before_native_executables": 4,
     "timing_responses": 400,
     "attribution": "Final native/foreign compilers use the frozen qualified source. Before binaries and342reused before outcomes retain accepted predecessor bindings; Debug diagnostics are distinct."
+  },
+  "scheduled_label_transfer_qualification": {
+    "status": "qualified_scheduled_label_ownership_transfer",
+    "receipt": "scheduled-label-transfer-qualification.json",
+    "sha256": "a191005b036dd9ba39c83ecb7051e77d4db39a746f659801bdd3546b3ebefc03",
+    "native_comparisons": 1656,
+    "foreign_comparisons": 1104,
+    "native_units_per_profile": 654,
+    "focused_foreign_unit_executions": 24,
+    "actual_candidate_c_cpp_executables": 12,
+    "comparative_before_native_executables": 4,
+    "timing_responses": 400,
+    "attribution": "Actual final native/foreign frozen-source compilations;before retains predecessor binaries and1240explicit reused outcomes. Debug and earlier broad cohorts remain distinct."
   }
 }
