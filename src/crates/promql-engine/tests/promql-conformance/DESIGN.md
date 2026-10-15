@@ -873,3 +873,28 @@ integration, and Alertmanager remains excluded.
 - **Evidence:** [completed sort-emission qualification](sort-emission-qualification.json) retains the complete-query
   growth red, premature-completion red, actual suffix/warm-selected failures, sparse/key/context/charge controls,
   target layouts and source-bound containing-Agent checks. Timing remains finite shared-host evidence.
+
+
+## Scheduled derived quantile rank traversals
+
+- **Choice:** only a scheduled, dry `Kernel::Quantile` in its existing Rank phase may reuse validation as the
+  consuming traversal. Capture that condition before visiting samples. Reuse the literal two-lane radix selector;
+  preserve its ordered keys, signed-zero/NaN origin handling, interpolation and fixed integer state.
+- **Phases:** classify provisionally during the dry visitor, await the complete child driver and `Reader::Done`,
+  then update the existing dry/complete flags. The next ordinary advancement keeps its control checks, Reader
+  reset/drop and `finish_pass`. The final visitor alone grants no completion. A failed driver discards query-local
+  provisional counters; no rank, backing or output is published from that pass.
+- **Accounting and control:** the Rank-only entry adds no poll, allocation or returned error. It charges actual
+  float/native/stale samples by 4/1/0 work units immediately and reuses the existing selector charges. Keep ordinary
+  receive and MAD unchanged. Partial failures therefore retain actual work without deferred `4*N` arithmetic.
+- **Diagnostics:** preparation owns completed child/root annotations. Internal scheduled replays suppress their
+  own builders; removing a second internal traversal removes no observable message. Preserve the remaining child
+  diagnostic drain for errors and cancellation. Mixed native notes and classic nonmonotone fallback controls
+  compare full kinds, spans and occurrences through accepted results.
+- **Ownership:** add no Step field, sample retention, page cache, metadata owner or history array. Completed
+  membership bounds counters under the existing repeatable-input contract. Fetch/materialization, provider backing,
+  nonscheduled evaluation and logical sample participation keep their owners and behavior.
+- **Evidence:** [rank traversal qualification](quantile-rank-traversal-qualification.json) retains the meaningful
+  growth red, complete driver/control failures, final-source and byte-equivalence identities, both native profiles,
+  compiled ARM owners/queries, real C/C++ callers, all required reducer/temporal outcomes and warm paired timings.
+  Finite source-bound evidence does not prove every input or globally optimal performance.

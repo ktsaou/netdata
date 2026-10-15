@@ -8878,5 +8878,17 @@
     "foreign_complete_matches": 3708,
     "native_units_per_profile": 621,
     "actual_c_callers": 12
+  },
+  "scheduled_quantile_rank_traversal_qualification": {
+    "status": "pass",
+    "receipt": "quantile-rank-traversal-qualification.json",
+    "sha256": "511f41ab083862180c225dee357c2f1a4b601ee8108e8ab21c761b782b37cfd1",
+    "scope": "Private scheduled derived temporal-quantile Rank traversal fusion; no language/storage/ABI/default change.",
+    "native_complete_matches": 864,
+    "foreign_complete_matches": 776,
+    "retained_reducer_outcomes": 56124,
+    "retained_temporal_outcomes": 14664,
+    "native_units_per_profile": 624,
+    "actual_native_c_callers": 4
   }
 }

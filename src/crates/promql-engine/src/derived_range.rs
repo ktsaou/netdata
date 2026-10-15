@@ -390,6 +390,9 @@ impl<'a> Step<'a> {
         ) -> Result<(), EvaluationError>,
     ) -> Result<(), EvaluationError> {
         let dry = self.dry;
+        let fuse_rank = self.input.scheduled
+            && dry
+            && matches!(&self.kernel, Kernel::Quantile(step) if step.is_ranking());
         let reader = &mut self.reader;
         let kernel = &mut self.kernel;
         let units = &mut self.sample_units;
@@ -400,6 +403,12 @@ impl<'a> Step<'a> {
             account,
             |sample| {
                 if dry {
+                    if fuse_rank {
+                        let Kernel::Quantile(step) = kernel else {
+                            unreachable!("active quantile rank pass")
+                        };
+                        step.receive_rank(sample, account);
+                    }
                     Ok(())
                 } else {
                     if counting {
@@ -414,6 +423,10 @@ impl<'a> Step<'a> {
             },
             drive,
         )?;
+        // Rank counters replace a consuming pass only after the whole child succeeds.
+        if fuse_rank {
+            self.dry = false;
+        }
         self.scheduled_complete = true;
         Ok(())
     }
@@ -569,6 +582,224 @@ impl<'a> Step<'a> {
                     }
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        accounting::EngineAccounting,
+        result::OwnedLabels,
+        storage::{StorageError, TimeBounds},
+        test_storage::{GeneratedSeries, counter},
+    };
+    use std::sync::atomic::Ordering;
+
+    type ScheduledVisitor<'a> = dyn for<'sample> FnMut(i64, Option<SampleRef<'sample>>) -> Result<bool, EvaluationError>
+        + 'a;
+
+    fn input(count: usize) -> Input {
+        let time_ms = count as i64 * 1000;
+        Input {
+            body: NodeId(0),
+            grid: Grid {
+                start_ms: 1000,
+                end_ms: time_ms,
+                interval_ms: 1000,
+            },
+            options: EvaluationOptions {
+                time_ms,
+                start_ms: time_ms,
+                end_ms: time_ms,
+                step_ms: 0,
+                lookback_ms: 1,
+                start_timestamps: false,
+                delayed_name_removal: false,
+            },
+            function: RangeFunction::Numeric(NumericRangeFunction::Quantile),
+            parameters: [0.5, 0.0],
+            range_ns: count as i64 * 1_000_000_000,
+            offset_ns: 0,
+            fixed: false,
+            scheduled: true,
+        }
+    }
+
+    fn row(account: &QueryAccounting) -> Descriptor {
+        Descriptor {
+            labels: OwnedLabels::new(account, MemoryKind::Workspace),
+            ordinal: 0,
+            hash: 0,
+            drop_name: false,
+            first_order: 0,
+            sources: 0..1,
+            kinds: 1,
+            heads: Default::default(),
+        }
+    }
+
+    fn drive(
+        source: &GeneratedSeries,
+        control: &Control,
+        account: &QueryAccounting,
+        visit: &mut ScheduledVisitor<'_>,
+    ) -> Result<(), EvaluationError> {
+        crate::range_numeric::scan(
+            source,
+            TimeBounds {
+                start_ms: 0,
+                end_ms: source.count as i64 * 1000,
+            }
+            .into(),
+            control,
+            account,
+            |sample| match visit(sample.time_ms, Some(sample)) {
+                Ok(_) => Ok(()),
+                Err(EvaluationError::Storage(error)) => Err(error),
+                Err(EvaluationError::Interrupted(error)) => Err(error.into()),
+                Err(error) => panic!("unexpected reader error: {error:?}"),
+            },
+        )?;
+        Ok(())
+    }
+
+    fn prime_rank(
+        step: &mut Step<'_>,
+        source: &GeneratedSeries,
+        control: &Control,
+        account: &QueryAccounting,
+    ) {
+        for _ in 0..2 {
+            assert!(matches!(
+                step.advance(control, account).unwrap(),
+                Action::ScheduledPass { .. }
+            ));
+            step.scheduled_pass(control, account, |visit| {
+                drive(source, control, account, visit)
+            })
+            .unwrap();
+        }
+        assert!(matches!(
+            step.advance(control, account).unwrap(),
+            Action::ScheduledPass { .. }
+        ));
+        assert!(matches!(&step.kernel, Kernel::Quantile(rank) if rank.is_ranking()));
+        assert!(step.dry && !step.scheduled_complete && !step.count_window);
+        assert_eq!(step.sample_units, source.count as u64);
+        assert_eq!(source.counters.opened.load(Ordering::Relaxed), 2);
+    }
+
+    #[test]
+    fn scheduled_quantile_rank_requires_complete_validation_and_terminal_control() {
+        for page in [1, 17, 1024] {
+            for failure in ["page", "after", "after_cancel", "terminal"] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let rows = [row(&account)];
+                let mut source = GeneratedSeries::new(page + 1, page, counter);
+                let mut step = Step::new(input(page + 1), &rows, RowFilter::All, &account);
+                prime_rank(&mut step, &source, &control, &account);
+                if failure == "page" {
+                    source.fail_page = Some(1);
+                }
+                let result = step.scheduled_pass(&control, &account, |visit| {
+                    let result = drive(&source, &control, &account, visit);
+                    if failure != "after" {
+                        control.cancellation.cancel();
+                    }
+                    result?;
+                    if failure == "terminal" {
+                        Ok(())
+                    } else {
+                        Err(StorageError::Provider(b"after final visitor".to_vec().into()).into())
+                    }
+                });
+                if failure == "terminal" {
+                    result.unwrap();
+                    assert!(!step.dry && step.scheduled_complete);
+                    assert!(matches!(
+                        step.advance(&control, &account),
+                        Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                    ));
+                } else {
+                    assert!(
+                        matches!(&result, Err(EvaluationError::Storage(StorageError::Provider(bytes)))
+                        if &**bytes == if failure == "page" { &b"injected page failure"[..] } else { &b"after final visitor"[..] })
+                    );
+                    assert!(step.dry && !step.scheduled_complete);
+                    drop(result);
+                }
+                assert_eq!(step.position, 0);
+                assert!(step.backed.is_none());
+                assert_eq!(step.sample_units, source.count as u64);
+                assert_eq!(source.counters.opened.load(Ordering::Relaxed), 3);
+                assert_eq!(source.counters.closed.load(Ordering::Relaxed), 3);
+                assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                if failure != "page" {
+                    // A prematurely finished nibble would have cleared these complete counters.
+                    assert!(matches!(
+                        step.kernel
+                            .finish_pass(&Control::default(), &account)
+                            .unwrap(),
+                        Pass::Replay
+                    ));
+                }
+                drop(step);
+                drop(rows);
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn scheduled_quantile_rank_uses_one_traversal_per_nibble() {
+        for page in [1, 17, 1024] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let rows = [row(&account)];
+            let source = GeneratedSeries::new(2, page, counter);
+            let mut step = Step::new(input(2), &rows, RowFilter::All, &account);
+            let mut traversals = 0;
+            loop {
+                match step.advance(&control, &account).unwrap() {
+                    Action::ScheduledPass { .. } => {
+                        traversals += 1;
+                        assert!(traversals <= 34);
+                        step.scheduled_pass(&control, &account, |visit| {
+                            drive(&source, &control, &account, visit)
+                        })
+                        .unwrap();
+                    }
+                    Action::Series {
+                        sample: Some(sample),
+                        sample_units,
+                        ..
+                    } => {
+                        assert_eq!(sample.source_time_ms, 2000);
+                        assert!(
+                            matches!(sample.value, OwnedValue::Float(value) if value.to_bits() == 1.5f64.to_bits())
+                        );
+                        assert_eq!(sample_units, 2);
+                        break;
+                    }
+                    _ => panic!("unexpected quantile continuation"),
+                }
+            }
+            assert_eq!(traversals, 18);
+            assert_eq!(source.counters.opened.load(Ordering::Relaxed), 18);
+            assert_eq!(source.counters.closed.load(Ordering::Relaxed), 18);
+            assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+            drop(step);
+            drop(rows);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
         }
     }
 }

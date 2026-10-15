@@ -25,6 +25,10 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Scheduled derived quantile ranks pass 624 final units/profile, 864 complete native and 776 compiled ARM matches,
+  plus 56,124 retained reducer and 14,664 temporal outcomes. All 864 measured memory peaks remain unchanged; 408 cases
+  fetch fewer entries. The [rank traversal panel](#scheduled-derived-quantile-rank-traversals) records the complete
+  phase/control, source/binary and paired-timing evidence separately from earlier broad qualification cohorts.
 - Compact group/join lookups pass 535 fixture units per optimized build, 128,652 builtin comparisons and all
   231,540 required SRE comparisons across both builds and pages 1/17/1024. Fresh C/C++ callers execute on AMD64,
   ARM64 and ARM32; 58 controlled live API/contexts checks pass. The [lookup panel](#compact-group-and-join-lookups)
@@ -3260,3 +3264,63 @@ their cause.
 Timings measure generated inputs on a shared host, without isolated CPU or production disk/RSS claims. A final
 test-comment clarification retains a distinct final-source identity alongside the actual compiled sources;
 executable tokens and line counts are unchanged.
+
+
+## Scheduled derived quantile rank traversals
+
+An earned scheduled single-selector subquery now classifies exact quantile ranks during its existing complete
+validation traversal. The sixteen rank passes each use one traversal. Membership, ordinal Fetch and provider-owned
+temporary materialization keep their original phases. Ordinary and MAD paths keep their existing behavior.
+
+The rank counters remain provisional until the complete child driver and Reader finish successfully. A late page
+error, an error after the final visitor, or terminal cancellation still prevents rank completion and output. The
+small Rank-only adapter reuses the literal selector, records each sample's work immediately and adds no control
+poll or allocation. Internal scheduled replays suppress annotations; preparation still owns final diagnostics.
+
+The [rank traversal qualification](quantile-rank-traversal-qualification.json) binds 864 complete native before/after
+matches, 776 compiled ARM64/ARM32 matches, 56,124 retained reducer outcomes and 14,664 retained temporal/backing/scheduled
+outcomes. Original reducer order differences remain separate from the passing approved ordering reports. Both final
+native profiles pass 624 units. Formatting, production/fixtures lint and the Rust 1.91 compile check pass. Four actual
+native C/C++ callers pass with 32 records each. Every caller includes six derived-quantile normal/provisional-error
+cases at pages 1/17/1024. Each foreign profile runs the three
+new focused owner tests.
+
+For `quantile_over_time(.5,(m*1)[4096s:1s])`, one series and page 17, distinct values are 1…4096.
+The ambiguous pattern repeats −1, −0, +0 and 1 and uses the existing exact-sort backing path.
+
+| Input pattern | Fetched entries before → after | Recorded work before → after | Workspace peak before → after |
+|---|---:|---:|---:|
+| distinct | 290,816 → 159,744 | 27,166,570 → 14,983,594 | 22,278 → 22,278 B |
+| ambiguous | 299,008 → 167,936 | 27,980,302 → 15,797,326 | 39,134 → 39,134 B |
+
+Across 864 native query/profile groups, 408 fetch fewer entries. Every measured workspace, provider-held and
+borrowed-view peak is unchanged. The existing generated 2,048/100,000-point test keeps flat peaks, one open cursor
+and full release. Its computed ambiguous case reads `41*N` at both sizes; the retained red fails at 2,048 points with
+`73*N`. This is finite growth evidence. Raw values remain paged on both axes; no history array, cache, cap or
+backing policy is added.
+
+The warm timing panel checks 1,200 complete responses after all owned qualification jobs close. It uses five
+alternating before/current pairs per profile, one warm run before each measured query, and retains empty/small/raw
+controls, page effects and both instant/range modes. The 4,096-point instant examples above report:
+
+| Profile | Input pattern | Median before → after | Before/after ratio |
+|---|---|---:|---:|
+| release | distinct | 685.68 → 368.04 ms | 1.86× |
+| release-min | distinct | 1068.80 → 578.66 ms | 1.85× |
+| release | ambiguous | 726.87 → 391.01 ms | 1.86× |
+| release-min | ambiguous | 1093.40 → 617.57 ms | 1.77× |
+
+All 60 median ratios span 0.881–1.909. Eleven medians are slower. The lowest ratios include
+`quantile-distinct-n1-page17-raw-instant` (release, 23,629 → 26,830 ns, 0.881×) and
+`quantile-distinct-n0-page17-computed-range` (release-min, 31,160 → 34,320 ns, 0.908×).
+An unchanged-source follow-up checks 1,872 complete responses for six affected/matched tiny controls, with 72 measured
+samples per phase/group. Its ratios span 0.994–1.044; the slower median is
+20,805 → 20,929 ns for `quantile-distinct-n1-page17-raw-instant` (release).
+Both panels remain intact. The follow-up does not replace the first observations or establish their cause.
+These are generated shared-host engine timings, without isolated CPU, production disk or process-RSS claims.
+
+A test-local callback type alias fixes a lint failure. Fresh final native query binaries and archives are byte-identical
+to the fully qualified prototype artifacts; the reports retain both source identities. Final units, native callers
+and foreign queries execute the final sources. The first timing harness attempt stopped before any query because it
+selected the wrong active fixture dataset; its failed artifacts remain separate from the corrected measurements.
+Earlier full language/SRE/Agent/foreign-C cohorts retain their original source and binary identities.

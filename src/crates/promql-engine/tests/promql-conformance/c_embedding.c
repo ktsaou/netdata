@@ -1116,6 +1116,10 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
         printf("{\"direct_abs_replay\":\"pass\",\"expression\":\"%s\",\"cases\":9,\"page_sizes\":3}\n", expression_override);
         return;
     }
+    if (query_kind == FOUR_SERIES_NUMERIC && expression_override) {
+        puts("{\"scheduled_quantile_rank\":\"pass\",\"cases\":6,\"page_sizes\":3}");
+        return;
+    }
     puts(query_kind == FOUR_SERIES_NUMERIC ? "{\"instant_numeric_folds\":\"pass\",\"cases\":6,\"page_sizes\":3}" :
          query_kind == FOUR_SERIES_RATE ? "{\"direct_rate_replay\":\"pass\",\"cases\":12,\"page_sizes\":3}" :
                                          "{\"unique_binary_replay\":\"pass\",\"cases\":9,\"page_sizes\":3}");
@@ -1953,6 +1957,8 @@ int main(void) {
     four_series_float_query(engine, FOUR_SERIES_JOIN, NULL);
     balanced(engine, &idle);
     four_series_float_query(engine, FOUR_SERIES_NUMERIC, NULL);
+    balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_NUMERIC, "quantile_over_time(.5,(m*1)[2s:1s])");
     balanced(engine, &idle);
     four_series_float_query(engine, FOUR_SERIES_RATE, NULL);
     balanced(engine, &idle);

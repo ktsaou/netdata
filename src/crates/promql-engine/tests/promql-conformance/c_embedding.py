@@ -229,6 +229,7 @@ def native_records(name, output):
         {"label_field_boundary": "pass", "cases": 6},
         {"unique_binary_replay": "pass", "cases": 9, "page_sizes": 3},
         {"instant_numeric_folds": "pass", "cases": 6, "page_sizes": 3},
+        {"scheduled_quantile_rank": "pass", "cases": 6, "page_sizes": 3},
         {"direct_rate_replay": "pass", "cases": 12, "page_sizes": 3},
         {"direct_abs_replay": "pass", "expression": "abs(m) / on(zone) m", "cases": 9, "page_sizes": 3},
         {"direct_abs_replay": "pass", "expression": "m / on(zone) abs(m)", "cases": 9, "page_sizes": 3},

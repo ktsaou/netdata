@@ -120,6 +120,23 @@ impl Step {
         }
     }
 
+    pub(crate) fn is_ranking(&self) -> bool {
+        matches!(self.phase, Phase::Rank(_))
+    }
+
+    pub(crate) fn receive_rank(&mut self, sample: SampleRef<'_>, account: &QueryAccounting) {
+        let Phase::Rank(selector) = &mut self.phase else {
+            unreachable!("active quantile rank pass")
+        };
+        if sample.value.is_stale() {
+            return;
+        }
+        account.work(1);
+        if let SampleValueRef::Float(value) = sample.value {
+            selector.receive(value, account);
+        }
+    }
+
     pub(crate) fn receive(
         &mut self,
         sample: SampleRef<'_>,
@@ -436,6 +453,77 @@ mod tests {
     }
 
     #[test]
+    fn provisional_rank_accounts_samples_without_adding_a_control_boundary() {
+        use crate::value::SampleValueRef;
+
+        fn ranked(account: &QueryAccounting) -> Step {
+            let mut step = Step::new(0.5, account);
+            assert!(!step.is_ranking());
+            for index in 0..2 {
+                step.receive(counter(index).as_ref(), &Control::default(), account)
+                    .unwrap();
+            }
+            assert!(matches!(
+                step.finish_pass(&Control::default(), account).unwrap(),
+                Pass::Replay
+            ));
+            assert!(step.is_ranking());
+            step
+        }
+
+        let histogram = FloatHistogram::default();
+        for (value, work) in [
+            (SampleValueRef::Float(1.0), 4),
+            (SampleValueRef::FloatHistogram(histogram.as_ref()), 1),
+            (SampleValueRef::Float(f64::from_bits(STALE_NAN_BITS)), 0),
+        ] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let mut step = ranked(&account);
+            let before = account.snapshot();
+            step.receive_rank(
+                SampleRef {
+                    time_ms: 1000,
+                    start_time_ms: 0,
+                    value,
+                },
+                &account,
+            );
+            let after = account.snapshot();
+            assert_eq!(after.work - before.work, work);
+            assert_eq!(after.memory, before.memory);
+            assert_eq!(
+                after.statistics.samples.total_queryable_samples,
+                before.statistics.samples.total_queryable_samples
+            );
+            drop(step);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+        for budget in 1..=4 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let mut step = ranked(&account);
+            let control = Control::default();
+            let before = account.snapshot().work;
+            crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                step.receive_rank(counter(0).as_ref(), &account);
+            });
+            assert_eq!(account.snapshot().work - before, 4);
+            assert!(matches!(control.check(), Err(Interrupted::Cancelled)));
+            assert!(matches!(
+                step.finish_pass(&control, &account),
+                Err(StorageError::Interrupted(Interrupted::Cancelled))
+            ));
+            drop(step);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
     fn generated_ambiguous_history_uses_flat_ram_and_provider_owned_extent() {
         use crate::{
             execution::{Engine, QueryRequest},
@@ -476,12 +564,26 @@ mod tests {
                     );
                     let output = report.result.as_ref().unwrap();
                     assert_eq!(output.series.len(), 1);
+                    assert_eq!(output.series[0].labels.0.len(), 2);
+                    assert_eq!(&*output.series[0].labels.0[0].name, b"instance");
+                    assert_eq!(&*output.series[0].labels.0[0].value, b"0");
+                    assert_eq!(&*output.series[0].labels.0[1].name, b"job");
+                    assert_eq!(&*output.series[0].labels.0[1].value, b"worker");
+                    assert_eq!(output.series[0].points.len(), 1);
+                    assert_eq!(output.series[0].points[0].time_ms, count as i64 * 1000);
                     let crate::result::OwnedValue::Float(value) = output.series[0].points[0].value
                     else {
                         panic!("float quantile");
                     };
                     assert_eq!(value.to_bits(), 0);
+                    assert!(report.annotations.is_empty());
                     let snapshot = &report.observations;
+                    assert_eq!(snapshot.output_samples, 1);
+                    assert_eq!(
+                        snapshot.statistics.samples.total_queryable_samples,
+                        count as u64
+                    );
+                    assert!(snapshot.statistics.samples.samples_read <= snapshot.samples_fetched);
                     let peaks = [
                         MemoryKind::Workspace,
                         MemoryKind::ProviderHeld,
@@ -504,9 +606,6 @@ mod tests {
                             snapshot.samples_fetched,
                             counters.samples_returned.load(Ordering::Relaxed) as u64
                         );
-                        assert!(snapshot.samples_fetched <= 80 * count as u64);
-                        assert!(snapshot.pages <= 80 * count.div_ceil(page) as u64);
-                        assert!(counters.opened.load(Ordering::Relaxed) <= 80);
                         for kind in [
                             MemoryKind::Workspace,
                             MemoryKind::ProviderHeld,
@@ -517,10 +616,29 @@ mod tests {
                     }
                     assert_eq!(counters.active.load(Ordering::Relaxed), 0);
                     assert_eq!(counters.peak.load(Ordering::Relaxed), 1);
+                    let measured = (
+                        snapshot.samples_fetched,
+                        snapshot.pages,
+                        counters.opened.load(Ordering::Relaxed),
+                        snapshot.work,
+                        snapshot.memory[MemoryKind::Workspace as usize].peak,
+                    );
                     provider.assert_closed();
                     drop(report);
                     drop(query);
                     engine.accounting.snapshot().assert_memory_released();
+                    println!(
+                        "{{\"derived_quantile_points\":{count},\"computed\":{computed},\"page_size\":{page},\"fetched\":{},\"pages\":{},\"cursors\":{},\"work\":{},\"workspace_peak\":{}}}",
+                        measured.0, measured.1, measured.2, measured.3, measured.4
+                    );
+                    if computed {
+                        assert!(
+                            measured.0 <= 50 * count as u64,
+                            "scheduled quantile ranks must avoid a second traversal: {measured:?} for {count} points/page{page}"
+                        );
+                        assert!(measured.1 <= 50 * count.div_ceil(page) as u64);
+                        assert!(measured.2 <= 50);
+                    }
                 }
             }
         }
