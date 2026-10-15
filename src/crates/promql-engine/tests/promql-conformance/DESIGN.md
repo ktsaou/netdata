@@ -624,17 +624,19 @@ integration, and Alertmanager remains excluded.
 
 ## Completed direct float-map join scans
 
-- **Choice:** recognize the shared typed `PointwiseFunction::Float` class with a nonempty vector argument, resolving
-  its already-earned raw-selector marker. This includes direct and composed mathematical maps, parameterized round,
-  clamps and explicit-vector calendars. The inner proven path may include parens/unary, vector/pure-scalar operations,
-  label projections, supported timestamp and histogram count/sum/avg conversions. Require an actual raw Selector and
+- **Choice:** resolve the existing earned scheduled-selector marker for the operand. Its existing grammar proves
+  one prepared vector path, pure scalar side arguments and projected-label uniqueness. Direct and composed Float
+  maps, parameterized round/clamps, explicit-vector calendars, vector/pure-scalar operations, parens/unary, label
+  projections and supported timestamp or histogram count/sum/avg conversions can qualify as outer operands.
+  Require an actual raw Selector and
   identical outer/leaf producer/source/scope grids. Preserve all root, matching, uniqueness, selector-schedule,
   exact-key and successful-Done gates. The separate direct rate branch keeps its actual-arity-one restriction.
 - **Ownership:** reuse existing pair bindings and accounted current-scope membership. Later outputs read selected
   wrapper operands afresh through canonical-to-physical mapping. First-final delivery drains all pairs before
   publishing membership. Release the previous completion before replacement. No raw history array, purity walk,
   function whitelist, additional runtime state or cache is introduced.
-- **Parameters and omission:** normal evaluation computes scalar arguments before reading the vector. Full clamp
+- **Parameters and omission:** normal evaluation computes scalar arguments before reading the vector, including
+  either scalar position in a mixed Binary expression. Full clamp
   can emit an empty scope; completed empty and populated membership remains exact-key-specific. NaN bounds produce
   present float NaNs, and native values retain normal filtering. Sparse/stale and reordered inputs preserve wrapper
   ordinals. Source-reading scalar parameters, zero-argument clocks, unproven shapes and unsupported schedules retain
@@ -650,13 +652,23 @@ integration, and Alertmanager remains excluded.
   82–312 B in the earlier one-argument cohort and 146–312 B in the parameter cohort. Some mixed-kind rejected
   certificates add 32 cumulative bytes and 16 work units with unchanged peaks. These are measured finite costs,
   not a global peak-memory reduction. Accounted bytes are not RSS; caps remain disabled.
-- **Compositions:** [composed-map qualification](composed-map-join-qualification.json) binds complete native/compiled-ARM
+- **Composed checkpoint:** [composed-map qualification](composed-map-join-qualification.json) binds complete native/compiled-ARM
   outcomes and nonuniform label/time/native expectations. Pair selection keeps outer ordinals; existing source maps
   translate through intermediate projections. No second purity/clock walk or raw-ordinal substitution is added.
   All 240 scaling workspace peaks and 2,006 instant observation groups match; 396 small groups add 312 B at peak
   (at most 1.10%) through existing completion metadata, while 1,524 groups reduce reads/work/allocation and none
   increase them. These are
   measured finite costs, not a universal peak-memory reduction.
+- **Direct operands:** [earned-operand qualification](earned-operand-join-qualification.json) extends that checkpoint's
+  outer Float restriction to every already-marked class, preserving the raw Selector and separate rate paths.
+  Pair certification still requires actual unique Float operands/output; native-preserving results remain ordinary.
+  Bare label projections keep child encounter order, which can differ from the sorted final root order. Cold fault
+  landmarks therefore follow actual pair order; warm selected reads retain the requested outer ordinal.
+  The finite panel passes 1,986 complete native and 1,196 compiled ARM matches, with independent value/label/time
+  expectations. All 966 instant observations and 240 scaling workspace peaks match. In 774 groups, reads, work and
+  cumulative workspace acquisition decrease. Forty-two small groups add 168 or 312 B at peak (at most 1.40%);
+  six native-preserving fallbacks add 15 work units and 32 cumulative workspace bytes with unchanged reads/peaks.
+  Fixed paired timings retain all five slower controls. No new state, cache, raw arrays or public contract is added.
 - **Evidence:** [parameter-map qualification](parameter-map-join-qualification.json) binds the earlier parameter,
   changing-membership, interruption, complete native/compiled-ARM, actual C/C++ and timing panels, including every
   slower group and distinct development failure. The [one-argument cohort](float-map-join-qualification.json) and

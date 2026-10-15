@@ -1113,7 +1113,13 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
         }
     }
     if (query_kind == FOUR_SERIES_FLOAT_MAP) {
-        printf("{\"direct_float_map_replay\":\"pass\",\"expression\":\"%s\",\"cases\":9,\"page_sizes\":3}\n", expression_override);
+        fputs("{\"direct_float_map_replay\":\"pass\",\"expression\":\"", stdout);
+        for (const unsigned char *p = (const unsigned char *)expression_override; *p; ++p) {
+            if (*p == '"' || *p == '\\') putchar('\\');
+            if (*p < 0x20) printf("\\u%04x", (unsigned)*p);
+            else putchar(*p);
+        }
+        puts("\",\"cases\":9,\"page_sizes\":3}");
         return;
     }
     if (query_kind == FOUR_SERIES_NUMERIC && expression_override) {
@@ -1991,6 +1997,14 @@ int main(void) {
     four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "abs(timestamp(+m)) / on(zone) abs(timestamp(+m))");
     balanced(engine, &idle);
     four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "m / on(zone) round(abs(m),.5)");
+    balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "(m*1) / on(zone) m");
+    balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "m / on(zone) (m*1)");
+    balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "(+m) / on(zone) m");
+    balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "label_join(m, \"zone\", \"\", \"zone\") / on(zone) m");
     balanced(engine, &idle);
     average_read_reuse(engine);
     balanced(engine, &idle);

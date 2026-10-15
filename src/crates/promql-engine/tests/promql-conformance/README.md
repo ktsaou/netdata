@@ -25,6 +25,9 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Earned mapped operands pass 1,986 complete native and 1,196 compiled ARM matches, 632 native units/profile and
+  12 actual C/C++ callers. The [operand panel](#completed-earned-operand-joins) records direct arithmetic, unary,
+  label and native-to-float schedule reuse, 36–43× large-case timing gains, unchanged scaling peaks and small costs.
 - Composed Float-map joins pass 4,126 complete native and 8,156 compiled ARM matches, 632 native units/profile and 12 actual
   C/C++ callers. The [composition panel](#completed-composed-float-map-joins) records existing schedule reuse, full
   value/label/time checks, large-query savings and the 312 B small-case peak cost.
@@ -3399,7 +3402,8 @@ The initial completed direct-join extension used the existing typed `PointwiseFu
 actual arity one. That cohort covered all 32 one-argument members: ordinary mathematical maps, default `round` and
 explicit-vector calendars. At that checkpoint, parameterized round/clamps kept ordinary evaluation. The
 [parameterized extension](#completed-parameterized-float-map-joins) records that checkpoint's additional eligibility;
-the [composition extension](#completed-composed-float-map-joins) records the current broader inner path.
+the [composition extension](#completed-composed-float-map-joins) records the broader inner path.
+The [earned-operand extension](#completed-earned-operand-joins) records current outer eligibility.
 This earlier cohort and its numbers retain their original source and binary identities.
 
 That checkpoint required a direct selector, an earned scheduled-selector marker, matching wrapper/leaf producer,
@@ -3482,8 +3486,8 @@ grids. The [composition extension](#completed-composed-float-map-joins) below br
 Root, matching, unique-kind, clock and successful-completion gates remain in place. Parameters still evaluate
 through the normal evaluator before vector acquisition. Source-reading `scalar(n)` and even `scalar(vector(.5))`
 do not earn this conservative marker and retain ordinary evaluation. Zero-argument calendars remain ordinary;
-indirect and clock/native helpers kept their previous paths at that checkpoint. Current composed eligibility is
-recorded below.
+indirect and clock/native helpers kept their previous paths at that checkpoint.
+Current outer eligibility is in the [earned-operand extension](#completed-earned-operand-joins).
 
 A full clamp can omit every row for a tick. Reuse keeps the current exact scope and actual membership.
 With four IDs and constant inputs of 1, `clamp(a, 0, .5-(time()-2)^2) / on(instance) b` emits nothing at seconds 1
@@ -3638,11 +3642,13 @@ results establish no universal gain or causal explanation for host/profile diffe
 
 ## Completed composed Float-map joins
 
-Completed joins now resolve the existing earned schedule through composed Float operands such as
-`round(abs(m), .5) / on(id) n`. Inner parens/unary, vector/pure-scalar arithmetic and comparisons, label projections,
-supported timestamps and histogram count/sum/avg conversions can qualify. The outer typed Float and raw-leaf/grid,
-root, one-to-one matching, unique Float operand/output and successful-completion checks remain. A bare outer Binary,
-group, sort, subquery, source-reading scalar or unproven clock keeps its ordinary path. No feature is dropped.
+The composed checkpoint resolved the existing earned schedule through Float operands such as
+`round(abs(m), .5) / on(id) n`. Its inner path admitted parens/unary, vector/pure-scalar arithmetic and comparisons,
+label projections, supported timestamps and histogram count/sum/avg conversions. That checkpoint retained an outer
+typed Float restriction; bare outer Binary and other mapped forms kept their ordinary path. The
+[earned-operand extension](#completed-earned-operand-joins) records current outer eligibility. Raw-leaf/grid, root,
+one-to-one matching, unique Float operand/output and successful-completion checks remain in the current design.
+This checkpoint's qualification and numbers retain their original source and binary identities.
 
 The marker already proves every prepared vector child, pure scalar side parameter and projected-label uniqueness.
 Matching outer/leaf source/value grids excludes intermediate boundary collapse; scalar argument clocks may intentionally
@@ -3703,3 +3709,79 @@ group in the qualification. Examples at 128 series/side and page 17:
 The panel retains 5 slower medians. There is no exclusive-CPU/frequency or universal speed claim.
 No new Go/SRE/live-Agent/DBengine, full foreign-unit, layout, sanitizer, RSS or CI-pass qualification is inferred.
 Earlier cohorts retain their original source/binary identities.
+
+
+## Completed earned-operand joins
+
+Completed joins reuse the existing earned schedule for direct mapped operands, including `(m*100) / on(id) n`,
+`(-m) / on(id) n`, label projections and histogram count/sum/avg conversions. The marker remains the single authority
+for its prepared vector path, pure scalar side arguments and projected-label uniqueness. It must resolve to an
+actual raw Selector with matching outer/leaf producer, source and scope grids. The outer typed-Float syntax gate
+is removed; raw Selector and separate actual-arity-one rate paths retain their behavior.
+
+All root, no-fill, one-to-one matching, delayed-name, invariant/boundary, actual unique Float operand/output,
+exact-key and successful-completion gates remain. Native-preserving results, source-reading scalar parameters,
+histogram stdvar/stddev, group/sort/subquery and missing clock proofs keep ordinary evaluation. Direct timestamp
+can lack its leaf producer; timestamp of a computed vector can qualify. No feature is dropped.
+
+First-final delivery still drains every pair before publishing reuse. Later rows read the selected original
+operands afresh through existing ordinal mappings. Bare label projection keeps child encounter order, which can
+differ from final root label order. The phase tests retain an early cold failure before output, the actual cold
+suffix after first output, and warm selected failures with every unselected physical row unchanged. Mixed Binary
+scalars in either position finish before vector acquisition. Empty/populated/empty scopes and present NaNs remain
+distinct. No new production field, owner, cache, raw history array, metadata authority or public contract is added.
+
+The [earned-operand qualification](earned-operand-join-qualification.json) records:
+
+- 993 queries/profile: direct arithmetic, unary/paren, scalar-position filtering and bool, label rewrites,
+  irregular timestamps, integer/float native histograms, sparse/stale/zero/signed data and ordinary fallbacks.
+- 1,986 complete native matches against the accepted engine, with exact raw order, numerical bits, errors and
+  annotations. All 828 independent full-value/label/time/membership expectations pass; those independent checks
+  compare NaN class, while accepted/current comparison retains exact NaN bits.
+- 1,196 complete compiled ARM64/ARM32 matches and 424 independent checks on a fixed distinguishing page-17 subset.
+  Twenty focused compiled unit executions exercise pages 1/17/1024. This is not a full foreign unit-suite claim.
+- 632 native units/profile, format, strict production/fixture Clippy and installed MSRV 1.91 compile-only checks.
+  Twelve actual native/ARM C/C++ callers pass 48 records each. Four added positive-float C queries use post-output
+  fault arming; native-value and cold/pre-first-output evidence comes from the distinct Rust owners.
+
+Before the runtime change, all 60 complete growth result/label/time/statistics/read-credit/release checks passed,
+then 18 newly admitted growth groups failed their bounds; the 12 earlier composed groups passed. Current bounds
+pass. Calibrated phase tests contain 819 records, covering discovery, full cold pairs, warm selection and early
+cold label failure. The original reader mistakes and copied label fault landmark remain in separate development
+receipts. The fault correction changes only tests; the runtime transformation and unchanged direct-rate suffix
+have exact reconstruction proofs. No failed run becomes successful qualification.
+
+Of 1,986 exported observation groups, 774 fetch fewer entries, do less work and acquire less workspace. All 966
+instant observation groups and all 240 scaling workspace peaks match exactly. Forty-two small range groups add
+168 or 312 bytes at peak, at most 1.40% here. Six native-preserving fallback groups add 15 work units and 32
+cumulative workspace bytes each, with unchanged reads and peaks. All seven other accounted memory kinds have
+unchanged peaks and no higher acquisition. Accounted bytes exclude fixture inputs and allocator overhead and
+are not process RSS. Metadata and complete output can still grow with cardinality; caps remain disabled.
+
+For 128 series per side, page 17 and three range ticks, `(m*100) / on(id) n` changes as follows:
+
+| Observation | Before | After |
+|---|---:|---:|
+| Fetched sample entries | 595,968 | 13,038 |
+| Accounted work | 30,320,763 | 859,522 |
+| Acquired workspace bytes | 159,445,188 | 6,097,483 |
+| Peak workspace bytes | 418,304 | 418,304 |
+
+After qualification writers closed, eight fixed cases/profile ran five alternating pairs, one warm and one
+measured query per case/variant: 320 complete checked responses and 16 median groups. Complete outcomes and each
+variant's own qualified nonelapsed observations match. Selected shared-host execution medians are:
+
+| Profile | Operand | Median before → after | Before/after ratio |
+|---|---|---:|---:|
+| release | scale-right, 128 series | 573.342 → 15.672 ms | 36.58× |
+| release | label-join, 128 series | 573.426 → 13.510 ms | 42.44× |
+| release | histogram-count control | 0.876 → 0.513 ms | 1.71× |
+| release-min | scale-right, 128 series | 965.086 → 26.273 ms | 36.73× |
+| release-min | label-join, 128 series | 979.146 → 23.029 ms | 42.52× |
+| release-min | histogram-count control | 1.497 → 0.854 ms | 1.75× |
+
+All five slower medians remain in the report: release empty label-join, source-scalar, raw and previously eligible
+Float controls, plus release-min empty scale-right. Their before/after ratios are 0.988, 0.990, 0.954, 0.931 and
+0.994 respectively. Timings have no exclusive CPU/frequency control and do not establish universal throughput.
+There is no fresh Go/SRE/live-Agent/DBengine, full foreign-unit, layout, sanitizer, RSS or CI-pass claim.
+All 57 previous qualification ledger objects retain their original content and source/binary attribution.

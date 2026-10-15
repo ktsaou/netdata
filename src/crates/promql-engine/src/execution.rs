@@ -1296,17 +1296,6 @@ impl CompiledQuery {
         if let Expr::Selector(selector) = &self.expression.arena[node].expression {
             return (!selector.smoothed).then_some(node);
         }
-        let Expr::Call {
-            function: Some(function),
-            arguments,
-            ..
-        } = &self.expression.arena[node].expression
-        else {
-            return None;
-        };
-        if arguments.is_empty() {
-            return None;
-        }
         let grid = crate::query_scopes::Grid::from(header);
         let same_grid = |node| {
             rosters
@@ -1315,13 +1304,8 @@ impl CompiledQuery {
                 && crate::query_scopes::Grid::from(prepared.source_header(node, header)) == grid
                 && crate::query_scopes::Grid::from(prepared.scope_header(node, header)) == grid
         };
-        // The earned schedule proves pure scalar parameters and excludes calendar clock defaults.
-        if matches!(
-            PointwiseFunction::parse(function.name),
-            Some(PointwiseFunction::Float(..))
-        ) {
-            let selector = rosters.scheduled_selector(node)?;
-            // The earned marker includes prepared-child and projected-label uniqueness checks.
+        // The earned marker proves the vector path, scalar arguments and projected uniqueness.
+        if let Some(selector) = rosters.scheduled_selector(node) {
             return (matches!(
                 self.expression.arena[selector].expression,
                 Expr::Selector(_)
@@ -1329,6 +1313,14 @@ impl CompiledQuery {
                 && same_grid(selector))
             .then_some(selector);
         }
+        let Expr::Call {
+            function: Some(function),
+            arguments,
+            ..
+        } = &self.expression.arena[node].expression
+        else {
+            return None;
+        };
         if function.name != "rate" || arguments.len() != 1 {
             return None;
         }
@@ -6039,11 +6031,23 @@ mod tests {
     #[test]
     fn composed_float_map_join_avoids_repeated_all_row_reads() {
         let mut observations = Vec::new();
-        for expression in [
-            "round(abs(a), .5) / on(instance) b",
-            "abs((a*1)) / on(instance) b",
-            "abs(timestamp(+a)) / on(instance) abs(timestamp(+b))",
-            "abs(label_join(a, \"instance\", \"\", \"instance\")) / on(instance) b",
+        for (expression, expected) in [
+            ("round(abs(a), .5) / on(instance) b", 1.0_f64),
+            ("abs((a*1)) / on(instance) b", 1.0),
+            ("abs(timestamp(+a)) / on(instance) abs(timestamp(+b))", 1.0),
+            (
+                "abs(label_join(a, \"instance\", \"\", \"instance\")) / on(instance) b",
+                1.0,
+            ),
+            ("(a*100) / on(instance) b", 100.0),
+            ("(100*a) / on(instance) b", 100.0),
+            ("(-a) / on(instance) b", -1.0),
+            ("(+a) / on(instance) b", 1.0),
+            (
+                "label_join(a, \"instance\", \"\", \"instance\") / on(instance) b",
+                1.0,
+            ),
+            ("timestamp(+a) / on(instance) timestamp(+b)", 1.0),
         ] {
             for page in [1, 17, 1024] {
                 for count in [8, 32] {
@@ -6097,7 +6101,7 @@ mod tests {
                             let OwnedValue::Float(value) = point.value else {
                                 panic!("numeric join");
                             };
-                            assert_eq!(value.to_bits(), 1.0_f64.to_bits());
+                            assert_eq!(value.to_bits(), expected.to_bits());
                         }
                     }
                     assert_eq!(report.observations.output_samples, 3 * count as u64);
@@ -6267,12 +6271,26 @@ mod tests {
                 ("abs(histogram_count({x}))", true, false),
                 ("round(histogram_sum({x}), .5)", true, false),
                 ("clamp(histogram_avg({x}), 0, Inf)", true, false),
+                ("({x}*100)", false, false),
+                ("(100*{x})", false, false),
+                ("(-{x})", false, false),
+                ("(+{x})", false, false),
+                (
+                    "label_join({x}, \"instance\", \"\", \"source\")",
+                    false,
+                    false,
+                ),
+                ("timestamp(+{x})", false, false),
+                ("histogram_count({x})", true, false),
+                ("histogram_sum({x})", true, false),
+                ("histogram_avg({x})", true, false),
             ] {
                 for route in ["left", "right", "both"] {
                     // A rewritten left identity keeps the existing right-side failure landmark distinct.
                     if template.contains("label_join") && route != "left" {
                         continue;
                     }
+                    let bare_label = template.starts_with("label_join(");
                     let left_wrapped = route != "right";
                     let right_wrapped = route != "left";
                     let left = if left_wrapped {
@@ -6332,14 +6350,21 @@ mod tests {
                             );
                         }
                     }
-                    for phase in ["none", "discovery", "pair", "selected"] {
+                    for phase in ["none", "discovery", "early-pair", "pair", "selected"] {
+                        if phase == "early-pair" && !bare_label {
+                            continue;
+                        }
                         let mut input = provider();
-                        // Canonical output1 maps to physical right row5; row7 is a later discovery input.
-                        let target = if phase == "discovery" { 7 } else { 5 };
+                        // Bare projection keeps child order; right7 follows the first requested output.
+                        let target = if phase == "discovery" || bare_label && phase == "pair" {
+                            7
+                        } else {
+                            5
+                        };
                         let acquisition = baseline[target]
                             + match phase {
                                 "discovery" => 1,
-                                "pair" => 2,
+                                "pair" | "early-pair" => 2,
                                 _ => 3,
                             };
                         if phase != "none" {
@@ -6369,7 +6394,7 @@ mod tests {
                             StorageError::Provider(bytes)))) if &**bytes == b"injected page failure")
                             );
                             assert!(sink.begun && sink.aborted && !sink.committed);
-                            let points = usize::from(phase != "discovery");
+                            let points = usize::from(phase != "discovery" && phase != "early-pair");
                             assert_eq!(sink.chunks, points, "{expression} {phase} page{page}");
                             assert_eq!(report.observations.output_samples, points as u64);
                             assert_eq!(
@@ -6381,7 +6406,12 @@ mod tests {
                                 acquisition
                             );
                             if phase == "selected" {
-                                for index in [0, 2, 4, 7] {
+                                let unselected: &[usize] = if bare_label {
+                                    &[0, 2, 3, 4, 6, 7]
+                                } else {
+                                    &[0, 2, 4, 7]
+                                };
+                                for &index in unselected {
                                     assert_eq!(
                                         input.series[index]
                                             .source
@@ -6446,6 +6476,22 @@ mod tests {
                         "clamp(a, 0, NaN) > bool on(instance) b",
                         [(1000, 0.0), (2000, 0.0), (3000, 0.0)].as_slice(),
                     ),
+                    (
+                        "(a > .5+(time()-2)^2) / on(instance) b",
+                        [(2000, 1.0)].as_slice(),
+                    ),
+                    (
+                        "((.5+(time()-2)^2) < a) / on(instance) b",
+                        [(2000, 1.0)].as_slice(),
+                    ),
+                    (
+                        "(a > bool .5+(time()-2)^2) / on(instance) b",
+                        [(1000, 0.0), (2000, 1.0), (3000, 0.0)].as_slice(),
+                    ),
+                    (
+                        "((.5+(time()-2)^2) < bool a) / on(instance) b",
+                        [(1000, 0.0), (2000, 1.0), (3000, 0.0)].as_slice(),
+                    ),
                 ] {
                     let engine = Engine::default();
                     let control = Control::default();
@@ -6501,6 +6547,8 @@ mod tests {
             for expression in [
                 "clamp(a, 0, .5-(time()-2)^2) / on(instance) b",
                 "round(clamp(a, 0, .5-(time()-2)^2), .5) / on(instance) b",
+                "(a > .5+(time()-2)^2) / on(instance) b",
+                "((.5+(time()-2)^2) < a) / on(instance) b",
             ] {
                 let engine = Engine::default();
                 let control = Control::default();

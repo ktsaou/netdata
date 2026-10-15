@@ -4490,11 +4490,12 @@ mod filter_tests {
             parameter = format!("({parameter}+{parameter})");
         }
         for page in [1, 17, 1024] {
-            for position in [0, 1] {
-                let source = if position == 0 {
-                    format!("clamp(counter_total, {parameter}/16, 100)")
-                } else {
-                    format!("clamp(counter_total, 0, {parameter}/16)")
+            for position in [0, 1, 2, 3] {
+                let source = match position {
+                    0 => format!("clamp(counter_total, {parameter}/16, 100)"),
+                    1 => format!("clamp(counter_total, 0, {parameter}/16)"),
+                    2 => format!("counter_total + {parameter}/16"),
+                    _ => format!("{parameter}/16 - counter_total"),
                 };
                 for interrupted in [true, false] {
                     let parsed =
@@ -4605,18 +4606,36 @@ mod filter_tests {
                             result,
                             Err(EvaluationError::Interrupted(Interrupted::Cancelled))
                         ));
-                        let active = machine
-                            .frames
-                            .iter()
-                            .position(|frame| {
-                                frame.node == expression.root
-                                    && matches!(frame.state, State::Parameters {
-                                        function: ParameterizedFunction::Pointwise(FloatFunction::Clamp),
-                                        position: active,
-                                        ..
-                                    } if active == position)
-                            })
-                            .expect("interruption must occur inside the requested clamp parameter");
+                        let active =
+                            machine
+                                .frames
+                                .iter()
+                                .position(|frame| {
+                                    frame.node == expression.root
+                                        && match &frame.state {
+                                            State::Parameters {
+                                                function:
+                                                    ParameterizedFunction::Pointwise(
+                                                        FloatFunction::Clamp,
+                                                    ),
+                                                position: active,
+                                                ..
+                                            } => position < 2 && *active == position,
+                                            State::MixedBinary {
+                                                scalar,
+                                                scalar_left,
+                                                ..
+                                            } => {
+                                                position >= 2
+                                                    && scalar.is_none()
+                                                    && *scalar_left == (position == 3)
+                                            }
+                                            _ => false,
+                                        }
+                                })
+                                .expect(
+                                    "interruption must occur inside the requested scalar operand",
+                                );
                         assert!(machine.frames[active + 1..].iter().any(|frame| {
                             expression.arena[frame.node].value_type == ValueType::Scalar
                                 && !matches!(frame.state, State::Enter)
@@ -4625,11 +4644,11 @@ mod filter_tests {
                     } else {
                         let sample = machine.next().unwrap().unwrap();
                         let OwnedValue::Float(value) = sample.value else {
-                            panic!("clamp must yield a float");
+                            panic!("mapped operand must yield a float");
                         };
                         assert_eq!(
                             value.to_bits(),
-                            if position == 0 { 8.0f64 } else { 2.0 }.to_bits()
+                            [8.0_f64, 2.0, 10.0, 6.0][position].to_bits()
                         );
                         assert!(counters.opened.load(Ordering::Relaxed) > before);
                         assert!(machine.next().unwrap().is_none());
