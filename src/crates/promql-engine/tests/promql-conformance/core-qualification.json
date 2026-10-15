@@ -69952,5 +69952,17 @@
     "native_units_per_profile": 661,
     "basic_sample_statistics_scope": "960actual native C comparison arms; native query JSON omits these fields.",
     "historical_coverage_scope": "28focused foreign units and745Debug comparisons retain first-candidate source/binary identities; final production foreign query/static archives and actual C/C++ callers are rebuilt."
+  },
+  "fold_join_qualification": {
+    "receipt": "fold-join-qualification.json",
+    "sha256": "e446e12943a4081b2746dd644499404d4e269d876dd3d25d0f0941c63e158077",
+    "status": "qualified_per_series_fold_join_discovery",
+    "meaning": "Extend both existing direct/mapped raw-window replay terminals to all16per-series Fold functions, retain all5Rate names and exclude global absent_over_time. Numerical owners and original-operand replay stay authoritative.",
+    "native_complete_comparisons": 13596,
+    "foreign_complete_comparisons": 9064,
+    "native_units_per_profile": 663,
+    "candidate_c_cpp_asserted_arms": 9792,
+    "approved_exception_kernel_executions": 6,
+    "boundary_scope": "Single-ID boundary fixtures cannot install the multi-row Pair. They establish complete clock/fallback outcomes; multi-ID mapped cases separately cover ordinary fractional offsets."
   }
 }

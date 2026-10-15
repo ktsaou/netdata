@@ -1256,9 +1256,15 @@ impl CompiledQuery {
         Ok(Some(copies))
     }
 
-    fn is_replay_rate_function(name: &str) -> bool {
+    fn is_replay_window_function(name: &str) -> bool {
         // Preserve the established rate short circuit before the full range dispatcher.
-        name == "rate" || matches!(RangeFunction::parse(name), Some(RangeFunction::Rate(_)))
+        name == "rate"
+            || match RangeFunction::parse(name) {
+                Some(RangeFunction::Rate(_)) => true,
+                // Absence produces a global synthetic row, not one row per input series.
+                Some(RangeFunction::Fold(_)) => name != "absent_over_time",
+                _ => false,
+            }
     }
 
     fn binary_replay_grid_matches(
@@ -1303,7 +1309,7 @@ impl CompiledQuery {
                 ..
             } = &self.expression.arena[node].expression
             {
-                if Self::is_replay_rate_function(function.name) {
+                if Self::is_replay_window_function(function.name) {
                     return Ok(self.binary_replay_selector(node, header, prepared, rosters));
                 }
                 if !matches!(
@@ -1360,7 +1366,7 @@ impl CompiledQuery {
         else {
             return None;
         };
-        if !Self::is_replay_rate_function(function.name) || arguments.len() != 1 {
+        if !Self::is_replay_window_function(function.name) || arguments.len() != 1 {
             return None;
         }
         let matrix = arguments[0];
@@ -6712,7 +6718,7 @@ mod tests {
         (descriptors, baseline)
     }
 
-    fn range_rate_join_failures(function: &str) {
+    fn window_join_failures(function: &str, normalize_fold: bool) {
         let request = QueryRequest::Range {
             start_ms: 2000,
             end_ms: 3000,
@@ -6742,11 +6748,19 @@ mod tests {
                 ("a_total / on(instance) abs(rate(b_total[3s]))", 3),
                 ("a_total / on(instance) (100*+rate(b_total[3s]))", 3),
             ] {
-                let expression = template.replace("rate(", &format!("{function}("));
+                let expression = if normalize_fold {
+                    template
+                        .replace("rate(a_total[3s])", &format!("({function}(a_total[3s])*0)"))
+                        .replace("rate(b_total[3s])", &format!("({function}(b_total[3s])*0)"))
+                } else {
+                    template.replace("rate(", &format!("{function}("))
+                };
                 let engine = Engine::default();
                 let control = Control::default();
+                let mut options = EngineOptions::default();
+                options.parser.experimental_functions = normalize_fold;
                 let compiled = engine
-                    .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                    .compile(expression.as_bytes(), options, &control)
                     .unwrap();
                 let calibration = provider(page);
                 let (descriptors, prepared) =
@@ -6836,13 +6850,27 @@ mod tests {
 
     #[test]
     fn mapped_rate_join_preserves_cold_suffix_and_warm_selected_failures() {
-        range_rate_join_failures("rate");
+        window_join_failures("rate", false);
     }
 
     #[test]
     fn range_rate_joins_preserve_cold_suffix_and_warm_selected_failures() {
         for function in ["increase", "delta", "irate", "idelta"] {
-            range_rate_join_failures(function);
+            window_join_failures(function, false);
+        }
+    }
+
+    #[test]
+    fn per_series_fold_joins_preserve_cold_suffix_and_warm_selected_failures() {
+        for function in crate::frontend::functions::FUNCTIONS {
+            if function.name != "absent_over_time"
+                && matches!(
+                    RangeFunction::parse(function.name),
+                    Some(RangeFunction::Fold(_))
+                )
+            {
+                window_join_failures(function.name, true);
+            }
         }
     }
 

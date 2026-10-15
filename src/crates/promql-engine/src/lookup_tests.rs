@@ -1529,7 +1529,7 @@ fn instant_root_numeric_fold_keeps_raw_memory_independent_of_history() {
     }
 }
 
-fn rate_join_discovery_cases(expression: &[u8]) -> Vec<u64> {
+fn window_join_discovery_cases(expression: &[u8], options: EngineOptions) -> Vec<u64> {
     let count = 64;
     let mut work = Vec::new();
     for page_size in [1, 17, 1024] {
@@ -1557,9 +1557,7 @@ fn rate_join_discovery_cases(expression: &[u8]) -> Vec<u64> {
             }
             let engine = Engine::default();
             let control = Control::default();
-            let query = engine
-                .compile(expression, EngineOptions::default(), &control)
-                .unwrap();
+            let query = engine.compile(expression, options, &control).unwrap();
             let report = query.collect_reported(
                 &provider,
                 QueryRequest::Range {
@@ -1616,7 +1614,10 @@ fn rate_join_discovery_cases(expression: &[u8]) -> Vec<u64> {
 
 #[test]
 fn direct_rate_join_avoids_repeating_full_child_discovery() {
-    let work = rate_join_discovery_cases(b"rate(m_total[5m]) / on(instance) rate(n_total[5m])");
+    let work = window_join_discovery_cases(
+        b"rate(m_total[5m]) / on(instance) rate(n_total[5m])",
+        EngineOptions::default(),
+    );
     assert!(
         work.iter().all(|value| *value < 1_650_000),
         "direct rate joins must avoid repeated whole-child discovery: {work:?}"
@@ -1632,7 +1633,10 @@ fn mapped_rate_join_avoids_repeating_full_child_discovery() {
         "abs(clamp_min(rate(m_total[5m]),-time())) / on(instance) abs(rate(n_total[5m]))",
         "(100 * +rate(m_total[5m])) / on(instance) (rate(n_total[5m]) * 100)",
     ] {
-        work.extend(rate_join_discovery_cases(expression.as_bytes()));
+        work.extend(window_join_discovery_cases(
+            expression.as_bytes(),
+            EngineOptions::default(),
+        ));
     }
     assert!(
         work.iter().all(|value| *value < 1_650_000),
@@ -1642,17 +1646,28 @@ fn mapped_rate_join_avoids_repeating_full_child_discovery() {
 
 #[test]
 fn range_rate_joins_avoid_repeating_full_child_discovery() {
+    let mut admitted = 0;
     for function in crate::frontend::functions::FUNCTIONS {
-        assert_eq!(
-            CompiledQuery::is_replay_rate_function(function.name),
-            matches!(
+        let expected = function.name != "absent_over_time"
+            && matches!(
                 RangeFunction::parse(function.name),
-                Some(RangeFunction::Rate(_))
-            ),
+                Some(RangeFunction::Rate(_) | RangeFunction::Fold(_))
+            );
+        assert_eq!(
+            CompiledQuery::is_replay_window_function(function.name),
+            expected,
             "replay admission must match the typed owner for {}",
             function.name
         );
+        admitted += usize::from(expected);
     }
+    assert_eq!(admitted, 21);
+    assert!(!CompiledQuery::is_replay_window_function(
+        "absent_over_time"
+    ));
+    assert!(!CompiledQuery::is_replay_window_function(
+        "quantile_over_time"
+    ));
     let mut work = Vec::new();
     for function in ["increase", "delta", "irate", "idelta"] {
         for template in [
@@ -1663,12 +1678,46 @@ fn range_rate_joins_avoid_repeating_full_child_discovery() {
             "(100 * +{f}(m_total[5m])) / on(instance) ({f}(n_total[5m]) * 100)",
         ] {
             let expression = template.replace("{f}", function);
-            work.extend(rate_join_discovery_cases(expression.as_bytes()));
+            work.extend(window_join_discovery_cases(
+                expression.as_bytes(),
+                EngineOptions::default(),
+            ));
         }
     }
     assert!(
         work.iter().all(|value| *value < 1_650_000),
         "range-rate joins must avoid repeated whole-child discovery: {work:?}"
+    );
+}
+
+#[test]
+fn per_series_fold_joins_avoid_repeating_full_child_discovery() {
+    let mut options = EngineOptions::default();
+    options.parser.experimental_functions = true;
+    let mut work = Vec::new();
+    for function in crate::frontend::functions::FUNCTIONS {
+        if function.name == "absent_over_time"
+            || !matches!(
+                RangeFunction::parse(function.name),
+                Some(RangeFunction::Fold(_))
+            )
+        {
+            continue;
+        }
+        for template in [
+            "({f}(m_total[5m])+1) / on(instance) ({f}(n_total[5m])+1)",
+            "(clamp_min({f}(m_total[5m]),0)+1) / on(instance) ({f}(n_total[5m])+1)",
+            "({f}(m_total[5m])+1) / on(instance) (abs({f}(n_total[5m]))+1)",
+            "(abs(clamp_min({f}(m_total[5m]),-time()))+1) / on(instance) (abs({f}(n_total[5m]))+1)",
+        ] {
+            let expression = template.replace("{f}", function.name);
+            work.extend(window_join_discovery_cases(expression.as_bytes(), options));
+        }
+    }
+    assert_eq!(work.len(), 16 * 4 * 3 * 2);
+    assert!(
+        work.iter().all(|value| *value < 1_650_000),
+        "per-series fold joins must avoid repeated whole-child discovery: {work:?}"
     );
 }
 

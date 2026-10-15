@@ -1,0 +1,3816 @@
+{
+  "schema_version": 1,
+  "status": "qualified_per_series_fold_join_discovery",
+  "scope": "Extend both existing direct/mapped raw-window replay terminals to all16per-series Fold functions, retain all5Rate names and exclude global absent_over_time. Numerical owners and original-operand replay stay authoritative.",
+  "accepted_predecessor": "ce849d58368380eb1319bc903e07bc0ac42684ed",
+  "qualified_sources": {
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/crates/promql-engine/src/absence.rs": "5daad198a2b483ef9c32557667c47005b2c275359128ed0e2d08741a562a28c3",
+    "src/crates/promql-engine/src/accounting.rs": "606fabc7bc4204d1e0596806adf4a907dc40bea7b1152d4ef0584de6b001ad62",
+    "src/crates/promql-engine/src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/crates/promql-engine/src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "cd9808645a6e43b7bcd49ca11c33bd1470dd53c432c43231374b0eecc2081c6b",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "3823e8b6c8f74beeeb13a6ecb5de12669b041a07081eb6555476c2574d302b7a",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "046ab8fbd5783160210010d72ac04e501dcbb6f369e29628141ef332bcbd085c",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/crates/promql-engine/src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/crates/promql-engine/src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/crates/promql-engine/src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+    "src/crates/promql-engine/src/evaluator.rs": "e4b01e05f4cf73c2f9a9b1b8cc61abf2e4ceff7022d2204d3941618bdf89d288",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "2d2bb41a69de99aef79771384ac7b45ef7e7f384d5b4ad259caa7ca324a85cba",
+    "src/crates/promql-engine/src/execution.rs": "becfb87cd3816ba6a8e0be2eee8f40686f7b3c07568efc6f64d9340a6348b224",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/crates/promql-engine/src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/crates/promql-engine/src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/crates/promql-engine/src/lookup_tests.rs": "ac2b64185f5ad36f4e149bc450d7f1f622006c33356a2327ae33233e036d8abf",
+    "src/crates/promql-engine/src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/crates/promql-engine/src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/crates/promql-engine/src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/crates/promql-engine/src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+    "src/crates/promql-engine/src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/crates/promql-engine/src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+    "src/crates/promql-engine/src/result.rs": "45824bd559e4fb07341f2c9af18133e150f3aca2d7bddf7c7f0434abcde435b9",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "d9cbfe1215ec64f0d0dcb2268bca56d82c2d5c9b6ba0e3df88227bd12c35fc55",
+    "src/crates/promql-engine/src/scheduled_output.rs": "39ec08bc49800551bca460de854fcb8a92fc0f85f83bb48e86e0183aa11c931e",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/crates/promql-engine/src/storage.rs": "f213a16e64507e031b6c8fd58725763115a99cde489f875da20b8385b28141d5",
+    "src/crates/promql-engine/src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/crates/promql-engine/src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+    "src/crates/promql-engine/src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "f89a287b75e8aac6c57a40fdbe4eb15cab9936b64f23348019cf439133003e93",
+    "src/crates/promql-engine/src/vector_sort.rs": "d6daacd7bcde56a2984acbd52b8037ee5efbed3668d8d488271011d50aed41be",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "6c73ccb7b8616a5039a0ca26a5206f9831baca2af531c36c567810863f3e9225",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "4703d09604b1820341de1c3ff41a3476bce29360f0e1984a93d060db7572fb0c"
+  },
+  "reference": {
+    "module": "github.com/prometheus/prometheus@v0.315.0",
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go": "1.27.1 AMD64 retained FMA-on",
+    "cases": 2266,
+    "fresh_cursor_originals": 1972,
+    "fresh_optional_false_originals": 294,
+    "result_kinds": {
+      "matrix": 2014,
+      "vector": 160,
+      "error": 92
+    },
+    "capture_driver_correction": "The initial driver used the cursor-specific AST/events envelope validator on the valid plural result envelope. Preserve its1972cursor and first custom-group processes, validate plural metadata/full results with its own established owner, execute remaining groups once; originals are unchanged.",
+    "nonempty_boundary_outcomes": 48,
+    "boundary_pair_limitation": "Single-ID boundary fixtures cannot install the multi-row Pair. They establish complete clock/fallback outcomes; multi-ID mapped cases separately cover ordinary fractional offsets."
+  },
+  "algorithm": [
+    "Retain the old rate-name fast branch; one shared typed Rate/Fold predicate excludes global absence and tests all21admitted names against the registered owners. No duplicate production function list.",
+    "Preserve arity1,raw Matrix/Selector shape,effective source/producer/scope clocks,fixed/invariant/extended exclusions,checked arithmetic and distinct physical/extrapolation truncation.",
+    "Preserve full successful cold discovery,Float/source/head/hash uniqueness,matching-cardinality and exact-key gates. Pair still evaluates the original operand subtree and physical ordinal with fresh selected reads.",
+    "No raw marker,new history/value cache,Pair layout,ABI,provider,metadata,storage,dependency or cap change."
+  ],
+  "regression": {
+    "complete_cases_before_old_work_failure": 384,
+    "expected_exit": 101,
+    "work_bound_is_test_only": true
+  },
+  "native": {
+    "release": {
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-native-release/promql-query-fixture",
+          "sha256": "87da84e60ac42ec3abc6caa2d8a2294151364c554ebb3185ce34596acacafa45",
+          "file_bytes": 5484216
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-native-release/libnetdata_promql_engine.a",
+          "sha256": "f7e97d3bc80dc5a20db74eb15c1de954ebb2bec3e26ca502dbbe6a67179eb9f0",
+          "file_bytes": 39121118
+        },
+        "unit": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-native-release/unit",
+          "sha256": "5f878a011e5e2d40b571e1118f4fdb6650dcf1ffff3af3d84624d73a6c61b455",
+          "file_bytes": 23940688
+        }
+      },
+      "library_units_passed": 663,
+      "elf_text_bytes": {
+        "before": 3067877,
+        "candidate": 3068101
+      }
+    },
+    "release-min": {
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-native-release-min/promql-query-fixture",
+          "sha256": "f058f7748fc4ab336f0976589f756742f2717a329ea9d086a38bb594dc2fe435",
+          "file_bytes": 3469528
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-native-release-min/libnetdata_promql_engine.a",
+          "sha256": "3f83894bfc1e497e4459aeabc9787a7d57de79d19a7ca95e04ed2ed6d2da99a5",
+          "file_bytes": 54087738
+        },
+        "unit": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-native-release-min/unit",
+          "sha256": "9893952c58a3145eb6992c463d42b7c9e6e5bc2ee430b4c8d558dba9335872c6",
+          "file_bytes": 13403232
+        }
+      },
+      "library_units_passed": 663,
+      "elf_text_bytes": {
+        "before": 1813973,
+        "candidate": 1814053
+      }
+    }
+  },
+  "native_complete_original_comparisons": 13596,
+  "native_before_comparisons": 13596,
+  "native_pages": [
+    1,
+    17,
+    1024
+  ],
+  "native_bit_differences": 0,
+  "debug_focused_units": 4,
+  "full_debug_suite_claim": false,
+  "foreign": {
+    "aarch64-unknown-linux-gnu:release": {
+      "complete_queries": 2266,
+      "focused_units": [
+        "per_series_fold_joins_preserve_cold_suffix_and_warm_selected_failures",
+        "owned_fold_ties_preserve_finite_consumers_and_reject_only_nonadvancing_merges"
+      ],
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-aarch64-unknown-linux-gnu-release/promql-query-fixture",
+          "sha256": "1932e2a43b37bd1dcf9d6178fbc2384febb73420a26413f5631e91368444b1d1",
+          "file_bytes": 4865336
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-aarch64-unknown-linux-gnu-release/libnetdata_promql_engine.a",
+          "sha256": "138cb4d206f3fc374c14079b5c1c861ae39010d75d1603d20c26fef761b76aca",
+          "file_bytes": 39439336
+        },
+        "unit": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-aarch64-unknown-linux-gnu-release/unit",
+          "sha256": "460f405ba38d95ae74fbc456b35370b417c591b5ee7bdeb60ecd3b5ab763c71b",
+          "file_bytes": 20378696
+        }
+      },
+      "c_cpp_programs": 2,
+      "c_cpp_asserted_arms": 1632
+    },
+    "armv7-unknown-linux-gnueabihf:release": {
+      "complete_queries": 2266,
+      "focused_units": [
+        "per_series_fold_joins_preserve_cold_suffix_and_warm_selected_failures",
+        "owned_fold_ties_preserve_finite_consumers_and_reject_only_nonadvancing_merges"
+      ],
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-armv7-unknown-linux-gnueabihf-release/promql-query-fixture",
+          "sha256": "1c9b94eb4f143be9f69da80158634fa22b3e632a69fbf73cf361710efbbf2cec",
+          "file_bytes": 4881648
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-armv7-unknown-linux-gnueabihf-release/libnetdata_promql_engine.a",
+          "sha256": "9f1a18c57bd6c8ccc03a43396c96d98fc6058a86157f20b6c7aa40887ff25c65",
+          "file_bytes": 34498516
+        },
+        "unit": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-armv7-unknown-linux-gnueabihf-release/unit",
+          "sha256": "ab0e57d087cab30ffb7d9feaf6ad6eb13c3db9063a53998452574832e43e33da",
+          "file_bytes": 23397296
+        }
+      },
+      "c_cpp_programs": 2,
+      "c_cpp_asserted_arms": 1632
+    },
+    "aarch64-unknown-linux-gnu:release-min": {
+      "complete_queries": 2266,
+      "focused_units": [
+        "per_series_fold_joins_preserve_cold_suffix_and_warm_selected_failures",
+        "owned_fold_ties_preserve_finite_consumers_and_reject_only_nonadvancing_merges"
+      ],
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-aarch64-unknown-linux-gnu-release-min/promql-query-fixture",
+          "sha256": "9647f02651de4915feb38fa803619a48cd5ecb2093d444bfd7cfcc5c4636e773",
+          "file_bytes": 3795016
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-aarch64-unknown-linux-gnu-release-min/libnetdata_promql_engine.a",
+          "sha256": "9410b4109fe709b00e6b24b0d2591736905d8b07dc6132e0d18f783d1be69c57",
+          "file_bytes": 57338124
+        },
+        "unit": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-aarch64-unknown-linux-gnu-release-min/unit",
+          "sha256": "264bb7e6b144224be29bd866ef49f98d33e37f630ca1627fe9eaef60fecf890e",
+          "file_bytes": 12348512
+        }
+      },
+      "c_cpp_programs": 2,
+      "c_cpp_asserted_arms": 1632
+    },
+    "armv7-unknown-linux-gnueabihf:release-min": {
+      "complete_queries": 2266,
+      "focused_units": [
+        "per_series_fold_joins_preserve_cold_suffix_and_warm_selected_failures",
+        "owned_fold_ties_preserve_finite_consumers_and_reject_only_nonadvancing_merges"
+      ],
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-armv7-unknown-linux-gnueabihf-release-min/promql-query-fixture",
+          "sha256": "43425f556c36b9f0e5b16691bf3c76dca90ec88c35f3dd0acf9f98859395d9e4",
+          "file_bytes": 3189760
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-armv7-unknown-linux-gnueabihf-release-min/libnetdata_promql_engine.a",
+          "sha256": "65a167d5f7f075293087e47b0521276f8f6b6c6feb31ea46de239b7a92c1a887",
+          "file_bytes": 50677830
+        },
+        "unit": {
+          "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-armv7-unknown-linux-gnueabihf-release-min/unit",
+          "sha256": "eb21027d221ff98c87a9999a1cc8a08c1e14b96331ee1312c3aea618853c97d7",
+          "file_bytes": 12606096
+        }
+      },
+      "c_cpp_programs": 2,
+      "c_cpp_asserted_arms": 1632
+    }
+  },
+  "foreign_complete_original_comparisons": 9064,
+  "focused_foreign_unit_executions": 8,
+  "full_foreign_unit_suite_claim": false,
+  "approved_exception_controls": {
+    "decision": "11.A",
+    "reducer_unit_executions": 6,
+    "query_compatibility_comparisons": 0,
+    "invalid_json_diagnostic_attempts": 1,
+    "original_executions": 0,
+    "scope": "Direct FoldStep tests exercise equal-time mixed changes/resets. The newly eligible raw-selector paths retain strictly increasing physical cursor input. The proposed JSON fixture is invalid before execution and is not counted as a passing query; the original nonadvancing loop is not executed."
+  },
+  "c_cpp": {
+    "candidate_programs": 12,
+    "asserted_candidate_arms": 9792,
+    "before_native_programs": 2,
+    "asserted_before_arms": 1632,
+    "native_paired_observations": 3264,
+    "sample_statistics_differences": [],
+    "statistics_fields": [
+      "total_queryable_samples",
+      "samples_read",
+      "peak_samples"
+    ],
+    "scope": "Actual success,cold-provider,cancellation,output-error arms at all3pages with shifted ratios; all8memory kinds exported. Native query JSON does not export these3sample fields."
+  },
+  "resources": {
+    "paired_complete_native_queries": 13596,
+    "change_columns": [
+      "lower",
+      "same",
+      "higher",
+      "minimum_delta",
+      "maximum_delta"
+    ],
+    "memory": {
+      "Compiled": {
+        "current": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ]
+      },
+      "Workspace": {
+        "current": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          11916,
+          1680,
+          0,
+          312
+        ],
+        "acquired": [
+          4980,
+          8556,
+          60,
+          -20161554,
+          32
+        ],
+        "released": [
+          4980,
+          8556,
+          60,
+          -20161554,
+          32
+        ]
+      },
+      "Result": {
+        "current": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ]
+      },
+      "ProviderHeld": {
+        "current": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ]
+      },
+      "BorrowedView": {
+        "current": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          3252,
+          10344,
+          0,
+          -8705088,
+          0
+        ],
+        "released": [
+          3252,
+          10344,
+          0,
+          -8705088,
+          0
+        ]
+      },
+      "RegexEstimate": {
+        "current": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ]
+      },
+      "SharedCacheReference": {
+        "current": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ]
+      },
+      "Accounting": {
+        "current": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "peak": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "acquired": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ],
+        "released": [
+          0,
+          13596,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "work_and_reads": {
+      "work": [
+        5172,
+        8364,
+        60,
+        -5819250,
+        15
+      ],
+      "samples_fetched": [
+        3252,
+        10344,
+        0,
+        -32004,
+        0
+      ],
+      "pages": [
+        3252,
+        10344,
+        0,
+        -32004,
+        0
+      ],
+      "provider_calls": [
+        3252,
+        10344,
+        0,
+        -56007,
+        0
+      ]
+    },
+    "representative_release_page17": [
+      {
+        "id": "window-fold-rate-direct-pairs64",
+        "before": {
+          "work": 274480,
+          "samples_fetched": 7548,
+          "pages": 3774,
+          "provider_calls": 8962,
+          "workspace": {
+            "acquired": 1694194,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1694194
+          }
+        },
+        "candidate": {
+          "work": 274480,
+          "samples_fetched": 7548,
+          "pages": 3774,
+          "provider_calls": 8962,
+          "workspace": {
+            "acquired": 1694194,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1694194
+          }
+        }
+      },
+      {
+        "id": "window-fold-count_over_time-direct-pairs64",
+        "before": {
+          "work": 4970399,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 267568,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-present_over_time-direct-pairs64",
+        "before": {
+          "work": 4970399,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 267568,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-first_over_time-direct-pairs64",
+        "before": {
+          "work": 5382979,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19840132,
+            "current": 0,
+            "overflowed": false,
+            "peak": 177192,
+            "released": 19840132
+          }
+        },
+        "candidate": {
+          "work": 291546,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1608724,
+            "current": 0,
+            "overflowed": false,
+            "peak": 177192,
+            "released": 1608724
+          }
+        }
+      },
+      {
+        "id": "window-fold-last_over_time-direct-pairs64",
+        "before": {
+          "work": 5383363,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19840132,
+            "current": 0,
+            "overflowed": false,
+            "peak": 177192,
+            "released": 19840132
+          }
+        },
+        "candidate": {
+          "work": 291930,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1608724,
+            "current": 0,
+            "overflowed": false,
+            "peak": 177192,
+            "released": 1608724
+          }
+        }
+      },
+      {
+        "id": "window-fold-min_over_time-direct-pairs64",
+        "before": {
+          "work": 4970399,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 267568,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-max_over_time-direct-pairs64",
+        "before": {
+          "work": 4970399,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 267568,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-sum_over_time-direct-pairs64",
+        "before": {
+          "work": 4970399,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 267568,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-avg_over_time-direct-pairs64",
+        "before": {
+          "work": 4966943,
+          "samples_fetched": 34944,
+          "pages": 17472,
+          "provider_calls": 43783,
+          "workspace": {
+            "acquired": 19660036,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19660036
+          }
+        },
+        "candidate": {
+          "work": 264112,
+          "samples_fetched": 2940,
+          "pages": 1470,
+          "provider_calls": 3778,
+          "workspace": {
+            "acquired": 1546738,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1546738
+          }
+        }
+      },
+      {
+        "id": "window-fold-stdvar_over_time-direct-pairs64",
+        "before": {
+          "work": 4970399,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 267568,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-stddev_over_time-direct-pairs64",
+        "before": {
+          "work": 4970399,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 267568,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-ts_of_first_over_time-direct-pairs64",
+        "before": {
+          "work": 4970399,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 267568,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-ts_of_last_over_time-direct-pairs64",
+        "before": {
+          "work": 4970399,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 267568,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-ts_of_min_over_time-direct-pairs64",
+        "before": {
+          "work": 4970399,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 267568,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-ts_of_max_over_time-direct-pairs64",
+        "before": {
+          "work": 4970399,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 267568,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-changes-direct-pairs64",
+        "before": {
+          "work": 4971167,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 268336,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-resets-direct-pairs64",
+        "before": {
+          "work": 4971167,
+          "samples_fetched": 36480,
+          "pages": 18240,
+          "provider_calls": 45511,
+          "workspace": {
+            "acquired": 19709188,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 19709188
+          }
+        },
+        "candidate": {
+          "work": 268336,
+          "samples_fetched": 4476,
+          "pages": 2238,
+          "provider_calls": 5506,
+          "workspace": {
+            "acquired": 1595890,
+            "current": 0,
+            "overflowed": false,
+            "peak": 169576,
+            "released": 1595890
+          }
+        }
+      },
+      {
+        "id": "window-fold-rate-clamp-pairs64",
+        "before": {
+          "work": 352545,
+          "samples_fetched": 9596,
+          "pages": 4798,
+          "provider_calls": 11266,
+          "workspace": {
+            "acquired": 2001300,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 2001300
+          }
+        },
+        "candidate": {
+          "work": 352545,
+          "samples_fetched": 9596,
+          "pages": 4798,
+          "provider_calls": 11266,
+          "workspace": {
+            "acquired": 2001300,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 2001300
+          }
+        }
+      },
+      {
+        "id": "window-fold-count_over_time-clamp-pairs64",
+        "before": {
+          "work": 6162579,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 343329,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-present_over_time-clamp-pairs64",
+        "before": {
+          "work": 6162579,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 343329,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-first_over_time-clamp-pairs64",
+        "before": {
+          "work": 6048833,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 341597,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-last_over_time-clamp-pairs64",
+        "before": {
+          "work": 6049345,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 342109,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-min_over_time-clamp-pairs64",
+        "before": {
+          "work": 6162579,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 343329,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-max_over_time-clamp-pairs64",
+        "before": {
+          "work": 6162579,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 343329,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-sum_over_time-clamp-pairs64",
+        "before": {
+          "work": 6162579,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 343329,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-avg_over_time-clamp-pairs64",
+        "before": {
+          "work": 6157971,
+          "samples_fetched": 35456,
+          "pages": 17728,
+          "provider_calls": 44359,
+          "workspace": {
+            "acquired": 20942118,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 20942118
+          }
+        },
+        "candidate": {
+          "work": 338721,
+          "samples_fetched": 3452,
+          "pages": 1726,
+          "provider_calls": 4354,
+          "workspace": {
+            "acquired": 1804692,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1804692
+          }
+        }
+      },
+      {
+        "id": "window-fold-stdvar_over_time-clamp-pairs64",
+        "before": {
+          "work": 6162579,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 343329,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-stddev_over_time-clamp-pairs64",
+        "before": {
+          "work": 6162579,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 343329,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-ts_of_first_over_time-clamp-pairs64",
+        "before": {
+          "work": 6162579,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 343329,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-ts_of_last_over_time-clamp-pairs64",
+        "before": {
+          "work": 6162579,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 343329,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-ts_of_min_over_time-clamp-pairs64",
+        "before": {
+          "work": 6162579,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 343329,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-ts_of_max_over_time-clamp-pairs64",
+        "before": {
+          "work": 6162579,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 343329,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-changes-clamp-pairs64",
+        "before": {
+          "work": 6163603,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 344353,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      },
+      {
+        "id": "window-fold-resets-clamp-pairs64",
+        "before": {
+          "work": 6163603,
+          "samples_fetched": 37504,
+          "pages": 18752,
+          "provider_calls": 46663,
+          "workspace": {
+            "acquired": 21007654,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 21007654
+          }
+        },
+        "candidate": {
+          "work": 344353,
+          "samples_fetched": 5500,
+          "pages": 2750,
+          "provider_calls": 6658,
+          "workspace": {
+            "acquired": 1870228,
+            "current": 0,
+            "overflowed": false,
+            "peak": 191678,
+            "released": 1870228
+          }
+        }
+      }
+    ],
+    "interpretation": "Acquired/released bytes measure cumulative traffic. Peaks are tracked requested storage,not RSS. Existing Pair metadata can raise small peaks; retain every increase."
+  },
+  "timing": {
+    "responses_checked": 3024,
+    "groups": [
+      {
+        "profile": "release",
+        "id": "window-fold-rate-direct-pairs64",
+        "before_ns": [
+          5385193,
+          5338804,
+          5396263,
+          5294395,
+          5347704,
+          5517883,
+          5234646
+        ],
+        "candidate_ns": [
+          5459233,
+          5377173,
+          5350614,
+          5477702,
+          5293435,
+          5356054,
+          6443354
+        ],
+        "before_median_ns": 5347704,
+        "candidate_median_ns": 5377173,
+        "median_ratio_before_over_candidate": 0.9945196109554221,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-rate-clamp-pairs64",
+        "before_ns": [
+          6961476,
+          6752549,
+          7150075,
+          6763149,
+          6797289,
+          7088666,
+          6715710
+        ],
+        "candidate_ns": [
+          6953526,
+          6960967,
+          6845438,
+          6761919,
+          6767159,
+          7136986,
+          7190425
+        ],
+        "before_median_ns": 6797289,
+        "candidate_median_ns": 6953526,
+        "median_ratio_before_over_candidate": 0.9775312553659826,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-count_over_time-direct-pairs64",
+        "before_ns": [
+          68610931,
+          68182788,
+          67815036,
+          67493042,
+          66024711,
+          68280530,
+          69037595
+        ],
+        "candidate_ns": [
+          4560921,
+          4597191,
+          4489792,
+          4488993,
+          4435003,
+          4533323,
+          5164446
+        ],
+        "before_median_ns": 68182788,
+        "candidate_median_ns": 4533323,
+        "median_ratio_before_over_candidate": 15.04035516551545,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-count_over_time-clamp-pairs64",
+        "before_ns": [
+          84469742,
+          83305190,
+          84325802,
+          84384686,
+          83235061,
+          85050695,
+          83048210
+        ],
+        "candidate_ns": [
+          6155874,
+          6024486,
+          5738460,
+          5746770,
+          5718101,
+          5736040,
+          6028308
+        ],
+        "before_median_ns": 84325802,
+        "candidate_median_ns": 5746770,
+        "median_ratio_before_over_candidate": 14.67359960464748,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-present_over_time-direct-pairs64",
+        "before_ns": [
+          68316514,
+          67825843,
+          68603308,
+          69287594,
+          67537855,
+          67682396,
+          66978046
+        ],
+        "candidate_ns": [
+          4793059,
+          4632111,
+          4457194,
+          4440594,
+          4468693,
+          4514143,
+          5350114
+        ],
+        "before_median_ns": 67825843,
+        "candidate_median_ns": 4514143,
+        "median_ratio_before_over_candidate": 15.025187062084653,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-present_over_time-clamp-pairs64",
+        "before_ns": [
+          86475162,
+          83911003,
+          85851156,
+          83686234,
+          82613067,
+          90210652,
+          83020080
+        ],
+        "candidate_ns": [
+          6112415,
+          5932097,
+          5726009,
+          5699650,
+          5754180,
+          5827189,
+          7247195
+        ],
+        "before_median_ns": 83911003,
+        "candidate_median_ns": 5827189,
+        "median_ratio_before_over_candidate": 14.399911003401469,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-first_over_time-direct-pairs64",
+        "before_ns": [
+          69815158,
+          67037382,
+          68557418,
+          68300674,
+          65570775,
+          67270631,
+          67579870
+        ],
+        "candidate_ns": [
+          4782509,
+          4685790,
+          4475823,
+          4519913,
+          4474504,
+          6539532,
+          4631002
+        ],
+        "before_median_ns": 67579870,
+        "candidate_median_ns": 4631002,
+        "median_ratio_before_over_candidate": 14.592926109727442,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-first_over_time-clamp-pairs64",
+        "before_ns": [
+          86283404,
+          83911424,
+          93778393,
+          83188349,
+          82990853,
+          83534902,
+          83681133
+        ],
+        "candidate_ns": [
+          6000497,
+          5934927,
+          5719980,
+          5729529,
+          5760081,
+          5728370,
+          6218805
+        ],
+        "before_median_ns": 83681133,
+        "candidate_median_ns": 5760081,
+        "median_ratio_before_over_candidate": 14.527770182398477,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-last_over_time-direct-pairs64",
+        "before_ns": [
+          70156745,
+          68208919,
+          78630722,
+          67968838,
+          66686664,
+          67843845,
+          66478322
+        ],
+        "candidate_ns": [
+          4665541,
+          4634011,
+          4523122,
+          4481633,
+          4592532,
+          4478054,
+          4646572
+        ],
+        "before_median_ns": 67968838,
+        "candidate_median_ns": 4592532,
+        "median_ratio_before_over_candidate": 14.799861601399838,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-last_over_time-clamp-pairs64",
+        "before_ns": [
+          89760197,
+          86082271,
+          113819402,
+          87351485,
+          83942404,
+          82321345,
+          82951981
+        ],
+        "candidate_ns": [
+          5922038,
+          6032796,
+          5768909,
+          6042377,
+          5786709,
+          5776480,
+          6259175
+        ],
+        "before_median_ns": 86082271,
+        "candidate_median_ns": 5922038,
+        "median_ratio_before_over_candidate": 14.535920066706765,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-min_over_time-direct-pairs64",
+        "before_ns": [
+          70985387,
+          72511145,
+          67703617,
+          84620244,
+          66672103,
+          67069724,
+          67265253
+        ],
+        "candidate_ns": [
+          4665111,
+          4729099,
+          4478293,
+          4472073,
+          4532673,
+          4480883,
+          5261226
+        ],
+        "before_median_ns": 67703617,
+        "candidate_median_ns": 4532673,
+        "median_ratio_before_over_candidate": 14.93679711728598,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-min_over_time-clamp-pairs64",
+        "before_ns": [
+          88327512,
+          84186101,
+          84334962,
+          86923449,
+          83591998,
+          83639191,
+          83605685
+        ],
+        "candidate_ns": [
+          6123155,
+          6023816,
+          5725020,
+          5721740,
+          5792290,
+          5758190,
+          6799399
+        ],
+        "before_median_ns": 84186101,
+        "candidate_median_ns": 5792290,
+        "median_ratio_before_over_candidate": 14.53416541644151,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-max_over_time-direct-pairs64",
+        "before_ns": [
+          70521192,
+          66654156,
+          66883936,
+          66995268,
+          66368467,
+          68749936,
+          68062246
+        ],
+        "candidate_ns": [
+          5378453,
+          4697130,
+          4485483,
+          4497743,
+          4501633,
+          4551823,
+          5344465
+        ],
+        "before_median_ns": 66995268,
+        "candidate_median_ns": 4551823,
+        "median_ratio_before_over_candidate": 14.71833768580193,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-max_over_time-clamp-pairs64",
+        "before_ns": [
+          91560428,
+          84364349,
+          83031636,
+          83992551,
+          82166353,
+          82654191,
+          94816759
+        ],
+        "candidate_ns": [
+          5807749,
+          6549270,
+          5777209,
+          5770380,
+          5786020,
+          5805110,
+          6887339
+        ],
+        "before_median_ns": 83992551,
+        "candidate_median_ns": 5805110,
+        "median_ratio_before_over_candidate": 14.468726863056858,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-sum_over_time-direct-pairs64",
+        "before_ns": [
+          75251112,
+          67270239,
+          65521871,
+          67747220,
+          66184659,
+          67305030,
+          88699892
+        ],
+        "candidate_ns": [
+          4597562,
+          4713470,
+          4510163,
+          4474693,
+          4541033,
+          4551593,
+          5948419
+        ],
+        "before_median_ns": 67305030,
+        "candidate_median_ns": 4551593,
+        "median_ratio_before_over_candidate": 14.787137162747197,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-sum_over_time-clamp-pairs64",
+        "before_ns": [
+          90474340,
+          83952513,
+          82587841,
+          84321577,
+          82882145,
+          84433483,
+          87079688
+        ],
+        "candidate_ns": [
+          5894177,
+          5990557,
+          5752630,
+          5705070,
+          5833449,
+          5774880,
+          7516163
+        ],
+        "before_median_ns": 84321577,
+        "candidate_median_ns": 5833449,
+        "median_ratio_before_over_candidate": 14.454840866869668,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-avg_over_time-direct-pairs64",
+        "before_ns": [
+          70854119,
+          68477887,
+          66402912,
+          67127597,
+          66251749,
+          66916715,
+          66771769
+        ],
+        "candidate_ns": [
+          4196815,
+          4282005,
+          4117297,
+          4160956,
+          4110097,
+          4119778,
+          5369115
+        ],
+        "before_median_ns": 66916715,
+        "candidate_median_ns": 4160956,
+        "median_ratio_before_over_candidate": 16.082053018585153,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-avg_over_time-clamp-pairs64",
+        "before_ns": [
+          93212422,
+          85015213,
+          84745089,
+          84314388,
+          84042443,
+          83082427,
+          82640715
+        ],
+        "candidate_ns": [
+          5641181,
+          5394203,
+          5271115,
+          5211695,
+          5292685,
+          5232026,
+          6431654
+        ],
+        "before_median_ns": 84314388,
+        "candidate_median_ns": 5292685,
+        "median_ratio_before_over_candidate": 15.930361999627788,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-stdvar_over_time-direct-pairs64",
+        "before_ns": [
+          72343983,
+          68833254,
+          65842858,
+          68666422,
+          66913562,
+          72183270,
+          66884008
+        ],
+        "candidate_ns": [
+          4635901,
+          4705990,
+          4509103,
+          4510053,
+          4518033,
+          4530283,
+          5702211
+        ],
+        "before_median_ns": 68666422,
+        "candidate_median_ns": 4530283,
+        "median_ratio_before_over_candidate": 15.157203644893707,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-stdvar_over_time-clamp-pairs64",
+        "before_ns": [
+          90573110,
+          93524493,
+          83295865,
+          85039671,
+          82235611,
+          86482982,
+          83615685
+        ],
+        "candidate_ns": [
+          5930667,
+          6014336,
+          5782749,
+          5815339,
+          5835739,
+          5795920,
+          7666281
+        ],
+        "before_median_ns": 85039671,
+        "candidate_median_ns": 5835739,
+        "median_ratio_before_over_candidate": 14.572219730868705,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-stddev_over_time-direct-pairs64",
+        "before_ns": [
+          70221495,
+          84256471,
+          66926496,
+          69624431,
+          66685445,
+          67816086,
+          68225103
+        ],
+        "candidate_ns": [
+          4651341,
+          4688750,
+          4545172,
+          4502123,
+          4561283,
+          4510743,
+          5429143
+        ],
+        "before_median_ns": 68225103,
+        "candidate_median_ns": 4561283,
+        "median_ratio_before_over_candidate": 14.957436975517634,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-stddev_over_time-clamp-pairs64",
+        "before_ns": [
+          88196874,
+          86085582,
+          82993517,
+          84988481,
+          83917665,
+          84401554,
+          83784204
+        ],
+        "candidate_ns": [
+          5958467,
+          5956497,
+          5809139,
+          5875309,
+          5946269,
+          5793599,
+          7025887
+        ],
+        "before_median_ns": 84401554,
+        "candidate_median_ns": 5946269,
+        "median_ratio_before_over_candidate": 14.194035621328265,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-ts_of_first_over_time-direct-pairs64",
+        "before_ns": [
+          73389412,
+          68163771,
+          66148465,
+          68796710,
+          68043671,
+          67228372,
+          67846438
+        ],
+        "candidate_ns": [
+          4597551,
+          4679030,
+          4481453,
+          4500893,
+          4523533,
+          4471713,
+          5907539
+        ],
+        "before_median_ns": 68043671,
+        "candidate_median_ns": 4523533,
+        "median_ratio_before_over_candidate": 15.04215200817591,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-ts_of_first_over_time-clamp-pairs64",
+        "before_ns": [
+          89862688,
+          83740197,
+          85195385,
+          84683004,
+          88744635,
+          84330545,
+          83588575
+        ],
+        "candidate_ns": [
+          5897888,
+          5938247,
+          5754379,
+          5909608,
+          6039117,
+          5812830,
+          7220815
+        ],
+        "before_median_ns": 84683004,
+        "candidate_median_ns": 5909608,
+        "median_ratio_before_over_candidate": 14.329715947318332,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-ts_of_last_over_time-direct-pairs64",
+        "before_ns": [
+          68431825,
+          67379549,
+          66180295,
+          68922860,
+          79244364,
+          68270921,
+          67163105
+        ],
+        "candidate_ns": [
+          4571362,
+          4704090,
+          4475703,
+          4454414,
+          4593392,
+          4617652,
+          6028718
+        ],
+        "before_median_ns": 68270921,
+        "candidate_median_ns": 4593392,
+        "median_ratio_before_over_candidate": 14.862855380076423,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-ts_of_last_over_time-clamp-pairs64",
+        "before_ns": [
+          83437396,
+          85179812,
+          82521873,
+          84852802,
+          85219172,
+          116136514,
+          82965822
+        ],
+        "candidate_ns": [
+          5934557,
+          5886238,
+          5721789,
+          5682081,
+          5838640,
+          5897039,
+          7384113
+        ],
+        "before_median_ns": 84852802,
+        "candidate_median_ns": 5886238,
+        "median_ratio_before_over_candidate": 14.415455508255018,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-ts_of_min_over_time-direct-pairs64",
+        "before_ns": [
+          67703993,
+          68172411,
+          66646139,
+          69427334,
+          67347687,
+          79662513,
+          66885248
+        ],
+        "candidate_ns": [
+          4604141,
+          4607282,
+          4485463,
+          4483283,
+          4558362,
+          4952048,
+          6222476
+        ],
+        "before_median_ns": 67703993,
+        "candidate_median_ns": 4604141,
+        "median_ratio_before_over_candidate": 14.705021631613802,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-ts_of_min_over_time-clamp-pairs64",
+        "before_ns": [
+          84333696,
+          84147743,
+          82282136,
+          84858473,
+          82708688,
+          84276995,
+          82242650
+        ],
+        "candidate_ns": [
+          5918467,
+          5901537,
+          5720190,
+          5700911,
+          5907538,
+          5849099,
+          7246866
+        ],
+        "before_median_ns": 84147743,
+        "candidate_median_ns": 5901537,
+        "median_ratio_before_over_candidate": 14.258614832034434,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-ts_of_max_over_time-direct-pairs64",
+        "before_ns": [
+          67189018,
+          67494808,
+          66998676,
+          69501323,
+          66581456,
+          68541799,
+          66680691
+        ],
+        "candidate_ns": [
+          4608261,
+          4678990,
+          4480473,
+          4487683,
+          4589652,
+          4570142,
+          5474923
+        ],
+        "before_median_ns": 67189018,
+        "candidate_median_ns": 4589652,
+        "median_ratio_before_over_candidate": 14.639240186401931,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-ts_of_max_over_time-clamp-pairs64",
+        "before_ns": [
+          82811663,
+          84901645,
+          84100837,
+          85659474,
+          83431651,
+          84479834,
+          87408687
+        ],
+        "candidate_ns": [
+          5910767,
+          5885088,
+          5754090,
+          5744389,
+          5852349,
+          5857828,
+          7140386
+        ],
+        "before_median_ns": 84479834,
+        "candidate_median_ns": 5857828,
+        "median_ratio_before_over_candidate": 14.421699305612934,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-changes-direct-pairs64",
+        "before_ns": [
+          67423486,
+          68498858,
+          66431662,
+          70257956,
+          67119401,
+          67425180,
+          67011718
+        ],
+        "candidate_ns": [
+          4685860,
+          4696920,
+          4521352,
+          4549862,
+          4608092,
+          4650072,
+          5334945
+        ],
+        "before_median_ns": 67423486,
+        "candidate_median_ns": 4650072,
+        "median_ratio_before_over_candidate": 14.499449900990781,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-changes-clamp-pairs64",
+        "before_ns": [
+          84473835,
+          88360959,
+          83731360,
+          87399976,
+          83700857,
+          85464993,
+          84023891
+        ],
+        "candidate_ns": [
+          5994517,
+          6000736,
+          5801049,
+          5757849,
+          5929458,
+          5916049,
+          7344764
+        ],
+        "before_median_ns": 84473835,
+        "candidate_median_ns": 5929458,
+        "median_ratio_before_over_candidate": 14.246468226944183,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-resets-direct-pairs64",
+        "before_ns": [
+          68773282,
+          70510497,
+          67697509,
+          73948827,
+          67432738,
+          68034025,
+          67996188
+        ],
+        "candidate_ns": [
+          4635191,
+          4641631,
+          4593502,
+          4550582,
+          4627422,
+          4616692,
+          4917569
+        ],
+        "before_median_ns": 68034025,
+        "candidate_median_ns": 4627422,
+        "median_ratio_before_over_candidate": 14.702360191052383,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-fold-resets-clamp-pairs64",
+        "before_ns": [
+          84854041,
+          88919313,
+          100450965,
+          84368868,
+          84095205,
+          83934249,
+          84172810
+        ],
+        "candidate_ns": [
+          6026436,
+          5997116,
+          5788289,
+          5967508,
+          5931768,
+          5934818,
+          6187676
+        ],
+        "before_median_ns": 84368868,
+        "candidate_median_ns": 5967508,
+        "median_ratio_before_over_candidate": 14.138040200365044,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "window-raw-direct-pairs64",
+        "before_ns": [
+          3913299,
+          4074867,
+          5081267,
+          3955419,
+          3815830,
+          3836550,
+          3897560
+        ],
+        "candidate_ns": [
+          4193146,
+          3984818,
+          3834800,
+          3827380,
+          3932369,
+          3982669,
+          4130287
+        ],
+        "before_median_ns": 3913299,
+        "candidate_median_ns": 3982669,
+        "median_ratio_before_over_candidate": 0.9825820323004498,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "window-raw-clamp-pairs64",
+        "before_ns": [
+          6217464,
+          5125346,
+          6334423,
+          4973808,
+          4837209,
+          4821470,
+          5189546
+        ],
+        "candidate_ns": [
+          4946997,
+          4965838,
+          4822529,
+          4850609,
+          4969138,
+          4938809,
+          5083737
+        ],
+        "before_median_ns": 5125346,
+        "candidate_median_ns": 4946997,
+        "median_ratio_before_over_candidate": 1.0360519725401087,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-rate-direct-pairs64",
+        "before_ns": [
+          9088107,
+          8900999,
+          9011788,
+          9012869,
+          9088169,
+          9261117,
+          8969751
+        ],
+        "candidate_ns": [
+          9133587,
+          9262825,
+          9220026,
+          9141257,
+          11043929,
+          9455246,
+          8947141
+        ],
+        "before_median_ns": 9012869,
+        "candidate_median_ns": 9220026,
+        "median_ratio_before_over_candidate": 0.977531842101096,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-rate-clamp-pairs64",
+        "before_ns": [
+          11685309,
+          11500412,
+          11732230,
+          11734411,
+          11610613,
+          11936631,
+          11802533
+        ],
+        "candidate_ns": [
+          11819338,
+          11945948,
+          11806701,
+          12049178,
+          13856321,
+          12127489,
+          11705664
+        ],
+        "before_median_ns": 11732230,
+        "candidate_median_ns": 11945948,
+        "median_ratio_before_over_candidate": 0.9821095822617008,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-count_over_time-direct-pairs64",
+        "before_ns": [
+          118859803,
+          116935422,
+          171487822,
+          120447791,
+          119237359,
+          122437745,
+          120394971
+        ],
+        "candidate_ns": [
+          7790560,
+          7906259,
+          7811450,
+          7870770,
+          8060589,
+          8060380,
+          7748013
+        ],
+        "before_median_ns": 120394971,
+        "candidate_median_ns": 7870770,
+        "median_ratio_before_over_candidate": 15.296466673527494,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-count_over_time-clamp-pairs64",
+        "before_ns": [
+          150242889,
+          151209521,
+          156511435,
+          152512067,
+          149577054,
+          153298576,
+          151395572
+        ],
+        "candidate_ns": [
+          10123226,
+          10132416,
+          10561882,
+          10499444,
+          11455205,
+          10411516,
+          10016081
+        ],
+        "before_median_ns": 151395572,
+        "candidate_median_ns": 10411516,
+        "median_ratio_before_over_candidate": 14.541164994607893,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-present_over_time-direct-pairs64",
+        "before_ns": [
+          119534657,
+          119851762,
+          120425103,
+          120766308,
+          119587145,
+          122782022,
+          121365402
+        ],
+        "candidate_ns": [
+          7843420,
+          7828160,
+          8277735,
+          8116548,
+          9132188,
+          8014410,
+          7803533
+        ],
+        "before_median_ns": 120425103,
+        "candidate_median_ns": 8014410,
+        "median_ratio_before_over_candidate": 15.026072162517266,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-present_over_time-clamp-pairs64",
+        "before_ns": [
+          150219760,
+          151294310,
+          151453158,
+          151283499,
+          150310886,
+          177700572,
+          151146895
+        ],
+        "candidate_ns": [
+          9912509,
+          10187636,
+          10095707,
+          10183127,
+          11781182,
+          10294606,
+          9881392
+        ],
+        "before_median_ns": 151283499,
+        "candidate_median_ns": 10183127,
+        "median_ratio_before_over_candidate": 14.856291098009482,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-first_over_time-direct-pairs64",
+        "before_ns": [
+          138245863,
+          118264159,
+          120241795,
+          120318003,
+          122170970,
+          125292447,
+          118797438
+        ],
+        "candidate_ns": [
+          7685041,
+          7778460,
+          7909899,
+          7868860,
+          9159958,
+          7981400,
+          8007251
+        ],
+        "before_median_ns": 120318003,
+        "candidate_median_ns": 7909899,
+        "median_ratio_before_over_candidate": 15.211066917542183,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-first_over_time-clamp-pairs64",
+        "before_ns": [
+          171486641,
+          147867946,
+          152417328,
+          149987782,
+          153256107,
+          154815152,
+          151682760
+        ],
+        "candidate_ns": [
+          9817219,
+          9959128,
+          10054599,
+          10056508,
+          11669043,
+          10957811,
+          9838032
+        ],
+        "before_median_ns": 152417328,
+        "candidate_median_ns": 10054599,
+        "median_ratio_before_over_candidate": 15.158966359573366,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-last_over_time-direct-pairs64",
+        "before_ns": [
+          138101115,
+          121237769,
+          120614542,
+          120373643,
+          119248449,
+          123496485,
+          118545941
+        ],
+        "candidate_ns": [
+          8086757,
+          7762380,
+          7859681,
+          9442814,
+          9247137,
+          7994400,
+          7826133
+        ],
+        "before_median_ns": 120614542,
+        "candidate_median_ns": 7994400,
+        "median_ratio_before_over_candidate": 15.087378915240668,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-last_over_time-clamp-pairs64",
+        "before_ns": [
+          173022196,
+          152661858,
+          152041012,
+          150586967,
+          148604045,
+          154244468,
+          148087476
+        ],
+        "candidate_ns": [
+          12250104,
+          9981227,
+          10185757,
+          10849350,
+          11683122,
+          10264487,
+          10038040
+        ],
+        "before_median_ns": 152041012,
+        "candidate_median_ns": 10264487,
+        "median_ratio_before_over_candidate": 14.812334216020732,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-min_over_time-direct-pairs64",
+        "before_ns": [
+          138665781,
+          123034431,
+          121064277,
+          120446071,
+          120671556,
+          120246877,
+          118489721
+        ],
+        "candidate_ns": [
+          8103967,
+          7881329,
+          7883921,
+          8480074,
+          9201468,
+          8012180,
+          7925592
+        ],
+        "before_median_ns": 120671556,
+        "candidate_median_ns": 8012180,
+        "median_ratio_before_over_candidate": 15.06101410602358,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-min_over_time-clamp-pairs64",
+        "before_ns": [
+          191623775,
+          152124133,
+          152645057,
+          158469038,
+          152572256,
+          153807873,
+          154395614
+        ],
+        "candidate_ns": [
+          10513133,
+          10153026,
+          10216167,
+          10129758,
+          11701463,
+          10285967,
+          10162179
+        ],
+        "before_median_ns": 153807873,
+        "candidate_median_ns": 10216167,
+        "median_ratio_before_over_candidate": 15.055340520569017,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-max_over_time-direct-pairs64",
+        "before_ns": [
+          143826908,
+          122078501,
+          123995668,
+          135685539,
+          120239020,
+          118883262,
+          130752629
+        ],
+        "candidate_ns": [
+          8134906,
+          7987988,
+          8028759,
+          7972539,
+          9191719,
+          8019050,
+          7925071
+        ],
+        "before_median_ns": 123995668,
+        "candidate_median_ns": 8019050,
+        "median_ratio_before_over_candidate": 15.462638093040946,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-max_over_time-clamp-pairs64",
+        "before_ns": [
+          166542484,
+          153992345,
+          153205651,
+          153530488,
+          151868612,
+          153053920,
+          154771001
+        ],
+        "candidate_ns": [
+          10423763,
+          10229285,
+          10204586,
+          10221377,
+          11614373,
+          10335156,
+          10072991
+        ],
+        "before_median_ns": 153530488,
+        "candidate_median_ns": 10229285,
+        "median_ratio_before_over_candidate": 15.008916850004669,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-sum_over_time-direct-pairs64",
+        "before_ns": [
+          137706962,
+          122374218,
+          121195017,
+          119781800,
+          120536077,
+          120470836,
+          119361723
+        ],
+        "candidate_ns": [
+          8166226,
+          7933188,
+          7860490,
+          8049868,
+          9521535,
+          8026409,
+          7795482
+        ],
+        "before_median_ns": 120536077,
+        "candidate_median_ns": 8026409,
+        "median_ratio_before_over_candidate": 15.017435194244399,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-sum_over_time-clamp-pairs64",
+        "before_ns": [
+          171403534,
+          151043476,
+          175954880,
+          149589469,
+          151906522,
+          150912322,
+          151909060
+        ],
+        "candidate_ns": [
+          10580331,
+          10179276,
+          10175176,
+          10254496,
+          11821331,
+          10392046,
+          12750834
+        ],
+        "before_median_ns": 151906522,
+        "candidate_median_ns": 10392046,
+        "median_ratio_before_over_candidate": 14.617575980706782,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-avg_over_time-direct-pairs64",
+        "before_ns": [
+          135112608,
+          119301720,
+          161608496,
+          122202795,
+          117283811,
+          119647805,
+          120606121
+        ],
+        "candidate_ns": [
+          7523503,
+          7617632,
+          7280806,
+          7259287,
+          8505625,
+          7528015,
+          7235909
+        ],
+        "before_median_ns": 120606121,
+        "candidate_median_ns": 7523503,
+        "median_ratio_before_over_candidate": 16.03058056865266,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-avg_over_time-clamp-pairs64",
+        "before_ns": [
+          172211957,
+          150632350,
+          152650927,
+          150901005,
+          148809554,
+          151120601,
+          150791671
+        ],
+        "candidate_ns": [
+          9603331,
+          9412103,
+          9375985,
+          9400495,
+          10645213,
+          9649913,
+          9327227
+        ],
+        "before_median_ns": 150901005,
+        "candidate_median_ns": 9412103,
+        "median_ratio_before_over_candidate": 16.032655507488602,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-stdvar_over_time-direct-pairs64",
+        "before_ns": [
+          139853191,
+          120160802,
+          120176709,
+          122159126,
+          120624068,
+          140891243,
+          121222036
+        ],
+        "candidate_ns": [
+          7997418,
+          7982658,
+          7926340,
+          7893831,
+          9086329,
+          8027769,
+          7879742
+        ],
+        "before_median_ns": 121222036,
+        "candidate_median_ns": 7982658,
+        "median_ratio_before_over_candidate": 15.185673243172888,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-stdvar_over_time-clamp-pairs64",
+        "before_ns": [
+          171460795,
+          153058505,
+          154865706,
+          148740667,
+          149791115,
+          154767735,
+          151429525
+        ],
+        "candidate_ns": [
+          10502542,
+          10357924,
+          10183647,
+          10202587,
+          11731852,
+          10444035,
+          10214069
+        ],
+        "before_median_ns": 153058505,
+        "candidate_median_ns": 10357924,
+        "median_ratio_before_over_candidate": 14.776948064110144,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-stddev_over_time-direct-pairs64",
+        "before_ns": [
+          133281819,
+          119728707,
+          124822801,
+          121370045,
+          120769037,
+          119594896,
+          124747611
+        ],
+        "candidate_ns": [
+          8187246,
+          8098407,
+          7971969,
+          7893720,
+          9071069,
+          8239988,
+          7936192
+        ],
+        "before_median_ns": 121370045,
+        "candidate_median_ns": 8098407,
+        "median_ratio_before_over_candidate": 14.986903597213624,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-stddev_over_time-clamp-pairs64",
+        "before_ns": [
+          164657026,
+          150749710,
+          156406811,
+          152693988,
+          204831142,
+          153991993,
+          156903041
+        ],
+        "candidate_ns": [
+          10457143,
+          10323044,
+          10234207,
+          10121138,
+          11803262,
+          10372206,
+          10162909
+        ],
+        "before_median_ns": 156406811,
+        "candidate_median_ns": 10323044,
+        "median_ratio_before_over_candidate": 15.151229714801177,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-ts_of_first_over_time-direct-pairs64",
+        "before_ns": [
+          132612636,
+          130859804,
+          126554204,
+          119933960,
+          120288632,
+          121266909,
+          122912889
+        ],
+        "candidate_ns": [
+          9917229,
+          7964719,
+          7910299,
+          7867621,
+          9289367,
+          8010050,
+          7760043
+        ],
+        "before_median_ns": 122912889,
+        "candidate_median_ns": 7964719,
+        "median_ratio_before_over_candidate": 15.432168918953701,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-ts_of_first_over_time-clamp-pairs64",
+        "before_ns": [
+          172046100,
+          157189825,
+          172910924,
+          151995057,
+          152324010,
+          150284300,
+          157452406
+        ],
+        "candidate_ns": [
+          11429263,
+          10139756,
+          10114837,
+          10288076,
+          11636494,
+          10368957,
+          9957321
+        ],
+        "before_median_ns": 157189825,
+        "candidate_median_ns": 10288076,
+        "median_ratio_before_over_candidate": 15.278835906733192,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-ts_of_last_over_time-direct-pairs64",
+        "before_ns": [
+          135037552,
+          120369061,
+          123416666,
+          118835831,
+          120976716,
+          119626157,
+          123727401
+        ],
+        "candidate_ns": [
+          9552672,
+          8164086,
+          9132108,
+          7892740,
+          9006690,
+          8023129,
+          7799652
+        ],
+        "before_median_ns": 120976716,
+        "candidate_median_ns": 8164086,
+        "median_ratio_before_over_candidate": 14.818157966488839,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-ts_of_last_over_time-clamp-pairs64",
+        "before_ns": [
+          154548262,
+          151007409,
+          155939516,
+          154204714,
+          149834776,
+          150359231,
+          168667086
+        ],
+        "candidate_ns": [
+          14210774,
+          10198455,
+          10120198,
+          10244466,
+          11479775,
+          10353177,
+          9931921
+        ],
+        "before_median_ns": 154204714,
+        "candidate_median_ns": 10244466,
+        "median_ratio_before_over_candidate": 15.052489217105117,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-ts_of_min_over_time-direct-pairs64",
+        "before_ns": [
+          121013226,
+          117485540,
+          123559886,
+          125613023,
+          119521970,
+          118134742,
+          167658615
+        ],
+        "candidate_ns": [
+          8119277,
+          7992958,
+          7909610,
+          7979319,
+          8911431,
+          8051639,
+          7833822
+        ],
+        "before_median_ns": 121013226,
+        "candidate_median_ns": 7992958,
+        "median_ratio_before_over_candidate": 15.13998021758653,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-ts_of_min_over_time-clamp-pairs64",
+        "before_ns": [
+          153538012,
+          151997788,
+          158182963,
+          179557809,
+          151734767,
+          148978524,
+          155431077
+        ],
+        "candidate_ns": [
+          10856329,
+          10279925,
+          10122577,
+          10228986,
+          10863241,
+          10338447,
+          9978861
+        ],
+        "before_median_ns": 153538012,
+        "candidate_median_ns": 10279925,
+        "median_ratio_before_over_candidate": 14.935713246935167,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-ts_of_max_over_time-direct-pairs64",
+        "before_ns": [
+          120478712,
+          122301532,
+          124834193,
+          119308976,
+          119377832,
+          119324141,
+          122379255
+        ],
+        "candidate_ns": [
+          9511902,
+          7958398,
+          8050618,
+          7981419,
+          8394036,
+          8049709,
+          7871152
+        ],
+        "before_median_ns": 120478712,
+        "candidate_median_ns": 8049709,
+        "median_ratio_before_over_candidate": 14.96684066467496,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-ts_of_max_over_time-clamp-pairs64",
+        "before_ns": [
+          150687372,
+          150314437,
+          198795462,
+          158014016,
+          150725698,
+          152083784,
+          154770315
+        ],
+        "candidate_ns": [
+          12517162,
+          10332614,
+          10154697,
+          10348445,
+          10988559,
+          10356146,
+          10267098
+        ],
+        "before_median_ns": 152083784,
+        "candidate_median_ns": 10348445,
+        "median_ratio_before_over_candidate": 14.696293404468014,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-changes-direct-pairs64",
+        "before_ns": [
+          130109803,
+          120748278,
+          126122050,
+          120769752,
+          119730129,
+          118388740,
+          124158249
+        ],
+        "candidate_ns": [
+          9930468,
+          7981128,
+          7944070,
+          8114888,
+          8280537,
+          8134228,
+          8033900
+        ],
+        "before_median_ns": 120769752,
+        "candidate_median_ns": 8114888,
+        "median_ratio_before_over_candidate": 14.882491539008301,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-changes-clamp-pairs64",
+        "before_ns": [
+          150618862,
+          149786762,
+          157311783,
+          150815020,
+          156001505,
+          150901676,
+          151700625
+        ],
+        "candidate_ns": [
+          14219114,
+          10300455,
+          10192197,
+          15313055,
+          11566934,
+          10485915,
+          10175139
+        ],
+        "before_median_ns": 150901676,
+        "candidate_median_ns": 10485915,
+        "median_ratio_before_over_candidate": 14.390892544904284,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-resets-direct-pairs64",
+        "before_ns": [
+          127975356,
+          120907097,
+          127896353,
+          120360217,
+          120614100,
+          120710527,
+          122975650
+        ],
+        "candidate_ns": [
+          10068786,
+          8006668,
+          7947030,
+          8137538,
+          9153489,
+          8151389,
+          7946812
+        ],
+        "before_median_ns": 120907097,
+        "candidate_median_ns": 8137538,
+        "median_ratio_before_over_candidate": 14.857945609593466,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-fold-resets-clamp-pairs64",
+        "before_ns": [
+          151003269,
+          152239938,
+          158295234,
+          152151896,
+          153287383,
+          155753968,
+          154587507
+        ],
+        "candidate_ns": [
+          14126555,
+          10267024,
+          10190427,
+          10512673,
+          11314576,
+          10578014,
+          10204429
+        ],
+        "before_median_ns": 153287383,
+        "candidate_median_ns": 10512673,
+        "median_ratio_before_over_candidate": 14.581199567417345,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "window-raw-direct-pairs64",
+        "before_ns": [
+          6651682,
+          6548973,
+          6814291,
+          6622353,
+          6519055,
+          6687814,
+          6691884
+        ],
+        "candidate_ns": [
+          8618841,
+          6762221,
+          6672432,
+          6925030,
+          7250877,
+          6893381,
+          6874742
+        ],
+        "before_median_ns": 6651682,
+        "candidate_median_ns": 6893381,
+        "median_ratio_before_over_candidate": 0.9649375248517382,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "window-raw-clamp-pairs64",
+        "before_ns": [
+          8400514,
+          8413734,
+          8770131,
+          8545414,
+          8391046,
+          8519065,
+          8673654
+        ],
+        "candidate_ns": [
+          11426853,
+          8731180,
+          9174007,
+          9005659,
+          9893660,
+          8807252,
+          8555176
+        ],
+        "before_median_ns": 8519065,
+        "candidate_median_ns": 9005659,
+        "median_ratio_before_over_candidate": 0.9459679741371508,
+        "slower_candidate_median": true
+      }
+    ],
+    "measurement": "Seven alternating before/candidate pairs per optimized profile. All16per-series Fold functions plus Rate and raw controls, direct/clamp,64pairs at two instants/page17. Reference/warm/measured outputs and each binary own nonelapsed observations checked.",
+    "limits": "Synthetic engine/provider on shared host without isolated CPU/frequency. Not live HTTP,DBengine disk I/O,concurrent throughput,device performance or RSS."
+  },
+  "static": {
+    "format": "pass",
+    "strict_clippy": [
+      "production",
+      "fixtures"
+    ],
+    "msrv": "Installed Rust1.91.0, all-targets fixtures compilation only."
+  },
+  "input_generator": {
+    "path": "src/crates/promql-engine/tests/promql-conformance/fold_join_cases.py",
+    "sha256": "0d3165675202a19ef730288ded338c441471840db5958808f0db1a06e70fd56b"
+  },
+  "historical_input_versions": {
+    "status": "pass",
+    "sources": {
+      "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+      "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+      "src/crates/promql-engine/include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+      "src/crates/promql-engine/src/absence.rs": "5daad198a2b483ef9c32557667c47005b2c275359128ed0e2d08741a562a28c3",
+      "src/crates/promql-engine/src/accounting.rs": "606fabc7bc4204d1e0596806adf4a907dc40bea7b1152d4ef0584de6b001ad62",
+      "src/crates/promql-engine/src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+      "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+      "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+      "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+      "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+      "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+      "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+      "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+      "src/crates/promql-engine/src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+      "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+      "src/crates/promql-engine/src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+      "src/crates/promql-engine/src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+      "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+      "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+      "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+      "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+      "src/crates/promql-engine/src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+      "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+      "src/crates/promql-engine/src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+      "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+      "src/crates/promql-engine/src/c_abi/provider.rs": "cd9808645a6e43b7bcd49ca11c33bd1470dd53c432c43231374b0eecc2081c6b",
+      "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+      "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+      "src/crates/promql-engine/src/c_abi/tests.rs": "3823e8b6c8f74beeeb13a6ecb5de12669b041a07081eb6555476c2574d302b7a",
+      "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+      "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+      "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+      "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+      "src/crates/promql-engine/src/c_abi/tests/pages.rs": "046ab8fbd5783160210010d72ac04e501dcbb6f369e29628141ef332bcbd085c",
+      "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+      "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+      "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+      "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+      "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+      "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+      "src/crates/promql-engine/src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+      "src/crates/promql-engine/src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+      "src/crates/promql-engine/src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+      "src/crates/promql-engine/src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+      "src/crates/promql-engine/src/evaluator.rs": "e4b01e05f4cf73c2f9a9b1b8cc61abf2e4ceff7022d2204d3941618bdf89d288",
+      "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+      "src/crates/promql-engine/src/evaluator_roster.rs": "2d2bb41a69de99aef79771384ac7b45ef7e7f384d5b4ad259caa7ca324a85cba",
+      "src/crates/promql-engine/src/execution.rs": "becfb87cd3816ba6a8e0be2eee8f40686f7b3c07568efc6f64d9340a6348b224",
+      "src/crates/promql-engine/src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+      "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+      "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+      "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+      "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+      "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+      "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+      "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+      "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+      "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+      "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+      "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+      "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+      "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+      "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+      "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+      "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+      "src/crates/promql-engine/src/frontend/regex.rs": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+      "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+      "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+      "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+      "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+      "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+      "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+      "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+      "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+      "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+      "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+      "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+      "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+      "src/crates/promql-engine/src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+      "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+      "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+      "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+      "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+      "src/crates/promql-engine/src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+      "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+      "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+      "src/crates/promql-engine/src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+      "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+      "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+      "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+      "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+      "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+      "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+      "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+      "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+      "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+      "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+      "src/crates/promql-engine/src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+      "src/crates/promql-engine/src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+      "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+      "src/crates/promql-engine/src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+      "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+      "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+      "src/crates/promql-engine/src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+      "src/crates/promql-engine/src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+      "src/crates/promql-engine/src/lookup_tests.rs": "ac2b64185f5ad36f4e149bc450d7f1f622006c33356a2327ae33233e036d8abf",
+      "src/crates/promql-engine/src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+      "src/crates/promql-engine/src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+      "src/crates/promql-engine/src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+      "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+      "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+      "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+      "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+      "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+      "src/crates/promql-engine/src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+      "src/crates/promql-engine/src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+      "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+      "src/crates/promql-engine/src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+      "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+      "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+      "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+      "src/crates/promql-engine/src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+      "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+      "src/crates/promql-engine/src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+      "src/crates/promql-engine/src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+      "src/crates/promql-engine/src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+      "src/crates/promql-engine/src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+      "src/crates/promql-engine/src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+      "src/crates/promql-engine/src/result.rs": "45824bd559e4fb07341f2c9af18133e150f3aca2d7bddf7c7f0434abcde435b9",
+      "src/crates/promql-engine/src/scheduled_expression.rs": "d9cbfe1215ec64f0d0dcb2268bca56d82c2d5c9b6ba0e3df88227bd12c35fc55",
+      "src/crates/promql-engine/src/scheduled_output.rs": "39ec08bc49800551bca460de854fcb8a92fc0f85f83bb48e86e0183aa11c931e",
+      "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+      "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+      "src/crates/promql-engine/src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+      "src/crates/promql-engine/src/storage.rs": "f213a16e64507e031b6c8fd58725763115a99cde489f875da20b8385b28141d5",
+      "src/crates/promql-engine/src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+      "src/crates/promql-engine/src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+      "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+      "src/crates/promql-engine/src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+      "src/crates/promql-engine/src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+      "src/crates/promql-engine/src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+      "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+      "src/crates/promql-engine/src/vector_matching.rs": "f89a287b75e8aac6c57a40fdbe4eb15cab9936b64f23348019cf439133003e93",
+      "src/crates/promql-engine/src/vector_sort.rs": "d6daacd7bcde56a2984acbd52b8037ee5efbed3668d8d488271011d50aed41be",
+      "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "6c73ccb7b8616a5039a0ca26a5206f9831baca2af531c36c567810863f3e9225",
+      "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "4703d09604b1820341de1c3ff41a3476bce29360f0e1984a93d060db7572fb0c"
+    },
+    "regular_cases_unchanged": 2266,
+    "wire_pages_unchanged": [
+      1,
+      17,
+      1024
+    ],
+    "versions": [
+      {
+        "original_path": "src/crates/promql-engine/tests/promql-conformance/fold_join_cases.py",
+        "original_sha256": "39b7a0d5c6797eef6fc73a912f9d50d787be54a87393f8d60445d86dd476a63a",
+        "snapshot": {
+          "path": ".tmp/fold-join-baseline-616gjku1/first-fold_join_cases.py",
+          "sha256": "39b7a0d5c6797eef6fc73a912f9d50d787be54a87393f8d60445d86dd476a63a"
+        },
+        "meaning": "Exact helper bytes used for the original/reference/native/ARM/C controls before removing the newly proposed unusable exception_cases helper. All2266ordinary cases and all3page packet streams stay identical."
+      }
+    ],
+    "correction": "The strict physical-cursor contract rejects equal source times before raw Fold evaluation. Six direct reducer-unit executions qualify the approved defensive guard. No24query comparison claim,reference edit,runtime-source change or rebuild.",
+    "artifacts": {
+      ".tmp/fold-join-baseline-616gjku1/finalize_generator.py": "bde2bb844109b5c484129a7a4c5e1dc1905b15cbcb18a0a3e60e9b2f5a850622",
+      "src/crates/promql-engine/tests/promql-conformance/fold_join_cases.py": "0d3165675202a19ef730288ded338c441471840db5958808f0db1a06e70fd56b",
+      ".tmp/fold-join-baseline-616gjku1/first-fold_join_cases.py": "39b7a0d5c6797eef6fc73a912f9d50d787be54a87393f8d60445d86dd476a63a",
+      ".tmp/fold-join-baseline-616gjku1/controls-inputs.json": "c3a7d74ea797f0c4014474c37b04507f6c350786f35cb1213ae6ecd7af977680",
+      ".tmp/fold-join-baseline-616gjku1/approved-exceptions.json": "c434e9e9e36d8135514abb396d0230bb80008d8cce8da5de07278dedf189eaf5",
+      ".tmp/fold-join-baseline-616gjku1/panels-candidate-release-page1-packets.jsonl": "4f2d7c3eb2b58cddc72946c7e8820585a27dda841fd0895b66866aee1b416437",
+      ".tmp/fold-join-baseline-616gjku1/panels-candidate-release-page17-packets.jsonl": "216bab53f51d5bf04e5eaa209a1de747c39f875e5f28bbde7b36b1f707ac6e0f",
+      ".tmp/fold-join-baseline-616gjku1/panels-candidate-release-page1024-packets.jsonl": "c196f2d0c6edcdb637b8a0788f7e7b7ff2d79909c86216badeec07a3bf7c78da",
+      ".tmp/fold-join-baseline-616gjku1/candidate-source.json": "6a8cae88425655abf99eedbc0782dbd04ba10f7fb9dafa638429997e144eeaa2",
+      ".tmp/fold-join-baseline-616gjku1/common.py": "ac762fa0af99e511527dec9b72cb4ec19c880b87894c1c5ddf683cfa84097e85"
+    }
+  },
+  "receipts": {
+    "baseline.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/baseline.json",
+      "sha256": "77574c5c73d2f56910be10a502d162f52d435cdbb43a70ee5a64b85b707b8b35"
+    },
+    "baseline-default.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/baseline-default.json",
+      "sha256": "24f910a097279f83097211e25d7fa20088abe14e8a78ebfbb0a3a342d5442cd8"
+    },
+    "old-runtime-regression.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/old-runtime-regression.json",
+      "sha256": "e660aafac9e2b16bfaae7208579bb7e800dab22e47fa19f4fa710437a843d02b"
+    },
+    "controls.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/controls.json",
+      "sha256": "b9820ce1ebfdcc10a647c76bb2432de5af7bee32340515c656342e7b2453c0c6"
+    },
+    "raw-controls.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/raw-controls.json",
+      "sha256": "1ef10265884a6bc18de39772ffa164a0387eb830827dce804ec62e4dfbb39691"
+    },
+    "candidate-debug.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/candidate-debug.json",
+      "sha256": "25901581d854ddb2543188070b8c699e5adff660313692761c069851293ab773"
+    },
+    "candidate-static-receipt.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/candidate-static-receipt.json",
+      "sha256": "6cf79fa7800e412abd0e546919c2c3c4175d857ccf332d3c3f6e26ff79b075c5"
+    },
+    "approved-exceptions.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/approved-exceptions.json",
+      "sha256": "c434e9e9e36d8135514abb396d0230bb80008d8cce8da5de07278dedf189eaf5"
+    },
+    "native-callers-before.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/native-callers-before.json",
+      "sha256": "63c6304b9046aeb8dd8ced2cfc9c5330b097797865d8239093568ff0f39ee5cc"
+    },
+    "native-callers-candidate.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/native-callers-candidate.json",
+      "sha256": "59bf62cccfee10f795c8ec2b6578f29912f3ede3902a089c3bad3f7c50734491"
+    },
+    "timing.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/timing.json",
+      "sha256": "6710cb70ce7b8b8e03a6eb615a410912655bef42746a3cab9c304e61197b1361"
+    },
+    "panels-before-release.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/panels-before-release.json",
+      "sha256": "47e15618b9831d963c0b244e780a74b97a7bf07f4244657cbed1f020a6c93de8"
+    },
+    "panels-before-release-min.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/panels-before-release-min.json",
+      "sha256": "a618ef3cfb78f5614641726994d2740b543e5326f84932d71fc32da7f38be506"
+    },
+    "panels-candidate-release.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/panels-candidate-release.json",
+      "sha256": "fd9034904bf6da72abaf5619ef8ffba01324e9a97dbe975dac8d09bdd486f77d"
+    },
+    "panels-candidate-release-min.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/panels-candidate-release-min.json",
+      "sha256": "79180de810fb82790982a783a505351887744daadd80dc9af2d0bff38c585b75"
+    },
+    "candidate-qualified-native-release.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-native-release.json",
+      "sha256": "a436d84e9c9e56632dd22b539840eae7d380eee93059322867357540defc89a8"
+    },
+    "candidate-qualified-native-release-min.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-native-release-min.json",
+      "sha256": "726f82353f1f05f4dd0ff21d94d6339292381163f496154d995bfc2edae692f2"
+    },
+    "candidate-qualified-aarch64-unknown-linux-gnu-release.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-aarch64-unknown-linux-gnu-release.json",
+      "sha256": "a56c68c18185375e36ba284c9c3a52de6328a6f83d40c81a6d950fa6c900f52d"
+    },
+    "candidate-qualified-aarch64-unknown-linux-gnu-release-min.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-aarch64-unknown-linux-gnu-release-min.json",
+      "sha256": "10d4e9c6bccfa85beea299595bd44cfb511757415b07cd00649172052c35274b"
+    },
+    "candidate-qualified-armv7-unknown-linux-gnueabihf-release.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-armv7-unknown-linux-gnueabihf-release.json",
+      "sha256": "0431521e7565f67e3b47d73bfee90f4a20fdb6ee6f5df1aab34956b2903ffa29"
+    },
+    "candidate-qualified-armv7-unknown-linux-gnueabihf-release-min.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/candidate-qualified-armv7-unknown-linux-gnueabihf-release-min.json",
+      "sha256": "01514d5f4958f609d300403ae1bbe433e5a4c0a0d7304473826d253b5a8ffb21"
+    },
+    "generator-finalization.json": {
+      "path": ".tmp/fold-join-baseline-616gjku1/generator-finalization.json",
+      "sha256": "2cb43b95a23fc94d0e13f0c6d188ebad9abaf2f42764195d41c88451beea65ed"
+    }
+  },
+  "closed_process_records_verified": 163,
+  "limitations": [
+    "Finite same-input evidence,not equivalence for every possible input or global optimality.",
+    "First/Last retain names; four ts_of functions need explicit experimental options. Global absent remains the ordinary synthetic producer.",
+    "The48single-ID boundaries qualify fallback/outcomes,not positive multi-row Pair clock proof.",
+    "New Fold phase tests scale simple finite fixture values to zero; separate distinguishing originals establish actual numerical dispatch.",
+    "Equal-time exception evidence comprises six direct kernel-unit executions; the raw-cursor contract requires strictly increasing physical timestamps.",
+    "An interrupted owner lost two release-min ARM query exit statuses. Reuse completed builds/units; wait for the original children and execute fresh terminal query panels. Old unobserved query outputs are preserved but not counted.",
+    "No live HTTP,DBengine disk I/O,concurrency,device or RSS claim. Existing broad language/SRE/live integration cohorts retain their actual identities.",
+    "Raw data remains paged on both axes; owned output and derived metadata/state may grow. All implicit caps remain disabled."
+  ]
+}

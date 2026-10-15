@@ -614,7 +614,8 @@ integration, and Alertmanager remains excluded.
 
 - **Choice:** the original direct-rate cohort admitted `rate(raw_selector[range])` to the float join certificate.
   The current [operand proof](#completed-mapped-rate-join-discovery) also covers pure wrappers and the complete
-  existing rate-function family. Producer, source and scope grids must match the effective evaluator grid.
+  existing rate-function family and [per-series window folds](#completed-per-series-fold-join-discovery).
+  Producer, source and scope grids must match the effective evaluator grid.
   Fixed, invariant, anchored, smoothed and unproven computed shapes retain ordinary replay.
 - **Clocks:** certification checks the nanosecond range-plus-offset sum and both physical/extrapolation window
   endpoints before reuse. Physical selection and extrapolation truncate different expressions; fractional inputs
@@ -1098,6 +1099,25 @@ integration, and Alertmanager remains excluded.
   [measured scope](README.md#completed-range-rate-join-discovery) separately bind all five numerical dispatches,
   mixed-family joins, resets and typed-tail behavior. Numerical and diagnostic owners remain unchanged; equal-function
   ratios alone do not establish correct dispatch. Earlier rate-only measurements retain their original identities.
+
+## Completed per-series fold join discovery
+
+- **Choice:** both direct and mapped ordinary-window terminals share `is_replay_window_function`. Preserve the
+  established `rate` fast branch and classify other names through the existing `RangeFunction` owner. Admit
+  per-series Fold functions alongside Rate; exclude `absent_over_time`, whose actual evaluator produces a global
+  synthetic row. Numeric reducers keep their existing scalar/temporal owners.
+- **Boundaries:** retain every original arity, selector, effective clock, invariant, fixed-time, extended-window
+  and checked endpoint guard. Full successful cold discovery and the Float, source, head, hash, exact-key and
+  cardinality checks remain authoritative. Failed certification uses the ordinary path.
+- **Values and names:** Pair evaluates the original subtree and physical series ordinal, including fresh selected
+  reads. First/Last preserve names; optional timestamp functions require their explicit parser options. No raw-point
+  marker, retained history, new cache, Pair layout, provider, metadata, storage or ABI change is introduced.
+- **Evidence:** [qualification](fold-join-qualification.json) and
+  [measured scope](README.md#completed-per-series-fold-join-discovery) bind distinguishing complete original outcomes,
+  optional positive paths, global absence, mixed/native states, failure phases and actual C statistics. Single-ID
+  boundary controls establish clock/fallback outcomes; they cannot install a multi-row Pair.
+- **Costs:** reuse existing membership metadata. Small-query peaks may rise; allocation traffic, tracked peaks,
+  fetched samples and timings are reported separately. Neither reduced work nor allocation traffic proves lower RSS.
 - **Measured result:** 804 native comparisons, 18 supplemental candidate boundary outcomes, 536 compiled ARM
   comparisons, 659 native units/profile and actual C/C++ consumers pass. Four 64-pair mapped shapes improve
   9.3–13.2× in the fixed shared-host timing panel; no live DBengine or concurrent-throughput claim follows.

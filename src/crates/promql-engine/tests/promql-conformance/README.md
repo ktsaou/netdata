@@ -4498,3 +4498,85 @@ first candidate and bounded refinement, all timing samples and resource increase
 measurements on a shared host, not live DBengine disk I/O, HTTP, concurrent throughput, device performance or
 RSS. No language feature is added or dropped. Raw inputs stay paged on both axes; complete owned results and
 derived metadata/state may grow. Earlier broad language, SRE and live-Agent evidence retains its own identity.
+
+## Completed per-series fold join discovery
+
+The shared ordinary-window join proof now admits all per-series Fold functions alongside the five existing Rate
+functions. The [input generator](fold_join_cases.py) lists the finite family. It includes count/presence,
+first/last, min/max, sum/average, variance/deviation, timestamp selection, `changes` and `resets`. Global
+`absent_over_time` stays with its synthetic-row evaluator; it is explicitly excluded from per-series certification.
+
+Both direct and mapped terminals retain full cold discovery, exact scope keys, original operand subtrees and
+physical ordinals. Fixed/invariant/extended exclusions, effective clocks, arity and checked physical/extrapolation
+endpoints remain unchanged. First/Last retain names. The four optional timestamp functions need explicit experimental
+options; their positive-path originals and candidates set delayed name removal false. No raw marker, retained
+history, new cache, Pair layout, ABI, provider, contexts metadata, storage, dependency or cap change is added.
+
+Seven alternating before/candidate pairs per optimized profile measure 64 shuffled pairs at two timestamps and
+page17. Every reference/warm/measured result and each binary own nonelapsed observations is checked. The table
+shows direct joins; mapped/clamp cases, all samples and Rate/raw controls are retained in the full qualification.
+
+| Function | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| `count_over_time` | 68.18 → 4.53 ms | 120.39 → 7.87 ms |
+| `present_over_time` | 67.83 → 4.51 ms | 120.43 → 8.01 ms |
+| `first_over_time` | 67.58 → 4.63 ms | 120.32 → 7.91 ms |
+| `last_over_time` | 67.97 → 4.59 ms | 120.61 → 7.99 ms |
+| `min_over_time` | 67.70 → 4.53 ms | 120.67 → 8.01 ms |
+| `max_over_time` | 67.00 → 4.55 ms | 124.00 → 8.02 ms |
+| `sum_over_time` | 67.31 → 4.55 ms | 120.54 → 8.03 ms |
+| `avg_over_time` | 66.92 → 4.16 ms | 120.61 → 7.52 ms |
+| `stdvar_over_time` | 68.67 → 4.53 ms | 121.22 → 7.98 ms |
+| `stddev_over_time` | 68.23 → 4.56 ms | 121.37 → 8.10 ms |
+| `ts_of_first_over_time` | 68.04 → 4.52 ms | 122.91 → 7.96 ms |
+| `ts_of_last_over_time` | 68.27 → 4.59 ms | 120.98 → 8.16 ms |
+| `ts_of_min_over_time` | 67.70 → 4.60 ms | 121.01 → 7.99 ms |
+| `ts_of_max_over_time` | 67.19 → 4.59 ms | 120.48 → 8.05 ms |
+| `changes` | 67.42 → 4.65 ms | 120.77 → 8.11 ms |
+| `resets` | 68.03 → 4.63 ms | 120.91 → 8.14 ms |
+
+For the direct `sum_over_time` case, work falls 4,970,399→267,568 and fetched samples
+36,480→4,476. Workspace allocation traffic falls
+19,709,188→1,595,890 B; peak remains 169,576 B.
+Across all 13,596 native pairs, workspace peaks stay equal in 11,916 and rise in 1,680 by at most
+312 B. All eight memory kinds and work/read increases are retained. Allocation traffic and tracked peaks
+are distinct from process RSS.
+
+Rate and raw controls also have seven paired measurements per profile:
+
+| Existing control | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| rate direct | 5.35 → 5.38 ms | 9.01 → 9.22 ms |
+| rate clamp | 6.80 → 6.95 ms | 11.73 → 11.95 ms |
+| raw direct | 3.91 → 3.98 ms | 6.65 → 6.89 ms |
+| raw clamp | 5.13 → 4.95 ms | 8.52 → 9.01 ms |
+
+All 2,266 fresh pinned complete outcomes pass both optimized native profiles at pages1/17/1024:13,596
+comparisons with zero paired bit differences. Distinguishing numerical outputs, First/Last metric names,
+optional positive admission, global absence and sparse/native/mixed controls are included. The48single-ID clock
+boundaries establish complete outcomes/fallback; they cannot install a multi-row Pair. Each native profile passes
+all663library units with none ignored. Four consequential Debug owners pass; no full Debug-suite claim is made.
+
+ARM64 and ARM32 execute9,064complete page17 comparisons across both profiles under QEMU, plus eight focused
+unit executions. Twelve candidate C/C++ programs assert9,792success, cold-provider, cancellation and output-error
+arms across all three pages. Two predecessor native C programs assert1,632arms;3,264native before/candidate
+observations compare the exported sample statistics. All differences are retained in the qualification; native
+query JSON does not export those sample fields. Passing `--window-folds-only` to a caller compiled from
+`c_embedding.c` selects this mode with experimental/start-timestamp options; ordinary callers keep defaults.
+
+The old production runtime completes384result/order/release cases, then fails only the final test-only work
+bound. The candidate passes that bound and calibrated cold-suffix/warm-selected provider/output failure controls.
+The approved equal-time mixed `changes`/`resets` guard is covered directly by its reducer unit in both native
+profiles and all four ARM builds: six kernel-owner executions. The newly eligible raw-selector paths retain
+strictly increasing physical cursor timestamps. This kernel evidence is separate from complete-query comparisons;
+the nonadvancing original is not executed by this cohort.
+
+Format, strict production/fixture Clippy and installed Rust1.91all-targets fixture compilation pass. The latter
+is a compile-only MSRV check. New regression/failure owners are selected by the `per_series_fold_joins` unit filter.
+
+Query-fixture `.text` changes: release +224 B, release-min +80 B. The [qualification](fold-join-qualification.json)
+binds actual source/input/compiler/binary identities and retains all timing/resource costs. These are synthetic
+engine measurements on a shared host, without CPU/frequency isolation. They do not establish live HTTP, DBengine
+disk I/O, concurrent throughput, device performance or RSS. Raw samples stay paged across both axes; owned output
+and derived metadata/state may grow. No language feature is added or dropped. Earlier broad language, SRE and
+live-Agent cohorts retain their own identities.

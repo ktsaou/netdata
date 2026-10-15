@@ -2222,6 +2222,8 @@ int main(int argc, char **argv) {
     assert(netdata_promql_engine_options_default(&options) == NETDATA_PROMQL_OK);
     assert(options.header.struct_size == sizeof(options));
     assert(options.lookback_ms == 300000 && options.no_step_subquery_interval_ms == 60000);
+    if (argc == 2 && strcmp(argv[1], "--window-folds-only") == 0)
+        options.flags |= NETDATA_PROMQL_EXPERIMENTAL_FUNCTIONS | NETDATA_PROMQL_START_TIMESTAMPS;
     netdata_promql_engine_t *engine = NULL;
     assert(netdata_promql_engine_create(&options, &engine) == NETDATA_PROMQL_OK);
     netdata_promql_engine_observations_t idle;
@@ -2271,6 +2273,32 @@ int main(int argc, char **argv) {
         }
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
         puts("{\"range_rate_embedding\":\"pass\",\"functions\":5,\"cases\":240}");
+        return 0;
+    }
+    if (argc == 2 && strcmp(argv[1], "--window-folds-only") == 0) {
+        const char *functions[] = {
+            "rate", "count_over_time", "present_over_time", "first_over_time", "last_over_time",
+            "min_over_time", "max_over_time", "sum_over_time", "avg_over_time", "stdvar_over_time",
+            "stddev_over_time", "ts_of_first_over_time", "ts_of_last_over_time", "ts_of_min_over_time",
+            "ts_of_max_over_time", "changes", "resets"
+        };
+        const char *templates[] = {
+            "(%s(m_total[3s])+1) / on(zone) (%s(m_total[3s])+1)",
+            "(clamp_min(%s(m_total[3s]),0)+1) / on(zone) (%s(m_total[3s])+1)",
+            "(%s(m_total[3s])+1) / on(zone) (abs(%s(m_total[3s]))+1)",
+            "(abs(clamp_min(%s(m_total[3s]),-time()))+1) / on(zone) (abs(%s(m_total[3s]))+1)"
+        };
+        for (unsigned f = 0; f < sizeof(functions) / sizeof(functions[0]); f++) {
+            for (unsigned t = 0; t < sizeof(templates) / sizeof(templates[0]); t++) {
+                char expression[256];
+                int length = snprintf(expression, sizeof(expression), templates[t], functions[f], functions[f]);
+                assert(length > 0 && (size_t)length < sizeof(expression));
+                four_series_float_query(engine, FOUR_SERIES_RATE, expression);
+                balanced(engine, &idle);
+            }
+        }
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        puts("{\"window_fold_embedding\":\"pass\",\"functions\":17,\"cases\":816}");
         return 0;
     }
     if (argc == 2 && strcmp(argv[1], "--regex-only") == 0) {
