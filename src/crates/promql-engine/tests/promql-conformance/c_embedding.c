@@ -30,7 +30,8 @@ typedef struct {
 
 typedef struct {
     uint64_t rows, maximum, opened[4], closed[4], pages_returned, samples_returned;
-    netdata_promql_label_t labels[2];
+    netdata_promql_label_t labels[9];
+    uint64_t label_count;
     unsigned failure, cancel_at;
     netdata_promql_control_t *control;
     uint8_t error[32];
@@ -299,7 +300,7 @@ static uint32_t selection_next(void *context, void *handle,
     f->opened[2]++;
     out->handle = NULL;
     out->labels.data = f->labels;
-    out->labels.len = 2;
+    out->labels.len = f->label_count;
     return NETDATA_PROMQL_OK;
 }
 static void series_close(void *context, void *handle, const netdata_promql_accounting_context_t *account) {
@@ -408,6 +409,7 @@ static void init_fixture(fixture *f, uint64_t rows, uint64_t maximum) {
     memset(f, 0, sizeof(*f));
     f->rows = rows;
     f->maximum = maximum;
+    f->label_count = 2;
     f->labels[0].name = bytes(name, sizeof(name) - 1);
     f->labels[0].value = bytes(metric, sizeof(metric) - 1);
     f->labels[1].name = bytes(zone, sizeof(zone) - 1);
@@ -1846,7 +1848,14 @@ static uint32_t metadata_chunk(void *context, const netdata_promql_chunk_t *chun
                                const netdata_promql_callback_control_t *control, netdata_promql_bytes_t *error) {
     metadata_output *output = (metadata_output *)context;
     assert(chunk->kind == NETDATA_PROMQL_CHUNK_SERIES);
-    assert(chunk->payload.series.points.len == 0 && chunk->payload.series.labels.len == 2);
+    const netdata_promql_labels_t labels = chunk->payload.series.labels;
+    assert(chunk->payload.series.points.len == 0 && labels.len == output->source->label_count);
+    for(uint64_t i = 0; i < labels.len; i++) {
+        const netdata_promql_label_t *expected = &output->source->labels[i], *actual = &labels.data[i];
+        assert(actual->name.len == expected->name.len && actual->value.len == expected->value.len);
+        assert(memcmp(actual->name.data, expected->name.data, (size_t)actual->name.len) == 0);
+        assert(memcmp(actual->value.data, expected->value.data, (size_t)actual->value.len) == 0);
+    }
     assert(chunk->payload.series.series_id == output->rows++);
     uint32_t status = output_status(&output->output, 2, control, error);
     return status == NETDATA_PROMQL_OK && output->stop ? NETDATA_PROMQL_END : status;
@@ -1867,9 +1876,17 @@ static void metadata_abort(void *context, const netdata_promql_accounting_contex
 }
 
 static void metadata_discovery(netdata_promql_engine_t *engine) {
-    for(unsigned test = 0; test < 6; test++) {
+    for(unsigned test = 0; test < 7; test++) {
         fixture source;
         init_fixture(&source, 8192, 1);
+        if(test == 6) {
+            static const char *names[] = {"zz0", "zz1", "zz2", "zz3", "zz4", "zz5", "zz6"};
+            source.label_count = 9;
+            for(unsigned i = 0; i < 7; i++) {
+                source.labels[i + 2].name = text(names[i]);
+                source.labels[i + 2].value = text("extra");
+            }
+        }
         netdata_promql_provider_t input = provider(&source);
         netdata_promql_selector_t *selector = NULL;
         netdata_promql_report_t *report = NULL;
@@ -1923,7 +1940,7 @@ static void metadata_discovery(netdata_promql_engine_t *engine) {
             assert(netdata_promql_allocation_release(output.output.allocation) == NETDATA_PROMQL_OK);
         }
     }
-    puts("{\"metadata_discovery\":\"pass\",\"cases\":6}");
+    puts("{\"metadata_discovery\":\"pass\",\"cases\":7}");
 }
 
 int main(void) {

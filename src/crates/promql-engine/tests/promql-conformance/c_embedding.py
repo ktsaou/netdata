@@ -225,7 +225,7 @@ def native_records(name, output):
         {"index_sort": "pass", "cases": 6},
         {"precise_requests": "pass", "cases": 2},
         {"protocol_primitives": "pass"},
-        {"metadata_discovery": "pass", "cases": 6},
+        {"metadata_discovery": "pass", "cases": 7},
         {"label_field_boundary": "pass", "cases": 6},
         {"unique_binary_replay": "pass", "cases": 9, "page_sizes": 3},
         {"instant_numeric_folds": "pass", "cases": 6, "page_sizes": 3},

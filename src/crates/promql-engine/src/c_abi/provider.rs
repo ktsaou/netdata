@@ -450,10 +450,13 @@ impl<'a> storage::SeriesSelection for Selection<'a> {
             for label in labels {
                 control.check()?;
                 provider.account.work(1);
-                result.labels.push(LabelRef {
-                    name: unsafe { checked::bytes(label.name) }?,
-                    value: unsafe { checked::bytes(label.value) }?,
-                });
+                result.labels.push_with_capacity_hint(
+                    LabelRef {
+                        name: unsafe { checked::bytes(label.name) }?,
+                        value: unsafe { checked::bytes(label.value) }?,
+                    },
+                    labels.len(),
+                );
             }
             control.check()?;
             return Ok(Some(result));

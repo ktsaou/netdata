@@ -229,6 +229,228 @@ fn adapted_pages_retain_no_owned_sample_descriptors() {
     );
 }
 
+fn label_fixture(count: usize) -> Fixture {
+    let names: &[&[u8]] = &[
+        b"__name__",
+        b"a",
+        b"b",
+        b"c",
+        b"d",
+        b"e",
+        b"f",
+        b"g",
+        b"h",
+        b"i",
+        b"j",
+        b"k",
+        b"l",
+        b"m",
+        b"n",
+        b"o",
+        b"p",
+    ];
+    let mut fixture = Fixture::new(1);
+    let metric = fixture.labels[0].value;
+    let value = fixture.labels[1].value;
+    fixture.labels = names[..count]
+        .iter()
+        .enumerate()
+        .map(|(index, name)| types::Label {
+            name: types::Bytes::of(name),
+            value: if index == 0 { metric } else { value },
+        })
+        .collect();
+    fixture
+}
+
+#[test]
+fn adapted_label_descriptors_keep_no_growth_slack() {
+    use crate::storage::{LabelRef, Provider, QueryProvider, Series, SeriesSelection};
+    let mut observed = Vec::new();
+    let mut checks = 0;
+    for count in [0, 1, 3, 4, 5, 8, 9, 16, 17] {
+        let engine = crate::accounting::EngineAccounting::default();
+        let account = engine.query();
+        let control = CoreControl::default();
+        let mut fixture = label_fixture(count);
+        let table = fixture.table();
+        let provider = unsafe { provider::Provider::new(&table, &account) }.unwrap();
+        let bounds = crate::storage::TimeBounds {
+            start_ms: 0,
+            end_ms: 1000,
+        };
+        let query = provider.open(bounds, &control).unwrap();
+        let mut selection = query
+            .select(
+                crate::storage::SelectionRequest {
+                    matchers: &[],
+                    bounds,
+                    hints: crate::storage::SelectionHints::default(),
+                    accounting: Some(&account),
+                },
+                &control,
+            )
+            .unwrap();
+        let before = account.snapshot();
+        let series = selection.next(&control).unwrap().unwrap();
+        let after = account.snapshot();
+        let retained = after.memory[MemoryKind::Workspace as usize].current
+            - before.memory[MemoryKind::Workspace as usize].current;
+        drop(selection);
+        assert_eq!(series.label_count(), count);
+        for (index, label) in fixture.labels.iter().enumerate() {
+            let expected = LabelRef {
+                name: unsafe { checked::bytes(label.name) }.unwrap(),
+                value: unsafe { checked::bytes(label.value) }.unwrap(),
+            };
+            let actual = series.label(index);
+            assert_eq!(actual, expected);
+            assert_eq!(actual.name.as_ptr(), expected.name.as_ptr());
+            assert_eq!(actual.value.as_ptr(), expected.value.as_ptr());
+            checks += 1;
+        }
+        assert_eq!(after.work - before.work, count as u64);
+        drop(series);
+        drop(query);
+        for (index, (opened, closed)) in fixture.opened.iter().zip(&fixture.closed).enumerate() {
+            assert_eq!(opened.get(), usize::from(index != 3));
+            assert_eq!(opened.get(), closed.get());
+        }
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+        println!(
+            "{{\"label_count\":{count},\"retained_bytes\":{retained},\"slot_bytes\":{}}}",
+            size_of::<LabelRef<'_>>()
+        );
+        observed.push((count, retained));
+    }
+    assert_eq!(checks, 63);
+    println!(
+        "{{\"complete_label_checks\":{checks},\"complete_series_checks\":{}}}",
+        observed.len()
+    );
+    let expected: Vec<_> = observed
+        .iter()
+        .map(|&(count, _)| (count, (count * size_of::<LabelRef<'_>>()) as u64))
+        .collect();
+    assert_eq!(
+        observed, expected,
+        "known label count must not retain geometric slack"
+    );
+}
+
+#[test]
+fn adapted_label_descriptor_failures_preserve_growth_and_close_phases() {
+    use crate::storage::{Interrupted, Provider, QueryProvider, SeriesSelection, StorageError};
+    let mut cases = Vec::new();
+    for index in [0, 4, 8] {
+        for value in [false, true] {
+            cases.push((9, Some((index, value)), None, false));
+        }
+    }
+    for count in [0, 9] {
+        cases.push((count, None, None, true));
+    }
+    for budget in [4, 8, 9] {
+        cases.push((9, None, Some(budget), false));
+    }
+    for index in [3, 7, 8] {
+        for value in [false, true] {
+            cases.push((9, Some((index, value)), Some(index as u64 + 1), false));
+        }
+    }
+    assert_eq!(cases.len(), 17);
+    for (case, (count, bad, budget, prior)) in cases.into_iter().enumerate() {
+        let engine = crate::accounting::EngineAccounting::default();
+        let account = engine.query();
+        let control = CoreControl::default();
+        let mut fixture = label_fixture(count);
+        if let Some((index, value)) = bad {
+            let invalid = types::Bytes {
+                data: ptr::null(),
+                len: 1,
+            };
+            if value {
+                fixture.labels[index].value = invalid;
+            } else {
+                fixture.labels[index].name = invalid;
+            }
+        }
+        let table = fixture.table();
+        let provider = unsafe { provider::Provider::new(&table, &account) }.unwrap();
+        let bounds = crate::storage::TimeBounds {
+            start_ms: 0,
+            end_ms: 1000,
+        };
+        let query = provider.open(bounds, &control).unwrap();
+        let mut selection = query
+            .select(
+                crate::storage::SelectionRequest {
+                    matchers: &[],
+                    bounds,
+                    hints: crate::storage::SelectionHints::default(),
+                    accounting: Some(&account),
+                },
+                &control,
+            )
+            .unwrap();
+        if prior {
+            control.cancellation.cancel();
+        }
+        let before = account.snapshot();
+        let result = if let Some(budget) = budget {
+            crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                selection.next(&control)
+            })
+        } else {
+            selection.next(&control)
+        };
+        let error = result
+            .err()
+            .expect("expected metadata interruption or field error");
+        if bad.is_some() {
+            assert!(
+                matches!(error, StorageError::Invalid("null or misaligned pointer")),
+                "{error:?}"
+            );
+        } else {
+            assert!(
+                matches!(error, StorageError::Interrupted(Interrupted::Cancelled)),
+                "{error:?}"
+            );
+        }
+        let after = account.snapshot();
+        // A failed conversion also closes the series through its accounted owner.
+        let work = bad.map_or_else(|| budget.unwrap_or(0), |(index, _)| index as u64 + 1) + 1;
+        assert_eq!(after.work - before.work, work);
+        let memory = after.memory[MemoryKind::Workspace as usize];
+        assert_eq!(
+            memory.current,
+            before.memory[MemoryKind::Workspace as usize].current
+        );
+        assert_eq!(
+            memory.acquired - before.memory[MemoryKind::Workspace as usize].acquired,
+            memory.released - before.memory[MemoryKind::Workspace as usize].released
+        );
+        drop(selection);
+        drop(query);
+        for (index, (opened, closed)) in fixture.opened.iter().zip(&fixture.closed).enumerate() {
+            assert_eq!(opened.get(), usize::from(index != 3));
+            assert_eq!(opened.get(), closed.get());
+        }
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+        println!(
+            "{{\"label_control_case\":{case},\"count\":{count},\"invalid\":{},\"work\":{work},\"acquired\":{},\"peak\":{}}}",
+            bad.is_some(),
+            memory.acquired,
+            memory.peak
+        );
+    }
+}
+
 #[test]
 fn source_histogram_formatter_errors_survive_foreign_and_plan_release() {
     let spans = [types::Span {

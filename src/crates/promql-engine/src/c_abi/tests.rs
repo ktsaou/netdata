@@ -21,7 +21,7 @@ mod temporary;
 
 struct Fixture {
     points: Vec<types::Sample>,
-    labels: [types::Label; 2],
+    labels: Vec<types::Label>,
     page_size: usize,
     samples_returned: Cell<usize>,
     borrowed_before_mutation: RefCell<Vec<(u8, u64)>>,
@@ -51,7 +51,7 @@ impl Fixture {
                     },
                 })
                 .collect(),
-            labels: [
+            labels: vec![
                 types::Label {
                     name: types::Bytes::of(b"__name__"),
                     value: types::Bytes::of(b"m"),

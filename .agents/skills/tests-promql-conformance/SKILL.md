@@ -105,6 +105,10 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   records calibrated cursor landmarks and native traces for the first-final rate case.
 - Label projection MUST preserve virtual reset and reserved-name errors before matching; measure retained vector
   capacity independently of inputs. See `src/crates/promql-engine/tests/promql-conformance/README.md#compact-one-to-one-result-labels`.
+- Shared allocation hints MUST preserve ordinary/untracked growth, checked required sizes and replacement lease
+  ordering. Include ordinary-provider timing and inspect optimized default-path code: equal results and resource
+  counters do not establish zero runtime overhead. The capacity/error/cleanup and actual optimized C caller panel is
+  in `src/crates/promql-engine/tests/promql-conformance/README.md#exact-c-label-descriptor-capacity`.
 - Single-series head optimizations MUST retain generic multiplicity/kind handling and meaningful control polling;
   see `src/crates/promql-engine/tests/promql-conformance/README.md#single-series-range-head-preparation` for causal controls.
 - Average acquisition reuse MUST preserve full saved traversal state, completed validation before read credit,

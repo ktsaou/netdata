@@ -3858,3 +3858,54 @@ All 3 slower median groups remain in the report. This finite panel is neither un
 throughput nor complete-language proof. There is no new Go capture, SRE/live-Agent/DBengine, full foreign-unit,
 sanitizer, RSS or CI-pass claim. Independent RE2/Fowler/exhaustive suites remain outside the evidence. All 58 prior
 qualification ledger objects retain their content and original source/binary attribution.
+
+
+## Exact C label-descriptor capacity
+
+The C adapter still copies descriptors while borrowing provider-owned label bytes. It now supplies the known label
+count to a shared private vector grower. Growth remains incremental: cancellation, work and field validation precede
+each push. The hint trims geometric excess; required sizes still win and existing capacity never shrinks. Ordinary
+growth selects the original policy at compilation, with the original push body. The untracked allocator path remains.
+Contexts ownership, raw paging, public interfaces and disabled query limits are unchanged.
+
+The [capacity qualification](label-descriptor-capacity-qualification.json) records:
+
+- Nine label counts (0/1/3/4/5/8/9/16/17), 63 byte/pointer/lifetime checks and 17 malformed/cancellation scenarios.
+  The old runtime completes label and cleanup checks before failing the intended final capacity assertion.
+- Five native retained-capacity groups improve; none increase. Nine descriptors retain 512 → 288 bytes, while
+  17 retain 1,024 → 544 bytes. These are isolated requested Workspace bytes, excluding input and allocator overhead.
+- A separate terminal-cancellation case after nine valid labels reduces replacement peak 768 → 544 bytes and
+  cumulative acquisition 896 → 672 bytes. Error priority, work and close/release phases remain exact.
+- 64 selected Debug fixture units (15 accounting, 49 C interface), including low hints, existing larger capacity,
+  untracked growth, overlapping allocations and query-owner release. Formatting, strict production/fixture Clippy
+  and installed Rust 1.91 compile-only checks pass. This is not a fresh full-unit-suite execution.
+- Twelve actual optimized C/C++ callers: both profiles on native AMD64, compiled ARM64 and ARM32 under QEMU.
+  Each passes 48 record categories and seven metadata cases, including nine ordered borrowed labels, zero sample
+  cursors and complete query/selection/series cleanup. Prior two-label cases remain.
+- Eight ordinary Rust-provider query controls retain complete outcomes and every nonelapsed observation. This
+  provider does not reach C descriptor conversion; these controls exercise shared default-growth behavior.
+
+The intermediate dynamic-hint variant also passed those checks but added unused hint handling to ordinary label
+views. Its size-optimized label-replacement timing remained slower against two baseline controls in four of five
+CPU-affinity triples. The final private const-policy split removes runtime hint selection from ordinary growth.
+Both variants keep their actual sources, binaries, complete timing results and limitations in the report.
+
+Five alternating before/final pairs per case/profile, each warm plus measured, retain all 160 checked responses.
+Every final median group appears below. These are shared-host ordinary-path controls, not a throughput claim for
+C label conversion.
+
+| Profile | Case | Median before → final (ms) | Before/final ratio |
+|---|---|---:|---:|
+| release | ascii-n32-numeric-pos-count-range | 0.331 → 0.330 | 1.003× |
+| release | ascii-n4096-numeric-pos-count-range | 37.657 → 38.908 | 0.968× |
+| release | ascii-n4096-literal-pos-count-range | 11.940 → 11.962 | 0.998× |
+| release | ascii-n4096-replace-capture-direct-range | 275.296 → 274.918 | 1.001× |
+| release-min | ascii-n32-numeric-pos-count-range | 0.578 → 0.562 | 1.028× |
+| release-min | ascii-n4096-numeric-pos-count-range | 70.659 → 70.591 | 1.001× |
+| release-min | ascii-n4096-literal-pos-count-range | 20.348 → 19.902 | 1.022× |
+| release-min | ascii-n4096-replace-capture-direct-range | 382.920 → 382.073 | 1.002× |
+
+All 2 slower final median groups remain in the report. Engine-accounted bytes are not process RSS; foreign callers
+do not measure isolated foreign allocation savings. There is no new Go, SRE, live-Agent/DBengine, full foreign-unit,
+regex/frontend, layout, sanitizer or CI-pass qualification. All 59 prior ledger objects retain their content and
+actual source/binary identities.

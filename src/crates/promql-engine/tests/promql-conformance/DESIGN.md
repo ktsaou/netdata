@@ -531,7 +531,8 @@ integration, and Alertmanager remains excluded.
   cancellation and allocation handles retained beyond reports. Report-account callbacks and64-bit limits are exercised
   by actual C callers, including ARM32. Existing ABI4 table layouts are unchanged.
 - Discovery selector preparation polls cancellation and counts work inside its execution timing. A prior-cancelled
-  roster performs no selector copy; all six metadata C cases pass on each current caller. The corrected loop's fresh
+  roster performs no selector copy; all six metadata C cases pass in that cohort. The current
+  [descriptor-capacity cohort](label-descriptor-capacity-qualification.json) adds a seventh nine-label case. The corrected loop's fresh
   units/caller cohort remains distinct from the unchanged protocol/clock/arithmetic cohorts above.
 - The current index-sort bridge adds four focused units and six controls per C caller. The prior discovery517/515
   and430-record cohort remains attributed to d56f263; existing arithmetic and parser owners are unchanged.
@@ -971,3 +972,20 @@ integration, and Alertmanager remains excluded.
   exact complete queries/nonelapsed observations, current native/compiled-ARM/C owners, the original failed
   baseline reader and all warmed timing groups, including separate affinity/identical-binary controls.
   Engine-accounted bytes and shared-host timings have finite scope.
+
+
+## Exact C label-descriptor capacity
+
+- **Choice:** retain per-series copied label descriptors and borrowed provider bytes. Supply the already-known final
+  count as an advisory hint to the shared private vector grower. Clamp only excess geometric growth; required size
+  still wins and existing capacity never shrinks. A const policy selects the original formula for ordinary growth;
+  its original push body and the untracked allocator path remain. Hint arithmetic belongs only to the hinted policy.
+- **Phases:** keep per-label poll, work, name/value validation and push, plus the terminal poll and existing cleanup.
+  Full early reservation would allocate unused suffix capacity before later field errors; the online hint avoids it.
+- **Evidence:** [capacity qualification](label-descriptor-capacity-qualification.json) records five improved native
+  retained-capacity groups, including nine labels 512→288 bytes, 17 labels 1,024→544 bytes and a separate nine-label
+  terminal-cancellation peak 768→544 bytes. All 17 error/cancellation phases retain work and cleanup. The 64 selected
+  Debug units, twelve optimized native/ARM C/C++ callers and ordinary-query controls have explicit finite scope.
+- **Boundaries:** this adds no stored field, public method, metadata provider, raw-history array or configured cap.
+  Stronger descriptor-array immutability would require a separate provider contract; this change retains the existing
+  copied pointers and lifetime rules. Measurements cover requested engine bytes, not allocator overhead or RSS.

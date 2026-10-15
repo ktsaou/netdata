@@ -746,6 +746,13 @@ impl<T> AccountedVec<T> {
         self.values.capacity()
     }
     pub fn reserve(&mut self, additional: usize) {
+        self.reserve_with_capacity_hint::<false>(additional, usize::MAX);
+    }
+    fn reserve_with_capacity_hint<const HAS_HINT: bool>(
+        &mut self,
+        additional: usize,
+        capacity_hint: usize,
+    ) {
         let required = self
             .values
             .len()
@@ -761,6 +768,11 @@ impl<T> AccountedVec<T> {
         let capacity = required
             .max(self.values.capacity().saturating_mul(2))
             .max(4);
+        let capacity = if HAS_HINT {
+            capacity.min(capacity_hint).max(required)
+        } else {
+            capacity
+        };
         let mut values = Vec::with_capacity(capacity);
         let bytes = values
             .capacity()
@@ -773,6 +785,10 @@ impl<T> AccountedVec<T> {
     }
     pub fn push(&mut self, value: T) {
         self.reserve(1);
+        self.values.push(value);
+    }
+    pub(crate) fn push_with_capacity_hint(&mut self, value: T, capacity_hint: usize) {
+        self.reserve_with_capacity_hint::<true>(1, capacity_hint);
         self.values.push(value);
     }
     pub fn pop(&mut self) -> Option<T> {
@@ -1347,6 +1363,60 @@ mod tests {
         assert_eq!(engine.snapshot().memory[2].current, 64);
         drop(result);
         assert_eq!(engine.snapshot().memory[2].current, 0);
+    }
+    #[test]
+    fn capacity_hints_preserve_required_growth_and_accounted_overlap() {
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let mut result = AccountedVec::<u64>::new(&query, MemoryKind::Result);
+        assert_eq!(result.capacity(), 0);
+        for value in 0..9 {
+            result.push_with_capacity_hint(value, 9);
+        }
+        assert_eq!(&*result, &[0, 1, 2, 3, 4, 5, 6, 7, 8]);
+        let memory = query.snapshot().memory[MemoryKind::Result as usize];
+        assert_eq!(memory.current, 72);
+        assert_eq!(memory.peak, 136);
+        assert_eq!(memory.acquired, 168);
+        assert_eq!(memory.released, 96);
+        result.clear();
+        drop(query);
+        assert_eq!(
+            engine.snapshot().memory[MemoryKind::Result as usize].current,
+            72
+        );
+        drop(result);
+        engine.snapshot().assert_memory_released();
+
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let context = AllocationContext::new(&query, MemoryKind::Result);
+        let mut existing = AccountedVec::<u64>::with_capacity_in(16, Some(&context));
+        for value in 0..5 {
+            existing.push_with_capacity_hint(value, 1);
+        }
+        assert_eq!(existing.capacity(), 16);
+        assert_eq!(&*existing, &[0, 1, 2, 3, 4]);
+        let mut undersized = AccountedVec::<u64>::new(&query, MemoryKind::Result);
+        for value in 0..9 {
+            undersized.push_with_capacity_hint(value, 0);
+        }
+        assert_eq!(&*undersized, &[0, 1, 2, 3, 4, 5, 6, 7, 8]);
+        assert!(undersized.capacity() >= undersized.len());
+        drop((existing, undersized, context));
+        query.snapshot().assert_memory_released();
+        drop(query);
+        engine.snapshot().assert_memory_released();
+
+        let mut untracked = AccountedVec::<u64>::default();
+        let mut ordinary = Vec::new();
+        for value in 0..17 {
+            untracked.push_with_capacity_hint(value, 0);
+            ordinary.reserve(1);
+            ordinary.push(value);
+            assert_eq!(untracked.capacity(), ordinary.capacity());
+        }
+        assert_eq!(&*untracked, ordinary.as_slice());
     }
     #[test]
     fn cloned_buffers_account_growth_and_retain_cleared_capacity() {
