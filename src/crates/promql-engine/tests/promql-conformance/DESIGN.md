@@ -1099,6 +1099,13 @@ integration, and Alertmanager remains excluded.
   [measured scope](README.md#completed-range-rate-join-discovery) separately bind all five numerical dispatches,
   mixed-family joins, resets and typed-tail behavior. Numerical and diagnostic owners remain unchanged; equal-function
   ratios alone do not establish correct dispatch. Earlier rate-only measurements retain their original identities.
+- **Measured result:** 804 native comparisons, 18 supplemental candidate boundary outcomes, 536 compiled ARM
+  comparisons, 659 native units/profile and actual C/C++ consumers pass. Four 64-pair mapped shapes improve
+  9.3–13.2× in the fixed shared-host timing panel; no live DBengine or concurrent-throughput claim follows.
+- **Tradeoffs:** 96 of 804 workspace peaks rise by at most 312 B; 42 allocation-traffic observations rise by at
+  most 64 B and 60 work counts by at most 18 units. The representative clamp workload lowers work, reads and
+  allocation traffic while keeping its peak unchanged. Fixture `.text` grows 1,600/720 bytes in release/release-min.
+
 
 ## Completed per-series fold join discovery
 
@@ -1118,9 +1125,3 @@ integration, and Alertmanager remains excluded.
   boundary controls establish clock/fallback outcomes; they cannot install a multi-row Pair.
 - **Costs:** reuse existing membership metadata. Small-query peaks may rise; allocation traffic, tracked peaks,
   fetched samples and timings are reported separately. Neither reduced work nor allocation traffic proves lower RSS.
-- **Measured result:** 804 native comparisons, 18 supplemental candidate boundary outcomes, 536 compiled ARM
-  comparisons, 659 native units/profile and actual C/C++ consumers pass. Four 64-pair mapped shapes improve
-  9.3–13.2× in the fixed shared-host timing panel; no live DBengine or concurrent-throughput claim follows.
-- **Tradeoffs:** 96 of 804 workspace peaks rise by at most 312 B; 42 allocation-traffic observations rise by at
-  most 64 B and 60 work counts by at most 18 units. The representative clamp workload lowers work, reads and
-  allocation traffic while keeping its peak unchanged. Fixture `.text` grows 1,600/720 bytes in release/release-min.
