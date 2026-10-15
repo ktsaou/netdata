@@ -80,6 +80,11 @@ The [README](README.md#standalone-expression-core) summarizes implementation and
 - **Consequence:** parsing does not depend on recursive expression depth fitting the call stack, but grammar,
   diagnostics and upstream drift become maintenance responsibilities. Strings and labels preserve their byte
   semantics rather than undergoing blanket UTF-8 conversion.
+- **Effective argument edges:** keep the typed AST intact and use the existing preprocessing owner to resolve
+  function arguments. Aggregation-parameter subtrees retain parentheses that upstream does not visit. Absence
+  label inference inspects the resulting immediate node; it does not remove surviving parentheses a second time.
+  The separate generic matrix-call path remains intact.
+  See [absence argument qualification](absence-argument-qualification.json).
 - **Evidence:** [owned frontend](README.md#owned-rust-frontend), [frontend source](../../src/frontend).
 
 ### 6. Own Go regex compatibility; reuse a Rust execution backend

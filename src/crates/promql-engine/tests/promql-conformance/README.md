@@ -25,6 +25,9 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Absence inference respects preprocessing of aggregation-parameter arguments. The
+  [argument-edge panel](#absence-argument-preprocessing) records outcome-changing label inference, ordinary and
+  generic matrix controls, byte/matcher history, and actual C/C++ calls without adding runtime state.
 - Nested eligible sorts reuse delivered permutation prefixes. The [nested-sort panel](#nested-vector-sort-prefixes)
   records 1,644 complete native and 840 compiled ARM comparisons, unchanged workspace peaks, and 8.1–8.7× faster
   fixed 512-series `abs(sort(m))` ranges. It also records slower ordinary/tiny controls and exact source attribution.
@@ -150,6 +153,43 @@ publish completed formatted messages; interrupted formatting retains the prior v
 
 Controls are cooperative. The core cannot interrupt a blocking foreign callback. Resource enforcement remains
 disabled, and no implicit query timeout or admission policy is introduced.
+
+## Absence argument preprocessing
+
+Function arguments use the effective edge selected by source preprocessing. Prometheus removes parentheses from
+visited call arguments, while aggregation-parameter subtrees keep their surviving parentheses. Inferring labels
+through those parentheses can change a later vector match and the aggregation parameter's value.
+
+For example, with no matching `missing` series and three distinct `m` values of 1, 2 and 3,
+`topk(scalar(absent((missing{job="a"})) + on(job) vector(1)), m)` must return the largest two series. Previously,
+Rust inferred `job="a"`, lost the vector match and returned `Parameter value is NaN`. A related quantile expression
+returned NaN and a warning where Prometheus returned 3 without a warning.
+
+The evaluator now resolves the argument through its existing preprocessing owner. The absence helper checks that
+immediate selector or matrix node and leaves surviving parentheses intact. Ordinary parenthesized root calls still
+infer labels. Generic unvisited matrix calls, subqueries, matcher equality history, byte labels and source spans
+retain their existing owners. No new state, cache, dependency, ABI or provider behavior is introduced.
+
+The permanent `absence_argument_cases.py` roster uses the existing series codec and includes missing/present
+selectors, parenthesis depth, empty/duplicate/byte matchers, ordinary calls, top-k/quantile parameters, matrix and
+subquery controls in both parser profiles and instant/range modes. The complete-query regression
+`absent_label_inference_respects_visited_argument_edges` checks exact rows, clocks, bits, diagnostics and cleanup.
+The short C/C++ caller mode `--absence-only` checks collected top-k/quantile results and provider-failure cleanup
+at pages 1/17/1024 in both query modes.
+
+[Absence argument qualification](absence-argument-qualification.json) preserves the original failing runtime,
+fresh pinned-oracle evaluations, actual compiler identities, complete outcome comparisons and resource observations.
+Both native optimized builds pass 644 library tests and 984 complete original comparisons. Compiled ARM64/ARM32
+execution passes 656 complete comparisons and 24 selected unit executions across both profiles. Twelve actual
+C/C++ executables each pass the short 24-arm caller. This is selected foreign library/caller execution, not full
+foreign suites or a rebuilt Agent.
+
+The expanded original panel has 144 cases; the previous runtime failed 32 per profile/page. Its 672 unchanged-result
+native groups preserve all reads, with no higher measured workspace peak, acquired workspace or work. Peaks fall
+in 204 groups and acquired workspace in 240. The 192 corrected-result groups require more evaluation and output
+work than the previous wrong error/NaN paths; their resource costs are recorded separately. Native query-fixture
+ELF text grows by 16 bytes per profile. These are engine counters, not process RSS or throughput measurements.
+Historical broader language, SRE, live Agent and API cohorts retain their source identities.
 
 ## Parenthesized matrix and native-operation qualification
 

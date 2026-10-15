@@ -783,6 +783,69 @@ static void basic_statistics_cases(netdata_promql_engine_t *engine) {
     }
     puts("{\"basic_statistics\":\"pass\",\"cases\":21,\"page_sizes\":3}");
 }
+static void absence_parameter_edges(netdata_promql_engine_t *engine) {
+    const char *expressions[] = {
+        "topk(scalar(absent((missing{job=\"a\"})) + on(job) vector(1)), m)",
+        "quantile(scalar(absent((missing{job=\"a\"})) + on(job) vector(0)), m)",
+    };
+    const uint64_t pages[] = {1, 17, 1024};
+    netdata_promql_engine_observations_t idle = engine_observations(engine);
+    for (unsigned expression = 0; expression < 2; expression++) {
+        for (unsigned page = 0; page < 3; page++) {
+            for (unsigned range = 0; range < 2; range++) {
+                for (unsigned failure = 0; failure < 2; failure++) {
+                    netdata_promql_query_t *query = compile(engine, expressions[expression]);
+                    fixture source;
+                    init_fixture(&source, 3, pages[page]);
+                    source.failure = failure ? 6 : 0;
+                    netdata_promql_provider_t p = provider(&source);
+                    netdata_promql_request_t request = instant(range ? 1000 : 2000);
+                    if (range) {
+                        request.kind = NETDATA_PROMQL_REQUEST_RANGE;
+                        request.end_ms = 2000;
+                        request.step_ms = 1000;
+                    }
+                    netdata_promql_result_t *result = NULL;
+                    netdata_promql_report_t *report = NULL;
+                    uint32_t status = netdata_promql_collect(query, &p, &request, NULL, &result, &report);
+                    assert(status == (failure ? NETDATA_PROMQL_PROVIDER_ERROR : NETDATA_PROMQL_OK));
+                    assert(report && (failure ? !result : result != NULL));
+                    released(&source);
+                    if (!failure) {
+                        netdata_promql_result_info_t info;
+                        assert(netdata_promql_result_info(result, &info) == NETDATA_PROMQL_OK);
+                        assert(info.header.value_type == (range ? NETDATA_PROMQL_TYPE_MATRIX : NETDATA_PROMQL_TYPE_VECTOR));
+                        assert(info.series_count == 1 && info.annotation_count == 0);
+                        netdata_promql_series_info_t series;
+                        assert(netdata_promql_result_series_info(result, 0, &series) == NETDATA_PROMQL_OK);
+                        assert(series.label_count == (expression ? 0u : source.label_count));
+                        assert(series.point_count == (range ? 2u : 1u));
+                        for (uint64_t label = 0; label < series.label_count; label++) {
+                            netdata_promql_label_t actual;
+                            assert(netdata_promql_result_label(result, 0, label, &actual) == NETDATA_PROMQL_OK);
+                            assert(actual.name.len == source.labels[label].name.len && actual.value.len == source.labels[label].value.len);
+                            assert(memcmp(actual.name.data, source.labels[label].name.data, (size_t)actual.name.len) == 0);
+                            assert(memcmp(actual.value.data, source.labels[label].value.data, (size_t)actual.value.len) == 0);
+                        }
+                        for (uint64_t index = 0; index < series.point_count; index++) {
+                            int64_t tick = range ? (int64_t)(index + 1) * 1000 : 2000;
+                            netdata_promql_point_info_t point;
+                            assert(netdata_promql_result_point(result, 0, index, &point) == NETDATA_PROMQL_OK);
+                            assert(point.time_ms == tick && point.value_kind == NETDATA_PROMQL_VALUE_FLOAT);
+                            assert(point.reserved == 0 && point.value_bits == netdata_promql_double_bits((double)tick / 1000));
+                        }
+                        assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
+                    }
+                    assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+                    assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+                    balanced(engine, &idle);
+                }
+            }
+        }
+    }
+    puts("{\"absence_parameter_edges\":\"pass\",\"cases\":24,\"page_sizes\":3}");
+}
+
 static void range_result(netdata_promql_engine_t *engine) {
     netdata_promql_query_t *query = compile(engine, "m");
     fixture f;
@@ -1987,6 +2050,11 @@ int main(int argc, char **argv) {
             "m / on(zone) abs(sort_desc(m))");
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
         puts("{\"sort_prefix_only\":\"pass\"}");
+        return 0;
+    }
+    if (argc == 2 && strcmp(argv[1], "--absence-only") == 0) {
+        absence_parameter_edges(engine);
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
         return 0;
     }
     assert(argc == 1);

@@ -69866,5 +69866,20 @@
     "lower_reads_and_allocation_groups": 252,
     "unchanged_workspace_peak_groups": 1644,
     "attribution": "Native Rust cohorts keep qualified_source_manifest; the only final input difference is the C warning consumer. Foreign and final C callers use the derived final_source_manifest. Historical identities are preserved."
+  },
+  "absence_argument_qualification": {
+    "status": "qualified_absence_preprocessing_edges",
+    "receipt": "absence-argument-qualification.json",
+    "sha256": "347b37f46a6c6d0c087730b8dbafcaf7ef9d9cd725036d2a87ca54df127b823e",
+    "scope": "Correct pinned absence-label inference at surviving parentheses in aggregation parameters. No new language function, retained state, cache, ABI/provider/storage contract, resource cap or dependency.",
+    "fresh_original_cases": 164,
+    "complete_native_comparisons": 984,
+    "complete_foreign_comparisons": 656,
+    "native_units_per_profile": 644,
+    "focused_foreign_unit_executions": 24,
+    "actual_c_callers": 12,
+    "corrected_native_panel_groups": 192,
+    "same_result_resource_groups": 672,
+    "attribution": "New native and foreign artifacts use the frozen checked-source manifest; original evaluations reuse the verified unchanged pinned Go executable/compiler binding. Earlier cohorts retain their identities."
   }
 }

@@ -5205,6 +5205,129 @@ mod tests {
     }
 
     #[test]
+    fn absent_label_inference_respects_visited_argument_edges() {
+        use crate::value::{Sample, SampleValue};
+        fn point(index: usize, value: f64) -> Sample {
+            Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: SampleValue::Float(value),
+            }
+        }
+        let samples: [fn(usize) -> Sample; 3] = [
+            |index| point(index, 1.0),
+            |index| point(index, 2.0),
+            |index| point(index, 3.0),
+        ];
+        let cases: &[(&[u8], u8)] = &[
+            (
+                b"topk(scalar(absent((missing{job=\"a\"})) + on(job) vector(1)), m)",
+                0,
+            ),
+            (
+                b"quantile(scalar(absent((missing{job=\"a\"})) + on(job) vector(0)), m)",
+                1,
+            ),
+            (b"absent((missing{job=\"a\"}))", 2),
+            (b"absent_over_time((missing{job=\"a\"}[2s]))", 2),
+        ];
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for request in [
+                    QueryRequest::Instant { time_ms: 2000 },
+                    QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 2000,
+                        step_ms: 1000,
+                    },
+                ] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut provider = FixtureProvider::new(2, page, 3);
+                    provider.filter_selectors = true;
+                    for (index, series) in provider.series.iter_mut().enumerate() {
+                        series.labels = vec![
+                            (b"__name__".to_vec(), b"m".to_vec()),
+                            (b"id".to_vec(), vec![b'a' + index as u8]),
+                            (b"job".to_vec(), b"worker".to_vec()),
+                        ];
+                        series.source.sample = samples[index];
+                    }
+                    let instant = matches!(request, QueryRequest::Instant { .. });
+                    let ticks: &[i64] = if instant { &[2000] } else { &[1000, 2000] };
+                    for (expression, kind) in cases {
+                        let query = engine
+                            .compile(expression, options(delayed), &control)
+                            .unwrap();
+                        let (result, observations) =
+                            query.collect(&provider, request, &control).unwrap();
+                        let identities = match kind {
+                            0 => {
+                                let indices = if instant { [2, 1] } else { [1, 2] };
+                                indices
+                                    .into_iter()
+                                    .map(|index| {
+                                        (provider.series[index].labels.clone(), (index + 1) as f64)
+                                    })
+                                    .collect::<Vec<_>>()
+                            }
+                            1 => vec![(vec![], 3.0)],
+                            _ => vec![(vec![(b"job".to_vec(), b"a".to_vec())], 1.0)],
+                        };
+                        let expected = identities
+                            .into_iter()
+                            .map(|(labels, value)| {
+                                (
+                                    labels,
+                                    ticks
+                                        .iter()
+                                        .map(|tick| (*tick, value.to_bits()))
+                                        .collect::<Vec<_>>(),
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        let actual = result
+                            .series
+                            .iter()
+                            .map(|series| {
+                                (
+                                    series
+                                        .labels
+                                        .0
+                                        .iter()
+                                        .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                                        .collect::<Vec<_>>(),
+                                    series
+                                        .points
+                                        .iter()
+                                        .map(|point| (point.time_ms, float_bits(point)))
+                                        .collect::<Vec<_>>(),
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        assert_eq!(actual, expected, "{expression:?}, page={page}, {request:?}");
+                        assert!(result.annotations.is_empty());
+                        assert_eq!(
+                            observations.output_samples,
+                            (expected.len() * ticks.len()) as u64
+                        );
+                        for kind in [
+                            MemoryKind::Workspace,
+                            MemoryKind::ProviderHeld,
+                            MemoryKind::BorrowedView,
+                        ] {
+                            assert_eq!(observations.memory[kind as usize].current, 0);
+                        }
+                        drop((result, query));
+                        provider.assert_closed();
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn absent_counts_every_nonstale_kind_and_exhausts_its_child() {
         use crate::{
             histogram::FloatHistogram,

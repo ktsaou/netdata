@@ -14,9 +14,6 @@ pub(crate) fn labels(
     control: &Control,
 ) -> Result<OwnedLabels, Interrupted> {
     let mut labels = OwnedLabels::new(account, MemoryKind::Workspace);
-    let argument = expression
-        .arena
-        .unparenthesized(argument, control, account)?;
     let selector = match &expression.arena[argument].expression {
         Expr::Selector(selector) => selector,
         Expr::Matrix { selector, .. } => {

@@ -2918,11 +2918,18 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 }
                 "absent" | "absent_over_time" => {
                     let over_time = function.name == "absent_over_time";
+                    let argument = self.prepared.preprocessing.child(
+                        self.expression,
+                        node,
+                        arguments[0],
+                        self.control,
+                        self.account,
+                    )?;
                     self.frames[index].state = State::Absent {
                         present: false,
                         labels: crate::absence::labels(
                             self.expression,
-                            arguments[0],
+                            argument,
                             self.account,
                             self.control,
                         )?,
