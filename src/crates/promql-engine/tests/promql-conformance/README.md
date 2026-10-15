@@ -4282,15 +4282,18 @@ The [label transfer qualification](scheduled-label-transfer-qualification.json) 
   controls, empty selectors, name collisions and long labels. Another 172 unchanged owned-label cases retain their
   original captures. Both native profiles at pages 1/17/1,024 pass 1,656 complete pinned comparisons with no paired
   bit difference. The before panel explicitly reuses 1,240 closed predecessor outcomes and executes 416 new ones.
-- All complete outcomes and all nonelapsed/nonmemory/nonwork observations match, including logical sample
-  statistics, reads, pages, cursors, output, cancellation and temporary backing. Workspace peaks fall in 864 pairs
+- All complete outcomes and exported nonelapsed/nonmemory/nonwork observations match, including reads, pages,
+  provider calls, output, cancellation references and temporary backing. The native JSON fixture does not export
+  basic sample statistics; those fields are not part of these 1,656 paired observations. Workspace peaks fall in 864 pairs
   and remain equal in 792; acquired/released bytes and work fall in 1,218 and remain equal in 438. None increases.
   Result memory and every observation of the other six memory kinds remain unchanged in these pairs.
 - Both complete native suites pass 654 units. Compiled ARM64/ARM32 under QEMU, both profiles, pass 1,104 complete
   original comparisons and 24 focused unit executions. Twelve actual candidate C/C++ programs each pass 72 legacy
   and 96 scheduled arms; four additional native predecessor programs link the same C source. The 672 paired native
-  arms retain reads, complete outcomes and logical statistics; all eight memory kinds and work are reported.
-  These modes cover streamed/collected results and provider failure at three page sizes. The default full C suite
+  arms retain reads and complete outcomes; all eight memory kinds and work are reported. Of those pairs, the 384
+  scheduled arms also export and compare total queryable samples, useful samples read and peak samples. The 288
+  legacy pairs do not export those fields. These modes cover streamed/collected results and provider failure at
+  three page sizes. The default full C suite
   is not claimed rerun.
 - Formatting, strict production/fixture Clippy and installed Rust 1.91 all-targets fixture compilation pass.
 

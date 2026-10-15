@@ -803,7 +803,7 @@
   "caller_scope": "Four candidate native and eight candidate foreign C/C++ clients;four comparative native clients use the same Csource and actual predecessor archives. Each executes both modes:9/17labels,pages1/17/1024,stream/collect,normal/provider-failure. Scheduled mode checks scalar on either side,filter,timestamp and logical statistics. Default full C suite was not rerun.",
   "resources": {
     "complete_groups": 1656,
-    "unchanged_observations": "All complete outcomes and all nonelapsed/nonmemory/nonwork observations are identical,including logical sample statistics,reads,pages,cursors,output,cancellation and temporary backing.",
+    "unchanged_observations": "All complete outcomes and exported nonelapsed/nonmemory/nonwork observations are identical,including reads,pages,provider calls,output,cancellation references and temporary backing. The native JSON fixture does not export basic sample statistics; those are not part of these1656paired observations.",
     "work": {
       "lower": 1218,
       "same": 438,
@@ -1469,7 +1469,16 @@
       "minimum_delta": -760,
       "maximum_delta": 0
     },
-    "interpretation": "All8memory kinds/current/peak/acquired/released and overflow flags are compared. Acquired/released measure cumulative traffic. Requested engine bytes exclude allocator overhead and processRSS;finite nonincreases are not a universal bound."
+    "interpretation": "All8memory kinds/current/peak/acquired/released and overflow flags are compared. Acquired/released measure cumulative traffic. Requested engine bytes exclude allocator overhead and processRSS;finite nonincreases are not a universal bound.",
+    "comparative_native_c_statistics": {
+      "paired_scheduled_arms": 384,
+      "fields": [
+        "total_queryable_samples",
+        "samples_read",
+        "peak_samples"
+      ],
+      "scope": "Only the96scheduled arms per native executable export these three fields. They match across384native before/candidate pairs. The288legacy pairs do not export them."
+    }
   },
   "timing": {
     "responses_checked": 400,

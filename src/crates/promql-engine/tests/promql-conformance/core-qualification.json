@@ -69909,7 +69909,7 @@
   "scheduled_label_transfer_qualification": {
     "status": "qualified_scheduled_label_ownership_transfer",
     "receipt": "scheduled-label-transfer-qualification.json",
-    "sha256": "a191005b036dd9ba39c83ecb7051e77d4db39a746f659801bdd3546b3ebefc03",
+    "sha256": "a73ab38253c4a32406324bcbe2cd2e182ea03ea719d765c3076742bcf395c597",
     "native_comparisons": 1656,
     "foreign_comparisons": 1104,
     "native_units_per_profile": 654,

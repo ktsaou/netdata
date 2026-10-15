@@ -1047,7 +1047,8 @@ integration, and Alertmanager remains excluded.
 - **Evidence:** [qualification](scheduled-label-transfer-qualification.json) and
   [measured scope](README.md#scheduled-selector-label-ownership) record 1,656 native and 1,104 compiled ARM complete
   comparisons, 654 native units/profile and actual C/C++ consumers. Workspace peaks fall in 864 pairs; allocation
-  traffic/work fall in 1,218, with no measured increases. Other memory kinds, logical statistics and reads match.
+  traffic/work fall in 1,218, with no measured increases. Other memory kinds and exported native counters match.
+  Basic sample statistics are compared separately in 384 scheduled native C pairs; the JSON fixture omits them.
 - **Tradeoffs:** all 20 timing groups remain, including five slower medians. The 64-series/17-label map improves
   1.28–1.34×; the 32 KiB-label release-min case slows 3.55%. Native fixture text grows 528/944 bytes. No universal
   lower-peak, faster-runtime, Agent-size or RSS guarantee follows. Public interfaces, contexts authority, raw paging,
