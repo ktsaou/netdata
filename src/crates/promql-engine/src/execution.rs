@@ -1320,13 +1320,12 @@ impl CompiledQuery {
             PointwiseFunction::parse(function.name),
             Some(PointwiseFunction::Float(..))
         ) {
-            let selector = arguments[0];
+            let selector = rosters.scheduled_selector(node)?;
             // The earned marker includes prepared-child and projected-label uniqueness checks.
             return (matches!(
                 self.expression.arena[selector].expression,
                 Expr::Selector(_)
-            ) && rosters.scheduled_selector(node) == Some(selector)
-                && same_grid(node)
+            ) && same_grid(node)
                 && same_grid(selector))
             .then_some(selector);
         }
@@ -6037,6 +6036,115 @@ mod tests {
         }
     }
 
+    #[test]
+    fn composed_float_map_join_avoids_repeated_all_row_reads() {
+        let mut observations = Vec::new();
+        for expression in [
+            "round(abs(a), .5) / on(instance) b",
+            "abs((a*1)) / on(instance) b",
+            "abs(timestamp(+a)) / on(instance) abs(timestamp(+b))",
+            "abs(label_join(a, \"instance\", \"\", \"instance\")) / on(instance) b",
+        ] {
+            for page in [1, 17, 1024] {
+                for count in [8, 32] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut input = FixtureProvider::new(3, page, count * 2);
+                    input.filter_selectors = true;
+                    for (index, series) in input.series.iter_mut().enumerate() {
+                        series.labels = vec![
+                            (
+                                b"__name__".to_vec(),
+                                if index < count { b"a" } else { b"b" }.to_vec(),
+                            ),
+                            (
+                                b"instance".to_vec(),
+                                (index % count).to_string().into_bytes(),
+                            ),
+                        ];
+                        series.source.counters = Default::default();
+                        series.source.sample = |index| crate::value::Sample {
+                            time_ms: (index as i64 + 1) * 1000,
+                            start_time_ms: 0,
+                            value: crate::value::SampleValue::Float(1.0),
+                        };
+                    }
+                    input.series.reverse();
+                    let query = engine
+                        .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &input,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    );
+                    let result = report.result.as_ref().unwrap();
+                    assert!(report.annotations.is_empty());
+                    let mut identities: Vec<_> = (0..count).map(|i| i.to_string()).collect();
+                    identities.sort();
+                    assert_eq!(result.series.len(), count);
+                    for (row, identity) in result.series.iter().zip(&identities) {
+                        assert_eq!(row.labels.0.len(), 1);
+                        assert_eq!(&*row.labels.0[0].name, b"instance");
+                        assert_eq!(&*row.labels.0[0].value, identity.as_bytes());
+                        assert_eq!(row.points.len(), 3);
+                        for (index, point) in row.points.iter().enumerate() {
+                            assert_eq!(point.time_ms, (index as i64 + 1) * 1000);
+                            let OwnedValue::Float(value) = point.value else {
+                                panic!("numeric join");
+                            };
+                            assert_eq!(value.to_bits(), 1.0_f64.to_bits());
+                        }
+                    }
+                    assert_eq!(report.observations.output_samples, 3 * count as u64);
+                    assert_eq!(
+                        report
+                            .observations
+                            .statistics
+                            .samples
+                            .total_queryable_samples,
+                        6 * count as u64
+                    );
+                    let fetched: usize = input
+                        .series
+                        .iter()
+                        .map(|row| row.source.counters.samples_returned.load(Ordering::Relaxed))
+                        .sum();
+                    assert_eq!(report.observations.samples_fetched, fetched as u64);
+                    assert!(
+                        input.series.iter().all(|row| row
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed)
+                            == 1)
+                    );
+                    println!(
+                        "{{\"composed_float_map_growth\":{expression:?},\"rows\":{count},\"page_size\":{page},\"fetched\":{},\"work\":{}}}",
+                        report.observations.samples_fetched, report.observations.work
+                    );
+                    observations.push((
+                        report.observations.samples_fetched,
+                        report.observations.work,
+                    ));
+                    input.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+        assert!(
+            observations
+                .chunks_exact(2)
+                .all(|pair| pair[1].0 <= pair[0].0 * 6 && pair[1].1 <= pair[0].1 * 8),
+            "composed joins must avoid repeated all-row reads: {observations:?}"
+        );
+    }
+
     fn float_map_join_provider(page: usize) -> FixtureProvider {
         let mut provider = FixtureProvider::new(3, page, 8);
         provider.filter_selectors = true;
@@ -6139,28 +6247,68 @@ mod tests {
             step_ms: 1000,
         };
         for page in [1, 17, 1024] {
-            for (function, parameters) in [
-                ("abs", ""),
-                ("ceil", ""),
-                ("round", ""),
-                ("year", ""),
-                ("round", ", .5"),
-                ("clamp_min", ", 0"),
-                ("clamp_max", ", 4"),
-                ("clamp", ", 0, 4"),
+            for (template, native, direct) in [
+                ("abs({x})", false, true),
+                ("ceil({x})", false, true),
+                ("round({x})", false, true),
+                ("year({x})", false, true),
+                ("round({x}, .5)", false, true),
+                ("clamp_min({x}, 0)", false, true),
+                ("clamp_max({x}, 4)", false, true),
+                ("clamp({x}, 0, 4)", false, true),
+                ("round(abs({x}), .5)", false, false),
+                ("abs(({x}*1))", false, false),
+                ("abs(timestamp(+{x}))", false, false),
+                (
+                    "abs(label_join({x}, \"instance\", \"\", \"source\"))",
+                    false,
+                    false,
+                ),
+                ("abs(histogram_count({x}))", true, false),
+                ("round(histogram_sum({x}), .5)", true, false),
+                ("clamp(histogram_avg({x}), 0, Inf)", true, false),
             ] {
                 for route in ["left", "right", "both"] {
+                    // A rewritten left identity keeps the existing right-side failure landmark distinct.
+                    if template.contains("label_join") && route != "left" {
+                        continue;
+                    }
                     let left_wrapped = route != "right";
                     let right_wrapped = route != "left";
                     let left = if left_wrapped {
-                        format!("{function}(a{parameters})")
+                        template.replace("{x}", "a")
                     } else {
                         "a".into()
                     };
                     let right = if right_wrapped {
-                        format!("{function}(b{parameters})")
+                        template.replace("{x}", "b")
                     } else {
                         "b".into()
+                    };
+                    let provider = || {
+                        let mut input = float_map_join_provider(page);
+                        for (index, row) in input.series.iter_mut().enumerate() {
+                            let source = [3, 1, 0, 2, 0, 2, 1, 3][index].to_string().into_bytes();
+                            row.labels.push((b"source".to_vec(), source));
+                            if native
+                                && ((index < 4 && left_wrapped) || (index >= 4 && right_wrapped))
+                            {
+                                row.source.sample = |index| crate::value::Sample {
+                                    time_ms: (index as i64 + 1) * 1000,
+                                    start_time_ms: 0,
+                                    value: crate::value::SampleValue::FloatHistogram(
+                                        crate::histogram::FloatHistogram {
+                                            count: 1.0,
+                                            sum: 1.0,
+                                            zero_count: 1.0,
+                                            zero_threshold: 1.0,
+                                            ..crate::histogram::FloatHistogram::default()
+                                        },
+                                    ),
+                                };
+                            }
+                        }
+                        input
                     };
                     let expression = format!("{left} / on(instance) {right}");
                     let engine = Engine::default();
@@ -6168,22 +6316,24 @@ mod tests {
                     let compiled = engine
                         .compile(expression.as_bytes(), EngineOptions::default(), &control)
                         .unwrap();
-                    let calibration = float_map_join_provider(page);
+                    let calibration = provider();
                     let (descriptors, baseline) =
                         float_map_join_preparation(&compiled, &calibration, request, &control);
                     assert_eq!(descriptors, 4);
-                    for (index, &count) in baseline.iter().enumerate() {
-                        assert_eq!(
-                            count,
-                            if (index < 4 && left_wrapped) || (index >= 4 && right_wrapped) {
-                                8
-                            } else {
-                                7
-                            }
-                        );
+                    if direct {
+                        for (index, &count) in baseline.iter().enumerate() {
+                            assert_eq!(
+                                count,
+                                if (index < 4 && left_wrapped) || (index >= 4 && right_wrapped) {
+                                    8
+                                } else {
+                                    7
+                                }
+                            );
+                        }
                     }
                     for phase in ["none", "discovery", "pair", "selected"] {
-                        let mut input = float_map_join_provider(page);
+                        let mut input = provider();
                         // Canonical output1 maps to physical right row5; row7 is a later discovery input.
                         let target = if phase == "discovery" { 7 } else { 5 };
                         let acquisition = baseline[target]
@@ -6209,7 +6359,9 @@ mod tests {
                                     .statistics
                                     .samples
                                     .total_queryable_samples,
-                                24
+                                // Native histogram samples use the pinned eleven-unit weight.
+                                12 * (if native && left_wrapped { 11 } else { 1 }
+                                    + if native && right_wrapped { 11 } else { 1 })
                             );
                         } else {
                             assert!(
@@ -6245,7 +6397,7 @@ mod tests {
                         }
                         assert!(report.annotations.is_empty());
                         println!(
-                            "{{\"float_map_join_phase\":\"{phase}\",\"expression\":\"{expression}\",\"page_size\":{page},\"target\":{target},\"preparation_acquisitions\":{},\"acquisitions\":{},\"output_samples\":{}}}",
+                            "{{\"float_map_join_phase\":\"{phase}\",\"expression\":{expression:?},\"page_size\":{page},\"target\":{target},\"preparation_acquisitions\":{},\"acquisitions\":{},\"output_samples\":{}}}",
                             baseline[target],
                             input.series[target]
                                 .source
@@ -6274,6 +6426,14 @@ mod tests {
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
                 for (expression, expected) in [
+                    (
+                        "round(clamp(a, 0, .5-(time()-2)^2), .5) / on(instance) b",
+                        [(2000, 0.5)].as_slice(),
+                    ),
+                    (
+                        "round(clamp(a, NaN, .5-(time()-2)^2), .5) > bool on(instance) b",
+                        [(1000, 0.0), (2000, 0.0), (3000, 0.0)].as_slice(),
+                    ),
                     (
                         "clamp(a, 0, .5-(time()-2)^2) / on(instance) b",
                         [(2000, 0.5)].as_slice(),
@@ -6338,102 +6498,103 @@ mod tests {
             step_ms: 1000,
         };
         for page in [1, 17, 1024] {
-            let engine = Engine::default();
-            let control = Control::default();
-            let compiled = engine
-                .compile(
-                    b"clamp(a, 0, .5-(time()-2)^2) / on(instance) b",
-                    EngineOptions::default(),
-                    &control,
-                )
-                .unwrap();
-            let calibration = float_map_join_unit_provider(page);
-            let (descriptors, baseline) =
-                float_map_join_preparation(&compiled, &calibration, request, &control);
-            assert_eq!(
-                descriptors, 4,
-                "an empty first tick must still reach final evaluation"
-            );
-            for fail_after in [Some(1), Some(4), None] {
-                let input = float_map_join_unit_provider(page);
-                let mut sink = RecordingSink {
-                    fail_after,
-                    ..RecordingSink::default()
-                };
-                let report = compiled.execute_reported(&input, request, &control, &mut sink);
-                if let Some(outputs) = fail_after {
-                    assert!(matches!(&report.result, Err(ExecutionError::Sink(bytes))
-                        if &**bytes == b"sink failure"));
-                    assert!(sink.begun && sink.aborted && !sink.committed);
-                    assert_eq!(sink.chunks, outputs);
-                    assert_eq!(report.observations.output_samples, outputs as u64 - 1);
-                } else {
-                    report.result.as_ref().unwrap();
-                    assert!(sink.committed && !sink.aborted);
-                    assert_eq!(sink.chunks, 4);
-                    assert_eq!(report.observations.output_samples, 4);
-                }
-                for (index, &preparation) in baseline.iter().enumerate() {
-                    // Cold delivery finishes every pair before later rows may reuse its membership.
-                    let final_acquisitions = match fail_after {
-                        Some(1) => 2 + usize::from([1, 6].contains(&index)),
-                        Some(4) => 3 + usize::from(![1, 6].contains(&index)),
-                        None => 4 + usize::from(![1, 6].contains(&index)),
-                        _ => unreachable!(),
+            for expression in [
+                "clamp(a, 0, .5-(time()-2)^2) / on(instance) b",
+                "round(clamp(a, 0, .5-(time()-2)^2), .5) / on(instance) b",
+            ] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let compiled = engine
+                    .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let calibration = float_map_join_unit_provider(page);
+                let (descriptors, baseline) =
+                    float_map_join_preparation(&compiled, &calibration, request, &control);
+                assert_eq!(
+                    descriptors, 4,
+                    "an empty first tick must still reach final evaluation"
+                );
+                for fail_after in [Some(1), Some(4), None] {
+                    let input = float_map_join_unit_provider(page);
+                    let mut sink = RecordingSink {
+                        fail_after,
+                        ..RecordingSink::default()
                     };
+                    let report = compiled.execute_reported(&input, request, &control, &mut sink);
+                    if let Some(outputs) = fail_after {
+                        assert!(matches!(&report.result, Err(ExecutionError::Sink(bytes))
+                        if &**bytes == b"sink failure"));
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        assert_eq!(sink.chunks, outputs);
+                        assert_eq!(report.observations.output_samples, outputs as u64 - 1);
+                    } else {
+                        report.result.as_ref().unwrap();
+                        assert!(sink.committed && !sink.aborted);
+                        assert_eq!(sink.chunks, 4);
+                        assert_eq!(report.observations.output_samples, 4);
+                    }
+                    for (index, &preparation) in baseline.iter().enumerate() {
+                        // Cold delivery finishes every pair before later rows may reuse its membership.
+                        let final_acquisitions = match fail_after {
+                            Some(1) => 2 + usize::from([1, 6].contains(&index)),
+                            Some(4) => 3 + usize::from(![1, 6].contains(&index)),
+                            None => 4 + usize::from(![1, 6].contains(&index)),
+                            _ => unreachable!(),
+                        };
+                        assert_eq!(
+                            input.series[index]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            preparation + final_acquisitions,
+                            "page{page} output{fail_after:?} physical{index}"
+                        );
+                    }
+                    assert!(report.annotations.is_empty());
+                    report.assert_retained_callback_error_memory();
+                    input.assert_closed();
+                    drop(report);
+                }
+                for (phase, target, final_acquisition, outputs) in [
+                    ("first-empty-left", 2, 1, 0),
+                    ("first-empty-right", 7, 1, 0),
+                    ("next-scope", 7, 2, 0),
+                    ("cold-pair-suffix", 5, 3, 1),
+                    ("warm-selected", 5, 4, 1),
+                    ("last-empty", 7, 5, 4),
+                ] {
+                    let mut input = float_map_join_unit_provider(page);
+                    let acquisition = baseline[target] + final_acquisition;
+                    input.series[target].source.fail_acquisition = Some(acquisition);
+                    let mut sink = RecordingSink::default();
+                    let report = compiled.execute_reported(&input, request, &control, &mut sink);
+                    assert!(matches!(&report.result, Err(ExecutionError::Evaluation(
+                    EvaluationError::Storage(StorageError::Provider(bytes))))
+                    if &**bytes == b"injected page failure"));
+                    assert!(sink.begun && sink.aborted && !sink.committed);
+                    assert_eq!(sink.chunks, outputs, "{phase} page{page}");
+                    assert_eq!(report.observations.output_samples, outputs as u64);
                     assert_eq!(
-                        input.series[index]
+                        input.series[target]
                             .source
                             .counters
                             .opened
                             .load(Ordering::Relaxed),
-                        preparation + final_acquisitions,
-                        "page{page} output{fail_after:?} physical{index}"
+                        acquisition
                     );
+                    assert!(report.annotations.is_empty());
+                    report.assert_retained_callback_error_memory();
+                    println!(
+                        "{{\"float_map_join_empty_scope_phase\":\"{phase}\",\"page_size\":{page},\"target\":{target},\"preparation_acquisitions\":{},\"acquisitions\":{acquisition},\"output_samples\":{outputs}}}",
+                        baseline[target]
+                    );
+                    input.assert_closed();
+                    drop(report);
                 }
-                assert!(report.annotations.is_empty());
-                report.assert_retained_callback_error_memory();
-                input.assert_closed();
-                drop(report);
+                drop(compiled);
+                engine.accounting.snapshot().assert_memory_released();
             }
-            for (phase, target, final_acquisition, outputs) in [
-                ("first-empty-left", 2, 1, 0),
-                ("first-empty-right", 7, 1, 0),
-                ("next-scope", 7, 2, 0),
-                ("cold-pair-suffix", 5, 3, 1),
-                ("warm-selected", 5, 4, 1),
-                ("last-empty", 7, 5, 4),
-            ] {
-                let mut input = float_map_join_unit_provider(page);
-                let acquisition = baseline[target] + final_acquisition;
-                input.series[target].source.fail_acquisition = Some(acquisition);
-                let mut sink = RecordingSink::default();
-                let report = compiled.execute_reported(&input, request, &control, &mut sink);
-                assert!(matches!(&report.result, Err(ExecutionError::Evaluation(
-                    EvaluationError::Storage(StorageError::Provider(bytes))))
-                    if &**bytes == b"injected page failure"));
-                assert!(sink.begun && sink.aborted && !sink.committed);
-                assert_eq!(sink.chunks, outputs, "{phase} page{page}");
-                assert_eq!(report.observations.output_samples, outputs as u64);
-                assert_eq!(
-                    input.series[target]
-                        .source
-                        .counters
-                        .opened
-                        .load(Ordering::Relaxed),
-                    acquisition
-                );
-                assert!(report.annotations.is_empty());
-                report.assert_retained_callback_error_memory();
-                println!(
-                    "{{\"float_map_join_empty_scope_phase\":\"{phase}\",\"page_size\":{page},\"target\":{target},\"preparation_acquisitions\":{},\"acquisitions\":{acquisition},\"output_samples\":{outputs}}}",
-                    baseline[target]
-                );
-                input.assert_closed();
-                drop(report);
-            }
-            drop(compiled);
-            engine.accounting.snapshot().assert_memory_released();
         }
     }
 

@@ -25,6 +25,9 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Composed Float-map joins pass 4,126 complete native and 8,156 compiled ARM matches, 632 native units/profile and 12 actual
+  C/C++ callers. The [composition panel](#completed-composed-float-map-joins) records existing schedule reuse, full
+  value/label/time checks, large-query savings and the 312 B small-case peak cost.
 - Single-lock received-page accounting passes 631 native units/profile, 246 complete queries with every exported
   nonelapsed observation unchanged, 28 focused compiled ARM unit executions and four actual native C/C++ callers.
   The [page accounting panel](#single-lock-received-page-accounting) records exact counter/error phases, unchanged
@@ -3395,10 +3398,11 @@ Earlier cohorts keep their actual source and binary identities; all 52 previous 
 The initial completed direct-join extension used the existing typed `PointwiseFunction::Float` class after checking
 actual arity one. That cohort covered all 32 one-argument members: ordinary mathematical maps, default `round` and
 explicit-vector calendars. At that checkpoint, parameterized round/clamps kept ordinary evaluation. The
-[parameterized extension](#completed-parameterized-float-map-joins) below records the current additional eligibility;
-this earlier cohort and its numbers retain their original source and binary identities.
+[parameterized extension](#completed-parameterized-float-map-joins) records that checkpoint's additional eligibility;
+the [composition extension](#completed-composed-float-map-joins) records the current broader inner path.
+This earlier cohort and its numbers retain their original source and binary identities.
 
-Eligibility still requires a direct selector, an earned scheduled-selector marker, matching wrapper/leaf producer,
+That checkpoint required a direct selector, an earned scheduled-selector marker, matching wrapper/leaf producer,
 source and scope grids, and all existing root/matching/uniqueness restrictions. The first final body must complete
 discovery, arithmetic, filtering, duplicate checks and diagnostics before reuse is published. Later rows read their
 selected wrapper operands afresh. Wrapper ordinals remain distinct from physical source positions. Domain NaNs
@@ -3468,16 +3472,18 @@ is made. See the [initial abs cohort](#completed-direct-abs-join-scans) for its 
 
 ## Completed parameterized float-map joins
 
-Completed direct joins now admit parameterized `round`, `clamp_min`, `clamp_max` and `clamp` when the existing
+The parameterized checkpoint added `round`, `clamp_min`, `clamp_max` and `clamp` when the existing
 scheduled-selector marker proves that every scalar parameter reads no series. Literal, unary, parenthesized,
 binary scalar arithmetic and `time()` follow that existing proof. The preliminary actual-arity-one restriction
 is removed; the separate direct `rate` branch retains it. No new purity walk, function list or runtime state is added.
 
-The shared typed Float class, direct selector and all wrapper/leaf producer/source/scope grids remain required.
+That checkpoint required the shared typed Float class, a direct selector and all wrapper/leaf producer/source/scope
+grids. The [composition extension](#completed-composed-float-map-joins) below broadens the proven inner path.
 Root, matching, unique-kind, clock and successful-completion gates remain in place. Parameters still evaluate
 through the normal evaluator before vector acquisition. Source-reading `scalar(n)` and even `scalar(vector(.5))`
-do not earn this conservative marker and retain ordinary evaluation. Zero-argument calendars, indirect shapes
-and clock/native helpers also retain their existing paths.
+do not earn this conservative marker and retain ordinary evaluation. Zero-argument calendars remain ordinary;
+indirect and clock/native helpers kept their previous paths at that checkpoint. Current composed eligibility is
+recorded below.
 
 A full clamp can omit every row for a tick. Reuse keeps the current exact scope and actual membership.
 With four IDs and constant inputs of 1, `clamp(a, 0, .5-(time()-2)^2) / on(instance) b` emits nothing at seconds 1
@@ -3524,7 +3530,7 @@ old completions release before replacement. Accounted owner bytes are neither al
 
 Warm measurements follow closure of all owned qualification runs: 26 fixed cases per profile, five alternating
 pairs, one warm then one measured query per active dataset, and 1,040 checked responses. Every complete result and
-each variant's own nonelapsed observations match its qualified run. These examples use 128 series per operand and page17:
+each variant's own nonelapsed observations match its qualified run. These examples use 128 series per operand and page 17:
 
 | Profile | Expression | Median before → after | Before/after ratio |
 |---|---|---:|---:|
@@ -3629,3 +3635,71 @@ qualification. In this follow-up, release ratios are near parity (0.997–1.005)
 modest positive results (1.009–1.044). Identical-binary ratios span 0.987–1.014. The original larger release
 slowdowns did not recur under this separate condition. Affinity provides no hardware isolation, and these
 results establish no universal gain or causal explanation for host/profile differences.
+
+## Completed composed Float-map joins
+
+Completed joins now resolve the existing earned schedule through composed Float operands such as
+`round(abs(m), .5) / on(id) n`. Inner parens/unary, vector/pure-scalar arithmetic and comparisons, label projections,
+supported timestamps and histogram count/sum/avg conversions can qualify. The outer typed Float and raw-leaf/grid,
+root, one-to-one matching, unique Float operand/output and successful-completion checks remain. A bare outer Binary,
+group, sort, subquery, source-reading scalar or unproven clock keeps its ordinary path. No feature is dropped.
+
+The marker already proves every prepared vector child, pure scalar side parameter and projected-label uniqueness.
+Matching outer/leaf source/value grids excludes intermediate boundary collapse; scalar argument clocks may intentionally
+be invariant. Direct `timestamp(m)` can retain fallback because its leaf producer is missing, while timestamp of a
+computed vector can qualify. With samples at 750/1750/2750 ms and evaluation at 1000/2000/3000 ms, direct timestamp observes
+.75/1.75/2.75 seconds; unary-plus input observes 1/2/3 seconds. Both full outcomes are checked independently.
+
+Selection retains outer wrapper ordinals. Existing mappings translate through canonical, intermediate and physical
+source rows, including changed label identities and nonuniform values. Native input is permitted only after prepared
+operands/output satisfy the existing Float certificate. First-final delivery still finishes every pair before reuse;
+later rows evaluate their selected original operands afresh. Empty/populated/empty scope replacement, present NaN,
+required provider errors and provisional abort remain distinct. The zero-bucket histogram fixtures retain the pinned 11-unit sample weight.
+
+The [composed-map qualification](composed-map-join-qualification.json) binds 4,126 complete native matches, 420 independent
+full-value checks, 8,156 compiled ARM64/ARM32 matches, 632 native units per profile and 16 focused compiled ARM unit executions.
+Twelve actual native/ARM C/C++ callers pass 44 records each. Four added C queries use post-output fault arming; distinct
+Rust owners establish native projection values and cold/pre-first-output phases. Native format, strict production/
+fixture Clippy and MSRV 1.91 compile-only checks pass. The 75 expected/retained errors per native profile remain errors;
+nine construction errors/profile have no observation record. Error/empty checks do not establish successful function coverage.
+
+Before the runtime change, all 24 growth result/label/time/statistics/read-credit/release checks passed before all 12 fixed
+growth groups failed their bounds. Current growth and calibrated cold-discovery/full-pair/warm-selected, rewritten-label,
+native and changing-membership owners pass. Original fixture-input, expectation-reader, test-weight and plan-key reader
+mistakes are retained separately from successful owners; they do not become passing engine results.
+
+Of 4,108 exported observation groups, 1,524 fetch fewer entries, do less work and acquire less workspace; none increase those
+costs. All 2,006 instant observation groups and 240 scaling workspace peaks match exactly. In 396 small range groups, existing completion
+metadata adds 312 bytes at peak, at most 1.10% here. Provider/borrowed peaks never increase. This is not a global memory win.
+For 128 series per side, page 17 and three range ticks, `round(abs(m), .5) / on(id) n` changes as follows:
+
+| Observation | Before | After |
+|---|---:|---:|
+| Fetched sample entries | 595,968 | 13,038 |
+| Accounted work | 35,622,635 | 977,853 |
+| Acquired workspace bytes | 165,977,580 | 6,411,955 |
+| Peak workspace bytes | 486,052 | 486,052 |
+
+Raw history remains paged across both axes. No new production field, cache, owner, proof walk, metadata authority,
+ABI, storage format, default or enabled limit is introduced. Accounted bytes exclude allocator overhead and fixture
+input arrays and are not process RSS.
+
+After all qualification writers closed, the fixed warm panel ran 16 cases/profile, seven alternating pairs, one warm
+then one measured query per case/variant: 896 complete checked responses and 32 median groups. Every result and each
+variant's own qualified nonelapsed observations match. Shared-host execution timings retain every sample and slower
+group in the qualification. Examples at 128 series/side and page 17:
+
+| Profile | Operand | Median before → after | Before/after ratio |
+|---|---|---:|---:|
+| release | nested-round | 642.568 → 17.344 ms | 37.05× |
+| release | inner-times | 656.149 → 17.829 ms | 36.80× |
+| release | time-computed | 684.343 → 18.806 ms | 36.39× |
+| release | label-join | 658.362 → 16.671 ms | 39.49× |
+| release-min | nested-round | 1101.975 → 31.576 ms | 34.90× |
+| release-min | inner-times | 1118.456 → 31.815 ms | 35.16× |
+| release-min | time-computed | 1104.621 → 33.227 ms | 33.24× |
+| release-min | label-join | 1120.951 → 29.891 ms | 37.50× |
+
+The panel retains 5 slower medians. There is no exclusive-CPU/frequency or universal speed claim.
+No new Go/SRE/live-Agent/DBengine, full foreign-unit, layout, sanitizer, RSS or CI-pass qualification is inferred.
+Earlier cohorts retain their original source/binary identities.

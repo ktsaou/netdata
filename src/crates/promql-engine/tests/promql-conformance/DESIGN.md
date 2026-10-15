@@ -624,11 +624,12 @@ integration, and Alertmanager remains excluded.
 
 ## Completed direct float-map join scans
 
-- **Choice:** recognize the shared typed `PointwiseFunction::Float` class with a nonempty vector argument and the
-  earned marker for pure scalar parameters. This includes ordinary mathematical maps, default/parameterized round,
-  clamps and explicit-vector calendars. Require a direct selector and identical wrapper/leaf producer/source/scope
-  grids. Preserve all outer root, matching, uniqueness, selector-schedule, exact-key and successful-Done gates.
-  The separate direct rate branch keeps its actual-arity-one restriction.
+- **Choice:** recognize the shared typed `PointwiseFunction::Float` class with a nonempty vector argument, resolving
+  its already-earned raw-selector marker. This includes direct and composed mathematical maps, parameterized round,
+  clamps and explicit-vector calendars. The inner proven path may include parens/unary, vector/pure-scalar operations,
+  label projections, supported timestamp and histogram count/sum/avg conversions. Require an actual raw Selector and
+  identical outer/leaf producer/source/scope grids. Preserve all root, matching, uniqueness, selector-schedule,
+  exact-key and successful-Done gates. The separate direct rate branch keeps its actual-arity-one restriction.
 - **Ownership:** reuse existing pair bindings and accounted current-scope membership. Later outputs read selected
   wrapper operands afresh through canonical-to-physical mapping. First-final delivery drains all pairs before
   publishing membership. Release the previous completion before replacement. No raw history array, purity walk,
@@ -636,8 +637,10 @@ integration, and Alertmanager remains excluded.
 - **Parameters and omission:** normal evaluation computes scalar arguments before reading the vector. Full clamp
   can emit an empty scope; completed empty and populated membership remains exact-key-specific. NaN bounds produce
   present float NaNs, and native values retain normal filtering. Sparse/stale and reordered inputs preserve wrapper
-  ordinals. Source-reading scalar parameters, zero-argument clocks, indirect shapes and unsupported schedules retain
-  ordinary evaluation. No numerical/default/ABI/storage/reference contract changes.
+  ordinals. Source-reading scalar parameters, zero-argument clocks, unproven shapes and unsupported schedules retain
+  ordinary evaluation. Direct timestamp selectors can lack the leaf producer required by the existing grid check;
+  timestamp of a computed vector may qualify and observes that vector's source-time policy. Scalar parameter clocks
+  may intentionally be invariant. No numerical/default/ABI/storage/reference contract changes.
 - **Failure phases:** separately calibrate preparation and actual first/fourth/completed output acquisitions.
   Preserve first-empty, next-scope, cold pair suffix, warm selected and last-empty provider failures and provisional
   abort. Actual surviving private frames establish parameter-phase interruption before vector acquisition; a work
@@ -647,7 +650,14 @@ integration, and Alertmanager remains excluded.
   82–312 B in the earlier one-argument cohort and 146–312 B in the parameter cohort. Some mixed-kind rejected
   certificates add 32 cumulative bytes and 16 work units with unchanged peaks. These are measured finite costs,
   not a global peak-memory reduction. Accounted bytes are not RSS; caps remain disabled.
-- **Evidence:** [parameter-map qualification](parameter-map-join-qualification.json) binds the current parameter,
+- **Compositions:** [composed-map qualification](composed-map-join-qualification.json) binds complete native/compiled-ARM
+  outcomes and nonuniform label/time/native expectations. Pair selection keeps outer ordinals; existing source maps
+  translate through intermediate projections. No second purity/clock walk or raw-ordinal substitution is added.
+  All 240 scaling workspace peaks and 2,006 instant observation groups match; 396 small groups add 312 B at peak
+  (at most 1.10%) through existing completion metadata, while 1,524 groups reduce reads/work/allocation and none
+  increase them. These are
+  measured finite costs, not a universal peak-memory reduction.
+- **Evidence:** [parameter-map qualification](parameter-map-join-qualification.json) binds the earlier parameter,
   changing-membership, interruption, complete native/compiled-ARM, actual C/C++ and timing panels, including every
   slower group and distinct development failure. The [one-argument cohort](float-map-join-qualification.json) and
   [initial abs cohort](abs-join-qualification.json) retain their actual source/binary identities.
