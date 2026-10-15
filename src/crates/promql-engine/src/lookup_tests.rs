@@ -3,7 +3,115 @@ use super::*;
 use crate::{result::OwnedValue, test_storage::FixtureProvider};
 
 #[test]
-fn completed_abs_join_avoids_repeated_operand_reads() {
+fn registered_float_maps_preserve_vector_shapes_and_nan_membership() {
+    let functions: Vec<_> = crate::frontend::functions::FUNCTIONS
+        .iter()
+        .filter(|function| {
+            matches!(
+                PointwiseFunction::parse(function.name),
+                Some(PointwiseFunction::Float(..))
+            )
+        })
+        .collect();
+    assert_eq!(functions.len(), 35);
+    let mut valid = 0;
+    let mut invalid = 0;
+    for function in functions {
+        let invalid_arity = matches!(function.name, "clamp" | "clamp_min" | "clamp_max");
+        if invalid_arity {
+            invalid += 1;
+        } else {
+            valid += 1;
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let expression = format!(
+                    "{0}(counter_total) == bool on(instance) {0}(counter_total)",
+                    function.name
+                );
+                let compiled = engine.compile(
+                    expression.as_bytes(),
+                    EngineOptions {
+                        delayed_name_removal: delayed,
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                );
+                if invalid_arity {
+                    let error = compiled
+                        .err()
+                        .expect("clamp requires additional parameters");
+                    assert!(matches!(&error, CompileError::Parse(_)));
+                    drop(error);
+                    engine.accounting.snapshot().assert_memory_released();
+                    continue;
+                }
+                let query = compiled.unwrap();
+                let provider = FixtureProvider::new(3, page, 4);
+                let report = query.collect_reported(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 3000,
+                        step_ms: 1000,
+                    },
+                    &control,
+                );
+                let result = report.result.as_ref().unwrap();
+                assert_eq!(
+                    result.series.len(),
+                    4,
+                    "{} page{page} delayed{delayed}",
+                    function.name
+                );
+                assert!(report.annotations.is_empty());
+                for (index, series) in result.series.iter().enumerate() {
+                    assert_eq!(series.labels.0.len(), 1);
+                    assert_eq!(&*series.labels.0[0].name, b"instance");
+                    assert_eq!(&*series.labels.0[0].value, index.to_string().as_bytes());
+                    assert_eq!(series.points.len(), 3);
+                    for (tick, point) in series.points.iter().enumerate() {
+                        assert_eq!(point.time_ms, (tick as i64 + 1) * 1000);
+                        let OwnedValue::Float(value) = point.value else {
+                            panic!("float comparison");
+                        };
+                        // These domain NaNs stay present and compare unequal to themselves.
+                        let expected: f64 =
+                            if tick > 0 && matches!(function.name, "asin" | "acos" | "atanh") {
+                                0.0
+                            } else {
+                                1.0
+                            };
+                        assert_eq!(
+                            value.to_bits(),
+                            expected.to_bits(),
+                            "{} tick{tick}",
+                            function.name
+                        );
+                    }
+                }
+                assert_eq!(report.observations.output_samples, 12);
+                assert_eq!(
+                    report
+                        .observations
+                        .statistics
+                        .samples
+                        .total_queryable_samples,
+                    24
+                );
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+    assert_eq!((valid, invalid), (32, 3));
+}
+
+#[test]
+fn completed_float_map_join_avoids_repeated_operand_reads() {
     fn point(index: usize) -> crate::value::Sample {
         crate::value::Sample {
             time_ms: (index as i64 + 1) * 1000,
@@ -12,97 +120,102 @@ fn completed_abs_join_avoids_repeated_operand_reads() {
         }
     }
     let mut observations = Vec::new();
-    for page_size in [1, 17, 1024] {
-        for count in [32, 128] {
-            let engine = Engine::default();
-            let control = Control::default();
-            let mut provider = FixtureProvider::new(3, page_size, count);
-            for series in &mut provider.series {
-                series.source.sample = point;
-            }
-            let query = engine
-                .compile(
-                    b"abs(counter_total) / on(instance) counter_total",
-                    EngineOptions::default(),
+    for function in ["abs", "ceil", "round", "year"] {
+        for page_size in [1, 17, 1024] {
+            for count in [32, 128] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut provider = FixtureProvider::new(3, page_size, count);
+                for series in &mut provider.series {
+                    series.source.sample = point;
+                }
+                let right = if function == "year" {
+                    "year(counter_total)"
+                } else {
+                    "counter_total"
+                };
+                let expression = format!("{function}(counter_total) / on(instance) {right}");
+                let query = engine
+                    .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let report = query.collect_reported(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 3000,
+                        step_ms: 1000,
+                    },
                     &control,
-                )
-                .unwrap();
-            let report = query.collect_reported(
-                &provider,
-                QueryRequest::Range {
-                    start_ms: 1000,
-                    end_ms: 3000,
-                    step_ms: 1000,
-                },
-                &control,
-            );
-            let result = report.result.as_ref().unwrap();
-            assert_eq!(result.series.len(), count);
-            assert!(report.annotations.is_empty());
-            let mut instances: Vec<_> = (0..count).map(|index| index.to_string()).collect();
-            instances.sort();
-            for (instance, series) in instances.iter().zip(&*result.series) {
-                assert_eq!(series.labels.0.len(), 1);
-                assert_eq!(&*series.labels.0[0].name, b"instance");
-                assert_eq!(&*series.labels.0[0].value, instance.as_bytes());
-                let points: Vec<_> = series
-                    .points
-                    .iter()
-                    .map(|point| {
-                        let OwnedValue::Float(value) = point.value else {
-                            panic!("float abs pair");
-                        };
-                        (point.time_ms, value.to_bits())
-                    })
-                    .collect();
-                assert_eq!(
-                    points,
-                    [
-                        (1000, (-1.0f64).to_bits()),
-                        (2000, (-1.0f64).to_bits()),
-                        (3000, (-1.0f64).to_bits())
-                    ]
                 );
+                let result = report.result.as_ref().unwrap();
+                assert_eq!(result.series.len(), count);
+                assert!(report.annotations.is_empty());
+                let mut instances: Vec<_> = (0..count).map(|index| index.to_string()).collect();
+                instances.sort();
+                for (instance, series) in instances.iter().zip(&*result.series) {
+                    assert_eq!(series.labels.0.len(), 1);
+                    assert_eq!(&*series.labels.0[0].name, b"instance");
+                    assert_eq!(&*series.labels.0[0].value, instance.as_bytes());
+                    let points: Vec<_> = series
+                        .points
+                        .iter()
+                        .map(|point| {
+                            let OwnedValue::Float(value) = point.value else {
+                                panic!("float map pair");
+                            };
+                            (point.time_ms, value.to_bits())
+                        })
+                        .collect();
+                    let expected: f64 = if function == "abs" { -1.0 } else { 1.0 };
+                    assert_eq!(
+                        points,
+                        [
+                            (1000, expected.to_bits()),
+                            (2000, expected.to_bits()),
+                            (3000, expected.to_bits())
+                        ]
+                    );
+                }
+                let observed = &report.observations;
+                assert_eq!(observed.output_samples, 3 * count as u64);
+                assert_eq!(
+                    observed.statistics.samples.total_queryable_samples,
+                    6 * count as u64
+                );
+                assert!(observed.statistics.samples.samples_read <= observed.samples_fetched);
+                let counters = &provider.series[0].source.counters;
+                assert_eq!(
+                    observed.samples_fetched,
+                    counters
+                        .samples_returned
+                        .load(std::sync::atomic::Ordering::Relaxed) as u64
+                );
+                assert_eq!(counters.peak.load(std::sync::atomic::Ordering::Relaxed), 1);
+                println!(
+                    "{{\"float_map_join\":\"{function}\",\"rows\":{count},\"page_size\":{page_size},\"fetched\":{},\"read\":{},\"queryable\":{},\"work\":{},\"workspace_peak\":{}}}",
+                    observed.samples_fetched,
+                    observed.statistics.samples.samples_read,
+                    observed.statistics.samples.total_queryable_samples,
+                    observed.work,
+                    observed.memory[MemoryKind::Workspace as usize].peak
+                );
+                observations.push((observed.samples_fetched, observed.work));
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
             }
-            let observed = &report.observations;
-            assert_eq!(observed.output_samples, 3 * count as u64);
-            assert_eq!(
-                observed.statistics.samples.total_queryable_samples,
-                6 * count as u64
-            );
-            assert!(observed.statistics.samples.samples_read <= observed.samples_fetched);
-            let counters = &provider.series[0].source.counters;
-            assert_eq!(
-                observed.samples_fetched,
-                counters
-                    .samples_returned
-                    .load(std::sync::atomic::Ordering::Relaxed) as u64
-            );
-            assert_eq!(counters.peak.load(std::sync::atomic::Ordering::Relaxed), 1);
-            println!(
-                "{{\"abs_join_rows\":{count},\"page_size\":{page_size},\"fetched\":{},\"read\":{},\"queryable\":{},\"work\":{},\"workspace_peak\":{}}}",
-                observed.samples_fetched,
-                observed.statistics.samples.samples_read,
-                observed.statistics.samples.total_queryable_samples,
-                observed.work,
-                observed.memory[MemoryKind::Workspace as usize].peak
-            );
-            observations.push((observed.samples_fetched, observed.work));
-            provider.assert_closed();
-            drop((report, query));
-            engine.accounting.snapshot().assert_memory_released();
         }
     }
     assert!(
         observations
             .chunks_exact(2)
             .all(|pair| pair[1].0 <= pair[0].0 * 6 && pair[1].1 <= pair[0].1 * 8),
-        "completed abs joins must avoid repeated full operand reads: {observations:?}"
+        "completed float-map joins must avoid repeated full operand reads: {observations:?}"
     );
 }
 
 #[test]
-fn completed_abs_join_preserves_sparse_native_membership_and_wrapper_ordinals() {
+fn completed_float_map_join_preserves_sparse_native_membership_and_wrapper_ordinals() {
     fn point<const MIXED: bool, const ID: usize>(index: usize) -> crate::value::Sample {
         use crate::value::{Sample, SampleValue};
         let stale = f64::from_bits(crate::value::STALE_NAN_BITS);
@@ -132,104 +245,127 @@ fn completed_abs_join_preserves_sparse_native_membership_and_wrapper_ordinals() 
             },
         }
     }
-    for page in [1, 17, 1024] {
-        for delayed in [false, true] {
-            for route in ["left", "right", "both"] {
-                let mut provider = FixtureProvider::new(3, page, 8);
-                provider.filter_selectors = true;
-                let samples: [fn(usize) -> crate::value::Sample; 8] = [
-                    point::<true, 2>,
-                    point::<true, 0>,
-                    point::<true, 3>,
-                    point::<true, 1>,
-                    point::<false, 3>,
-                    point::<false, 1>,
-                    point::<false, 0>,
-                    point::<false, 2>,
-                ];
-                for (index, series) in provider.series.iter_mut().enumerate() {
-                    series.labels = vec![
-                        (
-                            b"__name__".to_vec(),
-                            if (index < 4) == (route != "right") {
-                                b"a"
-                            } else {
-                                b"b"
-                            }
-                            .to_vec(),
-                        ),
-                        (
-                            b"instance".to_vec(),
-                            [2, 0, 3, 1, 3, 1, 0, 2][index].to_string().into_bytes(),
-                        ),
+    for function in ["abs", "ceil", "round", "year"] {
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for route in ["left", "right", "both"] {
+                    let mut provider = FixtureProvider::new(3, page, 8);
+                    provider.filter_selectors = true;
+                    let samples: [fn(usize) -> crate::value::Sample; 8] = [
+                        point::<true, 2>,
+                        point::<true, 0>,
+                        point::<true, 3>,
+                        point::<true, 1>,
+                        point::<false, 3>,
+                        point::<false, 1>,
+                        point::<false, 0>,
+                        point::<false, 2>,
                     ];
-                    series.source.sample = samples[index];
-                }
-                let expression = match route {
-                    "left" => "abs(a) - on(instance) b",
-                    "right" => "a - on(instance) abs(b)",
-                    _ => "abs(a) - on(instance) abs(b)",
-                };
-                let engine = Engine::default();
-                let control = Control::default();
-                let query = engine
-                    .compile(
-                        expression.as_bytes(),
-                        EngineOptions {
-                            delayed_name_removal: delayed,
-                            ..EngineOptions::default()
+                    for (index, series) in provider.series.iter_mut().enumerate() {
+                        series.labels = vec![
+                            (
+                                b"__name__".to_vec(),
+                                if (index < 4) == (route != "right") {
+                                    b"a"
+                                } else {
+                                    b"b"
+                                }
+                                .to_vec(),
+                            ),
+                            (
+                                b"instance".to_vec(),
+                                [2, 0, 3, 1, 3, 1, 0, 2][index].to_string().into_bytes(),
+                            ),
+                        ];
+                        series.source.sample = samples[index];
+                    }
+                    let expression = match route {
+                        "left" => format!("{function}(a) - on(instance) b"),
+                        "right" => format!("a - on(instance) {function}(b)"),
+                        _ => format!("{function}(a) - on(instance) {function}(b)"),
+                    };
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            expression.as_bytes(),
+                            EngineOptions {
+                                delayed_name_removal: delayed,
+                                ..EngineOptions::default()
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 3000,
+                            step_ms: 1000,
                         },
                         &control,
-                    )
-                    .unwrap();
-                let report = query.collect_reported(
-                    &provider,
-                    QueryRequest::Range {
-                        start_ms: 1000,
-                        end_ms: 3000,
-                        step_ms: 1000,
-                    },
-                    &control,
-                );
-                let result = report.result.as_ref().unwrap();
-                assert_eq!(result.series.len(), 3);
-                assert!(report.annotations.is_empty());
-                for (series, (id, expected)) in result.series.iter().zip([
-                    (0, vec![(1000, -1.0f64), (2000, 1.0)]),
-                    (1, vec![(1000, 8.0), (3000, 1.0)]),
-                    (3, vec![(1000, -10.0), (2000, 10.0)]),
-                ]) {
-                    assert_eq!(series.labels.0.len(), 1);
-                    assert_eq!(&*series.labels.0[0].name, b"instance");
-                    assert_eq!(&*series.labels.0[0].value, id.to_string().as_bytes());
-                    let points: Vec<_> = series
-                        .points
-                        .iter()
-                        .map(|p| {
-                            let OwnedValue::Float(value) = p.value else {
-                                panic!("float abs join");
-                            };
-                            (p.time_ms, value.to_bits())
-                        })
-                        .collect();
-                    let expected: Vec<_> = expected
-                        .into_iter()
-                        .map(|(t, v)| (t, (if route == "right" { -v } else { v }).to_bits()))
-                        .collect();
-                    assert_eq!(points, expected, "{route} page{page} delayed{delayed}");
+                    );
+                    let result = report.result.as_ref().unwrap();
+                    assert_eq!(result.series.len(), 3);
+                    assert!(report.annotations.is_empty());
+                    let expected_rows = match function {
+                        "abs" => vec![
+                            (0, vec![(1000, -1.0f64), (2000, 1.0)]),
+                            (1, vec![(1000, 8.0), (3000, 1.0)]),
+                            (3, vec![(1000, -10.0), (2000, 10.0)]),
+                        ],
+                        "year" if route == "both" => vec![
+                            (0, vec![(1000, -1.0), (2000, -1.0)]),
+                            (1, vec![(1000, -1.0), (3000, -1.0)]),
+                            (3, vec![(1000, -1.0), (2000, -1.0)]),
+                        ],
+                        "year" => vec![
+                            (0, vec![(1000, 1967.0), (2000, 1966.0)]),
+                            (1, vec![(1000, 1967.0), (3000, 1961.0)]),
+                            (3, vec![(1000, 1949.0), (2000, 1949.0)]),
+                        ],
+                        _ => vec![
+                            (0, vec![(1000, -3.0), (2000, -7.0)]),
+                            (1, vec![(1000, -12.0), (3000, -17.0)]),
+                            (3, vec![(1000, -30.0), (2000, -50.0)]),
+                        ],
+                    };
+                    for (series, (id, expected)) in result.series.iter().zip(expected_rows) {
+                        assert_eq!(series.labels.0.len(), 1);
+                        assert_eq!(&*series.labels.0[0].name, b"instance");
+                        assert_eq!(&*series.labels.0[0].value, id.to_string().as_bytes());
+                        let points: Vec<_> = series
+                            .points
+                            .iter()
+                            .map(|p| {
+                                let OwnedValue::Float(value) = p.value else {
+                                    panic!("float map join");
+                                };
+                                (p.time_ms, value.to_bits())
+                            })
+                            .collect();
+                        let expected: Vec<_> = expected
+                            .into_iter()
+                            .map(|(t, v)| (t, (if route == "right" { -v } else { v }).to_bits()))
+                            .collect();
+                        assert_eq!(
+                            points, expected,
+                            "{function} {route} page{page} delayed{delayed}"
+                        );
+                    }
+                    assert_eq!(report.observations.output_samples, 6);
+                    assert_eq!(
+                        provider.series[0]
+                            .source
+                            .counters
+                            .peak
+                            .load(std::sync::atomic::Ordering::Relaxed),
+                        1
+                    );
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
                 }
-                assert_eq!(report.observations.output_samples, 6);
-                assert_eq!(
-                    provider.series[0]
-                        .source
-                        .counters
-                        .peak
-                        .load(std::sync::atomic::Ordering::Relaxed),
-                    1
-                );
-                provider.assert_closed();
-                drop((report, query));
-                engine.accounting.snapshot().assert_memory_released();
             }
         }
     }

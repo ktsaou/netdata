@@ -25,6 +25,9 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Direct one-argument float-map joins pass 10,372 complete native and 3,656 compiled ARM matches, 627 units/profile
+  and 12 actual C/C++ callers. The [float-map panel](#completed-direct-float-map-join-scans) records fewer repeated
+  reads, large-query allocation savings, small 82–312 B peak increases and matched whole-query timings.
 - Exact temporal rank accounting passes 626 units/profile and 936 complete native matches with every exported
   nonelapsed observation unchanged, plus 800 compiled ARM matches. The [accounting panel](#exact-rank-work-accounting)
   records saturation/control tests, retained reducer/temporal panels and paired whole-query measurements.
@@ -3204,6 +3207,9 @@ phases. Corrected qualification binds closed writers and the actual current sour
 
 ## Completed direct abs join scans
 
+This section retains the initial abs-only cohort and its actual source/binary identities. The current typed class
+and broader evidence are in [direct float-map joins](#completed-direct-float-map-join-scans).
+
 The existing completed one-to-one float join route also accepts a direct `abs(selector)` operand. The operand must
 have earned the existing scheduled-selector certificate, including prepared-child and projected-label uniqueness.
 Its wrapper and leaf producer/source/scope grids must match the evaluator. The ordinary selector scheduling proof,
@@ -3378,3 +3384,78 @@ of the preceding stage's actual final builds, with their original compiler recei
 Query JSON does not export basic statistics; their unchanged owners retain unit and C assertion coverage.
 No original-Go capture, live Agent, SRE replay or full foreign C caller roster was rerun for this private change.
 Earlier cohorts keep their actual source and binary identities; all 52 previous ledger objects are unchanged.
+
+
+## Completed direct float-map join scans
+
+The completed direct join route now uses the existing typed `PointwiseFunction::Float` class after checking actual
+arity one. This covers all 32 current one-argument members: ordinary mathematical maps, default `round` and calendar
+functions with an explicit vector. The runtime has no second function-name list. Valid parameterized round/clamps,
+zero-argument calendars, timestamp/native helpers and indirect shapes keep their ordinary supported evaluation.
+
+Eligibility still requires a direct selector, an earned scheduled-selector marker, matching wrapper/leaf producer,
+source and scope grids, and all existing root/matching/uniqueness restrictions. The first final body must complete
+discovery, arithmetic, filtering, duplicate checks and diagnostics before reuse is published. Later rows read their
+selected wrapper operands afresh. Wrapper ordinals remain distinct from physical source positions. Domain NaNs
+remain present floats; native histogram points use the existing filtering owner. No raw history array is added.
+
+The [float-map join qualification](float-map-join-qualification.json) records 10,372 complete native accepted-engine
+matches and 3,656 compiled ARM64/ARM32 matches. It covers all 32 maps, ordinary and special values, native/stale
+membership, aliases, boolean/filter outcomes, offsets/fixed/precise fallbacks, and pages 1/17/1024. Three invalid
+clamps per native profile preserve their compile errors and absent observations. Both native profiles pass 627
+units and format/lint/MSRV checks; each foreign profile runs four focused owners. Twelve actual C/C++ callers pass
+36 records each with the current `FOUR_SERIES_FLOAT_MAP` fixture and `direct_float_map_replay` parser category.
+
+The broadened growth test first ran against the original abs-only runtime. All 24 complete query/value/clock/label,
+logical-statistics and cleanup checks passed before the fixed growth bound failed for ceil/round/year at all three
+page sizes. Abs controls passed. The actual unit exit 101, a separate evidence-reader exit 1, and the successful
+closed-stream finalizer retain their distinct identities. Current growth, sparse wrapper ordinals and independently
+calibrated preparation/cold-pair/warm-selected error tests pass. The registry query additionally checks that domain
+NaNs are present and compare false, while infinities retain normal comparison behavior.
+
+Of 10,366 native resource groups, 2,514 fetch fewer entries and acquire less workspace; none fetch more entries.
+For page size 17, 128 series and three range ticks, left ceil/round/year queries each change as follows:
+
+| Observation | Before | After |
+|---|---:|---:|
+| Fetched sample entries | 794,112 | 16,872 |
+| Accounted work | 22,528,213 | 607,043 |
+| Acquired workspace bytes | 154,371,524 | 5,111,263 |
+| Peak workspace bytes | 409,002 | 409,002 |
+
+Allocation traffic and live peak are different measures. In 2,442 small range-query groups, existing completed-join
+metadata raises the whole-query workspace peak by 82–312 bytes, at most 1.66% in this panel. Provider and borrowed
+page peaks do not increase. Pair descriptors and one exact-scope membership bitmap are the existing reuse owners;
+old completed scopes are released before replacement. Aggregate observations do not identify the allocation instant
+responsible for every peak difference. This is no global peak-memory reduction or process-RSS claim. Query caps stay
+disabled, and raw samples remain paged across both axes.
+
+Another 186 mixed right-wrapper range groups reject reuse after conservative uniqueness checks. Each adds 32
+cumulative workspace bytes and 16 work units, with unchanged reads and whole-query peaks. All 5,156 instant
+observation groups and all 384 scaling-group peaks match exactly. These finite costs remain in the retained report.
+
+Matched warm measurements run after owned qualification closes: 24 cases per profile, five alternating pairs,
+one warm then one measured query per active dataset, and 960 complete checked responses. Each variant's nonelapsed
+observations match its own qualified run. The following generated examples use 128 series, page17 and three ticks:
+
+| Profile | Expression | Median before → after | Before/after ratio |
+|---|---|---:|---:|
+| release | `ceil(m) / on(id) n` | 541.970 → 13.126 ms | 41.291× |
+| release | `round(m) / on(id) n` | 518.715 → 13.134 ms | 39.493× |
+| release | `year(m) / on(id) n` | 539.674 → 13.289 ms | 40.611× |
+| release-min | `ceil(m) / on(id) n` | 803.615 → 21.481 ms | 37.410× |
+| release-min | `round(m) / on(id) n` | 818.111 → 21.467 ms | 38.111× |
+| release-min | `year(m) / on(id) n` | 827.228 → 21.393 ms | 38.667× |
+
+All 48 median ratios span 0.929–41.291; 14 medians are slower. The two lowest ratios are:
+
+- `scaling-n0-page17-ceil-left-range`, release-min: 18,910 → 20,349 ns, 0.929×.
+- `scaling-n0-page17-round-left-range`, release-min: 18,240 → 18,950 ns, 0.963×.
+
+Every sample and median, including empty/abs/raw/rate/instant controls, remains in the public receipt. These are
+shared-host engine timings, without CPU isolation, production DBengine or universal-throughput claims.
+Accepted predecessor artifacts are reused with their actual original compiler receipt; candidate builds are fresh.
+Earlier expression, SRE and broader integration cohorts keep their source/binary identities; all 53 prior ledger
+objects remain unchanged. Query JSON does not export basic-statistics snapshots; actual unit/C assertions cover
+their unchanged owners. No new original-Go capture, live Agent, full foreign unit suite or caller sanitizer claim
+is made. See the [initial abs cohort](#completed-direct-abs-join-scans) for its separate earlier measurements.

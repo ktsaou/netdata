@@ -959,7 +959,7 @@ static uint32_t join_cursor_next(void *context, void *handle,
     return cursor_next(&f->source, handle, control, out, resources, error);
 }
 
-enum { FOUR_SERIES_JOIN, FOUR_SERIES_NUMERIC, FOUR_SERIES_RATE, FOUR_SERIES_ABS };
+enum { FOUR_SERIES_JOIN, FOUR_SERIES_NUMERIC, FOUR_SERIES_RATE, FOUR_SERIES_FLOAT_MAP };
 
 typedef struct {
     delivery output;
@@ -976,7 +976,7 @@ static uint32_t join_begin(void *context, const netdata_promql_output_header_t *
     int numeric = d->query_kind == FOUR_SERIES_NUMERIC;
     assert(header->value_type == (numeric ? NETDATA_PROMQL_TYPE_VECTOR : NETDATA_PROMQL_TYPE_MATRIX));
     assert(header->reserved == 0 && header->end_ms == (d->query_kind == FOUR_SERIES_RATE ? 3000 : 2000));
-    assert(header->start_ms == (d->query_kind == FOUR_SERIES_JOIN || d->query_kind == FOUR_SERIES_ABS ? 1000 : 2000));
+    assert(header->start_ms == (d->query_kind == FOUR_SERIES_JOIN || d->query_kind == FOUR_SERIES_FLOAT_MAP ? 1000 : 2000));
     assert(header->step_ms == (numeric ? 0 : 1000));
     return output_status(&d->output, 1, control, error);
 }
@@ -992,7 +992,7 @@ static uint32_t join_chunk(void *context, const netdata_promql_chunk_t *chunk,
     assert(series->series_id == position % 4 && series->labels.len == 1 && series->points.len == 1);
     assert(series->labels.data[0].name.len == 4 && memcmp(series->labels.data[0].name.data, "zone", 4) == 0);
     assert(series->labels.data[0].value.len == 1 && series->labels.data[0].value.data[0] == '0' + position % 4);
-    int64_t time_ms = d->query_kind == FOUR_SERIES_JOIN || d->query_kind == FOUR_SERIES_ABS ? (position < 4 ? 1000 : 2000) :
+    int64_t time_ms = d->query_kind == FOUR_SERIES_JOIN || d->query_kind == FOUR_SERIES_FLOAT_MAP ? (position < 4 ? 1000 : 2000) :
                       d->query_kind == FOUR_SERIES_RATE ? (position < 4 ? 2000 : 3000) : 2000;
     assert(series->points.data[0].time_ms == time_ms);
     assert(series->points.data[0].value.kind == NETDATA_PROMQL_VALUE_FLOAT);
@@ -1050,7 +1050,7 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
                                      query_kind == FOUR_SERIES_RATE ? "rate(m_total[3s]) / on(zone) rate(m_total[3s])" : "m / on(zone) m";
             if (expression_override) expression = expression_override;
             netdata_promql_query_t *query = compile(engine, expression);
-            netdata_promql_request_t request = instant(query_kind == FOUR_SERIES_JOIN || query_kind == FOUR_SERIES_ABS ? 1000 : 2000);
+            netdata_promql_request_t request = instant(query_kind == FOUR_SERIES_JOIN || query_kind == FOUR_SERIES_FLOAT_MAP ? 1000 : 2000);
             if (query_kind != FOUR_SERIES_NUMERIC) {
                 request.kind = NETDATA_PROMQL_REQUEST_RANGE;
                 request.end_ms = query_kind == FOUR_SERIES_RATE ? 3000 : 2000;
@@ -1112,8 +1112,8 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
             assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
         }
     }
-    if (query_kind == FOUR_SERIES_ABS) {
-        printf("{\"direct_abs_replay\":\"pass\",\"expression\":\"%s\",\"cases\":9,\"page_sizes\":3}\n", expression_override);
+    if (query_kind == FOUR_SERIES_FLOAT_MAP) {
+        printf("{\"direct_float_map_replay\":\"pass\",\"expression\":\"%s\",\"cases\":9,\"page_sizes\":3}\n", expression_override);
         return;
     }
     if (query_kind == FOUR_SERIES_NUMERIC && expression_override) {
@@ -1962,11 +1962,19 @@ int main(void) {
     balanced(engine, &idle);
     four_series_float_query(engine, FOUR_SERIES_RATE, NULL);
     balanced(engine, &idle);
-    four_series_float_query(engine, FOUR_SERIES_ABS, "abs(m) / on(zone) m");
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "abs(m) / on(zone) m");
     balanced(engine, &idle);
-    four_series_float_query(engine, FOUR_SERIES_ABS, "m / on(zone) abs(m)");
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "m / on(zone) abs(m)");
     balanced(engine, &idle);
-    four_series_float_query(engine, FOUR_SERIES_ABS, "abs(m) / on(zone) abs(m)");
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "abs(m) / on(zone) abs(m)");
+    balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "ceil(m) / on(zone) m");
+    balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "m / on(zone) round(m)");
+    balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "sqrt(m) / on(zone) sqrt(m)");
+    balanced(engine, &idle);
+    four_series_float_query(engine, FOUR_SERIES_FLOAT_MAP, "year(m) / on(zone) year(m)");
     balanced(engine, &idle);
     average_read_reuse(engine);
     balanced(engine, &idle);

@@ -1,0 +1,4330 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "scope": "Completed direct one-argument typed Float-map one-to-one joins; existing schedule and replay owners.",
+  "accepted_predecessor": "f35c63bc825fbc8c1cf1dcbe10bca00a3040a0a6",
+  "assembly_helper": {
+    "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/assemble.py",
+    "sha256": "7057418f058289092ebf84bc3a70fe86a7b0565113122379bd9cc85792ee97d7"
+  },
+  "guard_sources": {
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/crates/promql-engine/src/absence.rs": "afb4f330f5dff938c2eebfa64574b3cf9693cbd94b43a9cf60752b8094a14889",
+    "src/crates/promql-engine/src/accounting.rs": "3691f58a62ed5c9c40e8ac22348ee7a121a262278510a8dc355be6ede84b609d",
+    "src/crates/promql-engine/src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/crates/promql-engine/src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "7c38cd156a78a22b263f6d90dc92dc2f6f4aa14a0e57a63755c2d5d82a67b375",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "f30191c1e27d7521e216578a48a1b019a28e6226ed1e38b503f7d47fe1b65015",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "fc4ca73ae808c092f67bdec1745f2492a518d09aec0156bae20486d9f14a3783",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/crates/promql-engine/src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/crates/promql-engine/src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/crates/promql-engine/src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+    "src/crates/promql-engine/src/evaluator.rs": "f26082642daea5b1501394fbdbfe2953c52c1da1434d5f203b412cda4a141392",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "5ac98cbe4f6cf2e920eabc7030979c26699f92b432c19ccb6da5572becce835c",
+    "src/crates/promql-engine/src/execution.rs": "99d216d86b322b4956d43047a14c2e802b9fa70ab00f0a5bd3af8aa237a9b6ac",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "44dd8f64aa08e0e5e7c71d17214450de4cff3156ee96e75e64f056922dcd4228",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "9586e2ecfd17bd4b59a61c270856de046c2948441ea6423b8562d572e39b105f",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "58778f43b7548806d708bb78df0450db888619247a841c30cd9d1e731623eedf",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/crates/promql-engine/src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/crates/promql-engine/src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/crates/promql-engine/src/lookup_tests.rs": "2a55ae16a02544d9d2675004d38a314b8f74ac396e68187ea6f33841194ee514",
+    "src/crates/promql-engine/src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/crates/promql-engine/src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/crates/promql-engine/src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/crates/promql-engine/src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+    "src/crates/promql-engine/src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/crates/promql-engine/src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+    "src/crates/promql-engine/src/result.rs": "75658360d24544d09cf1a630ee1467ea44d6d960dffea504ee29c55eab4ebc3e",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+    "src/crates/promql-engine/src/scheduled_output.rs": "0d4adb4cd20eb224269f51caf93a3bf12ed8016652834e7d01272af853324fc0",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/crates/promql-engine/src/storage.rs": "fdac6d49e370a3a95ac1726334ecfcf01dd760ef6d93634549913d9e91c34102",
+    "src/crates/promql-engine/src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/crates/promql-engine/src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+    "src/crates/promql-engine/src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "0c23099b6a96bed8ddac87ce7589e2780124c2157a64c7c2b4a65ee93570c8ab",
+    "src/crates/promql-engine/src/vector_sort.rs": "e9055ee5cc4575fc6862282217557bfbd1f1d4a54885f1762d1adab02af612a4",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "2827a391090ed74271a433925834bd2c57c57bc3c83ee03dcf2cb6d3f15b68c6",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "f529bd48b537fd437a498f7b29947bc659b12d0a1b19b72b8a40f99b6e80ddb2"
+  },
+  "sources": {
+    "Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/absence.rs": "afb4f330f5dff938c2eebfa64574b3cf9693cbd94b43a9cf60752b8094a14889",
+    "src/accounting.rs": "3691f58a62ed5c9c40e8ac22348ee7a121a262278510a8dc355be6ede84b609d",
+    "src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/c_abi/provider.rs": "7c38cd156a78a22b263f6d90dc92dc2f6f4aa14a0e57a63755c2d5d82a67b375",
+    "src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/c_abi/tests.rs": "f30191c1e27d7521e216578a48a1b019a28e6226ed1e38b503f7d47fe1b65015",
+    "src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/c_abi/tests/pages.rs": "fc4ca73ae808c092f67bdec1745f2492a518d09aec0156bae20486d9f14a3783",
+    "src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+    "src/evaluator.rs": "f26082642daea5b1501394fbdbfe2953c52c1da1434d5f203b412cda4a141392",
+    "src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/evaluator_roster.rs": "5ac98cbe4f6cf2e920eabc7030979c26699f92b432c19ccb6da5572becce835c",
+    "src/execution.rs": "99d216d86b322b4956d43047a14c2e802b9fa70ab00f0a5bd3af8aa237a9b6ac",
+    "src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/frontend/regex.rs": "44dd8f64aa08e0e5e7c71d17214450de4cff3156ee96e75e64f056922dcd4228",
+    "src/frontend/regex_nfa.rs": "9586e2ecfd17bd4b59a61c270856de046c2948441ea6423b8562d572e39b105f",
+    "src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/frontend/regex_selector.rs": "58778f43b7548806d708bb78df0450db888619247a841c30cd9d1e731623eedf",
+    "src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+    "src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/lookup_tests.rs": "2a55ae16a02544d9d2675004d38a314b8f74ac396e68187ea6f33841194ee514",
+    "src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+    "src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+    "src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+    "src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+    "src/result.rs": "75658360d24544d09cf1a630ee1467ea44d6d960dffea504ee29c55eab4ebc3e",
+    "src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+    "src/scheduled_output.rs": "0d4adb4cd20eb224269f51caf93a3bf12ed8016652834e7d01272af853324fc0",
+    "src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/storage.rs": "fdac6d49e370a3a95ac1726334ecfcf01dd760ef6d93634549913d9e91c34102",
+    "src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+    "src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+    "src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+    "src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/vector_matching.rs": "0c23099b6a96bed8ddac87ce7589e2780124c2157a64c7c2b4a65ee93570c8ab",
+    "src/vector_sort.rs": "e9055ee5cc4575fc6862282217557bfbd1f1d4a54885f1762d1adab02af612a4",
+    "tests/promql-conformance/c_embedding.c": "2827a391090ed74271a433925834bd2c57c57bc3c83ee03dcf2cb6d3f15b68c6",
+    "tests/promql-conformance/c_embedding.py": "f529bd48b537fd437a498f7b29947bc659b12d0a1b19b72b8a40f99b6e80ddb2"
+  },
+  "binaries": {
+    "release": {
+      "promql-query-fixture": {
+        "path": ".tmp/float-map-joins-0_f55uqe/candidate-release/promql-query-fixture",
+        "sha256": "17907faf92128112900aca395a80de493a3ecf9b2f65d55029dcdef2b64b5f3e"
+      },
+      "libnetdata_promql_engine.a": {
+        "path": ".tmp/float-map-joins-0_f55uqe/candidate-release/libnetdata_promql_engine.a",
+        "sha256": "50487014079440dfbb526c79419eb478529c3cc71fd4760c39fede75765f621a"
+      },
+      "unit": {
+        "path": ".tmp/float-map-joins-0_f55uqe/candidate-release/unit",
+        "sha256": "44b8f6349b6f0ef0a63fb374eae133af3b470887b652b9a400b5f203c835dd45"
+      }
+    },
+    "release-min": {
+      "promql-query-fixture": {
+        "path": ".tmp/float-map-joins-0_f55uqe/candidate-release-min/promql-query-fixture",
+        "sha256": "cdf8b393235e6e46fcccb78d9ddbc76e6e500ca292e1988d61d606374e650b6d"
+      },
+      "libnetdata_promql_engine.a": {
+        "path": ".tmp/float-map-joins-0_f55uqe/candidate-release-min/libnetdata_promql_engine.a",
+        "sha256": "77e2720e52684ab3d8f8dbde8747abf2a5e3b9c21a592ce421fd3a803d5b5222"
+      },
+      "unit": {
+        "path": ".tmp/float-map-joins-0_f55uqe/candidate-release-min/unit",
+        "sha256": "631b9edbe2a8a49c540314e4897af85520119891c7af38376c84f5172bf8adfb"
+      }
+    }
+  },
+  "foreign_binaries": {
+    "aarch64-unknown-linux-gnu": {
+      "release": {
+        "query": {
+          "path": ".tmp/float-map-joins-0_f55uqe/candidate-aarch64-unknown-linux-gnu-release/promql-query-fixture",
+          "sha256": "8443746aa9715f8a688a45be6d9aa362b437e47d208f0356d144c937f9461167"
+        },
+        "archive": {
+          "path": ".tmp/float-map-joins-0_f55uqe/candidate-aarch64-unknown-linux-gnu-release/libnetdata_promql_engine.a",
+          "sha256": "d2661fb9b63dc19b9037753e378ab95db9961f973de70d5eeb1e54846940bb05"
+        },
+        "unit": {
+          "path": ".tmp/float-map-joins-0_f55uqe/candidate-aarch64-unknown-linux-gnu-release/unit",
+          "sha256": "018233a2fd478629f7b82c7bf002326e390f925d4edec2253487c24b7a808714"
+        }
+      },
+      "release-min": {
+        "query": {
+          "path": ".tmp/float-map-joins-0_f55uqe/candidate-aarch64-unknown-linux-gnu-release-min/promql-query-fixture",
+          "sha256": "ad795a22c57cf535708c71a340d9f74813d2de48454905b180be05ac8ee39bd0"
+        },
+        "archive": {
+          "path": ".tmp/float-map-joins-0_f55uqe/candidate-aarch64-unknown-linux-gnu-release-min/libnetdata_promql_engine.a",
+          "sha256": "f20f6f5ddd564e989379855fc07af495e1c32cae9135fb6fd9f470bf2368d16b"
+        },
+        "unit": {
+          "path": ".tmp/float-map-joins-0_f55uqe/candidate-aarch64-unknown-linux-gnu-release-min/unit",
+          "sha256": "3bcc0bd07900d9b9f8896f5e4ed9522ac9916f70edd4a9e797247d90d10efa25"
+        }
+      }
+    },
+    "armv7-unknown-linux-gnueabihf": {
+      "release": {
+        "query": {
+          "path": ".tmp/float-map-joins-0_f55uqe/candidate-armv7-unknown-linux-gnueabihf-release/promql-query-fixture",
+          "sha256": "0ff8c69c19baac650b98ade86ff8b6c6cb6521869b29939f8d7e573b52af0358"
+        },
+        "archive": {
+          "path": ".tmp/float-map-joins-0_f55uqe/candidate-armv7-unknown-linux-gnueabihf-release/libnetdata_promql_engine.a",
+          "sha256": "952b1da449d61a2f5f4c4e86242cd3877443cb7bb79a9cdfa3edc325d6040f29"
+        },
+        "unit": {
+          "path": ".tmp/float-map-joins-0_f55uqe/candidate-armv7-unknown-linux-gnueabihf-release/unit",
+          "sha256": "0da89a5cfb33736906e4dea5073613926263da9a967c20eb03982625bc0d56b9"
+        }
+      },
+      "release-min": {
+        "query": {
+          "path": ".tmp/float-map-joins-0_f55uqe/candidate-armv7-unknown-linux-gnueabihf-release-min/promql-query-fixture",
+          "sha256": "68259b84dc22bf08d9316983902dd8c12ca5deb4f99e06c5fc609aee3342fd46"
+        },
+        "archive": {
+          "path": ".tmp/float-map-joins-0_f55uqe/candidate-armv7-unknown-linux-gnueabihf-release-min/libnetdata_promql_engine.a",
+          "sha256": "3c5ee7b2a17d5347d899bdb3906513b791a661f12b7971a48d3aa5c44b2b7367"
+        },
+        "unit": {
+          "path": ".tmp/float-map-joins-0_f55uqe/candidate-armv7-unknown-linux-gnueabihf-release-min/unit",
+          "sha256": "d12921ad39af1bf02f8ffc8e11cd838098423dddb04e6abc66d50d3bd9e36173"
+        }
+      }
+    }
+  },
+  "accepted_build_reuse": {
+    "receipt": {
+      "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/before-build-receipt.json",
+      "sha256": "3a0564e158955f6e262e8bbbf491bc5f4c579e7e7106cfe0ceb558dc5a8d2469"
+    },
+    "scope": "Reuse actual immutable accepted Stage35 native production query/archive artifacts with original fresh-build provenance. No new compiler execution or physical copy claimed."
+  },
+  "literal_runtime_change": {
+    "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/runtime-source-proof.json",
+    "sha256": "8708f422997ff43b425eecb9fa1822ac9975311b6aa6de61e1bcca37f1fede04"
+  },
+  "covered_function_names": [
+    "abs",
+    "ceil",
+    "floor",
+    "exp",
+    "sqrt",
+    "ln",
+    "log2",
+    "log10",
+    "sin",
+    "cos",
+    "tan",
+    "asin",
+    "acos",
+    "atan",
+    "sinh",
+    "cosh",
+    "tanh",
+    "asinh",
+    "acosh",
+    "atanh",
+    "rad",
+    "deg",
+    "sgn",
+    "round",
+    "days_in_month",
+    "day_of_month",
+    "day_of_week",
+    "day_of_year",
+    "hour",
+    "minute",
+    "month",
+    "year"
+  ],
+  "meaningful_growth_red": {
+    "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/scaling-red-receipt.json",
+    "sha256": "b1b896e2bb210a9e580befaf697d93bb58e389aa72403e808b4d709a50c19bc5"
+  },
+  "red_scope": "24 complete old-runtime queries pass values,labels,clocks,statistics and release checks, then the unit exits101 at the fixed growth bound for ceil/round/year. Abs controls pass. Original reader exit1 is preserved; a separate closed-stream finalizer passes. No timing red.",
+  "baseline": {
+    "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/baseline-receipt.json",
+    "sha256": "f3c7afa3b2f701612a0908521058a738ff264ed2f884a85befd4989feee0beb9"
+  },
+  "complete_native_matches": 10372,
+  "complete_foreign_matches": 3656,
+  "native_units_per_profile": 627,
+  "foreign_focused_units_per_profile": 4,
+  "actual_native_c_callers": 4,
+  "actual_foreign_c_callers": 8,
+  "records_per_caller": 36,
+  "native_qualification": {
+    "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/native-qualification-receipt.json",
+    "sha256": "ab1a028192f5e5a51340c9f98dda5cabd9d3bbdf60a4011df045c0b2f7ad7e7c"
+  },
+  "foreign_qualification": [
+    {
+      "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/foreign-aarch64-unknown-linux-gnu-receipt.json",
+      "sha256": "54512c625b4c07d297c8030608ba947447b4df87d59aa4bf36cda682aa908b6e"
+    },
+    {
+      "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/foreign-armv7-unknown-linux-gnueabihf-receipt.json",
+      "sha256": "4852d7f2ce4037a7d176eb08306ad413ce9b7a68233e63ad9f24bf43552150a9"
+    }
+  ],
+  "comparisons": {
+    "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/comparison-receipt.json",
+    "sha256": "4bd3e1e1243a8235e617e2a4a5116f42427187bf7af03f2eb1e405f90123a7f8"
+  },
+  "resources": {
+    "groups": 10366,
+    "compile_errors_without_observations": 6,
+    "lower_fetched": 2514,
+    "higher_fetched": 0,
+    "lower_workspace_acquired": 2514,
+    "higher_workspace_acquired": 186,
+    "higher_work": 186,
+    "higher_workspace_peak": 2442,
+    "higher_provider_peak": 0,
+    "higher_borrowed_peak": 0,
+    "higher_workspace_peak_delta_bytes": {
+      "82": 558,
+      "108": 690,
+      "114": 60,
+      "116": 218,
+      "146": 252,
+      "160": 436,
+      "172": 192,
+      "296": 6,
+      "312": 30
+    },
+    "representative_rows": [
+      {
+        "profile": "release",
+        "id": "scaling-n0-page17-abs-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "instant",
+          "function": "abs",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n0-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n0-page17-ceil-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "instant",
+          "function": "ceil",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n0-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n0-page17-round-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "instant",
+          "function": "round",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n0-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n0-page17-year-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "instant",
+          "function": "year",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n0-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n1-page17-abs-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "instant",
+          "function": "abs",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n1-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n1-page17-ceil-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "instant",
+          "function": "ceil",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n1-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n1-page17-round-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "instant",
+          "function": "round",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n1-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n1-page17-year-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "instant",
+          "function": "year",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n1-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-abs-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "instant",
+          "function": "abs",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 4200,
+          "pages": 1050,
+          "work": 138777,
+          "provider_calls": 2235,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 1286063,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 4200,
+          "pages": 1050,
+          "work": 138777,
+          "provider_calls": 2235,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 1286063,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-ceil-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "instant",
+          "function": "ceil",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 51072,
+          "pages": 12768,
+          "work": 1403196,
+          "provider_calls": 25671,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 10243788,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 4200,
+          "pages": 1050,
+          "work": 138777,
+          "provider_calls": 2235,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 1286063,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-round-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "instant",
+          "function": "round",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 51072,
+          "pages": 12768,
+          "work": 1403196,
+          "provider_calls": 25671,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 10243788,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 4200,
+          "pages": 1050,
+          "work": 138777,
+          "provider_calls": 2235,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 1286063,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-year-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "instant",
+          "function": "year",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 51072,
+          "pages": 12768,
+          "work": 1403196,
+          "provider_calls": 25671,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 10243788,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 4200,
+          "pages": 1050,
+          "work": 138777,
+          "provider_calls": 2235,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 1286063,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-abs-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "instant",
+          "function": "abs",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 16872,
+          "pages": 4218,
+          "work": 607043,
+          "provider_calls": 8955,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 5111263,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 16872,
+          "pages": 4218,
+          "work": 607043,
+          "provider_calls": 8955,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 5111263,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-ceil-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "instant",
+          "function": "ceil",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 794112,
+          "pages": 198528,
+          "work": 22528213,
+          "provider_calls": 397575,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 154371524,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 16872,
+          "pages": 4218,
+          "work": 607043,
+          "provider_calls": 8955,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 5111263,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-round-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "instant",
+          "function": "round",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 794112,
+          "pages": 198528,
+          "work": 22528213,
+          "provider_calls": 397575,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 154371524,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 16872,
+          "pages": 4218,
+          "work": 607043,
+          "provider_calls": 8955,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 5111263,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-year-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "instant",
+          "function": "year",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 794112,
+          "pages": 198528,
+          "work": 22528213,
+          "provider_calls": 397575,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 154371524,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 16872,
+          "pages": 4218,
+          "work": 607043,
+          "provider_calls": 8955,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 5111263,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n0-page17-abs-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "instant",
+          "function": "abs",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n0-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n0-page17-ceil-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "instant",
+          "function": "ceil",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n0-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n0-page17-round-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "instant",
+          "function": "round",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n0-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n0-page17-year-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "instant",
+          "function": "year",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 91,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 12432,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n0-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        },
+        "after": {
+          "samples_fetched": 0,
+          "pages": 0,
+          "work": 126,
+          "provider_calls": 7,
+          "output_samples": 0,
+          "workspace_peak": 6416,
+          "workspace_acquired": 15760,
+          "provider_peak": 0,
+          "borrowed_peak": 0
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n1-page17-abs-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "instant",
+          "function": "abs",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n1-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n1-page17-ceil-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "instant",
+          "function": "ceil",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n1-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n1-page17-round-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "instant",
+          "function": "round",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n1-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n1-page17-year-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "instant",
+          "function": "year",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 44,
+          "pages": 11,
+          "work": 1209,
+          "provider_calls": 33,
+          "output_samples": 1,
+          "workspace_peak": 11493,
+          "workspace_acquired": 30949,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n1-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n1-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 1,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 108,
+          "pages": 27,
+          "work": 3103,
+          "provider_calls": 65,
+          "output_samples": 3,
+          "workspace_peak": 12916,
+          "workspace_acquired": 61844,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-abs-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "instant",
+          "function": "abs",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 4200,
+          "pages": 1050,
+          "work": 138777,
+          "provider_calls": 2235,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 1286063,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 4200,
+          "pages": 1050,
+          "work": 138777,
+          "provider_calls": 2235,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 1286063,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-ceil-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "instant",
+          "function": "ceil",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 51072,
+          "pages": 12768,
+          "work": 1403196,
+          "provider_calls": 25671,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 10243788,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 4200,
+          "pages": 1050,
+          "work": 138777,
+          "provider_calls": 2235,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 1286063,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-round-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "instant",
+          "function": "round",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 51072,
+          "pages": 12768,
+          "work": 1403196,
+          "provider_calls": 25671,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 10243788,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 4200,
+          "pages": 1050,
+          "work": 138777,
+          "provider_calls": 2235,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 1286063,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-year-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "instant",
+          "function": "year",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 1408,
+          "pages": 352,
+          "work": 42699,
+          "provider_calls": 839,
+          "output_samples": 32,
+          "workspace_peak": 86792,
+          "workspace_acquired": 476400,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 51072,
+          "pages": 12768,
+          "work": 1403196,
+          "provider_calls": 25671,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 10243788,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 4200,
+          "pages": 1050,
+          "work": 138777,
+          "provider_calls": 2235,
+          "output_samples": 96,
+          "workspace_peak": 105022,
+          "workspace_acquired": 1286063,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-abs-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "instant",
+          "function": "abs",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 16872,
+          "pages": 4218,
+          "work": 607043,
+          "provider_calls": 8955,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 5111263,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 16872,
+          "pages": 4218,
+          "work": 607043,
+          "provider_calls": 8955,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 5111263,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-ceil-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "instant",
+          "function": "ceil",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 794112,
+          "pages": 198528,
+          "work": 22528213,
+          "provider_calls": 397575,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 154371524,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 16872,
+          "pages": 4218,
+          "work": 607043,
+          "provider_calls": 8955,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 5111263,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-round-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "instant",
+          "function": "round",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 794112,
+          "pages": 198528,
+          "work": 22528213,
+          "provider_calls": 397575,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 154371524,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 16872,
+          "pages": 4218,
+          "work": 607043,
+          "provider_calls": 8955,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 5111263,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-year-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "instant",
+          "function": "year",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 5632,
+          "pages": 1408,
+          "work": 197584,
+          "provider_calls": 3335,
+          "output_samples": 128,
+          "workspace_peak": 328152,
+          "workspace_acquired": 1879696,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before": {
+          "samples_fetched": 794112,
+          "pages": 198528,
+          "work": 22528213,
+          "provider_calls": 397575,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 154371524,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        },
+        "after": {
+          "samples_fetched": 16872,
+          "pages": 4218,
+          "work": 607043,
+          "provider_calls": 8955,
+          "output_samples": 384,
+          "workspace_peak": 409002,
+          "workspace_acquired": 5111263,
+          "provider_peak": 0,
+          "borrowed_peak": 1088
+        }
+      }
+    ],
+    "all_rows_receipt": {
+      "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/comparison-receipt.json",
+      "sha256": "4bd3e1e1243a8235e617e2a4a5116f42427187bf7af03f2eb1e405f90123a7f8"
+    },
+    "memory_analysis": {
+      "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/memory-analysis.json",
+      "sha256": "45005a6f1c54eebef26319b2a21df94c91a86153fc664346619fb2a7d4d03391"
+    },
+    "scope": "Actual exported nonelapsed observations. Fewer acquired bytes means lower allocation traffic,not necessarily a lower live peak. Small higher peaks and every unchanged or worse field remain retained. Accounted owner bytes are not process RSS."
+  },
+  "timing": {
+    "receipt": {
+      "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/timing-receipt.json",
+      "sha256": "365c072c7fa62c6dd6d619f7bb490da1462195df884ca9f49f1ee16ab7f2cf6a"
+    },
+    "complete_responses": 960,
+    "rows": [
+      {
+        "profile": "release",
+        "id": "scaling-n0-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before_ns": 16830,
+        "after_ns": 16010,
+        "before_after": 1.0512179887570268,
+        "before_samples_ns": [
+          17430,
+          16900,
+          13490,
+          16830,
+          15590
+        ],
+        "after_samples_ns": [
+          22330,
+          13160,
+          13030,
+          16010,
+          17740
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n0-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before_ns": 14230,
+        "after_ns": 14480,
+        "before_after": 0.9827348066298343,
+        "before_samples_ns": [
+          14230,
+          14490,
+          22709,
+          13600,
+          14230
+        ],
+        "after_samples_ns": [
+          14480,
+          18509,
+          14270,
+          13130,
+          15390
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n0-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before_ns": 13939,
+        "after_ns": 13800,
+        "before_after": 1.010072463768116,
+        "before_samples_ns": [
+          13450,
+          13800,
+          22180,
+          14630,
+          13939
+        ],
+        "after_samples_ns": [
+          13400,
+          13800,
+          13670,
+          14420,
+          14809
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n0-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before_ns": 13940,
+        "after_ns": 13630,
+        "before_after": 1.0227439471753486,
+        "before_samples_ns": [
+          18570,
+          13440,
+          13460,
+          14210,
+          13940
+        ],
+        "after_samples_ns": [
+          17740,
+          13630,
+          13380,
+          13439,
+          15040
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 3223994,
+        "after_ns": 3150815,
+        "before_after": 1.0232254194549664,
+        "before_samples_ns": [
+          3223994,
+          3190134,
+          3193744,
+          3224104,
+          3360272
+        ],
+        "after_samples_ns": [
+          3495761,
+          3176945,
+          3150815,
+          3129365,
+          3130135
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-abs-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "abs(m) / on(id) abs(n)",
+          "mode": "range",
+          "function": "abs",
+          "route": "both",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 3700680,
+        "after_ns": 3642311,
+        "before_after": 1.0160252652780062,
+        "before_samples_ns": [
+          3718600,
+          3700680,
+          3679750,
+          3630820,
+          3776409
+        ],
+        "after_samples_ns": [
+          4212546,
+          3648400,
+          3642311,
+          3596620,
+          3569161
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 32630935,
+        "after_ns": 3162884,
+        "before_after": 10.31682951382346,
+        "before_samples_ns": [
+          32630935,
+          32114469,
+          32240208,
+          33213750,
+          40611730
+        ],
+        "after_samples_ns": [
+          3845348,
+          3178254,
+          3162884,
+          3134375,
+          3130965
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-ceil-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "ceil(m) / on(id) ceil(n)",
+          "mode": "range",
+          "function": "ceil",
+          "route": "both",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 35817339,
+        "after_ns": 3633041,
+        "before_after": 9.858776435498525,
+        "before_samples_ns": [
+          36020098,
+          35817339,
+          35099305,
+          35407602,
+          36828751
+        ],
+        "after_samples_ns": [
+          4312945,
+          3681210,
+          3633041,
+          3608460,
+          3576611
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 32247749,
+        "after_ns": 3166044,
+        "before_after": 10.185502475644684,
+        "before_samples_ns": [
+          32247749,
+          32351497,
+          31727702,
+          32047480,
+          34782288
+        ],
+        "after_samples_ns": [
+          3959908,
+          3195323,
+          3166044,
+          3143614,
+          3116105
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-round-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "round(m) / on(id) round(n)",
+          "mode": "range",
+          "function": "round",
+          "route": "both",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 35859489,
+        "after_ns": 3666851,
+        "before_after": 9.77936900081296,
+        "before_samples_ns": [
+          36110277,
+          35859489,
+          35645930,
+          35485411,
+          37663494
+        ],
+        "after_samples_ns": [
+          4442814,
+          3657161,
+          3678380,
+          3666851,
+          3600650
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 32073919,
+        "after_ns": 3196904,
+        "before_after": 10.032806427718818,
+        "before_samples_ns": [
+          31878221,
+          32291708,
+          31926730,
+          32073919,
+          34420381
+        ],
+        "after_samples_ns": [
+          3871398,
+          3196904,
+          3258063,
+          3141244,
+          3129725
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n32-page17-year-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "year(m) / on(id) year(n)",
+          "mode": "range",
+          "function": "year",
+          "route": "both",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 35798649,
+        "after_ns": 3661730,
+        "before_after": 9.776430539662947,
+        "before_samples_ns": [
+          35374043,
+          35847338,
+          35798649,
+          35473341,
+          37186768
+        ],
+        "after_samples_ns": [
+          4347505,
+          3719420,
+          3661730,
+          3614761,
+          3582061
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 13034205,
+        "after_ns": 12890535,
+        "before_after": 1.011145386905974,
+        "before_samples_ns": [
+          12824816,
+          12990304,
+          13034205,
+          13549279,
+          13982206
+        ],
+        "after_samples_ns": [
+          15725402,
+          12890535,
+          12953294,
+          12689097,
+          12665977
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-abs-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "abs(m) / on(id) abs(n)",
+          "mode": "range",
+          "function": "abs",
+          "route": "both",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 15745592,
+        "after_ns": 14851619,
+        "before_after": 1.0601936394947917,
+        "before_samples_ns": [
+          14898959,
+          14909169,
+          15745592,
+          16276348,
+          15935080
+        ],
+        "after_samples_ns": [
+          16496656,
+          14653941,
+          14948318,
+          14808600,
+          14851619
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 541970284,
+        "after_ns": 13125683,
+        "before_after": 41.290825323147,
+        "before_samples_ns": [
+          569714882,
+          499107824,
+          492910824,
+          544295805,
+          541970284
+        ],
+        "after_samples_ns": [
+          13125683,
+          12561178,
+          13852037,
+          12716277,
+          13517721
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-ceil-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "ceil(m) / on(id) ceil(n)",
+          "mode": "range",
+          "function": "ceil",
+          "route": "both",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 556170970,
+        "after_ns": 15074788,
+        "before_after": 36.894115525870085,
+        "before_samples_ns": [
+          555326618,
+          556170970,
+          552748227,
+          611005613,
+          596799817
+        ],
+        "after_samples_ns": [
+          15299535,
+          14581371,
+          15592983,
+          14873879,
+          15074788
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 518714545,
+        "after_ns": 13134253,
+        "before_after": 39.49326581420352,
+        "before_samples_ns": [
+          502538367,
+          518714545,
+          490912749,
+          549679131,
+          520270730
+        ],
+        "after_samples_ns": [
+          13134253,
+          12706296,
+          13684648,
+          12801726,
+          13213862
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-round-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "round(m) / on(id) round(n)",
+          "mode": "range",
+          "function": "round",
+          "route": "both",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 553291671,
+        "after_ns": 15335335,
+        "before_after": 36.079529465773,
+        "before_samples_ns": [
+          551826256,
+          551497238,
+          632458939,
+          611422079,
+          553291671
+        ],
+        "after_samples_ns": [
+          15493275,
+          14811579,
+          15706692,
+          14903119,
+          15335335
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 539673644,
+        "after_ns": 13288742,
+        "before_after": 40.61134184108624,
+        "before_samples_ns": [
+          496680664,
+          539673644,
+          495127126,
+          550037767,
+          587606861
+        ],
+        "after_samples_ns": [
+          14347753,
+          12764806,
+          13574599,
+          12806316,
+          13288742
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-year-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "year(m) / on(id) year(n)",
+          "mode": "range",
+          "function": "year",
+          "route": "both",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 556965544,
+        "after_ns": 15434155,
+        "before_after": 36.08655893374143,
+        "before_samples_ns": [
+          559775291,
+          556965544,
+          550459776,
+          678451934,
+          548660258
+        ],
+        "after_samples_ns": [
+          16305748,
+          14622051,
+          15598953,
+          15196877,
+          15434155
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "controls-page17-raw-range",
+        "case": {
+          "cohort": "controls",
+          "dataset_id": "controls-page17",
+          "expression": "m / on(id) n",
+          "mode": "range",
+          "route": "raw",
+          "page_size": 17
+        },
+        "before_ns": 345627,
+        "after_ns": 351897,
+        "before_after": 0.9821822862940008,
+        "before_samples_ns": [
+          349407,
+          345627,
+          341697,
+          378276,
+          343427
+        ],
+        "after_samples_ns": [
+          343957,
+          340377,
+          363587,
+          351998,
+          351897
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "controls-page17-rate-range",
+        "case": {
+          "cohort": "controls",
+          "dataset_id": "controls-page17",
+          "expression": "rate(m[2s]) / on(id) rate(n[2s])",
+          "mode": "range",
+          "route": "rate",
+          "page_size": 17
+        },
+        "before_ns": 652564,
+        "after_ns": 640475,
+        "before_after": 1.0188750536711035,
+        "before_samples_ns": [
+          815273,
+          665104,
+          629115,
+          652564,
+          622705
+        ],
+        "after_samples_ns": [
+          660165,
+          636355,
+          642175,
+          633725,
+          640475
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-ceil-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "instant",
+          "function": "ceil",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 4262195,
+        "after_ns": 4308725,
+        "before_after": 0.9892009817289338,
+        "before_samples_ns": [
+          4262195,
+          4210765,
+          4302905,
+          4289805,
+          4226856
+        ],
+        "after_samples_ns": [
+          4308725,
+          4149336,
+          4447934,
+          4133467,
+          4689431
+        ]
+      },
+      {
+        "profile": "release",
+        "id": "scaling-n128-page17-year-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "instant",
+          "function": "year",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 4283505,
+        "after_ns": 4307275,
+        "before_after": 0.9944814296742139,
+        "before_samples_ns": [
+          4314574,
+          4263795,
+          4283505,
+          4321954,
+          4224816
+        ],
+        "after_samples_ns": [
+          5597275,
+          4205166,
+          4444144,
+          4191206,
+          4307275
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n0-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before_ns": 20930,
+        "after_ns": 20920,
+        "before_after": 1.0004780114722753,
+        "before_samples_ns": [
+          36280,
+          20930,
+          17570,
+          21119,
+          18970
+        ],
+        "after_samples_ns": [
+          22240,
+          17220,
+          17540,
+          21420,
+          20920
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n0-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before_ns": 18910,
+        "after_ns": 20349,
+        "before_after": 0.9292839942994742,
+        "before_samples_ns": [
+          18170,
+          20710,
+          29010,
+          17339,
+          18910
+        ],
+        "after_samples_ns": [
+          31120,
+          23810,
+          20349,
+          18330,
+          18530
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n0-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before_ns": 18240,
+        "after_ns": 18950,
+        "before_after": 0.9625329815303431,
+        "before_samples_ns": [
+          18070,
+          18240,
+          18050,
+          18999,
+          18650
+        ],
+        "after_samples_ns": [
+          18950,
+          20090,
+          18330,
+          21250,
+          18740
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n0-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n0-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 0,
+          "page_size": 17
+        },
+        "before_ns": 18670,
+        "after_ns": 19200,
+        "before_after": 0.9723958333333333,
+        "before_samples_ns": [
+          21860,
+          18670,
+          18410,
+          18420,
+          18900
+        ],
+        "after_samples_ns": [
+          22639,
+          18390,
+          18610,
+          19230,
+          19200
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 5169138,
+        "after_ns": 5248628,
+        "before_after": 0.9848550897491687,
+        "before_samples_ns": [
+          5169138,
+          5192158,
+          5119539,
+          5133969,
+          5214258
+        ],
+        "after_samples_ns": [
+          5201008,
+          5236728,
+          5248628,
+          5499925,
+          5303836
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-abs-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "abs(m) / on(id) abs(n)",
+          "mode": "range",
+          "function": "abs",
+          "route": "both",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 6012271,
+        "after_ns": 6074171,
+        "before_after": 0.9898093089575516,
+        "before_samples_ns": [
+          6063441,
+          6012271,
+          6006681,
+          5946452,
+          6094940
+        ],
+        "after_samples_ns": [
+          6004721,
+          6071291,
+          6074171,
+          6344158,
+          6193980
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 51864388,
+        "after_ns": 5255668,
+        "before_after": 9.868277067729544,
+        "before_samples_ns": [
+          51864388,
+          51722449,
+          51535341,
+          58595703,
+          52560932
+        ],
+        "after_samples_ns": [
+          5199247,
+          5218378,
+          5255668,
+          5462356,
+          5279877
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-ceil-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "ceil(m) / on(id) ceil(n)",
+          "mode": "range",
+          "function": "ceil",
+          "route": "both",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 59034179,
+        "after_ns": 6144240,
+        "before_after": 9.608052257073291,
+        "before_samples_ns": [
+          58935710,
+          59194778,
+          59452897,
+          58048557,
+          59034179
+        ],
+        "after_samples_ns": [
+          6037531,
+          6072180,
+          6210590,
+          6259519,
+          6144240
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 52348564,
+        "after_ns": 5295727,
+        "before_after": 9.885057141351886,
+        "before_samples_ns": [
+          52395004,
+          52006567,
+          52348564,
+          52138386,
+          52453943
+        ],
+        "after_samples_ns": [
+          5283597,
+          5201948,
+          5295727,
+          5437015,
+          5383047
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-round-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "round(m) / on(id) round(n)",
+          "mode": "range",
+          "function": "round",
+          "route": "both",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 60631767,
+        "after_ns": 6207449,
+        "before_after": 9.767581980939353,
+        "before_samples_ns": [
+          60631767,
+          60556257,
+          59606855,
+          62736970,
+          61299151
+        ],
+        "after_samples_ns": [
+          6133030,
+          6117070,
+          6560206,
+          6207449,
+          6365528
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 53228307,
+        "after_ns": 5343466,
+        "before_after": 9.96138218152787,
+        "before_samples_ns": [
+          53194217,
+          53228307,
+          52844040,
+          55306589,
+          55764596
+        ],
+        "after_samples_ns": [
+          5285227,
+          5276807,
+          5371956,
+          5343466,
+          5530424
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n32-page17-year-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n32-page17",
+          "expression": "year(m) / on(id) year(n)",
+          "mode": "range",
+          "function": "year",
+          "route": "both",
+          "count": 32,
+          "page_size": 17
+        },
+        "before_ns": 60845595,
+        "after_ns": 6299819,
+        "before_after": 9.658308437115416,
+        "before_samples_ns": [
+          81490278,
+          60383459,
+          60277410,
+          60845595,
+          63032796
+        ],
+        "after_samples_ns": [
+          6200969,
+          6202200,
+          6299819,
+          6304568,
+          6415877
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-abs-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "abs(m) / on(id) n",
+          "mode": "range",
+          "function": "abs",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 21080858,
+        "after_ns": 21516135,
+        "before_after": 0.9797697402437752,
+        "before_samples_ns": [
+          20925119,
+          21080858,
+          21016179,
+          21336906,
+          22175230
+        ],
+        "after_samples_ns": [
+          21516135,
+          23355940,
+          21513845,
+          21122558,
+          21593544
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-abs-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "abs(m) / on(id) abs(n)",
+          "mode": "range",
+          "function": "abs",
+          "route": "both",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 24762419,
+        "after_ns": 24638060,
+        "before_after": 1.0050474347412093,
+        "before_samples_ns": [
+          24660249,
+          24486310,
+          24762419,
+          24866978,
+          25657772
+        ],
+        "after_samples_ns": [
+          24472741,
+          24638060,
+          24941027,
+          24374931,
+          25203575
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-ceil-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "range",
+          "function": "ceil",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 803615314,
+        "after_ns": 21481395,
+        "before_after": 37.409829017156476,
+        "before_samples_ns": [
+          803615314,
+          841801722,
+          796667387,
+          810452482,
+          802894572
+        ],
+        "after_samples_ns": [
+          21177228,
+          21244078,
+          21481395,
+          23027742,
+          21723193
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-ceil-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "ceil(m) / on(id) ceil(n)",
+          "mode": "range",
+          "function": "ceil",
+          "route": "both",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 920564730,
+        "after_ns": 24809238,
+        "before_after": 37.10572368244442,
+        "before_samples_ns": [
+          977481969,
+          920564730,
+          904471329,
+          929167736,
+          914586192
+        ],
+        "after_samples_ns": [
+          24435472,
+          24909037,
+          24809238,
+          24338102,
+          24947917
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-round-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "round(m) / on(id) n",
+          "mode": "range",
+          "function": "round",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 818111459,
+        "after_ns": 21466576,
+        "before_after": 38.110943217027256,
+        "before_samples_ns": [
+          820064140,
+          817514788,
+          802814626,
+          818111459,
+          847812655
+        ],
+        "after_samples_ns": [
+          21466576,
+          21501845,
+          21822653,
+          21218838,
+          21458035
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-round-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "round(m) / on(id) round(n)",
+          "mode": "range",
+          "function": "round",
+          "route": "both",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 924642116,
+        "after_ns": 25174285,
+        "before_after": 36.729627713359086,
+        "before_samples_ns": [
+          922410717,
+          924642116,
+          915003533,
+          1004826889,
+          1022211715
+        ],
+        "after_samples_ns": [
+          25118576,
+          25174285,
+          25453963,
+          25071776,
+          25561432
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-year-left-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "range",
+          "function": "year",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 827228467,
+        "after_ns": 21393476,
+        "before_after": 38.66732395427466,
+        "before_samples_ns": [
+          924003263,
+          822091381,
+          827228467,
+          825843016,
+          836143810
+        ],
+        "after_samples_ns": [
+          21393476,
+          21162758,
+          21867671,
+          21321716,
+          21569375
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-year-both-range",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "year(m) / on(id) year(n)",
+          "mode": "range",
+          "function": "year",
+          "route": "both",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 929468526,
+        "after_ns": 25504292,
+        "before_after": 36.44361215751451,
+        "before_samples_ns": [
+          924600598,
+          929468526,
+          919260297,
+          944175472,
+          940420461
+        ],
+        "after_samples_ns": [
+          26019778,
+          24900867,
+          25766321,
+          24874898,
+          25504292
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "controls-page17-raw-range",
+        "case": {
+          "cohort": "controls",
+          "dataset_id": "controls-page17",
+          "expression": "m / on(id) n",
+          "mode": "range",
+          "route": "raw",
+          "page_size": 17
+        },
+        "before_ns": 528256,
+        "after_ns": 537855,
+        "before_after": 0.9821531825492,
+        "before_samples_ns": [
+          539356,
+          528256,
+          522786,
+          530835,
+          521446
+        ],
+        "after_samples_ns": [
+          536536,
+          521895,
+          563505,
+          539956,
+          537855
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "controls-page17-rate-range",
+        "case": {
+          "cohort": "controls",
+          "dataset_id": "controls-page17",
+          "expression": "rate(m[2s]) / on(id) rate(n[2s])",
+          "mode": "range",
+          "route": "rate",
+          "page_size": 17
+        },
+        "before_ns": 1027272,
+        "after_ns": 1042991,
+        "before_after": 0.9849289207672933,
+        "before_samples_ns": [
+          1027272,
+          1024542,
+          1042172,
+          1081921,
+          1019562
+        ],
+        "after_samples_ns": [
+          1046131,
+          1029411,
+          1042112,
+          1059022,
+          1042991
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-ceil-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "ceil(m) / on(id) n",
+          "mode": "instant",
+          "function": "ceil",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 6821544,
+        "after_ns": 6964553,
+        "before_after": 0.9794661624371298,
+        "before_samples_ns": [
+          6823265,
+          6821544,
+          6803895,
+          6772705,
+          6980663
+        ],
+        "after_samples_ns": [
+          6976214,
+          6952804,
+          6934773,
+          6964553,
+          7077022
+        ]
+      },
+      {
+        "profile": "release-min",
+        "id": "scaling-n128-page17-year-left-instant",
+        "case": {
+          "cohort": "scaling",
+          "dataset_id": "scaling-n128-page17",
+          "expression": "year(m) / on(id) n",
+          "mode": "instant",
+          "function": "year",
+          "route": "left",
+          "count": 128,
+          "page_size": 17
+        },
+        "before_ns": 6917033,
+        "after_ns": 7032343,
+        "before_after": 0.9836029044658373,
+        "before_samples_ns": [
+          6917033,
+          6908014,
+          7319630,
+          6872594,
+          7054563
+        ],
+        "after_samples_ns": [
+          6996173,
+          6965724,
+          7034152,
+          7044883,
+          7032343
+        ]
+      }
+    ],
+    "scope": "Fixed24cases/profile,five alternating pairs,one warm then one measured query per active dataset. Complete results and each variant own qualified nonelapsed observations checked. Includes large/medium/empty/raw/rate/instant and existing abs controls. All slower groups retained;shared-host engine elapsed,not CPU isolation,production DBengine,RSS or universal gain."
+  },
+  "controls": [
+    "Validated actual arity one selects32current Float-map names with the shared enum; no runtime whitelist.",
+    "Default round uses its existing step1; explicit calendars consume values. Zero-argument calendar clocks and valid multiargument round/clamps retain ordinary evaluation.",
+    "Domain NaNs remain present float rows. Native points use the same filtering owner as abs.",
+    "All earned schedule,wrapper/leaf producer/source/scope grids,matching,uniqueness and root gates remain.",
+    "First-final discovery,arithmetic,filtering,duplicates,diagnostics and successful Done precede reuse.",
+    "Fresh selected reads use wrapper descriptor ordinals,including sparse native/stale and reordered sources.",
+    "Calibrated preparation,cold suffix/pair,warm selected errors,provisional abort and release owners pass.",
+    "Ordinary raw/rate/scalar/parameter/default-calendar/timestamp/native fallback observations match exactly."
+  ],
+  "closed_execution_binding": {
+    "netdata_repository_path": ".tmp/float-map-joins-0_f55uqe/closed-execution-binding.json",
+    "sha256": "cd5a6200e8f93abc7f6b4b56dcf0b4cb01e3b3035551ec1a8d9ac247817223f6"
+  },
+  "limitations": [
+    "Finite qualification does not prove every input or a global language/performance optimum.",
+    "No new original-Go capture,SRE replay,live Agent,production DBengine or process-RSS execution.",
+    "ARM results are compiled QEMU executions,not hardware timing or full foreign unit-suite coverage.",
+    "C callers use the current shared fixture/parser. No changed header or new layout/sanitizer claim.",
+    "Query JSON does not export basic statistics; unchanged owners retain actual unit/C assertion coverage.",
+    "Existing completed membership metadata can raise small-case peaks82\u2013312B in this panel. No global peak-memory decrease or allocation-free execution claim is made.",
+    "186 mixed right-wrapper range groups conservatively reject reuse after short uniqueness work: +32B cumulative workspace and+16work each,with unchanged fetched entries and whole-query peaks.",
+    "Raw samples remain paged across both axes. Query caps remain disabled and no new cache/history arrays or public/default/numerical/ABI/storage/reference policy is introduced.",
+    "Earlier broad cohorts retain actual source/binary identities; all53previous ledger objects are preserved."
+  ]
+}

@@ -622,24 +622,27 @@ integration, and Alertmanager remains excluded.
   source and executables, complete raw/rate/mixed/fallback/native/precise controls, native units/C callers and timing.
   Earlier language, SRE, ARM and Agent cohorts retain their actual historical source identities.
 
-## Completed direct abs join scans
+## Completed direct float-map join scans
 
-- **Choice:** extend the existing completed one-to-one float join certificate to direct `abs(selector)` operands
-  with an earned scheduled-selector marker and matching wrapper/leaf producer/source/scope grids. Keep the shared
-  selector proof and every existing root, matching, uniqueness, exact-key and successful-Done requirement.
-- **Ownership:** reuse existing pair bindings and the accounted current-step membership bitmap. Later outputs read
-  the selected wrapper operands afresh through their canonical-to-physical mapping. No raw value/history array,
-  new cache representation, provider policy or public interface is introduced.
-- **Compatibility:** actual float wrapper rows can qualify after `abs` filters native points. Stale/changing
-  membership and sparse source positions remain significant. Unproven aliases, fixed/nested/indirect/grouped and
-  delayed-name shapes retain ordinary evaluation and their original errors.
-- **Tradeoff:** representative 32/128-series peaks stay unchanged while reads/work/allocation traffic fall. Smaller
-  qualifying cases can add up to 172 bytes at peak for membership metadata. Allocation traffic and tracked peak are
-  distinct from RSS; the goal does not introduce an arbitrary cardinality threshold or enabled resource cap.
-- **Evidence:** [abs join qualification](abs-join-qualification.json) retains the meaningful complete-query scaling
-  red, sparse/native controls, separately calibrated preparation/cold/warm errors, complete native/foreign matches,
-  actual C/C++ callers and warmed timings. Compiled source identities remain separate from a final comment-only
-  correction; earlier broader cohorts retain their actual historical sources and executables.
+- **Choice:** recognize the shared typed `PointwiseFunction::Float` class at validated actual arity one. Current
+  members include ordinary mathematical maps, default round and explicit-vector calendars. Require a direct
+  selector, earned marker and identical wrapper/leaf producer/source/scope grids. Preserve all outer root,
+  matching, uniqueness, selector-schedule, exact-key and successful-Done requirements.
+- **Ownership:** reuse existing pair bindings and accounted current-scope membership. Later outputs read selected
+  wrapper operands afresh through canonical-to-physical mapping. Release the previous completed scope before
+  replacement, and publish only the successfully completed candidate. No raw history array or new cache is added.
+- **Compatibility:** native points retain existing filtering; domain NaNs remain present floats. Sparse/stale and
+  reordered physical sources retain wrapper ordinals. Aliases and unsupported schedules use ordinary evaluation.
+  Valid parameterized round/clamps, zero-argument calendars, timestamp/native helpers and indirect shapes remain
+  supported through their existing paths. No numerical/default/ABI/storage/reference contract changes.
+- **Tradeoff:** repeated reads, work and allocation traffic fall in qualifying range queries. Representative
+  128-series peaks remain unchanged. Small range cases add 82–312 B at peak in the recorded panel through existing
+  join reuse owners. Aggregate peaks do not attribute every allocation instant; tracked bytes are not RSS.
+  Some rejected mixed-kind certificates add 32 cumulative bytes and 16 work units without raising the peak.
+  No arbitrary cardinality threshold or enabled resource cap is introduced.
+- **Evidence:** [float-map join qualification](float-map-join-qualification.json) binds the meaningful scaling red,
+  complete native/compiled-ARM results, current C/C++ callers, registry NaN/membership controls and every timing
+  group. The [initial abs qualification](abs-join-qualification.json) retains its earlier source/binary identities.
 
 ## Compact one-to-one result labels
 

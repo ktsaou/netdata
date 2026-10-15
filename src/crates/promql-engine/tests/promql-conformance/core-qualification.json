@@ -8903,5 +8903,19 @@
     "retained_temporal_outcomes": 14664,
     "native_units_per_profile": 626,
     "actual_native_c_callers": 4
+  },
+  "float_map_join_qualification": {
+    "status": "pass",
+    "receipt": "float-map-join-qualification.json",
+    "sha256": "48720caf5ed9d9ab479d72b50fc1b31d3d1c931ba3e40514e1fed4cbc268ad56",
+    "scope": "Completed direct one-argument typed Float-map one-to-one joins; existing schedule and replay owners.",
+    "complete_native_matches": 10372,
+    "complete_foreign_matches": 3656,
+    "native_units_per_profile": 627,
+    "actual_c_callers": 12,
+    "records_per_caller": 36,
+    "lower_fetched_groups": 2514,
+    "higher_workspace_peak_groups": 2442,
+    "higher_workspace_peak_maximum_bytes": 312
   }
 }
