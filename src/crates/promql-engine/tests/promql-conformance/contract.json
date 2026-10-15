@@ -143,7 +143,7 @@
       "normalize": 46
     },
     "backend": "Owned flat Go program to iterative regex-automata 0.4.16 Thompson Builder/PikeVM; regex-syntax 0.8.11 UTF-8 range encoding. No backend grammar or recursive HIR compiler.",
-    "status": "Finite source-bound byte/metadata/capture/replacement and selector qualification, plus complete pinned expression panels. RE2/Fowler/exhaustive and other independent helper suites are outside current evidence. Regex performance is unmeasured."
+    "status": "Finite source-bound byte/metadata/capture/replacement and selector qualification, plus complete pinned expression panels. RE2/Fowler/exhaustive and other independent helper suites are outside current evidence. Finite boolean-selector complete-query throughput and allocation measurements are in selector-boolean-qualification.json; arbitrary-pattern performance remains unqualified."
   },
   "initial_value_kernels": {
     "capture_tool": "histogram_capture.py",

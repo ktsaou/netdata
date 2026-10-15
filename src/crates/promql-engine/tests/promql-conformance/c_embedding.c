@@ -1787,6 +1787,28 @@ static void protocol_primitives(netdata_promql_engine_t *engine) {
     label.value = text("z");
     assert(netdata_promql_selector_matches(selector, labels, NULL, &matched) == NETDATA_PROMQL_OK && matched == 0);
     assert(netdata_promql_selector_release(selector) == NETDATA_PROMQL_OK);
+    const char *fallback_selectors[] = {
+        "{zone=~\"a[^0-9]+c\"}", "{zone!~\"a[^0-9]+c\"}",
+        "{zone=~\"[a-c]*\"}", "{zone!~\"[a-c]*\"}"
+    };
+    const char *fallback_subjects[] = {"abc", "a9c", "", "a\xff" "bc", "\xef\xbf\xbd"};
+    const uint32_t fallback_expected[2][5] = {{1, 0, 0, 1, 0}, {1, 0, 1, 0, 0}};
+    for (unsigned p = 0; p < 4; ++p) {
+        assert(netdata_promql_selector_compile(engine, text(fallback_selectors[p]), NULL, &selector, &report) == NETDATA_PROMQL_OK);
+        assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+        for (unsigned v = 0; v < 5; ++v) {
+            label.value = text(fallback_subjects[v]);
+            uint32_t expected = fallback_expected[p / 2][v] ^ (p % 2);
+            matched = 99;
+            assert(netdata_promql_selector_matches(selector, labels, NULL, &matched) == NETDATA_PROMQL_OK && matched == expected);
+        }
+        labels.len = 0;
+        uint32_t expected = fallback_expected[p / 2][2] ^ (p % 2);
+        matched = 99;
+        assert(netdata_promql_selector_matches(selector, labels, NULL, &matched) == NETDATA_PROMQL_OK && matched == expected);
+        labels.len = 1;
+        assert(netdata_promql_selector_release(selector) == NETDATA_PROMQL_OK);
+    }
     const char *limit_inputs[] = {"", "-0", "+0007", "2147483648", "9223372036854775807", "-1", "9223372036854775808"};
     const int64_t limit_values[] = {0, 0, 7, INT64_C(2147483648), INT64_MAX, 0, 0};
     for(unsigned i = 0; i < sizeof(limit_values) / sizeof(limit_values[0]); i++) {

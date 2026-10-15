@@ -1157,13 +1157,7 @@ impl Program {
         if let Some(equality) = &self.equality {
             return work.equal(value, equality);
         }
-        let regex = || {
-            self.regex
-                .as_ref()
-                .unwrap()
-                .captures_work(value, work)
-                .map(|value| value.is_some())
-        };
+        let regex = || self.regex.as_ref().unwrap().matches_work(value, work);
         if self.prefix.is_empty()
             && self.suffix.is_empty()
             && self.contains.is_empty()

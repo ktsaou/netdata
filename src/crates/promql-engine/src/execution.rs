@@ -10463,7 +10463,8 @@ mod tests {
             Err(CompileError::Parse(_))
         ));
         let observed = engine.accounting.snapshot();
-        assert!(observed.memory[MemoryKind::Workspace as usize].peak > 0);
+        // Empty-label validation needs the match, without exporting capture ranges.
+        assert_eq!(observed.memory[MemoryKind::Workspace as usize].peak, 0);
         assert!(observed.memory[MemoryKind::RegexEstimate as usize].peak > 0);
         observed.assert_memory_released();
     }

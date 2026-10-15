@@ -25,6 +25,9 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Boolean selector fallback avoids unused capture results. The [selector panel](#boolean-selector-search) records
+  484 complete native matches, 504 compiled ARM matches and 21,320 original regex cases per profile/target.
+  Of 484 resource groups, 328 acquire less workspace and do less work; total query peaks mostly stay unchanged.
 - Earned mapped operands pass 1,986 complete native and 1,196 compiled ARM matches, 632 native units/profile and
   12 actual C/C++ callers. The [operand panel](#completed-earned-operand-joins) records direct arithmetic, unary,
   label and native-to-float schedule reuse, 36–43× large-case timing gains, unchanged scaling peaks and small costs.
@@ -551,7 +554,8 @@ regression. Five Rust unit tests pass in release and release-min; this includes 
 This finite corpus does not prove arbitrary-pattern compatibility. RE2/Fowler/exhaustive suites and remaining
 optimizer helper suites are outside this evidence. The anchored replacement checks qualify its regex kernel, not
 the PromQL `label_replace` evaluation and label mutation qualified separately by the expression gates. PikeVM construction currently omits meta-engine
-accelerators; its query performance has not been measured. Go syntax limits and optimizer strategy thresholds are
+accelerators. A finite [boolean selector panel](#boolean-selector-search) now measures complete-query performance;
+it does not establish arbitrary-pattern throughput. Go syntax limits and optimizer strategy thresholds are
 preserved as upstream behavior. No engine regex or query resource quota is enabled.
 
 Opaque regex-backend allocations and selector hash-table backing memory are reported as explicit estimates.
@@ -3785,3 +3789,72 @@ Float controls, plus release-min empty scale-right. Their before/after ratios ar
 0.994 respectively. Timings have no exclusive CPU/frequency control and do not establish universal throughput.
 There is no fresh Go/SRE/live-Agent/DBengine, full foreign-unit, layout, sanitizer, RSS or CI-pass claim.
 All 57 previous qualification ledger objects retain their original content and source/binary attribution.
+
+
+## Boolean selector search
+
+Selector fallback now asks the existing PikeVM search for a boolean result with no capture outputs. It previously
+created capture storage and copied successful ranges, then discarded them. Literal/set/simple matcher ordering,
+original-byte prefix checks, subject normalization and offsets, Input/span and fresh execution-local cache ownership
+remain. Full capture, FindAll and label replacement use the same setup and finish while their scratch remains alive.
+The backend's full initial slot tables remain allocated; this change adds no persistent cache or public option.
+
+The [selector qualification](selector-boolean-qualification.json) records:
+
+- 242 fixed queries/profile: 224 positive/negative selectors, 12 capture/replacement controls, four reached provider
+  errors and two unselected-error controls. Sizes 32/512/4,096, page 17, direct/count and instant/range outputs cover
+  numeric captures, ASCII word rules, nullable/absent labels, newlines, Unicode and malformed byte subjects.
+- 484 complete native matches and 476 independent full value/label/time/membership expectations. Raw comparison
+  retains exact order, bits, errors and annotations. The eight reached native provider errors remain errors.
+- The retained 21,320 original regex cases pass in both profiles on native AMD64, compiled ARM64 and ARM32:
+  127,920 fresh comparisons. Original Go source facades and capture provenance are validated and reused unchanged.
+- 504 complete compiled ARM query matches on the fixed subset, 12 focused ARM unit executions, 633 native units per
+  profile, format, strict production/fixture Clippy and installed MSRV 1.91 compile-only checks.
+- Eight actual C/C++ callers pass 48 records each. The existing primitive record adds 24 positive/negative fallback,
+  empty/absent and invalid-byte outcomes. Native callers use both profiles; foreign callers use release, while
+  foreign release-min regex, complete queries and focused units execute separately. No ABI/layout changes are made.
+
+The old runtime passes all 18 new boolean outcomes and control/release checks, then fails the allocation assertion
+with 672 bytes of discarded valid-subject capture ranges. The candidate passes with zero such workspace. An existing
+empty-selector validation unit also required that removed allocation; its test-only correction preserves rejection,
+backend observation and cleanup. Exact inverse and production-prefix proofs retain earlier comparison/binary
+identities. The completed query and regex comparisons are not repeated after that test-only change.
+
+Of 484 observation groups, 328 reduce work, cumulative workspace acquisition and dependency estimates. No exported
+memory kind or work group increases. All 128 optimized matcher controls and 24 capture controls retain exact
+nonelapsed observations. Four query workspace peaks decrease; the other 480 are unchanged. In 328 groups the
+reported regex-dependency peak decreases. These estimates are not exact allocator measurements or process RSS.
+
+For a 4,096-series numeric selector/count range query, acquired workspace changes from 11,136,680 to 9,957,032 bytes;
+with extra capture groups, it changes from 13,495,976 to 9,957,032 bytes. Both query workspace peaks remain 1,251,560
+bytes. The corresponding dependency-estimate peaks change from 1,856 to 1,824 and 5,168 to 5,088 bytes. Sample reads,
+provider calls, output counts and temporary-storage observations are unchanged. Inputs and allocator overhead are
+excluded; raw history remains paged and metadata/output can still grow with cardinality while caps are disabled.
+
+After qualification writers close, eight fixed cases/profile run five alternating before/after pairs, each with a
+warm and measured query: 320 complete checked responses. All outcomes and each variant's own nonelapsed observations
+remain exact. Every median group is retained below; these are shared-host execution times without CPU isolation.
+
+| Profile | Case | Median before → after (ms) | Before/after ratio |
+|---|---|---:|---:|
+| release | ascii-n32-numeric-pos-count-range | 0.351 → 0.333 | 1.054× |
+| release | ascii-n4096-numeric-pos-count-range | 41.297 → 38.527 | 1.072× |
+| release | ascii-n4096-numeric-neg-count-range | 51.780 → 50.868 | 1.018× |
+| release | ascii-n4096-captures-pos-count-range | 44.883 → 40.885 | 1.098× |
+| release | ascii-n4096-literal-pos-count-range | 12.203 → 12.084 | 1.010× |
+| release | ascii-n4096-alternation-pos-count-range | 21.104 → 20.533 | 1.028× |
+| release | ascii-n4096-replace-capture-direct-range | 277.513 → 279.014 | 0.995× |
+| release | bytes-n32-non-digit-pos-direct-range | 0.151 → 0.144 | 1.049× |
+| release-min | ascii-n32-numeric-pos-count-range | 0.595 → 0.573 | 1.039× |
+| release-min | ascii-n4096-numeric-pos-count-range | 72.515 → 70.063 | 1.035× |
+| release-min | ascii-n4096-numeric-neg-count-range | 90.551 → 87.370 | 1.036× |
+| release-min | ascii-n4096-captures-pos-count-range | 83.462 → 76.437 | 1.092× |
+| release-min | ascii-n4096-literal-pos-count-range | 20.032 → 20.346 | 0.985× |
+| release-min | ascii-n4096-alternation-pos-count-range | 34.081 → 34.442 | 0.990× |
+| release-min | ascii-n4096-replace-capture-direct-range | 400.311 → 383.566 | 1.044× |
+| release-min | bytes-n32-non-digit-pos-direct-range | 0.244 → 0.243 | 1.004× |
+
+All 3 slower median groups remain in the report. This finite panel is neither universal
+throughput nor complete-language proof. There is no new Go capture, SRE/live-Agent/DBengine, full foreign-unit,
+sanitizer, RSS or CI-pass claim. Independent RE2/Fowler/exhaustive suites remain outside the evidence. All 58 prior
+qualification ledger objects retain their content and original source/binary attribution.

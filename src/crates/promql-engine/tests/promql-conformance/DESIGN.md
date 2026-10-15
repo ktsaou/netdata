@@ -91,6 +91,10 @@ The [README](README.md#standalone-expression-core) summarizes implementation and
 - **Consequence:** this avoids writing a complete matcher from scratch while retaining responsibility for the
   compatibility frontend, generated Unicode data and dependency changes. Regex allocation estimates have the
   separate limitations described under decision 17 below.
+- **Boolean execution:** selector fallback requests no capture outputs from the same PikeVM search and Input.
+  Capture consumers retain their owned ranges. Shared search setup finishes capture export while the cache and
+  estimate remain alive. Normalization/offsets, raw prefix checks, fresh execution-local caches and full initial
+  backend slot tables remain. The [selector panel](selector-boolean-qualification.json) measures this finite change.
 - **Evidence:** [Go-compatible regex frontend](README.md#owned-go-compatible-regex-frontend),
   [pinned dependencies](../../Cargo.toml).
 

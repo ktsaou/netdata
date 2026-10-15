@@ -3,7 +3,7 @@
 use crate::shared::{Allocation, Strong};
 use std::ops::Range;
 
-use regex_automata::{Input, nfa::thompson::pikevm::PikeVM};
+use regex_automata::{Input, nfa::thompson::pikevm::PikeVM, util::captures::Captures};
 
 use super::{ast::CompiledMatcher, quote::decode_rune, work::Work};
 use crate::accounting::{
@@ -250,41 +250,67 @@ impl GoRegex {
         let subject = Subject::new(original, work)?;
         self.captures_subject(&subject, 0, work)
     }
+    fn matches_work(&self, original: &[u8], work: Work<'_>) -> Result<bool, Interrupted> {
+        let subject = Subject::new(original, work)?;
+        self.search_subject(&subject, 0, false, work, |matched, _| Ok(matched))
+    }
     fn captures_subject(
         &self,
         subject: &Subject<'_>,
         start: usize,
         work: Work<'_>,
     ) -> Result<Option<Buffer<Option<Range<usize>>>>, Interrupted> {
+        self.search_subject(subject, start, true, work, |matched, captures| {
+            if !matched {
+                return Ok(None);
+            }
+            let captures = captures.expect("capture search has storage");
+            Ok(Some(work.collect((0..self.names.len()).map(|index| {
+                captures
+                    .get_group(index)
+                    .map(|span| subject.offset(span.start)..subject.offset(span.end))
+            }))?))
+        })
+    }
+    // Finish while scratch remains alive to preserve capture-export accounting overlap.
+    fn search_subject<T>(
+        &self,
+        subject: &Subject<'_>,
+        start: usize,
+        capture: bool,
+        work: Work<'_>,
+        finish: impl FnOnce(bool, Option<&Captures>) -> Result<T, Interrupted>,
+    ) -> Result<T, Interrupted> {
         work.step(0)?;
         if !work.starts(subject.original, &self.prefix)? {
-            return Ok(None);
+            return finish(false, None);
         }
         // Backend cache creation and search are atomic from this interface.
         let mut cache = self.program.create_cache();
-        let mut captures = self.program.create_captures();
+        let mut captures = capture.then(|| self.program.create_captures());
+        let capture_bytes = captures.as_ref().map_or(0, |c| size_of_val(c.slots()));
         let mut estimate = work.context.map(|context| {
             context
                 .with_kind(MemoryKind::RegexEstimate)
-                .hold((cache.memory_usage() + size_of_val(captures.slots())) as u64)
+                .hold((cache.memory_usage() + capture_bytes) as u64)
         });
         work.step(0)?;
         let input = Input::new(subject.bytes())
             .span(subject.normalized_offset(start, work)?..subject.bytes().len());
         work.step(0)?;
-        self.program.search(&mut cache, &input, &mut captures);
+        let matched = if let Some(captures) = &mut captures {
+            self.program.search(&mut cache, &input, captures);
+            captures.is_match()
+        } else {
+            self.program
+                .search_slots(&mut cache, &input, &mut [])
+                .is_some()
+        };
         if let Some(estimate) = &mut estimate {
-            estimate.resize((cache.memory_usage() + size_of_val(captures.slots())) as u64);
+            estimate.resize((cache.memory_usage() + capture_bytes) as u64);
         }
         work.step(0)?;
-        if !captures.is_match() {
-            return Ok(None);
-        }
-        Ok(Some(work.collect((0..self.names.len()).map(|index| {
-            captures
-                .get_group(index)
-                .map(|span| subject.offset(span.start)..subject.offset(span.end))
-        }))?))
+        finish(matched, captures.as_ref())
     }
 
     /// Supplemental Go FindAll qualification; production label replacement uses one anchored match.
@@ -838,6 +864,8 @@ mod tests {
         for stage in [
             "subject-valid",
             "subject-invalid",
+            "boolean-valid",
+            "boolean-invalid",
             "capture-export",
             "replacement-copy",
             "replacement-name",
@@ -856,6 +884,12 @@ mod tests {
                     }
                     "subject-invalid" => {
                         regex.captures_work(&vec![0xff; 400_000], work)?;
+                    }
+                    "boolean-valid" => {
+                        regex.matches_work(&original, work)?;
+                    }
+                    "boolean-invalid" => {
+                        regex.matches_work(&vec![0xff; 400_000], work)?;
                     }
                     "capture-export" => {
                         many.captures_work(b"", work)?;
@@ -906,6 +940,7 @@ mod tests {
         ));
         let regex = GoRegex::compile(b"a").unwrap();
         assert_eq!(regex.captures_work(b"", work), Err(Interrupted::Deadline));
+        assert_eq!(regex.matches_work(b"", work), Err(Interrupted::Deadline));
         assert_eq!(
             regex.expand_work(b"", b"", &[], work),
             Err(Interrupted::Deadline)
@@ -998,6 +1033,107 @@ mod tests {
         drop(expanded);
         drop(captures);
         assert_eq!(engine.snapshot().memory[1].current, 0);
+    }
+
+    #[test]
+    fn boolean_selector_matching_does_not_export_capture_ranges() {
+        use crate::storage::{Control, Interrupted};
+        let engine = EngineAccounting::default();
+        let compiled = engine.query();
+        let context = AllocationContext::new(&compiled, MemoryKind::Compiled);
+        let ascii = engine.query();
+        let malformed = engine.query();
+        let control = Control::default();
+        let mut checks = 0;
+        for (pattern, subjects) in [
+            (
+                b"(worker|db)-[0-9]+".as_slice(),
+                [
+                    (b"worker-17".as_slice(), true),
+                    (b"db-7", true),
+                    (b"worker-x", false),
+                    (b"worker-17\n", false),
+                    (b"", false),
+                    (b"\xff", false),
+                ]
+                .as_slice(),
+            ),
+            (
+                b"a[^0-9]+c".as_slice(),
+                [
+                    (b"abc".as_slice(), true),
+                    (b"a\nc", true),
+                    (b"a9c", false),
+                    (b"ac", false),
+                    ("a\u{fffd}c".as_bytes(), true),
+                    (b"a\xffbc", true),
+                    (b"a\xff9c", false),
+                ]
+                .as_slice(),
+            ),
+            (
+                b"[a-c]*".as_slice(),
+                [
+                    (b"abc".as_slice(), true),
+                    (b"", true),
+                    (b"d", false),
+                    ("\u{e9}".as_bytes(), false),
+                    (b"\xff", false),
+                ]
+                .as_slice(),
+            ),
+        ] {
+            let matcher = Selector::compile_in(pattern, Some(&context)).unwrap();
+            let captures = GoRegex::compile_label_replace(pattern).unwrap();
+            let retained = compiled.snapshot();
+            for &(subject, expected) in subjects {
+                let account = if std::str::from_utf8(subject).is_ok() {
+                    &ascii
+                } else {
+                    &malformed
+                };
+                assert_eq!(
+                    matcher.matches_checked(subject, Some(account), &control),
+                    Ok(expected),
+                    "{pattern:?} {subject:?}"
+                );
+                assert_eq!(captures.captures(subject).is_some(), expected);
+                account.snapshot().assert_memory_released();
+                checks += 1;
+            }
+            let expired = Control {
+                deadline: Some(std::time::Instant::now()),
+                ..Control::default()
+            };
+            assert_eq!(
+                matcher.matches_checked(b"", Some(&ascii), &expired),
+                Err(Interrupted::Deadline)
+            );
+            let cancelled = Control::default();
+            cancelled.cancellation.cancel();
+            assert_eq!(
+                matcher.matches_checked(b"", Some(&ascii), &cancelled),
+                Err(Interrupted::Cancelled)
+            );
+            assert_eq!(compiled.snapshot(), retained);
+        }
+        assert_eq!(checks, 18);
+        let observed = ascii.snapshot();
+        println!(
+            "{{\"boolean_selector_checks\":{checks},\"valid_workspace_acquired\":{},\"valid_regex_peak\":{}}}",
+            observed.memory[MemoryKind::Workspace as usize].acquired,
+            observed.memory[MemoryKind::RegexEstimate as usize].peak
+        );
+        assert!(observed.memory[MemoryKind::RegexEstimate as usize].peak > 0);
+        assert!(malformed.snapshot().memory[MemoryKind::Workspace as usize].acquired > 0);
+        observed.assert_memory_released();
+        malformed.snapshot().assert_memory_released();
+        assert_eq!(observed.memory[MemoryKind::Workspace as usize].acquired, 0);
+        drop(context);
+        drop(compiled);
+        drop(ascii);
+        drop(malformed);
+        engine.snapshot().assert_memory_released();
     }
 
     #[test]
