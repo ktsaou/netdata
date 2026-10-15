@@ -914,34 +914,21 @@ impl CompiledQuery {
                 self.binary_replay_selector(node, evaluator_header, prepared, &rosters)
             });
             if let [Some(left_selector), Some(right_selector)] = selectors {
-                let supported = {
-                    let machine = Machine::new(
-                        catalog,
-                        &self.expression,
-                        self.expression.root,
-                        self.evaluation_options(
-                            evaluator_header,
-                            evaluator_header.start_ms,
-                            prepared,
-                        ),
-                        control,
-                        account,
-                        EvaluationMetadata {
-                            prepared,
-                            rosters: &rosters,
-                            timestamp_selectors: &self.timestamp_selectors,
-                            data_bounds,
-                            annotations: None,
-                            binary_preparation: None,
-                            histogram_preparation: None,
-                            info_preparation: None,
-                            count_preparation: None,
-                        },
-                    );
-                    let grid = evaluator_header.into();
-                    machine.supports_schedule(left_selector, grid)
-                        && machine.supports_schedule(right_selector, grid)
-                };
+                let lookback_ms = prepared.lookback_ms(self.options.lookback_ms);
+                let grid = evaluator_header.into();
+                let supported = [left_selector, right_selector].into_iter().all(|selector| {
+                    let Expr::Selector(value) = &self.expression.arena[selector].expression else {
+                        unreachable!("resolved binary selector")
+                    };
+                    crate::evaluator::supports_selector_schedule(
+                        selector,
+                        value,
+                        prepared,
+                        self.timestamp_selectors[selector.0],
+                        lookback_ms,
+                        grid,
+                    )
+                });
                 if supported {
                     rosters.certify_binary_replay(self.expression.root, control, account)?;
                 }

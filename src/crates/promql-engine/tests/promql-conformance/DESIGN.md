@@ -607,6 +607,21 @@ integration, and Alertmanager remains excluded.
 - **Phase proof:** the C error case uses the normal run's cursor observed before first output and checks a
   later physical series. Native traces establish final evaluation; output begin alone precedes preparation.
 
+## Borrowed binary scheduling proof
+
+- **Choice:** resolve the existing raw/rate selector nodes and call the shared pure schedule predicate directly.
+  Keep the prepared effective lookback, timestamp-selector marker, grid and left-before-right short circuit.
+  The temporary evaluator previously used only for this proof performed no evaluation, work charge, control poll
+  or provider callback. Evaluators that produce results remain in place.
+- **Scope:** all binary eligibility and certification rules remain authoritative, including rejected schedules and
+  later nonfloat rejection. This adds no runtime state, cache, sample buffer, feature, dependency or public contract.
+- **Memory:** the finite native comparison saves 960 acquired/released workspace bytes in 540 query/profile cases;
+  480 cases retain their allocation counts. Complete outputs, reads, work and cleanup match. Measured whole-query
+  workspace peaks remain unchanged; allocation traffic is distinct from peak RAM and RSS.
+- **Evidence:** [binary scheduling qualification](binary-schedule-qualification.json) binds the accepted/current
+  source and executables, complete raw/rate/mixed/fallback/native/precise controls, native units/C callers and timing.
+  Earlier language, SRE, ARM and Agent cohorts retain their actual historical source identities.
+
 ## Compact one-to-one result labels
 
 - **Choice:** one-to-one projection with no included fields copies only retained labels. It removes empty values,

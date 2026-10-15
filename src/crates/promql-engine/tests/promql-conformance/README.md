@@ -3152,3 +3152,45 @@ checks pass; the rebuilt/relinked Debug Agent passes 672 storage records, the ca
 and a separate additive 88-check HTTP probe, including six complete sort-related results over its own DBengine data.
 Historical ledger and caller inputs remain preserved. Foreign checks execute the library/callers, not a full foreign
 Agent; caller sanitizers exclude Rust instrumentation. These finite panels include no CI or arbitrary-input proof.
+
+## Borrowed binary scheduling proof
+
+The raw/rate binary replay gate uses the existing pure schedule predicate directly. It resolves the same selectors,
+uses the same prepared effective lookback, timestamp markers and grid, and preserves left-before-right short circuit.
+The former temporary evaluator only supplied these borrowed values; it performed no evaluation, work charge,
+control poll or provider callback. Actual evaluators and every existing binary certification rule remain in place.
+
+The [binary scheduling qualification](binary-schedule-qualification.json) compares 1,020 complete current results
+with the accepted engine: raw/raw, rate/rate, mixed, computed, set, offset and fixed-time expressions, cardinalities
+0/1/4/32/128, pages1/17/1024, both right-side orders and instant/range execution. Native add/equality and precise
+lookback controls retain their complete accepted results. Analytic float checks verify membership, values and clocks;
+all original row order and diagnostics are compared unchanged between executable phases.
+
+Exactly 540 query/profile cases save 960 acquired and released workspace bytes; 480 cases retain their allocation
+counts. All measured whole-query workspace peaks remain unchanged. Outputs, reads, work, provider/output calls,
+temporary backing, references and cleanup also match. This reduces allocation traffic without retaining new state,
+sample values or history; it does not establish lower peak RAM or RSS.
+
+Current checks pass 618 units in each native profile, formatting, both lint configurations and the Rust1.91 compile
+check. Four actual native C/C++ callers link and execute against the newly built static archives. Existing binary
+and rate first-pass, selected-pair, failure, clock and cleanup controls remain part of those units/callers. Earlier
+language, SRE, ARM and Agent cohorts keep their original source/binary identities and are not fresh runs of this change.
+
+The first warmed panel contains 4,608 complete responses and ratios from0.872 to1.047. It retains large release
+rate/mixed cases that were8–15% slower. An unchanged-source concern repeat contains2,304 complete responses with
+ratios0.977–1.039. At128inputs/page17, that repeat reports:
+
+| Complete query | Release | Release-min |
+|---|---:|---:|
+| Raw join, instant | 1.006 | 1.021 |
+| Raw join, three range ticks | 1.017 | 1.028 |
+| Rate join, instant | 1.014 | 1.015 |
+| Rate join, three range ticks | 1.015 | 1.029 |
+| Mixed raw/rate join, instant | 1.019 | 1.011 |
+| Mixed raw/rate join, three range ticks | 1.004 | 1.021 |
+
+Ratios are before/current median times; below one is slower. Both panels use alternating pairs, complete outcomes
+and exact per-phase resource checks after owned builds/qualification close. CPU is not isolated. The repeat does
+not replace the initial observations or prove their cause; no universal throughput or production-disk claim follows.
+Initial analytic-expectation, active-parent inventory and timing-selection failures retain their actual development
+phases. Corrected qualification binds closed writers and the actual current source and executables.

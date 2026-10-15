@@ -8850,5 +8850,23 @@
     "retained_sort_originals": 456,
     "expanded_special_native_responses": 960,
     "caveat": "Eligible direct-root ranges reduce repeated reads/work/allocation traffic with8B more measured native workspace peak. Fresh selected values, required cold suffix/errors and ownership/control phases remain. Fallbacks, tiny costs and all original timing observations are retained; no universal speed/RSS/optimality claim."
+  },
+  "binary_schedule_qualification": {
+    "status": "pass",
+    "qualification": {
+      "path": "binary-schedule-qualification.json",
+      "sha256": "d6a730e432b5b8fb097d808c55feab20d6dc26cea682d8bd58f430e505169a39"
+    },
+    "scope": "Finite native qualification of one proof-only binary evaluator allocation removal. Existing raw/rate selector resolution, pure schedule predicate, effective Prepared lookback, timestamp marker, grid and left-before-right short circuit remain unchanged. No new runtime state, feature, public/default/ABI/storage/reference change.",
+    "fixture_units_per_profile": 618,
+    "complete_baseline_responses": 1020,
+    "current_response_matches": 1020,
+    "saved_960_byte_groups": 540,
+    "unchanged_groups": 480,
+    "workspace_peaks_unchanged": true,
+    "current_native_c_callers": 4,
+    "warmed_complete_responses": 4608,
+    "warmed_concern_repeat_responses": 2304,
+    "caveat": "One private pure-proof call-site removal; full first-pass/certification rules and results/resources retained. Allocation traffic falls with unchanged measured peaks. Timings and earlier broader source-bound evidence retain their scope; no universal speed/RSS or new language coverage claim."
   }
 }
