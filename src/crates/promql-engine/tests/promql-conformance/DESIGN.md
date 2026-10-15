@@ -582,9 +582,17 @@ integration, and Alertmanager remains excluded.
 - **Ownership:** query-local bindings map frozen cache ordinals to original side positions. One accounted snapshot
   identifies all effective clock/options, step index, exact lookback and data bounds. Replacement releases the prior
   snapshot first; errors and partial replays never publish one. No raw values or timeline are retained.
-- **Compatibility:** exact frozen keys and first-writer labels remain authoritative. Native, grouped, filled,
+- **Compatibility:** exact frozen keys and first-writer labels remain authoritative. Native operand values, filled,
   ambiguous, delayed-name, invariant and unsupported clock shapes retain ordinary replay. Initial validation and
   error priority remain complete; errors tied to omitted physical operations follow the existing provider policy.
+- **Grouped ranges:** existing direct/rate/earned Float operand proofs can admit `group_left`/`group_right`.
+  Keep unique full float rows on both sides and unique matching signatures on the one side. Enumerate every
+  many-side row; reject ambiguous histories, missing output bindings and conflicting cache ordinals. Pair positions
+  remain in original left/right order while frozen keys use many/one label order. Existing cold validation,
+  successful Done, exact-clock membership and fresh selected reads remain the same owners; no state field is added.
+- **Grouped evidence:** [qualification](grouped-pair-replay-qualification.json) records all comparisons and costs.
+  Large-case reads/allocation traffic decrease with unchanged peaks; one mapped case adds 81 B peak and rejected
+  native/mixed/history proofs add up to 39 work units and 112 cumulative bytes. Timings retain slower tiny controls.
 - **Evidence:** `src/vector_matching.rs`, `src/evaluator_roster.rs`, `src/evaluator.rs`, `src/execution.rs`, the
   changing-membership/history fixtures and actual C caller's first-output and selected-pair failure cases.
 

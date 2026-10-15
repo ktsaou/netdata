@@ -25,6 +25,10 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Eligible grouped float ranges reuse completed operand discovery. The
+  [grouped-join panel](#completed-grouped-float-join-scans) records 1,692 native and 1,128 compiled ARM comparisons,
+  647 native units/profile and 12 actual C/C++ callers. Fixed 64-series queries become 19× faster with unchanged
+  scaling peaks; small rejected-proof, mapped-peak and timing costs remain explicit.
 - Absence inference respects preprocessing of aggregation-parameter arguments. The
   [argument-edge panel](#absence-argument-preprocessing) records outcome-changing label inference, ordinary and
   generic matrix controls, byte/matcher history, and actual C/C++ calls without adding runtime state.
@@ -2280,8 +2284,9 @@ under `lookup_index_qualification` in [core-qualification.json](core-qualificati
 ## Completed unique float join scans
 
 Final evaluation can reuse a completed operand scan for a bare root one-to-one join between two raw float
-selectors. It requires unambiguous signatures, hashes, output bindings and supported ordinary clocks. Native,
-grouped, filled, nested, delayed-name and other ambiguous shapes keep the existing pair replay.
+selectors. It requires unambiguous signatures, hashes, output bindings and supported ordinary clocks. Eligible
+grouped ranges use the [grouped extension](#completed-grouped-float-join-scans). Native operand values, filled,
+unproven nested, delayed-name and other ambiguous shapes keep ordinary pair replay.
 
 The first row completes the original full scan and pair evaluation, including comparison filtering, reservations
 and duplicate checks. Its emitted cache ordinals become reusable only after successful completion and diagnostics.
@@ -2315,6 +2320,74 @@ remain separate costs.
 The [join qualification](binary-replay-qualification.json) binds the exact engine sources, both optimized
 profiles, original expression panels, actual C callers and separately rebuilt DBengine/API checks. It preserves
 the earlier qualification cohorts and their original source identities.
+
+## Completed grouped float join scans
+
+Eligible `group_left` and `group_right` range roots use the same completed-pair owner as unique joins.
+Full float row identities remain unique on both sides; matching signatures need be unique only on the declared
+one side. Each many-side row resolves its one-side counterpart and binds an existing frozen cache ordinal.
+Missing required mappings, conflicting ordinal assignments, merged outputs or ambiguous one-side histories
+reject certification. Existing direct selector, rate and earned float-map clock proofs remain authoritative.
+
+Pair positions retain original left/right order. Frozen keys follow evaluation's many-side/one-side label order,
+which is right/left for `group_right`; numeric operands still use their original expression order. First-writer
+labels and exact cache bytes remain unchanged. The cold pass still drains both operands and checks reservations,
+duplicates, diagnostics and control before publishing membership. Later rows read their selected operands afresh.
+Only pair positions and the existing single-clock bitmap survive. No raw values, history array, extra cache,
+provider contract, ABI, resource limit or dependency is introduced.
+
+The [grouped qualification](grouped-pair-replay-qualification.json) binds:
+
+- The actual old runtime completes 18 result/label/clock/bit/release checks before failing the growth bound.
+  The candidate passes at pages 1/17/1024 with noncommutative division, reversed physical inputs and fresh values.
+- The permanent `grouped_join_cases.py` generator adds 264 fresh pinned originals. Arithmetic/comparisons, both
+  directions, `on`/`ignoring`, include labels, missing/changing membership, one-side ambiguity/history, byte labels,
+  false first writers, mapped/rate operands and native/mixed fallbacks have complete outcome comparisons.
+- Both native profiles pass 647 library tests each and 1,692 complete original comparisons across three page sizes.
+  The before runtime also passes all 1,692 comparisons; this panel isolates a performance change.
+- Compiled ARM64/ARM32 execution passes 1,128 original comparisons and 20 focused unit executions across both
+  profiles. Twelve actual C/C++ clients each pass 18 normal/provider-failure arms across both grouped directions
+  and three page sizes. The short mode is `--grouped-only`; complete foreign suites and the full C roster are
+  not claimed rerun. Format, strict production/fixture lint and installed Rust 1.91 compile-only checks pass.
+
+Of 1,692 native resource groups, 282 fetch fewer entries and acquire less workspace; no group fetches more.
+Six groups of one mapped expression add 81 B to workspace peak. The remaining 1,686 peaks are unchanged, as are
+every other exported memory kind's peaks. Thirty-six native/mixed/history fallback groups add 6–39 work units
+and at most 112 cumulative workspace bytes. Output counts and current memory observations remain exact.
+
+For either grouped direction, page 17 and three ticks, both profiles measure:
+
+| Many-side series | Fetched entries before → after | Work before → after | Workspace acquired before → after | Peak workspace, unchanged |
+| --- | ---: | ---: | ---: | ---: |
+| 16 | 7,548 → 1,203 | 448,049 → 85,910 | 2,160,232 → 441,761 B | 39,374 B |
+| 32 | 28,908 → 2,403 | 1,714,916 → 174,366 | 8,112,600 → 868,577 B | 71,079 B |
+| 64 | 113,100 → 4,803 | 6,716,647 → 354,933 | 31,449,784 → 1,722,209 B | 136,839 B |
+
+Acquired bytes are allocation traffic rather than concurrent RAM. Raw samples remain paged; cardinality metadata
+and independently owned collected results still grow with series count. Native query-fixture ELF text changes
+by −816 B in release and +896 B in release-min; these sections do not measure installed Agent footprint.
+
+The frozen timing panel checks all 400 complete warm/measured responses across five alternating pairs per profile.
+Each response must preserve its expected result and that executable's own nonelapsed observations. All median
+groups appear below; ratios divide before time by candidate time, so values below one are slower.
+
+| Case, page 17 | Release before → after, ms | Ratio | Release-min before → after, ms | Ratio |
+| --- | ---: | ---: | ---: | ---: |
+| `group_left`, 16 series | 6.653 → 1.267 | 5.250× | 11.033 → 2.155 | 5.120× |
+| `group_left`, 64 series | 97.001 → 4.935 | 19.655× | 162.646 → 8.578 | 18.961× |
+| `group_right`, 16 series | 6.563 → 1.261 | 5.204× | 11.186 → 2.155 | 5.191× |
+| `group_right`, 64 series | 95.950 → 4.895 | 19.602× | 162.865 → 8.513 | 19.132× |
+| `group_left`, singleton | 0.099 → 0.097 | 1.015× | 0.157 → 0.152 | 1.030× |
+| `group_right`, singleton | 0.101 → 0.108 | 0.941× | 0.156 → 0.157 | 0.988× |
+| Unique join, left/right | 5.978 → 5.919 | 1.010× | 10.219 → 10.142 | 1.008× |
+| Unique join, right/left | 6.158 → 5.977 | 1.030× | 10.235 → 10.162 | 1.007× |
+| Raw selector, 64 series | 0.536 → 0.518 | 1.035× | 0.881 → 0.870 | 1.013× |
+| Empty grouped query | 0.014 → 0.014 | 1.016× | 0.017 → 0.017 | 1.028× |
+
+Both slower singleton medians remain in the report. Shared-host measurements have no CPU/frequency isolation and
+do not establish the cause of small timing changes. These are synthetic engine execution times, including
+preparation, rather than HTTP throughput, production DBengine disk I/O or RSS. Historical broader language/SRE,
+live Agent and CI evidence retains its actual source and binary identities; no new universal compatibility claim follows.
 
 ## Completed instant numeric folds
 

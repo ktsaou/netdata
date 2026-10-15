@@ -1,0 +1,1603 @@
+{
+  "schema_version": 1,
+  "status": "qualified_completed_grouped_float_replay",
+  "scope": "Existing group_left/group_right float range expressions reuse completed exact-clock operand discovery through the current pair owner. No language feature, raw history cache or public interface is added.",
+  "accepted_predecessor": "95760cd3700ba4da3120f3a56f552785a85f18e9",
+  "qualified_sources": {
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/crates/promql-engine/src/absence.rs": "5daad198a2b483ef9c32557667c47005b2c275359128ed0e2d08741a562a28c3",
+    "src/crates/promql-engine/src/accounting.rs": "606fabc7bc4204d1e0596806adf4a907dc40bea7b1152d4ef0584de6b001ad62",
+    "src/crates/promql-engine/src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/crates/promql-engine/src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "cd9808645a6e43b7bcd49ca11c33bd1470dd53c432c43231374b0eecc2081c6b",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "3823e8b6c8f74beeeb13a6ecb5de12669b041a07081eb6555476c2574d302b7a",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "046ab8fbd5783160210010d72ac04e501dcbb6f369e29628141ef332bcbd085c",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/crates/promql-engine/src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/crates/promql-engine/src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/crates/promql-engine/src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+    "src/crates/promql-engine/src/evaluator.rs": "5111d23461f414a587115ceeab24e9c85686a802d1426e3e4297c5d5ecb89356",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "2d2bb41a69de99aef79771384ac7b45ef7e7f384d5b4ad259caa7ca324a85cba",
+    "src/crates/promql-engine/src/execution.rs": "4da90a608301adfd7e0ce75a82f6660e20218b434c5ecfba1c8e0217483058e3",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/crates/promql-engine/src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/crates/promql-engine/src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/crates/promql-engine/src/lookup_tests.rs": "bb1786f683c75b849d9afa2751e7304968d6d4ccb9484cdafa66fe4880e8eaf8",
+    "src/crates/promql-engine/src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/crates/promql-engine/src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/crates/promql-engine/src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/crates/promql-engine/src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+    "src/crates/promql-engine/src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/crates/promql-engine/src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+    "src/crates/promql-engine/src/result.rs": "75658360d24544d09cf1a630ee1467ea44d6d960dffea504ee29c55eab4ebc3e",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+    "src/crates/promql-engine/src/scheduled_output.rs": "0d4adb4cd20eb224269f51caf93a3bf12ed8016652834e7d01272af853324fc0",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/crates/promql-engine/src/storage.rs": "f213a16e64507e031b6c8fd58725763115a99cde489f875da20b8385b28141d5",
+    "src/crates/promql-engine/src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/crates/promql-engine/src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+    "src/crates/promql-engine/src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "f89a287b75e8aac6c57a40fdbe4eb15cab9936b64f23348019cf439133003e93",
+    "src/crates/promql-engine/src/vector_sort.rs": "d6daacd7bcde56a2984acbd52b8037ee5efbed3668d8d488271011d50aed41be",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "22791e06df6f82026f398e0a05f5c7525fef1490691d97ef892772313f104c28",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "4703d09604b1820341de1c3ff41a3476bce29360f0e1984a93d060db7572fb0c"
+  },
+  "source_manifest": {
+    "path": ".tmp/grouped-replay-_bvwa6_7/qualified-source.json",
+    "sha256": "9be7c1b303e010e75ac3292ab077b5f6b39777f703c9af3f0fcecb57750a1882"
+  },
+  "reference": {
+    "module": "github.com/prometheus/prometheus@v0.315.0",
+    "go": "1.27.1 AMD64 retained FMA route",
+    "fresh_panel_cases": 264,
+    "retained_fresh_baseline_cases": 18,
+    "capture": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/panel-original.json",
+      "sha256": "193cc5657df1dd4afea8b320229744aa14c88a180a1fc63662c745c69a7a88d4"
+    },
+    "baseline": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/baseline.json",
+      "sha256": "122d3465e9b763275aadcd9d732cecdcdb0178184de58fe7d81ae9a3c91b40b8"
+    },
+    "lineage": "Unchanged verified retained upstream executable/source/compiler binding; fresh evaluations, no new Go build."
+  },
+  "algorithm": [
+    "Keep unique full float rows; require signature uniqueness on the declared one side.",
+    "Enumerate each many-side row, resolve its one-side counterpart and preserve original-side pair positions.",
+    "Resolve exact frozen cache keys in many-to-one label order; reject conflicting ordinal assignments and missing required mappings.",
+    "Retain original cold scans, reservations, deferred duplicates, diagnostics and successful Done before publishing membership.",
+    "Reuse only exact-clock membership and pair positions; read selected operands afresh. Ambiguous/mixed/aliased/filled/delayed shapes retain ordinary evaluation."
+  ],
+  "native": {
+    "release": {
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release/promql-query-fixture",
+          "sha256": "fb78bce7ac2e23f48896876d4caf949f08138e28be59595abd4afd58ae3e4ba8",
+          "file_bytes": 5402136
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release/libnetdata_promql_engine.a",
+          "sha256": "c9012d6e1299a5cb18449e61c7e46e6df8dbeb6ffd0b734629dd2960fca80f5e",
+          "file_bytes": 39032136
+        },
+        "unit": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release/unit",
+          "sha256": "2a95eb247190d418bcf3a265842136e3cc77559976af106fd2d4387226fa3479",
+          "file_bytes": 23137120
+        }
+      },
+      "library_units_passed": 647,
+      "unit_ids_sha256": "f68ebb4807ea84a83d6e391aa307d91633b9c534a70d75d1608976199f190708",
+      "fixture_elf_text_bytes": {
+        "before": 2993445,
+        "candidate": 2992629
+      },
+      "compiler_receipt": {
+        "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release.json",
+        "sha256": "8971ca7eb54c1bf67201a2f664359a78a3db584432e6bff8aa607fb5234207bc"
+      }
+    },
+    "release-min": {
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release-min/promql-query-fixture",
+          "sha256": "10fda24bbae834e13781ac1790ea0c3df7aa68d57c56e464cbf609f7b551bdbc",
+          "file_bytes": 3460216
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release-min/libnetdata_promql_engine.a",
+          "sha256": "8e44a9b4a519f257bfbac4ad7c407d5384a40878352cc6a2767d38827ec402a4",
+          "file_bytes": 54047668
+        },
+        "unit": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release-min/unit",
+          "sha256": "392b85a6e4d6a5b9fdd0c4f9bbaef613eaa849d6e295083a356e662e3d5017fc",
+          "file_bytes": 13094912
+        }
+      },
+      "library_units_passed": 647,
+      "unit_ids_sha256": "f68ebb4807ea84a83d6e391aa307d91633b9c534a70d75d1608976199f190708",
+      "fixture_elf_text_bytes": {
+        "before": 1807925,
+        "candidate": 1808821
+      },
+      "compiler_receipt": {
+        "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release-min.json",
+        "sha256": "c8cee80d46403b957cfd64e46af55185620a95b32b403b2d477ccfb042e109b1"
+      }
+    }
+  },
+  "native_complete_original_comparisons": 1692,
+  "native_before_comparisons": 1692,
+  "native_pages": [
+    1,
+    17,
+    1024
+  ],
+  "native_bit_differences": 0,
+  "foreign": {
+    "qualified-aarch64-unknown-linux-gnu-release.json": {
+      "target": "aarch64-unknown-linux-gnu",
+      "profile": "release",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-aarch64-unknown-linux-gnu-release/promql-query-fixture",
+          "sha256": "a5cc8af83021a2cf9a95cf1cb570c38cfe488266c4210a17a2f6341659fc16b8",
+          "file_bytes": 4859016
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-aarch64-unknown-linux-gnu-release/libnetdata_promql_engine.a",
+          "sha256": "56ffb58d1436963e55b499194fe1974941eb23c813c2c33d54760b3e1c23216d",
+          "file_bytes": 39351572
+        },
+        "unit": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-aarch64-unknown-linux-gnu-release/unit",
+          "sha256": "a9e1917f631f6d9cbf25cfb3424017475abf5a879087a05628737fab5d43970f"
+        }
+      },
+      "focused_units": [
+        "execution::tests::grouped_float_joins_reuse_completed_pairs_without_repeated_all_row_reads",
+        "vector_matching::tests::grouped_pair_replay_preserves_original_sides_and_completed_clock",
+        "vector_matching::tests::grouped_pair_certification_rejects_ambiguous_one_side_and_missing_outputs",
+        "execution::tests::binary_cache_retains_false_first_writer_across_range_steps",
+        "execution::tests::binary_late_child_failure_precedes_matching_and_replay_releases_sink_failures"
+      ],
+      "complete_queries": 282,
+      "actual_callers": {
+        "gcc": {
+          "binary_sha256": "0f3a362f8a4b697fcb061cc9a81bc969d11c9245d13f3946f8072087345de02d",
+          "records": [
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 0,
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 1,
+              "cases": 9,
+              "page_sizes": 3
+            }
+          ]
+        },
+        "g++": {
+          "binary_sha256": "88ef40250efa65b36b3986cb3c2bf1e74bed28268659e14bf53814dcba875d20",
+          "records": [
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 0,
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 1,
+              "cases": 9,
+              "page_sizes": 3
+            }
+          ]
+        }
+      },
+      "receipt": {
+        "path": ".tmp/grouped-replay-_bvwa6_7/qualified-aarch64-unknown-linux-gnu-release.json",
+        "sha256": "d340e9cb6d53232861f8130cf29b3c7866701689f6e6d58afed36f5851b277dd"
+      }
+    },
+    "qualified-aarch64-unknown-linux-gnu-release-min.json": {
+      "target": "aarch64-unknown-linux-gnu",
+      "profile": "release-min",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-aarch64-unknown-linux-gnu-release-min/promql-query-fixture",
+          "sha256": "7ae58e391789f7640cc03be698c97cc6b8be5da7e53790824023edab996dc0f7",
+          "file_bytes": 3726672
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-aarch64-unknown-linux-gnu-release-min/libnetdata_promql_engine.a",
+          "sha256": "c5bae02708b73c21d976f1f60696958a84795aaebeef127a143e22a7b9766568",
+          "file_bytes": 57289822
+        },
+        "unit": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-aarch64-unknown-linux-gnu-release-min/unit",
+          "sha256": "9f19b3822984bcfe9f35cee5b5ccf833f4ecaa2a4f0873bb4fa24e1f77931e55"
+        }
+      },
+      "focused_units": [
+        "execution::tests::grouped_float_joins_reuse_completed_pairs_without_repeated_all_row_reads",
+        "vector_matching::tests::grouped_pair_replay_preserves_original_sides_and_completed_clock",
+        "vector_matching::tests::grouped_pair_certification_rejects_ambiguous_one_side_and_missing_outputs",
+        "execution::tests::binary_cache_retains_false_first_writer_across_range_steps",
+        "execution::tests::binary_late_child_failure_precedes_matching_and_replay_releases_sink_failures"
+      ],
+      "complete_queries": 282,
+      "actual_callers": {
+        "gcc": {
+          "binary_sha256": "a049021616ef4215391e09d4837afba1dc8c1c3b4ef2f2f81c578028341f82c3",
+          "records": [
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 0,
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 1,
+              "cases": 9,
+              "page_sizes": 3
+            }
+          ]
+        },
+        "g++": {
+          "binary_sha256": "0e03f518187efa8309c42c0f6b596e662d9f501060537da1e1acff6a9eb93cc1",
+          "records": [
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 0,
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 1,
+              "cases": 9,
+              "page_sizes": 3
+            }
+          ]
+        }
+      },
+      "receipt": {
+        "path": ".tmp/grouped-replay-_bvwa6_7/qualified-aarch64-unknown-linux-gnu-release-min.json",
+        "sha256": "725e2fc8f1778024587964318fa87b70bf03ca54957fdafed62bed37751138ff"
+      }
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release.json": {
+      "target": "armv7-unknown-linux-gnueabihf",
+      "profile": "release",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-armv7-unknown-linux-gnueabihf-release/promql-query-fixture",
+          "sha256": "07cfe6341a8f53561220a4f6d2415113cbfc4446ce0e8d21cb4e3ab093de376f",
+          "file_bytes": 4868188
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-armv7-unknown-linux-gnueabihf-release/libnetdata_promql_engine.a",
+          "sha256": "9c8dd32d3b75aa1e431033556b949573dd24c500ca5008edcea001829775d52f",
+          "file_bytes": 34458232
+        },
+        "unit": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-armv7-unknown-linux-gnueabihf-release/unit",
+          "sha256": "9bbb7217acf0936d890b9b70d1919f1a00fffbe15af6533ba42b0555a89f732f"
+        }
+      },
+      "focused_units": [
+        "execution::tests::grouped_float_joins_reuse_completed_pairs_without_repeated_all_row_reads",
+        "vector_matching::tests::grouped_pair_replay_preserves_original_sides_and_completed_clock",
+        "vector_matching::tests::grouped_pair_certification_rejects_ambiguous_one_side_and_missing_outputs",
+        "execution::tests::binary_cache_retains_false_first_writer_across_range_steps",
+        "execution::tests::binary_late_child_failure_precedes_matching_and_replay_releases_sink_failures"
+      ],
+      "complete_queries": 282,
+      "actual_callers": {
+        "gcc": {
+          "binary_sha256": "44c9cb0bf3cd4dba5e2452c2a7dbfec11eb5252c793fddb1e0285044c5c12199",
+          "records": [
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 0,
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 1,
+              "cases": 9,
+              "page_sizes": 3
+            }
+          ]
+        },
+        "g++": {
+          "binary_sha256": "d69aa2b39e4ddde4bad6a658ced18acc62721d5c48dcd5682e94bf30c55b8edd",
+          "records": [
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 0,
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 1,
+              "cases": 9,
+              "page_sizes": 3
+            }
+          ]
+        }
+      },
+      "receipt": {
+        "path": ".tmp/grouped-replay-_bvwa6_7/qualified-armv7-unknown-linux-gnueabihf-release.json",
+        "sha256": "1d8cd45193bb2f0259fd2f1c0073c8bd7b3beb3f5f6f95eb3bba6e8bf97bff76"
+      }
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release-min.json": {
+      "target": "armv7-unknown-linux-gnueabihf",
+      "profile": "release-min",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-armv7-unknown-linux-gnueabihf-release-min/promql-query-fixture",
+          "sha256": "f3d345a3aadd25c5c245c0c9ba1984bd4a93af3ecee16ed3ef7f1c4731a60dfd",
+          "file_bytes": 3183832
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-armv7-unknown-linux-gnueabihf-release-min/libnetdata_promql_engine.a",
+          "sha256": "61777e97fb5f0285e4ce1c5b9a3aca976dc52d30b4249b51ff3e4366763ea4f6",
+          "file_bytes": 50639656
+        },
+        "unit": {
+          "path": ".tmp/grouped-replay-_bvwa6_7/qualified-armv7-unknown-linux-gnueabihf-release-min/unit",
+          "sha256": "0ead98ab9c1444728ff9b039f5fca4d74dbe4e89270814803ff2b9e871a63511"
+        }
+      },
+      "focused_units": [
+        "execution::tests::grouped_float_joins_reuse_completed_pairs_without_repeated_all_row_reads",
+        "vector_matching::tests::grouped_pair_replay_preserves_original_sides_and_completed_clock",
+        "vector_matching::tests::grouped_pair_certification_rejects_ambiguous_one_side_and_missing_outputs",
+        "execution::tests::binary_cache_retains_false_first_writer_across_range_steps",
+        "execution::tests::binary_late_child_failure_precedes_matching_and_replay_releases_sink_failures"
+      ],
+      "complete_queries": 282,
+      "actual_callers": {
+        "gcc": {
+          "binary_sha256": "af7a37ba4574fa79ad3917fe29f8c9b4e008ebed231b4cd4ed9aaa123c501d1e",
+          "records": [
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 0,
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 1,
+              "cases": 9,
+              "page_sizes": 3
+            }
+          ]
+        },
+        "g++": {
+          "binary_sha256": "a0eb79aa3a0ec5b04e5dcc5a60dfd44c19990e7135c04636863dd51c8a4b5d28",
+          "records": [
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 0,
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "grouped_float_replay": "pass",
+              "group_right": 1,
+              "cases": 9,
+              "page_sizes": 3
+            }
+          ]
+        }
+      },
+      "receipt": {
+        "path": ".tmp/grouped-replay-_bvwa6_7/qualified-armv7-unknown-linux-gnueabihf-release-min.json",
+        "sha256": "ed3568eabb483b10e43fb8bf761132f25be6f7edac73648b156ae01308c8c9bd"
+      }
+    }
+  },
+  "foreign_complete_original_comparisons": 1128,
+  "focused_foreign_unit_executions": 20,
+  "foreign_scope": "Compiled ARM64/ARM32 under QEMU, both profiles; selected units and page17 original cases, not complete foreign suites.",
+  "actual_native_callers": {
+    "native-grouped-release-gcc": {
+      "binary_sha256": "498987a62fd41454fd60b282b598c6d5a226b296854a73fa9d440ad8a04f7c6d",
+      "records": [
+        {
+          "grouped_float_replay": "pass",
+          "group_right": 0,
+          "cases": 9,
+          "page_sizes": 3
+        },
+        {
+          "grouped_float_replay": "pass",
+          "group_right": 1,
+          "cases": 9,
+          "page_sizes": 3
+        }
+      ]
+    },
+    "native-grouped-release-gpp": {
+      "binary_sha256": "37de1a325bcbce19f9072376cb24e0047e4df46cb042ce44093bbeaa23b47193",
+      "records": [
+        {
+          "grouped_float_replay": "pass",
+          "group_right": 0,
+          "cases": 9,
+          "page_sizes": 3
+        },
+        {
+          "grouped_float_replay": "pass",
+          "group_right": 1,
+          "cases": 9,
+          "page_sizes": 3
+        }
+      ]
+    },
+    "native-grouped-release-min-gcc": {
+      "binary_sha256": "2e83d85eb4d26a06d4a08056465872bd393382dd3a7edf9585ac6f812f568f85",
+      "records": [
+        {
+          "grouped_float_replay": "pass",
+          "group_right": 0,
+          "cases": 9,
+          "page_sizes": 3
+        },
+        {
+          "grouped_float_replay": "pass",
+          "group_right": 1,
+          "cases": 9,
+          "page_sizes": 3
+        }
+      ]
+    },
+    "native-grouped-release-min-gpp": {
+      "binary_sha256": "dee9c39864df50e79d48d7f5602fdc61a01ffe4def487b1fc4e43cd4f736f82c",
+      "records": [
+        {
+          "grouped_float_replay": "pass",
+          "group_right": 0,
+          "cases": 9,
+          "page_sizes": 3
+        },
+        {
+          "grouped_float_replay": "pass",
+          "group_right": 1,
+          "cases": 9,
+          "page_sizes": 3
+        }
+      ]
+    }
+  },
+  "actual_c_cpp_executables": 12,
+  "query_arms_per_caller": 18,
+  "caller_scope": "Both true grouped directions, three output rows, complete labels/bits/clocks, pages1/17/1024 and provider failures. Shared legacy C cases were not rerun as a full suite.",
+  "old_runtime_regression": {
+    "complete_queries_before_growth_failure": 18,
+    "receipt": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/old-runtime-regression.json",
+      "sha256": "f7420748d7ee05c1868b81594e44767d6610ac77ac63f9847e1b73cd3c6197af"
+    }
+  },
+  "resources": {
+    "complete_groups": 1692,
+    "counters": {
+      "work": {
+        "lower": 282,
+        "same": 1374,
+        "higher": 36,
+        "minimum_delta": -6361714,
+        "maximum_delta": 39
+      },
+      "samples_fetched": {
+        "lower": 282,
+        "same": 1410,
+        "higher": 0,
+        "minimum_delta": -108297,
+        "maximum_delta": 0
+      },
+      "output_samples": {
+        "lower": 0,
+        "same": 1692,
+        "higher": 0,
+        "minimum_delta": 0,
+        "maximum_delta": 0
+      },
+      "provider_calls": {
+        "lower": 282,
+        "same": 1410,
+        "higher": 0,
+        "minimum_delta": -108297,
+        "maximum_delta": 0
+      },
+      "pages": {
+        "lower": 282,
+        "same": 1410,
+        "higher": 0,
+        "minimum_delta": -72198,
+        "maximum_delta": 0
+      }
+    },
+    "memory": {
+      "Compiled": {
+        "current": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "Workspace": {
+        "current": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1686,
+          "higher": 6,
+          "minimum_delta": 0,
+          "maximum_delta": 81
+        },
+        "acquired": {
+          "lower": 282,
+          "same": 1374,
+          "higher": 36,
+          "minimum_delta": -32037911,
+          "maximum_delta": 112
+        }
+      },
+      "Result": {
+        "current": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "ProviderHeld": {
+        "current": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "BorrowedView": {
+        "current": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 282,
+          "same": 1410,
+          "higher": 0,
+          "minimum_delta": -29456784,
+          "maximum_delta": 0
+        }
+      },
+      "RegexEstimate": {
+        "current": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "SharedCacheReference": {
+        "current": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "Accounting": {
+        "current": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1692,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      }
+    },
+    "representative": [
+      {
+        "profile": "release",
+        "id": "grouped-left-16",
+        "before": {
+          "samples_fetched": 7548,
+          "work": 448049,
+          "workspace_peak": 39374,
+          "workspace_acquired": 2160232
+        },
+        "candidate": {
+          "samples_fetched": 1203,
+          "work": 85910,
+          "workspace_peak": 39374,
+          "workspace_acquired": 441761
+        }
+      },
+      {
+        "profile": "release",
+        "id": "grouped-right-16",
+        "before": {
+          "samples_fetched": 7548,
+          "work": 448049,
+          "workspace_peak": 39374,
+          "workspace_acquired": 2160232
+        },
+        "candidate": {
+          "samples_fetched": 1203,
+          "work": 85910,
+          "workspace_peak": 39374,
+          "workspace_acquired": 441761
+        }
+      },
+      {
+        "profile": "release",
+        "id": "grouped-left-32",
+        "before": {
+          "samples_fetched": 28908,
+          "work": 1714916,
+          "workspace_peak": 71079,
+          "workspace_acquired": 8112600
+        },
+        "candidate": {
+          "samples_fetched": 2403,
+          "work": 174366,
+          "workspace_peak": 71079,
+          "workspace_acquired": 868577
+        }
+      },
+      {
+        "profile": "release",
+        "id": "grouped-right-32",
+        "before": {
+          "samples_fetched": 28908,
+          "work": 1714916,
+          "workspace_peak": 71079,
+          "workspace_acquired": 8112600
+        },
+        "candidate": {
+          "samples_fetched": 2403,
+          "work": 174366,
+          "workspace_peak": 71079,
+          "workspace_acquired": 868577
+        }
+      },
+      {
+        "profile": "release",
+        "id": "grouped-left-64",
+        "before": {
+          "samples_fetched": 113100,
+          "work": 6716647,
+          "workspace_peak": 136839,
+          "workspace_acquired": 31449784
+        },
+        "candidate": {
+          "samples_fetched": 4803,
+          "work": 354933,
+          "workspace_peak": 136839,
+          "workspace_acquired": 1722209
+        }
+      },
+      {
+        "profile": "release",
+        "id": "grouped-right-64",
+        "before": {
+          "samples_fetched": 113100,
+          "work": 6716647,
+          "workspace_peak": 136839,
+          "workspace_acquired": 31449784
+        },
+        "candidate": {
+          "samples_fetched": 4803,
+          "work": 354933,
+          "workspace_peak": 136839,
+          "workspace_acquired": 1722209
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-left-16",
+        "before": {
+          "samples_fetched": 7548,
+          "work": 448049,
+          "workspace_peak": 39374,
+          "workspace_acquired": 2160232
+        },
+        "candidate": {
+          "samples_fetched": 1203,
+          "work": 85910,
+          "workspace_peak": 39374,
+          "workspace_acquired": 441761
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-right-16",
+        "before": {
+          "samples_fetched": 7548,
+          "work": 448049,
+          "workspace_peak": 39374,
+          "workspace_acquired": 2160232
+        },
+        "candidate": {
+          "samples_fetched": 1203,
+          "work": 85910,
+          "workspace_peak": 39374,
+          "workspace_acquired": 441761
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-left-32",
+        "before": {
+          "samples_fetched": 28908,
+          "work": 1714916,
+          "workspace_peak": 71079,
+          "workspace_acquired": 8112600
+        },
+        "candidate": {
+          "samples_fetched": 2403,
+          "work": 174366,
+          "workspace_peak": 71079,
+          "workspace_acquired": 868577
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-right-32",
+        "before": {
+          "samples_fetched": 28908,
+          "work": 1714916,
+          "workspace_peak": 71079,
+          "workspace_acquired": 8112600
+        },
+        "candidate": {
+          "samples_fetched": 2403,
+          "work": 174366,
+          "workspace_peak": 71079,
+          "workspace_acquired": 868577
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-left-64",
+        "before": {
+          "samples_fetched": 113100,
+          "work": 6716647,
+          "workspace_peak": 136839,
+          "workspace_acquired": 31449784
+        },
+        "candidate": {
+          "samples_fetched": 4803,
+          "work": 354933,
+          "workspace_peak": 136839,
+          "workspace_acquired": 1722209
+        }
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-right-64",
+        "before": {
+          "samples_fetched": 113100,
+          "work": 6716647,
+          "workspace_peak": 136839,
+          "workspace_acquired": 31449784
+        },
+        "candidate": {
+          "samples_fetched": 4803,
+          "work": 354933,
+          "workspace_peak": 136839,
+          "workspace_acquired": 1722209
+        }
+      }
+    ],
+    "interpretation": "Engine observations across identical full outcomes. Acquired bytes are cumulative allocation traffic, not peak RAM or process RSS."
+  },
+  "timing": {
+    "responses_checked": 400,
+    "groups": [
+      {
+        "profile": "release",
+        "id": "grouped-left-16",
+        "before_ns": [
+          7572417,
+          6482716,
+          6966122,
+          6319088,
+          6653155
+        ],
+        "candidate_ns": [
+          1267289,
+          1253589,
+          1282229,
+          1245810,
+          1269940
+        ],
+        "before_median_ns": 6653155,
+        "candidate_median_ns": 1267289,
+        "median_ratio_before_over_candidate": 5.249911425097196,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "grouped-left-64",
+        "before_ns": [
+          97001446,
+          95991854,
+          102008864,
+          94287929,
+          97067135
+        ],
+        "candidate_ns": [
+          5146037,
+          5012418,
+          4927719,
+          4925520,
+          4935150
+        ],
+        "before_median_ns": 97001446,
+        "candidate_median_ns": 4935150,
+        "median_ratio_before_over_candidate": 19.655217369279555,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "grouped-right-16",
+        "before_ns": [
+          6772324,
+          6538196,
+          7010532,
+          6467987,
+          6562586
+        ],
+        "candidate_ns": [
+          1261480,
+          1243530,
+          1250379,
+          1261139,
+          1275459
+        ],
+        "before_median_ns": 6562586,
+        "candidate_median_ns": 1261139,
+        "median_ratio_before_over_candidate": 5.203697609859025,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "grouped-right-64",
+        "before_ns": [
+          96567259,
+          93983271,
+          101383919,
+          94888553,
+          95949615
+        ],
+        "candidate_ns": [
+          4941819,
+          4833190,
+          4894980,
+          4885079,
+          4948979
+        ],
+        "before_median_ns": 95949615,
+        "candidate_median_ns": 4894980,
+        "median_ratio_before_over_candidate": 19.60163575744947,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "grouped:singleton:0:server-default:range",
+        "before_ns": [
+          98569,
+          96419,
+          99749,
+          98639,
+          96439
+        ],
+        "candidate_ns": [
+          96569,
+          95839,
+          97119,
+          99369,
+          98329
+        ],
+        "before_median_ns": 98569,
+        "candidate_median_ns": 97119,
+        "median_ratio_before_over_candidate": 1.0149301372542963,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "grouped:singleton:1:server-default:range",
+        "before_ns": [
+          101309,
+          100369,
+          104999,
+          103459,
+          101019
+        ],
+        "candidate_ns": [
+          101469,
+          107699,
+          99789,
+          108679,
+          111689
+        ],
+        "before_median_ns": 101309,
+        "candidate_median_ns": 107699,
+        "median_ratio_before_over_candidate": 0.9406679727759775,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "grouped-unique-left-64",
+        "before_ns": [
+          5970931,
+          5977701,
+          6223278,
+          5981500,
+          5925760
+        ],
+        "candidate_ns": [
+          6035020,
+          5803922,
+          5929551,
+          5842361,
+          5919160
+        ],
+        "before_median_ns": 5977701,
+        "candidate_median_ns": 5919160,
+        "median_ratio_before_over_candidate": 1.0098900857554112,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "grouped-unique-right-64",
+        "before_ns": [
+          5892471,
+          6300638,
+          6157879,
+          6005640,
+          6183279
+        ],
+        "candidate_ns": [
+          6006220,
+          5876771,
+          5979231,
+          5889641,
+          5976941
+        ],
+        "before_median_ns": 6157879,
+        "candidate_median_ns": 5976941,
+        "median_ratio_before_over_candidate": 1.0302726762736991,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "grouped-selector-64",
+        "before_ns": [
+          552015,
+          518225,
+          546466,
+          536385,
+          512366
+        ],
+        "candidate_ns": [
+          516506,
+          536385,
+          516626,
+          518186,
+          520056
+        ],
+        "before_median_ns": 536385,
+        "candidate_median_ns": 518186,
+        "median_ratio_before_over_candidate": 1.0351205937636292,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "grouped:empty:0:server-default:range",
+        "before_ns": [
+          14070,
+          13389,
+          15209,
+          13809,
+          13150
+        ],
+        "candidate_ns": [
+          13740,
+          13480,
+          13590,
+          14209,
+          13550
+        ],
+        "before_median_ns": 13809,
+        "candidate_median_ns": 13590,
+        "median_ratio_before_over_candidate": 1.0161147902869758,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-left-16",
+        "before_ns": [
+          10991999,
+          10909519,
+          11912142,
+          11213247,
+          11032678
+        ],
+        "candidate_ns": [
+          2120053,
+          2099923,
+          2170712,
+          2184852,
+          2154862
+        ],
+        "before_median_ns": 11032678,
+        "candidate_median_ns": 2154862,
+        "median_ratio_before_over_candidate": 5.119900021439888,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-left-64",
+        "before_ns": [
+          162256624,
+          161018904,
+          185021565,
+          166705267,
+          162646411
+        ],
+        "candidate_ns": [
+          8577769,
+          8350631,
+          8626528,
+          8664568,
+          8561919
+        ],
+        "before_median_ns": 162646411,
+        "candidate_median_ns": 8577769,
+        "median_ratio_before_over_candidate": 18.961388561524565,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-right-16",
+        "before_ns": [
+          10994989,
+          11212547,
+          11590364,
+          11110348,
+          11185517
+        ],
+        "candidate_ns": [
+          2122912,
+          2154733,
+          2183302,
+          2182412,
+          2151662
+        ],
+        "before_median_ns": 11185517,
+        "candidate_median_ns": 2154733,
+        "median_ratio_before_over_candidate": 5.191138298805467,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-right-64",
+        "before_ns": [
+          160427259,
+          176445497,
+          169867151,
+          162865380,
+          162617912
+        ],
+        "candidate_ns": [
+          8430820,
+          8415030,
+          8533559,
+          8567298,
+          8512830
+        ],
+        "before_median_ns": 162865380,
+        "candidate_median_ns": 8512830,
+        "median_ratio_before_over_candidate": 19.131755244730602,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped:singleton:0:server-default:range",
+        "before_ns": [
+          166608,
+          230988,
+          156519,
+          153089,
+          149659
+        ],
+        "candidate_ns": [
+          150469,
+          151909,
+          155728,
+          154609,
+          151988
+        ],
+        "before_median_ns": 156519,
+        "candidate_median_ns": 151988,
+        "median_ratio_before_over_candidate": 1.0298115640708476,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped:singleton:1:server-default:range",
+        "before_ns": [
+          152629,
+          156078,
+          157659,
+          155579,
+          152498
+        ],
+        "candidate_ns": [
+          154459,
+          155739,
+          157478,
+          159479,
+          162508
+        ],
+        "before_median_ns": 155579,
+        "candidate_median_ns": 157478,
+        "median_ratio_before_over_candidate": 0.9879411727352392,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-unique-left-64",
+        "before_ns": [
+          10219475,
+          14368941,
+          10461253,
+          10186185,
+          10094916
+        ],
+        "candidate_ns": [
+          10030917,
+          10040746,
+          10241955,
+          10273175,
+          10142216
+        ],
+        "before_median_ns": 10219475,
+        "candidate_median_ns": 10142216,
+        "median_ratio_before_over_candidate": 1.0076175660230466,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-unique-right-64",
+        "before_ns": [
+          10088326,
+          15448182,
+          10451143,
+          10235105,
+          10092157
+        ],
+        "candidate_ns": [
+          10036647,
+          10090177,
+          10311505,
+          10217805,
+          10161765
+        ],
+        "before_median_ns": 10235105,
+        "candidate_median_ns": 10161765,
+        "median_ratio_before_over_candidate": 1.0072172501529015,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped-selector-64",
+        "before_ns": [
+          865573,
+          1404879,
+          881043,
+          883283,
+          880713
+        ],
+        "candidate_ns": [
+          876963,
+          864613,
+          876652,
+          869713,
+          861223
+        ],
+        "before_median_ns": 881043,
+        "candidate_median_ns": 869713,
+        "median_ratio_before_over_candidate": 1.013027286012742,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped:empty:0:server-default:range",
+        "before_ns": [
+          17100,
+          26130,
+          17390,
+          25640,
+          17129
+        ],
+        "candidate_ns": [
+          17270,
+          16299,
+          17270,
+          16920,
+          16829
+        ],
+        "before_median_ns": 17390,
+        "candidate_median_ns": 16920,
+        "median_ratio_before_over_candidate": 1.0277777777777777,
+        "slower_candidate_median": false
+      }
+    ],
+    "slower_groups": [
+      {
+        "profile": "release",
+        "id": "grouped:singleton:1:server-default:range",
+        "before_ns": [
+          101309,
+          100369,
+          104999,
+          103459,
+          101019
+        ],
+        "candidate_ns": [
+          101469,
+          107699,
+          99789,
+          108679,
+          111689
+        ],
+        "before_median_ns": 101309,
+        "candidate_median_ns": 107699,
+        "median_ratio_before_over_candidate": 0.9406679727759775,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "grouped:singleton:1:server-default:range",
+        "before_ns": [
+          152629,
+          156078,
+          157659,
+          155579,
+          152498
+        ],
+        "candidate_ns": [
+          154459,
+          155739,
+          157478,
+          159479,
+          162508
+        ],
+        "before_median_ns": 155579,
+        "candidate_median_ns": 157478,
+        "median_ratio_before_over_candidate": 0.9879411727352392,
+        "slower_candidate_median": true
+      }
+    ],
+    "measurement": "Five alternating before/candidate pairs per profile. Each of ten fixed cases has warm and measured execution; all400 complete responses and each binary own nonelapsed observations must match prior qualification.",
+    "limits": "Shared host without CPU/frequency isolation. Engine execution including preparation, synthetic in-memory provider; not HTTP, production DBengine disk I/O, process RSS or universal throughput."
+  },
+  "static": {
+    "format": "pass",
+    "strict_clippy": [
+      "production",
+      "fixtures"
+    ],
+    "msrv": "Installed Rust1.91.0, all-targets fixtures compilation only."
+  },
+  "receipts": {
+    "old-runtime-regression.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/old-runtime-regression.json",
+      "sha256": "f7420748d7ee05c1868b81594e44767d6610ac77ac63f9847e1b73cd3c6197af"
+    },
+    "pilot-growth.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/pilot-growth.json",
+      "sha256": "b608a58bdebda5d788c19cd76f6b0c6090dcfdd094d27ffdfa722e7efad34483"
+    },
+    "debug2.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/debug2.json",
+      "sha256": "012f1ce58ab352522e53f3da1c77f9aac23acfbd909ac75acd838fa9dd9859bf"
+    },
+    "baseline.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/baseline.json",
+      "sha256": "122d3465e9b763275aadcd9d732cecdcdb0178184de58fe7d81ae9a3c91b40b8"
+    },
+    "panel-original.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/panel-original.json",
+      "sha256": "193cc5657df1dd4afea8b320229744aa14c88a180a1fc63662c745c69a7a88d4"
+    },
+    "panels-before.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/panels-before.json",
+      "sha256": "7543c67db3048f8667375c43986f2fafc4c7338a32f29613e6cd546d301ec53d"
+    },
+    "panels-candidate.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/panels-candidate.json",
+      "sha256": "9cc5c3f51210bbb8d4cd7cb9cbb8e6247275115379741077fd2a84105de462f5"
+    },
+    "native-callers.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/native-callers.json",
+      "sha256": "4ddf0df8f1fb82d7cd5ce138bf6fd4324f36ea5e6c7bffa066ef9a5bc8402461"
+    },
+    "static-receipt.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/static-receipt.json",
+      "sha256": "a6244a8898cff24423366ed8520c3d89a2dc69f90be221c7deb5ff87c4b215ed"
+    },
+    "timing.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/timing.json",
+      "sha256": "88a8835bcfba47df447a87b47bbcc903bfd959a1855da0258bdc62cfe3240aa6"
+    },
+    "qualified-native-release.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release.json",
+      "sha256": "8971ca7eb54c1bf67201a2f664359a78a3db584432e6bff8aa607fb5234207bc"
+    },
+    "qualified-native-release-min.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release-min.json",
+      "sha256": "c8cee80d46403b957cfd64e46af55185620a95b32b403b2d477ccfb042e109b1"
+    },
+    "qualified-aarch64-unknown-linux-gnu-release.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/qualified-aarch64-unknown-linux-gnu-release.json",
+      "sha256": "d340e9cb6d53232861f8130cf29b3c7866701689f6e6d58afed36f5851b277dd"
+    },
+    "qualified-aarch64-unknown-linux-gnu-release-min.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/qualified-aarch64-unknown-linux-gnu-release-min.json",
+      "sha256": "725e2fc8f1778024587964318fa87b70bf03ca54957fdafed62bed37751138ff"
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/qualified-armv7-unknown-linux-gnueabihf-release.json",
+      "sha256": "1d8cd45193bb2f0259fd2f1c0073c8bd7b3beb3f5f6f95eb3bba6e8bf97bff76"
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release-min.json": {
+      "path": ".tmp/grouped-replay-_bvwa6_7/qualified-armv7-unknown-linux-gnueabihf-release-min.json",
+      "sha256": "ed3568eabb483b10e43fb8bf761132f25be6f7edac73648b156ae01308c8c9bd"
+    }
+  },
+  "input_generator": {
+    "path": "src/crates/promql-engine/tests/promql-conformance/grouped_join_cases.py",
+    "sha256": "331abb54e4142f09b4cf8190319572196065dc852a3363458cf5498737f5bd90"
+  },
+  "limitations": [
+    "Finite same-input expression and selected target evidence; no universal language proof.",
+    "Synthetic engine timing, not HTTP or production DBengine disk throughput.",
+    "Raw inputs remain paged, but cardinality metadata and owned output can grow; limits stay disabled.",
+    "Earlier SRE, broader language, live-Agent, sanitizer and CI cohorts retain actual historical identities; no fresh pass is claimed."
+  ]
+}

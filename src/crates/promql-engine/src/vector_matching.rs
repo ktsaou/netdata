@@ -220,9 +220,14 @@ impl Plan {
     pub(crate) fn certify_replay(
         &mut self,
         required: &[usize],
+        cardinality: Cardinality,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
+        if cardinality == Cardinality::ManyToMany {
+            return Ok(());
+        }
+        let many = usize::from(cardinality == Cardinality::OneToMany);
         for side in &self.sides {
             if !crate::scheduled_expression::unique_rows(&side.rows, control, account)? {
                 return Ok(());
@@ -247,7 +252,9 @@ impl Plan {
             for (row, signature) in self.sides[side].signatures.iter().enumerate() {
                 control.check()?;
                 account.work(1);
-                if positions[*signature][side] != usize::MAX {
+                if positions[*signature][side] != usize::MAX
+                    && (cardinality == Cardinality::OneToOne || side != many)
+                {
                     return Ok(());
                 }
                 positions[*signature][side] = row;
@@ -259,28 +266,49 @@ impl Plan {
             account.work(1);
             pairs.push(missing);
         }
-        for pair in &*positions {
-            control.check()?;
-            account.work(1);
-            if pair.contains(&usize::MAX) {
-                continue;
-            }
-            let mut key = AccountedVec::new(account, MemoryKind::Workspace);
-            for (side, row) in pair.iter().enumerate() {
-                binary_labels::append(
-                    &mut key,
-                    &self.sides[side].rows[*row].labels,
-                    None,
-                    control,
-                    account,
-                )?;
-            }
-            let hash = label_hash::bytes(&key, control, account)?;
-            if let Some(ordinal) = self.cache.position(&key, hash, control, account)? {
-                if pairs[ordinal] != missing {
-                    return Ok(());
+        {
+            let mut bind = |pair: [usize; 2]| -> Result<bool, EvaluationError> {
+                if pair.contains(&usize::MAX) {
+                    return Ok(true);
                 }
-                pairs[ordinal] = *pair;
+                let mut key = AccountedVec::new(account, MemoryKind::Workspace);
+                // Frozen keys follow evaluation's many/one order; positions retain original sides.
+                for side in [many, 1 - many] {
+                    binary_labels::append(
+                        &mut key,
+                        &self.sides[side].rows[pair[side]].labels,
+                        None,
+                        control,
+                        account,
+                    )?;
+                }
+                let hash = label_hash::bytes(&key, control, account)?;
+                if let Some(ordinal) = self.cache.position(&key, hash, control, account)? {
+                    if pairs[ordinal] != missing {
+                        return Ok(false);
+                    }
+                    pairs[ordinal] = pair;
+                }
+                Ok(true)
+            };
+            if cardinality == Cardinality::OneToOne {
+                for pair in &*positions {
+                    control.check()?;
+                    account.work(1);
+                    if !bind(*pair)? {
+                        return Ok(());
+                    }
+                }
+            } else {
+                for (row, signature) in self.sides[many].signatures.iter().enumerate() {
+                    control.check()?;
+                    account.work(1);
+                    let mut pair = positions[*signature];
+                    pair[many] = row;
+                    if !bind(pair)? {
+                        return Ok(());
+                    }
+                }
             }
         }
         for ordinal in required {
@@ -1597,6 +1625,144 @@ mod tests {
                     return trace;
                 }
             }
+        }
+    }
+
+    fn grouped_pair_plan(
+        matching: &VectorMatching,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Plan {
+        let many = usize::from(matching.cardinality == Cardinality::OneToMany);
+        let counts = if many == 0 { [3, 1] } else { [1, 3] };
+        let mut plan = discovery_plan_shape(counts, true, matching, control, account);
+        for row in 0..3 {
+            let mut key = AccountedVec::new(account, MemoryKind::Workspace);
+            for side in [many, 1 - many] {
+                let position = if side == many { row } else { 0 };
+                binary_labels::append(
+                    &mut key,
+                    &plan.sides[side].rows[position].labels,
+                    None,
+                    control,
+                    account,
+                )
+                .unwrap();
+            }
+            let hash = label_hash::bytes(&key, control, account).unwrap();
+            plan.cache.entries.push(CacheEntry {
+                key: Key { bytes: key, hash },
+                labels: labels(format!("output{row}").as_bytes(), account),
+            });
+            plan.cache
+                .index
+                .insert_new(
+                    hash,
+                    row,
+                    |prior| Ok(plan.cache.entries[prior].key.hash),
+                    control,
+                    account,
+                )
+                .unwrap();
+        }
+        plan
+    }
+
+    #[test]
+    fn grouped_pair_replay_preserves_original_sides_and_completed_clock() {
+        for cardinality in [Cardinality::ManyToOne, Cardinality::OneToMany] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let matching = VectorMatching {
+                cardinality,
+                on: true,
+                ..VectorMatching::default()
+            };
+            let mut plan = grouped_pair_plan(&matching, &control, &account);
+            plan.certify_replay(&[0, 1, 2], cardinality, &control, &account)
+                .unwrap();
+            let many = usize::from(cardinality == Cardinality::OneToMany);
+            let replay = plan.replay.as_ref().expect("unique grouped proof");
+            let ReplayRows::Pairs(pairs) = &replay.rows else {
+                panic!("pair owner")
+            };
+            for (row, pair) in pairs.iter().enumerate() {
+                assert_eq!(pair[many], row);
+                assert_eq!(pair[1 - many], 0);
+            }
+            let members = if many == 0 {
+                [&[0, 1, 2][..], &[0][..]]
+            } else {
+                [&[0][..], &[0, 1, 2][..]]
+            };
+            let key = discovery_key();
+            let mut incomplete = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+            incomplete
+                .enable_replay(2, key, &control, &account)
+                .unwrap();
+            let partial =
+                discovery_trace_scoped(&mut incomplete, members, None, Some(0), &control, &account);
+            assert_eq!(partial.outputs.len(), 1);
+            assert!(replay.completed.borrow().is_none());
+            drop(incomplete);
+            let mut cold = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+            cold.enable_replay(2, key, &control, &account).unwrap();
+            let full = discovery_trace(&mut cold, members, &control, &account);
+            assert_eq!(full.scans, 2);
+            assert_eq!(full.outputs.len(), 3);
+            assert_eq!(full.rereads.len(), 6);
+            drop(cold);
+            let mut warm = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+            warm.enable_replay(2, key, &control, &account).unwrap();
+            let selected = discovery_trace(&mut warm, members, &control, &account);
+            assert_eq!(selected.scans, 0);
+            assert_eq!(selected.rereads, [(many, 2), (1 - many, 0)]);
+            assert_eq!(selected.outputs, [full.outputs[2].clone()]);
+            drop(warm);
+            let next = ReplayKey {
+                clock: [2000; 9],
+                ..key
+            };
+            let mut empty = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+            empty.enable_replay(2, next, &control, &account).unwrap();
+            let empty_trace = discovery_trace(&mut empty, [&[], &[]], &control, &account);
+            assert_eq!(empty_trace.scans, 2);
+            assert!(empty_trace.outputs.is_empty());
+            drop(empty);
+            let mut absent = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+            absent.enable_replay(2, next, &control, &account).unwrap();
+            let absent_trace = discovery_trace(&mut absent, members, &control, &account);
+            assert_eq!(absent_trace.scans, 0);
+            assert!(absent_trace.outputs.is_empty() && absent_trace.rereads.is_empty());
+            drop(absent);
+            drop((plan, matching));
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn grouped_pair_certification_rejects_ambiguous_one_side_and_missing_outputs() {
+        for cardinality in [Cardinality::ManyToOne, Cardinality::OneToMany] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let matching = VectorMatching {
+                cardinality,
+                on: true,
+                ..VectorMatching::default()
+            };
+            let mut plan = grouped_pair_plan(&matching, &control, &account);
+            plan.certify_replay(&[0, 1, 2, 3], cardinality, &control, &account)
+                .unwrap();
+            assert!(plan.replay.is_none());
+            let mut ambiguous = discovery_plan_shape([3, 3], true, &matching, &control, &account);
+            ambiguous
+                .certify_replay(&[], cardinality, &control, &account)
+                .unwrap();
+            assert!(ambiguous.replay.is_none());
+            drop((plan, ambiguous, matching));
+            account.snapshot().assert_memory_released();
         }
     }
 

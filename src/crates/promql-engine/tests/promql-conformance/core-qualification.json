@@ -69881,5 +69881,16 @@
     "corrected_native_panel_groups": 192,
     "same_result_resource_groups": 672,
     "attribution": "New native and foreign artifacts use the frozen checked-source manifest; original evaluations reuse the verified unchanged pinned Go executable/compiler binding. Earlier cohorts retain their identities."
+  },
+  "grouped_pair_replay_qualification": {
+    "status": "qualified_completed_grouped_float_replay",
+    "receipt": "grouped-pair-replay-qualification.json",
+    "sha256": "f580ad0bc25299d887117563e2f4536074d6e612494d3e82cf83e0943eeeaee4",
+    "native_comparisons": 1692,
+    "foreign_comparisons": 1128,
+    "native_units_per_profile": 647,
+    "actual_c_cpp_executables": 12,
+    "timing_responses": 400,
+    "attribution": "New compiler cohorts use the frozen qualified source; earlier original and native baselines retain their exact source/binary lineage."
   }
 }

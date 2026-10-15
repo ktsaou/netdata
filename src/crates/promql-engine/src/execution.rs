@@ -887,7 +887,12 @@ impl CompiledQuery {
             matching: Some(matching),
             ..
         } = &self.expression.arena[self.expression.root].expression
-            && matching.cardinality == crate::frontend::ast::Cardinality::OneToOne
+            && match matching.cardinality {
+                crate::frontend::ast::Cardinality::OneToOne => true,
+                crate::frontend::ast::Cardinality::ManyToOne
+                | crate::frontend::ast::Cardinality::OneToMany => header.step_ms > 0,
+                crate::frontend::ast::Cardinality::ManyToMany => false,
+            }
             && matching.fill_left.is_none()
             && matching.fill_right.is_none()
             && (operator.is_comparison()
@@ -930,7 +935,12 @@ impl CompiledQuery {
                     )
                 });
                 if supported {
-                    rosters.certify_binary_replay(self.expression.root, control, account)?;
+                    rosters.certify_binary_replay(
+                        self.expression.root,
+                        matching.cardinality,
+                        control,
+                        account,
+                    )?;
                 }
             }
         }
@@ -6398,6 +6408,122 @@ mod tests {
                 .chunks_exact(2)
                 .all(|pair| pair[1].0 <= pair[0].0 * 6 && pair[1].1 <= pair[0].1 * 8),
             "composed joins must avoid repeated all-row reads: {observations:?}"
+        );
+    }
+
+    #[test]
+    fn grouped_float_joins_reuse_completed_pairs_without_repeated_all_row_reads() {
+        fn point<const BASE: u32, const STEP: u32>(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(
+                    f64::from(BASE) + index as f64 * f64::from(STEP),
+                ),
+            }
+        }
+        let mut growth = Vec::new();
+        for (expression, swapped) in [
+            ("a / on(job) group_left(site) b", false),
+            ("b / on(job) group_right(site) a", true),
+        ] {
+            for page in [1, 17, 1024] {
+                for count in [2, 8, 32] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut provider = FixtureProvider::new(3, page, count + 1);
+                    provider.filter_selectors = true;
+                    for (index, series) in provider.series.iter_mut().enumerate() {
+                        let one = index == count;
+                        series.labels[0].1 = if one { b"b" } else { b"a" }.to_vec();
+                        series.source.counters = Default::default();
+                        series.source.sample = if one {
+                            series.labels.push((b"site".to_vec(), b"north".to_vec()));
+                            point::<4, 0>
+                        } else if index % 2 == 0 {
+                            point::<2, 1>
+                        } else {
+                            point::<8, 1>
+                        };
+                    }
+                    provider.series.reverse();
+                    let query = engine
+                        .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    );
+                    let result = report.result.as_ref().unwrap();
+                    assert!(report.annotations.is_empty());
+                    let mut identities: Vec<_> =
+                        (0..count).map(|index| index.to_string()).collect();
+                    identities.sort();
+                    assert_eq!(result.series.len(), count);
+                    for (row, identity) in result.series.iter().zip(&identities) {
+                        let labels: Vec<_> = row
+                            .labels
+                            .0
+                            .iter()
+                            .map(|label| (&*label.name, &*label.value))
+                            .collect();
+                        assert_eq!(
+                            labels,
+                            [
+                                (b"instance".as_slice(), identity.as_bytes()),
+                                (b"job", b"worker"),
+                                (b"site", b"north")
+                            ]
+                        );
+                        assert_eq!(row.points.len(), 3);
+                        let source_index = identity.parse::<usize>().unwrap();
+                        for (tick, sample) in row.points.iter().enumerate() {
+                            let value = if source_index % 2 == 0 { 2.0 } else { 8.0 } + tick as f64;
+                            let expected = if swapped { 4.0 / value } else { value / 4.0 };
+                            assert_eq!(sample.time_ms, (tick as i64 + 1) * 1000);
+                            assert_eq!(float_bits(sample), expected.to_bits());
+                        }
+                    }
+                    let observed = &report.observations;
+                    assert_eq!(observed.output_samples, 3 * count as u64);
+                    let fetched: usize = provider
+                        .series
+                        .iter()
+                        .map(|row| row.source.counters.samples_returned.load(Ordering::Relaxed))
+                        .sum();
+                    assert_eq!(observed.samples_fetched, fetched as u64);
+                    assert!(
+                        provider.series.iter().all(|row| row
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed)
+                            == 1)
+                    );
+                    assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
+                    println!(
+                        "grouped-growth expression={expression:?} rows={count} page={page} fetched={} work={}",
+                        observed.samples_fetched, observed.work
+                    );
+                    if count != 2 {
+                        growth.push((observed.samples_fetched, observed.work));
+                    }
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+        assert!(
+            growth
+                .chunks_exact(2)
+                .all(|pair| pair[1].0 <= pair[0].0 * 6 && pair[1].1 <= pair[0].1 * 8),
+            "grouped joins must avoid repeated all-row reads: {growth:?}"
         );
     }
 

@@ -5,7 +5,7 @@ use crate::{
     annotations::AnnotationBuilder,
     evaluator::EvaluationError,
     evaluator_order,
-    frontend::ast::{NodeId, VectorMatching},
+    frontend::ast::{Cardinality, NodeId, VectorMatching},
     label_hash,
     position_index::PositionIndex,
     result::OwnedLabels,
@@ -751,6 +751,7 @@ impl Rosters {
     pub(crate) fn certify_binary_replay(
         &mut self,
         node: NodeId,
+        cardinality: Cardinality,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
@@ -770,7 +771,7 @@ impl Rosters {
                 return Ok(());
             }
         }
-        plan.certify_replay(sources, control, account)
+        plan.certify_replay(sources, cardinality, control, account)
     }
     pub(crate) fn certify_sort_emit(
         &mut self,
