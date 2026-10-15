@@ -970,6 +970,16 @@ static netdata_promql_output_t delivery_table(delivery *d) {
     return output;
 }
 
+static void print_json_string(const char *value) {
+    putchar('"');
+    for (const unsigned char *p = (const unsigned char *)value; *p; ++p) {
+        if (*p == '"' || *p == '\\') putchar('\\');
+        if (*p < 0x20) printf("\\u%04x", (unsigned)*p);
+        else putchar(*p);
+    }
+    putchar('"');
+}
+
 typedef struct {
     fixture source;
     netdata_promql_label_t labels[4][2];
@@ -1199,6 +1209,22 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
                 assert(error.kind == NETDATA_PROMQL_ERROR_OUTPUT && error.message.len == sizeof(message));
                 assert(memcmp(error.message.data, message, sizeof(message)) == 0);
             }
+            if (query_kind == FOUR_SERIES_RATE && expression_override) {
+                statistics_valid(&observations.statistics);
+                fputs("{\"mapped_rate_case\":\"pass\",\"expression\":", stdout);
+                print_json_string(expression_override);
+                printf(",\"page\":%" PRIu64 ",\"arm\":%u,\"status\":%u,\"output_samples\":%" PRIu64
+                       ",\"work\":%" PRIu64 ",\"fetched\":%" PRIu64 ",\"statistics\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 "],\"memory\":[",
+                       page_sizes[page], arm, status, observations.output_samples, observations.work,
+                       observations.samples_fetched, observations.statistics.samples.total_queryable_samples,
+                       observations.statistics.samples.samples_read, observations.statistics.samples.peak_samples);
+                for (unsigned kind = 0; kind < NETDATA_PROMQL_MEMORY_KINDS; kind++) {
+                    netdata_promql_memory_observation_t memory = observations.memory[kind];
+                    printf("%s[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 "]", kind ? "," : "",
+                           memory.current, memory.peak, memory.acquired, memory.released);
+                }
+                puts("]}");
+            }
             assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
             if (output.output.control) assert(netdata_promql_control_release(output.output.control) == NETDATA_PROMQL_OK);
             assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
@@ -1210,13 +1236,9 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
         return;
     }
     if (query_kind == FOUR_SERIES_FLOAT_MAP) {
-        fputs("{\"direct_float_map_replay\":\"pass\",\"expression\":\"", stdout);
-        for (const unsigned char *p = (const unsigned char *)expression_override; *p; ++p) {
-            if (*p == '"' || *p == '\\') putchar('\\');
-            if (*p < 0x20) printf("\\u%04x", (unsigned)*p);
-            else putchar(*p);
-        }
-        puts("\",\"cases\":9,\"page_sizes\":3}");
+        fputs("{\"direct_float_map_replay\":\"pass\",\"expression\":", stdout);
+        print_json_string(expression_override);
+        puts(",\"cases\":9,\"page_sizes\":3}");
         return;
     }
     if (query_kind == FOUR_SERIES_NUMERIC && expression_override) {
@@ -2212,6 +2234,22 @@ int main(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "--scheduled-labels-only") == 0) {
         owned_label_outputs(engine, 1);
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        return 0;
+    }
+    if (argc == 2 && strcmp(argv[1], "--mapped-rate-only") == 0) {
+        const char *expressions[] = {
+            "clamp_min(rate(m_total[3s]),0) / on(zone) rate(m_total[3s])",
+            "rate(m_total[3s]) / on(zone) abs(rate(m_total[3s]))",
+            "abs(clamp_min(rate(m_total[3s]),-time())) / on(zone) abs(rate(m_total[3s]))"
+        };
+        four_series_float_query(engine, FOUR_SERIES_RATE, NULL);
+        balanced(engine, &idle);
+        for (unsigned i = 0; i < sizeof(expressions) / sizeof(expressions[0]); i++) {
+            four_series_float_query(engine, FOUR_SERIES_RATE, expressions[i]);
+            balanced(engine, &idle);
+        }
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        puts("{\"mapped_rate_embedding\":\"pass\",\"mapped_cases\":36,\"direct_cases\":12}");
         return 0;
     }
     if (argc == 2 && strcmp(argv[1], "--regex-only") == 0) {

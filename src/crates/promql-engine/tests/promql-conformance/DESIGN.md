@@ -1070,3 +1070,30 @@ integration, and Alertmanager remains excluded.
   timings establish no throughput gain; all 20 groups, including nine slower medians, remain. Native fixture text
   grows 41,008/2,976 bytes in release/release-min. No Agent-size or RSS result follows. Ordinary constructors, contexts
   ownership, paging, interfaces, dependency set and disabled caps remain unchanged.
+
+## Completed mapped rate join discovery
+
+- **Choice:** extend the existing binary operand proof through pure Float functions, vector/scalar operations,
+  unary expressions and parentheses ending at the unchanged ordinary direct-rate proof. Return immediately for
+  already-supported raw, earned-marker and direct-rate operands. Share the existing wrapper-purity predicate;
+  preserve its scheduled caller's child, earned-marker, then scalar-purity order.
+- **Authority:** use the original output header for producer/source/scope grid checks at every effective wrapper.
+  Keep fixed/invariant/matrix exclusions and the direct-rate arity, selector, extended-window and checked endpoint
+  rules. Resolve left before right and propagate interruption immediately. Rate receives no raw-point marker.
+- **Evaluation:** the existing Pair requests the original operand ordinal and evaluates its complete subtree,
+  including fresh scalar parameters. Full successful cold discovery, Float/source/head/alias uniqueness, exact
+  scope keys, matching cardinality, diagnostics and cancellation retain their existing owners. Grouped joins can
+  use the same existing proof; unsupported transformations keep ordinary evaluation.
+- **Memory:** no raw value, history, new cache or Pair representation is added. Newly eligible queries can use the
+  existing accounted Pair maps and one-step membership bitmap; their small-query peak cost must remain visible.
+  Lower cumulative allocation traffic does not imply lower peak memory or process RSS.
+- **Evidence:** [qualification](mapped-rate-join-qualification.json) and
+  [measured scope](README.md#completed-mapped-rate-join-discovery) bind complete pinned expressions, the causal
+  old-runtime work regression, calibrated source/output failures, actual C/C++ consumers and optimized timings.
+  Public interfaces, contexts authority, storage, raw paging, dependencies and disabled caps remain unchanged.
+- **Measured result:** 804 native comparisons, 18 supplemental candidate boundary outcomes, 536 compiled ARM
+  comparisons, 659 native units/profile and actual C/C++ consumers pass. Four 64-pair mapped shapes improve
+  9.3–13.2× in the fixed shared-host timing panel; no live DBengine or concurrent-throughput claim follows.
+- **Tradeoffs:** 96 of 804 workspace peaks rise by at most 312 B; 42 allocation-traffic observations rise by at
+  most 64 B and 60 work counts by at most 18 units. The representative clamp workload lowers work, reads and
+  allocation traffic while keeping its peak unchanged. Fixture `.text` grows 1,600/720 bytes in release/release-min.

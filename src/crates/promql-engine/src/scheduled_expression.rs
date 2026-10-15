@@ -111,6 +111,15 @@ pub(crate) fn candidate(
     let Some(selector) = rosters.scheduled_selector(child) else {
         return Ok(None);
     };
+    Ok(pure_map(expression, node, control, account)?.then_some((child, selector)))
+}
+
+pub(crate) fn pure_map(
+    expression: &ParsedExpression,
+    node: NodeId,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<bool, Interrupted> {
     match &expression.arena[node].expression {
         Expr::Paren(_) | Expr::Unary { .. } => (),
         Expr::Binary {
@@ -120,7 +129,7 @@ pub(crate) fn candidate(
             ..
         } => {
             if matches!(operator, TokenKind::TRIM_LOWER | TokenKind::TRIM_UPPER) {
-                return Ok(None);
+                return Ok(false);
             }
             let scalar = if expression.arena[*left].value_type == ValueType::Scalar {
                 *left
@@ -128,7 +137,7 @@ pub(crate) fn candidate(
                 *right
             };
             if !pure_scalar(expression, scalar, control, account)? {
-                return Ok(None);
+                return Ok(false);
             }
         }
         Expr::Call {
@@ -136,23 +145,23 @@ pub(crate) fn candidate(
             arguments,
         } => {
             let Some(function) = PointwiseFunction::parse(function.name) else {
-                return Ok(None);
+                return Ok(false);
             };
             if matches!(
                 function,
                 PointwiseFunction::HistogramStdVar | PointwiseFunction::HistogramStdDev
             ) {
-                return Ok(None);
+                return Ok(false);
             }
             for argument in &arguments[1..] {
                 if !pure_scalar(expression, *argument, control, account)? {
-                    return Ok(None);
+                    return Ok(false);
                 }
             }
         }
-        _ => return Ok(None),
+        _ => return Ok(false),
     }
-    Ok(Some((child, selector)))
+    Ok(true)
 }
 
 pub(crate) fn unique(

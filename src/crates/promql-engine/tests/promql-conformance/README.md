@@ -2425,10 +2425,11 @@ source identities. Numeric summaries can still grow with selected-series cardina
 
 ## Completed direct rate join scans
 
-Bare-root one-to-one float joins can reuse completed discovery when an operand is an ordinary direct
+The initial cohort below qualifies bare-root one-to-one float joins when an operand is an ordinary direct
 `rate(raw_selector[range])`. Raw-selector eligibility stays the same. The rate producer/source/scope grids must
 match the effective evaluator, and the range/offset arithmetic must produce nonwrapping window endpoints.
-Grouped, filled, delayed-name, invariant, extended, wrapped and other computed shapes retain ordinary replay.
+Grouped and wrapped operands were outside that initial cohort; their later qualifications are recorded separately.
+Filled, delayed-name, invariant, extended and unproven computed shapes retain ordinary replay.
 
 The existing physical-ordinal bindings and accounted one-step membership bitmap are reused after the complete
 first final pass succeeds. No new value array, raw history or backing requirement is introduced. Native values
@@ -4370,3 +4371,58 @@ process RSS or allocator overhead. The unchanged 1,000-nested-sum/128 KiB small-
 and candidate Debug binaries; all three new exact Debug tests and both full optimized suites pass. This change adds
 no language feature, cache, persistent field, public/provider interface, dependency or limit. Raw input stays paged
 across both axes, and earlier broad language/SRE/live-Agent/CI cohorts retain their actual historical identities.
+
+## Completed mapped rate join discovery
+
+Joins such as `clamp_min(rate(m_total[5m]),0) / on(id) n_total` can reuse completed discovery through pure Float
+functions, vector/scalar operations, unary expressions and parentheses. The proof ends at the existing ordinary
+direct-rate checks. It shares the existing wrapper-purity predicate and checks every effective producer/source/
+scope grid against the original header. Rate receives no raw-point schedule marker.
+
+Pair replay still evaluates the original operand ordinal and its complete subtree, including fresh scalar
+parameters. Full successful cold discovery, unique Float/source/head/hash bindings, exact scope keys and existing
+matching cardinality gates remain authoritative. Fixed/invariant/extended windows, source-reading scalar arguments
+and unproven transformations retain ordinary evaluation. No raw value/history cache, Pair representation, API,
+provider, storage, metadata authority, dependency or implicit limit changes.
+
+For 64 shuffled pairs, two evaluation timestamps and page17, seven alternating before/candidate pairs produce
+these engine-execution medians. Every warm and measured response matches its qualified result and its own
+nonelapsed observations (336 responses total):
+
+| Mapped operand shape | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| `clamp_min(rate(...),0) / n` | 87.82 → 6.89 ms | 155.11 → 11.73 ms |
+| `(rate(...)*100) / n` | 88.83 → 7.82 ms | 156.64 → 13.28 ms |
+| `abs(rate(...)) / n` | 83.00 → 6.85 ms | 149.48 → 11.53 ms |
+| `clamp_min(rate(...),0) / rate(...)` | 78.51 → 8.41 ms | 144.91 → 14.02 ms |
+
+The clamp case reduces recorded work 6,171,792→352,545, fetched samples 41,600→9,596 and workspace allocation
+traffic 21,138,694→2,001,300 B. Its workspace peak stays 191,678 B. Existing direct-rate/raw-map controls preserve
+all exported nonelapsed observations in 36 native pairs; their small timing differences are not independent
+throughput findings. Timings use a synthetic provider on a shared host, not live DBengine disk I/O, HTTP,
+concurrent-query throughput or process RSS.
+
+The existing accounted Pair maps and one-step membership bitmap have a cost when enabled for new shapes. Across
+804 native pairs, workspace peaks stay equal in708 and rise in96, by at most312 B. Allocation traffic falls in306,
+stays equal in456 and rises in42 by at most64 B. Work falls in306, stays equal in438 and rises in60 by at most18
+units. All eight memory kinds and ownership fields remain in the qualification; lower cumulative traffic is not
+lower peak memory. Native query-fixture `.text` grows1,600/720 B in release/release-min.
+
+The [input generator](mapped_rate_cases.py) supplies134 complete cases covering both profiles, shuffled original
+ordinals, left/right/both wrappers, scalar order, changing/empty membership, ordinary NaNs, stale/native/mixed
+samples, resets, fixed/shifted/submillisecond windows, grouped joins and duplicate-name errors. Both optimized
+profiles at pages1/17/1024 pass804 complete native comparisons with no bit differences. Three supplemental original
+boundary cases add18 candidate comparisons, including distinct physical/extrapolation endpoint rounding and a
+range/offset sum exceeding signed64-bit nanoseconds. Each native profile passes all659 library units.
+
+Compiled ARM64/ARM32 under QEMU pass536 complete page17 comparisons and20 focused unit executions across both
+profiles. Twelve actual candidate C/C++ programs each assert36 mapped and12 direct arms at all three page sizes:
+complete success output, a required cold source failure before pending output failure, cancellation and opaque
+output error. All144 native mapped observation pairs match the three exported basic sample-statistics fields;
+the native JSON fixture does not export them. The Rust failure unit separately calibrates preparation and first/
+second-output cursor landmarks before failing a required cold suffix or selected raw operand after one output.
+
+The [qualification](mapped-rate-join-qualification.json) preserves actual original/compiler/binary identities,
+all resource increases, timing samples and failed development fixture checks. The old runtime completes all24
+mapped regression cases before its final test-only work bound fails; current optimized suites pass that bound.
+Earlier broad language, SRE, live-Agent and Debug cohorts retain their own identities and are not reattributed.

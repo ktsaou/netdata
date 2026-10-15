@@ -1529,8 +1529,7 @@ fn instant_root_numeric_fold_keeps_raw_memory_independent_of_history() {
     }
 }
 
-#[test]
-fn direct_rate_join_avoids_repeating_full_child_discovery() {
+fn rate_join_discovery_cases(expression: &[u8]) -> Vec<u64> {
     let count = 64;
     let mut work = Vec::new();
     for page_size in [1, 17, 1024] {
@@ -1559,11 +1558,7 @@ fn direct_rate_join_avoids_repeating_full_child_discovery() {
             let engine = Engine::default();
             let control = Control::default();
             let query = engine
-                .compile(
-                    b"rate(m_total[5m]) / on(instance) rate(n_total[5m])",
-                    EngineOptions::default(),
-                    &control,
-                )
+                .compile(expression, EngineOptions::default(), &control)
                 .unwrap();
             let report = query.collect_reported(
                 &provider,
@@ -1603,7 +1598,8 @@ fn direct_rate_join_avoids_repeating_full_child_discovery() {
             let observed = &report.observations;
             assert_eq!(observed.output_samples, 2 * count as u64);
             println!(
-                "{{\"direct_rate_join_rows\":{count},\"page_size\":{page_size},\"reversed\":{reversed},\"work\":{},\"fetched\":{},\"workspace_peak\":{},\"queryable\":{}}}",
+                "{{\"rate_join_rows\":{count},\"page_size\":{page_size},\"reversed\":{reversed},\"query\":{:?},\"work\":{},\"fetched\":{},\"workspace_peak\":{},\"queryable\":{}}}",
+                std::str::from_utf8(expression).unwrap(),
                 observed.work,
                 observed.samples_fetched,
                 observed.memory[MemoryKind::Workspace as usize].peak,
@@ -1615,9 +1611,32 @@ fn direct_rate_join_avoids_repeating_full_child_discovery() {
             engine.accounting.snapshot().assert_memory_released();
         }
     }
+    work
+}
+
+#[test]
+fn direct_rate_join_avoids_repeating_full_child_discovery() {
+    let work = rate_join_discovery_cases(b"rate(m_total[5m]) / on(instance) rate(n_total[5m])");
     assert!(
         work.iter().all(|value| *value < 1_650_000),
         "direct rate joins must avoid repeated whole-child discovery: {work:?}"
+    );
+}
+
+#[test]
+fn mapped_rate_join_avoids_repeating_full_child_discovery() {
+    let mut work = Vec::new();
+    for expression in [
+        "clamp_min(rate(m_total[5m]),0) / on(instance) rate(n_total[5m])",
+        "rate(m_total[5m]) / on(instance) abs(rate(n_total[5m]))",
+        "abs(clamp_min(rate(m_total[5m]),-time())) / on(instance) abs(rate(n_total[5m]))",
+        "(100 * +rate(m_total[5m])) / on(instance) (rate(n_total[5m]) * 100)",
+    ] {
+        work.extend(rate_join_discovery_cases(expression.as_bytes()));
+    }
+    assert!(
+        work.iter().all(|value| *value < 1_650_000),
+        "mapped rate joins must avoid repeated whole-child discovery: {work:?}"
     );
 }
 
