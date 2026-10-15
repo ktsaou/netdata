@@ -292,8 +292,15 @@ impl QueryAccounting {
         self.count(|s| &mut s.provider_calls, 1);
     }
     pub fn page(&self, samples: usize) {
-        self.count(|s| &mut s.pages, 1);
-        self.count(|s| &mut s.samples_fetched, samples as u64);
+        let mut observations = lock(&self.0.observations);
+        let mut overflowed = observations.counter_overflowed;
+        add(&mut observations.pages, 1, &mut overflowed);
+        add(
+            &mut observations.samples_fetched,
+            samples as u64,
+            &mut overflowed,
+        );
+        observations.counter_overflowed = overflowed;
     }
     #[cfg(test)]
     pub(crate) fn test_identity(&self) -> usize {
@@ -1093,6 +1100,47 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     #[test]
+    fn page_counters_preserve_independent_saturation_and_other_observations() {
+        let maximum = u64::MAX;
+        for (pages, fetched, overflowed, samples, next_pages, next_fetched, next_overflowed) in [
+            (0, 0, false, 0, 1, 0, false),
+            (7, 5, false, 3, 8, 8, false),
+            (maximum - 1, maximum - 2, false, 2, maximum, maximum, false),
+            (maximum - 1, 17, false, 1, maximum, 18, false),
+            (17, maximum - 1, false, 1, 18, maximum, false),
+            (maximum, 17, false, 1, maximum, 18, true),
+            (17, maximum, false, 1, 18, maximum, true),
+            (maximum, maximum, false, 1, maximum, maximum, true),
+            (4, 7, true, 2, 5, 9, true),
+            (maximum, maximum, false, 0, maximum, maximum, true),
+            (maximum - 1, maximum, false, 0, maximum, maximum, false),
+            (0, 0, false, usize::MAX, 1, usize::MAX as u64, false),
+        ] {
+            let engine = EngineAccounting::default();
+            let query = engine.query();
+            {
+                let mut observed = lock(&query.0.observations);
+                observed.pages = pages;
+                observed.samples_fetched = fetched;
+                observed.counter_overflowed = overflowed;
+                observed.provider_calls = 11;
+                observed.work = 13;
+                observed.output_samples = 17;
+                observed.statistics.samples.samples_read = 19;
+            }
+            let mut expected = query.snapshot();
+            expected.pages = next_pages;
+            expected.samples_fetched = next_fetched;
+            expected.counter_overflowed = next_overflowed;
+            query.page(samples);
+            assert_eq!(query.snapshot(), expected);
+            query.snapshot().assert_memory_released();
+            drop(query);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
     fn checked_growth_keeps_the_source_and_releases_interrupted_replacement() {
         let engine = EngineAccounting::default();
         let query = engine.query();
@@ -1266,6 +1314,10 @@ mod tests {
             19
         );
         assert_eq!(query.snapshot().cancellation_references.external.current, 1);
+        query.page(3);
+        let observed = query.snapshot();
+        assert_eq!((observed.pages, observed.samples_fetched), (1, 3));
+        assert!(!observed.counter_overflowed);
         drop((observation, lease));
         query.snapshot().assert_memory_released();
         assert_eq!(

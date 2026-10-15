@@ -927,3 +927,21 @@ integration, and Alertmanager remains excluded.
 - **Evidence:** [work-accounting qualification](rank-work-accounting-qualification.json) binds original-charge
   invariant tests, exact complete results and nonelapsed observations, native/compiled-ARM/C owners, retained
   reducer/temporal panels and every warm timing group, including slower controls.
+
+
+## Received-page accounting
+
+- **Choice:** credit one received page and its sample count under one existing query observations guard.
+  Preserve pages-then-samples order, independent saturation, sticky overflow and the existing usize-to-u64 cast.
+  Exact maximum is not overflow; a zero-sample call still increments pages. No deferred aggregate is used.
+- **Phases:** generic and C adapters keep their existing outer validation and Adapted exclusion. Accepted pages
+  remain counted before later nested conversion, validation, consumer failure or cancellation. Invalid outer
+  pages and early metadata/zero-maximum errors keep their existing no-credit behavior.
+- **Observability:** a concurrent snapshot can skip the former pages-only intermediate state inside one call.
+  Completed totals, next callback/control observations and poisoned-lock recovery remain unchanged.
+- **Ownership:** add no field, allocation, cache, raw history, metadata owner, cap, ABI, storage or default change.
+  Source-derived savings are one mutex acquisition per credited page; work units are not lock counts.
+- **Evidence:** [page accounting qualification](page-credit-qualification.json) preserves old-runtime invariants,
+  exact complete queries/nonelapsed observations, current native/compiled-ARM/C owners, the original failed
+  baseline reader and all warmed timing groups, including separate affinity/identical-binary controls.
+  Engine-accounted bytes and shared-host timings have finite scope.

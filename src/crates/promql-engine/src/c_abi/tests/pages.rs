@@ -656,6 +656,8 @@ fn foreign_page_shapes_precede_cancellation_and_unread_tail_timestamps_stay_in_t
                 error
             };
             assert!(matches!(error, StorageError::Invalid(message) if message == expected));
+            let observed = account.snapshot();
+            assert_eq!((observed.pages, observed.samples_fetched), (1, 3));
             drop(series);
             drop(query);
             for (opened, closed) in fixture.opened.iter().zip(&fixture.closed) {
@@ -754,6 +756,12 @@ fn successful_opens_close_after_invalid_nested_metadata_or_zero_page_size() {
             assert!(result.is_null());
             assert_eq!(fixture.opened[2].get(), 1);
             assert_eq!(fixture.opened[3].get(), usize::from(!bad_labels));
+            let mut observed = types::QueryObservations::default();
+            assert_eq!(
+                netdata_promql_report_observations(report, &mut observed),
+                types::OK
+            );
+            assert_eq!((observed.pages, observed.samples_fetched), (0, 0));
             for (opened, closed) in fixture.opened.iter().zip(&fixture.closed) {
                 assert_eq!(opened.get(), closed.get());
             }

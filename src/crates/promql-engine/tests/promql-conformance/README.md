@@ -25,6 +25,10 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Single-lock received-page accounting passes 631 native units/profile, 246 complete queries with every exported
+  nonelapsed observation unchanged, 28 focused compiled ARM unit executions and four actual native C/C++ callers.
+  The [page accounting panel](#single-lock-received-page-accounting) records exact counter/error phases, unchanged
+  measured memory and fixed warmed timings, including slower controls.
 - Direct one-argument float-map joins pass 10,372 complete native and 3,656 compiled ARM matches, 627 units/profile
   and 12 actual C/C++ callers. The [float-map panel](#completed-direct-float-map-join-scans) records fewer repeated
   reads, large-query allocation savings, small 82–312 B peak increases and matched whole-query timings.
@@ -3541,3 +3545,87 @@ The unchanged pinned numerical, reference, storage, contexts, ABI and disabled-c
 No new original-Go capture, SRE or live-Agent replay, full foreign unit suite, layout, sanitizer or RSS claim is made.
 Earlier cohorts and all 54 prior ledger objects retain their actual identities. Query JSON does not export basic
 statistics; current unit/C assertions cover the unchanged owners.
+
+
+## Single-lock received-page accounting
+
+`QueryAccounting::page` updates received pages and samples under one observations lock. It uses the existing
+ordered saturating additions, sticky overflow and poison recovery. A zero-sample call still adds one page.
+Generic and C adapters keep their existing validation, callback, error and cancellation checkpoints. Accepted
+outer pages remain counted when later sample conversion or validation fails. Adapted pages are counted once.
+
+A concurrent snapshot no longer sees the page increment before the sample increment within that same helper
+call. Completed counters and the next callback/control snapshot remain exact. No query state, retained sample,
+metadata owner, allocation, ABI, storage format, numerical behavior, default or resource cap is added.
+
+Fresh evidence in [the page accounting qualification](page-credit-qualification.json) includes:
+
+- Both native profiles: 123 complete queries each, including 12 independently checked long float/native sums
+  and 12 exact provider errors. All exported nonelapsed observations, including every memory field, match the
+  accepted predecessor. Windows contain 8,192 or 65,536 samples; Rust page sizes are 1, 17 and 1,024.
+- Seven focused owners pass on the original two-lock implementation before the runtime edit. The boundary test
+  covers 12 zero/maximum/overflow/cast cases. Extended phase tests check C nested/consumer/timestamp failures,
+  early no-page failures, generic stopped scans, returned-page cancellation and recovered ledger locks.
+- The current runtime passes 631 native units/profile, format, strict production/fixture Clippy and Rust 1.91
+  compile checks. Seven focused owners/profile execute on compiled ARM64 and ARM32: 28 unit executions.
+- Four actual native C/C++ executables produce 40 records each, with independently counted received pages and
+  samples. Their long-window pages remain 1/7/1,024; this step adds no C long-window page-17 claim.
+- The initial baseline reader incorrectly required zero workspace while a provider-error report retained its
+  34-byte message. The fixture completed successfully and checked final release. The failed reader is preserved;
+  its correction reused the closed release output and ran only the previously unrun release-min baseline.
+
+The source removes one mutex acquisition per credited page. Across these 246 qualified queries, that is 1,943,576 fewer
+acquisitions by source derivation. This is separate from elapsed-time measurement. No runtime lock profiler,
+new memory-layout measurement, RSS, fresh Go/SRE/live DBengine or full foreign expression panel is claimed.
+
+The fixed timing panel has 23 cases/profile, nine alternating before/after pairs, and one warm query before
+each measured query: 1,656 complete checked responses and 46 median groups. Each response matches its qualified
+output and own nonelapsed observations. All ratios range from 0.950 to 1.043; 25 medians are slower.
+The table shows all 65,536-sample groups. Ratios above 1 mean faster; ratios below 1 mean slower.
+
+| Profile | Values | Page | Before ms | After ms | Before/after |
+|---|---|---:|---:|---:|---:|
+| release | float | 1 | 61.252 | 61.682 | 0.993 |
+| release | float | 17 | 18.001 | 18.947 | 0.950 |
+| release | float | 1024 | 15.512 | 14.877 | 1.043 |
+| release | native | 1 | 160.968 | 168.301 | 0.956 |
+| release | native | 17 | 72.832 | 74.004 | 0.984 |
+| release | native | 1024 | 67.292 | 69.830 | 0.964 |
+| release-min | float | 1 | 97.183 | 96.040 | 1.012 |
+| release-min | float | 17 | 24.443 | 24.025 | 1.017 |
+| release-min | float | 1024 | 19.723 | 19.611 | 1.006 |
+| release-min | native | 1 | 280.478 | 275.192 | 1.019 |
+| release-min | native | 17 | 126.577 | 128.248 | 0.987 |
+| release-min | native | 1024 | 116.852 | 116.603 | 1.002 |
+
+These are engine elapsed times from generated queries on a shared host. Fixture input arrays live in the test
+provider, outside the engine accounting. Engine raw samples remain paged. Small groups and shared-host
+variation limit timing conclusions; no universal throughput improvement is established.
+
+The mixed original timings prompted a separate fixed follow-up on all six 65,536-sample cases. It uses 13 pairs
+per profile, one warm query and three measured repeats per case. Identical-binary controls run the accepted
+binary on both aliases; accepted/current comparisons use the two qualified variants. All 2,496 responses
+preserve complete outcomes and their own qualified nonelapsed observations. Only these owned children are
+pinned to CPU 111, selected from the parent allowed set. This provides no exclusive CPU or frequency control.
+
+| Profile | Values | Page | Identical-binary ratio | Accepted/current ratio | Faster pairs / 13 |
+|---|---|---:|---:|---:|---:|
+| release | float | 1 | 0.990 | 1.005 | 6 |
+| release | float | 17 | 1.006 | 1.000 | 10 |
+| release | float | 1024 | 1.008 | 0.997 | 7 |
+| release | native | 1 | 0.987 | 0.999 | 7 |
+| release | native | 17 | 1.013 | 1.002 | 9 |
+| release | native | 1024 | 1.014 | 1.004 | 7 |
+| release-min | float | 1 | 0.999 | 1.044 | 12 |
+| release-min | float | 17 | 0.996 | 1.017 | 11 |
+| release-min | float | 1024 | 0.993 | 1.029 | 8 |
+| release-min | native | 1 | 0.996 | 1.024 | 9 |
+| release-min | native | 17 | 1.001 | 1.013 | 11 |
+| release-min | native | 1024 | 0.993 | 1.009 | 9 |
+
+Ratios use all 39 measured samples per alias; faster-pair counts compare the two three-repeat medians within
+each pair. Original timings, identical-binary controls, every sample and every slower group remain in the
+qualification. In this follow-up, release ratios are near parity (0.997–1.005); release-min ratios show
+modest positive results (1.009–1.044). Identical-binary ratios span 0.987–1.014. The original larger release
+slowdowns did not recur under this separate condition. Affinity provides no hardware isolation, and these
+results establish no universal gain or causal explanation for host/profile differences.

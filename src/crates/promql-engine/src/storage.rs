@@ -1607,7 +1607,8 @@ mod tests {
             ))
         );
         assert_eq!(visited, 1);
-        assert_eq!(account.snapshot().samples_fetched, 3);
+        let observed = account.snapshot();
+        assert_eq!((observed.pages, observed.samples_fetched), (1, 3));
         account.snapshot().assert_memory_released();
         assert_eq!(
             source
