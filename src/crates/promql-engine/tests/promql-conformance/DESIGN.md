@@ -1013,3 +1013,21 @@ integration, and Alertmanager remains excluded.
 - **Boundaries:** this adds no stored field, public method, metadata provider, raw-history array or configured cap.
   Stronger descriptor-array immutability would require a separate provider contract; this change retains the existing
   copied pointers and lifetime rules. Measurements cover requested engine bytes, not allocator overhead or RSS.
+
+## Bounded owned-label copies
+
+- **Choice:** required full copies capture the exact iterator length; filtered copies use the input count as an
+  upper bound. Feed the existing incremental hinted push after the original work check and name/value copy.
+  Preserve the terminal check, one predicate visit per reached label and independent result ownership.
+- **Coupled insertion:** when a copied array fills, the two local mutable append sites choose the next ordinary
+  power-of-two boundary, minimum four. Compact 3/9/17-slot copies grow to 4/16/32. Shared vector growth, ordinary
+  initial growth, untracked fallback, byte-copy/swap/control/error phases and existing larger capacities remain.
+- **Reason:** exact byte buffers still left spare outer descriptors. Copy-only clipping exposed later 9→18 and
+  10→20 mutable growth; the local insertion rule removes that measured retention regression without a global policy.
+- **Evidence:** [qualification](owned-label-capacity-qualification.json) and
+  [complete measured scope](README.md#bounded-owned-label-copies): 1,032 native pairs preserve complete outcomes and
+  nonmemory/nonelapsed observations. Workspace peaks fall in 852, retained results in 750, with no measured increase.
+  The 64-series/17-label case reduces Workspace peak 237,480→145,320 B and retained Result 224,064→131,904 B.
+- **Tradeoffs:** all 20 timing groups remain, including 13 slower medians; native fixture text grows 32,128/480 B in
+  release/release-min. No universal lower-peak, faster-runtime, Agent-size or RSS guarantee follows. Existing contexts
+  ownership, raw paging, public interfaces, dependency set and disabled caps remain unchanged.

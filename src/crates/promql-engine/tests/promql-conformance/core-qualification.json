@@ -69892,5 +69892,18 @@
     "actual_c_cpp_executables": 12,
     "timing_responses": 400,
     "attribution": "New compiler cohorts use the frozen qualified source; earlier original and native baselines retain their exact source/binary lineage."
+  },
+  "owned_label_capacity_qualification": {
+    "status": "qualified_bounded_owned_label_copies",
+    "receipt": "owned-label-capacity-qualification.json",
+    "sha256": "92a162294e63caaccf8691941105c26da43fc85abcd655adb7e3dee56ced0fed",
+    "native_comparisons": 1032,
+    "foreign_comparisons": 688,
+    "native_units_per_profile": 653,
+    "focused_foreign_unit_executions": 32,
+    "actual_candidate_c_cpp_executables": 12,
+    "comparative_before_native_executables": 4,
+    "timing_responses": 400,
+    "attribution": "Final native/foreign compilers use the frozen qualified source. Before binaries and342reused before outcomes retain accepted predecessor bindings; Debug diagnostics are distinct."
   }
 }

@@ -1,0 +1,2052 @@
+{
+  "schema_version": 1,
+  "status": "qualified_bounded_owned_label_copies",
+  "scope": "Reduce spare descriptor capacity in existing owned label copies; preserve byte ownership, mutable labels, output/error/control order and all nonmemory/nonelapsed observations. No language feature or public interface change.",
+  "accepted_predecessor": "5b49f00106c170c9b320473251bae2afb59d80c7",
+  "qualified_sources": {
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/crates/promql-engine/src/absence.rs": "5daad198a2b483ef9c32557667c47005b2c275359128ed0e2d08741a562a28c3",
+    "src/crates/promql-engine/src/accounting.rs": "606fabc7bc4204d1e0596806adf4a907dc40bea7b1152d4ef0584de6b001ad62",
+    "src/crates/promql-engine/src/aggregation.rs": "a1ff5ec3e08f3cd6339c61fe305c57312679c19658c3f848e5b94af47b43483d",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/crates/promql-engine/src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "cd9808645a6e43b7bcd49ca11c33bd1470dd53c432c43231374b0eecc2081c6b",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "3823e8b6c8f74beeeb13a6ecb5de12669b041a07081eb6555476c2574d302b7a",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "046ab8fbd5783160210010d72ac04e501dcbb6f369e29628141ef332bcbd085c",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/crates/promql-engine/src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/crates/promql-engine/src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/crates/promql-engine/src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+    "src/crates/promql-engine/src/evaluator.rs": "5111d23461f414a587115ceeab24e9c85686a802d1426e3e4297c5d5ecb89356",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "2d2bb41a69de99aef79771384ac7b45ef7e7f384d5b4ad259caa7ca324a85cba",
+    "src/crates/promql-engine/src/execution.rs": "4da90a608301adfd7e0ce75a82f6660e20218b434c5ecfba1c8e0217483058e3",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/crates/promql-engine/src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/crates/promql-engine/src/lib.rs": "4c19ab2c8dad2479fdf8d0fb0f258d6d120a75f2c0a2f9a4e7f07fe5c6e991f5",
+    "src/crates/promql-engine/src/lookup_tests.rs": "bb1786f683c75b849d9afa2751e7304968d6d4ccb9484cdafa66fe4880e8eaf8",
+    "src/crates/promql-engine/src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/crates/promql-engine/src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/crates/promql-engine/src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/crates/promql-engine/src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+    "src/crates/promql-engine/src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/crates/promql-engine/src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+    "src/crates/promql-engine/src/result.rs": "45824bd559e4fb07341f2c9af18133e150f3aca2d7bddf7c7f0434abcde435b9",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+    "src/crates/promql-engine/src/scheduled_output.rs": "0d4adb4cd20eb224269f51caf93a3bf12ed8016652834e7d01272af853324fc0",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/crates/promql-engine/src/storage.rs": "f213a16e64507e031b6c8fd58725763115a99cde489f875da20b8385b28141d5",
+    "src/crates/promql-engine/src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/crates/promql-engine/src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+    "src/crates/promql-engine/src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "f89a287b75e8aac6c57a40fdbe4eb15cab9936b64f23348019cf439133003e93",
+    "src/crates/promql-engine/src/vector_sort.rs": "d6daacd7bcde56a2984acbd52b8037ee5efbed3668d8d488271011d50aed41be",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "61ee3e08ee2ceccf4ede7edc39c3e0a274333c15bc95788c34b1ee0cec503783",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "4703d09604b1820341de1c3ff41a3476bce29360f0e1984a93d060db7572fb0c"
+  },
+  "source_manifest": {
+    "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-source.json",
+    "sha256": "2e8fdc5c3d2740aa44ce5123f8881f1bc29a3a2e91c27f2cd440259bc482e9a3"
+  },
+  "reference": {
+    "module": "github.com/prometheus/prometheus@v0.315.0",
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go": "1.27.1 AMD64 retained FMA route",
+    "fresh_cases": 172,
+    "lineage": "172 fresh evaluations through the verified unchanged retained original executable/source/compiler binding; no new Go build.",
+    "captures": [
+      {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/baseline.json",
+        "sha256": "01c6c5dc61e1fda3c9472c0ff81f4b7f5fb6260bb932beab25137e8c0ccb3f75"
+      },
+      {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/mutation-baseline.json",
+        "sha256": "a99b83d799d16800fb7601a62f16540a4e7b916bc292e189cb260a308fd2dd94"
+      },
+      {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/empty-original.json",
+        "sha256": "2136fac227dec60c3424903b8ca6858dd56d2b07c2f2246c8312e988b8540791"
+      }
+    ]
+  },
+  "algorithm": [
+    "Full private copies capture the exact iterator length once. Name/value bytes and work/control checks precede each existing incremental hinted push; terminal checking is retained.",
+    "Filtered copies use the input label count as an upper bound, visiting each reached predicate once without eager reservation or a counting pass.",
+    "Only the two local mutable append sites use the next ordinary power-of-two capacity, minimum4, when full. Compact3/9/17 arrays grow4/16/32. Existing larger capacity and untracked fallback remain.",
+    "No copy, ownership transfer, control charge, swap or error phase moves. Shared AccountedVec growth remains unchanged."
+  ],
+  "old_runtime_regression": {
+    "complete_byte_ownership_work_and_release_checks": 40,
+    "expected_test_exit": 101,
+    "failed_assertion": "completed known-count copies retain excess descriptor storage",
+    "receipt": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/old-runtime-regression.json",
+      "sha256": "0a8592051d094ab56304c5330492cebd75ddc25fce80d44ceda5d4f0a7f52435"
+    }
+  },
+  "coupled_growth_correction": {
+    "initial_debug_higher_workspace_peak_groups": 17,
+    "initial_debug_maximum_extra_workspace_peak_bytes": 35520,
+    "cause": "Compact9/10-slot copies grew18/20 on later appends, rather than ordinary16. A local append bound restores ordinary geometric boundaries and minimum4 without changing the shared allocator.",
+    "retained_diagnostic": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/debug.json",
+      "sha256": "31ce22642fbe67ee90f14b3a8876a2ca285abc748854282e1cbea32891940657"
+    },
+    "corrected_debug": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/trial.json",
+      "sha256": "89c08f669a5f6c562f0805d7f4d80eb1443792d87a557db926393a1c74b34360"
+    },
+    "interpretation": "Initial and corrected Debug cohorts keep their actual source/binary identities and are not substituted for final optimized qualification."
+  },
+  "native": {
+    "release": {
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release/promql-query-fixture",
+          "sha256": "6a96748c5d30bd0ec16c5b0d964dd07a0c432f232401a4740cbfcce998972376",
+          "file_bytes": 5435288
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release/libnetdata_promql_engine.a",
+          "sha256": "2dd524df410a8bbdaca27f18d240806761f65d78f40c157cf0e295ac198deb99",
+          "file_bytes": 39013904
+        },
+        "unit": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release/unit",
+          "sha256": "7f4c5ea0f9ace9291ced3fad46d6a2bb1f586fb7569f158df309c7c1938926d3",
+          "file_bytes": 23242648
+        }
+      },
+      "library_units_passed": 653,
+      "unit_ids_sha256": "fbce86f3fa0ace8307b570980c97d6f7504fbc9cb6c8612118e4366a8f12c172",
+      "fixture_elf_text_bytes": {
+        "before": 2992629,
+        "candidate": 3024757
+      },
+      "compiler_receipt": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release.json",
+        "sha256": "2000fbac95b3e4705b3cef7d02973f9b5a24a24258785ef1bf86cc8adde3c9ed"
+      }
+    },
+    "release-min": {
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release-min/promql-query-fixture",
+          "sha256": "f6a49cbc510fd87d4a1426d2411b32a2a80a69eb498a8cccf73e1bd6caf80e33",
+          "file_bytes": 3461504
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release-min/libnetdata_promql_engine.a",
+          "sha256": "f365146e470d11df5577163e90f224e0c4065a14a09f61f4eb63c2372b161a7a",
+          "file_bytes": 54057588
+        },
+        "unit": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release-min/unit",
+          "sha256": "3858e27c6a4ba809ae34dd1e91e8c827233fe98fcc16e744863bbed854e30165",
+          "file_bytes": 13124824
+        }
+      },
+      "library_units_passed": 653,
+      "unit_ids_sha256": "fbce86f3fa0ace8307b570980c97d6f7504fbc9cb6c8612118e4366a8f12c172",
+      "fixture_elf_text_bytes": {
+        "before": 1808821,
+        "candidate": 1809301
+      },
+      "compiler_receipt": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release-min.json",
+        "sha256": "9d0fd10a1bc38e05dd11c23805e05c654d9df0c94b24a054290a0654a10a7384"
+      }
+    }
+  },
+  "native_complete_original_comparisons": 1032,
+  "native_before_comparisons": 1032,
+  "native_before_reused_closed_page17_outcomes": 342,
+  "native_pages": [
+    1,
+    17,
+    1024
+  ],
+  "native_bit_differences": 0,
+  "foreign": {
+    "qualified-aarch64-unknown-linux-gnu-release.json": {
+      "target": "aarch64-unknown-linux-gnu",
+      "profile": "release",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-aarch64-unknown-linux-gnu-release/promql-query-fixture",
+          "sha256": "6bfd5f45b353711f284ab8d2eb6b0b06ccedb07ccd3238ae3f39dd5db02ce0e4",
+          "file_bytes": 4861080
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-aarch64-unknown-linux-gnu-release/libnetdata_promql_engine.a",
+          "sha256": "20c857d122e04dfe5c5bfc5fb8aba4c8b65dd28e45b6ce20db98998f877d95e0",
+          "file_bytes": 39336450
+        },
+        "unit": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-aarch64-unknown-linux-gnu-release/unit",
+          "sha256": "c0ce394d6554fe82c15b1c2cdbdfc1cf365981cae1ec2d4bbf57c51e46561504"
+        }
+      },
+      "focused_units": [
+        "result::tests::known_label_copies_bound_retained_bytes_and_outlive_their_source",
+        "result::tests::bounded_filtered_label_copies_keep_single_predicate_visits_and_failure_priority",
+        "result::tests::bounded_label_copy_interruption_releases_bytes_before_and_after_growth",
+        "result::tests::collector_keeps_one_label_owner_across_chunks_and_source_replacement",
+        "result::tests::compact_label_mutations_restore_ordinary_geometric_capacity_and_overlap",
+        "result::tests::compact_label_insertion_keeps_the_existing_post_value_cancellation_phase",
+        "result::tests::checked_collector_interrupts_copy_lookup_and_final_comparison_work",
+        "accounting::tests::capacity_hints_preserve_required_growth_and_accounted_overlap"
+      ],
+      "complete_queries": 172,
+      "actual_callers": {
+        "gcc": {
+          "binary_sha256": "51caf45c97ed2e61b9109d6f2f86be93803c3b4f3549e0a498ac158945536abc",
+          "query_arms_checked": 72,
+          "checked_records_sha256": "6bc776ba19cbd979abc182e9e25a89af072362006790a6541068e8a0b098f447"
+        },
+        "g++": {
+          "binary_sha256": "cc058e6289a980a11d05b87a3a44e5e8e08f9dd54bd7fec6456c1b4dfb3c6246",
+          "query_arms_checked": 72,
+          "checked_records_sha256": "6bc776ba19cbd979abc182e9e25a89af072362006790a6541068e8a0b098f447"
+        }
+      },
+      "receipt": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-aarch64-unknown-linux-gnu-release.json",
+        "sha256": "5c97e9081bb29eab9660406bb0463bbbdaefcbadef7c446b0d89c92d902484aa"
+      }
+    },
+    "qualified-aarch64-unknown-linux-gnu-release-min.json": {
+      "target": "aarch64-unknown-linux-gnu",
+      "profile": "release-min",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-aarch64-unknown-linux-gnu-release-min/promql-query-fixture",
+          "sha256": "19ffb4a6dc53b6b19ba92826724ec5acf5f1faba4240de035ce108fca0538a75",
+          "file_bytes": 3727392
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-aarch64-unknown-linux-gnu-release-min/libnetdata_promql_engine.a",
+          "sha256": "cbf9897deb0788dd6c6f478981803f8784bf3c647d0c42b4f1f581dfd487f0eb",
+          "file_bytes": 57303614
+        },
+        "unit": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-aarch64-unknown-linux-gnu-release-min/unit",
+          "sha256": "2f4372d982d056fd3e6fb7c30ad56acdfc07a79ecfb2149279eaa3f928080425"
+        }
+      },
+      "focused_units": [
+        "result::tests::known_label_copies_bound_retained_bytes_and_outlive_their_source",
+        "result::tests::bounded_filtered_label_copies_keep_single_predicate_visits_and_failure_priority",
+        "result::tests::bounded_label_copy_interruption_releases_bytes_before_and_after_growth",
+        "result::tests::collector_keeps_one_label_owner_across_chunks_and_source_replacement",
+        "result::tests::compact_label_mutations_restore_ordinary_geometric_capacity_and_overlap",
+        "result::tests::compact_label_insertion_keeps_the_existing_post_value_cancellation_phase",
+        "result::tests::checked_collector_interrupts_copy_lookup_and_final_comparison_work",
+        "accounting::tests::capacity_hints_preserve_required_growth_and_accounted_overlap"
+      ],
+      "complete_queries": 172,
+      "actual_callers": {
+        "gcc": {
+          "binary_sha256": "c30e943a5364cb2604fc531507a035e5f6151e5055858910efd060e170b3e1b8",
+          "query_arms_checked": 72,
+          "checked_records_sha256": "6bc776ba19cbd979abc182e9e25a89af072362006790a6541068e8a0b098f447"
+        },
+        "g++": {
+          "binary_sha256": "435c6dbfe788fb26d2e5b99e616a42cbb2d60b17bc3b5b8946c361644c516d2d",
+          "query_arms_checked": 72,
+          "checked_records_sha256": "6bc776ba19cbd979abc182e9e25a89af072362006790a6541068e8a0b098f447"
+        }
+      },
+      "receipt": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-aarch64-unknown-linux-gnu-release-min.json",
+        "sha256": "416916d700740d835fea7145e88bd213aa246dbe559ea245f30f7f37323afe10"
+      }
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release.json": {
+      "target": "armv7-unknown-linux-gnueabihf",
+      "profile": "release",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-armv7-unknown-linux-gnueabihf-release/promql-query-fixture",
+          "sha256": "db1f5ddf76c01e6af5e4acce6013335ad3ec55bf9fd8efe9a1a148b657dab693",
+          "file_bytes": 4871508
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-armv7-unknown-linux-gnueabihf-release/libnetdata_promql_engine.a",
+          "sha256": "b48b9f842c13104cf25b094b1741c748805808afa99a564a3a870fa3ee3ba337",
+          "file_bytes": 34486624
+        },
+        "unit": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-armv7-unknown-linux-gnueabihf-release/unit",
+          "sha256": "5be0e91972354318ce627baa60f7b5e8765ce8f452c4734dbddc722544851fce"
+        }
+      },
+      "focused_units": [
+        "result::tests::known_label_copies_bound_retained_bytes_and_outlive_their_source",
+        "result::tests::bounded_filtered_label_copies_keep_single_predicate_visits_and_failure_priority",
+        "result::tests::bounded_label_copy_interruption_releases_bytes_before_and_after_growth",
+        "result::tests::collector_keeps_one_label_owner_across_chunks_and_source_replacement",
+        "result::tests::compact_label_mutations_restore_ordinary_geometric_capacity_and_overlap",
+        "result::tests::compact_label_insertion_keeps_the_existing_post_value_cancellation_phase",
+        "result::tests::checked_collector_interrupts_copy_lookup_and_final_comparison_work",
+        "accounting::tests::capacity_hints_preserve_required_growth_and_accounted_overlap"
+      ],
+      "complete_queries": 172,
+      "actual_callers": {
+        "gcc": {
+          "binary_sha256": "0d3d2bf5d238a321ecf79a281adaed11bc842811977d79e5b37e1f2745a08e18",
+          "query_arms_checked": 72,
+          "checked_records_sha256": "614cb8055e4c35e704cbc3caac282528f5f121872cf4c81241a3fdbc7b00ed3b"
+        },
+        "g++": {
+          "binary_sha256": "9d6133617b69fe09d0dd32298c34dbf9478642863235342759d330c92e7d17c8",
+          "query_arms_checked": 72,
+          "checked_records_sha256": "614cb8055e4c35e704cbc3caac282528f5f121872cf4c81241a3fdbc7b00ed3b"
+        }
+      },
+      "receipt": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-armv7-unknown-linux-gnueabihf-release.json",
+        "sha256": "089169128ecf65953bb810276c322412d2633712b972627564da14ac6d6fb856"
+      }
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release-min.json": {
+      "target": "armv7-unknown-linux-gnueabihf",
+      "profile": "release-min",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-armv7-unknown-linux-gnueabihf-release-min/promql-query-fixture",
+          "sha256": "ca56578ca3db43567629059243b09560d25c533e24b2fac2c61251945e785883",
+          "file_bytes": 3184400
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-armv7-unknown-linux-gnueabihf-release-min/libnetdata_promql_engine.a",
+          "sha256": "898b3c19ec627503a1c7aba70aeabedfac2c620df6c24a09e64903d97718ccce",
+          "file_bytes": 50649844
+        },
+        "unit": {
+          "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-armv7-unknown-linux-gnueabihf-release-min/unit",
+          "sha256": "f6380f786d706acaa154aa401112dd55567aa6c640f21f4991b96941ff81996c"
+        }
+      },
+      "focused_units": [
+        "result::tests::known_label_copies_bound_retained_bytes_and_outlive_their_source",
+        "result::tests::bounded_filtered_label_copies_keep_single_predicate_visits_and_failure_priority",
+        "result::tests::bounded_label_copy_interruption_releases_bytes_before_and_after_growth",
+        "result::tests::collector_keeps_one_label_owner_across_chunks_and_source_replacement",
+        "result::tests::compact_label_mutations_restore_ordinary_geometric_capacity_and_overlap",
+        "result::tests::compact_label_insertion_keeps_the_existing_post_value_cancellation_phase",
+        "result::tests::checked_collector_interrupts_copy_lookup_and_final_comparison_work",
+        "accounting::tests::capacity_hints_preserve_required_growth_and_accounted_overlap"
+      ],
+      "complete_queries": 172,
+      "actual_callers": {
+        "gcc": {
+          "binary_sha256": "e8ac65e4325838f56c30efcc7fdb2bfecb8be7574321e8ba28c7788777a10c63",
+          "query_arms_checked": 72,
+          "checked_records_sha256": "614cb8055e4c35e704cbc3caac282528f5f121872cf4c81241a3fdbc7b00ed3b"
+        },
+        "g++": {
+          "binary_sha256": "2ee0a7100277c549ad53fc86a198d04cf88b01dbd4593f9a08e7eca67ef13b45",
+          "query_arms_checked": 72,
+          "checked_records_sha256": "614cb8055e4c35e704cbc3caac282528f5f121872cf4c81241a3fdbc7b00ed3b"
+        }
+      },
+      "receipt": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-armv7-unknown-linux-gnueabihf-release-min.json",
+        "sha256": "067e3afb1bb089de0dc3283d34eb4fe9e6fc2e4e498cbd6d332c348357592a78"
+      }
+    }
+  },
+  "foreign_complete_original_comparisons": 688,
+  "focused_foreign_unit_executions": 32,
+  "foreign_scope": "Compiled ARM64/ARM32 under QEMU, both profiles; eight focused units and172 complete page17 original cases per cohort, not full foreign suites.",
+  "actual_native_callers": {
+    "native-owned-labels-before-release-gcc": {
+      "role": "before",
+      "profile": "release",
+      "language": "c",
+      "binary": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/native-owned-labels-before-release-gcc-caller",
+        "sha256": "14f9c32ce7a719f0a1b5049a5112e814454f3d14282613e0ad5b00122dcf2811"
+      },
+      "archive": {
+        "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release/libnetdata_promql_engine.a",
+        "sha256": "c9012d6e1299a5cb18449e61c7e46e6df8dbeb6ffd0b734629dd2960fca80f5e",
+        "file_bytes": 39032136
+      },
+      "compiler_receipt": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release.json"
+    },
+    "native-owned-labels-before-release-gpp": {
+      "role": "before",
+      "profile": "release",
+      "language": "c++",
+      "binary": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/native-owned-labels-before-release-gpp-caller",
+        "sha256": "60184d4e832786b531f31bc632fba3b72826ccd08243c4b7d174b291012b6b6f"
+      },
+      "archive": {
+        "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release/libnetdata_promql_engine.a",
+        "sha256": "c9012d6e1299a5cb18449e61c7e46e6df8dbeb6ffd0b734629dd2960fca80f5e",
+        "file_bytes": 39032136
+      },
+      "compiler_receipt": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release.json"
+    },
+    "native-owned-labels-before-release-min-gcc": {
+      "role": "before",
+      "profile": "release-min",
+      "language": "c",
+      "binary": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/native-owned-labels-before-release-min-gcc-caller",
+        "sha256": "ef34164e2b246e2cb7f498f323a2f590db4a3c295ca5c88a38d41ebd2b9b528f"
+      },
+      "archive": {
+        "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release-min/libnetdata_promql_engine.a",
+        "sha256": "8e44a9b4a519f257bfbac4ad7c407d5384a40878352cc6a2767d38827ec402a4",
+        "file_bytes": 54047668
+      },
+      "compiler_receipt": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release-min.json"
+    },
+    "native-owned-labels-before-release-min-gpp": {
+      "role": "before",
+      "profile": "release-min",
+      "language": "c++",
+      "binary": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/native-owned-labels-before-release-min-gpp-caller",
+        "sha256": "1f7454714f5fb2c3197442e4aca8b9a860aa670588cff3334ff022176551664c"
+      },
+      "archive": {
+        "path": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release-min/libnetdata_promql_engine.a",
+        "sha256": "8e44a9b4a519f257bfbac4ad7c407d5384a40878352cc6a2767d38827ec402a4",
+        "file_bytes": 54047668
+      },
+      "compiler_receipt": ".tmp/grouped-replay-_bvwa6_7/qualified-native-release-min.json"
+    },
+    "native-owned-labels-candidate-release-gcc": {
+      "role": "candidate",
+      "profile": "release",
+      "language": "c",
+      "binary": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/native-owned-labels-candidate-release-gcc-caller",
+        "sha256": "c4c93a2d3a9e745ddc5a2a66f6efda1773ad1de5916c52d42407a22cfe537da8"
+      },
+      "archive": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release/libnetdata_promql_engine.a",
+        "sha256": "2dd524df410a8bbdaca27f18d240806761f65d78f40c157cf0e295ac198deb99",
+        "file_bytes": 39013904
+      },
+      "compiler_receipt": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release.json"
+    },
+    "native-owned-labels-candidate-release-gpp": {
+      "role": "candidate",
+      "profile": "release",
+      "language": "c++",
+      "binary": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/native-owned-labels-candidate-release-gpp-caller",
+        "sha256": "4dd5920d76a2427b6110d9fedc6895b2aad971640fed584e4b948574940e232a"
+      },
+      "archive": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release/libnetdata_promql_engine.a",
+        "sha256": "2dd524df410a8bbdaca27f18d240806761f65d78f40c157cf0e295ac198deb99",
+        "file_bytes": 39013904
+      },
+      "compiler_receipt": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release.json"
+    },
+    "native-owned-labels-candidate-release-min-gcc": {
+      "role": "candidate",
+      "profile": "release-min",
+      "language": "c",
+      "binary": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/native-owned-labels-candidate-release-min-gcc-caller",
+        "sha256": "a22b24e0c350aca7dbe602777307bcfd3a45b2e66161ac11adb9e7a4e381def0"
+      },
+      "archive": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release-min/libnetdata_promql_engine.a",
+        "sha256": "f365146e470d11df5577163e90f224e0c4065a14a09f61f4eb63c2372b161a7a",
+        "file_bytes": 54057588
+      },
+      "compiler_receipt": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release-min.json"
+    },
+    "native-owned-labels-candidate-release-min-gpp": {
+      "role": "candidate",
+      "profile": "release-min",
+      "language": "c++",
+      "binary": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/native-owned-labels-candidate-release-min-gpp-caller",
+        "sha256": "1983e895dd1637fbb7478e6d970050c4ff3dc746f26ee26021b5c74f2b11157e"
+      },
+      "archive": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release-min/libnetdata_promql_engine.a",
+        "sha256": "f365146e470d11df5577163e90f224e0c4065a14a09f61f4eb63c2372b161a7a",
+        "file_bytes": 54057588
+      },
+      "compiler_receipt": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release-min.json"
+    }
+  },
+  "actual_candidate_c_cpp_executables": 12,
+  "comparative_before_native_executables": 4,
+  "query_arms_per_caller": 72,
+  "caller_scope": "Four candidate native and eight candidate foreign C/C++ clients. Four additional native before clients use the same C source with accepted predecessor archives. Each checks9/17labels, selector/label-add/projected aggregate, pages1/17/1024, stream/collect and provider failure. Owned output survives source descriptor replacement and provider/query release. Legacy default C cases were not rerun as a full suite.",
+  "resources": {
+    "complete_groups": 1032,
+    "nonmemory_nonelapsed_observations": "All identical across1032before/candidate pairs, including work, reads, provider calls/pages, output counts, cancellation and temporary-storage counters.",
+    "memory": {
+      "Compiled": {
+        "current": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "Workspace": {
+        "current": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 852,
+          "same": 180,
+          "higher": 0,
+          "minimum_delta": -276933,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 906,
+          "same": 126,
+          "higher": 0,
+          "minimum_delta": -2443200,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 906,
+          "same": 126,
+          "higher": 0,
+          "minimum_delta": -2443200,
+          "maximum_delta": 0
+        }
+      },
+      "Result": {
+        "current": {
+          "lower": 750,
+          "same": 282,
+          "higher": 0,
+          "minimum_delta": -190464,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 750,
+          "same": 282,
+          "higher": 0,
+          "minimum_delta": -190464,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 750,
+          "same": 282,
+          "higher": 0,
+          "minimum_delta": -190464,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "ProviderHeld": {
+        "current": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "BorrowedView": {
+        "current": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "RegexEstimate": {
+        "current": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "SharedCacheReference": {
+        "current": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "Accounting": {
+        "current": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 1032,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      }
+    },
+    "representative": [
+      {
+        "id": "labels-17-rows-64-full",
+        "profile": "release",
+        "page_size": 17,
+        "before": {
+          "workspace": {
+            "acquired": 1049992,
+            "current": 0,
+            "overflowed": false,
+            "peak": 237480,
+            "released": 1049992
+          },
+          "result": {
+            "acquired": 402336,
+            "current": 224064,
+            "overflowed": false,
+            "peak": 225504,
+            "released": 178272
+          },
+          "work": 119703,
+          "samples_fetched": 384
+        },
+        "candidate": {
+          "workspace": {
+            "acquired": 957832,
+            "current": 0,
+            "overflowed": false,
+            "peak": 145320,
+            "released": 957832
+          },
+          "result": {
+            "acquired": 310176,
+            "current": 131904,
+            "overflowed": false,
+            "peak": 133344,
+            "released": 178272
+          },
+          "work": 119703,
+          "samples_fetched": 384
+        }
+      },
+      {
+        "id": "labels-32-rows-64-full",
+        "profile": "release",
+        "page_size": 17,
+        "before": {
+          "workspace": {
+            "acquired": 1063432,
+            "current": 0,
+            "overflowed": false,
+            "peak": 250714,
+            "released": 1063432
+          },
+          "result": {
+            "acquired": 415776,
+            "current": 237504,
+            "overflowed": false,
+            "peak": 238738,
+            "released": 178272
+          },
+          "work": 214550,
+          "samples_fetched": 384
+        },
+        "candidate": {
+          "workspace": {
+            "acquired": 1063432,
+            "current": 0,
+            "overflowed": false,
+            "peak": 250714,
+            "released": 1063432
+          },
+          "result": {
+            "acquired": 415776,
+            "current": 237504,
+            "overflowed": false,
+            "peak": 238738,
+            "released": 178272
+          },
+          "work": 214550,
+          "samples_fetched": 384
+        }
+      },
+      {
+        "id": "mutation-labels-9-rows-64-nested-add",
+        "profile": "release",
+        "page_size": 17,
+        "before": {
+          "workspace": {
+            "acquired": 3705576,
+            "current": 0,
+            "overflowed": false,
+            "peak": 266098,
+            "released": 3705576
+          },
+          "result": {
+            "acquired": 200864,
+            "current": 120896,
+            "overflowed": false,
+            "peak": 121544,
+            "released": 79968
+          },
+          "work": 357881,
+          "samples_fetched": 384
+        },
+        "candidate": {
+          "workspace": {
+            "acquired": 3361512,
+            "current": 0,
+            "overflowed": false,
+            "peak": 264754,
+            "released": 3361512
+          },
+          "result": {
+            "acquired": 170144,
+            "current": 90176,
+            "overflowed": false,
+            "peak": 90824,
+            "released": 79968
+          },
+          "work": 357881,
+          "samples_fetched": 384
+        }
+      }
+    ],
+    "comparative_native_c_pairs": 288,
+    "comparative_native_c_memory": {
+      "Compiled": {
+        "current": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "Workspace": {
+        "current": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 144,
+          "same": 144,
+          "higher": 0,
+          "minimum_delta": -3168,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 144,
+          "same": 144,
+          "higher": 0,
+          "minimum_delta": -8352,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 144,
+          "same": 144,
+          "higher": 0,
+          "minimum_delta": -8352,
+          "maximum_delta": 0
+        }
+      },
+      "Result": {
+        "current": {
+          "lower": 72,
+          "same": 216,
+          "higher": 0,
+          "minimum_delta": -1440,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 72,
+          "same": 216,
+          "higher": 0,
+          "minimum_delta": -1440,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 72,
+          "same": 216,
+          "higher": 0,
+          "minimum_delta": -1440,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "ProviderHeld": {
+        "current": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "BorrowedView": {
+        "current": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "RegexEstimate": {
+        "current": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "SharedCacheReference": {
+        "current": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      },
+      "Accounting": {
+        "current": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "peak": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "acquired": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        },
+        "released": {
+          "lower": 0,
+          "same": 288,
+          "higher": 0,
+          "minimum_delta": 0,
+          "maximum_delta": 0
+        }
+      }
+    },
+    "interpretation": "All eight memory kinds and current/peak/acquired/released observations are compared. Acquired/released are cumulative traffic. Requested engine bytes exclude allocator overhead and process RSS; measured nonincreases are not universal guarantees."
+  },
+  "timing": {
+    "responses_checked": 400,
+    "groups": [
+      {
+        "profile": "release",
+        "id": "labels-1-rows-1-full",
+        "before_ns": [
+          21430,
+          17720,
+          16970,
+          17800,
+          16340
+        ],
+        "candidate_ns": [
+          21580,
+          16640,
+          17880,
+          16140,
+          18500
+        ],
+        "before_median_ns": 17720,
+        "candidate_median_ns": 17880,
+        "median_ratio_before_over_candidate": 0.9910514541387024,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "labels-9-rows-1-full",
+        "before_ns": [
+          26090,
+          21180,
+          21550,
+          21380,
+          21530
+        ],
+        "candidate_ns": [
+          22080,
+          20960,
+          20879,
+          20780,
+          21390
+        ],
+        "before_median_ns": 21530,
+        "candidate_median_ns": 20960,
+        "median_ratio_before_over_candidate": 1.0271946564885497,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "labels-17-rows-64-full",
+        "before_ns": [
+          1268741,
+          1231141,
+          1275710,
+          1248881,
+          1225900
+        ],
+        "candidate_ns": [
+          1132692,
+          1135501,
+          1153261,
+          1131471,
+          1180051
+        ],
+        "before_median_ns": 1248881,
+        "candidate_median_ns": 1135501,
+        "median_ratio_before_over_candidate": 1.0998501982825202,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "labels-32-rows-64-full",
+        "before_ns": [
+          1725567,
+          1771137,
+          1767536,
+          1776347,
+          1708527
+        ],
+        "candidate_ns": [
+          1798517,
+          1730277,
+          1728827,
+          1746947,
+          1749607
+        ],
+        "before_median_ns": 1767536,
+        "candidate_median_ns": 1746947,
+        "median_ratio_before_over_candidate": 1.0117857038593614,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "labels-17-rows-64-map",
+        "before_ns": [
+          5292311,
+          5356970,
+          5299690,
+          5215751,
+          5197641
+        ],
+        "candidate_ns": [
+          6483732,
+          5244721,
+          5183181,
+          5200551,
+          5257420
+        ],
+        "before_median_ns": 5292311,
+        "candidate_median_ns": 5244721,
+        "median_ratio_before_over_candidate": 1.0090738859130923,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "labels-17-rows-64-projected",
+        "before_ns": [
+          3316335,
+          3329275,
+          3364975,
+          3341575,
+          3303165
+        ],
+        "candidate_ns": [
+          3333756,
+          3318725,
+          3363535,
+          3428004,
+          3252625
+        ],
+        "before_median_ns": 3329275,
+        "candidate_median_ns": 3333756,
+        "median_ratio_before_over_candidate": 0.9986558704356288,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "mutation-labels-3-rows-1-replace-add",
+        "before_ns": [
+          65360,
+          60070,
+          60470,
+          59730,
+          59359
+        ],
+        "candidate_ns": [
+          61980,
+          60940,
+          74209,
+          60040,
+          59719
+        ],
+        "before_median_ns": 60070,
+        "candidate_median_ns": 60940,
+        "median_ratio_before_over_candidate": 0.9857236626189695,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "mutation-labels-9-rows-64-nested-add",
+        "before_ns": [
+          2847788,
+          2841399,
+          2841959,
+          2845899,
+          2858499
+        ],
+        "candidate_ns": [
+          2948389,
+          2863638,
+          2927778,
+          2965078,
+          2798529
+        ],
+        "before_median_ns": 2845899,
+        "candidate_median_ns": 2927778,
+        "median_ratio_before_over_candidate": 0.9720337402630937,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "mutation-labels-2-rows-64-join-existing",
+        "before_ns": [
+          864834,
+          856014,
+          910704,
+          843674,
+          874293
+        ],
+        "candidate_ns": [
+          855844,
+          870914,
+          853324,
+          842764,
+          847944
+        ],
+        "before_median_ns": 864834,
+        "candidate_median_ns": 853324,
+        "median_ratio_before_over_candidate": 1.0134884287796897,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release",
+        "id": "labels-empty-selector",
+        "before_ns": [
+          7690,
+          7640,
+          8239,
+          7680,
+          7920
+        ],
+        "candidate_ns": [
+          7630,
+          8020,
+          7609,
+          7410,
+          7430
+        ],
+        "before_median_ns": 7690,
+        "candidate_median_ns": 7609,
+        "median_ratio_before_over_candidate": 1.0106452884741752,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-1-rows-1-full",
+        "before_ns": [
+          19620,
+          19930,
+          20819,
+          20229,
+          22000
+        ],
+        "candidate_ns": [
+          29099,
+          20470,
+          20760,
+          20050,
+          21250
+        ],
+        "before_median_ns": 20229,
+        "candidate_median_ns": 20760,
+        "median_ratio_before_over_candidate": 0.974421965317919,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-9-rows-1-full",
+        "before_ns": [
+          30179,
+          30390,
+          30650,
+          31300,
+          32349
+        ],
+        "candidate_ns": [
+          49760,
+          30020,
+          30860,
+          33039,
+          30590
+        ],
+        "before_median_ns": 30650,
+        "candidate_median_ns": 30860,
+        "median_ratio_before_over_candidate": 0.9931950745301361,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-17-rows-64-full",
+        "before_ns": [
+          2098264,
+          2057764,
+          2080345,
+          2123644,
+          2178434
+        ],
+        "candidate_ns": [
+          1988845,
+          2042315,
+          2055565,
+          1998925,
+          2031505
+        ],
+        "before_median_ns": 2098264,
+        "candidate_median_ns": 2031505,
+        "median_ratio_before_over_candidate": 1.0328618438054546,
+        "slower_candidate_median": false
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-32-rows-64-full",
+        "before_ns": [
+          3086107,
+          3052067,
+          3093417,
+          3101597,
+          3386575
+        ],
+        "candidate_ns": [
+          3158437,
+          3117807,
+          3238596,
+          3197556,
+          3259176
+        ],
+        "before_median_ns": 3093417,
+        "candidate_median_ns": 3197556,
+        "median_ratio_before_over_candidate": 0.9674316884520553,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-17-rows-64-map",
+        "before_ns": [
+          9121422,
+          9008163,
+          9168631,
+          9201551,
+          9215301
+        ],
+        "candidate_ns": [
+          9499009,
+          9315610,
+          9350680,
+          9353020,
+          9919256
+        ],
+        "before_median_ns": 9168631,
+        "candidate_median_ns": 9353020,
+        "median_ratio_before_over_candidate": 0.9802856189765444,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-17-rows-64-projected",
+        "before_ns": [
+          5825886,
+          5628378,
+          5729817,
+          5876826,
+          8426347
+        ],
+        "candidate_ns": [
+          6153274,
+          5707278,
+          5869437,
+          6312033,
+          5979556
+        ],
+        "before_median_ns": 5825886,
+        "candidate_median_ns": 5979556,
+        "median_ratio_before_over_candidate": 0.9743007674817328,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "mutation-labels-3-rows-1-replace-add",
+        "before_ns": [
+          76070,
+          75799,
+          87790,
+          76909,
+          108419
+        ],
+        "candidate_ns": [
+          77779,
+          80340,
+          82019,
+          75890,
+          92879
+        ],
+        "before_median_ns": 76909,
+        "candidate_median_ns": 80340,
+        "median_ratio_before_over_candidate": 0.957294000497884,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "mutation-labels-9-rows-64-nested-add",
+        "before_ns": [
+          5903406,
+          4870323,
+          4992192,
+          4990133,
+          6645270
+        ],
+        "candidate_ns": [
+          5080952,
+          4977733,
+          5063843,
+          5079142,
+          5280681
+        ],
+        "before_median_ns": 4992192,
+        "candidate_median_ns": 5079142,
+        "median_ratio_before_over_candidate": 0.9828809669034652,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "mutation-labels-2-rows-64-join-existing",
+        "before_ns": [
+          1798417,
+          1420539,
+          1435369,
+          1452729,
+          1480889
+        ],
+        "candidate_ns": [
+          1541468,
+          1452999,
+          1532788,
+          1501929,
+          2024304
+        ],
+        "before_median_ns": 1452729,
+        "candidate_median_ns": 1532788,
+        "median_ratio_before_over_candidate": 0.9477690326385645,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-empty-selector",
+        "before_ns": [
+          9410,
+          9230,
+          9640,
+          8960,
+          9550
+        ],
+        "candidate_ns": [
+          10490,
+          9029,
+          9459,
+          9470,
+          15250
+        ],
+        "before_median_ns": 9410,
+        "candidate_median_ns": 9470,
+        "median_ratio_before_over_candidate": 0.9936642027455121,
+        "slower_candidate_median": true
+      }
+    ],
+    "slower_groups": [
+      {
+        "profile": "release",
+        "id": "labels-1-rows-1-full",
+        "before_ns": [
+          21430,
+          17720,
+          16970,
+          17800,
+          16340
+        ],
+        "candidate_ns": [
+          21580,
+          16640,
+          17880,
+          16140,
+          18500
+        ],
+        "before_median_ns": 17720,
+        "candidate_median_ns": 17880,
+        "median_ratio_before_over_candidate": 0.9910514541387024,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "labels-17-rows-64-projected",
+        "before_ns": [
+          3316335,
+          3329275,
+          3364975,
+          3341575,
+          3303165
+        ],
+        "candidate_ns": [
+          3333756,
+          3318725,
+          3363535,
+          3428004,
+          3252625
+        ],
+        "before_median_ns": 3329275,
+        "candidate_median_ns": 3333756,
+        "median_ratio_before_over_candidate": 0.9986558704356288,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "mutation-labels-3-rows-1-replace-add",
+        "before_ns": [
+          65360,
+          60070,
+          60470,
+          59730,
+          59359
+        ],
+        "candidate_ns": [
+          61980,
+          60940,
+          74209,
+          60040,
+          59719
+        ],
+        "before_median_ns": 60070,
+        "candidate_median_ns": 60940,
+        "median_ratio_before_over_candidate": 0.9857236626189695,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release",
+        "id": "mutation-labels-9-rows-64-nested-add",
+        "before_ns": [
+          2847788,
+          2841399,
+          2841959,
+          2845899,
+          2858499
+        ],
+        "candidate_ns": [
+          2948389,
+          2863638,
+          2927778,
+          2965078,
+          2798529
+        ],
+        "before_median_ns": 2845899,
+        "candidate_median_ns": 2927778,
+        "median_ratio_before_over_candidate": 0.9720337402630937,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-1-rows-1-full",
+        "before_ns": [
+          19620,
+          19930,
+          20819,
+          20229,
+          22000
+        ],
+        "candidate_ns": [
+          29099,
+          20470,
+          20760,
+          20050,
+          21250
+        ],
+        "before_median_ns": 20229,
+        "candidate_median_ns": 20760,
+        "median_ratio_before_over_candidate": 0.974421965317919,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-9-rows-1-full",
+        "before_ns": [
+          30179,
+          30390,
+          30650,
+          31300,
+          32349
+        ],
+        "candidate_ns": [
+          49760,
+          30020,
+          30860,
+          33039,
+          30590
+        ],
+        "before_median_ns": 30650,
+        "candidate_median_ns": 30860,
+        "median_ratio_before_over_candidate": 0.9931950745301361,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-32-rows-64-full",
+        "before_ns": [
+          3086107,
+          3052067,
+          3093417,
+          3101597,
+          3386575
+        ],
+        "candidate_ns": [
+          3158437,
+          3117807,
+          3238596,
+          3197556,
+          3259176
+        ],
+        "before_median_ns": 3093417,
+        "candidate_median_ns": 3197556,
+        "median_ratio_before_over_candidate": 0.9674316884520553,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-17-rows-64-map",
+        "before_ns": [
+          9121422,
+          9008163,
+          9168631,
+          9201551,
+          9215301
+        ],
+        "candidate_ns": [
+          9499009,
+          9315610,
+          9350680,
+          9353020,
+          9919256
+        ],
+        "before_median_ns": 9168631,
+        "candidate_median_ns": 9353020,
+        "median_ratio_before_over_candidate": 0.9802856189765444,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-17-rows-64-projected",
+        "before_ns": [
+          5825886,
+          5628378,
+          5729817,
+          5876826,
+          8426347
+        ],
+        "candidate_ns": [
+          6153274,
+          5707278,
+          5869437,
+          6312033,
+          5979556
+        ],
+        "before_median_ns": 5825886,
+        "candidate_median_ns": 5979556,
+        "median_ratio_before_over_candidate": 0.9743007674817328,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "mutation-labels-3-rows-1-replace-add",
+        "before_ns": [
+          76070,
+          75799,
+          87790,
+          76909,
+          108419
+        ],
+        "candidate_ns": [
+          77779,
+          80340,
+          82019,
+          75890,
+          92879
+        ],
+        "before_median_ns": 76909,
+        "candidate_median_ns": 80340,
+        "median_ratio_before_over_candidate": 0.957294000497884,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "mutation-labels-9-rows-64-nested-add",
+        "before_ns": [
+          5903406,
+          4870323,
+          4992192,
+          4990133,
+          6645270
+        ],
+        "candidate_ns": [
+          5080952,
+          4977733,
+          5063843,
+          5079142,
+          5280681
+        ],
+        "before_median_ns": 4992192,
+        "candidate_median_ns": 5079142,
+        "median_ratio_before_over_candidate": 0.9828809669034652,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "mutation-labels-2-rows-64-join-existing",
+        "before_ns": [
+          1798417,
+          1420539,
+          1435369,
+          1452729,
+          1480889
+        ],
+        "candidate_ns": [
+          1541468,
+          1452999,
+          1532788,
+          1501929,
+          2024304
+        ],
+        "before_median_ns": 1452729,
+        "candidate_median_ns": 1532788,
+        "median_ratio_before_over_candidate": 0.9477690326385645,
+        "slower_candidate_median": true
+      },
+      {
+        "profile": "release-min",
+        "id": "labels-empty-selector",
+        "before_ns": [
+          9410,
+          9230,
+          9640,
+          8960,
+          9550
+        ],
+        "candidate_ns": [
+          10490,
+          9029,
+          9459,
+          9470,
+          15250
+        ],
+        "before_median_ns": 9410,
+        "candidate_median_ns": 9470,
+        "median_ratio_before_over_candidate": 0.9936642027455121,
+        "slower_candidate_median": true
+      }
+    ],
+    "measurement": "Five alternating before/candidate pairs per profile. Each of ten fixed cases has warm and measured execution; all400 complete responses and each binary own nonelapsed observations must match prior qualification.",
+    "limits": "Shared host without CPU/frequency isolation. Engine execution including preparation, synthetic in-memory provider; not HTTP, production DBengine disk I/O, process RSS or universal throughput."
+  },
+  "static": {
+    "format": "pass",
+    "strict_clippy": [
+      "production",
+      "fixtures"
+    ],
+    "msrv": "Installed Rust1.91.0, all-targets fixtures compilation only."
+  },
+  "receipts": {
+    "old-runtime-regression.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/old-runtime-regression.json",
+      "sha256": "0a8592051d094ab56304c5330492cebd75ddc25fce80d44ceda5d4f0a7f52435"
+    },
+    "pilot.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/pilot.json",
+      "sha256": "fbe173bd564fefa700028ad79bcfa1fb463efcc5a9d87e526fc41f034e0214c2"
+    },
+    "debug.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/debug.json",
+      "sha256": "31ce22642fbe67ee90f14b3a8876a2ca285abc748854282e1cbea32891940657"
+    },
+    "trial.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/trial.json",
+      "sha256": "89c08f669a5f6c562f0805d7f4d80eb1443792d87a557db926393a1c74b34360"
+    },
+    "baseline.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/baseline.json",
+      "sha256": "01c6c5dc61e1fda3c9472c0ff81f4b7f5fb6260bb932beab25137e8c0ccb3f75"
+    },
+    "mutation-baseline.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/mutation-baseline.json",
+      "sha256": "a99b83d799d16800fb7601a62f16540a4e7b916bc292e189cb260a308fd2dd94"
+    },
+    "empty-original.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/empty-original.json",
+      "sha256": "2136fac227dec60c3424903b8ca6858dd56d2b07c2f2246c8312e988b8540791"
+    },
+    "panels-before.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/panels-before.json",
+      "sha256": "ddf8f1deb94d927374d8d04c2621922ea47eb47b3c02484f11a391aa2af2c5b8"
+    },
+    "panels-candidate.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/panels-candidate.json",
+      "sha256": "7d43286974c0c237a0db5f8bd1c87e6fcdadd83f7c1632ae86c7426cf1f942ef"
+    },
+    "native-callers.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/native-callers.json",
+      "sha256": "08e60c7e936f2474185c245873033fc73b501d032766739efed4a1add48396d7"
+    },
+    "static-receipt.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/static-receipt.json",
+      "sha256": "a5489d526d8175fd217934594529d025b6450629ce2390a81aa6aca0295e375d"
+    },
+    "timing.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/timing.json",
+      "sha256": "9b62d5dd10203d8c61dcf40dbf47c502ba1cc49b46354493c545a96675ff40a1"
+    },
+    "qualified-native-release.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release.json",
+      "sha256": "2000fbac95b3e4705b3cef7d02973f9b5a24a24258785ef1bf86cc8adde3c9ed"
+    },
+    "qualified-native-release-min.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-native-release-min.json",
+      "sha256": "9d0fd10a1bc38e05dd11c23805e05c654d9df0c94b24a054290a0654a10a7384"
+    },
+    "qualified-aarch64-unknown-linux-gnu-release.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-aarch64-unknown-linux-gnu-release.json",
+      "sha256": "5c97e9081bb29eab9660406bb0463bbbdaefcbadef7c446b0d89c92d902484aa"
+    },
+    "qualified-aarch64-unknown-linux-gnu-release-min.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-aarch64-unknown-linux-gnu-release-min.json",
+      "sha256": "416916d700740d835fea7145e88bd213aa246dbe559ea245f30f7f37323afe10"
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-armv7-unknown-linux-gnueabihf-release.json",
+      "sha256": "089169128ecf65953bb810276c322412d2633712b972627564da14ac6d6fb856"
+    },
+    "qualified-armv7-unknown-linux-gnueabihf-release-min.json": {
+      "path": ".tmp/owned-label-capacity-2u1rekeq/qualified-armv7-unknown-linux-gnueabihf-release-min.json",
+      "sha256": "067e3afb1bb089de0dc3283d34eb4fe9e6fc2e4e498cbd6d332c348357592a78"
+    }
+  },
+  "historical_helper_versions": [
+    {
+      "receipt": "trial.json",
+      "original_path": "src/crates/promql-engine/tests/promql-conformance/owned_label_cases.py",
+      "original_sha256": "8b3294a74b41fb9f33f098129c69d450980dde85c63c2935c3ec23f1928059ff",
+      "verified_exact_bytes": {
+        "path": ".tmp/owned-label-capacity-2u1rekeq/owned_label_cases-before-empty.py",
+        "sha256": "8b3294a74b41fb9f33f098129c69d450980dde85c63c2935c3ec23f1928059ff"
+      },
+      "lineage": "Only the later empty-selector append is absent. Reconstructed bytes exactly match the already-closed trial binding; original receipt and results remain unchanged."
+    }
+  ],
+  "input_generator": {
+    "path": "src/crates/promql-engine/tests/promql-conformance/owned_label_cases.py",
+    "sha256": "3f56e74201179fb2f095b8e173aedeba41e81b3f35fd52ff6c31e81de5dad12a"
+  },
+  "limitations": [
+    "Finite expression evidence against the pinned reference, not complete arbitrary-input language proof.",
+    "Raw samples remain paged on both axes; existing cardinality metadata and independently owned output can grow, and limits remain disabled.",
+    "Smaller retained copies can change later replacement overlap; every measured cost is retained, without a universal lower-peak guarantee.",
+    "Native release fixture text increases32128bytes; release-min text increases480bytes. These are actual fixture ELF text changes, not Agent-size or RSS measurements.",
+    "Synthetic shared-host timing has13slower medians among20groups; retain every sample and group. No CPU/frequency isolation or universal throughput claim.",
+    "Earlier broader language/SRE/Agent/DBengine/sanitizer/CI cohorts retain actual historical identities; no fresh such pass is claimed."
+  ]
+}

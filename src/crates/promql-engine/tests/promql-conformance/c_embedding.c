@@ -30,7 +30,7 @@ typedef struct {
 
 typedef struct {
     uint64_t rows, maximum, opened[4], closed[4], pages_returned, samples_returned;
-    netdata_promql_label_t labels[9];
+    netdata_promql_label_t labels[17];
     uint64_t label_count;
     unsigned failure, cancel_at;
     netdata_promql_control_t *control;
@@ -2038,6 +2038,145 @@ static void metadata_discovery(netdata_promql_engine_t *engine) {
     puts("{\"metadata_discovery\":\"pass\",\"cases\":7}");
 }
 
+typedef struct {
+    delivery output;
+    fixture *source;
+    netdata_promql_label_t expected[18];
+    uint64_t label_count, points;
+} label_copy_output;
+
+static void label_copy_equal(netdata_promql_label_t actual, netdata_promql_label_t expected) {
+    assert(actual.name.len == expected.name.len && actual.value.len == expected.value.len);
+    assert(memcmp(actual.name.data, expected.name.data, (size_t)actual.name.len) == 0);
+    assert(memcmp(actual.value.data, expected.value.data, (size_t)actual.value.len) == 0);
+}
+
+static uint32_t label_copy_begin(void *context, const netdata_promql_output_header_t *header,
+                                 const netdata_promql_callback_control_t *control, netdata_promql_bytes_t *error) {
+    label_copy_output *output = (label_copy_output *)context;
+    assert(header->value_type == NETDATA_PROMQL_TYPE_MATRIX && header->reserved == 0);
+    assert(header->start_ms == 1000 && header->end_ms == 2000 && header->step_ms == 1000);
+    return output_status(&output->output, 1, control, error);
+}
+
+static uint32_t label_copy_chunk(void *context, const netdata_promql_chunk_t *chunk,
+                                 const netdata_promql_callback_control_t *control, netdata_promql_bytes_t *error) {
+    label_copy_output *output = (label_copy_output *)context;
+    assert(chunk->kind == NETDATA_PROMQL_CHUNK_SERIES && chunk->reserved == 0);
+    const netdata_promql_series_chunk_t *series = &chunk->payload.series;
+    assert(series->series_id == 0 && series->labels.len == output->label_count && series->points.len == 1);
+    for (uint64_t label = 0; label < output->label_count; label++)
+        label_copy_equal(series->labels.data[label], output->expected[label]);
+    int64_t time_ms = (int64_t)(++output->points) * 1000;
+    assert(series->points.data[0].time_ms == time_ms && series->points.data[0].value.kind == NETDATA_PROMQL_VALUE_FLOAT);
+    assert(series->points.data[0].value.payload.float_bits == netdata_promql_double_bits((double)time_ms / 1000));
+    return output_status(&output->output, 2, control, error);
+}
+
+static uint32_t label_copy_commit(void *context, const netdata_promql_query_observations_t *observations,
+                                  const netdata_promql_callback_control_t *control, netdata_promql_bytes_t *error) {
+    label_copy_output *output = (label_copy_output *)context;
+    assert(output->points == 2 && observations->output_samples == 2);
+    assert(observations->memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
+    released(output->source);
+    return output_status(&output->output, 3, control, error);
+}
+
+static void label_copy_abort(void *context, const netdata_promql_accounting_context_t *account) {
+    output_abort(&((label_copy_output *)context)->output, account);
+}
+
+static void owned_label_outputs(netdata_promql_engine_t *engine) {
+    static const char *names[] = {"zz00", "zz01", "zz02", "zz03", "zz04", "zz05", "zz06", "zz07",
+                                  "zz08", "zz09", "zz10", "zz11", "zz12", "zz13", "zz14"};
+    const char *expressions[] = {"m", "label_replace(m,\"added\",\"north\",\"__name__\",\".*\")", "sum by(zone)(m)"};
+    const uint64_t counts[] = {9, 17}, pages[] = {1, 17, 1024};
+    netdata_promql_engine_observations_t idle = engine_observations(engine);
+    for (unsigned ci = 0; ci < 2; ci++) for (unsigned shape = 0; shape < 3; shape++) {
+        for (unsigned page = 0; page < 3; page++) for (unsigned streamed = 0; streamed < 2; streamed++) {
+            for (unsigned failure = 0; failure < 2; failure++) {
+                fixture source;
+                init_fixture(&source, 3, pages[page]);
+                source.label_count = counts[ci];
+                source.failure = failure ? 6 : 0;
+                for (unsigned label = 2; label < source.label_count; label++) {
+                    source.labels[label].name = text(names[label - 2]);
+                    source.labels[label].value = text("extra");
+                }
+                label_copy_output output;
+                memset(&output, 0, sizeof(output));
+                output.source = &source;
+                output.label_count = shape == 2 ? 1 : source.label_count + (shape == 1);
+                if (shape == 2) output.expected[0] = source.labels[1];
+                else {
+                    output.expected[0] = source.labels[0];
+                    if (shape == 1) {
+                        output.expected[1].name = text("added");
+                        output.expected[1].value = text("north");
+                    }
+                    for (uint64_t label = 1; label < source.label_count; label++)
+                        output.expected[label + (shape == 1)] = source.labels[label];
+                }
+                netdata_promql_output_t table = delivery_table(&output.output);
+                table.context = &output;
+                table.begin = label_copy_begin; table.chunk = label_copy_chunk;
+                table.commit = label_copy_commit; table.abort = label_copy_abort;
+                netdata_promql_provider_t p = provider(&source);
+                netdata_promql_query_t *query = compile(engine, expressions[shape]);
+                netdata_promql_request_t request = instant(1000);
+                request.kind = NETDATA_PROMQL_REQUEST_RANGE;
+                request.end_ms = 2000;
+                request.step_ms = 1000;
+                netdata_promql_result_t *result = NULL;
+                netdata_promql_report_t *report = NULL;
+                uint32_t status = streamed ? netdata_promql_execute(query, &p, &request, NULL, &table, &report) :
+                                            netdata_promql_collect(query, &p, &request, NULL, &result, &report);
+                assert(status == (failure ? NETDATA_PROMQL_PROVIDER_ERROR : NETDATA_PROMQL_OK));
+                assert(report && (streamed || failure ? !result : result != NULL));
+                released(&source);
+                assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+                memset(source.labels, 0, sizeof(source.labels));
+                netdata_promql_query_observations_t observed;
+                assert(netdata_promql_report_observations(report, &observed) == NETDATA_PROMQL_OK);
+                assert(observed.output_samples == (failure ? 0u : 2u));
+                if (streamed) {
+                    assert(output.output.calls[0] == 1 && output.output.calls[2] == !failure);
+                    assert(output.output.calls[3] == failure && output.points == (failure ? 0u : 2u));
+                } else if (!failure) {
+                    netdata_promql_result_info_t info;
+                    netdata_promql_series_info_t series;
+                    assert(netdata_promql_result_info(result, &info) == NETDATA_PROMQL_OK);
+                    assert(info.header.value_type == NETDATA_PROMQL_TYPE_MATRIX && info.series_count == 1 && info.annotation_count == 0);
+                    assert(netdata_promql_result_series_info(result, 0, &series) == NETDATA_PROMQL_OK);
+                    assert(series.label_count == output.label_count && series.point_count == 2);
+                    for (uint64_t label = 0; label < output.label_count; label++) {
+                        netdata_promql_label_t actual;
+                        assert(netdata_promql_result_label(result, 0, label, &actual) == NETDATA_PROMQL_OK);
+                        label_copy_equal(actual, output.expected[label]);
+                    }
+                    for (uint64_t point = 0; point < 2; point++) {
+                        netdata_promql_point_info_t actual;
+                        assert(netdata_promql_result_point(result, 0, point, &actual) == NETDATA_PROMQL_OK);
+                        assert(actual.time_ms == (int64_t)(point + 1) * 1000 && actual.value_kind == NETDATA_PROMQL_VALUE_FLOAT);
+                        assert(actual.value_bits == netdata_promql_double_bits((double)point + 1));
+                    }
+                }
+                printf("{\"owned_labels\":\"pass\",\"labels\":%" PRIu64 ",\"shape\":%u,\"page\":%" PRIu64 ",\"streamed\":%u,\"failure\":%u,\"work\":%" PRIu64 ",\"fetched\":%" PRIu64 ",\"memory\":[",
+                       counts[ci], shape, pages[page], streamed, failure, observed.work, observed.samples_fetched);
+                for (unsigned kind = 0; kind < NETDATA_PROMQL_MEMORY_KINDS; kind++) {
+                    netdata_promql_memory_observation_t memory = observed.memory[kind];
+                    printf("%s[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 "]", kind ? "," : "",
+                           memory.current, memory.peak, memory.acquired, memory.released);
+                }
+                puts("]}");
+                if (result) assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
+                assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+                balanced(engine, &idle);
+            }
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     assert(netdata_promql_abi_version() == NETDATA_PROMQL_ABI_VERSION);
     netdata_promql_engine_options_t options;
@@ -2048,6 +2187,11 @@ int main(int argc, char **argv) {
     assert(netdata_promql_engine_create(&options, &engine) == NETDATA_PROMQL_OK);
     netdata_promql_engine_observations_t idle;
     assert(netdata_promql_engine_observations(engine, &idle) == NETDATA_PROMQL_OK);
+    if (argc == 2 && strcmp(argv[1], "--owned-labels-only") == 0) {
+        owned_label_outputs(engine);
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        return 0;
+    }
     if (argc == 2 && strcmp(argv[1], "--regex-only") == 0) {
         protocol_primitives(engine);
         balanced(engine, &idle);

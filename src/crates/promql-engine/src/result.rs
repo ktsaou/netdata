@@ -81,15 +81,19 @@ impl OwnedLabels {
         )
     }
     fn copy_labels_with<'a>(
-        labels: impl IntoIterator<Item = LabelRef<'a>>,
+        labels: impl ExactSizeIterator<Item = LabelRef<'a>>,
         account: &QueryAccounting,
         kind: MemoryKind,
         work: HistogramWork<'_>,
     ) -> Result<Self, Interrupted> {
+        let capacity_hint = labels.len();
         let mut result = Self::new(account, kind);
         for label in labels {
             work.step(1)?;
-            result.0.push(copy_label_with(label, account, kind, work)?);
+            result.0.push_with_capacity_hint(
+                copy_label_with(label, account, kind, work)?,
+                capacity_hint,
+            );
         }
         work.step(1)?;
         Ok(result)
@@ -102,30 +106,48 @@ impl OwnedLabels {
         mut keep: impl FnMut(&OwnedLabel) -> Result<bool, Interrupted>,
     ) -> Result<Self, Interrupted> {
         let work = HistogramWork::new(control, account);
+        let capacity_hint = self.0.len();
         let mut result = Self::new(account, kind);
         for label in &*self.0 {
             work.step(1)?;
             if keep(label)? {
-                result.0.push(copy_label_with(
-                    LabelRef {
-                        name: &label.name,
-                        value: &label.value,
-                    },
-                    account,
-                    kind,
-                    work,
-                )?);
+                result.0.push_with_capacity_hint(
+                    copy_label_with(
+                        LabelRef {
+                            name: &label.name,
+                            value: &label.value,
+                        },
+                        account,
+                        kind,
+                        work,
+                    )?,
+                    capacity_hint,
+                );
             }
         }
         work.step(1)?;
         Ok(result)
+    }
+    fn push_owned(&mut self, label: OwnedLabel) {
+        // Compact copies can end between ordinary geometric growth boundaries.
+        let capacity_hint = if self.0.len() == self.0.capacity() {
+            self.0
+                .len()
+                .saturating_add(1)
+                .checked_next_power_of_two()
+                .unwrap_or(usize::MAX)
+                .max(4)
+        } else {
+            usize::MAX
+        };
+        self.0.push_with_capacity_hint(label, capacity_hint);
     }
     pub fn push(&mut self, name: &[u8], value: &[u8], account: &QueryAccounting, kind: MemoryKind) {
         let mut owned_name = AccountedVec::new(account, kind);
         let mut owned_value = AccountedVec::new(account, kind);
         owned_name.extend_from_slice(name);
         owned_value.extend_from_slice(value);
-        self.0.push(OwnedLabel {
+        self.push_owned(OwnedLabel {
             name: owned_name,
             value: owned_value,
         });
@@ -211,7 +233,7 @@ impl OwnedLabels {
                     let mut owned_value = AccountedVec::new(account, kind);
                     append_bytes_checked(&mut owned_name, name, account, control)?;
                     append_bytes_checked(&mut owned_value, value, account, control)?;
-                    self.0.push(OwnedLabel {
+                    self.push_owned(OwnedLabel {
                         name: owned_name,
                         value: owned_value,
                     });
@@ -1045,6 +1067,413 @@ mod tests {
         accounting::EngineAccounting,
         histogram::{CUSTOM_BUCKETS_SCHEMA, Span},
     };
+
+    fn label_fields(count: usize) -> Vec<(Vec<u8>, Vec<u8>)> {
+        (0..count)
+            .map(|index| {
+                (
+                    format!("k{index:02}").into_bytes(),
+                    vec![index as u8, 0, 255, index as u8],
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn known_label_copies_bound_retained_bytes_and_outlive_their_source() {
+        let mut excess = Vec::new();
+        for kind in [MemoryKind::Workspace, MemoryKind::Result] {
+            for checked in [false, true] {
+                for count in [0, 1, 2, 3, 4, 8, 9, 16, 17, 32] {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let mut source = label_fields(count);
+                    let expected = source.clone();
+                    let labels: Vec<_> = source
+                        .iter()
+                        .map(|(name, value)| LabelRef { name, value })
+                        .collect();
+                    let copied = if checked {
+                        OwnedLabels::copy_from_checked(&labels, &account, kind, &control).unwrap()
+                    } else {
+                        OwnedLabels::copy_from(&labels, &account, kind)
+                    };
+                    drop(labels);
+                    for (name, value) in &mut source {
+                        name.fill(b'x');
+                        value.fill(b'y');
+                    }
+                    source.clear();
+                    assert_eq!(copied.0.len(), count);
+                    for (actual, (name, value)) in copied.0.iter().zip(&expected) {
+                        assert_eq!(&*actual.name, name);
+                        assert_eq!(&*actual.value, value);
+                    }
+                    let required = (count * size_of::<OwnedLabel>()
+                        + expected
+                            .iter()
+                            .map(|(name, value)| name.len() + value.len())
+                            .sum::<usize>()) as u64;
+                    let observed = account.snapshot();
+                    assert_eq!(
+                        observed.work,
+                        if checked { count as u64 * 8 + 1 } else { 0 }
+                    );
+                    let memory = observed.memory[kind as usize];
+                    println!(
+                        "label-copy kind={kind:?} checked={checked} count={count} retained={} required={required} peak={} acquired={}",
+                        memory.current, memory.peak, memory.acquired
+                    );
+                    if memory.current != required {
+                        excess.push((kind, checked, count, memory.current, required));
+                    }
+                    assert!(memory.peak >= memory.current && memory.acquired >= memory.peak);
+                    drop(copied);
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
+                }
+            }
+        }
+        assert!(
+            excess.is_empty(),
+            "completed known-count copies retain excess descriptor storage: {excess:?}"
+        );
+    }
+
+    #[test]
+    fn bounded_filtered_label_copies_keep_single_predicate_visits_and_failure_priority() {
+        for count in [0, 1, 3, 9, 17, 32] {
+            for mode in 0..3 {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let fields = label_fields(count);
+                let mut source = OwnedLabels::new(&account, MemoryKind::Workspace);
+                for (name, value) in &fields {
+                    source.push(name, value, &account, MemoryKind::Workspace);
+                }
+                let mut visits = 0;
+                let copied = source
+                    .copy_filtered_checked(&account, MemoryKind::Result, &control, |label| {
+                        let index = visits;
+                        visits += 1;
+                        assert_eq!(&*label.name, &fields[index].0);
+                        Ok(mode == 2 || mode == 1 && index % 2 == 0)
+                    })
+                    .unwrap();
+                let expected: Vec<_> = fields
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, _)| mode == 2 || mode == 1 && index % 2 == 0)
+                    .map(|(_, field)| field)
+                    .collect();
+                assert_eq!(visits, count);
+                assert_eq!(copied.0.len(), expected.len());
+                assert!(copied.0.capacity() <= count);
+                for (actual, (name, value)) in copied.0.iter().zip(&expected) {
+                    assert_eq!(&*actual.name, name);
+                    assert_eq!(&*actual.value, value);
+                }
+                let observation = account.snapshot();
+                assert_eq!(observation.work, (count + expected.len() * 7 + 1) as u64);
+                assert_eq!(
+                    observation.memory[MemoryKind::Result as usize].current,
+                    (copied.0.capacity() * size_of::<OwnedLabel>() + expected.len() * 7) as u64
+                );
+                drop(copied);
+                assert_eq!(
+                    account.snapshot().memory[MemoryKind::Result as usize].current,
+                    0
+                );
+                drop(source);
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
+        }
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let fields = label_fields(17);
+        let labels: Vec<_> = fields
+            .iter()
+            .map(|(name, value)| LabelRef { name, value })
+            .collect();
+        let source = OwnedLabels::copy_from(&labels, &account, MemoryKind::Workspace);
+        let mut visits = 0;
+        let failure = source.copy_filtered_checked(&account, MemoryKind::Result, &control, |_| {
+            visits += 1;
+            if visits == 9 {
+                control.cancellation.cancel();
+                Err(Interrupted::Deadline)
+            } else {
+                Ok(true)
+            }
+        });
+        assert!(matches!(failure, Err(Interrupted::Deadline)));
+        assert_eq!(visits, 9);
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Result as usize].current,
+            0
+        );
+        drop(source);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn bounded_label_copy_interruption_releases_bytes_before_and_after_growth() {
+        for threshold in [1, 64, 65, 68, 1092, 2116, 2118] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut fields = label_fields(9);
+            fields[8].1 = vec![255; 2050];
+            let labels: Vec<_> = fields
+                .iter()
+                .map(|(name, value)| LabelRef { name, value })
+                .collect();
+            let outcome =
+                crate::test_storage::interrupt_after_work(&account, &control, threshold, || {
+                    OwnedLabels::copy_from_checked(&labels, &account, MemoryKind::Result, &control)
+                });
+            assert!(
+                matches!(outcome, Err(Interrupted::Cancelled)),
+                "{threshold}"
+            );
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        control.cancellation.cancel();
+        assert!(matches!(
+            OwnedLabels::copy_from_checked(&[], &account, MemoryKind::Result, &control),
+            Err(Interrupted::Cancelled)
+        ));
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Result as usize].acquired,
+            0
+        );
+    }
+
+    #[test]
+    fn collector_keeps_one_label_owner_across_chunks_and_source_replacement() {
+        for count in [9, 17] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut collector = Collector::new(&account);
+            collector
+                .begin(OutputHeader {
+                    value_type: ValueType::Matrix,
+                    start_ms: 0,
+                    end_ms: 2000,
+                    step_ms: 1000,
+                })
+                .unwrap();
+            let mut source = label_fields(count);
+            let expected = source.clone();
+            let mut acquired = 0;
+            for tick in 0..3 {
+                let fields = if tick == 0 { &source } else { &expected };
+                let labels: Vec<_> = fields
+                    .iter()
+                    .map(|(name, value)| LabelRef { name, value })
+                    .collect();
+                collector
+                    .chunk_checked(
+                        OutputChunk::Series {
+                            series_id: 99,
+                            labels: &labels,
+                            points: &[SampleRef {
+                                time_ms: tick * 1000,
+                                start_time_ms: 0,
+                                value: SampleValueRef::Float(tick as f64 + 1.0),
+                            }],
+                        },
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                drop(labels);
+                if tick == 0 {
+                    acquired = account.snapshot().memory[MemoryKind::Result as usize].acquired;
+                    for (name, value) in &mut source {
+                        name.fill(b'x');
+                        value.fill(b'y');
+                    }
+                    source.clear();
+                } else {
+                    assert_eq!(
+                        account.snapshot().memory[MemoryKind::Result as usize].acquired,
+                        acquired
+                    );
+                }
+            }
+            collector
+                .commit_checked(&account.snapshot(), &control, &account)
+                .unwrap();
+            let result = collector.take().unwrap();
+            assert_eq!(result.series.len(), 1);
+            let row = &result.series[0];
+            assert_eq!(row.series_id, 99);
+            assert_eq!(row.labels.0.len(), count);
+            for (actual, (name, value)) in row.labels.0.iter().zip(&expected) {
+                assert_eq!(&*actual.name, name);
+                assert_eq!(&*actual.value, value);
+            }
+            assert_eq!(row.points.len(), 3);
+            for (tick, point) in row.points.iter().enumerate() {
+                assert_eq!(point.time_ms, tick as i64 * 1000);
+                let OwnedValue::Float(value) = point.value else {
+                    panic!("float result")
+                };
+                assert_eq!(value.to_bits(), (tick as f64 + 1.0).to_bits());
+            }
+            drop((result, collector));
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn compact_label_mutations_restore_ordinary_geometric_capacity_and_overlap() {
+        for count in [0, 1, 2, 3, 4, 5, 8, 9, 16, 17, 32] {
+            for set in [false, true] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let fields = label_fields(count);
+                let labels: Vec<_> = fields
+                    .iter()
+                    .map(|(name, value)| LabelRef { name, value })
+                    .collect();
+                let mut copied = OwnedLabels::copy_from(&labels, &account, MemoryKind::Workspace);
+                for index in 0..count + 6 {
+                    let name = format!("z{index:02}");
+                    if set {
+                        copied
+                            .set(
+                                name.as_bytes(),
+                                b"x",
+                                &account,
+                                MemoryKind::Workspace,
+                                &control,
+                            )
+                            .unwrap();
+                    } else {
+                        copied.push(name.as_bytes(), b"x", &account, MemoryKind::Workspace);
+                    }
+                    assert_eq!(
+                        copied.0.capacity(),
+                        (count + index + 1).next_power_of_two().max(4)
+                    );
+                    assert_eq!(&*copied.0[count + index].name, name.as_bytes());
+                    assert_eq!(&*copied.0[count + index].value, b"x");
+                }
+                for (actual, (name, value)) in copied.0.iter().zip(&fields) {
+                    assert_eq!(&*actual.name, name);
+                    assert_eq!(&*actual.value, value);
+                }
+                drop(copied);
+                let mut ordinary = OwnedLabels::new(&account, MemoryKind::Workspace);
+                let mut untracked = OwnedLabels(AccountedVec::default());
+                let mut plain = Vec::new();
+                for index in 0..33 {
+                    ordinary.push(b"k", b"v", &account, MemoryKind::Workspace);
+                    untracked.push(b"k", b"v", &account, MemoryKind::Workspace);
+                    plain.push(OwnedLabel {
+                        name: AccountedVec::default(),
+                        value: AccountedVec::default(),
+                    });
+                    assert_eq!(
+                        ordinary.0.capacity(),
+                        (index + 1_usize).next_power_of_two().max(4)
+                    );
+                    assert_eq!(untracked.0.capacity(), plain.capacity());
+                }
+                drop((ordinary, untracked, plain));
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
+        }
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let fields = label_fields(17);
+        let labels: Vec<_> = fields
+            .iter()
+            .map(|(name, value)| LabelRef { name, value })
+            .collect();
+        let mut copied = OwnedLabels::copy_from(&labels, &account, MemoryKind::Workspace);
+        copied.push(b"z", b"x", &account, MemoryKind::Workspace);
+        let memory = account.snapshot().memory[MemoryKind::Workspace as usize];
+        assert_eq!(
+            memory.current,
+            (32 * size_of::<OwnedLabel>() + 17 * 7 + 8) as u64
+        );
+        assert_eq!(
+            memory.peak,
+            (49 * size_of::<OwnedLabel>() + 17 * 7 + 8) as u64
+        );
+        assert_eq!(
+            memory.acquired,
+            (77 * size_of::<OwnedLabel>() + 17 * 7 + 8) as u64
+        );
+        drop(copied);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn compact_label_insertion_keeps_the_existing_post_value_cancellation_phase() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let fields = label_fields(9);
+        let labels: Vec<_> = fields
+            .iter()
+            .map(|(name, value)| LabelRef { name, value })
+            .collect();
+        let mut copied = OwnedLabels::copy_from(&labels, &account, MemoryKind::Workspace);
+        let work = account.snapshot().work;
+        assert_eq!(copied.position(b"a", &account, &control).unwrap(), Err(0));
+        let lookup_work = account.snapshot().work - work;
+        let value = vec![255; 2050];
+        let outcome = crate::test_storage::interrupt_after_work(
+            &account,
+            &control,
+            lookup_work + 1 + value.len() as u64,
+            || copied.set(b"a", &value, &account, MemoryKind::Workspace, &control),
+        );
+        assert_eq!(outcome, Err(Interrupted::Cancelled));
+        assert_eq!(copied.0.len(), 10);
+        assert_eq!(&*copied.0[9].name, b"a");
+        assert_eq!(&*copied.0[9].value, &value);
+        for (actual, (name, value)) in copied.0.iter().zip(&fields) {
+            assert_eq!(&*actual.name, name);
+            assert_eq!(&*actual.value, value);
+        }
+        assert_eq!(copied.0.capacity(), 16);
+        let retained = copied.0.capacity() * size_of::<OwnedLabel>()
+            + copied
+                .0
+                .iter()
+                .map(|label| label.name.capacity() + label.value.capacity())
+                .sum::<usize>();
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Workspace as usize].current,
+            retained as u64
+        );
+        drop(copied);
+        account.snapshot().assert_memory_released();
+    }
 
     #[test]
     fn checked_label_lookup_observes_long_names_and_empty_interruptions() {

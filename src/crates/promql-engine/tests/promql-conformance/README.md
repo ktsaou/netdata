@@ -4060,6 +4060,8 @@ each push. The hint trims geometric excess; required sizes still win and existin
 growth selects the original policy at compilation, with the original push body. The untracked allocator path remains.
 Contexts ownership, raw paging, public interfaces and disabled query limits are unchanged.
 
+Required owned label copies are qualified separately in [bounded owned-label copies](#bounded-owned-label-copies).
+
 The [capacity qualification](label-descriptor-capacity-qualification.json) records:
 
 - Nine label counts (0/1/3/4/5/8/9/16/17), 63 byte/pointer/lifetime checks and 17 malformed/cancellation scenarios.
@@ -4101,6 +4103,63 @@ All 2 slower final median groups remain in the report. Engine-accounted bytes ar
 do not measure isolated foreign allocation savings. There is no new Go, SRE, live-Agent/DBengine, full foreign-unit,
 regex/frontend, layout, sanitizer or CI-pass qualification. All 59 prior ledger objects retain their content and
 actual source/binary identities.
+
+## Bounded owned-label copies
+
+Required owned label copies now retain less spare descriptor capacity. Full copies capture their exact iterator
+length once; filtered copies use the input count as an upper bound. Both supply that bound to the existing
+incremental vector push after the original work check and name/value copy. There is no eager reservation or second
+predicate pass. Independently owned results, existing metadata ownership and raw-sample paging remain unchanged.
+
+Later label insertion needs a coupled rule: when a compact copy fills, the two local append sites grow to the next
+ordinary power-of-two boundary, with the existing minimum of four slots. Thus 3/9/17 slots grow to 4/16/32, rather
+than 6/18/34. Ordinary growth, untracked vectors, existing larger capacity and the shared allocator stay unchanged.
+No byte copy, control/work charge, swap, error or cleanup phase moves.
+
+The [owned-label qualification](owned-label-capacity-qualification.json) records:
+
+- Six new units, including 40 complete byte/order/work/ownership/release checks before the old runtime fails its
+  final capacity bound. Filtering visits each reached predicate once; interruption preserves failure priority,
+  replacement overlap and the existing partial insertion after value-copy cancellation. Repeated output chunks
+  keep one label owner, and owned results survive source replacement.
+- `owned_label_cases.cases()` supplies 172 stable-profile range requests: full/mapped/projected labels, add/replace/
+  delete/join/nested operations, grouped includes, boundary counts and an empty selector. Both native profiles at
+  pages 1/17/1024 pass 1,032 complete pinned comparisons with no paired bit difference. The before panel retains
+  its actual predecessor binaries and explicitly reuses 342 closed page-17 outcomes.
+- Across all 1,032 before/candidate pairs, Workspace peaks are lower in 852 and equal in 180; retained Result bytes
+  are lower in 750 and equal in 282. Neither increases in this panel. Work, reads, pages, provider calls, output,
+  cancellation and temporary-storage observations are identical. All eight memory kinds appear in the report.
+- For 64 series with 17 labels, page 17 and three ticks, Workspace peak falls 237,480 → 145,320 bytes and retained
+  Result bytes fall 224,064 → 131,904. The 32-label power-of-two control keeps identical resource observations.
+- Both complete native suites pass 653 units. Compiled ARM64/ARM32 under QEMU, both profiles, pass 688 complete
+  original comparisons and 32 focused unit executions. Twelve actual candidate C/C++ clients each pass 72 arms:
+  9/17 labels, selector/add/projected aggregation, three page sizes, stream/collect and provider failure. Four
+  additional native before clients link the same C source with predecessor archives; their 288 paired arms keep
+  work/reads identical and have no higher measured Workspace/Result peak.
+- Formatting, strict production/fixture Clippy and installed Rust 1.91 all-targets fixture compilation pass.
+
+The first Debug candidate exposed 17 higher mutable Workspace peaks, up to 35,520 bytes. Its concrete 9→18 and
+10→20 growth explains the local insertion correction above. Initial and corrected Debug receipts remain separate
+from the final optimized source; no diagnostic result is substituted for optimized qualification.
+
+Five alternating before/candidate timing pairs per profile retain all 400 complete responses. Selected medians:
+
+| Profile | Case | Median before → candidate (ms) | Before/candidate ratio |
+|---|---|---:|---:|
+| release | 17 labels, 64 series, full | 1.249 → 1.136 | 1.100× |
+| release-min | 17 labels, 64 series, full | 2.098 → 2.032 | 1.033× |
+| release | 32 labels, 64 series, full | 1.768 → 1.747 | 1.012× |
+| release-min | 32 labels, 64 series, full | 3.093 → 3.198 | 0.967× |
+| release | 9 labels, 64 series, nested add | 2.846 → 2.928 | 0.972× |
+| release-min | 9 labels, 64 series, nested add | 4.992 → 5.079 | 0.983× |
+| release-min | 2 labels, 64 series, replace by join | 1.453 → 1.533 | 0.948× |
+
+The report retains every sample and all 20 median groups, including 13 slower candidate medians (0.13–5.51%).
+Native fixture ELF `.text` grows 32,128 bytes in release and 480 bytes in release-min. These are shared-host synthetic
+engine timings and requested engine bytes, not universal throughput, Agent-size or process-RSS measurements.
+Smaller copies can change later replacement overlap; measured nonincreases are not a general bound. Limits remain
+disabled. There is no fresh broader-language/SRE/live-Agent/DBengine/full-foreign-suite/sanitizer/CI-pass claim.
+All 64 prior qualification ledger objects retain their content and actual source/binary identities.
 
 ## Selector backend capture tables
 
