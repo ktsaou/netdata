@@ -4781,7 +4781,9 @@ contributors. This covers SUM/AVG/COUNT/MIN/MAX/GROUP/STDVAR/STDDEV, by/without,
 ordinary aggregates over supported raw or per-series window leaves. Actual Pair certification still requires Float
 outputs, unambiguous identities and the existing root, cardinality, clock and option guards. This is a performance
 change; no language feature is added or dropped. This initial cohort admits the eligible vector-matching root;
-the [wrapped-join extension](#wrapped-grouped-joins) covers common enclosing expression shapes.
+the [wrapped-join extension](#wrapped-grouped-joins) covers common enclosing expression shapes. The
+[histogram extension](#histogram-group-contributors) separately admits histogram consumers; Pair-only output-kind
+and cardinality restrictions do not apply to that extension.
 
 Existing group projection records child **output ordinals**, including aliases and hash-only group collisions,
 before child labels are moved or dropped. The plan retains accounted identities and ranges. It retains no child
@@ -5275,3 +5277,77 @@ retained too: the raw six-group histogram is 18.959→20.445 ms. Mixed live resu
 speedup. These separately run cohorts use a warm, small two-host/one-tier fixture on a shared workstation, without
 CPU isolation. Large `vector(1)` delivery does not read 100,000 stored DBengine samples; client overlap does not
 establish concurrent evaluator throughput. No cold-disk, high-cardinality, saturation or full-language claim is added.
+
+
+## Histogram group contributors
+
+Histogram consumers now request the existing ordinary-aggregate contributor plans. This removes repeated work on
+unrelated groups in expressions such as `histogram_quantile(.5,sum by(job,le)(rate(buckets[3s])))`. The shared
+classifier covers `histogram_quantile`, `histogram_fraction` and optional `histogram_quantiles`, including all eight
+ordinary reducers. Native/mixed values keep their general evaluation path; join-only Float/cardinality restrictions
+are not histogram restrictions. This is a performance change, with no language feature added or dropped.
+
+A transient bit on the existing accounted preparation-task stack carries demand to the resolved vector argument,
+then through supported maps and ordinary nested aggregates. Scalar/string arguments, unsupported shapes, invariants
+and clock boundaries stop propagation. A histogram reached inside another scope seeds its own demand. Existing
+selector/grid eligibility, child output ordinals, successful full-child completion, exact keys and preparation
+clearing still govern filtering. Values use their original evaluators. No raw-history array, value cache, copied
+child labels or persistent per-node context array is added.
+
+The [qualification](histogram-contributor-qualification.json) records both optimized profiles: 698 passing units and
+two ignored measurements each. The 436-request bridge covers all three consumers/eight reducers, independent name
+modes, by/without, native/mixed inputs, aliases, maps/nesting, sparse/missing data, fixed/offset scopes and
+unsupported fallbacks. All 2,616 native and 2,616 compiled ARM32/ARM64 release comparisons at pages 1/17/1024 match
+the pinned original semantically and bitwise. Foreign binaries retain their actual precursor source identity; a
+later correction changes only the excluded Rust test module, with byte-identical production prefix and other inputs.
+
+Use `histogram_contributor_cases.cases()` to produce the wire dataset and requests. Verify an existing
+independent-name probe with `plural_histogram.load`, then execute that bound `capture/plural_histogram.go` probe
+with the new dataset and request JSON files. Convert Rust packets with `query.dataset_hex`/`request_hex`, validate
+them with `checked_candidate_packets`, and use `compare.compare` with exact numerics and range ordering. The fixture
+keeps one current dataset; changing cohorts requires a dataset packet. Preserve explicit name overrides and the
+probe's 60,000 ms default subquery interval. Original outcomes and source/binary identities are retained separately
+from timings.
+
+Run the `ordinary_histogram_contributors_bound_unrelated_groups` and
+`histogram_group_contributors_keep_cold_and_selected_failures` unit filters in either optimized profile. The first
+checks complete scalar outcomes and bounded cardinality work for all three functions. The second drives the call
+body directly, checks successful completion, and calibrates genuinely subsequent contributor reads before injecting
+cold/warm failures and cancellation. API callbacks can follow buffered output-head preparation; they do not by
+themselves identify those evaluator phases. Separate API sink abort/cancellation checks verify release.
+
+Compile `histogram_contributors.c` against the static library like the existing C11 embedding caller. It reuses the
+paged provider and asserts complete labels/kinds/timestamps/bits, diagnostics, logical totals and release across 36
+raw/window/name/page cases. Eight actual before/candidate programs across both native profiles and ARM32/ARM64
+release pass 288 query assertions. Logical totals stay 4/12; raw quantile useful reads fall 80→32 and fetched
+entries 240→96, while sample peak stays 6. Rate inputs retain their existing fold reuse and the same physical
+counts. Eight rebuilt existing C/C++ callers also preserve all 103 full-suite and 72 label records each. Format,
+strict production/fixture Clippy, installed Rust 1.91 compilation and 41 real HTTP/readiness checks pass; the owned
+Agent exits normally.
+
+The finite timing panel has six alternating before/candidate process pairs, discards the first pair, checks all 504
+complete query outcomes and each binary's stable nonelapsed observations, and retains 15 workload groups:
+
+| Workload | Before → after | Speedup |
+| --- | ---: | ---: |
+| instant histogram, 1 job | 0.708 → 0.458 ms | 1.54× |
+| instant histogram, 4 jobs | 7.151 → 1.624 ms | 4.40× |
+| instant histogram, 16 jobs | 104.779 → 6.426 ms | 16.31× |
+| three-tick vector range, 4 jobs | 12.002 → 3.353 ms | 3.58× |
+| three-tick vector range, 16 jobs | 168.826 → 21.593 ms | 7.82× |
+| three-tick scalar range, 16 jobs | 337.495 → 49.933 ms | 6.76× |
+
+These are native-release fixture execution medians on a shared host, without CPU/frequency isolation. Each job has
+two workers, three classic bounds and three stored points per input series. The instant case with 16 jobs
+reduces work 9,829,428→404,702 and workspace traffic 50,706,362→2,789,938 B. Peak workspace rises 145,960→148,288 B
+for membership. The 436-case bridge has 0–1,872 B higher workspace peaks, with all seven other memory-kind peaks
+unchanged and identical native-profile nonelapsed observations. This does not establish lower RSS. Non-histogram
+controls retain identical tracked allocations/work; tiny-vector and one-job grouped-rate timing controls are about
+1.1%/0.4% slower. All controls remain in the report. The containing Agent gains 8,477 B of text, loses 40 B of data
+and keeps the same BSS.
+
+Ordered range consumers still repeat some All discovery: candidate vector-range work grows 213,178→1,690,703 when
+jobs grow 4→16; scalar-range work grows 432,986→4,214,386. That residual remains a separate measured opportunity.
+The unchanged small live API checks establish integration regressions, not a live speedup, cold-disk,
+large-cardinality, concurrency/saturation, physical ARM throughput or complete-language proof. Raw paging,
+provider-owned temporary backing and disabled implicit caps remain unchanged.

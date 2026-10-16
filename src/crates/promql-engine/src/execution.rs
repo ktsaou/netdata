@@ -1367,52 +1367,55 @@ impl CompiledQuery {
         &self,
         node: NodeId,
         header: OutputHeader,
+        mut demanded: bool,
         prepared: &Prepared,
         rosters: &Rosters,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Option<NodeId>, Interrupted> {
-        let Some(join) = self.binary_replay_target(header, prepared, control, account)? else {
-            return Ok(None);
-        };
-        let (left, right, _) = self
-            .binary_replay_children(join, header)
-            .expect("resolved join");
-        let mut demanded = false;
-        'operands: for mut current in [left, right] {
-            loop {
-                control.check()?;
-                account.work(1);
-                if prepared.flags().invariants[current.0] || prepared.flags().boundaries[current.0]
-                {
-                    break;
+        if !demanded {
+            let Some(join) = self.binary_replay_target(header, prepared, control, account)? else {
+                return Ok(None);
+            };
+            let (left, right, _) = self
+                .binary_replay_children(join, header)
+                .expect("resolved join");
+            'operands: for mut current in [left, right] {
+                loop {
+                    control.check()?;
+                    account.work(1);
+                    if prepared.flags().invariants[current.0]
+                        || prepared.flags().boundaries[current.0]
+                    {
+                        break;
+                    }
+                    if current == node {
+                        demanded = true;
+                        break 'operands;
+                    }
+                    current = if let Expr::Aggregate {
+                        operator,
+                        expression: Some(child),
+                        parameter: None,
+                        ..
+                    } = &self.expression.arena[current].expression
+                        && crate::aggregation::ordinary(*operator)
+                    {
+                        prepared.preprocessing.child(
+                            &self.expression,
+                            current,
+                            *child,
+                            control,
+                            account,
+                        )?
+                    } else if let Some(child) =
+                        self.binary_replay_map_child(current, prepared, control, account)?
+                    {
+                        child
+                    } else {
+                        break;
+                    };
                 }
-                if current == node {
-                    demanded = true;
-                    break 'operands;
-                }
-                current = if let Expr::Aggregate {
-                    operator,
-                    expression: Some(child),
-                    parameter: None,
-                    ..
-                } = &self.expression.arena[current].expression
-                    && crate::aggregation::ordinary(*operator)
-                {
-                    prepared.preprocessing.child(
-                        &self.expression,
-                        current,
-                        *child,
-                        control,
-                        account,
-                    )?
-                } else if let Some(child) =
-                    self.binary_replay_map_child(current, prepared, control, account)?
-                {
-                    child
-                } else {
-                    break;
-                };
             }
         }
         if !demanded {
@@ -1752,8 +1755,8 @@ impl CompiledQuery {
     ) -> Result<Rosters, EvaluationError> {
         let _inner_phase = account.phase(crate::statistics::Phase::Inner);
         enum Task<'a> {
-            Visit(NodeId, OutputHeader, bool),
-            Finish(NodeId, OutputHeader),
+            Visit(NodeId, OutputHeader, bool, bool),
+            Finish(NodeId, OutputHeader, bool),
             LabelFinish(NodeId, OutputHeader, AccountedBox<LabelOperation<'a>>),
             AggregateParameter(NodeId, OutputHeader),
         }
@@ -1764,13 +1767,14 @@ impl CompiledQuery {
             self.expression.root,
             prepared.evaluator_header(),
             true,
+            false,
         ));
         while let Some(task) = tasks.pop() {
             control.check()?;
             account.work(1);
             let (node, mut header) = match &task {
-                Task::Visit(node, header, _)
-                | Task::Finish(node, header)
+                Task::Visit(node, header, _, _)
+                | Task::Finish(node, header, _)
                 | Task::AggregateParameter(node, header)
                 | Task::LabelFinish(node, header, _) => (*node, *header),
             };
@@ -1845,9 +1849,16 @@ impl CompiledQuery {
                 rosters.prepare_aggregate_parameter(node, *operator, summary, account);
                 continue;
             }
-            if let Task::Visit(_, _, primary) = task {
+            if let Task::Visit(_, _, primary, histogram_demand) = task {
                 rosters.set_statistics_role(node, primary);
                 let child_primary = primary && !prepared.flags().boundaries[node.0];
+                let grid = crate::query_scopes::Grid::from(header);
+                let histogram_demand = histogram_demand
+                    && !prepared.flags().invariants[node.0]
+                    && !prepared.flags().boundaries[node.0]
+                    && crate::query_scopes::Grid::from(prepared.source_header(node, header))
+                        == grid
+                    && crate::query_scopes::Grid::from(prepared.scope_header(node, header)) == grid;
                 header = prepared.source_header(node, header);
                 if prepared.activate(header, control, account)?.is_none() {
                     if self.expression.arena[node].value_type == ValueType::Scalar {
@@ -1931,7 +1942,7 @@ impl CompiledQuery {
                 } = expression
                 {
                     let grid = prepared.subquery_scope(node, control, account)?;
-                    tasks.push(Task::Finish(node, header));
+                    tasks.push(Task::Finish(node, header, false));
                     tasks.push(Task::Visit(
                         prepared.preprocessing.child(
                             &self.expression,
@@ -1941,6 +1952,7 @@ impl CompiledQuery {
                             account,
                         )?,
                         grid.header(header),
+                        false,
                         false,
                     ));
                     continue;
@@ -1954,7 +1966,7 @@ impl CompiledQuery {
                     else {
                         unreachable!("typed numeric aggregate operands")
                     };
-                    tasks.push(Task::Finish(node, header));
+                    tasks.push(Task::Finish(node, header, false));
                     tasks.push(Task::Visit(
                         prepared.preprocessing.child(
                             &self.expression,
@@ -1965,6 +1977,7 @@ impl CompiledQuery {
                         )?,
                         header,
                         child_primary,
+                        false,
                     ));
                     tasks.push(Task::AggregateParameter(node, header));
                     tasks.push(Task::Visit(
@@ -1977,6 +1990,7 @@ impl CompiledQuery {
                         )?,
                         header,
                         child_primary,
+                        false,
                     ));
                     continue;
                 }
@@ -2012,15 +2026,54 @@ impl CompiledQuery {
                         )?,
                         header,
                         child_primary,
+                        false,
                     ));
                     continue;
                 }
-                tasks.push(Task::Finish(node, header));
+                tasks.push(Task::Finish(node, header, histogram_demand));
                 if self
                     .direct_clock_selector(node, control, account)?
                     .is_none()
                 {
                     let consumed = self.consumed_subquery(node, prepared, control, account)?;
+                    // Histograms select grouped outputs repeatedly within their own clock.
+                    let histogram_child = if let Expr::Call {
+                        function: Some(function),
+                        arguments,
+                        ..
+                    } = expression
+                        && let Some(function) =
+                            crate::histogram_call::Function::parse(function.name)
+                    {
+                        Some(prepared.preprocessing.child(
+                            &self.expression,
+                            node,
+                            arguments[function.vector_argument()],
+                            control,
+                            account,
+                        )?)
+                    } else if histogram_demand {
+                        if let Expr::Aggregate {
+                            operator,
+                            expression: Some(child),
+                            parameter: None,
+                            ..
+                        } = expression
+                            && crate::aggregation::ordinary(*operator)
+                        {
+                            Some(prepared.preprocessing.child(
+                                &self.expression,
+                                node,
+                                *child,
+                                control,
+                                account,
+                            )?)
+                        } else {
+                            self.binary_replay_map_child(node, prepared, control, account)?
+                        }
+                    } else {
+                        None
+                    };
                     for child in children(&self.expression, prepared, node, control, account)?.rev()
                     {
                         let child = child?;
@@ -2035,6 +2088,7 @@ impl CompiledQuery {
                             child,
                             header,
                             child_primary && Some(child) != consumed,
+                            Some(child) == histogram_child,
                         ));
                     }
                 }
@@ -2148,8 +2202,15 @@ impl CompiledQuery {
                     }
                 )
             {
-                let replay_selector =
-                    self.group_replay_selector(node, header, prepared, &rosters, control, account)?;
+                let replay_selector = self.group_replay_selector(
+                    node,
+                    header,
+                    matches!(task, Task::Finish(_, _, true)),
+                    prepared,
+                    &rosters,
+                    control,
+                    account,
+                )?;
                 rosters.prepare_groups(
                     node,
                     prepared.preprocessing.child(
@@ -16023,6 +16084,252 @@ mod tests {
             provider.assert_closed();
             drop((report, query));
             engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn histogram_group_contributors_keep_cold_and_selected_failures() {
+        fn acquisitions(input: &FixtureProvider) -> Vec<usize> {
+            input
+                .series
+                .iter()
+                .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
+                .collect()
+        }
+        fn drive(
+            compiled: &CompiledQuery,
+            input: &FixtureProvider,
+            stop: Option<(usize, bool)>,
+        ) -> Vec<Vec<usize>> {
+            let control = Control::default();
+            let account = compiled.execution_accounting();
+            let mut landmarks = Vec::new();
+            {
+                let header = compiled
+                    .header(QueryRequest::Instant { time_ms: 1000 })
+                    .unwrap();
+                let prepared = Prepared::new(
+                    &compiled.expression,
+                    &compiled.preprocessing,
+                    header,
+                    compiled.options.no_step_subquery_interval_ms,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let header = prepared.evaluator_header();
+                prepared.activate(header, &control, &account).unwrap();
+                let options = compiled.evaluation_options(header, header.start_ms, &prepared);
+                let bounds = crate::query_bounds::find(
+                    &compiled.expression,
+                    options,
+                    &prepared,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let scope = input.open(bounds, &control).unwrap();
+                let catalog = Catalog::new(
+                    &scope,
+                    &compiled.expression,
+                    &prepared,
+                    options,
+                    compiled.options.no_step_subquery_interval_ms,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let rosters = compiled
+                    .prepare_rosters(
+                        &catalog,
+                        &prepared,
+                        bounds,
+                        &control,
+                        &account,
+                        &mut Annotations::default(),
+                    )
+                    .unwrap();
+                let plan = (0..compiled.expression.arena.nodes.len())
+                    .find_map(|index| rosters.group_replay(NodeId(index)))
+                    .expect("histogram demands grouped contributors");
+                assert!(
+                    !plan.has_completion(),
+                    "preparation must discard contributor credit"
+                );
+                landmarks.push(acquisitions(input));
+                let mut machine = Machine::new(
+                    &catalog,
+                    &compiled.expression,
+                    compiled.expression.root,
+                    options,
+                    &control,
+                    &account,
+                    EvaluationMetadata {
+                        prepared: &prepared,
+                        rosters: &rosters,
+                        timestamp_selectors: &compiled.timestamp_selectors,
+                        data_bounds: bounds,
+                        annotations: None,
+                        binary_preparation: None,
+                        histogram_preparation: None,
+                        info_preparation: None,
+                        count_preparation: None,
+                    },
+                );
+                // Exercise the call body before API output-head preparation buffers its results.
+                machine.bypass_root_order();
+                let mut outputs = 0;
+                loop {
+                    let stopping = stop.is_some_and(|(after, _)| after == outputs);
+                    let cancelled = stopping && stop.unwrap().1;
+                    if cancelled {
+                        control.cancellation.cancel();
+                    }
+                    let next = machine.next();
+                    if stopping {
+                        assert_eq!(plan.has_completion(), outputs != 0);
+                        let error = next.unwrap_err();
+                        if cancelled {
+                            assert!(matches!(
+                                error,
+                                EvaluationError::Interrupted(Interrupted::Cancelled)
+                            ));
+                        } else {
+                            assert!(
+                                matches!(&error, EvaluationError::Storage(StorageError::Provider(bytes))
+                                if &**bytes == b"injected page failure")
+                            );
+                        }
+                        drop(error);
+                        break;
+                    }
+                    let Some(sample) = next.unwrap() else {
+                        break;
+                    };
+                    assert!(
+                        plan.has_completion(),
+                        "first sample follows successful complete input"
+                    );
+                    assert!(matches!(sample.value, OwnedValue::Float(value) if value.is_finite()));
+                    drop(sample);
+                    outputs += 1;
+                    landmarks.push(acquisitions(input));
+                }
+            }
+            input.assert_closed();
+            account.snapshot().assert_memory_released();
+            landmarks
+        }
+        let provider = |page| {
+            let mut input = FixtureProvider::new(1, page, 8);
+            for (index, series) in input.series.iter_mut().enumerate() {
+                series.labels = vec![
+                    (b"__name__".to_vec(), b"counter_total".to_vec()),
+                    (b"instance".to_vec(), (index / 4).to_string().into_bytes()),
+                    (
+                        b"le".to_vec(),
+                        if index % 4 < 2 {
+                            b"1".as_slice()
+                        } else {
+                            b"+Inf".as_slice()
+                        }
+                        .to_vec(),
+                    ),
+                    (b"member".to_vec(), (index % 2).to_string().into_bytes()),
+                ];
+                series.source.counters = Default::default();
+            }
+            input
+        };
+        let child = "sum by(instance,le)(counter_total)";
+        for (expression, outputs) in [
+            (format!("histogram_quantile(.5,{child})"), 2),
+            (format!("histogram_fraction(.25,.75,{child})"), 2),
+            (format!("histogram_quantiles({child},\"q\",.25,.75)"), 4),
+        ] {
+            for page in [1, 17, 1024] {
+                for delayed in [false, true] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut settings = EngineOptions {
+                        delayed_name_removal: delayed,
+                        ..EngineOptions::default()
+                    };
+                    settings.parser.experimental_functions = true;
+                    let compiled = engine
+                        .compile(expression.as_bytes(), settings, &control)
+                        .unwrap();
+                    let calibration = provider(page);
+                    let landmarks = drive(&compiled, &calibration, None);
+                    assert_eq!(landmarks.len(), outputs + 1);
+                    let (prefix, selected) = landmarks
+                        .windows(2)
+                        .enumerate()
+                        .skip(1)
+                        .find_map(|(prefix, rows)| {
+                            (0..8)
+                                .rev()
+                                .find(|index| rows[1][*index] > rows[0][*index])
+                                .map(|selected| (prefix, selected))
+                        })
+                        .expect("a later histogram result freshly reads a selected contributor");
+                    for (phase, after, target, acquisition) in [
+                        ("cold-nonmember", 0, 7, landmarks[0][7] + 1),
+                        (
+                            "warm-selected",
+                            prefix,
+                            selected,
+                            landmarks[prefix][selected] + 1,
+                        ),
+                    ] {
+                        let mut input = provider(page);
+                        input.series[target].source.fail_acquisition = Some(acquisition);
+                        let observed = drive(&compiled, &input, Some((after, false)));
+                        assert_eq!(observed.len(), after + 1);
+                        assert_eq!(acquisitions(&input)[target], acquisition);
+                        println!(
+                            "{{\"histogram_contributor_phase\":\"{phase}\",\"expression\":{expression:?},\"page_size\":{page},\"delayed\":{delayed},\"selected\":{target},\"acquisition\":{acquisition},\"evaluated_samples\":{after}}}"
+                        );
+                    }
+                    let input = provider(page);
+                    assert_eq!(
+                        drive(&compiled, &input, Some((prefix, true))).len(),
+                        prefix + 1
+                    );
+                    for cancel in [false, true] {
+                        let input = provider(page);
+                        let execution = Control::default();
+                        let mut sink = RecordingSink {
+                            fail_after: (!cancel).then_some(1),
+                            cancel: cancel.then(|| execution.cancellation.clone()),
+                            ..RecordingSink::default()
+                        };
+                        let report = compiled.execute_reported(
+                            &input,
+                            QueryRequest::Instant { time_ms: 1000 },
+                            &execution,
+                            &mut sink,
+                        );
+                        if cancel {
+                            assert!(matches!(
+                                &report.result,
+                                Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                                    Interrupted::Cancelled
+                                )))
+                            ));
+                        } else {
+                            assert!(
+                                matches!(&report.result, Err(ExecutionError::Sink(bytes)) if &**bytes == b"sink failure")
+                            );
+                            report.assert_retained_callback_error_memory();
+                        }
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        input.assert_closed();
+                    }
+                    drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
         }
     }
 

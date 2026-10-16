@@ -1,0 +1,3530 @@
+{
+  "schema_version": 1,
+  "status": "qualified_private_optimization",
+  "scope": "Reuse existing grouped contributor plans in all three histogram consumers; numerical, storage, ownership, API/ABI and default-cap contracts unchanged.",
+  "comparison_base_git": "bc9a48fa17fc1e200a14e0f94404efadaaa372da",
+  "reference": {
+    "reference": "github.com/prometheus/prometheus@v0.315.0",
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go_version": "go1.27.1",
+    "go_arch": "amd64",
+    "go_os": "linux",
+    "unicode_version": "17.0.0"
+  },
+  "original_capture": {
+    "probe_sha256": "4c8d1edc3048c968bacee5a3b8c9fd28488492aa17a1bd02355943dbbcaeb78f",
+    "probe_source": "capture/plural_histogram.go",
+    "source_sha256": "36c256c93917b1c8c6c24f4b7bd05cb71c55b63eac44b4c5262a12352fb4cee5",
+    "results_sha256": "9ee30c57a0239db2437c99d34f5b244f46e72791f79805b2a3b0417307e4bc85",
+    "dataset_sha256": "fb2c7159613db2aeedaf6d2f5eb068c70077fd93e9c9310fe6804843168abaf0",
+    "requests_sha256": "01bbdbef3349a2c6cd752d5547d67c17373f8d267bdba656f8f6f9aad0f0d401"
+  },
+  "inputs": {
+    "generator": {
+      "path": "histogram_contributor_cases.py",
+      "sha256": "c5d0c4b3524d0f845c7d08e5da1da0086965b31e85b68645f46b42b8a3b153f5"
+    },
+    "c_caller": {
+      "path": "histogram_contributors.c",
+      "sha256": "52b8f58e1833f697d504ef50961a180e82c00373e9b6ad55415a8f00122d52db"
+    },
+    "cases": 436,
+    "series": 88,
+    "pages": [
+      1,
+      17,
+      1024
+    ]
+  },
+  "implementation": [
+    "Histogram vector arguments seed transient demand on the accounted roster-task stack, independently of outer wrappers.",
+    "Ordinary aggregates and existing supported maps propagate demand; scalar/string arguments, unsupported edges and changed clocks keep fallback evaluation.",
+    "Existing selector/grid proofs, output ordinals, successful complete-child credit, exact keys, fresh selected values and preparation clearing remain authoritative.",
+    "Pair-only Float/cardinality restrictions stay with joins. No new raw-value cache or persistent context array is added."
+  ],
+  "native_profiles": {
+    "release": {
+      "passed_units": 698,
+      "ignored_measurements": 2,
+      "archive": {
+        "path": ".tmp/histogram-contributors-s5i2hxyl/accepted-native-release/libnetdata_promql_engine.a",
+        "sha256": "5bd0615c3c781d83b558e4b014147af9336e15874b1029434654eea9897399bf"
+      },
+      "fixture": {
+        "path": ".tmp/histogram-contributors-s5i2hxyl/accepted-native-release/promql-query-fixture",
+        "sha256": "06a70532ab768b7f85024241aa15f9ea56ccc47fd5c704509e17207cd9b9c324"
+      },
+      "unit": {
+        "path": ".tmp/histogram-contributors-s5i2hxyl/accepted-native-release/unit",
+        "sha256": "a08a36858d7a9a627867358d49668249aed3f79003a586be11bbe06a7ba16b9b"
+      }
+    },
+    "release-min": {
+      "passed_units": 698,
+      "ignored_measurements": 2,
+      "archive": {
+        "path": ".tmp/histogram-contributors-s5i2hxyl/accepted-native-release-min/libnetdata_promql_engine.a",
+        "sha256": "8dc43a3b0a322a25c9fd2daa05f29b796027f119fe6d67a9855834bdb1f27ebe"
+      },
+      "fixture": {
+        "path": ".tmp/histogram-contributors-s5i2hxyl/accepted-native-release-min/promql-query-fixture",
+        "sha256": "aa61cbc034a314849762166d3ecdc7246dca2288818d09b9a5398e42dfc2ee24"
+      },
+      "unit": {
+        "path": ".tmp/histogram-contributors-s5i2hxyl/accepted-native-release-min/unit",
+        "sha256": "8f1eec6649ff8ba8d8140efe5d0ad0fcb12a6df884dbc9cfa668cf849cebfbea"
+      }
+    }
+  },
+  "native_original_comparisons": 2616,
+  "foreign_original_comparisons": 2616,
+  "semantic_mismatches": 0,
+  "paired_bit_differences": 0,
+  "controls": {
+    "growth_unit": "ordinary_histogram_contributors_bound_unrelated_groups",
+    "failure_unit": "histogram_group_contributors_keep_cold_and_selected_failures",
+    "phase_proof": "Drive the histogram call body directly, check completion, then calibrate subsequent acquisitions. API output-head buffering is tested separately from evaluator phases.",
+    "cold_warm_interruption_and_release": "Both optimized rosters cover all three functions, page sizes and independent name modes.",
+    "c_programs": 8,
+    "c_complete_query_assertions": 288,
+    "c_basic_statistics": "Logical totals, useful reads and actual sample peaks are observed through C; all logical totals remain exact.",
+    "existing_c_cpp_programs": 8,
+    "existing_records_per_program": {
+      "full": 103,
+      "owned_labels": 72
+    },
+    "static": [
+      "format",
+      "strict production Clippy",
+      "strict fixture Clippy",
+      "installed Rust1.91all-target fixture compile"
+    ],
+    "live_http_checks": 29,
+    "live_host_readiness_checks": 12,
+    "live_normal_zero_exits": 1
+  },
+  "memory": {
+    "status": "pass",
+    "page_size": 17,
+    "paired_cases": 436,
+    "native_profile_nonelapsed_observations_equal": true,
+    "memory": {
+      "Compiled": {
+        "minimum_peak_delta": 0,
+        "maximum_peak_delta": 0,
+        "maximum_case": "histogram-contributors:scalar-argument:upstream-tests:d1:range",
+        "higher": 0,
+        "equal": 436,
+        "lower": 0
+      },
+      "Workspace": {
+        "minimum_peak_delta": 0,
+        "maximum_peak_delta": 1872,
+        "maximum_case": "histogram-contributors:quantiles-nested:upstream-tests:d1:range",
+        "higher": 382,
+        "equal": 54,
+        "lower": 0
+      },
+      "Result": {
+        "minimum_peak_delta": 0,
+        "maximum_peak_delta": 0,
+        "maximum_case": "histogram-contributors:scalar-argument:upstream-tests:d1:range",
+        "higher": 0,
+        "equal": 436,
+        "lower": 0
+      },
+      "ProviderHeld": {
+        "minimum_peak_delta": 0,
+        "maximum_peak_delta": 0,
+        "maximum_case": "histogram-contributors:scalar-argument:upstream-tests:d1:range",
+        "higher": 0,
+        "equal": 436,
+        "lower": 0
+      },
+      "BorrowedView": {
+        "minimum_peak_delta": 0,
+        "maximum_peak_delta": 0,
+        "maximum_case": "histogram-contributors:scalar-argument:upstream-tests:d1:range",
+        "higher": 0,
+        "equal": 436,
+        "lower": 0
+      },
+      "RegexEstimate": {
+        "minimum_peak_delta": 0,
+        "maximum_peak_delta": 0,
+        "maximum_case": "histogram-contributors:scalar-argument:upstream-tests:d1:range",
+        "higher": 0,
+        "equal": 436,
+        "lower": 0
+      },
+      "SharedCacheReference": {
+        "minimum_peak_delta": 0,
+        "maximum_peak_delta": 0,
+        "maximum_case": "histogram-contributors:scalar-argument:upstream-tests:d1:range",
+        "higher": 0,
+        "equal": 436,
+        "lower": 0
+      },
+      "Accounting": {
+        "minimum_peak_delta": 0,
+        "maximum_peak_delta": 0,
+        "maximum_case": "histogram-contributors:scalar-argument:upstream-tests:d1:range",
+        "higher": 0,
+        "equal": 436,
+        "lower": 0
+      }
+    },
+    "inputs": {
+      ".tmp/histogram-contributors-s5i2hxyl/bridge-before-page17.stdout": "eb932daa4cb130a9eee11175d789ca1a4d84d043d910313178a729f7079a34db",
+      ".tmp/histogram-contributors-s5i2hxyl/bridge-release-page17.stdout": "67f1108fce3516aebf75414f7baf99fd3e82565c8cf4467244cedacf9436a9f1",
+      ".tmp/histogram-contributors-s5i2hxyl/bridge-release-min-page17.stdout": "b3dd907efffc223e1506ea056dda144b4d7836796e42dc6577e84d94331ed03c"
+    },
+    "scope": "Reader over completed bound query executions; no new engine execution or timing claim."
+  },
+  "timing": {
+    "profile": "native release",
+    "pairs": 6,
+    "warmup_pairs": 1,
+    "complete_results": 504,
+    "measured_results": 420,
+    "groups": [
+      {
+        "groups": 0,
+        "shape": "constant",
+        "before": {
+          "median_elapsed_ns": 11760,
+          "samples": 5,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 1,
+                "current": 0,
+                "overflowed": false,
+                "peak": 1,
+                "released": 1
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 7712,
+                "current": 0,
+                "overflowed": false,
+                "peak": 5792,
+                "released": 7712
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 0,
+            "provider_calls": 1,
+            "samples_fetched": 0,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 24
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 11169,
+          "samples": 5,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 1,
+                "current": 0,
+                "overflowed": false,
+                "peak": 1,
+                "released": 1
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 7712,
+                "current": 0,
+                "overflowed": false,
+                "peak": 5792,
+                "released": 7712
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 0,
+            "provider_calls": 1,
+            "samples_fetched": 0,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 24
+          }
+        }
+      },
+      {
+        "groups": 0,
+        "shape": "tiny-vector",
+        "before": {
+          "median_elapsed_ns": 15030,
+          "samples": 5,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 1,
+                "current": 0,
+                "overflowed": false,
+                "peak": 1,
+                "released": 1
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 13856,
+                "current": 0,
+                "overflowed": false,
+                "peak": 6464,
+                "released": 13856
+              },
+              {
+                "acquired": 512,
+                "current": 512,
+                "overflowed": false,
+                "peak": 512,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 0,
+            "provider_calls": 1,
+            "samples_fetched": 0,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 120
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 15190,
+          "samples": 5,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 1,
+                "current": 0,
+                "overflowed": false,
+                "peak": 1,
+                "released": 1
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 13856,
+                "current": 0,
+                "overflowed": false,
+                "peak": 6464,
+                "released": 13856
+              },
+              {
+                "acquired": 512,
+                "current": 512,
+                "overflowed": false,
+                "peak": 512,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 0,
+            "provider_calls": 1,
+            "samples_fetched": 0,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 120
+          }
+        }
+      },
+      {
+        "groups": 1,
+        "shape": "grouped-rate",
+        "before": {
+          "median_elapsed_ns": 216928.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 91,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 91
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 92424,
+                "current": 0,
+                "overflowed": false,
+                "peak": 16643,
+                "released": 92424
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 146880,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 146880
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 180,
+            "provider_calls": 370,
+            "samples_fetched": 540,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 8353
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 217753.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 91,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 91
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 92424,
+                "current": 0,
+                "overflowed": false,
+                "peak": 16643,
+                "released": 92424
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 146880,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 146880
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 180,
+            "provider_calls": 370,
+            "samples_fetched": 540,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 8353
+          }
+        }
+      },
+      {
+        "groups": 1,
+        "shape": "histogram",
+        "before": {
+          "median_elapsed_ns": 707873.5,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 109,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 109
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 343358,
+                "current": 0,
+                "overflowed": false,
+                "peak": 27704,
+                "released": 343358
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 176256,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 176256
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 216,
+            "provider_calls": 442,
+            "samples_fetched": 648,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 48379
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 458381.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 109,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 109
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 216550,
+                "current": 0,
+                "overflowed": false,
+                "peak": 28112,
+                "released": 216550
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 176256,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 176256
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 216,
+            "provider_calls": 442,
+            "samples_fetched": 648,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 24029
+          }
+        }
+      },
+      {
+        "groups": 1,
+        "shape": "raw-rate",
+        "before": {
+          "median_elapsed_ns": 156193.5,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 73,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 73
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 67256,
+                "current": 0,
+                "overflowed": false,
+                "peak": 16305,
+                "released": 67256
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 117504,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 117504
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 144,
+            "provider_calls": 298,
+            "samples_fetched": 432,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 5863
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 153089.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 73,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 73
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 67256,
+                "current": 0,
+                "overflowed": false,
+                "peak": 16305,
+                "released": 67256
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 117504,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 117504
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 144,
+            "provider_calls": 298,
+            "samples_fetched": 432,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 5863
+          }
+        }
+      },
+      {
+        "groups": 4,
+        "shape": "grouped-rate",
+        "before": {
+          "median_elapsed_ns": 793568.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 361,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 361
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 317448,
+                "current": 0,
+                "overflowed": false,
+                "peak": 40023,
+                "released": 317448
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 587520,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 587520
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 720,
+            "provider_calls": 1468,
+            "samples_fetched": 2160,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 33928
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 778093.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 361,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 361
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 317448,
+                "current": 0,
+                "overflowed": false,
+                "peak": 40023,
+                "released": 317448
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 587520,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 587520
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 720,
+            "provider_calls": 1468,
+            "samples_fetched": 2160,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 33928
+          }
+        }
+      },
+      {
+        "groups": 4,
+        "shape": "histogram",
+        "before": {
+          "median_elapsed_ns": 7150579.5,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 433,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 433
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 3529160,
+                "current": 0,
+                "overflowed": false,
+                "peak": 50968,
+                "released": 3529160
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 705024,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 705024
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 864,
+            "provider_calls": 1756,
+            "samples_fetched": 2592,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 640563
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 1623641.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 433,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 433
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 729088,
+                "current": 0,
+                "overflowed": false,
+                "peak": 51760,
+                "released": 729088
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 705024,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 705024
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 864,
+            "provider_calls": 1756,
+            "samples_fetched": 2592,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 97867
+          }
+        }
+      },
+      {
+        "groups": 4,
+        "shape": "raw-rate",
+        "before": {
+          "median_elapsed_ns": 565540.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 289,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 289
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 216008,
+                "current": 0,
+                "overflowed": false,
+                "peak": 40023,
+                "released": 216008
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 470016,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 470016
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 576,
+            "provider_calls": 1180,
+            "samples_fetched": 1728,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 23548
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 562521.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 289,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 289
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 216008,
+                "current": 0,
+                "overflowed": false,
+                "peak": 40023,
+                "released": 216008
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 470016,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 470016
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 576,
+            "provider_calls": 1180,
+            "samples_fetched": 1728,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 23548
+          }
+        }
+      },
+      {
+        "groups": 4,
+        "shape": "scalar-range",
+        "before": {
+          "median_elapsed_ns": 23252224,
+          "samples": 5,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 1297,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 1297
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 11318036,
+                "current": 0,
+                "overflowed": false,
+                "peak": 52492,
+                "released": 11318036
+              },
+              {
+                "acquired": 512,
+                "current": 512,
+                "overflowed": false,
+                "peak": 512,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 2115072,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 2115072
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 3,
+            "pages": 2592,
+            "provider_calls": 5644,
+            "samples_fetched": 7776,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 2061384
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 6270417,
+          "samples": 5,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 1297,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 1297
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 2913484,
+                "current": 0,
+                "overflowed": false,
+                "peak": 53284,
+                "released": 2913484
+              },
+              {
+                "acquired": 512,
+                "current": 512,
+                "overflowed": false,
+                "peak": 512,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 2115072,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 2115072
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 3,
+            "pages": 2592,
+            "provider_calls": 5644,
+            "samples_fetched": 7776,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 432986
+          }
+        }
+      },
+      {
+        "groups": 4,
+        "shape": "vector-range",
+        "before": {
+          "median_elapsed_ns": 12001739,
+          "samples": 5,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 865,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 865
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 5687828,
+                "current": 0,
+                "overflowed": false,
+                "peak": 44268,
+                "released": 5687828
+              },
+              {
+                "acquired": 1204,
+                "current": 1204,
+                "overflowed": false,
+                "peak": 1204,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 1410048,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 1410048
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 12,
+            "pages": 1728,
+            "provider_calls": 3772,
+            "samples_fetched": 5184,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 1027292
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 3352832,
+          "samples": 5,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 865,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 865
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 1486636,
+                "current": 0,
+                "overflowed": false,
+                "peak": 45060,
+                "released": 1486636
+              },
+              {
+                "acquired": 1204,
+                "current": 1204,
+                "overflowed": false,
+                "peak": 1204,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 1410048,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 1410048
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 12,
+            "pages": 1728,
+            "provider_calls": 3772,
+            "samples_fetched": 5184,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 213178
+          }
+        }
+      },
+      {
+        "groups": 16,
+        "shape": "grouped-rate",
+        "before": {
+          "median_elapsed_ns": 3180858.5,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 1441,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 1441
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 1217940,
+                "current": 0,
+                "overflowed": false,
+                "peak": 134931,
+                "released": 1217940
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 2350080,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 2350080
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 2880,
+            "provider_calls": 5860,
+            "samples_fetched": 8640,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 139285
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 3005435.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 1441,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 1441
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 1217940,
+                "current": 0,
+                "overflowed": false,
+                "peak": 134931,
+                "released": 1217940
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 2350080,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 2350080
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 2880,
+            "provider_calls": 5860,
+            "samples_fetched": 8640,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 139285
+          }
+        }
+      },
+      {
+        "groups": 16,
+        "shape": "histogram",
+        "before": {
+          "median_elapsed_ns": 104778725.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 1729,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 1729
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 50706362,
+                "current": 0,
+                "overflowed": false,
+                "peak": 145960,
+                "released": 50706362
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 2820096,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 2820096
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 3456,
+            "provider_calls": 7012,
+            "samples_fetched": 10368,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 9829428
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 6425956.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 1729,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 1729
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 2789938,
+                "current": 0,
+                "overflowed": false,
+                "peak": 148288,
+                "released": 2789938
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 2820096,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 2820096
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 3456,
+            "provider_calls": 7012,
+            "samples_fetched": 10368,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 404702
+          }
+        }
+      },
+      {
+        "groups": 16,
+        "shape": "raw-rate",
+        "before": {
+          "median_elapsed_ns": 2228946.0,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 1153,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 1153
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 811160,
+                "current": 0,
+                "overflowed": false,
+                "peak": 134931,
+                "released": 811160
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 1880064,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 1880064
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 2304,
+            "provider_calls": 4708,
+            "samples_fetched": 6912,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 96086
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 2156356.5,
+          "samples": 20,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 1153,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 1153
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 811160,
+                "current": 0,
+                "overflowed": false,
+                "peak": 134931,
+                "released": 811160
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 1880064,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 1880064
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 1,
+            "pages": 2304,
+            "provider_calls": 4708,
+            "samples_fetched": 6912,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 96086
+          }
+        }
+      },
+      {
+        "groups": 16,
+        "shape": "scalar-range",
+        "before": {
+          "median_elapsed_ns": 337494519,
+          "samples": 5,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 5185,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 5185
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 168472580,
+                "current": 0,
+                "overflowed": false,
+                "peak": 151214,
+                "released": 168472580
+              },
+              {
+                "acquired": 512,
+                "current": 512,
+                "overflowed": false,
+                "peak": 512,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 8460288,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 8460288
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 3,
+            "pages": 10368,
+            "provider_calls": 22564,
+            "samples_fetched": 31104,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 32490166
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 49933338,
+          "samples": 5,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 5185,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 5185
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 24706684,
+                "current": 0,
+                "overflowed": false,
+                "peak": 153542,
+                "released": 24706684
+              },
+              {
+                "acquired": 512,
+                "current": 512,
+                "overflowed": false,
+                "peak": 512,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 8460288,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 8460288
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 3,
+            "pages": 10368,
+            "provider_calls": 22564,
+            "samples_fetched": 31104,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 4214386
+          }
+        }
+      },
+      {
+        "groups": 16,
+        "shape": "vector-range",
+        "before": {
+          "median_elapsed_ns": 168826163,
+          "samples": 5,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 3457,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 3457
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 82168928,
+                "current": 0,
+                "overflowed": false,
+                "peak": 143566,
+                "released": 82168928
+              },
+              {
+                "acquired": 6070,
+                "current": 4822,
+                "overflowed": false,
+                "peak": 4822,
+                "released": 1248
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 5640192,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 5640192
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 48,
+            "pages": 6912,
+            "provider_calls": 15076,
+            "samples_fetched": 20736,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 15828167
+          }
+        },
+        "candidate": {
+          "median_elapsed_ns": 21593238,
+          "samples": 5,
+          "observations": {
+            "cancellation_references": {
+              "engine_owned": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "external": {
+                "acquired": 3457,
+                "current": 0,
+                "overflowed": false,
+                "peak": 2,
+                "released": 3457
+              }
+            },
+            "counter_overflowed": false,
+            "memory": [
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 10290136,
+                "current": 0,
+                "overflowed": false,
+                "peak": 145894,
+                "released": 10290136
+              },
+              {
+                "acquired": 6070,
+                "current": 4822,
+                "overflowed": false,
+                "peak": 4822,
+                "released": 1248
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 5640192,
+                "current": 0,
+                "overflowed": false,
+                "peak": 816,
+                "released": 5640192
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              {
+                "acquired": 888,
+                "current": 888,
+                "overflowed": false,
+                "peak": 888,
+                "released": 0
+              }
+            ],
+            "output_samples": 48,
+            "pages": 6912,
+            "provider_calls": 15076,
+            "samples_fetched": 20736,
+            "temporary_storage": {
+              "counter_overflowed": false,
+              "extent": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "read_bytes": 0,
+              "read_calls": 0,
+              "stores": {
+                "acquired": 0,
+                "current": 0,
+                "overflowed": false,
+                "peak": 0,
+                "released": 0
+              },
+              "write_calls": 0,
+              "written_bytes": 0
+            },
+            "work": 1690703
+          }
+        }
+      }
+    ],
+    "scope": "Five measured alternating native-release pairs after one warmup pair. Shared host, finite synthetic provider. Complete analytical/retained outcomes and every nonelapsed observation checked. No live/cardinality/concurrency/RSS or release-min speedup claim."
+  },
+  "containing_agent": {
+    "binary": {
+      "path": ".tmp/histogram-contributors-s5i2hxyl/candidate-netdata",
+      "sha256": "91986ed93cc9536e9f48cbda086411ad1909cefa0cf85cb8fc7ca120b428d954"
+    },
+    "rust_archive": {
+      "path": ".tmp/histogram-contributors-s5i2hxyl/candidate-promql.a",
+      "sha256": "a049f6bbe6c03051629dba068193fca16c1fe7f13c3e5993afec251135dd09d6"
+    },
+    "build_type": "Release",
+    "elf_sizes": {
+      "before": {
+        "text": 35856223,
+        "data": 1223352,
+        "bss": 1073520
+      },
+      "candidate": {
+        "text": 35864700,
+        "data": 1223312,
+        "bss": 1073520
+      }
+    }
+  },
+  "source_attribution": {
+    "core_inputs": 346,
+    "core_manifest_sha256": "a0b4d67238eece78770c10b166c2efbe4e165919c69a0057eb7fcc52a8cd9b48",
+    "containing_inputs": 3924,
+    "containing_manifest_sha256": "e175daa6ce4d13edafb5bc71a2b609295ec3385908eaabc1821ecc466d189a57",
+    "foreign_production_identical_precursor": {
+      "status": "pass",
+      "changed_inputs": [
+        "src/crates/promql-engine/src/execution.rs"
+      ],
+      "change_scope": "Only the cfg(test) module in execution.rs. Production prefix and all other frozen inputs are byte-identical. Foreign binaries retain their original full source identity; they are not reattributed to the later test source.",
+      "before_source_manifest": "final-source.json",
+      "after_source_manifest": "qualified-source.json",
+      "before_file_sha256": "29ee770992be1e81f27707a74b852750a131860e645f7aabc62427dada6a928a",
+      "after_file_sha256": "9f5bcba165c5cfa95a555d656c1051bd113d03abc242d09731baa362dddd80d1",
+      "production_prefix_sha256": "beb0fc2a3e57a63a286cbd71fb3d12d21936c718d25e088c09f0842df8f87f3e"
+    },
+    "foreign_scope": "Installed ARM32/ARM64 release under QEMU. Full precursor source identity is retained; a later correction changes only the excluded Rust test module. No foreign release-min, foreign Rust-unit or physical-device timing claim."
+  },
+  "limits": [
+    "Finite complete outcomes are evidence, not proof for every possible input or 100% compatibility.",
+    "Five measured alternating native-release pairs on a shared host; no CPU/frequency isolation or maximum-throughput claim.",
+    "Peak tracked workspace can increase for membership metadata; lower allocation traffic does not prove lower RAM/RSS.",
+    "Synthetic provider timings and unchanged real API regressions are separate; no live speedup or high-cardinality/cold-disk claim.",
+    "Ordered range consumers still repeat some All discovery. The multi-tick controls retain its measured residual cost.",
+    "Raw source histories remain paged; provider temporary-backing and disabled-cap policies are unchanged."
+  ],
+  "retained_evidence": {
+    ".tmp/histogram-contributors-s5i2hxyl/native-qualification.json": "87b1a95c7fe5153f10c8b6d3ed60bd8701a939887f39cb767f49723708486e32",
+    ".tmp/histogram-contributors-s5i2hxyl/arm32-qualification.json": "0b4ecba8d86c812defc2bb92a8e1b8d3ba472491bbe588091a86fbdf688ac07d",
+    ".tmp/histogram-contributors-s5i2hxyl/arm64-qualification.json": "ad2ebd3629ef970f004f8c507b2ed2013880953a1be2d66e9ad3501e2558af45",
+    ".tmp/histogram-contributors-s5i2hxyl/bridge-release-qualification.json": "d10f57e90ec97841ae201ac817de349db476340071b46aa42bd9c15b3028a9b5",
+    ".tmp/histogram-contributors-s5i2hxyl/bridge-release-min-qualification.json": "bb9db487770cd00ff7dc4556139b0c2eedf3e1e5942d1b6f00937eda133c618c",
+    ".tmp/histogram-contributors-s5i2hxyl/bridge-arm32-qualification.json": "4e5aa271265761217a035458bb2555b73d396651a82be1972b39c58f1c3d82c5",
+    ".tmp/histogram-contributors-s5i2hxyl/bridge-arm64-qualification.json": "b6a4411a6ceed80dec309bce3f7661927b8f77c72cdd8cc5035b4d4fca593222",
+    ".tmp/histogram-contributors-s5i2hxyl/histogram-c-qualification.json": "fea3b57afbebb45aa7cefb7c518dfd4eb69018a9c6ff4d17bd72d747cb792999",
+    ".tmp/histogram-contributors-s5i2hxyl/selected-final-static-receipt.json": "45d4c30486801a3b7d02873df05bd769ca45887c20a691dc8f9c7e32d1b5e874",
+    ".tmp/histogram-contributors-s5i2hxyl/candidate-agent-build.json": "9b4c2c537c8ef5e9a385ea5859ed24af3a8dd1a7342c35d0fadec1c7b05f7534",
+    ".tmp/histogram-contributors-s5i2hxyl/live-qualification.json": "68234520f7e67bc3e6503d3ff9f66b9594bd3322d1e784e873741334dd06f7e5",
+    ".tmp/histogram-contributors-s5i2hxyl/paired-timings.json": "58be3cd931d213cc3572d136e3ce70d1b2e90fd29de2da9525a8aa5f39a4be7d",
+    ".tmp/histogram-contributors-s5i2hxyl/resource-summary.json": "f5618f38d9a573048f1a745ae350c200c1a602d6acdee3d4527425c2ec2a1b84",
+    ".tmp/histogram-contributors-s5i2hxyl/production-equivalence.json": "0a43a6c36600912ca3a5adfc18307a3bc6b8db3671eb8fbad7413791e1261892"
+  }
+}

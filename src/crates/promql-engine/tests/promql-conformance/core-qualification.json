@@ -70913,5 +70913,15 @@
       "src/crates/promql-engine/tests/promql-conformance/test_c_embedding.py": "95d49b48286fe295dde4745d8413446c38ceee203dfcc8a5305dc06d2caf98a7"
     },
     "summary": "Direct zero-byte lease removes redundant checked reference operations. Exact accounting/output controls, both native profiles, actual native/ARM C/C++ callers and real Agent/API observations. Complete same-body timing, code/data costs, slower controls and shared-host/source limits remain explicit."
+  },
+  "histogram_group_contributors": {
+    "status": "qualified_private_optimization",
+    "qualification": "histogram-contributor-qualification.json",
+    "sha256": "95a70ed8fe0e82197b196f26765b433f7c2a408a25693f098be2ee43e9ca387b",
+    "native_units_per_profile": 698,
+    "native_original_comparisons": 2616,
+    "foreign_original_comparisons": 2616,
+    "same_input_policy": "All three consumers/eight ordinary reducers, native/mixed values, scopes, name modes and pages; complete exact outcomes.",
+    "scope": "Histogram demand only; existing join admission, contributor ownership and numerical/public contracts preserved. Scoped costs and remaining range discovery are retained in the qualification."
   }
 }

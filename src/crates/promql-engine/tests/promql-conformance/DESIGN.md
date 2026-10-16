@@ -1182,6 +1182,13 @@ integration, and Alertmanager remains excluded.
 - **Admission:** the initial cohort builds the private plan along eligible root arithmetic/comparison operand paths,
   including admitted Float maps, ordinary nested aggregates and supported raw/window leaves. Keep the actual Float output,
   cardinality and complete Pair proof. The aggregate certificate never grants a one-raw-point scheduling marker.
+- **Histogram consumers:** each visited `histogram_quantile`, `histogram_fraction` or optional
+  `histogram_quantiles` seeds demand from its resolved vector argument. Demand travels on the existing accounted
+  preparation-task stack through ordinary aggregates and supported maps; scalar/string parameters, unsupported
+  edges, invariants and
+  clock boundaries stop propagation. An inner histogram seeds its own local demand independently of outer wrappers.
+  The existing selector/grid proof still controls each plan. Pair-only Float/cardinality restrictions remain with
+  joins; native/mixed histogram consumers do not inherit them. No persistent per-node context array is added.
 - **Completion:** a full child traversal must reach successful Done for the exact clock before membership filters
   later requests. Clear preparation credit before final delivery. Singleton group lookup is direct; nested requests
   use sorted/deduplicated accounted ordinal unions without changing arithmetic traversal order. RefCell borrows stay

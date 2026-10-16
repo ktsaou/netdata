@@ -118,6 +118,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Grouped-contributor changes MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#grouped-aggregate-contributors` for output ordinals,
   cold completion, nested membership ownership, existing window-cache phases and measured metadata costs.
+- Histogram-consumer admission and evaluator-body failure calibration are owned by
+  `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-group-contributors`.
 - Wrapped-join changes MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#wrapped-grouped-joins` for pre-copy eligibility,
   complete input discovery, kept/suppressed pair phases, fresh requested values, suffix continuation and separate
