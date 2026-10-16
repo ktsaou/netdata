@@ -58,27 +58,33 @@ not fetched pages or allocation bytes. RSS covers the whole Agent; its high-wate
 earlier HTTP qualification. It excludes kernel file-cache memory and temporary-file size. These observations do
 not isolate Rust memory or establish IoT/large-parent sizing.
 
-The [recorded Release baseline](live-release-qualification.json) binds the actual binary/archive, repository
-source revision, all 82 HTTP/readiness checks, 224 complete measured responses and their retained artifacts.
-Seven-sample median wire times from that fixed run are:
+The [recorded Release baseline](live-release-qualification.json) retains the earlier binary and results. The
+[direct set qualification](../../src/crates/promql-engine/tests/promql-conformance/instant-set-qualification.json)
+binds the current engine, a fresh containing Release build, the same 82 HTTP/readiness checks and 224 complete
+measured responses. Seven-sample median wire times are:
 
-| Query | Raw pages (ms) | Gorilla pages (ms) |
+| Query | Raw before → current (ms) | Gorilla before → current (ms) |
 |---|---:|---:|
-| Scalar | 0.352 | 0.341 |
-| Fleet gauge | 0.992 | 0.851 |
-| Local counter rate | 1.127 | 0.846 |
-| Fleet average | 1.517 | 0.994 |
-| Six-group histogram | 2434.536 | 2344.758 |
-| 100,000-point delivery, plain | 235.925 | 226.310 |
-| 100,000-point delivery, gzip | 261.891 | 240.830 |
+| Scalar | 0.352 → 0.341 | 0.341 → 0.351 |
+| Fleet gauge | 0.992 → 0.657 | 0.851 → 0.783 |
+| Local counter rate | 1.127 → 0.785 | 0.846 → 0.666 |
+| Fleet average | 1.517 → 0.805 | 0.994 → 0.817 |
+| Six-group histogram | 2434.536 → 18.388 | 2344.758 → 19.054 |
+| 100,000-point delivery, plain | 235.925 → 237.216 | 226.310 → 234.433 |
+| 100,000-point delivery, gzip | 261.891 → 247.216 | 240.830 → 247.050 |
 
-The histogram result identifies repeated evaluation as a concrete next target. A separate eight-case diagnostic
-with the already-built standalone engine fetches 99,952 sample entries for the same expression from just two
-stored points, versus 8 for a direct gauge sum. The diagnostic uses simplified labels and one-point histories;
-its single elapsed samples do not establish a live-versus-standalone speed ratio or isolate C provider cost.
-The report preserves serial outliers, two-client spans, whole-process readings and the caller's corrected
-`data.stats` parsing failure. Both complete measured Agents exit normally; shutdown response reads time out
-while native cleanup finishes. No product engine, storage, provider, API or resource-limit behavior changes here.
+The histogram expression improves about 123–132 times in this fixture. A matched generic-engine panel independently
+removes the repeated discovery: the identical expression over two stored points fetches 99,952→390 entries.
+Its simplified labels/history differ from the live provider, so the two panels do not measure a C/provider cost
+ratio. Generic tracked workspace rises 336 bytes for this expression; some tiny controls use additional metadata
+and have slower medians. Whole-Agent RSS remains a separate observation. The expression still accounts 12 logical
+inputs; its live sample-unit peak changes 7→5, which is not a RAM-byte measurement.
+
+The live before/current cohorts ran at different times on a shared host. Do not attribute every control's timing
+change to this set optimization or infer maximum throughput. All serial outliers, two-client spans and whole-process
+readings remain retained. The earlier baseline also preserves the caller's corrected `data.stats` parsing failure.
+Both current measured Agents exit normally; shutdown response reads time out while native cleanup finishes.
+The current change is private Rust replay behavior; storage, provider, API and resource-limit contracts remain.
 
 The launch, lifecycle and measurement-envelope checks run without starting an Agent:
 

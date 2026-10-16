@@ -830,7 +830,7 @@ integration, and Alertmanager remains excluded.
 
 ## Completed set-input discovery
 
-- **Choice:** eligible ordinary forward range sets reuse active-input membership after both original child
+- **Choice:** eligible ordinary forward instant and range sets reuse active-input membership after both original child
   discovery streams exhaust. Owning preparation and nested ordered bodies share this private Plan owner.
 - **Authority:** a cold pass retains full label/ordinal resolution and requires float, strictly ascending unique
   side-row positions. The bitmap includes suppressed inputs, not only returned outputs. Matching-signature
@@ -862,7 +862,7 @@ integration, and Alertmanager remains excluded.
 ## Completed set-operand prefixes
 
 - **Choice:** one scalar frontier records the greatest successfully completed kept set ordinal at the current exact
-  discovery scope. A targeted Matrix body omits acquisition, value handling and label copying for verified
+  discovery scope. A targeted body in its original set-ordinal domain omits acquisition, value handling and label copying for verified
   nonselected operands. The requested operand is always acquired freshly; All bodies retain every value.
 - **Authority:** discovery alone grants no prefix credit. Fresh acquisition, value presence, label copying, full
   hashing, seen bookkeeping and the terminal control check must succeed before progress advances. Choices visit
@@ -872,7 +872,11 @@ integration, and Alertmanager remains excluded.
   owned labels; copies and merges preserve the pair. Successful fresh emission validates those bytes before
   granting credit. This does not generalize to grouping hashes or arbitrary descriptors. Unverified prefixes/suffixes,
   selected errors, original Vector truncation and Finished checks retain their paths. No extra draining manufactures completion.
-- **Scope:** initialization and advancement share one Matrix/owner/filter predicate. An inactive context cannot
+- **Scope:** initialization and advancement share one owner/filter predicate. Matrix bodies with bypassed ordering
+  and the actual Matrix preparation owner retain their existing activation. A certified singleton set body may
+  also activate directly in either mode when no ordered roster exists; its filter then addresses emitted set
+  ordinals. A present ordering layer retains its original translation. Unfiltered Vector bodies and Pair activation
+  remain unchanged. An inactive context cannot
   read or update progress. An eligible All context seeds success without skipping. Every skip/update checks the
   actual effective frame key; replacement, new discovery publication and preparation clearing reset progress.
   Ordinary Done without a pending owner preserves successfully completed All-body progress.
@@ -892,6 +896,21 @@ integration, and Alertmanager remains excluded.
   failures, actual final sources/binaries, complete results, causal owners, integration and matched measurements.
   [Canonical skipped hashes](set-prefix-hash-qualification.json) separately binds the subsequent hash reuse,
   complete work-only regression, terminal seen control and unchanged measured reads/workspace.
+
+### Direct singleton set bodies
+
+- **Choice:** ordinary instant and equal-bound range clocks may pass the existing set certificate. Unequal-bound
+  ranges with one effective tick already passed the old range restriction. Instant execution retains effective
+  interval 1; public step 0 never replaces the replay key's evaluator interval.
+- **Actual consumer:** classic histogram Count requests a singleton Vector child without bypassing ordering.
+  When its descriptor output has moved to a parent, no ordered roster remains and Binary executes directly.
+  Certifying an owner alone cannot reduce this work; the shared runtime predicate must admit this direct body.
+- **Ordinal authority:** plain publication and projection moves preserve emitted set ordinals. If canonical
+  remapping exists, entry creates OrderedRows before Binary initialization. The new condition requires both
+  set certification and absent ordered metadata; it cannot skip that mapping or widen Pair replay.
+- **Phases and memory:** retain complete cold discovery, preparation clearing, fresh requested and unverified
+  values, original completion/truncation, duplicate controls and one accounted current-key snapshot. No values,
+  history, cache field or persistent Step field is added. New instant metadata costs are measured explicitly.
 
 ## Copied grouping-label construction
 

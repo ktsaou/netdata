@@ -70191,5 +70191,21 @@
       "All observed query memory peaks remain equal; smaller traffic/fewer fetched entries are not peak RAM reductions.",
       "No new useful-language coverage or rule/Cloud implementation is claimed. Continuous goal remains active."
     ]
+  },
+  "direct_instant_set_discovery": {
+    "path": "tests/promql-conformance/instant-set-qualification.json",
+    "sha256": "2a7925f244ad630e0f86cd4c26af711c7d08f9dc980e1777e061ecc061f93d16",
+    "profiles": [
+      "release",
+      "release-min"
+    ],
+    "units_per_profile": 693,
+    "strict_original_comparisons": 4242,
+    "actual_c_cpp_lifecycle_arms": 432,
+    "complete_generated_pairs": 528,
+    "timed_groups": 54,
+    "live_http_readiness_checks": 82,
+    "live_measured_responses": 224,
+    "scope": "Existing-owner direct singleton set discovery; final native/caller/live source-bound qualification. Historical cohorts remain unchanged; finite evidence is not arbitrary-input proof."
   }
 }

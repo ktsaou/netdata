@@ -604,14 +604,20 @@ fn discovery_target(
     filter: RowFilter<'_>,
     node: NodeId,
     preparation: Option<crate::vector_matching::Preparation<'_>>,
+    direct_set: bool,
 ) -> Option<Option<usize>> {
-    if !matches!(mode, OutputMode::Matrix) {
+    if !matches!(mode, OutputMode::Matrix) && !direct_set {
         return None;
     }
     match filter {
-        RowFilter::One(target) if bypass_order => Some(Some(target)),
-        RowFilter::Ordinals([target]) if bypass_order => Some(Some(*target)),
-        RowFilter::All if preparation.is_some_and(|owner| owner.node == node) => Some(None),
+        RowFilter::One(target) if bypass_order || direct_set => Some(Some(target)),
+        RowFilter::Ordinals([target]) if bypass_order || direct_set => Some(Some(*target)),
+        RowFilter::All
+            if matches!(mode, OutputMode::Matrix)
+                && preparation.is_some_and(|owner| owner.node == node) =>
+        {
+            Some(None)
+        }
         _ => None,
     }
 }
@@ -2862,6 +2868,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             frame.filter,
                             node,
                             self.binary_preparation,
+                            step.has_set_discovery() && self.rosters.ordered(node).is_none(),
                         )
                         .is_some()
                     {
@@ -4015,18 +4022,25 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 State::Binary(step) => {
                     let options = self.options;
                     let progress = if step.has_set_discovery() || step.has_pair_discovery() {
-                        discovery_target(mode, bypass_order, filter, node, self.binary_preparation)
-                            .map(|target| {
-                                (
-                                    crate::vector_matching::ReplayKey::new(
-                                        options,
-                                        self.step_index,
-                                        self.prepared.lookback_ns(options.lookback_ms),
-                                        self.data_bounds,
-                                    ),
-                                    target,
-                                )
-                            })
+                        discovery_target(
+                            mode,
+                            bypass_order,
+                            filter,
+                            node,
+                            self.binary_preparation,
+                            step.has_set_discovery() && self.rosters.ordered(node).is_none(),
+                        )
+                        .map(|target| {
+                            (
+                                crate::vector_matching::ReplayKey::new(
+                                    options,
+                                    self.step_index,
+                                    self.prepared.lookback_ns(options.lookback_ms),
+                                    self.data_bounds,
+                                ),
+                                target,
+                            )
+                        })
                     } else {
                         None
                     };
@@ -5245,7 +5259,9 @@ mod filter_tests {
         let one = [7];
         let many = [3, 7];
         for mode in [OutputMode::Vector, OutputMode::Matrix] {
-            for bypass_order in [false, true] {
+            for (bypass_order, direct_set) in
+                [(false, false), (true, false), (false, true), (true, true)]
+            {
                 for (filter, target) in [
                     (RowFilter::One(7), Some(Some(7))),
                     (RowFilter::Ordinals(&one), Some(Some(7))),
@@ -5255,17 +5271,27 @@ mod filter_tests {
                 ] {
                     for preparation in [None, Some(owner)] {
                         for node in [NodeId(1), NodeId(2)] {
-                            let expected = if matches!(mode, OutputMode::Vector) {
-                                None
-                            } else if matches!(filter, RowFilter::All) {
-                                (preparation.is_some() && node == owner.node).then_some(None)
-                            } else if bypass_order {
+                            let expected = if matches!(filter, RowFilter::All) {
+                                (matches!(mode, OutputMode::Matrix)
+                                    && preparation.is_some()
+                                    && node == owner.node)
+                                    .then_some(None)
+                            } else if direct_set
+                                || matches!(mode, OutputMode::Matrix) && bypass_order
+                            {
                                 target
                             } else {
                                 None
                             };
                             assert_eq!(
-                                discovery_target(mode, bypass_order, filter, node, preparation),
+                                discovery_target(
+                                    mode,
+                                    bypass_order,
+                                    filter,
+                                    node,
+                                    preparation,
+                                    direct_set
+                                ),
                                 expected
                             );
                         }

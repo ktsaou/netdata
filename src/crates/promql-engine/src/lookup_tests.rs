@@ -719,6 +719,198 @@ fn nested_set_sparse_members_preserve_complete_paged_results() {
 }
 
 #[test]
+fn single_tick_set_operators_preserve_complete_paged_results() {
+    for page_size in [1, 17, 1024] {
+        for count in [16, 64] {
+            for delayed in [false, true] {
+                for (operator, matching, factor) in [
+                    ("or", "", 2.0),
+                    ("and", "on(instance)", 1.0),
+                    ("unless", "", 1.0),
+                ] {
+                    for request in [
+                        QueryRequest::Instant { time_ms: 1000 },
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 1000,
+                            step_ms: 1000,
+                        },
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 1001,
+                            step_ms: 1000,
+                        },
+                    ] {
+                        let provider = FixtureProvider::new(1, page_size, count);
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let expression = format!(
+                            "sum(label_replace(counter_total,\"branch\",\"a\",\"instance\",\".*\") {operator} {matching} label_replace(counter_total,\"branch\",\"b\",\"instance\",\".*\"))"
+                        );
+                        let query = engine
+                            .compile(
+                                expression.as_bytes(),
+                                EngineOptions {
+                                    delayed_name_removal: delayed,
+                                    ..EngineOptions::default()
+                                },
+                                &control,
+                            )
+                            .unwrap();
+                        let report = query.collect_reported(&provider, request, &control);
+                        let result = report.result.as_ref().unwrap();
+                        assert!(report.annotations.is_empty());
+                        assert_eq!(result.series.len(), 1);
+                        assert!(result.series[0].labels.0.is_empty());
+                        assert_eq!(result.series[0].points.len(), 1);
+                        let point = &result.series[0].points[0];
+                        assert_eq!(point.time_ms, 1000);
+                        let OwnedValue::Float(value) = point.value else {
+                            panic!("float set reduction");
+                        };
+                        assert_eq!(value.to_bits(), (factor * count as f64).to_bits());
+                        let observed = &report.observations;
+                        assert_eq!(observed.output_samples, 1);
+                        assert_eq!(
+                            observed.statistics.samples.total_queryable_samples,
+                            2 * count as u64
+                        );
+                        let counters = &provider.series[0].source.counters;
+                        assert_eq!(
+                            observed.samples_fetched,
+                            counters
+                                .samples_returned
+                                .load(std::sync::atomic::Ordering::Relaxed)
+                                as u64
+                        );
+                        assert_eq!(counters.peak.load(std::sync::atomic::Ordering::Relaxed), 1);
+                        println!(
+                            "{{\"instant_set_rows\":{count},\"page_size\":{page_size},\"delayed\":{delayed},\"operator\":\"{operator}\",\"request\":\"{request:?}\",\"fetched\":{},\"read\":{},\"queryable\":{},\"work\":{},\"workspace_peak\":{}}}",
+                            observed.samples_fetched,
+                            observed.statistics.samples.samples_read,
+                            observed.statistics.samples.total_queryable_samples,
+                            observed.work,
+                            observed.memory[MemoryKind::Workspace as usize].peak
+                        );
+                        provider.assert_closed();
+                        drop((report, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn instant_histogram_set_replay_avoids_repeated_full_discovery() {
+    fn point<const VALUE: u64>(_: usize) -> crate::value::Sample {
+        crate::value::Sample {
+            time_ms: 4000,
+            start_time_ms: 0,
+            value: crate::value::SampleValue::Float(VALUE as f64),
+        }
+    }
+    let buckets = "label_replace(fixture_http{netdata_dimension_id=\"gauge\"},\"le\",\"1\",\"netdata_dimension_id\",\"gauge\") or label_replace(fixture_http{netdata_dimension_id=\"gauge\"},\"le\",\"+Inf\",\"netdata_dimension_id\",\"gauge\")";
+    let grouped = ["a", "b", "c"]
+        .map(|group| format!("label_replace(({buckets}),\"fixture_group\",\"{group}\",\"netdata_dimension_id\",\"gauge\")"))
+        .join(" or ");
+    let expression = format!("scalar(sum(histogram_quantile(0.5,({grouped}))))");
+    let mut reads = Vec::new();
+    for page_size in [1, 17, 1024] {
+        for delayed in [false, true] {
+            for request in [
+                QueryRequest::Instant { time_ms: 4000 },
+                QueryRequest::Range {
+                    start_ms: 4000,
+                    end_ms: 4000,
+                    step_ms: 1000,
+                },
+                QueryRequest::Range {
+                    start_ms: 4000,
+                    end_ms: 4001,
+                    step_ms: 1000,
+                },
+            ] {
+                let mut provider = FixtureProvider::new(1, page_size, 2);
+                for (position, series) in provider.series.iter_mut().enumerate() {
+                    series.labels = vec![
+                        (b"__name__".to_vec(), b"fixture_http".to_vec()),
+                        (b"netdata_dimension_id".to_vec(), b"gauge".to_vec()),
+                        (
+                            b"netdata_host_id".to_vec(),
+                            format!("h{position}").into_bytes(),
+                        ),
+                    ];
+                }
+                provider.series[0].source.sample = point::<5>;
+                provider.series[1].source.sample = point::<7>;
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        expression.as_bytes(),
+                        EngineOptions {
+                            delayed_name_removal: delayed,
+                            ..EngineOptions::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let report = query.collect_reported(&provider, request, &control);
+                let result = report.result.as_ref().unwrap();
+                assert!(report.annotations.is_empty());
+                assert!(result.string.is_none());
+                if matches!(request, QueryRequest::Instant { .. }) {
+                    assert!(result.series.is_empty());
+                    let (time_ms, value) = result.scalar.expect("instant scalar");
+                    assert_eq!(time_ms, 4000);
+                    assert_eq!(value.to_bits(), 3.0f64.to_bits());
+                } else {
+                    assert!(result.scalar.is_none());
+                    assert_eq!(result.series.len(), 1);
+                    assert!(result.series[0].labels.0.is_empty());
+                    assert_eq!(result.series[0].points.len(), 1);
+                    let output = &result.series[0].points[0];
+                    assert_eq!(output.time_ms, 4000);
+                    let OwnedValue::Float(value) = output.value else {
+                        panic!("histogram sum")
+                    };
+                    assert_eq!(value.to_bits(), 3.0f64.to_bits());
+                }
+                let observed = &report.observations;
+                assert_eq!(observed.output_samples, 1);
+                assert_eq!(observed.statistics.samples.total_queryable_samples, 12);
+                let counters = &provider.series[0].source.counters;
+                assert_eq!(
+                    observed.samples_fetched,
+                    counters
+                        .samples_returned
+                        .load(std::sync::atomic::Ordering::Relaxed) as u64
+                );
+                assert_eq!(counters.peak.load(std::sync::atomic::Ordering::Relaxed), 1);
+                println!(
+                    "{{\"instant_histogram\":true,\"page_size\":{page_size},\"delayed\":{delayed},\"request\":\"{request:?}\",\"fetched\":{},\"read\":{},\"queryable\":{},\"work\":{},\"workspace_peak\":{}}}",
+                    observed.samples_fetched,
+                    observed.statistics.samples.samples_read,
+                    observed.statistics.samples.total_queryable_samples,
+                    observed.work,
+                    observed.memory[MemoryKind::Workspace as usize].peak
+                );
+                reads.push((page_size, delayed, request, observed.samples_fetched));
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+    assert!(
+        reads.iter().all(|(_, _, _, fetched)| *fetched <= 10000),
+        "completed instant discovery must bound repeated histogram acquisition: {reads:?}"
+    );
+}
+
+#[test]
 fn nested_set_prefix_reuses_successful_operands() {
     let mut reads = Vec::new();
     for page_size in [1, 17, 1024] {

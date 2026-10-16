@@ -159,6 +159,12 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   fresh requested values, reuse only canonical immutable descriptor hashes, calibrate post-seen controls and preserve
   deferred duplicates, All/Done and serial same-Plan ownership; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-set-operand-prefixes`.
+- Instant set reuse MUST qualify the actual direct singleton body in addition to ordered Matrix consumers.
+  A direct body requires a certified set and absent ordered metadata; preserve canonical-to-source translation,
+  Pair activation, unfiltered Vector truncation, effective instant interval1 and first-final clearing. Use the
+  complete histogram/read regression and both name-removal modes; instant collectors store scalar results in
+  `scalar`, while range requests of scalar expressions produce matrix rows. See the same guide's
+  `#instant-set-discovery` section for finite original, caller and live qualification.
 
 ## Evidence
 

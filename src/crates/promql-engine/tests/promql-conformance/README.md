@@ -2978,16 +2978,18 @@ replay remains an independently tracked performance opportunity.
 
 ## Completed set-input discovery
 
-Repeated ordered range evaluation of `and`, `or` and `unless` can reuse one complete child-discovery pass at
+Repeated evaluation of `and`, `or` and `unless` can reuse one complete child-discovery pass at
 an exact scope. The private Plan keeps active-input membership, including inputs suppressed by matching.
 It retains no sample values or history. The original full left/right discovery must finish before publication;
 a later selected body can reuse that metadata without forcing a truncated Vector caller to drain.
 
-Eligibility is restricted to compatible ordinary forward multi-tick clocks over raw selectors, transparent
+Eligibility is restricted to compatible ordinary forward instant or range clocks over raw selectors, transparent
 parentheses, prepared label projections and other qualified sets. Check original immediate-child aliases before
 projection copies strip source ranges or move descriptors, then check owned side-row labels, float kinds, heads
 and ordinals. Matching-signature duplicates remain legal. Native/mixed, multiple, aliased, copied, invariant,
-wrapping and other expression shapes continue through the original implementation.
+wrapping and other expression shapes continue through the original implementation. The original discovery and
+prefix cohorts below qualified range consumers; the direct singleton extension is described under
+[instant set discovery](#instant-set-discovery).
 
 Warm reconstruction preserves side order and later phases: Begin, choice, selected/unverified operand
 rereads, labels, duplicate/diagnostic completion and output truncation. Completed prefixes below can omit verified
@@ -3077,14 +3079,82 @@ slower. Both observations remain preserved, and neither establishes universal th
 over 128 distinct target/profile/test slots, and 18 C/C++ callers. The freshly rebuilt Agent passes 672 storage
 records and 82 HTTP/readiness checks. Historical cohorts retain their original identities.
 
+## Instant set discovery
+
+Ordinary instant and equal-bound range scopes use the same certified membership/prefix owner as eligible
+multi-tick sets. Instant execution retains effective interval 1. Merely removing the old unequal-bound guard
+does not activate reuse: a classic histogram Count requests a singleton Vector body without bypassing ordering.
+If its output roster has moved to a parent, the Binary body executes directly.
+
+Both initialization and advancement now recognize a certified set singleton with no ordered roster. Plain
+publication and projection moves retain its emitted set ordinal. If canonical remapping exists, entry retains
+OrderedRows and its original source translation. Existing Matrix/bypass and actual Matrix preparation-owner
+routes remain; Pair activation and unfiltered Vector behavior remain unchanged. Complete cold discovery,
+first-final preparation clearing, fresh requested/unverified reads, duplicate handling and original truncation
+still apply. No raw values, history or new persistent cache/Step fields are retained.
+
+The complete-query regression reproduces the six-group expression used by the live API fixture with two
+one-point source series. It checks exact output, logical total 12, physical reads, one cursor and release before
+its acquisition bound. Ordinary instant, equal-bound and unequal-bound one-tick requests use pages 1/17/1024
+and both name-removal modes. Instant scalar collectors use `scalar`; range requests produce matrix rows.
+The simple set-operator controls also check all three operators and complete outcomes. Run these from the crate:
+
+```sh
+cargo +stable test --locked --features fixtures instant_histogram_set_replay
+cargo +stable test --locked --features fixtures single_tick_set_operators
+cargo +stable test --locked --features fixtures completed_set_preparation
+```
+
+These development-profile checks establish behavior. Optimized qualification uses both release profiles.
+The actual C/C++ caller has `--instant-sets-only` and `--instant-sets-delayed-only` arms for three request shapes,
+pages 1/17/1024, complete histogram outputs, discovery/selected failures, required reads after output,
+cancellation/output errors and release. Its default roster includes the ordinary mode.
+
+[Generated controls](instant_set_cases.py) include reversed source order, full vector histograms and sets,
+empty/tiny inputs, scalar and grouped reductions, both name modes and multi-tick controls. Complete before/current
+comparison preserves row-array order. The fixed timing panel retains all samples and small-control costs;
+it does not establish CPU isolation or universal throughput.
+
+The exact two-point Release diagnostic reduces fetched entries 99,952→390, provider calls 199,935→811 and
+work 55,837,009→473,309. Its tracked workspace peak increases 130,358→130,694 bytes. The nested-union control
+reduces 4,116→231 entries and adds 1,240 peak bytes; prelabelled classic and direct gauge controls keep their original
+reads/work/peaks. These are finite generic-provider observations, separate from live DBengine measurements.
+The retained admission-only pilot had no read gain and added metadata; it is not counted as a speedup.
+
+[Instant set qualification](instant-set-qualification.json) binds 693 units in each optimized build,
+4,242 strict original set-expression comparisons and 432 actual C/C++ lifecycle arms. The generated panel preserves
+all 528 complete before/current result pairs, including row-array order. Its 54 timing groups retain 756 measured and
+108 warmup responses. Page 17 median engine times are:
+
+| Query | Release before → current (ms) | Release-min before → current (ms) |
+| --- | ---: | ---: |
+| Six-group histogram | 405.322 → 4.318 | 697.494 → 6.849 |
+| Nested unions | 17.041 → 2.136 | 29.159 → 3.413 |
+| Small `or` reduction | 0.227 → 0.226 | 0.316 → 0.323 |
+| Small `and` reduction | 0.179 → 0.187 | 0.261 → 0.276 |
+| Empty set reduction | 0.069 → 0.074 | 0.087 → 0.089 |
+
+Eight Release and 21 Release-min timing groups are slower. Their largest median increases are about 6.6% and 5.7%,
+respectively; all raw and small controls remain in the report. Across the 528 complete comparisons, observed workspace
+peak increases range 0–1,240 bytes. Executable text grows 768 bytes in Release and 304 bytes in Release-min. Lower fetched
+entries and cumulative allocation traffic are not universal peak-memory reductions or zero-overhead guarantees.
+
+The freshly rebuilt containing Release Agent passes 82 HTTP/readiness checks and 224 measured responses with both
+codecs and normal owned exits. Its unchanged histogram expression improves 2434.536→18.388 ms on raw pages and
+2344.758→19.054 ms on Gorilla. The live panels run at different times on a shared host; the generic alternating
+comparison provides separate causal evidence. Larger/cold data, physical ARM performance, saturation throughput
+and Rust-only or total-system RSS are not established. The ordinary limits and adaptive-policy decisions are unchanged.
+
 ## Completed set-operand prefixes
 
 The current exact set-discovery owner records one successfully completed kept prefix. During a later targeted
-Matrix body, verified nonselected operands reconstruct seen/duplicate state with the immutable descriptor's
+body in its original set-ordinal domain, verified nonselected operands reconstruct seen/duplicate state with the immutable descriptor's
 canonical full hash without rereading values, copying labels or emitting filtered samples. The requested operand stays fresh.
 Discovery grants no credit; success includes the original operand, label, hash, seen and terminal control phases.
 
-Initialization and advancement share the Matrix/owner/filter predicate. All bodies seed progress while returning
+Initialization and advancement share the owner/filter predicate. The existing bypassed Matrix route and actual
+Matrix preparation owner remain; certified direct singleton sets also qualify without an ordered roster.
+Unfiltered Vector and Pair activation remain unchanged. Eligible All bodies seed progress while returning
 every value; inactive contexts do neither. Key replacement, new discovery publication and preparation clearing
 reset the frontier. Ordinary Done with no pending discovery preserves All-body progress. Unverified prefixes and
 suffixes, first-pass failures, selected failures and original truncation remain required; there is no extra drain.

@@ -2311,7 +2311,6 @@ impl CompiledQuery {
                 && self.expression.arena[*right].value_type == ValueType::Vector
             {
                 let mut set_discovery = operator.is_set()
-                    && header.start_ms < header.end_ms
                     && crate::query_scopes::Grid::from(header).forward_without_wrap()
                     && !prepared.flags().invariants[node.0]
                     && !prepared.flags().boundaries[node.0]
@@ -10003,7 +10002,34 @@ mod tests {
     #[test]
     fn completed_set_preparation_clears_discovery_before_both_final_routes() {
         let body = "label_replace(counter_total,\"branch\",\"a\",\"instance\",\".*\") or label_replace(counter_total,\"branch\",\"b\",\"instance\",\".*\")";
-        for derived in [false, true] {
+        for (derived, request) in [
+            (false, QueryRequest::Instant { time_ms: 4000 }),
+            (
+                false,
+                QueryRequest::Range {
+                    start_ms: 4000,
+                    end_ms: 4000,
+                    step_ms: 1000,
+                },
+            ),
+            (
+                false,
+                QueryRequest::Range {
+                    start_ms: 4000,
+                    end_ms: 4001,
+                    step_ms: 1000,
+                },
+            ),
+            (
+                false,
+                QueryRequest::Range {
+                    start_ms: 2000,
+                    end_ms: 4000,
+                    step_ms: 1000,
+                },
+            ),
+            (true, QueryRequest::Instant { time_ms: 4000 }),
+        ] {
             let expression = if derived {
                 format!("({body})[3s:1s]")
             } else {
@@ -10018,15 +10044,6 @@ mod tests {
                     .unwrap();
                 let account = engine.accounting.query();
                 {
-                    let request = if derived {
-                        QueryRequest::Instant { time_ms: 4000 }
-                    } else {
-                        QueryRequest::Range {
-                            start_ms: 2000,
-                            end_ms: 4000,
-                            step_ms: 1000,
-                        }
-                    };
                     let header = compiled.header(request).unwrap();
                     let prepared = Prepared::new(
                         &compiled.expression,
@@ -10075,7 +10092,10 @@ mod tests {
                             assert!(!plan.has_completed_set_discovery());
                         }
                     }
-                    assert!(certified > 0, "derived={derived},page={page}");
+                    assert!(
+                        certified > 0,
+                        "derived={derived},request={request:?},page={page}"
+                    );
                 }
                 provider.assert_closed();
                 account.snapshot().assert_memory_released();
