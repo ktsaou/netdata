@@ -103,3 +103,66 @@ def performance_cases():
                     expression += " / on(cluster,zone) " + left.replace("m_total", "n_total")
                 output.append(_case(f"contributors-perf-{name}-{'join' if joined else 'alone'}-g{groups}-m{members}", expression, records, end=3000))
     return output
+
+
+def mapped_cases():
+    """Ordered scalar maps over groups, including nested consumers and fallback clocks."""
+    output = []
+    for profile in ("server-default", "upstream-tests"):
+        for operator in OPERATORS:
+            for grouping in ("by(cluster,zone)", "without(__name__,member)"):
+                grouped = f"{operator} {grouping}(m_total)"
+                expressions = (
+                    grouped,
+                    f"({grouped}) > 5",
+                    f"({grouped}) > bool 5",
+                    f"5 < ({grouped})",
+                    f"abs({grouped})",
+                    f"({grouped}) ^ 2",
+                    f"2 * ({grouped})",
+                    f"clamp_min({grouped},time()-3)",
+                    f"sum(abs({grouped}))",
+                    f"scalar(abs({grouped}))",
+                    f"abs(sum by(cluster)({grouped}))",
+                    f"({grouped}) > 1000000",
+                )
+                for index, expression in enumerate(expressions):
+                    output.append(_case(f"mapped-groups-{profile}-{operator}-{grouping}-{index}",
+                                        expression, _records(), profile))
+            window = f"{operator} by(cluster,zone)(rate(m_total[3s]))"
+            for index, expression in enumerate((
+                f"({window}) > 5",
+                f"({window}) > bool 5",
+                f"abs({window})",
+                f"sum(abs({window}))",
+            )):
+                output.append(_case(f"mapped-window-groups-{profile}-{operator}-{index}",
+                                    expression, _records(), profile))
+        grouped = "sum by(cluster,zone)(m_total)"
+        for state in ("stale", "late", "empty", "native", "mixed", "all-native", "nan", "infinity", "zero"):
+            for index, expression in enumerate((
+                f"({grouped}) > 5",
+                f"({grouped}) > bool 5",
+                f"5 < ({grouped})",
+                f"abs({grouped})",
+                f"sum(abs({grouped}))",
+                f"abs(avg by(cluster)(sum by(cluster,zone)(m_total)))",
+                "abs(sum by(cluster,zone)(rate(m_total[3s])))",
+                "abs(sum by(cluster,zone)(sum_over_time(m_total[3s])))",
+            )):
+                output.append(_case(f"mapped-state-groups-{profile}-{state}-{index}",
+                                    expression, _records(state), profile))
+        for index, expression in enumerate((
+            f"-({grouped})",
+            f"-(({grouped}) > 5)",
+            f"({grouped}) * scalar(n_total{{zone=\"0\",member=\"0\"}})",
+            "sum by(cluster,zone)(rate(m_total[3s] @ 2)) > 1",
+            "sum by(cluster,zone)(rate(m_total[3s] offset 1s)) > 1",
+            "abs(sum by(cluster,zone)(rate((m_total*1)[3s:1s])))",
+            f"timestamp({grouped})",
+            f"label_join({grouped},\"site\",\"/\",\"cluster\",\"zone\")",
+        )):
+            for instant in (False, True):
+                output.append(_case(f"mapped-fallback-groups-{profile}-{index}-{instant}",
+                                    expression, _records(), profile, instant=instant))
+    return output

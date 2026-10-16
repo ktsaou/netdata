@@ -1849,16 +1849,16 @@ impl CompiledQuery {
                 rosters.prepare_aggregate_parameter(node, *operator, summary, account);
                 continue;
             }
-            if let Task::Visit(_, _, primary, histogram_demand) = task {
+            if let Task::Visit(_, _, primary, contributor_demand) = task {
                 rosters.set_statistics_role(node, primary);
                 let child_primary = primary && !prepared.flags().boundaries[node.0];
                 let grid = crate::query_scopes::Grid::from(header);
-                let histogram_demand = histogram_demand
-                    && !prepared.flags().invariants[node.0]
+                let contributor_clock = !prepared.flags().invariants[node.0]
                     && !prepared.flags().boundaries[node.0]
                     && crate::query_scopes::Grid::from(prepared.source_header(node, header))
                         == grid
                     && crate::query_scopes::Grid::from(prepared.scope_header(node, header)) == grid;
+                let contributor_demand = contributor_demand && contributor_clock;
                 header = prepared.source_header(node, header);
                 if prepared.activate(header, control, account)?.is_none() {
                     if self.expression.arena[node].value_type == ValueType::Scalar {
@@ -2030,14 +2030,14 @@ impl CompiledQuery {
                     ));
                     continue;
                 }
-                tasks.push(Task::Finish(node, header, histogram_demand));
+                tasks.push(Task::Finish(node, header, contributor_demand));
                 if self
                     .direct_clock_selector(node, control, account)?
                     .is_none()
                 {
                     let consumed = self.consumed_subquery(node, prepared, control, account)?;
-                    // Histograms select grouped outputs repeatedly within their own clock.
-                    let histogram_child = if let Expr::Call {
+                    // Histograms and ordered maps select grouped outputs repeatedly within their own clock.
+                    let contributor_child = if let Expr::Call {
                         function: Some(function),
                         arguments,
                         ..
@@ -2052,7 +2052,12 @@ impl CompiledQuery {
                             control,
                             account,
                         )?)
-                    } else if histogram_demand {
+                    } else if contributor_demand
+                        || contributor_clock
+                            && header.start_ms != header.end_ms
+                            && self.expression.arena[node].value_type == ValueType::Vector
+                            && matches!(expression, Expr::Binary { .. } | Expr::Call { .. })
+                    {
                         if let Expr::Aggregate {
                             operator,
                             expression: Some(child),
@@ -2088,7 +2093,7 @@ impl CompiledQuery {
                             child,
                             header,
                             child_primary && Some(child) != consumed,
-                            Some(child) == histogram_child,
+                            Some(child) == contributor_child,
                         ));
                     }
                 }
@@ -16256,6 +16261,458 @@ mod tests {
             provider.assert_closed();
             drop((report, query));
             engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    fn mapped_group_provider(page: usize, groups: usize) -> FixtureProvider {
+        fn counter<const SCALE: u64>(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float((index as u64 + 1) as f64 * SCALE as f64),
+            }
+        }
+        let mut provider = FixtureProvider::new(5, page, groups * 2);
+        for (index, series) in provider.series.iter_mut().enumerate() {
+            let group = groups - 1 - index / 2;
+            series.labels = vec![
+                (b"__name__".to_vec(), b"counter_total".to_vec()),
+                (b"instance".to_vec(), format!("g{group:04}").into_bytes()),
+                (b"member".to_vec(), (index % 2).to_string().into_bytes()),
+            ];
+            series.source.sample = if group.is_multiple_of(2) {
+                counter::<1>
+            } else {
+                counter::<2>
+            };
+            series.source.counters = Default::default();
+        }
+        provider
+    }
+
+    #[test]
+    fn mapped_groups_check_complete_results_before_linear_label_visits() {
+        let mut observations = Vec::new();
+        for delayed in [false, true] {
+            for page in [1, 17] {
+                for groups in [1, 4, 16, 64] {
+                    let provider = mapped_group_provider(page, groups);
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            b"(sum by(instance)(rate(counter_total[3s]))) > 1",
+                            options(delayed),
+                            &control,
+                        )
+                        .unwrap();
+                    let (report, reads) =
+                        crate::test_storage::observe_label_reads(&control, None, || {
+                            query.collect_reported(
+                                &provider,
+                                QueryRequest::Range {
+                                    start_ms: 3000,
+                                    end_ms: 5000,
+                                    step_ms: 1000,
+                                },
+                                &control,
+                            )
+                        });
+                    let result = report.result.as_ref().unwrap();
+                    assert!(report.annotations.is_empty());
+                    assert_eq!(result.series.len(), groups);
+                    for (group, row) in result.series.iter().enumerate() {
+                        assert_eq!(row.labels.0.len(), 1);
+                        assert_eq!(&*row.labels.0[0].name, b"instance");
+                        assert_eq!(&*row.labels.0[0].value, format!("g{group:04}").as_bytes());
+                        assert_eq!(row.points.len(), 3);
+                        for (tick, point) in row.points.iter().enumerate() {
+                            assert_eq!(point.time_ms, (tick as i64 + 3) * 1000);
+                            assert_eq!(
+                                float_bits(point),
+                                if group % 2 == 0 { 2.0_f64 } else { 4.0_f64 }.to_bits()
+                            );
+                        }
+                    }
+                    assert_eq!(report.observations.output_samples, (3 * groups) as u64);
+                    assert_eq!(
+                        report.observations.memory[MemoryKind::Workspace as usize].current,
+                        0
+                    );
+                    provider.assert_closed();
+                    observations.push((delayed, page, groups, reads));
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+        println!("complete mapped-group outcomes; label reads: {observations:?}");
+        // All complete outcomes and ownership checks precede the scaling assertion.
+        for (delayed, page, groups, reads) in observations {
+            assert!(
+                reads <= 200 * groups * 2,
+                "unrelated group label replay: delayed={delayed} page={page} groups={groups} reads={reads}"
+            );
+        }
+    }
+
+    #[test]
+    fn mapped_group_demand_follows_ordered_maps_and_preserves_clock_fallbacks() {
+        let range = QueryRequest::Range {
+            start_ms: 3000,
+            end_ms: 5000,
+            step_ms: 1000,
+        };
+        let instant = QueryRequest::Instant { time_ms: 3000 };
+        let equal = QueryRequest::Range {
+            start_ms: 3000,
+            end_ms: 3000,
+            step_ms: 1000,
+        };
+        for (expression, request, expected) in [
+            ("sum by(instance)(rate(counter_total[3s])) > 1", range, 1),
+            ("abs(sum by(instance)(rate(counter_total[3s])))", range, 1),
+            ("-(sum by(instance)(rate(counter_total[3s])) > 1)", range, 1),
+            (
+                "sum(abs(sum by(instance)(rate(counter_total[3s]))))",
+                range,
+                1,
+            ),
+            (
+                "scalar(abs(sum by(instance)(rate(counter_total[3s]))))",
+                range,
+                1,
+            ),
+            (
+                "sum by(instance)(rate(counter_total[3s])) * time()",
+                range,
+                1,
+            ),
+            ("sum by(instance)(rate(counter_total[3s])) ^ 2", range, 1),
+            ("sum by(instance)(rate(counter_total[3s]))", range, 0),
+            ("-(sum by(instance)(rate(counter_total[3s])))", range, 0),
+            ("sum by(instance)(rate(counter_total[3s])) > 1", instant, 0),
+            ("sum by(instance)(rate(counter_total[3s])) > 1", equal, 0),
+            (
+                "sum by(instance)(rate(counter_total[3s] @ 3)) > 1",
+                range,
+                0,
+            ),
+            (
+                "sum by(instance)(rate(counter_total[3s])) * scalar(counter_total)",
+                range,
+                0,
+            ),
+            (
+                "timestamp(sum by(instance)(rate(counter_total[3s])))",
+                range,
+                0,
+            ),
+        ] {
+            let provider = mapped_group_provider(17, 4);
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(expression.as_bytes(), options(true), &control)
+                .unwrap();
+            let account = query.execution_accounting();
+            let plans = {
+                let header = query.header(request).unwrap();
+                let prepared = Prepared::new(
+                    &query.expression,
+                    &query.preprocessing,
+                    header,
+                    query.options.no_step_subquery_interval_ms,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let header = prepared.evaluator_header();
+                prepared.activate(header, &control, &account).unwrap();
+                let options = query.evaluation_options(header, header.start_ms, &prepared);
+                let bounds = crate::query_bounds::find(
+                    &query.expression,
+                    options,
+                    &prepared,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let scope = provider.open(bounds, &control).unwrap();
+                let catalog = Catalog::new(
+                    &scope,
+                    &query.expression,
+                    &prepared,
+                    options,
+                    query.options.no_step_subquery_interval_ms,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let rosters = query
+                    .prepare_rosters(
+                        &catalog,
+                        &prepared,
+                        bounds,
+                        &control,
+                        &account,
+                        &mut Annotations::default(),
+                    )
+                    .unwrap();
+                (0..query.expression.arena.nodes.len())
+                    .filter(|&index| {
+                        if let Some(plan) = rosters.group_replay(NodeId(index)) {
+                            assert!(
+                                !plan.has_completion(),
+                                "preparation cannot grant final credit"
+                            );
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                    .count()
+            };
+            provider.assert_closed();
+            account.snapshot().assert_memory_released();
+            drop((account, query));
+            engine.accounting.snapshot().assert_memory_released();
+            assert_eq!(plans, expected, "{expression} {request:?}");
+        }
+    }
+
+    #[test]
+    fn mapped_groups_keep_cold_selected_next_clock_and_output_failures() {
+        fn acquisitions(input: &FixtureProvider) -> Vec<usize> {
+            input
+                .series
+                .iter()
+                .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
+                .collect()
+        }
+        fn drive(
+            compiled: &CompiledQuery,
+            input: &FixtureProvider,
+            stop: Option<(usize, usize, bool)>,
+        ) -> Vec<Vec<Vec<usize>>> {
+            let control = Control::default();
+            let account = compiled.execution_accounting();
+            let mut landmarks = Vec::new();
+            {
+                let header = compiled
+                    .header(QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 2000,
+                        step_ms: 1000,
+                    })
+                    .unwrap();
+                let prepared = Prepared::new(
+                    &compiled.expression,
+                    &compiled.preprocessing,
+                    header,
+                    compiled.options.no_step_subquery_interval_ms,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let header = prepared.evaluator_header();
+                prepared.activate(header, &control, &account).unwrap();
+                let options = compiled.evaluation_options(header, header.start_ms, &prepared);
+                let bounds = crate::query_bounds::find(
+                    &compiled.expression,
+                    options,
+                    &prepared,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let scope = input.open(bounds, &control).unwrap();
+                let catalog = Catalog::new(
+                    &scope,
+                    &compiled.expression,
+                    &prepared,
+                    options,
+                    compiled.options.no_step_subquery_interval_ms,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let rosters = compiled
+                    .prepare_rosters(
+                        &catalog,
+                        &prepared,
+                        bounds,
+                        &control,
+                        &account,
+                        &mut Annotations::default(),
+                    )
+                    .unwrap();
+                let plan = (0..compiled.expression.arena.nodes.len())
+                    .find_map(|index| rosters.group_replay(NodeId(index)))
+                    .unwrap();
+                assert!(
+                    !plan.has_completion(),
+                    "preparation must discard final credit"
+                );
+                'instants: for instant in 0..2 {
+                    let mut machine = Machine::new(
+                        &catalog,
+                        &compiled.expression,
+                        compiled.expression.root,
+                        compiled.evaluation_options(header, (instant as i64 + 1) * 1000, &prepared),
+                        &control,
+                        &account,
+                        EvaluationMetadata {
+                            prepared: &prepared,
+                            rosters: &rosters,
+                            timestamp_selectors: &compiled.timestamp_selectors,
+                            data_bounds: bounds,
+                            annotations: None,
+                            binary_preparation: None,
+                            histogram_preparation: None,
+                            info_preparation: None,
+                            count_preparation: None,
+                        },
+                    );
+                    machine.set_step_index(instant as i64);
+                    landmarks.push(vec![acquisitions(input)]);
+                    let mut outputs = 0;
+                    loop {
+                        let stopping = stop
+                            .is_some_and(|(tick, after, _)| tick == instant && after == outputs);
+                        let cancelled = stopping && stop.unwrap().2;
+                        if cancelled {
+                            control.cancellation.cancel();
+                        }
+                        let next = machine.next();
+                        if stopping {
+                            let error = next.unwrap_err();
+                            if cancelled {
+                                assert!(matches!(
+                                    error,
+                                    EvaluationError::Interrupted(Interrupted::Cancelled)
+                                ));
+                            } else {
+                                assert!(
+                                    matches!(&error, EvaluationError::Storage(StorageError::Provider(bytes))
+                                    if &**bytes == b"injected page failure")
+                                );
+                            }
+                            drop(error);
+                            break 'instants;
+                        }
+                        let Some(sample) = next.unwrap() else {
+                            break;
+                        };
+                        assert!(
+                            plan.has_completion(),
+                            "first output requires successful full child Done"
+                        );
+                        assert_eq!(sample.labels.0.len(), 1);
+                        let group = std::str::from_utf8(&sample.labels.0[0].value).unwrap()[1..]
+                            .parse::<usize>()
+                            .unwrap();
+                        let expected =
+                            (if group % 2 == 0 { 2.0 } else { 4.0 }) * (instant + 1) as f64;
+                        assert!(
+                            matches!(sample.value, OwnedValue::Float(value) if value.to_bits() == expected.to_bits())
+                        );
+                        drop(sample);
+                        outputs += 1;
+                        landmarks[instant].push(acquisitions(input));
+                    }
+                    assert_eq!(outputs, 4);
+                }
+            }
+            input.assert_closed();
+            account.snapshot().assert_memory_released();
+            landmarks
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let compiled = engine
+                    .compile(
+                        b"sum by(instance)(counter_total) > 0",
+                        options(delayed),
+                        &Control::default(),
+                    )
+                    .unwrap();
+                let calibration = mapped_group_provider(page, 4);
+                let landmarks = drive(&compiled, &calibration, None);
+                let (prefix, selected) = landmarks[0]
+                    .windows(2)
+                    .enumerate()
+                    .skip(1)
+                    .find_map(|(prefix, pair)| {
+                        (0..8)
+                            .find(|&index| pair[1][index] > pair[0][index])
+                            .map(|index| (prefix, index))
+                    })
+                    .expect("a later ordered row freshly reads a selected contributor");
+                for (phase, instant, after, target, acquisition) in [
+                    ("cold-nonmember", 0, 0, 0, landmarks[0][0][0] + 1),
+                    (
+                        "warm-selected",
+                        0,
+                        prefix,
+                        selected,
+                        landmarks[0][prefix][selected] + 1,
+                    ),
+                    ("next-clock-nonmember", 1, 0, 0, landmarks[1][0][0] + 1),
+                ] {
+                    let mut input = mapped_group_provider(page, 4);
+                    input.series[target].source.fail_acquisition = Some(acquisition);
+                    let observed = drive(&compiled, &input, Some((instant, after, false)));
+                    assert_eq!(observed.len(), instant + 1);
+                    assert_eq!(observed[instant].len(), after + 1);
+                    assert_eq!(acquisitions(&input)[target], acquisition);
+                    println!(
+                        "mapped-group phase={phase} page={page} delayed={delayed} instant={instant} outputs={after} target={target} acquisition={acquisition}"
+                    );
+                }
+                let input = mapped_group_provider(page, 4);
+                assert_eq!(
+                    drive(&compiled, &input, Some((0, prefix, true)))[0].len(),
+                    prefix + 1
+                );
+                for cancel in [false, true] {
+                    let input = mapped_group_provider(page, 4);
+                    let control = Control::default();
+                    let mut sink = RecordingSink {
+                        fail_after: (!cancel).then_some(1),
+                        cancel: cancel.then(|| control.cancellation.clone()),
+                        ..RecordingSink::default()
+                    };
+                    let report = compiled.execute_reported(
+                        &input,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 2000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                        &mut sink,
+                    );
+                    if cancel {
+                        assert!(matches!(
+                            &report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                                Interrupted::Cancelled
+                            )))
+                        ));
+                    } else {
+                        assert!(
+                            matches!(&report.result, Err(ExecutionError::Sink(bytes)) if &**bytes == b"sink failure")
+                        );
+                        report.assert_retained_callback_error_memory();
+                    }
+                    assert!(sink.begun && sink.aborted && !sink.committed);
+                    input.assert_closed();
+                }
+                drop(compiled);
+                engine.accounting.snapshot().assert_memory_released();
+            }
         }
     }
 

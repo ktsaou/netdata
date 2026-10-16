@@ -70970,5 +70970,15 @@
     "complete_C_queries": 288,
     "whole_query_timing_outcomes": 696,
     "scope": "One private positional-ID proof eliminates dense Collector scans with unchanged generic fallback and pre-sort invalidation. No new heap owner; native layout200bytes unchanged. Full selected original/native-foreign/Cqualification and finite both-profile whole-query timings retain all memory/code/slower-case costs; HTTP streaming lookup remains separate."
+  },
+  "mapped_group_contributors": {
+    "status": "qualified_private_optimization",
+    "qualification": "mapped-group-contributors-qualification.json",
+    "sha256": "2cb040e18399604339c8aa8e0e36ec2e3a20121b06bbb5a6f27c20337b25c8f7",
+    "native_units_per_profile": 714,
+    "complete_expression_comparisons": 16800,
+    "actual_candidate_C_queries": 672,
+    "whole_query_timing_outcomes": 1080,
+    "scope": "Local ordered scalar-map admission reuses existing group contributor ownership, including nested All consumers. Complete cold/fresh/next-clock/ordinal/native/mixed and C controls; original/runtime/page/profile evidence and all metadata/code/slower costs retained. No raw cache or public contract change."
   }
 }

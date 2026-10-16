@@ -1255,6 +1255,13 @@ integration, and Alertmanager remains excluded.
   clock boundaries stop propagation. An inner histogram seeds its own local demand independently of outer wrappers.
   The existing selector/grid proof still controls each plan. Pair-only Float/cardinality restrictions remain with
   joins; native/mixed histogram consumers do not inherit them. No persistent per-node context array is added.
+- **Ordered scalar maps:** an unequal-header Vector Binary/Call can seed the same demand at its own visited
+  boundary, after existing activation and specialized error handling. The existing pure-map/Float proof resolves its
+  vector edge. Invariant, boundary, source/scope grid and aggregate leaf/producer checks still apply. Unary/Paren
+  only propagate inherited demand. Nested sum/scalar consumers of All can contain ordered children that select rows;
+  admission therefore belongs to each eligible map, rather than only the root. There is no additional Task field
+  or persistent node context. The [procedure and costs](README.md#mapped-group-contributors) distinguish added
+  membership metadata from saved repeated label work.
 - **Completion:** a full child traversal must reach successful Done for the exact clock before membership filters
   later requests. Clear preparation credit before final delivery. Singleton group lookup is direct; nested requests
   use sorted/deduplicated accounted ordinal unions without changing arithmetic traversal order. RefCell borrows stay

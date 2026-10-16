@@ -5001,6 +5001,83 @@ Timings use a synthetic engine/provider on a shared host without CPU/frequency i
 live HTTP, DBengine disk I/O, concurrent throughput, device performance or RSS. Owned output and derived metadata
 can grow; all implicit caps remain disabled. Earlier language, SRE and live-Agent panels retain their identities.
 
+## Mapped group contributors
+
+Scalar comparisons and Float maps over ordinary groups now reuse contributor membership at their own ordered
+boundary. This includes grouped rates followed by a threshold, `abs`, pure scalar arithmetic and nested consumers
+such as `sum(abs(sum by(job)(rate(m_total[3s]))))`. No language feature is added or dropped.
+
+An unequal-header Vector Binary/Call seeds through the existing pure-map/Float proof. Plain and unary-only
+aggregates, same-clock instant/equal-header maps and unsupported scalar/leaf paths retain their existing admission.
+Invariant and source/scope boundaries stop inherited demand; eligible inner consumers can seed their own local
+clock. A parent that consumes All can still have an ordered map child that selects singleton rows. Root-only
+admission would miss that repeated work.
+
+The existing Plan keeps original child output ordinals, hash-only aliases and source traversal order. The first
+final evaluation on every exact ReplayKey must complete the full child successfully. Preparation credit clears
+before delivery. Later selections reuse only membership; values, diagnostics and arithmetic follow the original
+evaluator and its existing completed-window caches. No raw history, aggregate payload, new metadata provider or
+persistent node context is added. Raw histories stay paged across both axes.
+
+Run the three causal units with the `mapped_group` filter under either optimized Cargo profile. They cover complete
+values, labels, timestamps and ownership before actual label-visit bounds; reverse source order and different
+counter slopes make ordinal errors observable. The actual OrderedRows body preserves cold nonmember, warm selected
+and next-clock nonmember errors without bypassing root order. It also checks explicit cancellation and output abort
+at pages1/17/1024 and both name-removal modes. Window-backed warm replay can use existing folds; the error landmarks
+therefore use the actually read raw-selector body.
+
+`group_contributor_cases.mapped_cases()` supplies the complete expression panel. It covers all eight ordinary
+reducers, by/without, comparisons, bool, scalar-left, Float/time/arithmetic maps, nested consumers, sparse/changing
+outputs, no survivors, native/mixed values, NaN/infinity/zero and scope/fallback controls. Existing grouped joins and
+histogram bridge cases remain separate comparison panels. The new C panel reuses the paged callback and calibrated
+failure owners in `c_embedding.c`. Short-window rates need source-defined extrapolation; its unit-valued callback
+assertions use Boolean-normalized positive results. The helper's query observations and summary records are checked
+separately.
+
+For the small three-tick dataset, let M be input series and P be surviving rows. The unchanged engine makes
+`(3*P+14)*M` label-view calls for the filtered query, compared with `11*M` for the plain aggregate. At 8 jobs and
+30 buckets, native release at page17 has these observations:
+
+| Filtered grouped rate | Before | Candidate |
+| --- | ---: | ---: |
+| Label views | 329,280 | 9,498 |
+| Work units | 68,314,094 | 2,688,198 |
+| Workspace acquired | 337,851,576 B | 17,932,034 B |
+| Workspace peak | 664,368 B | 672,840 B |
+
+Contributor identities/ranges and construction storage are real added metadata. Lower traffic does not imply a
+lower peak, and small output sets can pay setup without a gain.
+
+Both optimized native profiles pass all 714 library tests, with the same two existing ignored tests. The selected
+panels pass 16,800 complete original comparisons: 2,100 requests at pages1/17/1024 in both native profiles and page17
+on ARM32/ARM64 release under QEMU. There are zero semantic mismatches or paired bit differences. Actual default-feature
+C archives pass 672 query/failure arms across those four builds; 192 native predecessor arms provide paired sample
+statistics, all unchanged. Format, strict default/fixture Clippy and installed Rust1.91 all-target compilation pass;
+the MSRV check is compile-only.
+
+The fixed timing panel retains 1,080 complete outcomes across 90 case/profile groups, including five measured samples
+per side after warmup. The filtered 8-job/30-bucket case has these medians:
+
+| Profile | Before | Candidate |
+| --- | ---: | ---: |
+| release | 673.74 ms | 49.82 ms |
+| release-min | 1238.50 ms | 84.36 ms |
+
+All 37 slower primary medians remain in the report. The predefined follow-up repeats every case at least 5% slower
+for 20 additional samples per side: the tiny plain control changes from +5.56% to +0.76%, and the size-optimized large
+quantile from +5.03% to +1.79%. These 80 complete additional outcomes do not replace the primary observations or
+establish isolated CPU causality. Across all 90 timing groups, workspace peak increases by 0–8,472 B and traffic
+changes by −319,919,542 to +632 B; every field in the other seven memory categories stays equal. Linked C text changes
+by −912/+188 B and fixture text by +124/−268 B in release/release-min; all data/BSS changes are also retained.
+
+The [qualification](mapped-group-contributors-qualification.json) retains actual source and binary identities,
+complete original comparisons, all memory categories, linked sizes and all slower timing cases. Diagnostic callback
+counters establish visitation, rather than ordinary speed. Larger earlier runs are historical scaling witnesses;
+they do not replace alternating before/candidate timing. Synthetic shared-host engine measurements do not establish
+RSS, maximum or concurrent throughput, live HTTP/DBengine performance, cold-disk behavior or physical ARM speed.
+All implicit caps remain disabled, and explicit cancellation/deadline controls stay active. Broader language, SRE
+and live-integration panels retain their original attribution.
+
 ## Wrapped grouped joins
 
 Common pure alert comparisons and Float functions now retain grouped-join reuse. Examples include a grouped ratio
