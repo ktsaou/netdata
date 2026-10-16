@@ -833,6 +833,7 @@ pub struct Collector {
     account: QueryAccounting,
     result: Option<CollectedResult>,
     committed: bool,
+    positional_ids: bool,
 }
 impl Collector {
     pub fn new(account: &QueryAccounting) -> Self {
@@ -840,6 +841,7 @@ impl Collector {
             account: account.clone(),
             result: None,
             committed: false,
+            positional_ids: true,
         }
     }
     pub fn take(&mut self) -> Option<CollectedResult> {
@@ -851,6 +853,7 @@ impl Collector {
     }
     fn begin_output(&mut self, header: OutputHeader) {
         self.committed = false;
+        self.positional_ids = true;
         self.result = Some(CollectedResult {
             header,
             scalar: None,
@@ -892,14 +895,21 @@ impl Collector {
                 labels,
                 points,
             } => {
-                let mut found = None;
-                for (index, series) in result.series.iter().enumerate() {
+                let found = if self.positional_ids {
                     work.step(1)?;
-                    if series.series_id == series_id {
-                        found = Some(index);
-                        break;
+                    // Positional identities prove both direct hits and missing new IDs.
+                    (series_id < result.series.len()).then_some(series_id)
+                } else {
+                    let mut found = None;
+                    for (index, series) in result.series.iter().enumerate() {
+                        work.step(1)?;
+                        if series.series_id == series_id {
+                            found = Some(index);
+                            break;
+                        }
                     }
-                }
+                    found
+                };
                 let index = if let Some(index) = found {
                     index
                 } else {
@@ -914,6 +924,7 @@ impl Collector {
                         )?,
                         points: AccountedVec::new(&self.account, MemoryKind::Result),
                     });
+                    self.positional_ids &= series_id == index;
                     index
                 };
                 for point in points {
@@ -941,6 +952,8 @@ impl Collector {
         if let Some(result) = self.result.as_mut()
             && result.header.value_type == ValueType::Matrix
         {
+            // A failed sort can already have moved rows away from their ID positions.
+            self.positional_ids = false;
             // Source sort.Sort determines observable provenance among equal projected labels.
             crate::go_sort::try_sort_by_with(
                 &mut result.series,
@@ -1018,6 +1031,442 @@ impl OutputSink for Collector {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    mod collector_lookup {
+        use super::*;
+
+        fn header(value_type: ValueType) -> OutputHeader {
+            OutputHeader {
+                value_type,
+                start_ms: 0,
+                end_ms: 2000,
+                step_ms: 1000,
+            }
+        }
+
+        fn put(
+            collector: &mut Collector,
+            checked: bool,
+            context: (&QueryAccounting, &Control),
+            series_id: usize,
+            label: &[u8],
+            point: (i64, f64),
+        ) -> Result<(), OutputError> {
+            let labels = [LabelRef {
+                name: b"id",
+                value: label,
+            }];
+            let points = [SampleRef {
+                time_ms: point.0,
+                start_time_ms: 0,
+                value: SampleValueRef::Float(point.1),
+            }];
+            let chunk = OutputChunk::Series {
+                series_id,
+                labels: &labels,
+                points: &points,
+            };
+            if checked {
+                collector.chunk_checked(chunk, context.1, context.0)
+            } else {
+                collector.chunk(chunk).map_err(OutputError::Failure)
+            }
+        }
+
+        fn finish(
+            collector: &mut Collector,
+            checked: bool,
+            account: &QueryAccounting,
+            control: &Control,
+        ) -> Result<(), OutputError> {
+            if checked {
+                collector.commit_checked(&account.snapshot(), control, account)
+            } else {
+                collector
+                    .commit(&account.snapshot())
+                    .map_err(OutputError::Failure)
+            }
+        }
+
+        fn float_bits(point: &OutputPoint) -> u64 {
+            let OwnedValue::Float(value) = &point.value else {
+                panic!("expected an independently owned float")
+            };
+            value.to_bits()
+        }
+
+        #[test]
+        fn dense_rows_preserve_complete_results_before_linear_work_bound() {
+            let mut measurements = Vec::new();
+            for length in [1usize, 16, 256] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let mut collector = Collector::new(&account);
+                collector.begin(header(ValueType::Matrix)).unwrap();
+                for tick in 0..3 {
+                    for offset in 0..length {
+                        let series_id = if tick == 1 {
+                            length - offset - 1
+                        } else {
+                            offset
+                        };
+                        let label = if tick == 0 {
+                            format!("{series_id:05}")
+                        } else {
+                            "ignored".into()
+                        };
+                        put(
+                            &mut collector,
+                            true,
+                            (&account, &control),
+                            series_id,
+                            label.as_bytes(),
+                            (tick * 1000, (tick * 1000) as f64 + series_id as f64),
+                        )
+                        .unwrap();
+                    }
+                }
+                let work = account.snapshot().work;
+                assert!(collector.take().is_none());
+                finish(&mut collector, true, &account, &control).unwrap();
+                let output = collector.take().unwrap();
+                assert_eq!(output.series.len(), length);
+                for (series_id, row) in output.series.iter().enumerate() {
+                    assert_eq!(row.series_id, series_id);
+                    assert_eq!(&*row.labels.0[0].name, b"id");
+                    assert_eq!(
+                        &*row.labels.0[0].value,
+                        format!("{series_id:05}").as_bytes()
+                    );
+                    assert_eq!(row.points.len(), 3);
+                    for (tick, point) in row.points.iter().enumerate() {
+                        assert_eq!(point.time_ms, tick as i64 * 1000);
+                        assert_eq!(
+                            float_bits(point),
+                            (tick as f64 * 1000.0 + series_id as f64).to_bits()
+                        );
+                    }
+                }
+                drop((output, collector));
+                assert_eq!(account.current_samples(), 0);
+                account.snapshot().assert_memory_released();
+                measurements.push((length, work));
+            }
+            println!("complete dense Collector results; pre-commit work: {measurements:?}");
+            for (length, work) in measurements {
+                assert!(
+                    work <= 64 * length as u64,
+                    "repeated identity scans: N={length}, work={work}"
+                );
+            }
+        }
+
+        #[test]
+        fn arbitrary_ids_keep_first_labels_and_point_arrival_order() {
+            let cases = [
+                (
+                    vec![0, 1, 9, 0, usize::MAX, 1, 2, 9],
+                    vec![
+                        (0, vec![0, 3]),
+                        (1, vec![1, 5]),
+                        (9, vec![2, 7]),
+                        (usize::MAX, vec![4]),
+                        (2, vec![6]),
+                    ],
+                ),
+                (
+                    vec![2, 0, 1, 2, 0],
+                    vec![(2, vec![0, 3]), (0, vec![1, 4]), (1, vec![2])],
+                ),
+                (
+                    vec![usize::MAX, 0, usize::MAX],
+                    vec![(usize::MAX, vec![0, 2]), (0, vec![1])],
+                ),
+            ];
+            for checked in [false, true] {
+                for (ids, expected) in &cases {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let mut collector = Collector::new(&account);
+                    collector.begin(header(ValueType::Vector)).unwrap();
+                    for (ordinal, &series_id) in ids.iter().enumerate() {
+                        let mut label = format!("packet{ordinal}").into_bytes();
+                        put(
+                            &mut collector,
+                            checked,
+                            (&account, &control),
+                            series_id,
+                            &label,
+                            (ordinal as i64 * 1000, ordinal as f64),
+                        )
+                        .unwrap();
+                        label.fill(b'x');
+                    }
+                    finish(&mut collector, checked, &account, &control).unwrap();
+                    let output = collector.take().unwrap();
+                    assert_eq!(output.series.len(), expected.len());
+                    for (row, (series_id, positions)) in output.series.iter().zip(expected) {
+                        assert_eq!(row.series_id, *series_id);
+                        assert_eq!(
+                            &*row.labels.0[0].value,
+                            format!("packet{}", positions[0]).as_bytes()
+                        );
+                        assert_eq!(row.points.len(), positions.len());
+                        for (point, &position) in row.points.iter().zip(positions) {
+                            assert_eq!(point.time_ms, position as i64 * 1000);
+                            assert_eq!(float_bits(point), (position as f64).to_bits());
+                        }
+                    }
+                    drop((output, collector));
+                    assert_eq!(account.current_samples(), 0);
+                    account.snapshot().assert_memory_released();
+                }
+            }
+        }
+
+        #[test]
+        fn sorted_output_transfer_abort_and_rebegin_preserve_identity() {
+            for checked in [false, true] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let mut collector = Collector::new(&account);
+                collector.begin(header(ValueType::Matrix)).unwrap();
+                for (series_id, label) in [(0, b"z"), (1, b"a")] {
+                    put(
+                        &mut collector,
+                        checked,
+                        (&account, &control),
+                        series_id,
+                        label,
+                        (0, series_id as f64),
+                    )
+                    .unwrap();
+                }
+                finish(&mut collector, checked, &account, &control).unwrap();
+                put(
+                    &mut collector,
+                    checked,
+                    (&account, &control),
+                    0,
+                    b"ignored",
+                    (1000, 10.0),
+                )
+                .unwrap();
+                finish(&mut collector, checked, &account, &control).unwrap();
+                let cancelled = Control::default();
+                cancelled.cancellation.cancel();
+                assert!(matches!(
+                    collector.begin_checked(header(ValueType::Vector), &cancelled, &account),
+                    Err(OutputError::Interrupted(Interrupted::Cancelled))
+                ));
+                let old = collector.take().unwrap();
+                assert_eq!(
+                    old.series
+                        .iter()
+                        .map(|row| row.series_id)
+                        .collect::<Vec<_>>(),
+                    [1, 0]
+                );
+                assert_eq!(&*old.series[1].labels.0[0].value, b"z");
+                assert_eq!(
+                    old.series[0]
+                        .points
+                        .iter()
+                        .map(float_bits)
+                        .collect::<Vec<_>>(),
+                    [1.0f64.to_bits()]
+                );
+                assert_eq!(
+                    old.series[1]
+                        .points
+                        .iter()
+                        .map(float_bits)
+                        .collect::<Vec<_>>(),
+                    [0.0f64.to_bits(), 10.0f64.to_bits()]
+                );
+                collector.begin(header(ValueType::Vector)).unwrap();
+                put(
+                    &mut collector,
+                    checked,
+                    (&account, &control),
+                    0,
+                    b"aborted",
+                    (0, 20.0),
+                )
+                .unwrap();
+                collector.abort();
+                assert!(collector.take().is_none());
+                collector.begin(header(ValueType::Vector)).unwrap();
+                for series_id in 0..2 {
+                    put(
+                        &mut collector,
+                        checked,
+                        (&account, &control),
+                        series_id,
+                        b"same",
+                        (0, 100.0 + series_id as f64),
+                    )
+                    .unwrap();
+                }
+                finish(&mut collector, checked, &account, &control).unwrap();
+                let new = collector.take().unwrap();
+                drop(collector);
+                assert_eq!(
+                    new.series
+                        .iter()
+                        .map(|row| row.series_id)
+                        .collect::<Vec<_>>(),
+                    [0, 1]
+                );
+                assert_eq!(
+                    new.series
+                        .iter()
+                        .map(|row| float_bits(&row.points[0]))
+                        .collect::<Vec<_>>(),
+                    [100.0f64.to_bits(), 101.0f64.to_bits()]
+                );
+                assert_eq!(old.series[1].points[1].time_ms, 1000);
+                assert_eq!(account.current_samples(), 5);
+                drop((old, new));
+                assert_eq!(account.current_samples(), 0);
+                account.snapshot().assert_memory_released();
+            }
+        }
+
+        #[test]
+        fn interrupted_matrix_sort_retains_correct_ids_after_partial_swaps() {
+            let mut interrupted_reordered = 0;
+            for remaining in [1, 2, 4, 8, 16, 32, 64, 128] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let mut collector = Collector::new(&account);
+                collector.begin(header(ValueType::Matrix)).unwrap();
+                for series_id in 0..8 {
+                    put(
+                        &mut collector,
+                        true,
+                        (&account, &control),
+                        series_id,
+                        &[b'h' - series_id as u8],
+                        (0, series_id as f64),
+                    )
+                    .unwrap();
+                }
+                let outcome = crate::test_storage::interrupt_after_work(
+                    &account,
+                    &control,
+                    remaining,
+                    || collector.commit_checked(&account.snapshot(), &control, &account),
+                );
+                if matches!(
+                    outcome,
+                    Err(OutputError::Interrupted(Interrupted::Cancelled))
+                ) {
+                    if collector
+                        .result
+                        .as_ref()
+                        .unwrap()
+                        .series
+                        .iter()
+                        .enumerate()
+                        .any(|(index, row)| row.series_id != index)
+                    {
+                        interrupted_reordered += 1;
+                    }
+                } else {
+                    outcome.unwrap();
+                }
+                let retry = Control::default();
+                for series_id in 0..8 {
+                    put(
+                        &mut collector,
+                        true,
+                        (&account, &retry),
+                        series_id,
+                        b"ignored",
+                        (1000, 100.0 + series_id as f64),
+                    )
+                    .unwrap();
+                }
+                finish(&mut collector, true, &account, &retry).unwrap();
+                let output = collector.take().unwrap();
+                for (index, row) in output.series.iter().enumerate() {
+                    assert_eq!(row.series_id, 7 - index);
+                    assert_eq!(row.points.len(), 2);
+                    assert_eq!(float_bits(&row.points[0]), (row.series_id as f64).to_bits());
+                    assert_eq!(
+                        float_bits(&row.points[1]),
+                        (100.0 + row.series_id as f64).to_bits()
+                    );
+                }
+                drop((output, collector));
+                assert_eq!(account.current_samples(), 0);
+                account.snapshot().assert_memory_released();
+            }
+            assert!(
+                interrupted_reordered > 0,
+                "must reach cancellation after an actual sort swap"
+            );
+        }
+
+        #[test]
+        fn direct_hit_and_absence_retain_cancelled_and_deadline_entry_checks() {
+            for series_id in [0, 1] {
+                for deadline in [false, true] {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let mut collector = Collector::new(&account);
+                    collector.begin(header(ValueType::Vector)).unwrap();
+                    put(
+                        &mut collector,
+                        true,
+                        (&account, &control),
+                        0,
+                        b"original",
+                        (0, 1.0),
+                    )
+                    .unwrap();
+                    let before = account.snapshot();
+                    let mut interrupted = Control::default();
+                    let expected = if deadline {
+                        interrupted.deadline = Some(std::time::Instant::now());
+                        Interrupted::Deadline
+                    } else {
+                        interrupted.cancellation.cancel();
+                        Interrupted::Cancelled
+                    };
+                    assert!(
+                        matches!(collector.begin_checked(header(ValueType::Matrix), &interrupted, &account),
+                        Err(OutputError::Interrupted(error)) if error == expected)
+                    );
+                    assert!(
+                        matches!(put(&mut collector, true, (&account, &interrupted), series_id, b"ignored", (1000, 2.0)),
+                        Err(OutputError::Interrupted(error)) if error == expected)
+                    );
+                    assert_eq!(account.snapshot().work, before.work);
+                    assert_eq!(
+                        account.snapshot().memory.map(|value| value.current),
+                        before.memory.map(|value| value.current)
+                    );
+                    finish(&mut collector, true, &account, &control).unwrap();
+                    let output = collector.take().unwrap();
+                    assert_eq!(output.series.len(), 1);
+                    assert_eq!(output.series[0].points.len(), 1);
+                    assert_eq!(float_bits(&output.series[0].points[0]), 1.0f64.to_bits());
+                    assert_eq!(&*output.series[0].labels.0[0].value, b"original");
+                    drop((output, collector));
+                    assert_eq!(account.current_samples(), 0);
+                    account.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
     #[test]
     fn native_value_units_follow_copy_compaction_and_mutation_unwind() {
         let account = crate::accounting::EngineAccounting::default().query();
@@ -1872,6 +2321,14 @@ mod tests {
                 ..FloatHistogram::default()
             };
             if operation == "lookup" {
+                // A nonpositional chunk keeps this fixture on its long lookup path.
+                collector
+                    .chunk(OutputChunk::Series {
+                        series_id: usize::MAX,
+                        labels: &[],
+                        points: &[],
+                    })
+                    .unwrap();
                 let result = collector.result.as_mut().unwrap();
                 for series_id in 0..9000 {
                     result.series.push(ResultSeries {

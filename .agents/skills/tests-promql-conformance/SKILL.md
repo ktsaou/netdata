@@ -167,6 +167,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Direct classic quantile probes MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#direct-classic-quantile-probes` for completed-sweep
   admission, correction/coalescing fallbacks, redispatch, ownership and full-query measurements.
+- Dense owned collection MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#dense-owned-result-collection` for identity proof,
+  fallible sorting, generic fallback, callback attribution and complete-query costs.
 - Set discovery reuse MUST retain suppressed inputs, selected/unverified rereads and cold first final discovery.
   Check physical side-row order, empty sides, tail padding, zero-word and final reconstruction controls, original
   aliases, exact keys and successful preparation clearing; calibrate control budgets against actual traversal. See

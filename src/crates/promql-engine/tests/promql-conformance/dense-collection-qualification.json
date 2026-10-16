@@ -1,0 +1,954 @@
+{
+  "schema_version": 1,
+  "status": "qualified_private_optimization",
+  "scope": "Private positional-ID proof for the optional owned Collector. No per-row index, new heap allocation, raw history, API/ABI/provider/storage/reference/numerical policy or implicit cap.",
+  "comparison_base_git": "c29af6f852a916421c5059ff767538ae5f145c6a",
+  "reference": {
+    "reference": "github.com/prometheus/prometheus@v0.315.0",
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go_version": "go1.27.1",
+    "go_arch": "amd64",
+    "go_os": "linux",
+    "unicode_version": "17.0.0"
+  },
+  "implementation": [
+    "While every stored row has series[index].series_id==index, charge one checked unit and use id<len as a hit, otherwise absence.",
+    "Initialize/reset proof on new/successful begin; update after successful label copy and row append; a nonpositional append permanently selects the unchanged generic scan until the next begin.",
+    "Invalidate before fallible Matrix sort, including interruption after swaps. Preserve first labels, point arrival order, equal-label distinct IDs, copy ownership, abort/take/rebegin and independent result release.",
+    "No output renumbering, metadata owner, value array or additional raw buffering. Rust collect and C convenience collection use this owner; Netdata HTTP streaming has its own indexed lookup."
+  ],
+  "controls": {
+    "new_units": 5,
+    "old_witness": "Complete1/16/256row labels/values/times/order/release checks precede the intended N256work-bound failure. Four other new controls and the actual calibrated generic interruption test pass on unchanged production.",
+    "dense_precommit_work_rows": [
+      [
+        "rows",
+        "before",
+        "candidate"
+      ],
+      [
+        1,
+        20,
+        21
+      ],
+      [
+        16,
+        680,
+        336
+      ],
+      [
+        256,
+        103040,
+        5376
+      ]
+    ],
+    "coverage": "Sparse/permuted/usizeMAX/repeated IDs; mutable borrowed first labels; equal-label distinct identities; successful and actually interrupted sorting; post-sort chunks; retained outputs; abort/take/rebegin; cancelled/deadline begin and direct hit/absence.",
+    "copy_failures": "Existing checked point/native/long-label copy interruption controls remain active; generic lookup fixture deliberately establishes a nonpositional sentinel through the real chunk path."
+  },
+  "qualification": {
+    "native_units_per_profile": 711,
+    "native_ignored_per_profile": 2,
+    "native_profiles": [
+      "release",
+      "release-min"
+    ],
+    "native_bridge_pages": [
+      1,
+      17,
+      1024
+    ],
+    "native_bridge_comparisons": 4344,
+    "foreign_bridge_comparisons": 1448,
+    "retained_q95_control_comparisons": 72,
+    "primary_complete_expression_comparisons": 5864,
+    "fresh_raw_originals": 8,
+    "fresh_sparse_originals": 8,
+    "extra_candidate_comparisons": 40,
+    "extra_before_raw_comparisons": 8,
+    "extra_before_sparse_comparisons": 2,
+    "extra_scope": "Eight raw selectors on all four builds; two G16/B3 filtered aggregate outcomes on all four builds and baseline. Other six fresh sparse originals are not counted as passing candidate outcomes.",
+    "total_selected_candidate_expression_comparisons": 5904,
+    "semantic_mismatches": 0,
+    "bitwise_differences": 0,
+    "current_default_feature_C_programs": 4,
+    "complete_C_queries": 288,
+    "C_pages": [
+      1,
+      17,
+      1024
+    ],
+    "C_statistics": {
+      "release": {
+        "logical": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "useful_reads": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "owning_peak": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        }
+      },
+      "release-min": {
+        "logical": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "useful_reads": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "owning_peak": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        }
+      },
+      "arm32": {
+        "logical": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "useful_reads": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "owning_peak": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        }
+      },
+      "arm64": {
+        "logical": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "useful_reads": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "owning_peak": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        }
+      }
+    },
+    "static_checks": [
+      "format",
+      "strict default Clippy",
+      "strict fixture Clippy",
+      "installed Rust1.91all-target fixture compile"
+    ],
+    "meaning": "Finite selected actual complete results; repeat/page/build counts overlap and are not unique language features. Unchanged numerical/helper/frontend panels retain historical source attribution."
+  },
+  "callback_diagnostic": {
+    "before_complete_results": 30,
+    "candidate_complete_results": 6,
+    "formula": {
+      "before_three_tick_lookup_work": "(3*N*N+N)/2",
+      "candidate_three_tick_lookup_work": "3*N"
+    },
+    "before_G256_B30_control_medians_ns": {
+      "median_query_ns": 1670159640.0,
+      "median_chunk_ns": 694585552.0,
+      "median_commit_ns": 6482056.5
+    },
+    "work_and_layout": [
+      {
+        "id": "g16:b3:quantile:r0",
+        "series": 16,
+        "before_lookup_work": 392,
+        "candidate_lookup_work": 48,
+        "before_chunk_work": 696,
+        "candidate_chunk_work": 352,
+        "before_query_work": 553816,
+        "candidate_query_work": 553472,
+        "before_collector_bytes": 200,
+        "candidate_collector_bytes": 200
+      },
+      {
+        "id": "g16:b3:control:r0",
+        "series": 48,
+        "before_lookup_work": 3480,
+        "candidate_lookup_work": 144,
+        "before_chunk_work": 4632,
+        "candidate_chunk_work": 1296,
+        "before_query_work": 271651,
+        "candidate_query_work": 268315,
+        "before_collector_bytes": 200,
+        "candidate_collector_bytes": 200
+      },
+      {
+        "id": "g16:b30:control:r0",
+        "series": 480,
+        "before_lookup_work": 345840,
+        "candidate_lookup_work": 1440,
+        "before_chunk_work": 357248,
+        "candidate_chunk_work": 12848,
+        "before_query_work": 3143098,
+        "candidate_query_work": 2798698,
+        "before_collector_bytes": 200,
+        "candidate_collector_bytes": 200
+      },
+      {
+        "id": "g256:b3:control:r0",
+        "series": 768,
+        "before_lookup_work": 885120,
+        "candidate_lookup_work": 2304,
+        "before_chunk_work": 903552,
+        "candidate_chunk_work": 20736,
+        "before_query_work": 5387585,
+        "candidate_query_work": 4504769,
+        "before_collector_bytes": 200,
+        "candidate_collector_bytes": 200
+      },
+      {
+        "id": "g256:b30:quantile:r0",
+        "series": 256,
+        "before_lookup_work": 98432,
+        "candidate_lookup_work": 768,
+        "before_chunk_work": 103296,
+        "candidate_chunk_work": 5632,
+        "before_query_work": 90428780,
+        "candidate_query_work": 90331116,
+        "before_collector_bytes": 200,
+        "candidate_collector_bytes": 200
+      },
+      {
+        "id": "g256:b30:control:r0",
+        "series": 7680,
+        "before_lookup_work": 88477440,
+        "candidate_lookup_work": 23040,
+        "before_chunk_work": 88659968,
+        "candidate_chunk_work": 205568,
+        "before_query_work": 135255100,
+        "candidate_query_work": 46800700,
+        "before_collector_bytes": 200,
+        "candidate_collector_bytes": 200
+      }
+    ],
+    "scope": "Same private checked delegate/codec with actual linked before/candidate libraries. Complete results and nonelapsed observations precede work deltas; native Collector200bytes both. Wrapper timers do not isolate CPU or establish candidate speed."
+  },
+  "original_capture": {
+    "probe_sha256": "4c8d1edc3048c968bacee5a3b8c9fd28488492aa17a1bd02355943dbbcaeb78f",
+    "raw_results_sha256": "a1d50f93cfbdb7f20e132aebd22f2de513fe1a59955f45034edbd3fab49368f7",
+    "sparse_results_sha256": "38e2c8d1172b8bb4a4debe57ec4dd192fda35ca6dd52b3c498f528d7907be750",
+    "bridge_results_sha256": "11cc8c34fd9273cf8dfe74ff6cb8e7c6922bec35da484ae6b86d5e0b4548ed3f",
+    "primary_results_sha256": "21afd69432e534806162851a3059f95f2764f787b1743b74bf10e55d731ae5b9",
+    "authority": "Existing authenticated complete original bridge/primary results plus16fresh pinned Go raw/filter outcomes, each independently checked against exact dataset projection or analytical membership/value declarations. Only the selected bounded sparse cases are candidate-qualified here."
+  },
+  "binaries": {
+    "release": {
+      "profile": "release",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "library_features": [],
+      "fixture_features": [
+        "fixtures"
+      ],
+      "unit": {
+        "passed": 711,
+        "ignored": 2,
+        "path": ".tmp/collector-dense-a8hkpprn/release/unit",
+        "sha256": "90e24dd8c5abb084a3427cb0ce47af0a0b3804ee38c3a46ad0c5915be22f5250"
+      },
+      "archive": {
+        "path": ".tmp/collector-dense-a8hkpprn/release/libnetdata_promql_engine.a",
+        "sha256": "685730f080bd0d74cfbca782b0cf2acf80e5d6adfa3e9a4405331c6b6cd2801a"
+      },
+      "fixture": {
+        "path": ".tmp/collector-dense-a8hkpprn/early-query-fixture",
+        "sha256": "8d4beb1ab0a91b491c301241acb0f6cc0307aea62d4c98acbc049c88caa1d9c4"
+      },
+      "c_binary": {
+        "path": ".tmp/collector-dense-a8hkpprn/release/histogram-c",
+        "sha256": "bcc4d58120baa0262c8c9a53d2547654449b8d9ee41c9b7e62891afd7f7f677f"
+      }
+    },
+    "release-min": {
+      "profile": "release-min",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "library_features": [],
+      "fixture_features": [
+        "fixtures"
+      ],
+      "unit": {
+        "passed": 711,
+        "ignored": 2,
+        "path": ".tmp/collector-dense-a8hkpprn/release-min/unit",
+        "sha256": "025d040100cafb749fe96512b27d46420b65b6bd881e7111c7de99b890359eaf"
+      },
+      "archive": {
+        "path": ".tmp/collector-dense-a8hkpprn/release-min/libnetdata_promql_engine.a",
+        "sha256": "589655fa9bfb26488beb741c858946c38d6a3dfa792152561e6198f8c35a2edc"
+      },
+      "fixture": {
+        "path": ".tmp/collector-dense-a8hkpprn/release-min/promql-query-fixture",
+        "sha256": "d856d4ee7324bb82828579d65ade1ca9e340bfaee1cfed9edd0b267edc4ee670"
+      },
+      "c_binary": {
+        "path": ".tmp/collector-dense-a8hkpprn/release-min/histogram-c",
+        "sha256": "6365a97a7d4ef7aff310bbecfe7abbbac51e248c49507ab4347989693e1f601b"
+      }
+    },
+    "arm32": {
+      "profile": "release",
+      "target": "armv7-unknown-linux-gnueabihf",
+      "runner": [
+        "qemu-arm",
+        "-L",
+        "/usr/arm-linux-gnueabihf"
+      ],
+      "library_features": [],
+      "fixture_features": [
+        "fixtures"
+      ],
+      "unit": null,
+      "archive": {
+        "path": ".tmp/collector-dense-a8hkpprn/arm32/libnetdata_promql_engine.a",
+        "sha256": "9985903a1336bd4b2e52a1e10f2d46d286ea08d22438ff12ac597c364b8f02ec"
+      },
+      "fixture": {
+        "path": ".tmp/collector-dense-a8hkpprn/arm32/promql-query-fixture",
+        "sha256": "5cc2c46e59998aa2343f07cb85534db8ca09965ebea930f92a51f86314398344"
+      },
+      "c_binary": {
+        "path": ".tmp/collector-dense-a8hkpprn/arm32/histogram-c",
+        "sha256": "68cd1a0b4db0e264f181dacd2de18792c8075b0278d5094ab4bb1f55f11ff8d7"
+      }
+    },
+    "arm64": {
+      "profile": "release",
+      "target": "aarch64-unknown-linux-gnu",
+      "runner": [
+        "qemu-aarch64",
+        "-L",
+        "/usr/aarch64-linux-gnu"
+      ],
+      "library_features": [],
+      "fixture_features": [
+        "fixtures"
+      ],
+      "unit": null,
+      "archive": {
+        "path": ".tmp/collector-dense-a8hkpprn/arm64/libnetdata_promql_engine.a",
+        "sha256": "f22a681a293256c4118cc0472e3ad852596e929ad04bc471dad9fb0fbacddf66"
+      },
+      "fixture": {
+        "path": ".tmp/collector-dense-a8hkpprn/arm64/promql-query-fixture",
+        "sha256": "2526c65d58533d80d15a50e97a443fddbfe68d86ff944ac8815ecf5482c2251b"
+      },
+      "c_binary": {
+        "path": ".tmp/collector-dense-a8hkpprn/arm64/histogram-c",
+        "sha256": "c6918535463c5d0a94d16da4b83fc6b7137a190f91bc55bd13650657d4aa9fd2"
+      }
+    }
+  },
+  "memory_kind_order": [
+    "compiled",
+    "workspace",
+    "result",
+    "provider_held",
+    "borrowed_view",
+    "regex_estimate",
+    "shared_cache_reference",
+    "accounting"
+  ],
+  "memory": [
+    {
+      "kind": "compiled",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "workspace",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "result",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "provider_held",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "borrowed_view",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "regex_estimate",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "shared_cache_reference",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "accounting",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    }
+  ],
+  "native_collector_layout_bytes": {
+    "before": 200,
+    "candidate": 200
+  },
+  "linked_size": {
+    "release": {
+      "before": {
+        "fixture": {
+          "path": ".tmp/classic-probe-yo905n__/early-promql-query-fixture",
+          "sha256": "20853bcdd05aaa13ecf9591cf98d6fddcbdcbb6f57813fd00bcbea9bac60a66f",
+          "file_bytes": 5519568,
+          "text": 4273878,
+          "data": 257064,
+          "bss": 1364
+        },
+        "c_binary": {
+          "path": ".tmp/classic-probe-yo905n__/release/histogram-c",
+          "sha256": "159ebad2a01e82bd60150fcb40f92488d57986bf309d1c00426870be6bca9d4a",
+          "file_bytes": 13758784,
+          "text": 7416142,
+          "data": 504344,
+          "bss": 400
+        }
+      },
+      "candidate": {
+        "fixture": {
+          "path": ".tmp/collector-dense-a8hkpprn/early-query-fixture",
+          "sha256": "8d4beb1ab0a91b491c301241acb0f6cc0307aea62d4c98acbc049c88caa1d9c4",
+          "file_bytes": 5517120,
+          "text": 4272270,
+          "data": 256960,
+          "bss": 3084
+        },
+        "c_binary": {
+          "path": ".tmp/collector-dense-a8hkpprn/release/histogram-c",
+          "sha256": "bcc4d58120baa0262c8c9a53d2547654449b8d9ee41c9b7e62891afd7f7f677f",
+          "file_bytes": 13758888,
+          "text": 7416130,
+          "data": 504344,
+          "bss": 400
+        }
+      }
+    },
+    "release-min": {
+      "before": {
+        "fixture": {
+          "path": ".tmp/classic-probe-yo905n__/release-min/promql-query-fixture",
+          "sha256": "aa0432401c608fe76bcf350f37250df10cdf4540e1d3f8e08e247a9ab9ea0596",
+          "file_bytes": 3525112,
+          "text": 2731085,
+          "data": 243688,
+          "bss": 980
+        },
+        "c_binary": {
+          "path": ".tmp/classic-probe-yo905n__/release-min/histogram-c",
+          "sha256": "7098461b18f20506808b9c5836cc2b46d049ddca7906adaff72854b207a971f6",
+          "file_bytes": 11452848,
+          "text": 4982539,
+          "data": 458448,
+          "bss": 400
+        }
+      },
+      "candidate": {
+        "fixture": {
+          "path": ".tmp/collector-dense-a8hkpprn/release-min/promql-query-fixture",
+          "sha256": "d856d4ee7324bb82828579d65ade1ca9e340bfaee1cfed9edd0b267edc4ee670",
+          "file_bytes": 3525256,
+          "text": 2731221,
+          "data": 243688,
+          "bss": 836
+        },
+        "c_binary": {
+          "path": ".tmp/collector-dense-a8hkpprn/release-min/histogram-c",
+          "sha256": "6365a97a7d4ef7aff310bbecfe7abbbac51e248c49507ab4347989693e1f601b",
+          "file_bytes": 11452848,
+          "text": 4982643,
+          "data": 458448,
+          "bss": 400
+        }
+      }
+    }
+  },
+  "timing": {
+    "profiles": [
+      "release",
+      "release-min"
+    ],
+    "pairs_per_profile": 6,
+    "warmup_pairs": 1,
+    "measured_samples_per_side_per_case": 5,
+    "complete_outcomes": 696,
+    "workload_groups": 58,
+    "columns": [
+      "profile",
+      "id",
+      "before",
+      "candidate"
+    ],
+    "side_columns": [
+      "median_elapsed_ns",
+      "work",
+      "samples_fetched",
+      "pages",
+      "provider_calls",
+      "memory_peak_bytes_by_kind",
+      "memory_acquired_bytes_by_kind"
+    ],
+    "rows": [
+      ["release","g16:b30:control:r0",[57985563,3143098,259200,51840,104644,[0,1200200,197136,0,1360,0,0,888],[0,20323592,249968,0,70502400,0,0,888]],[56798184,2798698,259200,51840,104644,[0,1200200,197136,0,1360,0,0,888],[0,20323592,249968,0,70502400,0,0,888]]],
+      ["release","g16:b30:quantile:r0",[92813649,5385757,345600,69120,139204,[0,1200776,4864,0,1360,0,0,888],[0,35560704,6112,0,94003200,0,0,888]],[94783500,5385413,345600,69120,139204,[0,1200776,4864,0,1360,0,0,888],[0,35560704,6112,0,94003200,0,0,888]]],
+      ["release","g16:b30:raw:r0",[19260045,2489468,9600,1920,4804,[0,737512,625632,0,1360,0,0,888],[0,1776712,731712,0,2611200,0,0,888]],[8642537,1109468,9600,1920,4804,[0,737512,625632,0,1360,0,0,888],[0,1776712,731712,0,2611200,0,0,888]]],
+      ["release","g16:b30:scalar:r0",[148247326,8840045,518400,103680,208324,[0,1206952,512,0,1360,0,0,888],[0,56878896,512,0,141004800,0,0,888]],[150604284,8840046,518400,103680,208324,[0,1206952,512,0,1360,0,0,888],[0,56878896,512,0,141004800,0,0,888]]],
+      ["release","g16:b3:control:r0",[5626866,271651,25920,5184,10468,[0,135591,21056,0,1360,0,0,888],[0,2084968,27296,0,7050240,0,0,888]],[5742325,268315,25920,5184,10468,[0,135591,21056,0,1360,0,0,888],[0,2084968,27296,0,7050240,0,0,888]]],
+      ["release","g16:b3:quantile:r0",[9739836,553816,34560,6912,13924,[0,146280,4864,0,1360,0,0,888],[0,3750096,6112,0,9400320,0,0,888]],[10266812,553472,34560,6912,13924,[0,146280,4864,0,1360,0,0,888],[0,3750096,6112,0,9400320,0,0,888]]],
+      ["release","g16:b3:raw:r0",[931791,99581,960,192,484,[0,84968,65248,0,1360,0,0,888],[0,198472,78144,0,261120,0,0,888]],[866152,85997,960,192,484,[0,84968,65248,0,1360,0,0,888],[0,198472,78144,0,261120,0,0,888]]],
+      ["release","g16:b3:scalar:r0",[15484772,916934,51840,10368,20836,[0,153928,512,0,1360,0,0,888],[0,6045792,512,0,14100480,0,0,888]],[16074046,916935,51840,10368,20836,[0,153928,512,0,1360,0,0,888],[0,6045792,512,0,14100480,0,0,888]]],
+      ["release","g16:b3:sparse:r0",[17932618,1318892,43200,8640,17380,[0,147912,6496,0,1360,0,0,888],[0,7623288,7744,0,11750400,0,0,888]],[18037687,1318548,43200,8640,17380,[0,147912,6496,0,1360,0,0,888],[0,7623288,7744,0,11750400,0,0,888]]],
+      ["release","g16:fraction-scalar:range:r0",[17435513,1099903,51840,10368,20836,[0,153992,512,0,1360,0,0,888],[0,7033600,512,0,14100480,0,0,888]],[17498512,1099904,51840,10368,20836,[0,153992,512,0,1360,0,0,888],[0,7033600,512,0,14100480,0,0,888]]],
+      ["release","g16:fraction:range:r0",[10918915,645525,34560,6912,13924,[0,146856,4864,0,1360,0,0,888],[0,4246288,6112,0,9400320,0,0,888]],[10928705,645181,34560,6912,13924,[0,146856,4864,0,1360,0,0,888],[0,4246288,6112,0,9400320,0,0,888]]],
+      ["release","g1:group-vector:three-ticks:r0",[406836,15408,1620,324,658,[0,16710,1307,0,1360,0,0,888],[0,143194,1307,0,440640,0,0,888]],[377986,15402,1620,324,658,[0,16710,1307,0,1360,0,0,888],[0,143194,1307,0,440640,0,0,888]]],
+      ["release","g1:histogram-scalar:three-ticks:r0",[1238298,67254,3240,648,1306,[0,29341,512,0,1360,0,0,888],[0,544368,512,0,881280,0,0,888]],[1247238,67255,3240,648,1306,[0,29341,512,0,1360,0,0,888],[0,544368,512,0,881280,0,0,888]]],
+      ["release","g1:histogram-vector:three-ticks:r0",[767513,38921,2160,432,874,[0,21117,613,0,1360,0,0,888],[0,309366,613,0,587520,0,0,888]],[775523,38922,2160,432,874,[0,21117,613,0,1360,0,0,888],[0,309366,613,0,587520,0,0,888]]],
+      ["release","g1:raw-rate:three-ticks:r0",[236117,9724,1080,216,442,[0,13734,3250,0,1360,0,0,888],[0,85488,3666,0,293760,0,0,888]],[233187,9685,1080,216,442,[0,13734,3250,0,1360,0,0,888],[0,85488,3666,0,293760,0,0,888]]],
+      ["release","g256:b30:control:r0",[1675611404,135255100,4147200,829440,1674244,[0,19108520,3154176,0,1360,0,0,888],[0,324966152,4005728,0,1128038400,0,0,888]],[976771054,46800700,4147200,829440,1674244,[0,19108520,3154176,0,1360,0,0,888],[0,324966152,4005728,0,1128038400,0,0,888]]],
+      ["release","g256:b30:quantile:r0",[1659468232,90428780,5529600,1105920,2227204,[0,19109096,77824,0,1360,0,0,888],[0,568560384,104032,0,1504051200,0,0,888]],[1658658489,90331116,5529600,1105920,2227204,[0,19109096,77824,0,1360,0,0,888],[0,568560384,104032,0,1504051200,0,0,888]]],
+      ["release","g256:b30:raw:r0",[2934477193,376582252,153600,30720,76804,[0,11750152,10010112,0,1360,0,0,888],[0,28333672,11713632,0,41779200,0,0,888]],[152234678,22726252,153600,30720,76804,[0,11750152,10010112,0,1360,0,0,888],[0,28333672,11713632,0,41779200,0,0,888]]],
+      ["release","g256:b30:scalar:r0",[2636545673,148057743,8294400,1658880,3333124,[0,19115272,512,0,1360,0,0,888],[0,908930736,512,0,2256076800,0,0,888]],[2655328407,148057744,8294400,1658880,3333124,[0,19115272,512,0,1360,0,0,888],[0,908930736,512,0,2256076800,0,0,888]]],
+      ["release","g256:b3:control:r0",[96711991,5387585,414720,82944,167428,[0,2051240,336896,0,1360,0,0,888],[0,33148168,442976,0,112803840,0,0,888]],[90070835,4504769,414720,82944,167428,[0,2051240,336896,0,1360,0,0,888],[0,33148168,442976,0,112803840,0,0,888]]],
+      ["release","g256:b3:quantile:r0",[161466380,10348191,552960,110592,222724,[0,2177640,77824,0,1360,0,0,888],[0,59590656,104032,0,150405120,0,0,888]],[166179285,10250527,552960,110592,222724,[0,2177640,77824,0,1360,0,0,888],[0,59590656,104032,0,150405120,0,0,888]]],
+      ["release","g256:b3:raw:r0",[40256923,5354909,15360,3072,7684,[0,1301256,1043968,0,1360,0,0,888],[0,3081832,1256544,0,4177920,0,0,888]],[13109795,1819805,15360,3072,7684,[0,1301256,1043968,0,1360,0,0,888],[0,3081832,1256544,0,4177920,0,0,888]]],
+      ["release","g256:b3:scalar:r0",[259497438,17093344,829440,165888,333316,[0,2183816,512,0,1360,0,0,888],[0,95601072,512,0,225607680,0,0,888]],[261569719,17093345,829440,165888,333316,[0,2183816,512,0,1360,0,0,888],[0,95601072,512,0,225607680,0,0,888]]],
+      ["release","g4:group-vector:three-ticks:r0",[1440027,63501,6480,1296,2620,[0,40428,5228,0,1360,0,0,888],[0,530512,6476,0,1762560,0,0,888]],[1430187,63315,6480,1296,2620,[0,40428,5228,0,1360,0,0,888],[0,530512,6476,0,1762560,0,0,888]]],
+      ["release","g4:histogram-scalar:three-ticks:r0",[4728534,273733,12960,2592,5212,[0,53292,512,0,1360,0,0,888],[0,1929648,512,0,3525120,0,0,888]],[4684515,273734,12960,2592,5212,[0,53292,512,0,1360,0,0,888],[0,1929648,512,0,3525120,0,0,888]]],
+      ["release","g4:histogram-vector:three-ticks:r0",[2854662,158913,8640,1728,3484,[0,45068,1204,0,1360,0,0,888],[0,1138392,1204,0,2350080,0,0,888]],[2860023,158899,8640,1728,3484,[0,45068,1204,0,1360,0,0,888],[0,1138392,1204,0,2350080,0,0,888]]],
+      ["release","g4:raw-rate:three-ticks:r0",[907671,40728,4320,864,1756,[0,37452,13000,0,1360,0,0,888],[0,320712,15912,0,1175040,0,0,888]],[907042,39924,4320,864,1756,[0,37452,13000,0,1360,0,0,888],[0,320712,15912,0,1175040,0,0,888]]],
+      ["release","g64:fraction-scalar:range:r0",[71446404,4608882,207360,41472,83332,[0,559304,512,0,1360,0,0,888],[0,27894352,512,0,56401920,0,0,888]],[70537812,4608883,207360,41472,83332,[0,559304,512,0,1360,0,0,888],[0,27894352,512,0,56401920,0,0,888]]],
+      ["release","g64:fraction:range:r0",[43461953,2710157,138240,27648,55684,[0,553128,19456,0,1360,0,0,888],[0,16889248,25696,0,37601280,0,0,888]],[43157265,2704173,138240,27648,55684,[0,553128,19456,0,1360,0,0,888],[0,16889248,25696,0,37601280,0,0,888]]],
+      ["release-min","g16:b30:control:r0",[98821262,3143098,259200,51840,104644,[0,1200200,197136,0,1360,0,0,888],[0,20323592,249968,0,70502400,0,0,888]],[94262756,2798698,259200,51840,104644,[0,1200200,197136,0,1360,0,0,888],[0,20323592,249968,0,70502400,0,0,888]]],
+      ["release-min","g16:b30:quantile:r0",[161237563,5385757,345600,69120,139204,[0,1200776,4864,0,1360,0,0,888],[0,35560704,6112,0,94003200,0,0,888]],[159714628,5385413,345600,69120,139204,[0,1200776,4864,0,1360,0,0,888],[0,35560704,6112,0,94003200,0,0,888]]],
+      ["release-min","g16:b30:raw:r0",[28284169,2489468,9600,1920,4804,[0,737512,625632,0,1360,0,0,888],[0,1776712,731712,0,2611200,0,0,888]],[14718929,1109468,9600,1920,4804,[0,737512,625632,0,1360,0,0,888],[0,1776712,731712,0,2611200,0,0,888]]],
+      ["release-min","g16:b30:scalar:r0",[258214543,8840045,518400,103680,208324,[0,1206952,512,0,1360,0,0,888],[0,56878896,512,0,141004800,0,0,888]],[254426448,8840046,518400,103680,208324,[0,1206952,512,0,1360,0,0,888],[0,56878896,512,0,141004800,0,0,888]]],
+      ["release-min","g16:b3:control:r0",[9475509,271651,25920,5184,10468,[0,135591,21056,0,1360,0,0,888],[0,2084968,27296,0,7050240,0,0,888]],[9362320,268315,25920,5184,10468,[0,135591,21056,0,1360,0,0,888],[0,2084968,27296,0,7050240,0,0,888]]],
+      ["release-min","g16:b3:quantile:r0",[17029327,553816,34560,6912,13924,[0,146280,4864,0,1360,0,0,888],[0,3750096,6112,0,9400320,0,0,888]],[16437082,553472,34560,6912,13924,[0,146280,4864,0,1360,0,0,888],[0,3750096,6112,0,9400320,0,0,888]]],
+      ["release-min","g16:b3:raw:r0",[1488626,99581,960,192,484,[0,84968,65248,0,1360,0,0,888],[0,198472,78144,0,261120,0,0,888]],[1340678,85997,960,192,484,[0,84968,65248,0,1360,0,0,888],[0,198472,78144,0,261120,0,0,888]]],
+      ["release-min","g16:b3:scalar:r0",[26570545,916934,51840,10368,20836,[0,153928,512,0,1360,0,0,888],[0,6045792,512,0,14100480,0,0,888]],[26359968,916935,51840,10368,20836,[0,153928,512,0,1360,0,0,888],[0,6045792,512,0,14100480,0,0,888]]],
+      ["release-min","g16:b3:sparse:r0",[31074672,1318892,43200,8640,17380,[0,147912,6496,0,1360,0,0,888],[0,7623288,7744,0,11750400,0,0,888]],[31115002,1318548,43200,8640,17380,[0,147912,6496,0,1360,0,0,888],[0,7623288,7744,0,11750400,0,0,888]]],
+      ["release-min","g16:fraction-scalar:range:r0",[30309079,1099903,51840,10368,20836,[0,153992,512,0,1360,0,0,888],[0,7033600,512,0,14100480,0,0,888]],[30206740,1099904,51840,10368,20836,[0,153992,512,0,1360,0,0,888],[0,7033600,512,0,14100480,0,0,888]]],
+      ["release-min","g16:fraction:range:r0",[18571412,645525,34560,6912,13924,[0,146856,4864,0,1360,0,0,888],[0,4246288,6112,0,9400320,0,0,888]],[18370494,645181,34560,6912,13924,[0,146856,4864,0,1360,0,0,888],[0,4246288,6112,0,9400320,0,0,888]]],
+      ["release-min","g1:group-vector:three-ticks:r0",[613325,15408,1620,324,658,[0,16710,1307,0,1360,0,0,888],[0,143194,1307,0,440640,0,0,888]],[615984,15402,1620,324,658,[0,16710,1307,0,1360,0,0,888],[0,143194,1307,0,440640,0,0,888]]],
+      ["release-min","g1:histogram-scalar:three-ticks:r0",[2075980,67254,3240,648,1306,[0,29341,512,0,1360,0,0,888],[0,544368,512,0,881280,0,0,888]],[2065420,67255,3240,648,1306,[0,29341,512,0,1360,0,0,888],[0,544368,512,0,881280,0,0,888]]],
+      ["release-min","g1:histogram-vector:three-ticks:r0",[1263738,38921,2160,432,874,[0,21117,613,0,1360,0,0,888],[0,309366,613,0,587520,0,0,888]],[1264258,38922,2160,432,874,[0,21117,613,0,1360,0,0,888],[0,309366,613,0,587520,0,0,888]]],
+      ["release-min","g1:raw-rate:three-ticks:r0",[381396,9724,1080,216,442,[0,13734,3250,0,1360,0,0,888],[0,85488,3666,0,293760,0,0,888]],[379187,9685,1080,216,442,[0,13734,3250,0,1360,0,0,888],[0,85488,3666,0,293760,0,0,888]]],
+      ["release-min","g256:b30:control:r0",[2582252029,135255100,4147200,829440,1674244,[0,19108520,3154176,0,1360,0,0,888],[0,324966152,4005728,0,1128038400,0,0,888]],[1589042047,46800700,4147200,829440,1674244,[0,19108520,3154176,0,1360,0,0,888],[0,324966152,4005728,0,1128038400,0,0,888]]],
+      ["release-min","g256:b30:quantile:r0",[2657502881,90428780,5529600,1105920,2227204,[0,19109096,77824,0,1360,0,0,888],[0,568560384,104032,0,1504051200,0,0,888]],[2862429277,90331116,5529600,1105920,2227204,[0,19109096,77824,0,1360,0,0,888],[0,568560384,104032,0,1504051200,0,0,888]]],
+      ["release-min","g256:b30:raw:r0",[3873863627,376582252,153600,30720,76804,[0,11750152,10010112,0,1360,0,0,888],[0,28333672,11713632,0,41779200,0,0,888]],[282015244,22726252,153600,30720,76804,[0,11750152,10010112,0,1360,0,0,888],[0,28333672,11713632,0,41779200,0,0,888]]],
+      ["release-min","g256:b30:scalar:r0",[4453281767,148057743,8294400,1658880,3333124,[0,19115272,512,0,1360,0,0,888],[0,908930736,512,0,2256076800,0,0,888]],[4378970478,148057744,8294400,1658880,3333124,[0,19115272,512,0,1360,0,0,888],[0,908930736,512,0,2256076800,0,0,888]]],
+      ["release-min","g256:b3:control:r0",[159118834,5387585,414720,82944,167428,[0,2051240,336896,0,1360,0,0,888],[0,33148168,442976,0,112803840,0,0,888]],[150924082,4504769,414720,82944,167428,[0,2051240,336896,0,1360,0,0,888],[0,33148168,442976,0,112803840,0,0,888]]],
+      ["release-min","g256:b3:quantile:r0",[278030723,10348191,552960,110592,222724,[0,2177640,77824,0,1360,0,0,888],[0,59590656,104032,0,150405120,0,0,888]],[277964533,10250527,552960,110592,222724,[0,2177640,77824,0,1360,0,0,888],[0,59590656,104032,0,150405120,0,0,888]]],
+      ["release-min","g256:b3:raw:r0",[58107242,5354909,15360,3072,7684,[0,1301256,1043968,0,1360,0,0,888],[0,3081832,1256544,0,4177920,0,0,888]],[23789052,1819805,15360,3072,7684,[0,1301256,1043968,0,1360,0,0,888],[0,3081832,1256544,0,4177920,0,0,888]]],
+      ["release-min","g256:b3:scalar:r0",[442178468,17093344,829440,165888,333316,[0,2183816,512,0,1360,0,0,888],[0,95601072,512,0,225607680,0,0,888]],[442344416,17093345,829440,165888,333316,[0,2183816,512,0,1360,0,0,888],[0,95601072,512,0,225607680,0,0,888]]],
+      ["release-min","g4:group-vector:three-ticks:r0",[2392638,63501,6480,1296,2620,[0,40428,5228,0,1360,0,0,888],[0,530512,6476,0,1762560,0,0,888]],[2339037,63315,6480,1296,2620,[0,40428,5228,0,1360,0,0,888],[0,530512,6476,0,1762560,0,0,888]]],
+      ["release-min","g4:histogram-scalar:three-ticks:r0",[8003073,273733,12960,2592,5212,[0,53292,512,0,1360,0,0,888],[0,1929648,512,0,3525120,0,0,888]],[7903004,273734,12960,2592,5212,[0,53292,512,0,1360,0,0,888],[0,1929648,512,0,3525120,0,0,888]]],
+      ["release-min","g4:histogram-vector:three-ticks:r0",[4842683,158913,8640,1728,3484,[0,45068,1204,0,1360,0,0,888],[0,1138392,1204,0,2350080,0,0,888]],[4734635,158899,8640,1728,3484,[0,45068,1204,0,1360,0,0,888],[0,1138392,1204,0,2350080,0,0,888]]],
+      ["release-min","g4:raw-rate:three-ticks:r0",[1495615,40728,4320,864,1756,[0,37452,13000,0,1360,0,0,888],[0,320712,15912,0,1175040,0,0,888]],[1457746,39924,4320,864,1756,[0,37452,13000,0,1360,0,0,888],[0,320712,15912,0,1175040,0,0,888]]],
+      ["release-min","g64:fraction-scalar:range:r0",[122577124,4608882,207360,41472,83332,[0,559304,512,0,1360,0,0,888],[0,27894352,512,0,56401920,0,0,888]],[120521303,4608883,207360,41472,83332,[0,559304,512,0,1360,0,0,888],[0,27894352,512,0,56401920,0,0,888]]],
+      ["release-min","g64:fraction:range:r0",[74135129,2710157,138240,27648,55684,[0,553128,19456,0,1360,0,0,888],[0,16889248,25696,0,37601280,0,0,888]],[74787473,2704173,138240,27648,55684,[0,553128,19456,0,1360,0,0,888],[0,16889248,25696,0,37601280,0,0,888]]]
+    ],
+    "slower_case_count": 20,
+    "slower_cases": [
+      [
+        "release",
+        "g16:b30:quantile:r0",
+        2.122372109300441
+      ],
+      [
+        "release",
+        "g16:b30:scalar:r0",
+        1.5898823024976583
+      ],
+      [
+        "release",
+        "g16:b3:control:r0",
+        2.051923752938145
+      ],
+      [
+        "release",
+        "g16:b3:quantile:r0",
+        5.410522312696031
+      ],
+      [
+        "release",
+        "g16:b3:scalar:r0",
+        3.805506467902786
+      ],
+      [
+        "release",
+        "g16:b3:sparse:r0",
+        0.5859099881567742
+      ],
+      [
+        "release",
+        "g16:fraction-scalar:range:r0",
+        0.3613257608193088
+      ],
+      [
+        "release",
+        "g16:fraction:range:r0",
+        0.08966092326938568
+      ],
+      [
+        "release",
+        "g1:histogram-scalar:three-ticks:r0",
+        0.7219586884578577
+      ],
+      [
+        "release",
+        "g1:histogram-vector:three-ticks:r0",
+        1.0436305313395344
+      ],
+      [
+        "release",
+        "g256:b30:scalar:r0",
+        0.712399341014569
+      ],
+      [
+        "release",
+        "g256:b3:quantile:r0",
+        2.9188150499193766
+      ],
+      [
+        "release",
+        "g256:b3:scalar:r0",
+        0.7985747435394819
+      ],
+      [
+        "release",
+        "g4:histogram-vector:three-ticks:r0",
+        0.1877980650598854
+      ],
+      [
+        "release-min",
+        "g16:b3:sparse:r0",
+        0.12978415347393302
+      ],
+      [
+        "release-min",
+        "g1:group-vector:three-ticks:r0",
+        0.4335384991643876
+      ],
+      [
+        "release-min",
+        "g1:histogram-vector:three-ticks:r0",
+        0.04114776955350674
+      ],
+      [
+        "release-min",
+        "g256:b30:quantile:r0",
+        7.711238902698292
+      ],
+      [
+        "release-min",
+        "g256:b3:scalar:r0",
+        0.037529642895228754
+      ],
+      [
+        "release-min",
+        "g64:fraction:range:r0",
+        0.8799391176617544
+      ]
+    ],
+    "known_background": {
+      "at_start": [
+        {
+          "command": "sparse-before",
+          "pid": 1511934,
+          "terminal_status": null,
+          "start_ticks": 51287559,
+          "state": "R",
+          "user_ticks": 146326,
+          "system_ticks": 78,
+          "processor": 7,
+          "command_sha256": "11d2eb9353c2a9815f23a497ba3b04873a9f69b815ad6abb4caa4a898ed07587"
+        }
+      ],
+      "at_end": [
+        {
+          "command": "sparse-before",
+          "pid": 1511934,
+          "terminal_status": {
+            "exit": 0
+          }
+        },
+        {
+          "command": "sparse-candidate",
+          "pid": 1655959,
+          "terminal_status": null,
+          "start_ticks": 51438688,
+          "state": "R",
+          "user_ticks": 24334,
+          "system_ticks": 32,
+          "processor": 7,
+          "command_sha256": "6a987f4dddc77ba646e943d2f821b8782f30727dff491f58ea5e9313213ea07a"
+        }
+      ]
+    },
+    "scope": "Fixed finite alternating ordinary native fixtures, five samples per side/case after warmup.29cases include tiny histogram/rate/group, quantile/scalar, fractions, four raw selectors and one bounded sparse filter. Complete outcomes and stable nonelapsed fields first; all slower rows retained. Selected qualification is terminal; a separate long sparse witness may still consume background CPU, explicitly recorded.",
+    "focused_followup": {
+      "complete_outcomes": 360,
+      "workload_groups": 6,
+      "samples_per_side_case": {
+        "release": 40,
+        "release-min": 10
+      },
+      "rows": [
+        {
+          "profile": "release",
+          "id": "g16:b3:control:r0",
+          "before_median_ns": 5565368.5,
+          "candidate_median_ns": 5557328.5,
+          "candidate_over_before": 0.9985553517255865
+        },
+        {
+          "profile": "release",
+          "id": "g16:b3:quantile:r0",
+          "before_median_ns": 9581984.5,
+          "candidate_median_ns": 9584093.5,
+          "candidate_over_before": 1.0002201005438904
+        },
+        {
+          "profile": "release",
+          "id": "g16:b3:scalar:r0",
+          "before_median_ns": 15263841.0,
+          "candidate_median_ns": 15368356.5,
+          "candidate_over_before": 1.0068472607910421
+        },
+        {
+          "profile": "release-min",
+          "id": "g256:b30:control:r0",
+          "before_median_ns": 2523339637.0,
+          "candidate_median_ns": 1615014458.5,
+          "candidate_over_before": 0.6400305511072982
+        },
+        {
+          "profile": "release-min",
+          "id": "g256:b30:quantile:r0",
+          "before_median_ns": 2737729376.0,
+          "candidate_median_ns": 2669552564.0,
+          "candidate_over_before": 0.9750973150970784
+        },
+        {
+          "profile": "release-min",
+          "id": "g256:b30:scalar:r0",
+          "before_median_ns": 4467522290.0,
+          "candidate_median_ns": 4251715781.5,
+          "candidate_over_before": 0.951694363342505
+        }
+      ],
+      "scope": "Fixed matched scalar/grouped-rate controls around the two material slower primary quantile rows. No code change or replacement of primary medians; shared-host diagnostic, not isolated branch CPU."
+    }
+  },
+  "source_attribution": {
+    "actual_final_runtime_inputs": 348,
+    "manifest_path": ".tmp/collector-dense-a8hkpprn/candidate-source.json",
+    "manifest_sha256": "bc4dbf0ef969a297cd9422d3350fe9ce5d2b652d96a3be5cdef36a5894be3222",
+    "actual_baseline_manifest_path": ".tmp/collector-dense-a8hkpprn/before-source.json",
+    "actual_baseline_manifest_sha256": "0c24b2ff295fa1c67e9d43e986c477d09cab3e72f729b674e0570cec6580f205",
+    "baseline_identity": "Retained signed c29af6f852a9fixtures match all348baseline inputs. The delegate baseline is newly linked against the same unchanged signed production inputs.",
+    "intermediate_identity": "Failure-first regression has the complete unchanged production region before the top-level cfg(test)module, including Collector, plus new test controls. Development and all final compiled cohorts use candidate-source.json."
+  },
+  "limits": [
+    "Finite complete results do not prove arbitrary-input equivalence, exhaustive coverage or maximum throughput. No language feature is added or dropped.",
+    "Whole-query fixture timings include independently owned complete output. This is not a Netdata HTTP lookup improvement; no live Agent/install/router/provider/storage change is qualified here.",
+    "All58timing groups and eight memory categories are retained. Accounted memory is not process RSS, total allocator demand or physical DBengine/cache RAM; owned output remains proportional to the answer.",
+    "Shared-host measurements include explicitly recorded background activity. No isolated CPU, client concurrency, cold-disk or physical-device throughput is established.",
+    "ARM32/ARM64qualification uses installed QEMU release, not physical ARM or foreign release-min performance.",
+    "The larger filtered aggregate exposed a separate preexisting repeated-computation problem. Its naturally completed eight-result baseline is a separate witness; active candidate output is excluded from terminal artifact claims and selected bounded passing counts."
+  ],
+  "retained_evidence": {
+    ".tmp/collector-dense-a8hkpprn/profile-build.json": "1c654df9d3b567a4544632401afaa0b7b1366b4f20b70fb0f8be272a376e5533",
+    ".tmp/collector-dense-a8hkpprn/profile-baseline.json": "da5fbf2875cc4f017e33f4dee9443ed09f1bee364b429a5d6c35fed6bcc163cb",
+    ".tmp/collector-dense-a8hkpprn/regression.json": "f6e2c4bc02e8fbcfc62587587b91f329ae6a97d80715e5060bd10bf37e1d9b04",
+    ".tmp/collector-dense-a8hkpprn/development.json": "0de1930224b62e5b33c2e4e788c306a0f406c4e0ac0d2249a9c56d3741fa7842",
+    ".tmp/collector-dense-a8hkpprn/early-qualification.json": "68586382b976a2b2bd953a197c64181a2e3361ee7e786ae29bf93f2f0be1df6c",
+    ".tmp/collector-dense-a8hkpprn/qualification.json": "f8aa146e19fbb8545b443df891b5c5da965a86a15ca1fc66d08aa6793794711c",
+    ".tmp/collector-dense-a8hkpprn/static-qualification.json": "6abb569278ff7e1aac11071dae5a88ca065cce325609325958a1f5eef5f8f3b5",
+    ".tmp/collector-dense-a8hkpprn/raw-original-capture.json": "44c1d02dba36f6125d4ed5fed77acf266f0488c646c863f0acb69afccf5d6b31",
+    ".tmp/collector-dense-a8hkpprn/sparse-original-only.json": "155650178c6e3c78564330b34fe19a711661905d6cef4187d633d89cc414b752",
+    ".tmp/collector-dense-a8hkpprn/extra-qualification.json": "64473c36ef63cd4bddfc39a1accfef32aec1d3d73a9a2fbbc42e831e4ce71240",
+    ".tmp/collector-dense-a8hkpprn/profile-candidate-build.json": "434048f9ef3f57f4fde6802e45f100f91c2e31324a8d5e414bde3ecc88eb2074",
+    ".tmp/collector-dense-a8hkpprn/profile-candidate.json": "c85a8c210c2b9f0779bdfe3914fd8e59d96dc9541d6575da6322c58bb8b064ac",
+    ".tmp/collector-dense-a8hkpprn/consumer-search-v2.json": "682e6e263ebb55276482f3efdececa1b9ee480463b349f57b3f50012a2530f0b",
+    ".tmp/collector-dense-a8hkpprn/paired-timings-v2.json": "a13f11a76bf0af24ee9117b15699cd994662ef3acaca67f8e58d6ea8f3d47e62",
+    ".tmp/collector-dense-a8hkpprn/resource-summary.json": "213ee5325a729c52a5b83921491979a439a343b46b7c28f58abd676f9d0937cc",
+    ".tmp/collector-dense-a8hkpprn/timing-followup.json": "cd77f3deef384a4e27a441bd121ec4180f6eeb6d60b2749fe02a7157adb335cb",
+    ".tmp/collector-dense-a8hkpprn/closed-sparse-baseline.json": "8ed75fde99bb287b64c2a9882947cd3650bab429413076ada45c3a2f7aa6b8c5"
+  }
+}

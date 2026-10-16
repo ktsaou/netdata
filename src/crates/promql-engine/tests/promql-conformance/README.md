@@ -1016,6 +1016,46 @@ python3 tests/promql-conformance/classic_replay.py --supplement "${PROMQL_CLASSI
   --reference "${PROMQL_CLASSIC_CAPTURE_DIR:?}" --binary "${PROMQL_KERNEL_BINARY:?}"
 ```
 
+### Dense owned-result collection
+
+The convenience Collector can use a direct lookup while every stored row has `series[index].series_id == index`.
+This proof covers both existing IDs and first-insertion absence. A successful append with another ID invalidates
+it; the original identity scan then handles sparse, permuted and arbitrary IDs. There is one private Boolean and
+no per-series index or additional heap allocation. The [design](DESIGN.md#dense-owned-result-identity-lookup)
+records the proof and its ownership boundaries.
+
+Check complete labels, value bits, timestamps, series identity and point arrival order before work bounds. The
+focused `result::tests::collector_lookup` tests cover dense and arbitrary IDs, first-label copies, equal-label
+distinct rows, successful sorting, actual interruption after sorting swaps, post-sort chunks, take, abort, rebegin
+and cancellation/deadline entry. Sorting must invalidate the proof before its first fallible operation. The existing
+long-lookup interruption test deliberately establishes generic lookup through an actual nonpositional chunk.
+
+Measure the actual checked output owner with a private delegating sink created from `begin_checked`'s query account.
+Keep the production engine and fixture codec unchanged; bind the diagnostic overlay and actual linked libraries.
+Validate complete results and all nonelapsed observations before attributing callback work. Three ticks over N dense
+rows previously required `(3*N*N+N)/2` identity comparisons; direct lookup requires `3*N` checked units. Tiny cases
+can charge more work. Callback timers and charged work do not establish whole-query speed.
+
+Qualify both optimized native unit suites, affected complete original expressions at pages 1, 17 and 1024, installed
+ARM64/ARM32 release execution at page 17, and actual default-feature C callers. Preserve histogram output ownership,
+statistics, generic fallback and pinned final-order controls. Use raw-selector and bounded filtered-aggregate controls
+beside grouped rates and quantiles. Keep larger generic-replay witnesses separate from passing bounded panels.
+
+For whole-query timing, use fixed alternating ordinary-fixture before/candidate processes, complete outcomes first,
+and stable observations per side. Include tiny and sparse controls; retain all slower rows, all eight memory
+categories, native Collector layout and optimized linked-code costs. The fixture retains the complete owned answer.
+This improves Rust collection and C convenience collection; HTTP streaming uses a separate output lookup.
+Shared-host synthetic measurements do not establish live HTTP, concurrency, maximum throughput, RSS, cold-disk
+or physical-ARM performance. Raw input paging and disabled implicit caps retain their existing contracts.
+
+The [qualification record](dense-collection-qualification.json) retains the complete finite panel and costs.
+At 256 jobs, 30 buckets, two workers and three result ticks, owned raw-selector collection improves 13.74–19.28 times
+and the grouped-rate control improves 1.63–1.72 times across the two native profiles. All eight measured memory
+categories are unchanged, and native Collector layout remains 200 bytes. The primary panel retains 20 slower
+medians; a fixed focused follow-up does not reproduce its two larger quantile slowdowns. Linked fixture and C sizes,
+including the release fixture's 1,720-byte BSS increase, remain explicit in the record; default-feature C BSS is
+unchanged. These are owned-collection results under recorded shared-host activity.
+
 ### Direct classic quantile probes
 
 The first quantile sweep still reads every count, applies the pinned correction rules and records all diagnostic

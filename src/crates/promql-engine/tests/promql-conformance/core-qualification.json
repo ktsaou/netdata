@@ -70960,5 +70960,15 @@
     "classic_replay_comparisons": 66704,
     "plural_mutation_steps": 2896,
     "scope": "Complete uncoalesced/unrepaired total sweep admits existing direct probes with loop-top redispatch; no field/value array. Full helpers/expressions/native-foreign/Cqualification and both-profile finite whole-query timings retain all memory/code/slower-control costs. Historical integration evidence remains separate."
+  },
+  "dense_owned_result_collection": {
+    "status": "qualified_private_optimization",
+    "qualification": "dense-collection-qualification.json",
+    "sha256": "4b552a543c4f2cc2db9be102fa9b81b24cbf3cd0934d6d0581c87a3028d8031d",
+    "native_units_per_profile": 711,
+    "selected_complete_expression_comparisons": 5904,
+    "complete_C_queries": 288,
+    "whole_query_timing_outcomes": 696,
+    "scope": "One private positional-ID proof eliminates dense Collector scans with unchanged generic fallback and pre-sort invalidation. No new heap owner; native layout200bytes unchanged. Full selected original/native-foreign/Cqualification and finite both-profile whole-query timings retain all memory/code/slower-case costs; HTTP streaming lookup remains separate."
   }
 }

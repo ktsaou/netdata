@@ -358,6 +358,24 @@ its actual work, resources and delivered points. See [final range output](README
 - **Evidence:** [output model](../../src/result.rs),
   [C output bridge](../../src/c_abi/output.rs).
 
+#### Dense owned-result identity lookup
+
+The convenience Collector keeps a private positional-ID proof: every stored row has `series[index].series_id ==
+index`. While that proof holds, a lower ID is a direct hit and an ID at or beyond the length is absent. Both cases
+charge one checked lookup unit. Successful append preserves the proof only when the new ID equals the old length;
+publish that update after owned label copy and row insertion. Sparse, permuted and arbitrary caller IDs retain the
+existing identity scan. There is no additional index, per-row metadata, value cache or raw-history owner.
+
+A successful begin resets the proof. An interrupted checked begin preserves the previous output. Invalidate before
+fallible Matrix sorting, since cancellation may follow actual swaps. First labels, point arrival order, distinct IDs
+with equal labels, pinned sort provenance, partial-copy ownership, abort, take and independent result release keep
+their existing behavior. The proof never escapes with the collected result. Owned output still grows with the
+answer; this specialization does not add a total query-memory bound.
+
+The [dense collection procedure](README.md#dense-owned-result-collection) separates actual Collector callback work
+from complete-query timing. Rust collection and the C convenience collector use this path. Netdata's HTTP streaming
+consumer has its own indexed row lookup; this change does not accelerate that lookup.
+
 ### 22. Contain ordinary Rust panics; preserve source failure semantics
 
 - **Choice:** catch ordinary unwinding at the C boundary, discard the affected execution context and return an
