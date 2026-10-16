@@ -431,3 +431,23 @@ range results compared with the same Agent's raw DBengine query. It leaves the c
 See the contained conformance guide's completed vector-sort emission section for source-bound memory and timing
 tradeoffs. These generated-data checks preserve contexts, raw paging and API contracts; they do not establish
 production disk throughput or process RSS.
+
+
+## Borrowed singleton float delivery
+
+The [Rust C-adapter qualification](../../src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-singleton-float-output)
+removes the temporary sample-vector allocation for each singleton float chunk. Callback cadence, work, exact
+values and labels remain unchanged; no batch, persistent buffer or additional retained point is introduced.
+The actual optimized Agent passes the existing 672-record storage/API panel and 82 HTTP/readiness checks plus
+224 complete measured responses. All 16 real output/account records match the preceding C-writer cohort.
+
+| Delivery workload | Raw before → after (ms) | Gorilla before → after (ms) |
+| --- | ---: | ---: |
+| 100,000 points, plain | 106.937 → 96.389 | 107.360 → 92.698 |
+| 100,000 points, gzip | 116.919 → 103.691 | 120.596 → 103.550 |
+
+These are separately executed warm shared-host cohorts with the same small retained-data fixture. The full linked
+report preserves slower small controls, body bytes, statistics, raw timings, two-client spans and process readings.
+It establishes no maximum throughput, cold/high-cardinality behavior or total-memory reduction. The new Agent costs
+1,504 B of executable text; the examined release callback reserves 64 B more initial stack while removing its
+128 B temporary sample-vector heap allocation. Raw samples remain paged and resource caps remain disabled.

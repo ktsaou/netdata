@@ -118,97 +118,107 @@ unsafe extern "C" fn abort(context: *mut c_void, _: *const types::AccountingCont
 
 #[test]
 fn foreign_output_preserves_errors_and_the_successful_commit_boundary() {
-    for failure in 0..=3 {
-        for cancellation in [false, true] {
-            unsafe {
-                let engine = engine();
-                let account = borrow::<Engine, _>(engine).unwrap().core.accounting.clone();
-                let query = compiled(engine, b"-0.0");
-                let mut token = ptr::null_mut();
-                assert_eq!(
-                    netdata_promql_control_create(engine, ptr::null(), &mut token),
-                    types::OK
-                );
-                let mut fixture = Fixture::new(1);
-                let provider = fixture.table();
-                let mut delivery = Delivery {
-                    failed: failure,
-                    cancelled: if cancellation {
-                        if failure == 0 { 3 } else { failure }
-                    } else {
-                        0
-                    },
-                    control: token,
-                    ..Delivery::default()
-                };
-                let output = delivery.table();
-                let mut report = ptr::null_mut();
-                assert_eq!(
-                    netdata_promql_execute(
-                        query,
-                        &provider,
-                        &instant(42),
-                        token,
-                        &output,
-                        &mut report
-                    ),
-                    if failure == 0 {
+    for expression in [b"-0.0".as_slice(), b"m"] {
+        for failure in 0..=3 {
+            for cancellation in [false, true] {
+                unsafe {
+                    let engine = engine();
+                    let account = borrow::<Engine, _>(engine).unwrap().core.accounting.clone();
+                    let query = compiled(engine, expression);
+                    let mut token = ptr::null_mut();
+                    assert_eq!(
+                        netdata_promql_control_create(engine, ptr::null(), &mut token),
                         types::OK
-                    } else {
-                        types::OUTPUT_ERROR
+                    );
+                    let mut fixture = Fixture::new(1);
+                    let provider = fixture.table();
+                    let mut delivery = Delivery {
+                        failed: failure,
+                        cancelled: if cancellation {
+                            if failure == 0 { 3 } else { failure }
+                        } else {
+                            0
+                        },
+                        control: token,
+                        ..Delivery::default()
+                    };
+                    let output = delivery.table();
+                    let mut report = ptr::null_mut();
+                    assert_eq!(
+                        netdata_promql_execute(
+                            query,
+                            &provider,
+                            &instant(42),
+                            token,
+                            &output,
+                            &mut report
+                        ),
+                        if failure == 0 {
+                            types::OK
+                        } else {
+                            types::OUTPUT_ERROR
+                        }
+                    );
+                    assert_eq!(delivery.borrowed_status.get(), types::OK);
+                    if cancellation {
+                        assert_eq!(delivery.cancel_status.get(), types::OK);
                     }
-                );
-                assert_eq!(delivery.borrowed_status.get(), types::OK);
-                if cancellation {
-                    assert_eq!(delivery.cancel_status.get(), types::OK);
-                }
-                assert_eq!(delivery.calls[0].get(), 1);
-                assert_eq!(delivery.calls[1].get(), usize::from(failure != 1));
-                assert_eq!(
-                    delivery.calls[2].get(),
-                    usize::from(failure == 0 || failure == 3)
-                );
-                assert_eq!(delivery.calls[3].get(), usize::from(failure != 0));
-                let mut observations = types::QueryObservations::default();
-                assert_eq!(
-                    netdata_promql_report_observations(report, &mut observations),
-                    types::OK
-                );
-                assert_eq!(
-                    observations.memory[MemoryKind::BorrowedView as usize].current,
-                    0
-                );
-                if failure == 0 {
+                    assert_eq!(delivery.calls[0].get(), 1);
+                    assert_eq!(delivery.calls[1].get(), usize::from(failure != 1));
                     assert_eq!(
-                        *delivery.values.borrow(),
-                        [(42, types::VALUE_FLOAT, (-0.0f64).to_bits())]
+                        delivery.calls[2].get(),
+                        usize::from(failure == 0 || failure == 3)
                     );
-                    let committed = delivery.commit_observations.get().unwrap();
-                    assert_eq!(committed.output_samples, 1);
-                    assert!(committed.memory[MemoryKind::Result as usize].current > 0);
-                } else {
-                    let mut error = types::Error::default();
+                    assert_eq!(delivery.calls[3].get(), usize::from(failure != 0));
+                    let mut observations = types::QueryObservations::default();
                     assert_eq!(
-                        netdata_promql_report_error(report, 0, &mut error),
+                        netdata_promql_report_observations(report, &mut observations),
                         types::OK
                     );
-                    assert_eq!(error.kind, 3);
-                    assert_eq!(checked::bytes(error.message).unwrap(), b"sink\0\xfffailure");
-                    assert!(
-                        observations.memory[MemoryKind::Workspace as usize].current
-                            >= error.message.len
+                    assert_eq!(
+                        observations.memory[MemoryKind::BorrowedView as usize].current,
+                        0
                     );
+                    if failure == 0 {
+                        assert_eq!(
+                            *delivery.values.borrow(),
+                            [(
+                                42,
+                                types::VALUE_FLOAT,
+                                if expression == b"m" {
+                                    0
+                                } else {
+                                    (-0.0f64).to_bits()
+                                }
+                            )]
+                        );
+                        let committed = delivery.commit_observations.get().unwrap();
+                        assert_eq!(committed.output_samples, 1);
+                        assert!(committed.memory[MemoryKind::Result as usize].current > 0);
+                    } else {
+                        let mut error = types::Error::default();
+                        assert_eq!(
+                            netdata_promql_report_error(report, 0, &mut error),
+                            types::OK
+                        );
+                        assert_eq!(error.kind, 3);
+                        assert_eq!(checked::bytes(error.message).unwrap(), b"sink\0\xfffailure");
+                        assert!(
+                            observations.memory[MemoryKind::Workspace as usize].current
+                                >= error.message.len
+                        );
+                    }
+                    for (opened, closed) in fixture.opened.iter().zip(&fixture.closed) {
+                        assert_eq!(opened.get(), closed.get());
+                    }
+                    assert_eq!(netdata_promql_control_release(token), types::OK);
+                    assert_eq!(netdata_promql_query_release(query), types::OK);
+                    assert_eq!(netdata_promql_engine_release(engine), types::OK);
+                    drop(fixture);
+                    drop(delivery);
+                    assert_eq!(netdata_promql_report_release(report), types::OK);
+                    account.snapshot().assert_memory_released();
                 }
-                for (opened, closed) in fixture.opened.iter().zip(&fixture.closed) {
-                    assert_eq!(opened.get(), closed.get());
-                }
-                assert_eq!(netdata_promql_control_release(token), types::OK);
-                assert_eq!(netdata_promql_query_release(query), types::OK);
-                assert_eq!(netdata_promql_engine_release(engine), types::OK);
-                drop(fixture);
-                drop(delivery);
-                assert_eq!(netdata_promql_report_release(report), types::OK);
-                account.snapshot().assert_memory_released();
             }
         }
     }

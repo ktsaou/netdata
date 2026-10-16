@@ -53,6 +53,15 @@ fn integers(value: Option<&[i64]>) -> types::I64Array {
         reserved: 0,
     })
 }
+fn float_value(value: f64) -> types::Value {
+    types::Value {
+        kind: types::VALUE_FLOAT,
+        reserved: 0,
+        payload: types::ValuePayload {
+            float_bits: value.to_bits(),
+        },
+    }
+}
 pub(crate) fn float_histogram(
     value: crate::histogram::FloatHistogramRef<'_>,
 ) -> types::FloatHistogram {
@@ -265,14 +274,16 @@ impl OutputSink for Sink {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), OutputError> {
-        let mut labels = AccountedVec::new(account, MemoryKind::Workspace);
-        let mut points = AccountedVec::new(account, MemoryKind::Workspace);
-        let mut histograms = AccountedVec::new(account, MemoryKind::Workspace);
-        let mut integer_histograms = AccountedVec::new(account, MemoryKind::Workspace);
-        let mut annotations = AccountedVec::new(account, MemoryKind::Workspace);
+        let mut labels;
+        let mut points;
+        let mut histograms;
+        let mut integer_histograms;
+        let mut annotations;
+        let singleton;
         control.check()?;
         let value = match value {
             OutputChunk::Annotations(value) => {
+                annotations = AccountedVec::new(account, MemoryKind::Workspace);
                 for value in value.iter() {
                     control.check()?;
                     account.work(1);
@@ -314,6 +325,7 @@ impl OutputSink for Sink {
                 labels: source_labels,
                 points: source_points,
             } => {
+                labels = AccountedVec::new(account, MemoryKind::Workspace);
                 for value in source_labels {
                     control.check()?;
                     account.work(1);
@@ -322,61 +334,80 @@ impl OutputSink for Sink {
                         value: types::Bytes::of(value.value),
                     });
                 }
-                // Finish all histogram buffers before recording pointers that growth could invalidate.
-                for point in source_points {
+                let point_view = if let [point] = source_points
+                    && let SampleValueRef::Float(value) = point.value
+                {
                     control.check()?;
                     account.work(1);
-                    match point.value {
-                        SampleValueRef::Float(_) => (),
-                        SampleValueRef::IntegerHistogram(value) => {
-                            integer_histograms.push(integer_histogram(value))
-                        }
-                        SampleValueRef::FloatHistogram(value) => {
-                            histograms.push(float_histogram(value))
-                        }
-                    }
-                }
-                let (mut float_index, mut integer_index) = (0, 0);
-                for point in source_points {
                     control.check()?;
                     account.work(1);
-                    let value = match point.value {
-                        SampleValueRef::Float(value) => types::Value {
-                            kind: types::VALUE_FLOAT,
-                            reserved: 0,
-                            payload: types::ValuePayload {
-                                float_bits: value.to_bits(),
-                            },
-                        },
-                        SampleValueRef::IntegerHistogram(_) => {
-                            let value = types::Value {
-                                kind: types::VALUE_INTEGER_HISTOGRAM,
-                                reserved: 0,
-                                payload: types::ValuePayload {
-                                    integer_histogram: &integer_histograms[integer_index],
-                                },
-                            };
-                            integer_index += 1;
-                            value
-                        }
-                        SampleValueRef::FloatHistogram(_) => {
-                            let value = types::Value {
-                                kind: types::VALUE_FLOAT_HISTOGRAM,
-                                reserved: 0,
-                                payload: types::ValuePayload {
-                                    float_histogram: &histograms[float_index],
-                                },
-                            };
-                            float_index += 1;
-                            value
-                        }
-                    };
-                    points.push(types::Sample {
+                    singleton = types::Sample {
                         time_ms: point.time_ms,
                         start_time_ms: point.start_time_ms,
-                        value,
-                    });
-                }
+                        value: float_value(value),
+                    };
+                    types::Samples {
+                        data: &singleton,
+                        len: 1,
+                    }
+                } else {
+                    points = AccountedVec::new(account, MemoryKind::Workspace);
+                    histograms = AccountedVec::new(account, MemoryKind::Workspace);
+                    integer_histograms = AccountedVec::new(account, MemoryKind::Workspace);
+                    // Finish all histogram buffers before recording pointers that growth could invalidate.
+                    for point in source_points {
+                        control.check()?;
+                        account.work(1);
+                        match point.value {
+                            SampleValueRef::Float(_) => (),
+                            SampleValueRef::IntegerHistogram(value) => {
+                                integer_histograms.push(integer_histogram(value))
+                            }
+                            SampleValueRef::FloatHistogram(value) => {
+                                histograms.push(float_histogram(value))
+                            }
+                        }
+                    }
+                    let (mut float_index, mut integer_index) = (0, 0);
+                    for point in source_points {
+                        control.check()?;
+                        account.work(1);
+                        let value = match point.value {
+                            SampleValueRef::Float(value) => float_value(value),
+                            SampleValueRef::IntegerHistogram(_) => {
+                                let value = types::Value {
+                                    kind: types::VALUE_INTEGER_HISTOGRAM,
+                                    reserved: 0,
+                                    payload: types::ValuePayload {
+                                        integer_histogram: &integer_histograms[integer_index],
+                                    },
+                                };
+                                integer_index += 1;
+                                value
+                            }
+                            SampleValueRef::FloatHistogram(_) => {
+                                let value = types::Value {
+                                    kind: types::VALUE_FLOAT_HISTOGRAM,
+                                    reserved: 0,
+                                    payload: types::ValuePayload {
+                                        float_histogram: &histograms[float_index],
+                                    },
+                                };
+                                float_index += 1;
+                                value
+                            }
+                        };
+                        points.push(types::Sample {
+                            time_ms: point.time_ms,
+                            start_time_ms: point.start_time_ms,
+                            value,
+                        });
+                    }
+                    types::Samples {
+                        data: points.as_ptr(),
+                        len: points.len() as u64,
+                    }
+                };
                 types::Chunk {
                     kind: types::CHUNK_SERIES,
                     reserved: 0,
@@ -387,10 +418,7 @@ impl OutputSink for Sink {
                                 data: labels.as_ptr(),
                                 len: labels.len() as u64,
                             },
-                            points: types::Samples {
-                                data: points.as_ptr(),
-                                len: points.len() as u64,
-                            },
+                            points: point_view,
                         },
                     },
                 }

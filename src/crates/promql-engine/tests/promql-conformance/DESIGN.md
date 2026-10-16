@@ -350,6 +350,11 @@ its actual work, resources and delivered points. See [final range output](README
   retaining the whole answer while collection remains useful for callers needing independent ownership.
 - **Consequence:** there is no post-return provider access, output spool or selected HTTP publication policy.
   Owned collection deliberately grows with the answer and does not inherit the raw-page memory guarantee.
+- **Singleton floats:** the C adapter borrows one stack sample descriptor through its callback and error copying.
+  Labels keep their existing copied descriptors; other point shapes retain pointer-stable general buffers.
+  Callback cadence, both point-work/control phases and transactional publication remain unchanged. No persistent
+  buffer, batching or additional retained point is introduced. See
+  [singleton output qualification](README.md#borrowed-singleton-float-output) for allocation, timing and footprint costs.
 - **Evidence:** [output model](../../src/result.rs),
   [C output bridge](../../src/c_abi/output.rs).
 

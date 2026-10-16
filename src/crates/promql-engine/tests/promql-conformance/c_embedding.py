@@ -209,6 +209,35 @@ def records(output):
     return [json.loads(line) for line in output.splitlines()]
 
 
+def instant_set_records(name, values):
+    summary = {"instant_set_replay": "pass", "cases": 54, "page_sizes": 3, "request_kinds": 3}
+    fields = {"instant_set_case", "page", "request_kind", "delayed", "arm", "status", "chunks",
+              "first_output_cursor", "failed_cursor", "fetched", "work"}
+    expected = [(page, kind, arm) for page in (1, 17, 1024) for kind in range(3) for arm in range(6)]
+    if len(values) != 55 or values[-1] != summary:
+        raise ValueError(name + ": incomplete instant-set witnesses")
+    first = 0
+    for value, (page, kind, arm) in zip(values[:-1], expected, strict=True):
+        if (
+            set(value) != fields
+            or value["instant_set_case"] != "pass"
+            or any(type(value[key]) is not int or value[key] < 0 for key in fields - {"instant_set_case"})
+            or (value["page"], value["request_kind"], value["arm"], value["delayed"]) != (page, kind, arm, 0)
+            or value["status"] != (0, 5, 5, 3, 6, 5)[arm]
+            or value["chunks"] != (4, 0, 0, 1, 1, 1)[arm]
+        ):
+            raise ValueError(name + ": invalid instant-set witness")
+        if arm == 0:
+            first = value["first_output_cursor"]
+        if (
+            first <= 4
+            or value["first_output_cursor"] != first
+            or value["failed_cursor"] != (1 if arm == 1 else first if arm == 2 else 0)
+        ):
+            raise ValueError(name + ": invalid instant-set failure phase")
+    return values
+
+
 def native_records(name, output):
     values = records(output)
     tail = [
@@ -254,6 +283,9 @@ def native_records(name, output):
         {"foreign_allocation_lifetime": "pass", "bytes": 16384, "abort_cases": 3},
         {"native_embedding": "pass"},
     ]
+    at = tail.index({"instant_numeric_folds": "pass", "cases": 6, "page_sizes": 3})
+    set_witnesses = instant_set_records(name, values[12 + at : 12 + at + 55])
+    tail[at:at] = set_witnesses
     expected = [(rows, size) for size in (1, 7, 1024) for rows in (8192, 65536)]
     actual = [(value.get("rows"), value.get("page_size")) for value in values[:6]]
     temporary = [

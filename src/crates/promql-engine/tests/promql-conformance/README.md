@@ -5117,3 +5117,93 @@ identities, unchanged sample-statistics counts and explicit costs are retained i
 all 72 pre-existing top-level qualification-ledger entries. Timings began after the owned builds and ARM checks
 closed. The host remains shared, without CPU/frequency isolation; these measurements establish no live HTTP,
 DBengine disk I/O, concurrent throughput, physical-device performance or process RSS result.
+
+
+## Borrowed singleton float output
+
+The C adapter borrows one stack sample descriptor for a chunk containing exactly one float. It preserves the
+series ID, label order/bytes, timestamps, start timestamp, float bits and reserved fields through the synchronous
+callback and returned-error copying. Label conversion remains accounted; empty, multiple-point and histogram
+chunks retain the general pointer-stable buffers. Both per-point work/control phases and callback cadence remain.
+There is no persistent buffer, batching, retained point array, ABI change or new limit.
+
+Run these from the Cargo root, `src/crates/promql-engine`:
+
+```sh
+cargo test --locked --features fixtures --profile release --lib c_abi::tests::output_points:: -- --test-threads=1
+cargo test --locked --features fixtures --profile release-min --lib c_abi::tests::output_points:: -- --test-threads=1
+cargo test --locked --features fixtures --profile release --lib c_abi::tests::output_points::measure_streamed_point_descriptors -- --exact --ignored --nocapture --test-threads=1
+python3 tests/promql-conformance/test_c_embedding.py
+```
+
+Repeat the explicit measurement with `--profile release-min` for the size profile. It streams bounded fixture
+values through the actual C adapter and an `extern "C"` test callback, checks counts/checksums/work/cleanup, and
+reports allocation and elapsed counters. It does not collect a result history. Generic native sinks bypass this
+adapter and cannot establish its allocation reduction. The direct payload checks cover empty/single/multiple
+floats, byte labels, signed zero, subnormal/NaN/stale/Inf bits, extreme clocks/start times and histogram descriptor
+growth. Existing delivery controls also run the series branch through errors, cancellation, abort and final commit.
+
+The separately compiled C11/C++17 caller has `--owned-labels-only` for streamed/collected output and provider-error
+controls. Its default mode includes the complete instant-set panel. `c_embedding.py` provides a validated fixture
+scratch directory; direct caller execution must set `NETDATA_PROMQL_FIXTURE_SCRATCH` to a private existing directory.
+The reader checks all default records, including every ordered set-case row and summary; its Python controls reject
+missing, duplicate, reordered, malformed and unknown rows. The recorded correction revalidates already successful
+C transcripts; a reader change does not turn an earlier execution into a new library build.
+
+Recorded singleton output results
+
+The [qualification](singleton-output-qualification.json) retains the complete before/current records and source
+identities. Both optimized profiles pass 696 full units before a test-only module-declaration reorder; fresh final
+binaries pass 52 C-interface and 15 accounting tests per profile. Eight actual current C11/C++17 callers cover both
+native profiles and ARM32/ARM64 release under QEMU, each passing the full 103-record roster and 72 label-output
+arms. C-only ASan/UBSan passes the same panels. The real containing Agent passes 672 storage/API records and
+82 HTTP/readiness checks plus 224 measured complete responses, with both owned Agents exiting normally.
+
+For 100,000 unlabelled float callbacks, temporary Workspace acquisition/release falls 12.8 MB to zero and its
+isolated heap peak falls 128 B to zero. Each successful two-point streamed C/C++ label-output arm saves 256 B;
+all 18 such arms per caller preserve work and the other observations, apart from nonincreasing Workspace peaks.
+Collected and pre-output provider-failure controls remain equal. All 16 real Agent output/account records,
+including history-independent plain/gzip peaks, remain exactly equal to the predecessor. Allocation traffic is
+separate from retained RAM, stack and process RSS.
+
+Eight alternating process pairs per optimized profile include one warmup pair, 96 complete case pairs and 12 timing
+groups. The following are seven-pair median callback-loop times; complete raw samples and slower controls remain
+in the report. These are test-fixture C-table callbacks, not an external-C-only or maximum-throughput benchmark.
+
+| Callback workload | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| 100,000 floats | 14.388 → 5.189 ms | 21.865 → 7.166 ms |
+| 100,000 floats, one label | 17.570 → 8.709 ms | 28.079 → 13.606 ms |
+| 10,000 floats, 17 labels | 3.931 → 3.090 ms | 7.352 → 5.886 ms |
+| 50,000 two-float chunks | 7.597 → 7.427 ms | 12.095 → 11.658 ms |
+| 100,000 empty chunks | 9.902 → 9.041 ms | 12.272 → 11.883 ms |
+| 10,000 native-histogram chunks | 1.762 → 1.707 ms | 2.940 → 2.963 ms |
+
+The size-profile histogram control is 0.77% slower in this finite run. The examined default-release callback's
+initial stack reservation rises 616→680 B, with six saved registers in both prologues; this is not a complete call
+stack. The actual Agent's executable text grows 1,504 B; data/BSS stay equal. No whole-process memory decrease is
+claimed. These costs accompany removed heap allocation and owner operations.
+
+Fixed warm live API median wire times, including complete plain/gzip response delivery, are:
+
+| Query | Raw before → after (ms) | Gorilla before → after (ms) |
+| --- | ---: | ---: |
+| Scalar | 0.363 → 0.377 | 0.338 → 0.395 |
+| Fleet gauge | 0.915 → 1.021 | 1.061 → 0.781 |
+| Local counter rate | 0.993 → 1.005 | 0.912 → 0.751 |
+| Fleet average | 0.979 → 1.071 | 1.024 → 0.788 |
+| Six-group histogram | 19.063 → 18.959 | 17.761 → 16.931 |
+| 100,000-point delivery, plain | 106.937 → 96.389 | 107.360 → 92.698 |
+| 100,000-point delivery, gzip | 116.919 → 103.691 | 120.596 → 103.550 |
+
+Large-response latency falls about 10–14% against the retained predecessor in these separately run warm cohorts.
+All small-control changes remain in the table and raw report; their variations cannot establish zero overhead or
+causal speedups. The host is shared, without CPU/frequency isolation. Two hosts, one tier, warmed caches and
+client overlap do not establish cold-disk, high-cardinality, saturation, concurrent evaluator or physical ARM
+performance. Historical language/SRE panels retain their original identities; this panel adds no language feature.
+
+The original caller-reader failure is preserved: the C programs completed successfully after their scratch
+setting was supplied, but the old reader expected 48 records and omitted 55 already-emitted set-panel records.
+The corrected reader validates all 103. Valid compiled programs and transcripts were reused; missing fixture
+setup and reader failures are not counted as passing engine executions. Source phases and the test-only final
+formatting change are explicit in the report.
