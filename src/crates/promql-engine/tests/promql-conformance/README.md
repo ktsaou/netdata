@@ -2774,8 +2774,9 @@ Qualification procedure:
 
 An initial absolute work-per-input test budget did not separate ordinary grouping and sorting costs. The retained
 complete outcomes instead support a scaling check on the immediate-name grouped path and a separate bound on the
-compound identity owner. Delayed-name execution retains a separate hash-to-output-ID merge scan, so this change
-does not establish linear total execution. Finite synthetic timings do not establish live DBengine, RSS, maximum
+compound identity owner. At that checkpoint, delayed-name execution retained a separate hash-to-output-ID merge scan;
+the following section qualifies its replacement. Neither change establishes linear total execution. Synthetic
+timings do not establish live DBengine, RSS, maximum
 or concurrent throughput, or arbitrary-input performance. Index metadata can increase query peak memory.
 
 The closed qualification has 719 passing units and two existing ignored tests per native profile, 21,792 complete
@@ -2811,6 +2812,104 @@ file/data/BSS costs and actual candidate layouts, including ARM32 Frame 208 B an
 Rust 1.91 all-target compilation pass; this is compile-only MSRV evidence. Earlier ledger objects retain their
 actual source and binary attribution.
 
+## Final output identity lookup
+
+Generic final output assigns IDs by first productive emission across the whole query. The existing gate covers delayed
+name removal and an actual root unary minus; certified schedules, instant cohorts, raw/derived matrices and other
+generic roots retain their own output paths. Canonical roster order can differ from first productive order.
+
+`OutputIdentities` stores append-only full hashes and an inline optional position index, initially `None`. A hash's
+position already is its ID, so the old separate ID field is removed. Equality compares all 64 bits on every target and
+ignores value kind. Unequal label bytes with the same full hash keep the original merging behavior and first callback
+labels. IDs survive missing ticks. This owner is query-wide; per-tick kind-sensitive duplicate validation remains
+separate.
+
+Up to two identities use a bounded full-hash scan. When a third distinct identity appears, build a local index
+containing both prior identities and the candidate. Publish it only after every insertion succeeds, then append the
+reserved candidate hash. Interruption releases the local index and leaves the two prior IDs usable. Larger sets retain
+the existing indexed insertion and rebuilding.
+
+Create the owner only when generic merging is needed and scheduled output has declined. Keep the original immutable gate
+as the per-output dispatch condition before borrowing the owner. Preserve evaluation, final name cleanup, duplicate
+validation and checked label views before lookup. Checked key reservation precedes index mutation; a successful
+insertion immediately appends the reserved hash. As in the original decisive comparison, there is no terminal lookup
+poll; the following checked output observes cancellation. Failure releases all owners and aborts provisional output. No
+labels, sample values, raw histories or second provider are retained here.
+
+The compact key is 8 bytes; the old hash/ID tuple is 16 bytes on all measured targets. Zero-, one- and two-identity
+queries allocate no slots. Larger indexes add real metadata and copy/rebuild traffic. The inline owner is 104 bytes on
+native/ARM64 and 72 bytes on ARM32, once per generic query. These type sizes are not a whole-function stack delta; the
+native evaluator frame remains 240 bytes.
+
+Qualification procedure:
+
+- Freeze actual predecessor/current source and binary identities. Compare complete labels, IDs, values, clocks,
+  membership, diagnostics and errors before measuring work, bytes or time.
+- Run `execution::lookup_tests::output_identity`. Its six causal units cover complete grouped outcomes before growth
+  bounds, full-width/zero/max hashes, first writer, slot-free two-identity ownership, interrupted first-index
+  construction/copy/rebuilding, late generic callback IDs, real full-hash aliases after plural growth and error/cancel
+  abort followed by fresh reuse.
+- The actual growth expression is `-sum by(instance,job)(counter_total)`, with 64/256/1024/4096 rows at three ticks.
+  Both name modes finish all complete-result checks before the fourfold-input/sixfold-work guard. Retain the old failing
+  source/output and unchanged passing test; a direct owner bound does not replace whole-query checks.
+- Run `output_identity_cases()` beside retained `identity_cases()` and `mapped_cases()`. The new 384 cases contain 268
+  nonempty results, 52 empty results and 64 construction errors. Its aggregate-postfix `@`/`offset` forms are invalid
+  and do not establish positive temporal execution; retained valid clock controls are separate.
+- Add the 144 declared cardinality cases for zero/singleton/two-row and 128/1024/4096-row raw, grouped map, unary,
+  parenthesized unary, filter and rate forms. Keep both option profiles and instant/range requests.
+- Build `output_identity.c` against each actual default-feature archive and its reported native link libraries. It
+  reuses `c_embedding.c` for numeric IDs/labels/clocks/values and calibrated success, provider, cancellation and
+  output-error ownership. Check helper summaries separately from the 96 queries per build.
+- Retain `histogram_contributors.c`: its delayed-name `histogram_quantiles` cases emit four distinct float outputs
+  through generic merging, exercising third-identity index construction in the actual C adapter. Both windows,
+  instant/range requests and pages 1/17/1024 give 12 such cases per build, within its existing 72 queries.
+- Use pages 1/17/1024 in both native profiles, ARM32/64 release page 17 under QEMU and the six focused units on each
+  foreign target. Keep native histogram C consumers and strict static/MSRV compile scope explicit.
+- Time fixed alternating ordinary queries after qualification writers close. Include zero/singleton/two-row and bypass
+  controls, keep every slower primary row and follow each at least 5% slower with 20 additional samples per side. Retain
+  all eight memory categories, sample statistics, layouts and linked binary costs.
+
+Closed qualification has 725 passing units and two existing ignored tests per native profile, 13,312 complete original
+expression comparisons and 672 current C queries. Another 192 native C queries use the signed predecessor. Sixteen
+additional final ARM resource outcomes compare against sixteen preserved predecessor outcomes; their timing is not
+analyzed. Format, strict default/fixture Clippy and installed Rust 1.91 all-target compilation pass. MSRV is
+compile-only, foreign execution uses QEMU, and no full foreign suite, live Agent, RSS or concurrent throughput is
+claimed. Finite expression outcomes are not function counts, branch coverage or arbitrary-input proof.
+
+The fixed final timing panel has 52 queries per profile, six alternating pairs, one warmup pair and five measured
+samples per side: 1,248 complete outcomes across 104 groups. Zero/singleton/two-row, raw, parenthesized-unary, filter,
+rate and ordinary-map bypass controls remain alongside both name-removal profiles.
+
+| Profile | Query shape | Median before → after | Time reduction |
+| --- | --- | ---: | ---: |
+| release | 4,096 groups, root unary minus | 305.625 → 169.505 ms | 44.5% |
+| release | 4,096 groups, delayed-name map | 360.047 → 220.812 ms | 38.7% |
+| release-min | 4,096 groups, root unary minus | 483.301 → 278.952 ms | 42.3% |
+| release-min | 4,096 groups, delayed-name map | 567.346 → 378.516 ms | 33.3% |
+
+All 29 slower final primary medians remain in the [output identity qualification](output-identity-qualification.json).
+The predeclared ≥5% rule selects 8 groups for 320 further complete outcomes and 20 additional samples per side. The
+largest follow-up ratio is 1.1303 on `output-n0:server-default:instant:0` (release): 9.630 → 10.885 µs. Primary
+observations are retained. These shared-host timings do not establish that every input is faster or identify one CPU
+cause.
+
+The report preserves four actual source variants. The initial mutable-Option dispatch slowed ordinary bypass controls;
+restoring the immutable gate was measured in a separate 288-outcome release comparison. A bounded two-hash scan then
+removed tiny index allocation, checked in a 1,008-outcome comparison across both profiles. Its unused startup index
+motivated the final initially-None inline owner, checked in another fixed 1,008-outcome comparison. Each comparison uses
+all six process orders and 24 samples per case/side. Earlier sources, binaries, slowdowns and incomplete qualification
+scopes remain distinct; final full qualification and primary timings use the separately rebuilt final implementation.
+Repeated outcomes are not additional language coverage.
+
+All eight measured current and peak memory categories remain equal across the 104 final timing groups. Workspace
+acquired/released bytes change by -32 to +65,536 per query. Every category, sample statistic, actual foreign resource
+observation, type layout and linked cost is retained. Index metadata and temporary copy/rebuild ownership are real costs
+even when another phase determines query peak.
+
+Native C text changes by +6,556/+3,868 bytes in release/min; fixture text changes by +6,032/+3,360 bytes. Full
+file/data/BSS costs remain in the qualification. Raw histories stay paged across metrics and time. These are serial
+synthetic engine observations; no RAM/RSS bound, enabled cap, live HTTP/dbengine, concurrent or arbitrary-input
+throughput claim is introduced.
 ## Bounded binary matching and pair replay
 
 Vector/vector arithmetic, comparisons, `bool`, `and`, `or`, `unless`, `on`, `ignoring`, group modifiers and optional

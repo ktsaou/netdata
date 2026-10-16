@@ -2793,3 +2793,541 @@ fn unique_root_binary_replay_keeps_raw_workspace_independent_of_history() {
         assert_eq!(peaks[0], peaks[1], "page{page_size}");
     }
 }
+
+#[test]
+fn output_identity_growth_checks_complete_results_before_work_bound() {
+    let mut measured = Vec::new();
+    for count in [64, 256, 1024, 4096] {
+        for delayed in [false, true] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let mut provider = FixtureProvider::new(3, 17, count);
+            for (index, series) in provider.series.iter_mut().enumerate() {
+                series.labels[1].1 = format!("i{index:05}").into_bytes();
+            }
+            let query = engine
+                .compile(
+                    b"-sum by(instance,job)(counter_total)",
+                    EngineOptions {
+                        delayed_name_removal: delayed,
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Range {
+                    start_ms: 1000,
+                    end_ms: 3000,
+                    step_ms: 1000,
+                },
+                &control,
+            );
+            let result = report.result.as_ref().unwrap();
+            assert_eq!(result.series.len(), count);
+            assert!(report.annotations.is_empty());
+            assert_eq!(report.observations.output_samples, (3 * count) as u64);
+            for (index, row) in result.series.iter().enumerate() {
+                assert_eq!(row.series_id, index);
+                assert_eq!(row.labels.0.len(), 2);
+                assert_eq!(&*row.labels.0[0].name, b"instance");
+                assert_eq!(&*row.labels.0[0].value, format!("i{index:05}").as_bytes());
+                assert_eq!(&*row.labels.0[1].name, b"job");
+                assert_eq!(&*row.labels.0[1].value, b"worker");
+                assert_eq!(row.points.len(), 3);
+                for (tick, point) in row.points.iter().enumerate() {
+                    assert_eq!(point.time_ms, (tick as i64 + 1) * 1000);
+                    let OwnedValue::Float(value) = point.value else {
+                        panic!("float identity output");
+                    };
+                    assert_eq!(value.to_bits(), (-(tick as f64 + 1.0)).to_bits());
+                }
+            }
+            assert_eq!(
+                report.observations.memory[MemoryKind::Workspace as usize].current,
+                0
+            );
+            measured.push((count, delayed, report.observations.work));
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+    println!("complete output identity outcomes: {measured:?}");
+    for delayed in [false, true] {
+        let work_at = |count| {
+            measured
+                .iter()
+                .find(|row| row.0 == count && row.1 == delayed)
+                .unwrap()
+                .2
+        };
+        assert!(
+            work_at(4096) < 6 * work_at(1024),
+            "output identity replay: {measured:?}"
+        );
+    }
+}
+
+#[test]
+fn output_identity_full_hashes_keep_first_ids_and_compact_ownership() {
+    let engine = EngineAccounting::default();
+    {
+        let account = engine.query();
+        let control = Control::default();
+        let mut ids = OutputIdentities::new(&account);
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Workspace as usize].current,
+            0
+        );
+        assert_eq!(ids.intern(0, &control, &account).unwrap(), 0);
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Workspace as usize].current,
+            (ids.hashes.capacity() * size_of::<u64>()) as u64
+        );
+        assert_eq!(ids.intern(1_u64 << 32, &control, &account).unwrap(), 1);
+        assert!(ids.lookup.is_none());
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Workspace as usize].current,
+            (ids.hashes.capacity() * size_of::<u64>()) as u64
+        );
+        let mut expected = vec![0, 1_u64 << 32];
+        let started = account.snapshot().work;
+        for hash in [1_u64 << 63, u64::MAX]
+            .into_iter()
+            .chain((1..=512).map(|index| (index << 32) | 0xdead_beef))
+        {
+            assert_eq!(
+                ids.intern(hash, &control, &account).unwrap(),
+                expected.len()
+            );
+            expected.push(hash);
+        }
+        assert_eq!(&*ids.hashes, expected);
+        assert!(account.snapshot().work - started < 100 * expected.len() as u64);
+        let held = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+        for (position, &hash) in expected.iter().enumerate().rev() {
+            assert_eq!(ids.intern(hash, &control, &account).unwrap(), position);
+        }
+        assert_eq!(&*ids.hashes, expected);
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Workspace as usize].current,
+            held
+        );
+        println!(
+            "output identity layout: owner={} key={} old_tuple={} index={}",
+            size_of::<OutputIdentities>(),
+            size_of::<u64>(),
+            size_of::<(u64, usize)>(),
+            size_of::<crate::position_index::PositionIndex>()
+        );
+        let before = account.snapshot().work;
+        assert_eq!(ids.intern(0, &control, &account).unwrap(), 0);
+        let lookup_work = account.snapshot().work - before;
+        let cancelled = Control::default();
+        let hit =
+            crate::test_storage::interrupt_after_work(&account, &cancelled, lookup_work, || {
+                ids.intern(0, &cancelled, &account)
+            });
+        // The original decisive hit also defers cancellation to checked output.
+        assert_eq!(hit, Ok(0));
+        assert!(cancelled.cancellation.cancelled());
+    }
+    engine.snapshot().assert_memory_released();
+}
+
+#[test]
+fn output_identity_interrupted_growth_retains_prior_ids_and_releases_owners() {
+    let mut interrupted_replacement = false;
+    for prefix in [2, 4] {
+        let successful_work = {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut ids = OutputIdentities::new(&account);
+            for hash in 0..prefix {
+                assert_eq!(ids.intern(hash as u64, &control, &account).unwrap(), hash);
+            }
+            let before = account.snapshot().work;
+            assert_eq!(
+                ids.intern(prefix as u64, &control, &account).unwrap(),
+                prefix
+            );
+            account.snapshot().work - before
+        };
+        for budget in 1..=successful_work {
+            let engine = EngineAccounting::default();
+            {
+                let account = engine.query();
+                let fresh = Control::default();
+                let mut ids = OutputIdentities::new(&account);
+                for hash in 0..prefix {
+                    ids.intern(hash as u64, &fresh, &account).unwrap();
+                }
+                let held = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+                let control = Control::default();
+                let result =
+                    crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                        ids.intern(prefix as u64, &control, &account)
+                    });
+                let added = match result {
+                    Err(Interrupted::Cancelled) => {
+                        interrupted_replacement |=
+                            account.snapshot().memory[MemoryKind::Workspace as usize].peak > held;
+                        false
+                    }
+                    Ok(id) => {
+                        assert_eq!(id, prefix);
+                        assert!(control.cancellation.cancelled());
+                        true
+                    }
+                    other => panic!("unexpected interruption result: {other:?}"),
+                };
+                assert_eq!(ids.hashes.len(), prefix + usize::from(added));
+                if prefix == 2 && !added {
+                    assert!(ids.lookup.is_none());
+                    assert_eq!(
+                        account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                        held
+                    );
+                }
+                assert_eq!(
+                    ids.lookup.as_ref().and_then(|lookup| {
+                        lookup
+                            .find(
+                                prefix as u64,
+                                |prior| Ok(ids.hashes[prior] == prefix as u64),
+                                &fresh,
+                                &account,
+                            )
+                            .unwrap()
+                    }),
+                    added.then_some(prefix)
+                );
+                for hash in 0..prefix {
+                    assert_eq!(ids.intern(hash as u64, &fresh, &account).unwrap(), hash);
+                }
+                assert_eq!(ids.intern(prefix as u64, &fresh, &account).unwrap(), prefix);
+            }
+            engine.snapshot().assert_memory_released();
+        }
+    }
+    assert!(interrupted_replacement);
+}
+
+struct OutputIdSink<'a> {
+    control: &'a Control,
+    stop: Option<(usize, bool)>,
+    rows: Vec<(usize, usize, i64, u64)>,
+    chunks: usize,
+    committed: bool,
+    aborted: bool,
+}
+impl<'a> OutputIdSink<'a> {
+    fn new(control: &'a Control, stop: Option<(usize, bool)>) -> Self {
+        Self {
+            control,
+            stop,
+            rows: Vec::new(),
+            chunks: 0,
+            committed: false,
+            aborted: false,
+        }
+    }
+}
+impl OutputSink for OutputIdSink<'_> {
+    fn begin(&mut self, _: OutputHeader) -> Result<(), AccountedVec<u8>> {
+        Ok(())
+    }
+    fn chunk(&mut self, chunk: OutputChunk<'_>) -> Result<(), AccountedVec<u8>> {
+        let OutputChunk::Series {
+            series_id,
+            labels,
+            points,
+        } = chunk
+        else {
+            panic!("series identity chunk")
+        };
+        assert_eq!(labels.len(), 2);
+        assert_eq!(labels[0].name, b"instance");
+        assert_eq!(labels[1].name, b"job");
+        assert_eq!(labels[1].value, b"worker");
+        let instance = std::str::from_utf8(labels[0].value)
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(points.len(), 1);
+        let crate::value::SampleValueRef::Float(value) = points[0].value else {
+            panic!("float identity point")
+        };
+        self.rows
+            .push((instance, series_id, points[0].time_ms, value.to_bits()));
+        self.chunks += 1;
+        if let Some((stop, fail)) = self.stop
+            && self.chunks == stop
+        {
+            self.control.cancellation.cancel();
+            if fail {
+                return Err(b"identity output failure".to_vec().into());
+            }
+        }
+        Ok(())
+    }
+    fn commit(&mut self, _: &QueryObservations) -> Result<(), AccountedVec<u8>> {
+        self.committed = true;
+        Ok(())
+    }
+    fn abort(&mut self) {
+        self.aborted = true;
+        self.rows.clear();
+    }
+}
+
+#[test]
+fn output_identity_generic_callbacks_keep_first_productive_ids() {
+    fn late(index: usize) -> crate::value::Sample {
+        let mut sample = crate::test_storage::counter(index);
+        if index < 2 {
+            sample.value =
+                crate::value::SampleValue::Float(f64::from_bits(crate::value::STALE_NAN_BITS));
+        }
+        sample
+    }
+    for page in [1, 17, 1024] {
+        for delayed in [false, true] {
+            let mut provider = FixtureProvider::new(4, page, 8);
+            provider.series[0].source.sample = late;
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"-sum by(instance,job)(counter_total)",
+                    EngineOptions {
+                        delayed_name_removal: delayed,
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let mut sink = OutputIdSink::new(&control, None);
+            let report = query.execute_reported(
+                &provider,
+                QueryRequest::Range {
+                    start_ms: 1000,
+                    end_ms: 4000,
+                    step_ms: 1000,
+                },
+                &control,
+                &mut sink,
+            );
+            assert!(report.result.is_ok(), "{:?}", report.result);
+            let expected: Vec<_> = (1..=4)
+                .flat_map(|tick| {
+                    (0..8).filter_map(move |instance| {
+                        (instance != 0 || tick >= 3).then_some((
+                            instance,
+                            if instance == 0 { 7 } else { instance - 1 },
+                            tick * 1000,
+                            (-(tick as f64)).to_bits(),
+                        ))
+                    })
+                })
+                .collect();
+            assert_eq!(sink.rows, expected);
+            assert!(sink.committed && !sink.aborted);
+            assert!(report.annotations.is_empty());
+            assert_eq!(report.observations.output_samples, 30);
+            provider.assert_closed();
+            drop((report, query, sink));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+}
+
+#[test]
+fn output_identity_callback_error_or_cancel_aborts_and_allows_fresh_reuse() {
+    for delayed in [false, true] {
+        for stop in [1, 8] {
+            for fail in [false, true] {
+                let provider = FixtureProvider::new(3, 17, 8);
+                let engine = Engine::default();
+                let fresh = Control::default();
+                let query = engine
+                    .compile(
+                        b"-sum by(instance,job)(counter_total)",
+                        EngineOptions {
+                            delayed_name_removal: delayed,
+                            ..EngineOptions::default()
+                        },
+                        &fresh,
+                    )
+                    .unwrap();
+                let control = Control::default();
+                let account = query.execution_accounting();
+                let mut sink = OutputIdSink::new(&control, Some((stop, fail)));
+                let request = QueryRequest::Range {
+                    start_ms: 1000,
+                    end_ms: 3000,
+                    step_ms: 1000,
+                };
+                let report =
+                    query.execute_reported_in(&provider, request, &control, &mut sink, &account);
+                if fail {
+                    assert!(
+                        matches!(&report.result, Err(ExecutionError::Sink(bytes)) if &**bytes == b"identity output failure")
+                    );
+                } else {
+                    assert!(matches!(
+                        report.result,
+                        Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                            Interrupted::Cancelled
+                        )))
+                    ));
+                }
+                assert!(sink.aborted && !sink.committed && sink.rows.is_empty());
+                assert_eq!(sink.chunks, stop);
+                assert!(control.cancellation.cancelled());
+                provider.assert_closed();
+                drop((report, sink));
+                account.snapshot().assert_memory_released();
+                let mut sink = OutputIdSink::new(&fresh, None);
+                let report =
+                    query.execute_reported_in(&provider, request, &fresh, &mut sink, &account);
+                assert!(report.result.is_ok());
+                let expected: Vec<_> = (1..=3)
+                    .flat_map(|tick| {
+                        (0..8).map(move |instance| {
+                            (instance, instance, tick * 1000, (-(tick as f64)).to_bits())
+                        })
+                    })
+                    .collect();
+                assert_eq!(sink.rows, expected);
+                assert!(sink.committed && !sink.aborted);
+                assert!(report.annotations.is_empty());
+                provider.assert_closed();
+                drop((report, sink, query));
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+}
+
+#[test]
+fn output_identity_full_hash_alias_after_growth_keeps_first_labels() {
+    use crate::value::{STALE_NAN_BITS, Sample, SampleValue};
+    fn first(index: usize) -> Sample {
+        Sample {
+            time_ms: (index as i64 + 1) * 1000,
+            start_time_ms: 0,
+            value: SampleValue::Float(if index == 1 {
+                1.0
+            } else {
+                f64::from_bits(STALE_NAN_BITS)
+            }),
+        }
+    }
+    fn second(index: usize) -> Sample {
+        Sample {
+            time_ms: (index as i64 + 1) * 1000,
+            start_time_ms: 0,
+            value: SampleValue::Float(if index >= 2 {
+                2.0
+            } else {
+                f64::from_bits(STALE_NAN_BITS)
+            }),
+        }
+    }
+    let values = crate::test_storage::FULL_LABEL_HASH_COLLISION_VALUES;
+    for page in [1, 17, 1024] {
+        for delayed in [false, true] {
+            let mut provider = FixtureProvider::new(4, page, 10);
+            for (index, (series, value)) in provider.series[8..].iter_mut().zip(values).enumerate()
+            {
+                series.labels = vec![
+                    (
+                        b"__name__".to_vec(),
+                        if index == 0 {
+                            b"counter_total".to_vec()
+                        } else {
+                            b"other_total".to_vec()
+                        },
+                    ),
+                    (b"a".to_vec(), value.to_vec()),
+                    (b"job".to_vec(), b"worker".to_vec()),
+                ];
+                series.source.sample = if index == 0 { first } else { second };
+            }
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"-label_replace({job=\"worker\"},\"job\",\"\",\"job\",\".*\")",
+                    EngineOptions {
+                        delayed_name_removal: delayed,
+                        lookback_ms: 500,
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Range {
+                    start_ms: 1000,
+                    end_ms: 4000,
+                    step_ms: 1000,
+                },
+                &control,
+            );
+            let result = report.result.as_ref().unwrap();
+            assert_eq!(result.series.len(), 9);
+            assert!(report.annotations.is_empty());
+            assert_eq!(report.observations.output_samples, 35);
+            for row in &*result.series {
+                assert_eq!(row.labels.0.len(), 1);
+                let actual: Vec<_> = row
+                    .points
+                    .iter()
+                    .map(|point| {
+                        let OwnedValue::Float(value) = point.value else {
+                            panic!("float hash alias")
+                        };
+                        (point.time_ms, value.to_bits())
+                    })
+                    .collect();
+                if &*row.labels.0[0].name == b"a" {
+                    assert_eq!(&*row.labels.0[0].value, values[0]);
+                    assert_eq!(row.series_id, 8);
+                    assert_eq!(
+                        actual,
+                        [
+                            (2000, (-1.0f64).to_bits()),
+                            (3000, (-2.0f64).to_bits()),
+                            (4000, (-2.0f64).to_bits())
+                        ]
+                    );
+                } else {
+                    assert_eq!(&*row.labels.0[0].name, b"instance");
+                    let instance: usize = std::str::from_utf8(&row.labels.0[0].value)
+                        .unwrap()
+                        .parse()
+                        .unwrap();
+                    assert!(instance < 8);
+                    assert_eq!(row.series_id, instance);
+                    assert_eq!(
+                        actual,
+                        (1..=4)
+                            .map(|tick| (tick * 1000, (-(tick as f64)).to_bits()))
+                            .collect::<Vec<_>>()
+                    );
+                }
+            }
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+}

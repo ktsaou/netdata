@@ -204,3 +204,25 @@ def identity_cases():
                 for index, expression in enumerate(expressions):
                     output.append(_case(f'map-identity:{state}:{profile}:{instant}:{index}', expression, records, profile, instant=instant))
     return output
+
+
+def output_identity_cases():
+    output = []
+    grouped = 'sum by(cluster,zone)(m_total)'
+    expressions = (
+        f'-{grouped}', f'(-{grouped})', f'+(-{grouped})',
+        f'abs({grouped})', f'-({grouped}>5)', f'-({grouped}>bool 5)',
+        '-sum by(cluster,zone)(rate(m_total[3s]))',
+        '-sum by(cluster,zone)(sum_over_time(m_total[3s]))',
+        f'-({grouped} @2)', f'-({grouped} offset 1s)',
+        f'label_join(-{grouped},"site","/","cluster","zone")',
+        f'sum_over_time((-{grouped})[2s:1s])',
+    )
+    for state in ('dense', 'late', 'stale', 'native', 'mixed', 'all-native', 'nan', 'empty'):
+        records = [] if state == 'empty' else _records(state, groups=4)
+        for profile in ('server-default', 'upstream-tests'):
+            for instant in (False, True):
+                for index, expression in enumerate(expressions):
+                    output.append(_case(f'output-identity:{state}:{profile}:{instant}:{index}',
+                                        expression, records, profile, instant=instant))
+    return output

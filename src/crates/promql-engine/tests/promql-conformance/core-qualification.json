@@ -70990,5 +70990,15 @@
     "actual_candidate_C_queries": 672,
     "whole_query_timing_outcomes": 1440,
     "scope": "Both mapped/final duplicate helper consumers reuse accounted positional metadata with exact full-hash/kind identity, zero/singleton lazy ownership and terminal-control phases. Complete original/C/foreign/profile/page evidence, actual growth and all index/code/slower costs retained. No raw cache or public contract change; separate delayed output-ID lookup remains."
+  },
+  "final_output_identity_lookup": {
+    "status": "qualified_private_optimization",
+    "qualification": "output-identity-qualification.json",
+    "sha256": "931fe64ea9b8d5bc259fa801ed8edbf99bbd7019ef1a175baec040e2b0970327",
+    "native_units_per_profile": 725,
+    "complete_expression_comparisons": 13312,
+    "actual_current_C_queries": 672,
+    "whole_query_timing_outcomes": 1248,
+    "scope": "Compact full hashes plus existing PositionIndex preserve first-emitted query-wide IDs, first labels, hash-only/cross-kind aliases, control and output phases. Complete original/C/foreign/native, causal growth, every memory category, tiny/bypass/slower rows and linked costs retained. No raw cache or public contract change."
   }
 }

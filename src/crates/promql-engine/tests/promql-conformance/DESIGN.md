@@ -275,9 +275,34 @@ Terminal cancellation polling precedes duplicate errors and follows successful i
 omission, name-removal and per-tick ownership rules remain with their existing callers.
 
 The native frame remains 240 B. Plural queries pay additional index/header metadata; no raw samples or output values
-are cached here. Other lookup owners, including delayed output-ID merging, can still make total execution quadratic.
+are cached here. Removing this scan does not establish linear total execution across other metadata/replay owners.
 See the [mapped identity procedure](README.md#mapped-label-identity-lookup) for causal controls and
 complete-query costs.
+
+#### Final output identities
+
+Generic final merging uses a query-wide `OutputIdentities`: append-only full hashes plus an inline
+`Option<PositionIndex>`, initially `None`.
+Append positions already are first-emitted IDs, so the separate ID field is removed. Equality uses the complete
+64-bit hash and ignores value kind. Full-hash aliases preserve the first callback's labels; missing ticks retain IDs.
+Canonical roster ordinals do not generally encode first productive output.
+
+Up to two identities use a bounded scan of their full hashes. The third distinct identity builds a local index
+containing both prior IDs and the candidate. Publish it only after construction succeeds, then immediately append
+the reserved candidate hash. Interrupted construction leaves the original two hashes searchable and releases the
+temporary index. Larger sets use the existing checked index insertion and rebuilding. There is no unused startup
+index or separate box.
+
+The owner is created only after scheduled output declines, for the existing delayed-name/root-unary-minus gate.
+The same immutable gate remains the per-output dispatch condition, before borrowing the mutable owner.
+Evaluation, name cleanup, duplicate validation and checked label views precede lookup. Checked key reservation
+precedes index mutation; successful insertion immediately appends the reserved key. The original decisive hit has
+no terminal lookup poll; checked output observes cancellation. Failure discards provisional output and all metadata.
+
+Keys occupy 8 B versus the old 16 B tuple on measured native/ARM targets. Up to two identities allocate no slots;
+larger tables add metadata and overlapping rebuild charges. The inline owner is once per generic query, not per
+evaluator frame; it introduces no raw/value/label cache. Actual accounting, type layouts and linked costs are in the
+[output identity procedure](README.md#final-output-identity-lookup).
 
 ### 16. Observe resources now; keep every resource cap disabled
 

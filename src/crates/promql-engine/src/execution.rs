@@ -851,7 +851,6 @@ impl CompiledQuery {
                     ..
                 }
             );
-        let mut identities = AccountedVec::<(u64, usize)>::new(account, MemoryKind::Workspace);
         let mut hashes = AccountedVec::new(account, MemoryKind::Workspace);
         if self.options.delayed_name_removal {
             for descriptor in rosters.descriptors(self.expression.root) {
@@ -880,6 +879,7 @@ impl CompiledQuery {
         )? {
             return Ok(());
         }
+        let mut identities = merge_root.then(|| OutputIdentities::new(account));
         self.certify_pair_replay(
             self.expression.root,
             header,
@@ -949,22 +949,10 @@ impl CompiledQuery {
                 let labels = sample.labels.views_checked(account, control)?;
                 let series_id = if merge_root {
                     let hash = crate::label_hash::full(&sample.labels, control, account)?;
-                    let mut found = None;
-                    for (key, id) in &*identities {
-                        control.check()?;
-                        account.work(1);
-                        if *key == hash {
-                            found = Some(*id);
-                            break;
-                        }
-                    }
-                    if let Some(id) = found {
-                        id
-                    } else {
-                        let id = identities.len();
-                        identities.push((hash, id));
-                        id
-                    }
+                    identities
+                        .as_mut()
+                        .expect("generic output identities")
+                        .intern(hash, control, account)?
                 } else {
                     sample.ordinal
                 };
@@ -4015,6 +4003,90 @@ fn children<'a>(
                 })
                 .filter_map(Result::transpose),
         ))
+}
+
+struct OutputIdentities {
+    hashes: AccountedVec<u64>,
+    lookup: Option<crate::position_index::PositionIndex>,
+}
+
+impl OutputIdentities {
+    fn new(account: &QueryAccounting) -> Self {
+        Self {
+            hashes: AccountedVec::new(account, MemoryKind::Workspace),
+            lookup: None,
+        }
+    }
+
+    fn intern(
+        &mut self,
+        hash: u64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<usize, Interrupted> {
+        let found = if let Some(lookup) = &self.lookup {
+            lookup.find(
+                hash,
+                |prior| Ok(self.hashes[prior] == hash),
+                control,
+                account,
+            )?
+        } else {
+            let mut found = None;
+            for (position, &prior) in self.hashes.iter().enumerate() {
+                control.check()?;
+                account.work(1);
+                if prior == hash {
+                    found = Some(position);
+                    break;
+                }
+            }
+            found
+        };
+        if let Some(position) = found {
+            return Ok(position);
+        }
+        // First-emitted positions are IDs; only the full hash defines equality.
+        let position = self.hashes.len();
+        self.hashes.reserve_copy_with(1, |count| {
+            control.check()?;
+            account.work(count as u64);
+            Ok::<_, Interrupted>(())
+        })?;
+        if position >= 2 {
+            let mut replacement =
+                (position == 2).then(|| crate::position_index::PositionIndex::new(account));
+            let lookup = if let Some(lookup) = &mut replacement {
+                lookup
+            } else {
+                self.lookup.as_mut().expect("indexed output identities")
+            };
+            // Publish the first index only when all existing IDs and the candidate fit.
+            if position == 2 {
+                for prior in 0..position {
+                    lookup.insert_new(
+                        self.hashes[prior],
+                        prior,
+                        |prior| Ok(self.hashes[prior]),
+                        control,
+                        account,
+                    )?;
+                }
+            }
+            lookup.insert_new(
+                hash,
+                position,
+                |prior| Ok(self.hashes[prior]),
+                control,
+                account,
+            )?;
+            if let Some(lookup) = replacement {
+                self.lookup = Some(lookup);
+            }
+        }
+        self.hashes.push(hash);
+        Ok(position)
+    }
 }
 
 #[cfg(test)]

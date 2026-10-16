@@ -96,6 +96,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Mapped hash/kind uniqueness MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#mapped-label-identity-lookup` for compound identity,
   terminal controls, lazy metadata ownership and the limits of total-work claims.
+- Final output identity lookup MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#final-output-identity-lookup` for first-emitted IDs,
+  full-hash aliases, callback/control phases and measured metadata costs.
 - Copied grouping keys MUST preserve raw empty values, source order and the shared by/without predicate;
   preserve ownership-transfer paths and full ranking labels. Measure retained capacity separately from inputs,
   and check omitted/retained byte walks plus terminal cancellation; see the same guide's copied grouping-label section.
