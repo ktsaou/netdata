@@ -83,6 +83,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Source-defined selector prefix combinations MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#literal-prefix-selector-examples` for original table
   binding, preserved historical captures and complete complementary selector outcomes.
+- Source-defined suffix and optional-character selectors MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#suffix-and-optional-character-selector-examples` for
+  duplicate declarations, literal positions and complete complementary outcomes.
 - Follow the conformance README for pinned differential panels; preserve its stated tolerance and bit diagnostics.
 - Shared UTF-8 validation MUST preserve valid cross-batch scalars, valid U+FFFD, first-invalid-byte work and caller
   error/control phases. Compare actual fallback and capture consumers beside optimized selector controls; work

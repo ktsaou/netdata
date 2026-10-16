@@ -678,6 +678,51 @@ six actual extractor rejection controls and three CLI checks qualify the new cap
 matching evidence; it makes no new language-feature, optimizer-branch, performance, memory, C embedding or live API
 claim. Historical qualification keeps its actual source and binary identities.
 
+### Suffix and optional-character selector examples
+
+`selector-suffix-inputs.json` preserves the pinned `TestStringMatcherFromRegexp_LiteralSuffix` and
+`TestStringMatcherFromRegexp_Quest` tables from `model/labels/regexp_test.go`. Their ten patterns have 101 declarations:
+60 positive and 41 negative. One positive `bbbddd` declaration repeats. Keep both occurrences, their array ordinals
+and distinct literal byte spans, line numbers and columns; generate only 100 distinct pattern/subject pairs.
+Contradictory expectations are an error. Internal matcher counts describe the original Go assertions, not Rust
+optimizer requirements.
+
+The tests use anchored dot-newline matching. Actual `test\n` subjects match `test.?`; a source comment suggesting
+otherwise does not override its assertions. Scoped case folding accepts `bbbXXXCCC` while rejecting `BBBccc` in the
+relevant suffix pattern. `selector_suffix_cases.py` validates the source and deduplicates generation;
+`selector_source_cases.Panel` owns the shared prefix/suffix construction, exact comparison, packets and CLI wiring.
+The prefix adapter retains its 104 generated queries, complete expected objects and valid CLI outputs. The Go
+extractor's original one-argument output remains byte-identical.
+
+Run from this crate with the pinned Go toolchain, verified `PROMQL_UPSTREAM_DIR` facade and existing private
+`PROMQL_SUFFIX_DIR` containing no prior fixture files:
+
+```sh
+go run tests/promql-conformance/capture/selector_prefix_sources.go "${PROMQL_UPSTREAM_DIR:?}" \
+  TestStringMatcherFromRegexp_LiteralSuffix TestStringMatcherFromRegexp_Quest \
+  > "${PROMQL_SUFFIX_DIR:?}/source.json"
+python3 tests/promql-conformance/selector_suffix_cases.py \
+  --check-source "${PROMQL_SUFFIX_DIR:?}/source.json"
+python3 tests/promql-conformance/selector_suffix_cases.py --write-dir "${PROMQL_SUFFIX_DIR:?}"
+```
+
+Run the three unchanged prefix/suffix/optional-character original test functions with an exact name filter and
+`-count=1`. Authenticate the retained general query probe through `plural_histogram.load`, then supply the new
+`dataset.json` and `requests.json`. Separately bind the new source ledger, request roster, runtime header and raw
+results; authenticating an older probe does not authenticate new requests. Check the fresh `original.json` and
+candidate with the suffix adapter's `--check-original` and `--compare` options, following the prefix command pattern.
+
+The [qualification record](selector-suffix-qualification.json) retains 800 new complete comparisons and 416 unchanged
+prefix comparisons across native release/release-min and ARM32/ARM64 release fixtures, page 17 with QEMU for ARM.
+All 349 prior runtime inputs remain unchanged, so these are the exact already-qualified binaries. Eleven tooling
+validators, ten actual extractor rejection controls, literal-position checks and CLI checks cover the shared tools.
+The three original test functions and fifteen subtests pass without a cached test result. All 200 fresh original
+expressions have complete complementary singleton/empty outcomes, exact labels, timestamp, value bits and diagnostics.
+
+These are additional finite matching examples. Earlier source/capture/binary identities, the old 21,320 regex records
+and all previous qualification objects remain intact. No new engine build, function count, branch coverage,
+performance, memory, C embedding, live API or concurrent-throughput claim is introduced.
+
 ## Bounded UTF-8 validation
 
 The shared validator used by regex subjects, quoted grouping labels and label-function names validates at most

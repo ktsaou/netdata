@@ -1,0 +1,336 @@
+{
+  "schema_version": 1,
+  "status": "qualified_original_selector_examples",
+  "scope": "Original suffix/optional-character examples plus preserved prefix tooling. No engine change, rebuild, pin, ABI, numeric, provider or cap change.",
+  "comparison_base_git": "37a2e24dcd04136e026ab41482b0e37361cbbd91",
+  "reference": {
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go_arch": "amd64",
+    "go_os": "linux",
+    "go_version": "go1.27.1",
+    "reference": "github.com/prometheus/prometheus@v0.315.0",
+    "schema_version": 1,
+    "unicode_version": "17.0.0"
+  },
+  "source": {
+    "file": "model/labels/regexp_test.go",
+    "sha256": "8d2733bd69a66adc95e3864e609a0544dca9bfb629b80de12494b1b8052a6023",
+    "tables": [
+      {
+        "function": "TestStringMatcherFromRegexp_LiteralSuffix",
+        "function_line": 563,
+        "function_sha256": "7e7565c1b5059999a087255b51988a6765404987d5088f3667c87f6e8f3ffdf2",
+        "patterns": 4
+      },
+      {
+        "function": "TestStringMatcherFromRegexp_Quest",
+        "function_line": 638,
+        "function_sha256": "6e367ca4f27ecf6730e13c0f8384d17ace7b4eae1182bca01008427247f16c56",
+        "patterns": 6
+      }
+    ],
+    "raw_declarations": 101,
+    "raw_positive": 60,
+    "raw_negative": 41,
+    "distinct_pairs": 100,
+    "distinct_positive": 59,
+    "distinct_negative": 41,
+    "literal_positions_checked": 111,
+    "duplicate": "LiteralSuffix row2 expectedMatches indices5/6 both declare bbbddd; both raw values and distinct same-line byte spans/columns survive. Only generated pairs deduplicate.",
+    "semantics": "Original Perl|DotNL/anchored regexp assertions. Actual newline and scoped case flags follow source assertions, not comments. Internal matcher counts are provenance, not required Rust optimizer structures.",
+    "pattern_overlap_with_retained_regex": []
+  },
+  "inputs": {
+    "source_ledger": "selector-suffix-inputs.json",
+    "source_ledger_sha256": "a1415742b878d9f6b7cded0a91dfdd138949f0c51f3ca081a85b224563c6522e",
+    "new_queries": 200,
+    "new_nonempty_outcomes": 100,
+    "new_empty_outcomes": 100,
+    "legacy_queries": 104
+  },
+  "original_capture": {
+    "new_original_report": {
+      "required": 200,
+      "evaluated": 200,
+      "semantic_failures": {},
+      "unexpected_results": [],
+      "bitwise_differences": [],
+      "semantic_pass": true,
+      "bitwise_pass": true
+    },
+    "named_test_passes": 18,
+    "parent_tests": 3,
+    "subtests": 15,
+    "cached_result": false,
+    "probe_source": "capture/plural_histogram.go",
+    "probe_sha256": "4c8d1edc3048c968bacee5a3b8c9fd28488492aa17a1bd02355943dbbcaeb78f",
+    "scope": "Three unchanged named functions/15subtests, count1; fresh200complete original expressions. Legacy104original outcomes authenticated and reused, not newly captured. All111literal byte spans/line/columns verified against pinned raw source; old21320records unchanged, not rerun."
+  },
+  "candidate_qualification": {
+    "complete_comparisons": 1216,
+    "new_comparisons": 800,
+    "legacy_comparisons": 416,
+    "page_size": 17,
+    "reports": {
+      "release": {
+        "prefix": {
+          "required": 104,
+          "evaluated": 104,
+          "semantic_failures": {},
+          "unexpected_results": [],
+          "bitwise_differences": [],
+          "semantic_pass": true,
+          "bitwise_pass": true
+        },
+        "new": {
+          "required": 200,
+          "evaluated": 200,
+          "semantic_failures": {},
+          "unexpected_results": [],
+          "bitwise_differences": [],
+          "semantic_pass": true,
+          "bitwise_pass": true
+        }
+      },
+      "release-min": {
+        "prefix": {
+          "required": 104,
+          "evaluated": 104,
+          "semantic_failures": {},
+          "unexpected_results": [],
+          "bitwise_differences": [],
+          "semantic_pass": true,
+          "bitwise_pass": true
+        },
+        "new": {
+          "required": 200,
+          "evaluated": 200,
+          "semantic_failures": {},
+          "unexpected_results": [],
+          "bitwise_differences": [],
+          "semantic_pass": true,
+          "bitwise_pass": true
+        }
+      },
+      "arm32": {
+        "prefix": {
+          "required": 104,
+          "evaluated": 104,
+          "semantic_failures": {},
+          "unexpected_results": [],
+          "bitwise_differences": [],
+          "semantic_pass": true,
+          "bitwise_pass": true
+        },
+        "new": {
+          "required": 200,
+          "evaluated": 200,
+          "semantic_failures": {},
+          "unexpected_results": [],
+          "bitwise_differences": [],
+          "semantic_pass": true,
+          "bitwise_pass": true
+        }
+      },
+      "arm64": {
+        "prefix": {
+          "required": 104,
+          "evaluated": 104,
+          "semantic_failures": {},
+          "unexpected_results": [],
+          "bitwise_differences": [],
+          "semantic_pass": true,
+          "bitwise_pass": true
+        },
+        "new": {
+          "required": 200,
+          "evaluated": 200,
+          "semantic_failures": {},
+          "unexpected_results": [],
+          "bitwise_differences": [],
+          "semantic_pass": true,
+          "bitwise_pass": true
+        }
+      }
+    },
+    "scope": "200new/104unchanged prefix queries on native release/min and ARM32/64release QEMU17. Exact labels, times, bits, diagnostics, membership and packet IDs. All349actual prior runtime inputs unchanged; no rebuild, full suites, C/live/performance claim."
+  },
+  "runtimes": {
+    "release": {
+      "profile": "release",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "fixture": {
+        "path": ".tmp/output-ids-2z6p1v5q/lazy-release/promql-query-fixture",
+        "sha256": "75c01d3997395fab172aa9e885629ea76b660cde8fac336311f17b015c0e0feb"
+      },
+      "fixture_features": [
+        "fixtures"
+      ],
+      "qualification": ".tmp/output-ids-2z6p1v5q/lazy-release-qualification.json",
+      "qualification_sha256": "7960d17298c22b22a867512b2295ce2a31bdc8a5521c9d9a63173652b2123802"
+    },
+    "release-min": {
+      "profile": "release-min",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "fixture": {
+        "path": ".tmp/output-ids-2z6p1v5q/lazy-release-min/promql-query-fixture",
+        "sha256": "911b95ccab9b612d713266ad270521ed09f96341bf3e40d78848dcf55e40c2f0"
+      },
+      "fixture_features": [
+        "fixtures"
+      ],
+      "qualification": ".tmp/output-ids-2z6p1v5q/lazy-release-min-qualification.json",
+      "qualification_sha256": "d5b085866e7c903273109694bec2d575f6fa529d67a93136d64b253189404ec2"
+    },
+    "arm32": {
+      "profile": "release",
+      "target": "armv7-unknown-linux-gnueabihf",
+      "runner": [
+        "qemu-arm",
+        "-L",
+        "/usr/arm-linux-gnueabihf"
+      ],
+      "fixture": {
+        "path": ".tmp/output-ids-2z6p1v5q/lazy-arm32/promql-query-fixture",
+        "sha256": "4921cc36e255f82a91e6153dbf9c21617aef5ec6449c38ded3f0ee9f68d2c7d4"
+      },
+      "fixture_features": [
+        "fixtures"
+      ],
+      "qualification": ".tmp/output-ids-2z6p1v5q/lazy-arm32-qualification.json",
+      "qualification_sha256": "80e3492771bf04c60941e712a96e1299a8f7d0aa9b41f4dfade3a29624518e49"
+    },
+    "arm64": {
+      "profile": "release",
+      "target": "aarch64-unknown-linux-gnu",
+      "runner": [
+        "qemu-aarch64",
+        "-L",
+        "/usr/aarch64-linux-gnu"
+      ],
+      "fixture": {
+        "path": ".tmp/output-ids-2z6p1v5q/lazy-arm64/promql-query-fixture",
+        "sha256": "11c54a27dd0f2a7b579b707d82ad18f9b2a7e1a4ff7ff6d7abb32a1d71055eeb"
+      },
+      "fixture_features": [
+        "fixtures"
+      ],
+      "qualification": ".tmp/output-ids-2z6p1v5q/lazy-arm64-qualification.json",
+      "qualification_sha256": "5a757e7a661550adce3b9402586e242f9a1a331a1fcbd9575ec805839447655f"
+    }
+  },
+  "tooling": {
+    "shared_panel": "selector_source_cases.Panel",
+    "new_adapter": "selector_suffix_cases.py",
+    "legacy_adapter": "selector_prefix_cases.py",
+    "legacy_generated_objects_equal": true,
+    "legacy_extractor_output_bytes_equal": true,
+    "validator_tests": 11,
+    "actual_rejection_controls": [
+      {
+        "control": "missing-function",
+        "expected_exit": 1,
+        "matched_error": "original test body changed"
+      },
+      {
+        "control": "duplicate-field",
+        "expected_exit": 1,
+        "matched_error": "duplicate original field"
+      },
+      {
+        "control": "computed-pattern",
+        "expected_exit": 1,
+        "matched_error": "expected a literal Go string"
+      },
+      {
+        "control": "computed-subject",
+        "expected_exit": 1,
+        "matched_error": "expected a literal Go string"
+      },
+      {
+        "control": "unexpected-field",
+        "expected_exit": 1,
+        "matched_error": "unexpected original field"
+      },
+      {
+        "control": "nonliteral-table",
+        "expected_exit": 1,
+        "matched_error": "original literal table changed"
+      },
+      {
+        "control": "wrong-row-count",
+        "expected_exit": 1,
+        "matched_error": "original literal table changed"
+      },
+      {
+        "control": "legacy-nonliteral-table",
+        "expected_exit": 1,
+        "matched_error": "original literal table changed"
+      },
+      {
+        "control": "unknown-name",
+        "expected_exit": 1,
+        "matched_error": "unexpected or duplicate original table name"
+      },
+      {
+        "control": "duplicate-name",
+        "expected_exit": 1,
+        "matched_error": "unexpected or duplicate original table name"
+      }
+    ],
+    "CLI_checks": "Both source/original/compare callers and new write path executed; written fixture bytes agree. Shared validation retains ValueError and complete checks; internal error wording uses selector context.",
+    "format": "gofmt produces no differences",
+    "consumers": [
+      "src/crates/promql-engine/tests/promql-conformance/test_selector_suffix_cases.py:6:import selector_suffix_cases as suffix",
+      "src/crates/promql-engine/tests/promql-conformance/selector_suffix_cases.py:7:from selector_source_cases import Pair, Panel",
+      "src/crates/promql-engine/tests/promql-conformance/test_selector_prefix_cases.py:7:import selector_prefix_cases as prefix",
+      "src/crates/promql-engine/tests/promql-conformance/selector_prefix_cases.py:7:from selector_source_cases import Pair, Panel",
+      "src/crates/promql-engine/tests/promql-conformance/README.md:638:`capture/selector_prefix_sources.go` reads the literal table that this function iterates. It uses `strconv.Unquote`",
+      "src/crates/promql-engine/tests/promql-conformance/README.md:643:`selector_prefix_cases.py` turns each declared pattern/subject pair into complete `=~` and `!~` expressions. Each",
+      "src/crates/promql-engine/tests/promql-conformance/README.md:652:go run tests/promql-conformance/capture/selector_prefix_sources.go \"${PROMQL_UPSTREAM_DIR:?}\" \\",
+      "src/crates/promql-engine/tests/promql-conformance/README.md:654:python3 tests/promql-conformance/selector_prefix_cases.py \\",
+      "src/crates/promql-engine/tests/promql-conformance/README.md:656:python3 tests/promql-conformance/selector_prefix_cases.py --write-dir \"${PROMQL_PREFIX_DIR:?}\"",
+      "src/crates/promql-engine/tests/promql-conformance/README.md:666:python3 tests/promql-conformance/selector_prefix_cases.py \\",
+      "src/crates/promql-engine/tests/promql-conformance/README.md:670:python3 tests/promql-conformance/selector_prefix_cases.py \\",
+      "src/crates/promql-engine/tests/promql-conformance/README.md:692:relevant suffix pattern. `selector_suffix_cases.py` validates the source and deduplicates generation;",
+      "src/crates/promql-engine/tests/promql-conformance/README.md:693:`selector_source_cases.Panel` owns the shared prefix/suffix construction, exact comparison, packets and CLI wiring.",
+      "src/crates/promql-engine/tests/promql-conformance/README.md:701:go run tests/promql-conformance/capture/selector_prefix_sources.go \"${PROMQL_UPSTREAM_DIR:?}\" \\",
+      "src/crates/promql-engine/tests/promql-conformance/README.md:704:python3 tests/promql-conformance/selector_suffix_cases.py \\",
+      "src/crates/promql-engine/tests/promql-conformance/README.md:706:python3 tests/promql-conformance/selector_suffix_cases.py --write-dir \"${PROMQL_SUFFIX_DIR:?}\""
+    ],
+    "prior_tool_sources": {
+      "src/crates/promql-engine/tests/promql-conformance/capture/selector_prefix_sources.go": {
+        "sha256": "4747fc18fb841567c488ad673c2ef1764f1588d86640305fec4efa7b6ca98137",
+        "snapshot": ".tmp/selector-suffix-6usstjj8/legacy-tool-source-0.stdout"
+      },
+      "src/crates/promql-engine/tests/promql-conformance/selector_prefix_cases.py": {
+        "sha256": "993ea5f6427c7c16df4e101fafa9d7314dfd89a28eba7baf84d57747946c05a7",
+        "snapshot": ".tmp/selector-suffix-6usstjj8/legacy-tool-source-1.stdout"
+      }
+    }
+  },
+  "source_attribution": {
+    "runtime_inputs_unchanged": 349,
+    "capture_and_runtime_inputs": 355,
+    "runtime_source_revision": "37a2e24dcd04136e026ab41482b0e37361cbbd91",
+    "before_manifest_sha256": "6e956068bf184f5505b19ffe57569351b4d1d28c9b63729b654264a826003471",
+    "capture_manifest_sha256": "12542b17698aeaeb803ea7620f3cff21214c4ba91d3293e7f0f828b19f67e462",
+    "scope": "All349actual prior runtime inputs unchanged; six separately bound capture inputs extend the manifest. Two existing capture tools change and four new capture files are added. Runtime binaries keep exact Stage72source/profile/features; new tools do not become a claim of an engine rebuild.",
+    "preservation": "Old21320regex captures/hooks revalidated unchanged, not newly executed. Prefix original104outcomes reused and authenticated; before/current constructed prefix objects and old Go output match exactly."
+  },
+  "limits": [
+    "Finite matching examples, not additional functions, optimizer branches or arbitrary-pattern proof.",
+    "Foreign execution is release/page17underQEMU. No new full core suite, Rust/MSRV build, C, live API, performance, memory/RSS or concurrent-throughput claim.",
+    "Earlier qualification objects keep their actual source/binary identities."
+  ],
+  "retained_evidence": {
+    ".tmp/selector-suffix-6usstjj8/preparation.json": "0fe260f5e3cbf49379826d3f4b4feedd707953f237660ac1798c9293b77d0805",
+    ".tmp/selector-suffix-6usstjj8/extraction.json": "3751c324b7350694ba1d72fc8d283b764c0b37ad1cf1d891267a475000da6ed5",
+    ".tmp/selector-suffix-6usstjj8/development.json": "5b62de410d3040812f17dcb4753180d4eca326b7db67f6d0432addaaf01244e7",
+    ".tmp/selector-suffix-6usstjj8/original.json": "a2963343d552a11af335a427c21c521f252548a9b86967a538cb473a13f185c7",
+    ".tmp/selector-suffix-6usstjj8/qualification.json": "7b74109fa72fbb73ee4025c94ad14e380449ea46640f9ef43b0b04745edeaf21",
+    ".tmp/selector-suffix-6usstjj8/source-guards.json": "e1b09c05389841565c2b0bd2027911daadbbfa159ae253083f387a5a135063ba"
+  }
+}

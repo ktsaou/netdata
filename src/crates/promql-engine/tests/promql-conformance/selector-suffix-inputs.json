@@ -1,0 +1,967 @@
+{
+  "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+  "schema_version": 1,
+  "source": "model/labels/regexp_test.go",
+  "source_sha256": "8d2733bd69a66adc95e3864e609a0544dca9bfb629b80de12494b1b8052a6023",
+  "tables": [
+    {
+      "cases": [
+        {
+          "declaration_positions": {
+            "expectedMatches": [
+              {
+                "column": 44,
+                "end_offset": 66777,
+                "line": 574,
+                "offset": 66760
+              },
+              {
+                "column": 63,
+                "end_offset": 66799,
+                "line": 574,
+                "offset": 66779
+              },
+              {
+                "column": 85,
+                "end_offset": 66818,
+                "line": 574,
+                "offset": 66801
+              },
+              {
+                "column": 104,
+                "end_offset": 66840,
+                "line": 574,
+                "offset": 66820
+              },
+              {
+                "column": 126,
+                "end_offset": 66861,
+                "line": 574,
+                "offset": 66842
+              }
+            ],
+            "expectedNotMatches": [
+              {
+                "column": 44,
+                "end_offset": 66924,
+                "line": 575,
+                "offset": 66907
+              },
+              {
+                "column": 63,
+                "end_offset": 66942,
+                "line": 575,
+                "offset": 66926
+              },
+              {
+                "column": 81,
+                "end_offset": 66961,
+                "line": 575,
+                "offset": 66944
+              },
+              {
+                "column": 100,
+                "end_offset": 66979,
+                "line": 575,
+                "offset": 66963
+              },
+              {
+                "column": 118,
+                "end_offset": 66986,
+                "line": 575,
+                "offset": 66981
+              },
+              {
+                "column": 125,
+                "end_offset": 66992,
+                "line": 575,
+                "offset": 66988
+              }
+            ],
+            "pattern": [
+              {
+                "column": 35,
+                "end_offset": 66678,
+                "line": 572,
+                "offset": 66639
+              }
+            ]
+          },
+          "expectedLiteralSuffixMatchers": 2,
+          "expectedMatches": [
+            "eHl6LTAxNmEtaXhiLWRw",
+            "WFhYeHl6LTAxNmEtaXhiLWRw",
+            "eHl6LTAxNmEtaXhiLW9w",
+            "WFhYeHl6LTAxNmEtaXhiLW9w",
+            "Cnh5ei0wMTZhLWl4Yi1kcA=="
+          ],
+          "expectedNotMatches": [
+            "WFlaLTAxNmEtaXhiLWRw",
+            "eXotMDE2YS1peGItZHA=",
+            "WFlaLTAxNmEtaXhiLW9w",
+            "eHl6LTAxNmEtaXhiLW8=",
+            "eHl6",
+            "ZHA="
+          ],
+          "line": 572,
+          "pattern": "KC4qeHl6LTAxNmEtaXhiLWRwfC4qeHl6LTAxNmEtaXhiLW9wKQ=="
+        },
+        {
+          "declaration_positions": {
+            "expectedMatches": [
+              {
+                "column": 44,
+                "end_offset": 67204,
+                "line": 582,
+                "offset": 67187
+              },
+              {
+                "column": 63,
+                "end_offset": 67223,
+                "line": 582,
+                "offset": 67206
+              },
+              {
+                "column": 82,
+                "end_offset": 67245,
+                "line": 582,
+                "offset": 67225
+              },
+              {
+                "column": 104,
+                "end_offset": 67264,
+                "line": 582,
+                "offset": 67247
+              },
+              {
+                "column": 123,
+                "end_offset": 67286,
+                "line": 582,
+                "offset": 67266
+              },
+              {
+                "column": 145,
+                "end_offset": 67307,
+                "line": 582,
+                "offset": 67288
+              }
+            ],
+            "expectedNotMatches": [
+              {
+                "column": 44,
+                "end_offset": 67369,
+                "line": 583,
+                "offset": 67353
+              },
+              {
+                "column": 62,
+                "end_offset": 67387,
+                "line": 583,
+                "offset": 67371
+              },
+              {
+                "column": 80,
+                "end_offset": 67394,
+                "line": 583,
+                "offset": 67389
+              },
+              {
+                "column": 87,
+                "end_offset": 67400,
+                "line": 583,
+                "offset": 67396
+              }
+            ],
+            "pattern": [
+              {
+                "column": 35,
+                "end_offset": 67105,
+                "line": 580,
+                "offset": 67062
+              }
+            ]
+          },
+          "expectedLiteralSuffixMatchers": 2,
+          "expectedMatches": [
+            "eHl6LTAxNmEtaXhiLWRw",
+            "WFlaLTAxNmEtaXhiLWRw",
+            "WFhYeHl6LTAxNmEtaXhiLWRw",
+            "WHlaLTAxNmEtaXhiLW9w",
+            "WFhYeHl6LTAxNmEtaXhiLW9w",
+            "Cnh5ei0wMTZhLWl4Yi1kcA=="
+          ],
+          "expectedNotMatches": [
+            "eXotMDE2YS1peGItZHA=",
+            "eHl6LTAxNmEtaXhiLW8=",
+            "eHl6",
+            "ZHA="
+          ],
+          "line": 580,
+          "pattern": "KD9pKSguKnh5ei0wMTZhLWl4Yi1kcHwuKnh5ei0wMTZhLWl4Yi1vcCk="
+        },
+        {
+          "declaration_positions": {
+            "expectedMatches": [
+              {
+                "column": 44,
+                "end_offset": 67608,
+                "line": 590,
+                "offset": 67603
+              },
+              {
+                "column": 51,
+                "end_offset": 67618,
+                "line": 590,
+                "offset": 67610
+              },
+              {
+                "column": 61,
+                "end_offset": 67628,
+                "line": 590,
+                "offset": 67620
+              },
+              {
+                "column": 71,
+                "end_offset": 67641,
+                "line": 590,
+                "offset": 67630
+              },
+              {
+                "column": 84,
+                "end_offset": 67657,
+                "line": 590,
+                "offset": 67643
+              },
+              {
+                "column": 100,
+                "end_offset": 67667,
+                "line": 590,
+                "offset": 67659
+              },
+              {
+                "column": 110,
+                "end_offset": 67677,
+                "line": 590,
+                "offset": 67669
+              },
+              {
+                "column": 120,
+                "end_offset": 67690,
+                "line": 590,
+                "offset": 67679
+              },
+              {
+                "column": 133,
+                "end_offset": 67706,
+                "line": 590,
+                "offset": 67692
+              },
+              {
+                "column": 149,
+                "end_offset": 67719,
+                "line": 590,
+                "offset": 67708
+              },
+              {
+                "column": 162,
+                "end_offset": 67732,
+                "line": 590,
+                "offset": 67721
+              },
+              {
+                "column": 175,
+                "end_offset": 67745,
+                "line": 590,
+                "offset": 67734
+              }
+            ],
+            "expectedNotMatches": [
+              {
+                "column": 44,
+                "end_offset": 67796,
+                "line": 591,
+                "offset": 67791
+              },
+              {
+                "column": 51,
+                "end_offset": 67802,
+                "line": 591,
+                "offset": 67798
+              },
+              {
+                "column": 57,
+                "end_offset": 67809,
+                "line": 591,
+                "offset": 67804
+              },
+              {
+                "column": 64,
+                "end_offset": 67819,
+                "line": 591,
+                "offset": 67811
+              },
+              {
+                "column": 74,
+                "end_offset": 67825,
+                "line": 591,
+                "offset": 67821
+              },
+              {
+                "column": 80,
+                "end_offset": 67832,
+                "line": 591,
+                "offset": 67827
+              },
+              {
+                "column": 87,
+                "end_offset": 67841,
+                "line": 591,
+                "offset": 67834
+              },
+              {
+                "column": 96,
+                "end_offset": 67850,
+                "line": 591,
+                "offset": 67843
+              },
+              {
+                "column": 105,
+                "end_offset": 67859,
+                "line": 591,
+                "offset": 67852
+              }
+            ],
+            "pattern": [
+              {
+                "column": 35,
+                "end_offset": 67521,
+                "line": 588,
+                "offset": 67493
+              }
+            ]
+          },
+          "expectedLiteralSuffixMatchers": 3,
+          "expectedMatches": [
+            "YWFh",
+            "WFhYYWFh",
+            "YmJiY2Nj",
+            "WFhYYmJiY2Nj",
+            "WFhYYmJiWFhYY2Nj",
+            "YmJiZGRk",
+            "YmJiZGRk",
+            "WFhYYmJiZGRk",
+            "WFhYYmJiWFhYZGRk",
+            "YmJiWFhYY2Nj",
+            "YWFhYmJiY2Nj",
+            "YWFhYmJiZGRk"
+          ],
+          "expectedNotMatches": [
+            "QUFB",
+            "YWE=",
+            "WGFh",
+            "QkJCQ0ND",
+            "YmI=",
+            "WGJi",
+            "YmJjY2M=",
+            "YmJiY2M=",
+            "YmJiZGQ="
+          ],
+          "line": 588,
+          "pattern": "KC4qYWFhfC4qYmJiKC4qY2NjfC4qZGRkKSk="
+        },
+        {
+          "declaration_positions": {
+            "expectedMatches": [
+              {
+                "column": 44,
+                "end_offset": 68056,
+                "line": 598,
+                "offset": 68051
+              },
+              {
+                "column": 51,
+                "end_offset": 68066,
+                "line": 598,
+                "offset": 68058
+              },
+              {
+                "column": 61,
+                "end_offset": 68076,
+                "line": 598,
+                "offset": 68068
+              },
+              {
+                "column": 71,
+                "end_offset": 68086,
+                "line": 598,
+                "offset": 68078
+              },
+              {
+                "column": 81,
+                "end_offset": 68099,
+                "line": 598,
+                "offset": 68088
+              },
+              {
+                "column": 94,
+                "end_offset": 68109,
+                "line": 598,
+                "offset": 68101
+              },
+              {
+                "column": 104,
+                "end_offset": 68119,
+                "line": 598,
+                "offset": 68111
+              },
+              {
+                "column": 114,
+                "end_offset": 68132,
+                "line": 598,
+                "offset": 68121
+              },
+              {
+                "column": 127,
+                "end_offset": 68145,
+                "line": 598,
+                "offset": 68134
+              }
+            ],
+            "expectedNotMatches": [
+              {
+                "column": 44,
+                "end_offset": 68196,
+                "line": 599,
+                "offset": 68191
+              },
+              {
+                "column": 51,
+                "end_offset": 68206,
+                "line": 599,
+                "offset": 68198
+              },
+              {
+                "column": 61,
+                "end_offset": 68216,
+                "line": 599,
+                "offset": 68208
+              },
+              {
+                "column": 71,
+                "end_offset": 68226,
+                "line": 599,
+                "offset": 68218
+              },
+              {
+                "column": 81,
+                "end_offset": 68236,
+                "line": 599,
+                "offset": 68228
+              }
+            ],
+            "pattern": [
+              {
+                "column": 35,
+                "end_offset": 67969,
+                "line": 596,
+                "offset": 67935
+              }
+            ]
+          },
+          "expectedLiteralSuffixMatchers": 3,
+          "expectedMatches": [
+            "YWFh",
+            "WFhYYWFh",
+            "YmJiY2Nj",
+            "YmJiQ0ND",
+            "YmJiWFhYQ0ND",
+            "YmJiZGRk",
+            "YmJiRERE",
+            "YmJiWFhYZGRk",
+            "YmJiWFhYRERE"
+          ],
+          "expectedNotMatches": [
+            "QUFB",
+            "WFhYQUFB",
+            "QkJCY2Nj",
+            "QkJCQ0ND",
+            "YWFhQkJC"
+          ],
+          "line": 596,
+          "pattern": "KC4qYWFhfC4qYmJiKCg/aSkoLipjY2N8LipkZGQpKSk="
+        }
+      ],
+      "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+      "function": "TestStringMatcherFromRegexp_LiteralSuffix",
+      "function_line": 563,
+      "function_sha256": "7e7565c1b5059999a087255b51988a6765404987d5088f3667c87f6e8f3ffdf2",
+      "schema_version": 1,
+      "source": "model/labels/regexp_test.go",
+      "source_sha256": "8d2733bd69a66adc95e3864e609a0544dca9bfb629b80de12494b1b8052a6023"
+    },
+    {
+      "cases": [
+        {
+          "declaration_positions": {
+            "expectedMatches": [
+              {
+                "column": 40,
+                "end_offset": 69730,
+                "line": 649,
+                "offset": 69722
+              },
+              {
+                "column": 50,
+                "end_offset": 69738,
+                "line": 649,
+                "offset": 69732
+              },
+              {
+                "column": 58,
+                "end_offset": 69747,
+                "line": 649,
+                "offset": 69740
+              }
+            ],
+            "expectedNotMatches": [
+              {
+                "column": 40,
+                "end_offset": 69794,
+                "line": 650,
+                "offset": 69789
+              },
+              {
+                "column": 47,
+                "end_offset": 69804,
+                "line": 650,
+                "offset": 69796
+              }
+            ],
+            "pattern": [
+              {
+                "column": 31,
+                "end_offset": 69648,
+                "line": 647,
+                "offset": 69640
+              }
+            ]
+          },
+          "expectedMatches": [
+            "dGVzdAo=",
+            "dGVzdA==",
+            "dGVzdCE="
+          ],
+          "expectedNotMatches": [
+            "dGVz",
+            "dGVzdCEh"
+          ],
+          "expectedZeroOrOneMatchers": 1,
+          "line": 647,
+          "pattern": "dGVzdC4/"
+        },
+        {
+          "declaration_positions": {
+            "expectedMatches": [
+              {
+                "column": 40,
+                "end_offset": 69936,
+                "line": 655,
+                "offset": 69928
+              },
+              {
+                "column": 50,
+                "end_offset": 69944,
+                "line": 655,
+                "offset": 69938
+              },
+              {
+                "column": 58,
+                "end_offset": 69953,
+                "line": 655,
+                "offset": 69946
+              }
+            ],
+            "expectedNotMatches": [
+              {
+                "column": 40,
+                "end_offset": 70000,
+                "line": 656,
+                "offset": 69995
+              },
+              {
+                "column": 47,
+                "end_offset": 70009,
+                "line": 656,
+                "offset": 70002
+              }
+            ],
+            "pattern": [
+              {
+                "column": 31,
+                "end_offset": 69854,
+                "line": 653,
+                "offset": 69846
+              }
+            ]
+          },
+          "expectedMatches": [
+            "CnRlc3Q=",
+            "dGVzdA==",
+            "IXRlc3Q="
+          ],
+          "expectedNotMatches": [
+            "dGVz",
+            "dGVzdCE="
+          ],
+          "expectedZeroOrOneMatchers": 1,
+          "line": 653,
+          "pattern": "Lj90ZXN0"
+        },
+        {
+          "declaration_positions": {
+            "expectedMatches": [
+              {
+                "column": 40,
+                "end_offset": 70145,
+                "line": 661,
+                "offset": 70140
+              },
+              {
+                "column": 47,
+                "end_offset": 70153,
+                "line": 661,
+                "offset": 70147
+              },
+              {
+                "column": 55,
+                "end_offset": 70160,
+                "line": 661,
+                "offset": 70155
+              },
+              {
+                "column": 62,
+                "end_offset": 70168,
+                "line": 661,
+                "offset": 70162
+              },
+              {
+                "column": 70,
+                "end_offset": 70177,
+                "line": 661,
+                "offset": 70170
+              },
+              {
+                "column": 79,
+                "end_offset": 70186,
+                "line": 661,
+                "offset": 70179
+              }
+            ],
+            "expectedNotMatches": [
+              {
+                "column": 40,
+                "end_offset": 70232,
+                "line": 662,
+                "offset": 70228
+              },
+              {
+                "column": 46,
+                "end_offset": 70241,
+                "line": 662,
+                "offset": 70234
+              },
+              {
+                "column": 55,
+                "end_offset": 70247,
+                "line": 662,
+                "offset": 70243
+              },
+              {
+                "column": 61,
+                "end_offset": 70256,
+                "line": 662,
+                "offset": 70249
+              }
+            ],
+            "pattern": [
+              {
+                "column": 31,
+                "end_offset": 70066,
+                "line": 659,
+                "offset": 70051
+              }
+            ]
+          },
+          "expectedMatches": [
+            "YWFh",
+            "YWFhWA==",
+            "YmJi",
+            "YmJiWA==",
+            "YWFhCg==",
+            "YmJiCg=="
+          ],
+          "expectedNotMatches": [
+            "YWE=",
+            "YWFhWFg=",
+            "YmI=",
+            "YmJiWFg="
+          ],
+          "expectedZeroOrOneMatchers": 2,
+          "line": 659,
+          "pattern": "KGFhYS4/fGJiYi4/KQ=="
+        },
+        {
+          "declaration_positions": {
+            "expectedMatches": [
+              {
+                "column": 40,
+                "end_offset": 70386,
+                "line": 667,
+                "offset": 70381
+              },
+              {
+                "column": 47,
+                "end_offset": 70394,
+                "line": 667,
+                "offset": 70388
+              },
+              {
+                "column": 55,
+                "end_offset": 70402,
+                "line": 667,
+                "offset": 70396
+              },
+              {
+                "column": 63,
+                "end_offset": 70412,
+                "line": 667,
+                "offset": 70404
+              },
+              {
+                "column": 73,
+                "end_offset": 70423,
+                "line": 667,
+                "offset": 70414
+              },
+              {
+                "column": 84,
+                "end_offset": 70435,
+                "line": 667,
+                "offset": 70425
+              }
+            ],
+            "expectedNotMatches": [
+              {
+                "column": 40,
+                "end_offset": 70481,
+                "line": 668,
+                "offset": 70477
+              },
+              {
+                "column": 46,
+                "end_offset": 70490,
+                "line": 668,
+                "offset": 70483
+              },
+              {
+                "column": 55,
+                "end_offset": 70503,
+                "line": 668,
+                "offset": 70492
+              }
+            ],
+            "pattern": [
+              {
+                "column": 31,
+                "end_offset": 70307,
+                "line": 665,
+                "offset": 70298
+              }
+            ]
+          },
+          "expectedMatches": [
+            "YWFh",
+            "WGFhYQ==",
+            "YWFhWA==",
+            "WFhYYWFh",
+            "WFhYYWFhWA==",
+            "WFhYYWFhCg=="
+          ],
+          "expectedNotMatches": [
+            "YWE=",
+            "YWFhWFg=",
+            "WFhYYWFhWFhY"
+          ],
+          "expectedZeroOrOneMatchers": 1,
+          "line": 665,
+          "pattern": "LiphYWEuPw=="
+        },
+        {
+          "declaration_positions": {
+            "expectedMatches": [
+              {
+                "column": 40,
+                "end_offset": 70658,
+                "line": 675,
+                "offset": 70652
+              },
+              {
+                "column": 48,
+                "end_offset": 70667,
+                "line": 675,
+                "offset": 70660
+              },
+              {
+                "column": 57,
+                "end_offset": 70677,
+                "line": 675,
+                "offset": 70669
+              }
+            ],
+            "expectedNotMatches": [
+              {
+                "column": 40,
+                "end_offset": 70724,
+                "line": 676,
+                "offset": 70719
+              },
+              {
+                "column": 47,
+                "end_offset": 70734,
+                "line": 676,
+                "offset": 70726
+              },
+              {
+                "column": 57,
+                "end_offset": 70746,
+                "line": 676,
+                "offset": 70736
+              }
+            ],
+            "pattern": [
+              {
+                "column": 31,
+                "end_offset": 70578,
+                "line": 673,
+                "offset": 70566
+              }
+            ]
+          },
+          "expectedMatches": [
+            "dGVzdA==",
+            "dGVzdCE=",
+            "dGVzdAo="
+          ],
+          "expectedNotMatches": [
+            "dGVz",
+            "dGVzdCEh",
+            "dGVzdAoK"
+          ],
+          "expectedZeroOrOneMatchers": 1,
+          "line": 673,
+          "pattern": "KD9zKXRlc3QuPw=="
+        },
+        {
+          "declaration_positions": {
+            "expectedMatches": [
+              {
+                "column": 40,
+                "end_offset": 70950,
+                "line": 683,
+                "offset": 70945
+              },
+              {
+                "column": 47,
+                "end_offset": 70958,
+                "line": 683,
+                "offset": 70952
+              },
+              {
+                "column": 55,
+                "end_offset": 70966,
+                "line": 683,
+                "offset": 70960
+              },
+              {
+                "column": 63,
+                "end_offset": 70975,
+                "line": 683,
+                "offset": 70968
+              },
+              {
+                "column": 72,
+                "end_offset": 70985,
+                "line": 683,
+                "offset": 70977
+              },
+              {
+                "column": 82,
+                "end_offset": 70995,
+                "line": 683,
+                "offset": 70987
+              },
+              {
+                "column": 92,
+                "end_offset": 71004,
+                "line": 683,
+                "offset": 70997
+              }
+            ],
+            "expectedNotMatches": [
+              {
+                "column": 40,
+                "end_offset": 71050,
+                "line": 684,
+                "offset": 71046
+              },
+              {
+                "column": 46,
+                "end_offset": 71058,
+                "line": 684,
+                "offset": 71052
+              },
+              {
+                "column": 54,
+                "end_offset": 71067,
+                "line": 684,
+                "offset": 71060
+              }
+            ],
+            "pattern": [
+              {
+                "column": 31,
+                "end_offset": 70871,
+                "line": 681,
+                "offset": 70848
+              }
+            ]
+          },
+          "expectedMatches": [
+            "YWFh",
+            "YWFhWA==",
+            "YmJiWA==",
+            "WGJiYlg=",
+            "YmJiWFhY",
+            "CmJiYlg=",
+            "YWFhCg=="
+          ],
+          "expectedNotMatches": [
+            "YWE=",
+            "WGJiYg==",
+            "CmJiYg=="
+          ],
+          "expectedZeroOrOneMatchers": 2,
+          "line": 681,
+          "pattern": "KGFhYS4/fCgoP3MpLj9iYmIuKykp"
+        }
+      ],
+      "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+      "function": "TestStringMatcherFromRegexp_Quest",
+      "function_line": 638,
+      "function_sha256": "6e367ca4f27ecf6730e13c0f8384d17ace7b4eae1182bca01008427247f16c56",
+      "schema_version": 1,
+      "source": "model/labels/regexp_test.go",
+      "source_sha256": "8d2733bd69a66adc95e3864e609a0544dca9bfb629b80de12494b1b8052a6023"
+    }
+  ]
+}
