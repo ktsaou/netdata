@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Exercise real HTTP queries over collected DBengine data in an isolated Debug Agent."""
+"""Exercise real HTTP queries over collected DBengine data in an isolated internal-check Agent."""
 
 import argparse
 import gzip
@@ -50,10 +50,13 @@ def request(port, target, method="GET", payload=None, compressed=False):
     if payload is not None:
         headers["Content-Type"] = "application/x-www-form-urlencoded"
     try:
+        started = time.perf_counter_ns()
         connection.request(method, target, body=payload, headers=headers)
         response = connection.getresponse()
         wire = response.read()
-        result = {"status": response.status, "headers": dict(response.getheaders()), "wire_bytes": len(wire)}
+        finished = time.perf_counter_ns()
+        result = {"status": response.status, "headers": dict(response.getheaders()), "wire_bytes": len(wire),
+                  "wire_started_ns": started, "wire_finished_ns": finished, "wire_elapsed_ns": finished - started}
         if response.getheader("Content-Length") is not None and int(response.getheader("Content-Length")) != len(wire):
             raise RuntimeError("HTTP Content-Length differs from delivered bytes")
         body = gzip.decompress(wire) if response.getheader("Content-Encoding") == "gzip" else wire
@@ -67,15 +70,41 @@ def target(endpoint, parameters, prefix=""):
     return prefix + "/api/v1/" + endpoint + "?" + urlencode(parameters, doseq=True)
 
 
-def qualify(binary, codec, run):
+def fixture_expressions():
+    gauge = 'sum(fixture_http{netdata_dimension_id="gauge"})'
+    counter = 'scalar(fixture_http{netdata_dimension_id="counter"})'
+    average = 'sum(avg_over_time(fixture_http{netdata_dimension_id="gauge"}[3s]))'
+    buckets = ('label_replace(fixture_http{netdata_dimension_id="gauge"},"le","1","netdata_dimension_id","gauge") or '
+               'label_replace(fixture_http{netdata_dimension_id="gauge"},"le","+Inf","netdata_dimension_id","gauge")')
+    quantile = f"sum(histogram_quantile(0.5,({buckets})))"
+    grouped_buckets = " or ".join(
+        f'label_replace(({buckets}),"fixture_group","{group}","netdata_dimension_id","gauge")'
+        for group in ["a", "b", "c"])
+    grouped_quantile = f"sum(histogram_quantile(0.5,({grouped_buckets})))"
+    rate = 'scalar(rate(fixture_http{netdata_dimension_id="counter"}[3s]))'
+    return {"gauge": gauge, "counter": counter, "average": average, "quantile": quantile,
+            "grouped_quantile": grouped_quantile, "rate": rate}
+
+
+def qualify(binary, codec, run, observe=None):
     root = make_fixture(run, codec)
     configuration(root, "raw" if codec == "array" else "gorilla")
+    runtime = root / "run"
+    runtime.mkdir(mode=0o700)
+    runtime = safe_parent(runtime)
+    if runtime.parent != root or runtime.stat().st_uid != os.getuid() or runtime.stat().st_mode & 0o077:
+        raise RuntimeError("fixture runtime directory is not private")
+    pipe = runtime / "netdata.pipe"
+    if len(os.fsencode(pipe)) >= 104:
+        raise RuntimeError("fixture command-pipe path exceeds the portable local-socket length")
     environment = {key: value for key, value in os.environ.items() if not key.startswith("NETDATA_")}
-    environment.update(PROMQL_PROTOTYPE_FIXTURE_ROOT=str(root), DO_NOT_TRACK="1")
+    environment.update(PROMQL_PROTOTYPE_FIXTURE_ROOT=str(root), DO_NOT_TRACK="1",
+                       NETDATA_RUN_DIR=str(runtime), NETDATA_PIPENAME=str(pipe))
     command = [str(binary), "-D", "-c", "config/netdata.conf", "-W", "promql-http-fixture"]
     print(f"{codec}: {shlex.join(command)}", flush=True)
     item = {"codec": codec, "command": command, "checks": [], "passed": False}
     ready = None
+    identified = False
     with (root / "agent.stdout").open("wb") as stdout, (root / "agent.stderr").open("wb") as stderr:
         process = subprocess.Popen(command, cwd=root, env=environment, stdout=stdout, stderr=stderr)
         item["pid"] = process.pid
@@ -101,7 +130,12 @@ def qualify(binary, codec, run):
             identity = json.loads(body)
             if info["status"] != 200 or identity.get("uid") != ready["host"] or "promql-fixture-main" not in identity.get("mirrored_hosts", []):
                 raise RuntimeError("HTTP instance identity differs from the owned fixture")
+            identified = True
             item["ready"] = ready
+            if not pipe.is_socket():
+                raise RuntimeError("owned Agent did not create its private command pipe")
+            item["runtime"] = {"directory": str(runtime.relative_to(root)), "pipe": str(pipe.relative_to(root)),
+                               "private_pipe_created": True}
 
             def check(name, endpoint, parameters, expected=None, method="GET", payload=None, prefix="", status=200, compressed=False, inspect=None):
                 observed, body = request(port, target(endpoint, parameters, prefix), method, payload, compressed)
@@ -118,28 +152,23 @@ def qualify(binary, codec, run):
                 return {"status": "success", "data": {"resultType": "scalar", "result": [when, str(value)]}}
 
             local, child = "/host/" + ready["host"], "/host/" + ready["child"]
-            gauge = 'sum(fixture_http{netdata_dimension_id="gauge"})'
-            counter = 'scalar(fixture_http{netdata_dimension_id="counter"})'
+            expressions = fixture_expressions()
+            gauge, counter = expressions["gauge"], expressions["counter"]
             for name, scope, value in [("fleet-gauge", "", 12), ("local-gauge", local, 5), ("child-gauge", child, 7)]:
                 check(name, "query", {"query": f"scalar({gauge})", "time": base + 4}, scalar(value), prefix=scope)
-            average = 'sum(avg_over_time(fixture_http{netdata_dimension_id="gauge"}[3s]))'
+            average = expressions["average"]
             for name, scope, value in [("fleet-average", "", 12), ("local-average", local, 5), ("child-average", child, 7)]:
                 check(name, "query", {"query": f"scalar({average})", "time": base + 4}, scalar(value), prefix=scope)
             check("fleet-average-range", "query_range", {"query": average, "start": base + 3, "end": base + 5, "step": 1},
                   {"status": "success", "data": {"resultType": "matrix", "result": [
                       {"metric": {}, "values": [[base + index, "12"] for index in range(3, 6)]}]}})
-            buckets = ('label_replace(fixture_http{netdata_dimension_id="gauge"},"le","1","netdata_dimension_id","gauge") or '
-                       'label_replace(fixture_http{netdata_dimension_id="gauge"},"le","+Inf","netdata_dimension_id","gauge")')
-            quantile = f"sum(histogram_quantile(0.5,({buckets})))"
+            quantile = expressions["quantile"]
             for name, scope, value in [("fleet-histogram-quantile", "", 1), ("local-histogram-quantile", local, 0.5), ("child-histogram-quantile", child, 0.5)]:
                 check(name, "query", {"query": f"scalar({quantile})", "time": base + 4}, scalar(value), prefix=scope)
             check("fleet-histogram-quantile-range", "query_range", {"query": quantile, "start": base + 3, "end": base + 5, "step": 1},
                   {"status": "success", "data": {"resultType": "matrix", "result": [
                       {"metric": {}, "values": [[base + index, "1"] for index in range(3, 6)]}]}})
-            grouped_buckets = " or ".join(
-                f'label_replace(({buckets}),"fixture_group","{group}","netdata_dimension_id","gauge")'
-                for group in ["a", "b", "c"])
-            grouped_quantile = f"sum(histogram_quantile(0.5,({grouped_buckets})))"
+            grouped_quantile = expressions["grouped_quantile"]
             for name, scope, value in [("fleet-grouped-histogram", "", 3), ("local-grouped-histogram", local, 1.5), ("child-grouped-histogram", child, 1.5)]:
                 check(name, "query", {"query": f"scalar({grouped_quantile})", "time": base + 4}, scalar(value), prefix=scope)
             check("fleet-grouped-histogram-range", "query_range", {"query": grouped_quantile, "start": base + 3, "end": base + 5, "step": 1},
@@ -148,7 +177,7 @@ def qualify(binary, codec, run):
             check("context-name", "query", {"query": 'scalar(sum({__name__="fixture.http",netdata_dimension_id="gauge"}))', "time": base + 4}, scalar(12))
             check("collected-counter", "query", {"query": counter, "time": base + 4}, scalar(8), prefix=local)
             check("counter-reset", "query", {"query": counter, "time": base + 6}, scalar(0, base + 6), prefix=local)
-            check("counter-rate", "query", {"query": 'scalar(rate(fixture_http{netdata_dimension_id="counter"}[3s]))', "time": base + 4}, prefix=local,
+            check("counter-rate", "query", {"query": expressions["rate"], "time": base + 4}, prefix=local,
                   inspect=lambda v: {k: value for k, value in v.items() if k != "infos"} == scalar(2) and
                   len(v.get("infos", [])) == 1 and "metric might not be a counter" in v["infos"][0] and
                   "fixture_http" in v["infos"][0] and v["infos"][0].endswith("(1:13)"))
@@ -168,9 +197,11 @@ def qualify(binary, codec, run):
                   inspect=lambda v: v["status"] == "error" and v["errorType"] == "timeout")
             check("parse-error", "query", {"query": "sum(", "time": base}, status=400,
                   inspect=lambda v: v["status"] == "error" and v["errorType"] == "bad_data")
+            if observe is not None:
+                item["measurements"] = observe(root, ready)
             item["passed"] = True
         finally:
-            if process.poll() is None and ready is not None and ready.get("pid") == process.pid:
+            if process.poll() is None and identified and ready is not None and ready.get("pid") == process.pid:
                 try:
                     item["shutdown"], _ = request(ready["port"], "/exit")
                 except (OSError, http.client.HTTPException) as error:

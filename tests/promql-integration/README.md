@@ -3,14 +3,17 @@
 For a hands-on installation and real query examples, use [Install and try the PromQL branch](GETTING_STARTED.md).
 
 The runners use private directories under the repository's ignored `.tmp/` and preserve storage files, process
-identities and logs. They install nothing and change no existing service. Use an existing Debug Agent with
-DBengine and PromQL enabled and `NETDATA_INTERNAL_CHECKS` explicitly defined.
+identities and logs. They install nothing and change no existing service. Use an existing Agent with DBengine,
+PromQL and `NETDATA_INTERNAL_CHECKS` explicitly enabled. Debug is useful for correctness checks; performance
+measurements require an optimized Release build. The HTTP runners also use a private runtime directory and
+command pipe, filter inherited `NETDATA_*` settings, and retire only their verified instance through `/exit`.
 
 | Runner | Exercised path |
 |---|---|
 | `storage.py --binary BUILD/netdata` | Five-tier storage, native provider/API/dispatcher and controlled delivery |
 | `storage.py --binary BUILD/netdata --rtc-peers` | The same checks plus actual loopback WebRTC peers |
 | `live.py --binary BUILD/netdata` | Ordinary HTTP server over real collected DBengine data |
+| `performance.py --binary BUILD/netdata` | Fixed warm HTTP/DBengine latency, two-client completion and Linux process memory |
 | `backing.py` | Native backing I/O with sparse offsets above 2 GiB |
 | `checkpoints.py` | Exact bounded checkpoint ownership, shared backing and controlled I/O failures |
 
@@ -18,6 +21,72 @@ Both storage codecs run by default; `--codecs array` or `--codecs gorilla` selec
 also requires the pinned libdatachannel build. Each runner requires its exact closed case roster, rejects duplicate
 or missing cases and nonzero errors, and binds the source cohort and executable. Fixture timeouts enable no product
 query cap.
+
+## Optimized live API measurements
+
+The Linux measurement runner reuses `live.py` startup, instance identity, all 29 HTTP checks, 12 host-readiness
+checks and graceful shutdown for each codec. Its fixed panel covers scalar, fleet gauge, local counter rate,
+fleet average and six-group histogram expressions. Separate plain/gzip 100,000-point `vector(1)` controls
+exercise evaluation and delivery with zero DBengine samples. Every measured result is checked completely.
+
+Use the Release options from the [installation guide](GETTING_STARTED.md#build-and-install-a-private-agent),
+plus explicit internal checks in both compiler flags. A build-only invocation is:
+
+```bash
+cmake -S . -B .tmp/promql-live-release -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DDEFAULT_FEATURE_STATE=Off \
+  -DENABLE_PLUGIN_SCRIPTS=Off -DENABLE_DASHBOARD=Off \
+  -DENABLE_DBENGINE=On -DENABLE_PROMQL=On -DENABLE_BUNDLED_PROTOBUF=Off \
+  -DCMAKE_C_FLAGS=-DNETDATA_INTERNAL_CHECKS=1 \
+  -DCMAKE_CXX_FLAGS=-DNETDATA_INTERNAL_CHECKS=1
+cmake --build .tmp/promql-live-release --parallel 2 --target netdata
+python3 tests/promql-integration/performance.py --binary .tmp/promql-live-release/netdata
+```
+
+Each query gets one warmup, seven serial samples and four two-client batches. The receipt retains all timings,
+headers, byte counts, complete compressed response artifacts, existing `stats=all` fields and owned-process
+RSS/lifetime high-water readings. Request duration starts before connecting and ends after reading the final
+wire bytes; client gzip decoding, JSON checks and evidence compression are excluded. Batch spans and overlaps
+come from those same wire timestamps. Client overlap does not prove simultaneous Rust evaluation.
+The six server timing fields are captured before final output commit, so they omit its completed JSON assembly
+and compression. Use wire duration for the complete client-visible request.
+
+This is a small warm integration baseline: two hosts, one gauge and one incremental counter each, fixed-clock
+collection, one storage tier and 16 MiB page/extent caches. It is not a cold-disk or high-cardinality throughput
+measurement. Internal checks remain enabled in the optimized binary. HTTP sample statistics are logical counts,
+not fetched pages or allocation bytes. RSS covers the whole Agent; its high-water also includes startup and the
+earlier HTTP qualification. It excludes kernel file-cache memory and temporary-file size. These observations do
+not isolate Rust memory or establish IoT/large-parent sizing.
+
+The [recorded Release baseline](live-release-qualification.json) binds the actual binary/archive, repository
+source revision, all 82 HTTP/readiness checks, 224 complete measured responses and their retained artifacts.
+Seven-sample median wire times from that fixed run are:
+
+| Query | Raw pages (ms) | Gorilla pages (ms) |
+|---|---:|---:|
+| Scalar | 0.352 | 0.341 |
+| Fleet gauge | 0.992 | 0.851 |
+| Local counter rate | 1.127 | 0.846 |
+| Fleet average | 1.517 | 0.994 |
+| Six-group histogram | 2434.536 | 2344.758 |
+| 100,000-point delivery, plain | 235.925 | 226.310 |
+| 100,000-point delivery, gzip | 261.891 | 240.830 |
+
+The histogram result identifies repeated evaluation as a concrete next target. A separate eight-case diagnostic
+with the already-built standalone engine fetches 99,952 sample entries for the same expression from just two
+stored points, versus 8 for a direct gauge sum. The diagnostic uses simplified labels and one-point histories;
+its single elapsed samples do not establish a live-versus-standalone speed ratio or isolate C provider cost.
+The report preserves serial outliers, two-client spans, whole-process readings and the caller's corrected
+`data.stats` parsing failure. Both complete measured Agents exit normally; shutdown response reads time out
+while native cleanup finishes. No product engine, storage, provider, API or resource-limit behavior changes here.
+
+The launch, lifecycle and measurement-envelope checks run without starting an Agent:
+
+```bash
+python3 -m unittest discover -s tests/promql-integration -p 'test_*.py' -v
+```
+
+They retain their private fixture directories under `.tmp/`, like the integration runners.
 
 `backing.py` compiles the exact production I/O owner with a small allocation/control shim. It checks sparse
 3 GiB sizing, bounded reads and writes across the 2 GiB boundary, and offset overflow. Use `--cc COMPILER`
