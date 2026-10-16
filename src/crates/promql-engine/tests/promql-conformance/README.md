@@ -627,6 +627,55 @@ estimates cannot be a guaranteed bound. This accounting trade-off retains the qu
 original regex cases pass unchanged in both build profiles. Engine-owned runtime accounting and foreign allocation
 leases are described in the C embedding and allocation ownership sections below.
 
+## Bounded UTF-8 validation
+
+The shared validator used by regex subjects, quoted grouping labels and label-function names validates at most
+1024 bytes per standard-library call. A valid scalar crossing that boundary is decoded against the original
+remaining bytes. Invalid sequences consume one byte at their first malformed position, matching the existing Go
+rune decoder; a valid U+FFFD is accepted. No normalization buffer, retained state or dependency is added.
+
+The validator keeps its initial control check and checks before each batch charge. At most 1027 distinct input bytes
+are examined between checks, including a crossing four-byte scalar. It retains the existing final-charge phase;
+there is no added terminal check. Uninterrupted work remains exactly the valid byte length or first invalid offset
+plus one. Intermediate work-triggered test checkpoints can move; caller cancellation/deadline control remains
+cooperative, with cancellation taking precedence. Regex compilation/name validation and subject normalization stay
+at their original call sites.
+
+`frontend::work::tests` checks all 65,536 two-byte combinations, scalar crossings, malformed/truncated boundaries,
+exact work, initial cancellation/deadlines, interrupted long validation and terminal behavior. The fixed
+`utf8_work_cases.cases()` generator supplies 78 complete query cases: 20 small/large ASCII execution controls,
+four byte-subject/capture queries and 54 name/grouping/error-order cases. It returns the dataset/query packets,
+independent count expectations and fixed timing IDs. Combine them with the retained 242 selector controls for the
+native comparison; the foreign subset uses all 58 boundary queries and the four 16-series controls.
+
+Qualification preserves the actual 21,320 regex originals and 1,140 parser/profile originals without recapture.
+Complete results include parse-only packets, which correctly omit execution observations. For executed queries,
+compare nonelapsed observations separately: fewer accounting updates must not be reported as less work or memory.
+Time fixed alternating before/candidate executions in both unwind profiles after owned qualification jobs close.
+Engine elapsed excludes compilation and fixture transport; these shared-host synthetic timings do not establish
+live API, concurrent-query, physical ARM or RSS performance. Actual source/binary identities, all timing samples,
+resource equality and code-size costs belong in `utf8-work-qualification.json`.
+
+The [source-bound qualification](utf8-work-qualification.json) passes 686 native units per profile,
+127,920 original regex outcomes, 6,840 original parser outcomes, 640 native and 248 foreign complete query
+comparisons, and 12 actual C/C++ callers. All 632 native executed-query observation groups remain equal; eight
+parse-only packets remain exactly equal without observations. Foreign units focus on work and regex owners.
+
+Fixed 256-series examples below are five-sample median execution milliseconds. The negative-selector row makes
+the mixed size-optimized result visible; the report retains all 40 case/profile medians and 800 checked responses.
+
+| Label bytes / selector | Release before → candidate | Release-min before → candidate |
+|---|---:|---:|
+| 128 / positive | 11.920 → 10.895 | 25.665 → 25.361 |
+| 1024 / positive | 84.454 → 75.608 | 193.954 → 186.804 |
+| 4096 / negative | 353.378 → 322.116 | 757.927 → 779.903 |
+
+Three release medians are slower, all optimized controls, by at most 1.73%; nine release-min medians are slower,
+by at most 2.90%. Fixture ELF text grows by 800 bytes in release and 96 bytes in release-min. This change reduces
+validation overhead; it does not reduce the recorded work or memory footprint. The existing 73 ledger objects
+retain their original identities. The initial comparison harness corrections and verified reuse of successful
+commands are recorded separately from runtime results.
+
 ## Typed sample and initial histogram kernels
 
 This is an earlier helper checkpoint. Its counts, bit differences and then-unfinished expression/runtime owners

@@ -70010,5 +70010,19 @@
     "native_unchanged_sample_statistics_rows": 3456,
     "foreign_unchanged_sample_statistics_rows": 3840,
     "boundary_scope": "Existing optional PairDiscovery only; exhaustive binding and full-hash uniqueness certificate, completed membership, physical prefix and original fresh/suffix/Finished phases. No new raw data, interface, storage or numerical policy."
+  },
+  "utf8_work_qualification": {
+    "receipt": "utf8-work-qualification.json",
+    "sha256": "64d26501a98827fc5019e22fda169b631426e5d5b35878ebee54f157537c53fb",
+    "scope": "Bounded allocation-free shared UTF-8 validation; finite original, query, control and execution-time evidence, not arbitrary-input equivalence or universal optimality.",
+    "native_units_per_profile": 686,
+    "native_complete_queries": 640,
+    "foreign_complete_queries": 248,
+    "original_regex_outcomes": 127920,
+    "original_parser_outcomes": 6840,
+    "actual_c_and_cpp_callers": 12,
+    "native_executed_observations_equal": 632,
+    "timing_checked_responses": 800,
+    "slower_timing_groups": 12
   }
 }

@@ -105,6 +105,11 @@ The [README](README.md#standalone-expression-core) summarizes implementation and
   Full capture consumers retain their backend groups. The
   [capture-table panel](selector-capture-tables-qualification.json) separates dependency estimates, query timings and
   fixture binary size; no mode is retained in each compiled matcher.
+- **Shared byte validation:** validate bounded 1024-byte batches, repairing a crossing scalar against the original
+  suffix. This removes per-rune accounting updates without a buffer, dependency or caller change. Malformed input
+  charges through its first invalid byte; valid U+FFFD remains accepted. The initial control check, bounded later
+  polls and existing terminal phase remain. The [UTF-8 panel](README.md#bounded-utf-8-validation) distinguishes
+  unchanged work/memory from measured execution time.
 - **Evidence:** [Go-compatible regex frontend](README.md#owned-go-compatible-regex-frontend),
   [pinned dependencies](../../Cargo.toml).
 

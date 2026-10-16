@@ -81,12 +81,20 @@ impl Work<'_> {
     pub(super) fn valid_utf8(self, mut bytes: &[u8]) -> Result<bool, Interrupted> {
         self.step(0)?;
         while !bytes.is_empty() {
-            let (rune, width) = super::quote::decode_rune(bytes);
-            self.step(width)?;
-            if rune == 0xfffd && width == 1 && bytes[0] >= 0x80 {
+            let (consumed, valid) = match std::str::from_utf8(&bytes[..bytes.len().min(1024)]) {
+                Ok(_) => (bytes.len().min(1024), true),
+                Err(error) => {
+                    let prefix = error.valid_up_to();
+                    // A scalar may cross the batch edge; malformed Go runes consume one byte.
+                    let (rune, width) = super::quote::decode_rune(&bytes[prefix..]);
+                    (prefix + width, rune != 0xfffd || width != 1)
+                }
+            };
+            self.step(consumed)?;
+            if !valid {
                 return Ok(false);
             }
-            bytes = &bytes[width..];
+            bytes = &bytes[consumed..];
         }
         Ok(true)
     }
@@ -266,6 +274,161 @@ mod tests {
         frontend::{float, lexer::Lexer, literal, number, quote},
         test_storage::interrupt_during,
     };
+
+    fn check_utf8(work: Work<'_>, bytes: &[u8]) {
+        let expected = std::str::from_utf8(bytes);
+        let before = work.account.map(|account| account.snapshot().work);
+        assert_eq!(work.valid_utf8(bytes), Ok(expected.is_ok()), "{bytes:?}");
+        if let Some(before) = before {
+            let consumed = match expected {
+                Ok(_) => bytes.len(),
+                Err(error) => error.valid_up_to() + 1,
+            };
+            assert_eq!(
+                work.account.unwrap().snapshot().work - before,
+                consumed as u64
+            );
+        }
+    }
+
+    #[test]
+    fn utf8_validation_matches_byte_and_scalar_boundaries() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let context = AllocationContext::new(&account, MemoryKind::Compiled);
+        let work = Work::new(Some(&context), None);
+        for byte in 0..=255 {
+            check_utf8(work, &[byte]);
+            for next in 0..=255 {
+                check_utf8(Work::default(), &[byte, next]);
+            }
+        }
+        for bytes in [
+            b"".as_slice(),
+            b"ascii\0text",
+            b"\xef\xbf\xbd",
+            b"\xf4\x8f\xbf\xbf",
+        ] {
+            check_utf8(work, bytes);
+        }
+        for width in [0, 1, 1021, 1022, 1023, 1024, 1025, 2045, 2046, 2047, 2048] {
+            for rune in ["\u{e9}", "\u{20ac}", "\u{1f600}", "\u{fffd}"] {
+                let bytes = [
+                    vec![b'a'; width],
+                    rune.as_bytes().to_vec(),
+                    vec![b'b'; 2050],
+                ]
+                .concat();
+                check_utf8(work, &bytes);
+            }
+        }
+        account.snapshot().assert_memory_released();
+        drop(context);
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn utf8_validation_charges_only_through_the_first_malformed_byte() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let context = AllocationContext::new(&account, MemoryKind::Compiled);
+        let work = Work::new(Some(&context), None);
+        for malformed in [
+            b"\x80".as_slice(),
+            b"\xc0\x80",
+            b"\xe1\x80A",
+            b"\xed\xa0\x80",
+            b"\xf4\x90\x80\x80",
+            b"\xf5\x80\x80\x80",
+            b"\xc2",
+            b"\xe2\x82",
+            b"\xf0\x9f\x98",
+        ] {
+            for prefix in [0, 1, 1022, 1023, 1024, 1025, 2047, 2048] {
+                for tail in [b"".as_slice(), &vec![b'z'; 2050]] {
+                    let bytes = [vec![b'a'; prefix], malformed.to_vec(), tail.to_vec()].concat();
+                    check_utf8(work, &bytes);
+                }
+            }
+        }
+        account.snapshot().assert_memory_released();
+        drop(context);
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn utf8_validation_preserves_control_precedence_and_release() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let context = AllocationContext::new(&account, MemoryKind::Compiled);
+        for cancelled in [false, true] {
+            let control = Control {
+                deadline: Some(std::time::Instant::now()),
+                ..Control::default()
+            };
+            if cancelled {
+                control.cancellation.cancel();
+            }
+            let work = Work::new(Some(&context), Some(&control));
+            let expected = if cancelled {
+                Interrupted::Cancelled
+            } else {
+                Interrupted::Deadline
+            };
+            for bytes in [b"".as_slice(), b"\xff", &vec![b'a'; 8192]] {
+                assert_eq!(work.valid_utf8(bytes), Err(expected));
+                assert_eq!(account.snapshot().work, 0);
+            }
+        }
+        account.snapshot().assert_memory_released();
+        drop(context);
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn utf8_validation_keeps_bounded_polls_and_the_existing_terminal_phase() {
+        use crate::test_storage::interrupt_after_work;
+        for threshold in [1, 1024, 1025, 8192] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let context = AllocationContext::new(&account, MemoryKind::Compiled);
+            let control = Control::default();
+            let work = Work::new(Some(&context), Some(&control));
+            let input = vec![b'a'; 20_000];
+            let result =
+                interrupt_after_work(&account, &control, threshold, || work.valid_utf8(&input));
+            assert_eq!(result, Err(Interrupted::Cancelled));
+            assert!((threshold..=threshold + 1026).contains(&account.snapshot().work));
+            account.snapshot().assert_memory_released();
+            drop(context);
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+        for malformed in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let context = AllocationContext::new(&account, MemoryKind::Compiled);
+            let control = Control::default();
+            let work = Work::new(Some(&context), Some(&control));
+            let mut input = vec![b'a'; 1024];
+            if malformed {
+                input[1023] = 0xff;
+            }
+            assert_eq!(
+                interrupt_after_work(&account, &control, 1024, || work.valid_utf8(&input)),
+                Ok(!malformed)
+            );
+            assert_eq!(account.snapshot().work, 1024);
+            assert_eq!(control.check(), Err(Interrupted::Cancelled));
+            account.snapshot().assert_memory_released();
+            drop(context);
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
 
     fn operation(work: Work<'_>, name: &str, bytes: &[u8]) -> Result<(), Interrupted> {
         match name {

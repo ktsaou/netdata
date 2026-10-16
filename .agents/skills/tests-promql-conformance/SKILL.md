@@ -81,6 +81,10 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   controls and binary-footprint checks are in
   `src/crates/promql-engine/tests/promql-conformance/README.md#selector-backend-capture-tables`.
 - Follow the conformance README for pinned differential panels; preserve its stated tolerance and bit diagnostics.
+- Shared UTF-8 validation MUST preserve valid cross-batch scalars, valid U+FFFD, first-invalid-byte work and caller
+  error/control phases. Compare actual fallback and capture consumers beside optimized selector controls; work
+  totals are unchanged by fewer accounting updates. The finite boundary/original/timing procedure is in
+  `src/crates/promql-engine/tests/promql-conformance/README.md#bounded-utf-8-validation`.
 - Absence/preprocessing changes MUST include the label-sensitive parameter and ordinary/matrix controls in
   `src/crates/promql-engine/tests/promql-conformance/README.md#absence-argument-preprocessing`.
 - Shared grouping/ranking/quantile changes MUST include the complete retained reducer panels and separate declared

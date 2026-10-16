@@ -1,0 +1,2187 @@
+{
+  "schema_version": 1,
+  "status": "qualified",
+  "scope": "Bounded allocation-free shared UTF-8 validation; finite original, query, control and execution-time evidence, not arbitrary-input equivalence or universal optimality.",
+  "before_commit": "7202d52d5392142d215ec813e201427cbfd68930",
+  "source_inputs": {
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/include/netdata-promql.h": "99770f40538f6c201cfd1b9043a54d2543790bd33286cca187b4f3b7ceee29c8",
+    "src/crates/promql-engine/src/absence.rs": "5daad198a2b483ef9c32557667c47005b2c275359128ed0e2d08741a562a28c3",
+    "src/crates/promql-engine/src/accounting.rs": "606fabc7bc4204d1e0596806adf4a907dc40bea7b1152d4ef0584de6b001ad62",
+    "src/crates/promql-engine/src/aggregate_replay.rs": "65fc5c5dcbf432935b9f3ba7e1444b1b9d8858b740f447ddb6005772bfb03847",
+    "src/crates/promql-engine/src/aggregation.rs": "6a1f3eea635dd07fa6c6b778417c66f3d244ea0ef9a78edf4fb299bbf6bb2b1d",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "7fff67f19481d65b9c08477845071c69b5c5aa362238ef2027af248eef8a3f2b",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "587f5cab50818157e5fba106f0589c9ec612df49bb312f6540d0fc6e9c07f403",
+    "src/crates/promql-engine/src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "44287dd2ef5de31f64907f960063e0d55afe20b1737acde60d9b95125d2b79b9",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "cd9808645a6e43b7bcd49ca11c33bd1470dd53c432c43231374b0eecc2081c6b",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "3823e8b6c8f74beeeb13a6ecb5de12669b041a07081eb6555476c2574d302b7a",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "046ab8fbd5783160210010d72ac04e501dcbb6f369e29628141ef332bcbd085c",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "566a6da143b92c4cd17c9d8fe63e2753df6c697f8a5dc018f1659f25cf2e1a86",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "043da1f722b9497ec4069d4698137ded86f6920c9c5d552780fed4e0716f837f",
+    "src/crates/promql-engine/src/count_values.rs": "19b2a749417ce06e4bc6b03066e5c09d8b438d9d89d5e456cec732d835a6928d",
+    "src/crates/promql-engine/src/derived_matrix.rs": "3bd5d0ca76344d0373cdea0fa3b320fb5d3bd579a16e7ffc3b823677717bfae7",
+    "src/crates/promql-engine/src/derived_range.rs": "4b8c8433aa5cc9256b86be06ff8d3d54c5511bee37bb806728b1e2e6a0664324",
+    "src/crates/promql-engine/src/evaluator.rs": "5ff91aaed605bf698bf868601607949d3afb47142b21c5d0196b3e67459e9cfa",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "a7847274bc6f1e25af87500f70f0a80df046c89044b79491125d11e6d8659abb",
+    "src/crates/promql-engine/src/execution.rs": "330a1e65d53f9d67ce9d6dd010e5a218ea86b8c68c79e420526d19a549935057",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "fe9ae51b86a35b11f93dda546e91f1a6538a58dfaab62f859a70be5164c6806a",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "1ee47e3904cd5e706340802f0560f11327abe59267866395f8712ed8d78100d2",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "13449637ea0071f862dec1f5662794928a1173db47b31b962978dfa6aec15169",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "f873b8a9f3ce17ba32854c070b56667f01b2e4dd6fbaca3539c8463991cce43d",
+    "src/crates/promql-engine/src/instant_select.rs": "98d35a7629ac710727ec974f4d32f1d7846793c9b3f16476aad694f0a874d084",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "66d71cec065bb78cbea414f2198ba14c704ac7923bc618b8ad4b804942027bf9",
+    "src/crates/promql-engine/src/lib.rs": "3a2bb68ef6fc9cc521a12d1c29f4091ebe559f1c1d2e814a1f4b37e44b18de21",
+    "src/crates/promql-engine/src/lookup_tests.rs": "e3c592988bec6a0f47127057de1a8b6be4493b57b4ebb87710777f8f07ab4e1c",
+    "src/crates/promql-engine/src/mad.rs": "bc6973057261589cfa607926c95444b7c5e03992a417a0e5e5f2c8897feb299f",
+    "src/crates/promql-engine/src/matrix_heads.rs": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+    "src/crates/promql-engine/src/matrix_reader.rs": "d4d15725e51287e4436a2f2007e215694024be6a65739c4f4763e670cc50f640",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/pair_discovery.rs": "dbc1ea215476fe3dacd48e033e1b1c9da458902e3241271dd4c70022e9a85516",
+    "src/crates/promql-engine/src/position_index.rs": "88ed4e0295213e29abfe7a9f12a39e4e0a2d06c289f5a12880623f944d7a8f2a",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "3b803f7abe1594fb2a795d65dc0b8842b4bbe615ded4078240d046b568c1a740",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "e43d3154092fbdd67e2216278af3757066d4901b513268bb5b73f5bff1e19527",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "9cd79dae43ade41cd2a3b6320415effdb794f0afded1a88f7480048d2224f2cd",
+    "src/crates/promql-engine/src/range_numeric.rs": "f60c2ebc4a9e8db9cb5aec5caf78e947074db5ba4cee09828d09053547731f73",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "f82d3faabeee1dd2d92da76e6e21d896eab65956b9031e6ba53015b297d7475a",
+    "src/crates/promql-engine/src/range_rates.rs": "50c46eb34ad2a7cd6372680f8b61bb75f3e929cb0d2f2342fff03aeba3318167",
+    "src/crates/promql-engine/src/range_reduce.rs": "0ae6fe25ddcaf78be942df074262755ffe170818dbe6379bcbcda7d391714de6",
+    "src/crates/promql-engine/src/result.rs": "45824bd559e4fb07341f2c9af18133e150f3aca2d7bddf7c7f0434abcde435b9",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "d9cbfe1215ec64f0d0dcb2268bca56d82c2d5c9b6ba0e3df88227bd12c35fc55",
+    "src/crates/promql-engine/src/scheduled_output.rs": "39ec08bc49800551bca460de854fcb8a92fc0f85f83bb48e86e0183aa11c931e",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "dd0b75c60a655649756d4c8a77498e1afd6945e3c3a4f251f703727598efc561",
+    "src/crates/promql-engine/src/storage.rs": "f213a16e64507e031b6c8fd58725763115a99cde489f875da20b8385b28141d5",
+    "src/crates/promql-engine/src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "b45d81015d42a882a7282a5609119b45d04ae4b260fae8f3e863a2eea03c4d41",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "e179e533a2f54ea8cbcceb532cca6bd72ee0cc5059e3e9f086aec382033119e4",
+    "src/crates/promql-engine/src/test_storage.rs": "1637f1427fcee1fbbfe8fd495de8e10af9e87909089d7c1899acae5eab656e84",
+    "src/crates/promql-engine/src/topk.rs": "5638200ce7047243352d0cc589cddde20bf9f4b001f6bb5bc9f1dd6c7ef85b98",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "dd53abcb1d22de028c4aa80c4455c38347c9babd00cf8b6b1587438bad9e7b3d",
+    "src/crates/promql-engine/src/vector_sort.rs": "d6daacd7bcde56a2984acbd52b8037ee5efbed3668d8d488271011d50aed41be",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "2f2115758fbcef22997a5bf4991742b19c33771183350acb19bf86faadae7d26",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "4703d09604b1820341de1c3ff41a3476bce29360f0e1984a93d060db7572fb0c"
+  },
+  "mechanism": {
+    "batch_bytes": 1024,
+    "maximum_distinct_bytes_between_polls": 1027,
+    "valid_work": "input byte length",
+    "malformed_work": "first-invalid offset plus one",
+    "valid_ascii_helper_updates": "N+1 before; ceil(N/1024)+1 candidate",
+    "ownership": "No new query allocation, retained state, dependency or caller relocation."
+  },
+  "native": {
+    "release": {
+      "complete_native_queries": 320,
+      "executed_observation_groups_equal": 316,
+      "parse_only_packets_equal": 4,
+      "passed_units": {
+        "all": 686
+      },
+      "elf_text_bytes": {
+        "before": 3056277,
+        "candidate": 3057077
+      }
+    },
+    "release-min": {
+      "complete_native_queries": 320,
+      "executed_observation_groups_equal": 316,
+      "parse_only_packets_equal": 4,
+      "passed_units": {
+        "all": 686
+      },
+      "elf_text_bytes": {
+        "before": 1834069,
+        "candidate": 1834165
+      }
+    }
+  },
+  "target_profile_qualifications": {
+    "native-release-qualification.json": {
+      "target": "native",
+      "profile": "release",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/utf8-work-hy676k32/native-release/promql-query-fixture",
+          "sha256": "ec4efbb594a861ce3f6e08711f26238a4b561634dc03bb0c2c613432bcb8c354"
+        },
+        "promql-frontend-fixture": {
+          "path": ".tmp/utf8-work-hy676k32/native-release/promql-frontend-fixture",
+          "sha256": "609889525eb61b3db5264bacb4f4916178304048309c505e3f7fcf8ceebf83b2"
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/utf8-work-hy676k32/native-release/libnetdata_promql_engine.a",
+          "sha256": "290d8b9dcaea8a873cb44d44edcbde77ea2423b70637caef04b2f8889df372a9"
+        },
+        "unit": {
+          "path": ".tmp/utf8-work-hy676k32/native-release/unit",
+          "sha256": "367a8406ad38fa674c7c1bac2c1833cbfec92b1f6f7dacd1f911d4789998a481"
+        }
+      },
+      "passed_units": {
+        "all": 686
+      },
+      "original_regex_outcomes": 21320,
+      "original_parser_outcomes": 1140,
+      "complete_queries": 320,
+      "callers": {
+        "native-release-gcc": {
+          "path": ".tmp/utf8-work-hy676k32/native-release/gcc-caller",
+          "sha256": "7a76de0290c1ed477acb176222e74ae34604c595b3b2f9b012365b93fdb132e4",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        },
+        "native-release-gpp": {
+          "path": ".tmp/utf8-work-hy676k32/native-release/gpp-caller",
+          "sha256": "2b8d06af8be49b3427eaa22a743870249ff08eb00e1e1dd0e7a12e4ca0d2ecd2",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        }
+      },
+      "reused_successful_commands": [
+        "native-release-rustc",
+        "native-release-build",
+        "native-release-unit-build",
+        "native-release-units0",
+        "native-release-regex",
+        "native-release-parser",
+        "native-release-queries"
+      ]
+    },
+    "native-release-min-qualification.json": {
+      "target": "native",
+      "profile": "release-min",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/utf8-work-hy676k32/native-release-min/promql-query-fixture",
+          "sha256": "b564cef4a9fe7b5eba92ee07a4b1663036fcb0d3bc2504186f44c479252fbb72"
+        },
+        "promql-frontend-fixture": {
+          "path": ".tmp/utf8-work-hy676k32/native-release-min/promql-frontend-fixture",
+          "sha256": "d76236335848428db8718af1efacbddd03bc9f0a42964fec8d2366dd7c1dfe91"
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/utf8-work-hy676k32/native-release-min/libnetdata_promql_engine.a",
+          "sha256": "15505399b9911740f4b5158d266164f53a11fc136abd2fd28dd90e1463b7c8de"
+        },
+        "unit": {
+          "path": ".tmp/utf8-work-hy676k32/native-release-min/unit",
+          "sha256": "e4d9a4b33e1418bc0c9ab360651a7acd262b20c595676d715c2d4efa13318346"
+        }
+      },
+      "passed_units": {
+        "all": 686
+      },
+      "original_regex_outcomes": 21320,
+      "original_parser_outcomes": 1140,
+      "complete_queries": 320,
+      "callers": {
+        "native-release-min-gcc": {
+          "path": ".tmp/utf8-work-hy676k32/native-release-min/gcc-caller",
+          "sha256": "8baac9fda78665854f61284a99642ca89a2f9459f3ce72b7ab57df5961a4e2ee",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        },
+        "native-release-min-gpp": {
+          "path": ".tmp/utf8-work-hy676k32/native-release-min/gpp-caller",
+          "sha256": "dfebdfd94000fcc30fc555506261e362928cb4b32dc4d16f8525d7bf48ee51ee",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        }
+      },
+      "reused_successful_commands": []
+    },
+    "aarch64-unknown-linux-gnu-release-qualification.json": {
+      "target": "aarch64-unknown-linux-gnu",
+      "profile": "release",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release/promql-query-fixture",
+          "sha256": "510c8c450e5dbc57f04a1eb77bea4e9458fe8c98a723525e26df4fa8c2fa5400"
+        },
+        "promql-frontend-fixture": {
+          "path": ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release/promql-frontend-fixture",
+          "sha256": "362daf13b7e350ee24bc2e769bdf5d04e746a3edc13c977fdde72af14ed72787"
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release/libnetdata_promql_engine.a",
+          "sha256": "fdf48ee2cb54043a3af29a5d5046c89e0d7788e6da27f31dfd6246c6c9c244af"
+        },
+        "unit": {
+          "path": ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release/unit",
+          "sha256": "52720b5cccd05d75f5b2ba7da72124b993400e82aa60465a5f786ea585e13777"
+        }
+      },
+      "passed_units": {
+        "frontend::work::tests": 6,
+        "frontend::regex::": 18
+      },
+      "original_regex_outcomes": 21320,
+      "original_parser_outcomes": 1140,
+      "complete_queries": 62,
+      "callers": {
+        "aarch64-unknown-linux-gnu-release-gcc": {
+          "path": ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release/gcc-caller",
+          "sha256": "bf65a87d2b5828de222f7d2a15b1314a847f502065abdd6f4673a083d20498a6",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        },
+        "aarch64-unknown-linux-gnu-release-gpp": {
+          "path": ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release/gpp-caller",
+          "sha256": "785b7d753ea3b9888f03c3045b963e78f9e2c8433e2867341a6b81c9090b1b4e",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        }
+      },
+      "reused_successful_commands": [
+        "aarch64-unknown-linux-gnu-release-rustc",
+        "aarch64-unknown-linux-gnu-release-qemu",
+        "aarch64-unknown-linux-gnu-release-build",
+        "aarch64-unknown-linux-gnu-release-unit-build",
+        "aarch64-unknown-linux-gnu-release-units0",
+        "aarch64-unknown-linux-gnu-release-units1",
+        "aarch64-unknown-linux-gnu-release-regex",
+        "aarch64-unknown-linux-gnu-release-parser",
+        "aarch64-unknown-linux-gnu-release-queries"
+      ]
+    },
+    "aarch64-unknown-linux-gnu-release-min-qualification.json": {
+      "target": "aarch64-unknown-linux-gnu",
+      "profile": "release-min",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min/promql-query-fixture",
+          "sha256": "dc61880576cfd6a3355aab9172af747f91c45967e9a061a0df5fe22dbece2e87"
+        },
+        "promql-frontend-fixture": {
+          "path": ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min/promql-frontend-fixture",
+          "sha256": "ef07be4607140031298efca144585f1af3f946c545a4d2d1ff324d2aefa540b0"
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min/libnetdata_promql_engine.a",
+          "sha256": "3500af0ed08342e45bafeabc273936489b1d188378f45db57fbc5958b3abebdb"
+        },
+        "unit": {
+          "path": ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min/unit",
+          "sha256": "cecb500de78ddc4ec15f649c64a9361f2ef647b6802fc21e554b12e31f6e5de0"
+        }
+      },
+      "passed_units": {
+        "frontend::work::tests": 6,
+        "frontend::regex::": 18
+      },
+      "original_regex_outcomes": 21320,
+      "original_parser_outcomes": 1140,
+      "complete_queries": 62,
+      "callers": {
+        "aarch64-unknown-linux-gnu-release-min-gcc": {
+          "path": ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min/gcc-caller",
+          "sha256": "3a8d2c443612270dd635638aa684d912315bf2656a1ef975229cf9df091ecb2f",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        },
+        "aarch64-unknown-linux-gnu-release-min-gpp": {
+          "path": ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min/gpp-caller",
+          "sha256": "05df0ae2ce90c502f9af7faa709178cd5d94ed56cf9ca4837888937ed830da04",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        }
+      },
+      "reused_successful_commands": []
+    },
+    "armv7-unknown-linux-gnueabihf-release-qualification.json": {
+      "target": "armv7-unknown-linux-gnueabihf",
+      "profile": "release",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release/promql-query-fixture",
+          "sha256": "12a8fe2ba1d2a5643dbf512a9df66044b43f1b2ea9f67dc3eb356cba02e2e47f"
+        },
+        "promql-frontend-fixture": {
+          "path": ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release/promql-frontend-fixture",
+          "sha256": "96ca83bd7f379e7f30215d3aa5d145b322af4d8751a9e6b2c8849e8f9e0a3c0b"
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release/libnetdata_promql_engine.a",
+          "sha256": "d33d59d5592d30831430b25ee9f106f00c3bd3155adadd5e23a9bfc258016453"
+        },
+        "unit": {
+          "path": ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release/unit",
+          "sha256": "a7a9bdce8c05d22b3d12d52bc2d2bb52949eeb1f4b87cae39a6b16d3e1f93d95"
+        }
+      },
+      "passed_units": {
+        "frontend::work::tests": 6,
+        "frontend::regex::": 18
+      },
+      "original_regex_outcomes": 21320,
+      "original_parser_outcomes": 1140,
+      "complete_queries": 62,
+      "callers": {
+        "armv7-unknown-linux-gnueabihf-release-gcc": {
+          "path": ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release/gcc-caller",
+          "sha256": "2986f68bbedbc5e8a7ea71ebf66e6c6d7ec7cc91d130c0bccb8fadf59337f112",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        },
+        "armv7-unknown-linux-gnueabihf-release-gpp": {
+          "path": ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release/gpp-caller",
+          "sha256": "a4ee8a4869bb74300893dc3f10c31b35c65f380cb5d5c1cb68f20ac897df7bbf",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        }
+      },
+      "reused_successful_commands": [
+        "armv7-unknown-linux-gnueabihf-release-rustc",
+        "armv7-unknown-linux-gnueabihf-release-qemu",
+        "armv7-unknown-linux-gnueabihf-release-build",
+        "armv7-unknown-linux-gnueabihf-release-unit-build",
+        "armv7-unknown-linux-gnueabihf-release-units0",
+        "armv7-unknown-linux-gnueabihf-release-units1",
+        "armv7-unknown-linux-gnueabihf-release-regex",
+        "armv7-unknown-linux-gnueabihf-release-parser",
+        "armv7-unknown-linux-gnueabihf-release-queries"
+      ]
+    },
+    "armv7-unknown-linux-gnueabihf-release-min-qualification.json": {
+      "target": "armv7-unknown-linux-gnueabihf",
+      "profile": "release-min",
+      "binaries": {
+        "promql-query-fixture": {
+          "path": ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min/promql-query-fixture",
+          "sha256": "62f5d7846f648b8ca7e9961ca52d2d76baf790cca3da5e4f90f55369071f2f25"
+        },
+        "promql-frontend-fixture": {
+          "path": ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min/promql-frontend-fixture",
+          "sha256": "411146c547a1f8471c67e2aba9920683d9c6b5316823bf214b1e2a995451626d"
+        },
+        "libnetdata_promql_engine.a": {
+          "path": ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min/libnetdata_promql_engine.a",
+          "sha256": "66695033e6a7f8dc2b18812b6202315497d04562bac78d784f026f063ab55284"
+        },
+        "unit": {
+          "path": ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min/unit",
+          "sha256": "cf837e84528fb4c3ddab2802aae56b147260b38caa5bd69be01c7aadcd402215"
+        }
+      },
+      "passed_units": {
+        "frontend::work::tests": 6,
+        "frontend::regex::": 18
+      },
+      "original_regex_outcomes": 21320,
+      "original_parser_outcomes": 1140,
+      "complete_queries": 62,
+      "callers": {
+        "armv7-unknown-linux-gnueabihf-release-min-gcc": {
+          "path": ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min/gcc-caller",
+          "sha256": "ccc3794fe0a09f06cc9e29305e7ffa107a554f1b95d1816a2013d6bf92178a3b",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        },
+        "armv7-unknown-linux-gnueabihf-release-min-gpp": {
+          "path": ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min/gpp-caller",
+          "sha256": "a004a85700f7e5ae3dc4244a0004042c3fba4858b650e769083af0f0edb2b6f3",
+          "records": [
+            {
+              "protocol_primitives": "pass"
+            },
+            {
+              "direct_float_map_replay": "pass",
+              "expression": "label_replace(m, \"zone\", \"$1\", \"zone\", \"(.*)\") / on(zone) m",
+              "cases": 9,
+              "page_sizes": 3
+            },
+            {
+              "native_regex_embedding": "pass"
+            }
+          ]
+        }
+      },
+      "reused_successful_commands": []
+    }
+  },
+  "totals": {
+    "native_original_regex_outcomes": 42640,
+    "foreign_original_regex_outcomes": 85280,
+    "original_parser_outcomes": 6840,
+    "native_complete_queries": 640,
+    "foreign_complete_queries": 248,
+    "actual_c_and_cpp_callers": 12,
+    "timing_checked_responses": 800,
+    "consumed_successful_runtime_and_tool_records": 103
+  },
+  "timing": {
+    "groups": [
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n16-w16-fallback-pos",
+        "samples_ns": {
+          "before": [
+            194399,
+            218018,
+            198038,
+            205658,
+            190919
+          ],
+          "candidate": [
+            193788,
+            196568,
+            185488,
+            196448,
+            184828
+          ]
+        },
+        "before_median_ns": 198038,
+        "candidate_median_ns": 193788,
+        "ratio": 1.021931182529362
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n16-w16-fallback-neg",
+        "samples_ns": {
+          "before": [
+            195269,
+            192678,
+            201168,
+            184968,
+            182719
+          ],
+          "candidate": [
+            192319,
+            254118,
+            201178,
+            174968,
+            178068
+          ]
+        },
+        "before_median_ns": 192678,
+        "candidate_median_ns": 192319,
+        "ratio": 1.001866690238614
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n16-w16-replace",
+        "samples_ns": {
+          "before": [
+            257358,
+            270228,
+            287308,
+            255058,
+            262328
+          ],
+          "candidate": [
+            255078,
+            369527,
+            250988,
+            253608,
+            267648
+          ]
+        },
+        "before_median_ns": 262328,
+        "candidate_median_ns": 255078,
+        "ratio": 1.0284226785532269
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n16-w16-prefix-control",
+        "samples_ns": {
+          "before": [
+            134379,
+            135019,
+            134779,
+            143739,
+            135819
+          ],
+          "candidate": [
+            139789,
+            137358,
+            134869,
+            144989,
+            132849
+          ]
+        },
+        "before_median_ns": 135019,
+        "candidate_median_ns": 137358,
+        "ratio": 0.9829715051180128
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w16-fallback-pos",
+        "samples_ns": {
+          "before": [
+            2668048,
+            2668487,
+            2736767,
+            2693827,
+            2702977
+          ],
+          "candidate": [
+            2582988,
+            3230113,
+            2550089,
+            2486590,
+            3508441
+          ]
+        },
+        "before_median_ns": 2693827,
+        "candidate_median_ns": 2582988,
+        "ratio": 1.0429111556073818
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w16-fallback-neg",
+        "samples_ns": {
+          "before": [
+            2585018,
+            2621268,
+            2584959,
+            2558619,
+            2552509
+          ],
+          "candidate": [
+            2559358,
+            3257953,
+            2450059,
+            2417720,
+            2445939
+          ]
+        },
+        "before_median_ns": 2584959,
+        "candidate_median_ns": 2450059,
+        "ratio": 1.055059898557545
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w16-replace",
+        "samples_ns": {
+          "before": [
+            3299582,
+            3297152,
+            3404132,
+            3203543,
+            3175304
+          ],
+          "candidate": [
+            3305552,
+            3839468,
+            3177464,
+            3138233,
+            3182463
+          ]
+        },
+        "before_median_ns": 3297152,
+        "candidate_median_ns": 3182463,
+        "ratio": 1.0360378109659092
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w16-prefix-control",
+        "samples_ns": {
+          "before": [
+            1848865,
+            1865345,
+            1879184,
+            1857225,
+            1819124
+          ],
+          "candidate": [
+            1893684,
+            1902484,
+            1842944,
+            1827235,
+            1830005
+          ]
+        },
+        "before_median_ns": 1857225,
+        "candidate_median_ns": 1842944,
+        "ratio": 1.007749014620086
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w128-fallback-pos",
+        "samples_ns": {
+          "before": [
+            13101001,
+            11919710,
+            12717474,
+            11592313,
+            11457284
+          ],
+          "candidate": [
+            10969918,
+            12989101,
+            10895059,
+            10662521,
+            10534522
+          ]
+        },
+        "before_median_ns": 11919710,
+        "candidate_median_ns": 10895059,
+        "ratio": 1.0940473108039157
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w128-fallback-neg",
+        "samples_ns": {
+          "before": [
+            12512375,
+            11806051,
+            11772331,
+            11497494,
+            11391015
+          ],
+          "candidate": [
+            10955809,
+            12277937,
+            10591432,
+            10425482,
+            11385914
+          ]
+        },
+        "before_median_ns": 11772331,
+        "candidate_median_ns": 10955809,
+        "ratio": 1.0745286815423671
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w128-replace",
+        "samples_ns": {
+          "before": [
+            6653084,
+            6689364,
+            6833663,
+            6671064,
+            6690764
+          ],
+          "candidate": [
+            6616754,
+            7245719,
+            6375156,
+            6396366,
+            6322256
+          ]
+        },
+        "before_median_ns": 6689364,
+        "candidate_median_ns": 6396366,
+        "ratio": 1.0458069472572395
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w128-prefix-control",
+        "samples_ns": {
+          "before": [
+            1849024,
+            1883654,
+            1883865,
+            1868104,
+            1833145
+          ],
+          "candidate": [
+            1900694,
+            1995874,
+            1862344,
+            1830445,
+            1841825
+          ]
+        },
+        "before_median_ns": 1868104,
+        "candidate_median_ns": 1862344,
+        "ratio": 1.0030928765040186
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w1024-fallback-pos",
+        "samples_ns": {
+          "before": [
+            84453524,
+            86145459,
+            84716241,
+            83964567,
+            81661706
+          ],
+          "candidate": [
+            77443902,
+            76823977,
+            75607907,
+            73552084,
+            74266749
+          ]
+        },
+        "before_median_ns": 84453524,
+        "candidate_median_ns": 75607907,
+        "ratio": 1.1169932795520976
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w1024-fallback-neg",
+        "samples_ns": {
+          "before": [
+            83941117,
+            86482216,
+            84043747,
+            95239333,
+            81516658
+          ],
+          "candidate": [
+            76938146,
+            75569427,
+            75321310,
+            73965390,
+            75496778
+          ]
+        },
+        "before_median_ns": 84043747,
+        "candidate_median_ns": 75496778,
+        "ratio": 1.113209718698194
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w1024-replace",
+        "samples_ns": {
+          "before": [
+            34871838,
+            34395742,
+            34614090,
+            48820762,
+            37938932
+          ],
+          "candidate": [
+            33123732,
+            33079203,
+            32316509,
+            32030672,
+            31734674
+          ]
+        },
+        "before_median_ns": 34871838,
+        "candidate_median_ns": 32316509,
+        "ratio": 1.0790719381230194
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w1024-prefix-control",
+        "samples_ns": {
+          "before": [
+            1973814,
+            1908514,
+            1916204,
+            2401151,
+            1885865
+          ],
+          "candidate": [
+            1952403,
+            1919914,
+            1919654,
+            1898044,
+            1909055
+          ]
+        },
+        "before_median_ns": 1916204,
+        "candidate_median_ns": 1919654,
+        "ratio": 0.9982028011297869
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w4096-fallback-pos",
+        "samples_ns": {
+          "before": [
+            332339768,
+            342845950,
+            441457635,
+            330407245,
+            330451674
+          ],
+          "candidate": [
+            325932432,
+            300426886,
+            296137651,
+            297902146,
+            296667077
+          ]
+        },
+        "before_median_ns": 332339768,
+        "candidate_median_ns": 297902146,
+        "ratio": 1.1156004495516458
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w4096-fallback-neg",
+        "samples_ns": {
+          "before": [
+            366186974,
+            353448551,
+            326401397,
+            326469388,
+            353377762
+          ],
+          "candidate": [
+            333058282,
+            322116234,
+            295606036,
+            294433895,
+            323298093
+          ]
+        },
+        "before_median_ns": 353377762,
+        "candidate_median_ns": 322116234,
+        "ratio": 1.097050457879127
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w4096-replace",
+        "samples_ns": {
+          "before": [
+            136977564,
+            129989262,
+            139091875,
+            128613203,
+            129578335
+          ],
+          "candidate": [
+            157385733,
+            119697308,
+            118753806,
+            119214002,
+            127614552
+          ]
+        },
+        "before_median_ns": 129989262,
+        "candidate_median_ns": 119697308,
+        "ratio": 1.08598317014782
+      },
+      {
+        "profile": "release",
+        "id": "utf8-ascii-n256-w4096-prefix-control",
+        "samples_ns": {
+          "before": [
+            2176972,
+            2134162,
+            2066053,
+            2076533,
+            2079462
+          ],
+          "candidate": [
+            2621878,
+            2090633,
+            2097732,
+            2074642,
+            2274012
+          ]
+        },
+        "before_median_ns": 2079462,
+        "candidate_median_ns": 2097732,
+        "ratio": 0.9912905938413487
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n16-w16-fallback-pos",
+        "samples_ns": {
+          "before": [
+            350437,
+            354826,
+            355497,
+            348057,
+            352427
+          ],
+          "candidate": [
+            351627,
+            384046,
+            368097,
+            350277,
+            356087
+          ]
+        },
+        "before_median_ns": 352427,
+        "candidate_median_ns": 356087,
+        "ratio": 0.989721612976604
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n16-w16-fallback-neg",
+        "samples_ns": {
+          "before": [
+            336237,
+            338877,
+            345697,
+            335047,
+            341357
+          ],
+          "candidate": [
+            336827,
+            339607,
+            333797,
+            333327,
+            341967
+          ]
+        },
+        "before_median_ns": 338877,
+        "candidate_median_ns": 336827,
+        "ratio": 1.0060862104284989
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n16-w16-replace",
+        "samples_ns": {
+          "before": [
+            428336,
+            434476,
+            514976,
+            434756,
+            445377
+          ],
+          "candidate": [
+            433726,
+            672024,
+            443226,
+            426907,
+            436186
+          ]
+        },
+        "before_median_ns": 434756,
+        "candidate_median_ns": 436186,
+        "ratio": 0.9967215820773707
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n16-w16-prefix-control",
+        "samples_ns": {
+          "before": [
+            218609,
+            224158,
+            219358,
+            219698,
+            221448
+          ],
+          "candidate": [
+            225998,
+            240058,
+            223389,
+            221269,
+            252238
+          ]
+        },
+        "before_median_ns": 219698,
+        "candidate_median_ns": 225998,
+        "ratio": 0.9721236471119213
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w16-fallback-pos",
+        "samples_ns": {
+          "before": [
+            5172427,
+            5280996,
+            5820851,
+            5652912,
+            5546863
+          ],
+          "candidate": [
+            5323266,
+            5398435,
+            5243596,
+            5183837,
+            5167037
+          ]
+        },
+        "before_median_ns": 5546863,
+        "candidate_median_ns": 5243596,
+        "ratio": 1.0578356913843094
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w16-fallback-neg",
+        "samples_ns": {
+          "before": [
+            5029187,
+            5123518,
+            5846061,
+            5089097,
+            5106777
+          ],
+          "candidate": [
+            6104258,
+            5187906,
+            5028448,
+            5014038,
+            4991018
+          ]
+        },
+        "before_median_ns": 5106777,
+        "candidate_median_ns": 5028448,
+        "ratio": 1.0155771721214975
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w16-replace",
+        "samples_ns": {
+          "before": [
+            6090029,
+            6182648,
+            7112671,
+            6103549,
+            6125009
+          ],
+          "candidate": [
+            7734855,
+            7321368,
+            6170999,
+            6049079,
+            5954001
+          ]
+        },
+        "before_median_ns": 6125009,
+        "candidate_median_ns": 6170999,
+        "ratio": 0.9925473979172578
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w16-prefix-control",
+        "samples_ns": {
+          "before": [
+            3307382,
+            3406911,
+            3602290,
+            3233403,
+            3300443
+          ],
+          "candidate": [
+            4030386,
+            3397352,
+            3305952,
+            3291672,
+            3210563
+          ]
+        },
+        "before_median_ns": 3307382,
+        "candidate_median_ns": 3305952,
+        "ratio": 1.0004325531647162
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w128-fallback-pos",
+        "samples_ns": {
+          "before": [
+            24805332,
+            25956863,
+            27828037,
+            25665435,
+            25553156
+          ],
+          "candidate": [
+            29182076,
+            26053982,
+            25195929,
+            25361048,
+            25141609
+          ]
+        },
+        "before_median_ns": 25665435,
+        "candidate_median_ns": 25361048,
+        "ratio": 1.0120021459681003
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w128-fallback-neg",
+        "samples_ns": {
+          "before": [
+            24872242,
+            25584185,
+            27431521,
+            25077780,
+            25978373
+          ],
+          "candidate": [
+            30343926,
+            26116091,
+            24888932,
+            24775992,
+            25306568
+          ]
+        },
+        "before_median_ns": 25584185,
+        "candidate_median_ns": 25306568,
+        "ratio": 1.0109701560480266
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w128-replace",
+        "samples_ns": {
+          "before": [
+            14049653,
+            14457799,
+            15636569,
+            14308600,
+            14385789
+          ],
+          "candidate": [
+            15639059,
+            14542028,
+            14060633,
+            14004243,
+            14411620
+          ]
+        },
+        "before_median_ns": 14385789,
+        "candidate_median_ns": 14411620,
+        "ratio": 0.9982076269010701
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w128-prefix-control",
+        "samples_ns": {
+          "before": [
+            3337212,
+            3460291,
+            3719729,
+            3313442,
+            3376452
+          ],
+          "candidate": [
+            4424463,
+            3355292,
+            3337362,
+            3329432,
+            3268813
+          ]
+        },
+        "before_median_ns": 3376452,
+        "candidate_median_ns": 3337362,
+        "ratio": 1.0117128438569145
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w1024-fallback-pos",
+        "samples_ns": {
+          "before": [
+            189832160,
+            193954116,
+            208389515,
+            185884244,
+            194384183
+          ],
+          "candidate": [
+            188130935,
+            193297612,
+            185729506,
+            183814001,
+            186804376
+          ]
+        },
+        "before_median_ns": 193954116,
+        "candidate_median_ns": 186804376,
+        "ratio": 1.038273942790291
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w1024-fallback-neg",
+        "samples_ns": {
+          "before": [
+            192836106,
+            211767788,
+            198011713,
+            186968365,
+            203874173
+          ],
+          "candidate": [
+            186800747,
+            218819138,
+            184340267,
+            190185218,
+            202604114
+          ]
+        },
+        "before_median_ns": 198011713,
+        "candidate_median_ns": 190185218,
+        "ratio": 1.0411519627145787
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w1024-replace",
+        "samples_ns": {
+          "before": [
+            77703010,
+            81123761,
+            83558260,
+            78424013,
+            81540118
+          ],
+          "candidate": [
+            78897900,
+            95950347,
+            77903718,
+            78023476,
+            91062948
+          ]
+        },
+        "before_median_ns": 81123761,
+        "candidate_median_ns": 78897900,
+        "ratio": 1.0282119169204758
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w1024-prefix-control",
+        "samples_ns": {
+          "before": [
+            3392522,
+            3881447,
+            3499991,
+            3429381,
+            3436141
+          ],
+          "candidate": [
+            3368071,
+            4154605,
+            3474831,
+            3488461,
+            3819078
+          ]
+        },
+        "before_median_ns": 3436141,
+        "candidate_median_ns": 3488461,
+        "ratio": 0.9850019822494791
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w4096-fallback-pos",
+        "samples_ns": {
+          "before": [
+            758898388,
+            790742171,
+            765058226,
+            737407607,
+            774932604
+          ],
+          "candidate": [
+            753279475,
+            765224715,
+            730980421,
+            750258130,
+            791409296
+          ]
+        },
+        "before_median_ns": 765058226,
+        "candidate_median_ns": 753279475,
+        "ratio": 1.0156366280921167
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w4096-fallback-neg",
+        "samples_ns": {
+          "before": [
+            747903100,
+            813116634,
+            759843259,
+            757927136,
+            740678790
+          ],
+          "candidate": [
+            748645213,
+            781841176,
+            779903312,
+            801787378,
+            779502825
+          ]
+        },
+        "before_median_ns": 757927136,
+        "candidate_median_ns": 779903312,
+        "ratio": 0.971821922459024
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w4096-replace",
+        "samples_ns": {
+          "before": [
+            304508481,
+            311230535,
+            308016802,
+            297009024,
+            297800687
+          ],
+          "candidate": [
+            312661793,
+            308671747,
+            297879406,
+            299168426,
+            318291026
+          ]
+        },
+        "before_median_ns": 304508481,
+        "candidate_median_ns": 308671747,
+        "ratio": 0.9865123191854679
+      },
+      {
+        "profile": "release-min",
+        "id": "utf8-ascii-n256-w4096-prefix-control",
+        "samples_ns": {
+          "before": [
+            3924936,
+            4235775,
+            4001497,
+            3893317,
+            3756068
+          ],
+          "candidate": [
+            3986506,
+            4216235,
+            4029066,
+            3927987,
+            4159745
+          ]
+        },
+        "before_median_ns": 3924936,
+        "candidate_median_ns": 4029066,
+        "ratio": 0.9741553005088525
+      }
+    ],
+    "slower_groups": 12,
+    "scope": "Five fixed alternating warm-process/dataset execution pairs per profile for20preselected cases. Engine elapsed excludes compilation and fixture transport. No owned qualification runs concurrently. Shared host, no CPU/frequency isolation, physical ARM/live HTTP/concurrency/RSS or universal throughput claim."
+  },
+  "originals": {
+    "regex_capture": "tests/promql-conformance/.tmp/regex-capture-8k6gmepl",
+    "parser_capture": "tests/promql-conformance/.tmp/capture-1usdtup9",
+    "recaptured": false
+  },
+  "comparison_corrections": "Initial harnesses assumed observations on parse-only errors; recovery verification also needed a string-to-Path conversion. Consumed runners/failures are retained. Completed successful commands and binaries were verified and reused without runtime/source/input/expectation changes.",
+  "prior_ledger_objects_preserved": 73,
+  "terminal_records": {
+    ".tmp/utf8-work-hy676k32/before-release-queries-status.json": 0,
+    ".tmp/utf8-work-hy676k32/before-release-min-queries-status.json": 0,
+    ".tmp/utf8-work-hy676k32/candidate-focused-debug-status.json": 0,
+    ".tmp/utf8-work-hy676k32/candidate-format-status.json": 0,
+    ".tmp/utf8-work-hy676k32/candidate-production-clippy-status.json": 0,
+    ".tmp/utf8-work-hy676k32/candidate-fixture-clippy-status.json": 0,
+    ".tmp/utf8-work-hy676k32/candidate-msrv-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-pair0-before-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-pair0-candidate-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-pair1-candidate-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-pair1-before-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-pair2-before-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-pair2-candidate-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-pair3-candidate-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-pair3-before-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-pair4-before-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-pair4-candidate-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair0-before-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair0-candidate-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair1-candidate-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair1-before-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair2-before-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair2-candidate-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair3-candidate-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair3-before-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair4-before-status.json": 0,
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair4-candidate-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-rustc-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-build-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-unit-build-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-units0-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-regex-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-parser-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-queries-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-gcc-link-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-gcc-run-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-gpp-link-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-gpp-run-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-elf-size-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-min-rustc-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-min-build-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-min-unit-build-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-min-units0-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-min-regex-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-min-parser-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-min-queries-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-min-gcc-link-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-min-gcc-run-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-min-gpp-link-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-min-gpp-run-status.json": 0,
+    ".tmp/utf8-work-hy676k32/native-release-min-elf-size-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-rustc-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-qemu-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-build-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-unit-build-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-units0-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-units1-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-regex-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-parser-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-queries-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gcc-link-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gcc-run-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gpp-link-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gpp-run-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-rustc-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-qemu-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-build-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-unit-build-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-units0-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-units1-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-regex-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-parser-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-queries-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gcc-link-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gcc-run-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gpp-link-status.json": 0,
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gpp-run-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-rustc-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-qemu-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-build-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-unit-build-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-units0-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-units1-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-regex-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-parser-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-queries-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gcc-link-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gcc-run-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gpp-link-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gpp-run-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-rustc-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-qemu-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-build-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-unit-build-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-units0-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-units1-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-regex-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-parser-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-queries-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gcc-link-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gcc-run-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gpp-link-status.json": 0,
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gpp-run-status.json": 0
+  },
+  "artifacts": {
+    ".tmp/utf8-work-hy676k32/baseline-receipt.json": "5a1c39ad2f1d0ab49ad79c46fa42f066c3a777e38acb69d97c5aec82a664caea",
+    ".tmp/utf8-work-hy676k32/prepared-inputs.json": "044e596f836da9a2838cacfd7c4faa1abe3c7140dd01bdb89bf8248c01a56541",
+    ".tmp/utf8-work-hy676k32/development-receipt.json": "e0266494ae19b134b91796a53e6481cbd69ccc6a5d0d2a29ee7138294738b395",
+    ".tmp/utf8-work-hy676k32/candidate-static-receipt.json": "e5a060b9d518e395ceed6fa8ff32a77e19a9939cfd93e6c7e96985eb66f68d98",
+    ".tmp/utf8-work-hy676k32/timing-receipt.json": "157c4c5262bdd4ffd59be64076a45cf8f2e8d67e8edae9628067809fb648549a",
+    ".tmp/utf8-work-hy676k32/native-release-qualification.json": "d44a9e8b88c517b7bcbcf10cc13ffdc95fed5ec67748ea0dc5c965d8065a242e",
+    ".tmp/utf8-work-hy676k32/native-release-min-qualification.json": "20452ce937a43c117345913d7687f00b0410ba91c2b86a14192ea996cde4a723",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-qualification.json": "3feb58ee87b160185869307fcdde0bd0bf0e6a2a1c1f646581021dc95d8760b2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-qualification.json": "b42136aec1dcca6329d4f4d5799f71308f2a20eba5a688513741205bb4566249",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-qualification.json": "505e8c2b1a68d2ab277a9002989c473c653517f8462b65e8c0f4b33f8bb39397",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-qualification.json": "873855c2a2fdb22f288ea92755c6714f86b206df47d3f5efd78cce12634e5e5a",
+    ".tmp/utf8-work-hy676k32/baseline.py": "6001f042fc7b54ba2a1aa439372ad33c609cc99da656bf7cfa326b09c031e0c7",
+    ".tmp/utf8-work-hy676k32/origin.json": "c6ef6ad1859813829e8f3b3db8d8d9f93d9ea6b1c13bd63377ddf7453a923ea9",
+    ".tmp/utf8-work-hy676k32/inputs.jsonl": "615a9c69b8ffed34f913e97708cf6f8d41bbe727c5a84227b52ca4ce1ca301a7",
+    "src/crates/promql-engine/tests/promql-conformance/utf8_work_cases.py": "dad50cbcf415fd36d32aef080bf01eaa06362c91f634074cd6e2e0d9b867f3df",
+    ".tmp/selector-backend-24540ndv/inputs.jsonl": "0552ad0fd1c8559f7432aa8df9226849e465b9aee88dde6993a3a67d84592a59",
+    ".tmp/utf8-work-hy676k32/measurement-plan.json": "7d320108ce80940ad6dcf4be5884e0913555fb6367f94e841cb4cdb024bbb14b",
+    ".tmp/utf8-work-hy676k32/before-source.json": "6e76414a892f8e49da3f990cc60684d8d5b5f6985f029578caf88173d69df6a2",
+    ".tmp/wrapped-group-baseline-18cb2fdm/common.py": "ac762fa0af99e511527dec9b72cb4ec19c880b87894c1c5ddf683cfa84097e85",
+    ".tmp/utf8-work-hy676k32/before-release-queries.stdout": "8ef581ff8c45c47b6930518e6cf258c242f87d0ea1f34b9161e84630af30a7c6",
+    ".tmp/utf8-work-hy676k32/before-release-queries.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/before-release-queries-process.json": "0114c0663db66cb2875af8ac99804710684738da1aa563cebd0402066ec0ea52",
+    ".tmp/utf8-work-hy676k32/before-release-queries-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/before-release-min-queries.stdout": "2490546f6b5812fedbce20f4690ab99f87c2b16301ed080f7b605c9f8c9734b0",
+    ".tmp/utf8-work-hy676k32/before-release-min-queries.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/before-release-min-queries-process.json": "b951611cd816cf16faffb6427420c53bd38970fafc2c9c0167e06f39f4ffaef8",
+    ".tmp/utf8-work-hy676k32/before-release-min-queries-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/prepare.py": "7f4835a1999a4a1afc214a09a84ed2a63f55680c1fd620d4040d10aff4b67772",
+    ".tmp/selector-backend-24540ndv/task.json": "d57817e61a523421a19a83d17dd678fe3cdec711e2878d18ae8c668105f471bc",
+    ".tmp/selector-backend-24540ndv/regex-cases.json": "5750fdb660e3e4692a3dc799afcc22b9d385ac3e97117a939c0e044c8053fc00",
+    ".tmp/selector-backend-24540ndv/regex-inputs.txt": "afbb34585c5698e615a9a8eb558927a5a956b5c9e52070e85dea15889eb047d0",
+    "tests/promql-conformance/.tmp/capture-1usdtup9/manifest.json": "1f7cb76bd2bab704318af7d1e6d9cb466017b46664ced9b3b582417d1c4733ec",
+    "tests/promql-conformance/.tmp/capture-1usdtup9/frontend.json": "6a9f50ad65dbeb41e66d6b049b8d231ab41fc7171a6b8eae8bab4e924f01ca95",
+    "src/crates/promql-engine/tests/promql-conformance/parser-cases.json": "d68990c947643e1f9bfe1b1730e55f87dfc5c4bed7122787243d76985619b401",
+    ".tmp/utf8-work-hy676k32/regex-cases.json": "5750fdb660e3e4692a3dc799afcc22b9d385ac3e97117a939c0e044c8053fc00",
+    ".tmp/utf8-work-hy676k32/regex-inputs.txt": "afbb34585c5698e615a9a8eb558927a5a956b5c9e52070e85dea15889eb047d0",
+    ".tmp/utf8-work-hy676k32/parser-cases.json": "29ae59c0effdba525e76dd8a4d111661a9855c5e8510cc02e156af34cb5d0051",
+    ".tmp/utf8-work-hy676k32/parser-inputs.txt": "f4959b459cc8fd9a856afdda1d1b4da81d515adb07b98cd01f0f1a74d1e8159e",
+    ".tmp/utf8-work-hy676k32/foreign-inputs.jsonl": "a7231c06a60e39233cd8447531c8c26a66fcecc9dbb46fc4d6044e4c1a29975a",
+    "src/crates/promql-engine/tests/promql-conformance/regex_reference.py": "01965cfec40850fac3a04dea681f3403acb839921d2e77099bef0b171977c908",
+    "src/crates/promql-engine/tests/promql-conformance/parser_cases.py": "76f0c0e1ed7029c844b80eb472d35e16e9b06db3a2dc4fc30eb590333a548a2f",
+    "src/crates/promql-engine/tests/promql-conformance/capture.py": "99e02e4dcd0fe33463a93603ccb08f40654c90c472c63f5650dbbfbe3dde3d47",
+    "src/crates/promql-engine/tests/promql-conformance/parser.py": "54f61b7a66ba1453dfa0db0ef1e4f4f96b8074c234156a4ec2a39205aa8ddd90",
+    "src/crates/promql-engine/tests/promql-conformance/build.py": "8304e774ac5d329b2c1f68c24de70a6b0cfb671d4962165b2a696caf93163f86",
+    "src/crates/promql-engine/tests/promql-conformance/regex-original-inputs.json": "1de429e04f929d6feab76b635de81fd4a70435d04b2b2a58e7dce47a3612ee01",
+    "src/crates/promql-engine/tests/promql-conformance/regex-requests.json": "472ad9ecd37401b8ca1b9af5a08acf52be3953e84c2879f8708256b795354338",
+    "src/crates/promql-engine/tests/promql-conformance/parser-requests.json": "2717b1de3bd866cb71d50e53d64cbdf66fdf5fbd3dfed72c8442fe5a9d72c2b6",
+    "tests/promql-conformance/.tmp/regex-capture-8k6gmepl/metadata.json": "ac1f053b44893a42c5c710c55a5dc1570daff817ece3cc3017f8cf0fd8c14904",
+    "tests/promql-conformance/.tmp/regex-capture-8k6gmepl/source-manifests.json": "efb5b2d1921b800f0d4da4f99feaa623994b7e95a7e64a2408ccbaad7f49ddfd",
+    "tests/promql-conformance/.tmp/regex-capture-8k6gmepl/syntax.json": "a4ed80cf6ef51aea78833cf9d867c6f781ebdbc4753857ccfdbc17463d7780ef",
+    "tests/promql-conformance/.tmp/regex-capture-8k6gmepl/regexp.json": "2e9196525b01fa6501209819a61674432a5994da2ac98024e31f089b06c974b2",
+    "tests/promql-conformance/.tmp/regex-capture-8k6gmepl/selectors.json": "4401db23b3b21db04fc7abd0356c6298acda165af5dd03f78538df35f11a66c5",
+    ".tmp/utf8-work-hy676k32/candidate-source.json": "c0d61bf5a94c539e465328a6992833cc280af6ae8c0c855514601d24ef226909",
+    ".tmp/utf8-work-hy676k32/development.py": "7d010a753a45847f42af4648e864750373698646ce6c23133969eac1c33c1a4c",
+    ".tmp/utf8-work-hy676k32/candidate-focused-debug.stdout": "8144f0d5fadc26e6a5c42af871364e1ff37a43b4b429578fb2d5c5ad5304339f",
+    ".tmp/utf8-work-hy676k32/candidate-focused-debug.stderr": "4e17c28ad0d3736c8fb5e30c5cb6b95b33d72676c0a0ef9f7963b1b831c2d019",
+    ".tmp/utf8-work-hy676k32/candidate-focused-debug-process.json": "4029842db9f794f4bb9abff9c2a6dc4e770e8ab082a2e56c90282c354db0c1f8",
+    ".tmp/utf8-work-hy676k32/candidate-focused-debug-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/static.py": "6b314c121217482db9e38773ef084cc3892705f360f4edac69b6f86f2378e464",
+    ".tmp/utf8-work-hy676k32/common.py": "3ce90f5d2727c6f5092ddc5c0b1c03a1de22e6aff0019c2bc49d283a73a71278",
+    ".tmp/utf8-work-hy676k32/candidate-format.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/candidate-format.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/candidate-format-process.json": "31b12fdfa950ef8b7dac3a5369bd249d47bd809e7df30424c49b78c7faf71032",
+    ".tmp/utf8-work-hy676k32/candidate-format-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/candidate-production-clippy.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/candidate-production-clippy.stderr": "bdf7cf06228dbe0ddcc6b6fa2a4c479004d1921acddd6f33ffd0348a3444a999",
+    ".tmp/utf8-work-hy676k32/candidate-production-clippy-process.json": "71ae1addadcb2843b625968eb41c93541c5a802724026714a2f99666b4e288d9",
+    ".tmp/utf8-work-hy676k32/candidate-production-clippy-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/candidate-fixture-clippy.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/candidate-fixture-clippy.stderr": "8b5db6a9aa15bbb3ea232ef01939e23d81c7f12919ae101d710c061088d93a4b",
+    ".tmp/utf8-work-hy676k32/candidate-fixture-clippy-process.json": "98b1323d3101ba2dea5f02c1480888ea70e5ea56ff5dbc9ca51340811ce272c6",
+    ".tmp/utf8-work-hy676k32/candidate-fixture-clippy-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/candidate-msrv.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/candidate-msrv.stderr": "5aa8d6393e3059f8d37a4d1a8f48b5237f3b14ae66ef6839607a4ec05567d51c",
+    ".tmp/utf8-work-hy676k32/candidate-msrv-process.json": "e76ee9438b7a946c4372c9165331cbd31379d305a77c4a5ba7e20ad932fb67c6",
+    ".tmp/utf8-work-hy676k32/candidate-msrv-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing.py": "c97e4084440e931f4dcd32a89e979e7033e96d9c7730f28202a800adb136c5bc",
+    ".tmp/utf8-work-hy676k32/timing-release-pair0-before.stdout": "2aa338d999f1fa90d586dd00223d27854bdac3df84541e69ecb827003cc5c3fb",
+    ".tmp/utf8-work-hy676k32/timing-release-pair0-before.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-pair0-before-process.json": "9865e9d45919f0b709f3f1cc2de108a14667caad98240fc431753d68e3c5cad0",
+    ".tmp/utf8-work-hy676k32/timing-release-pair0-before-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-pair0-candidate.stdout": "2d74124c9e0381005b7234c7b83bf121e9bb02390ae67bc983ef0a05ad4fb7e3",
+    ".tmp/utf8-work-hy676k32/timing-release-pair0-candidate.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-pair0-candidate-process.json": "6eb889991e23e5743728e5c11b5aa58756c0cf4abc0acb1b00efac4d4e8c6a50",
+    ".tmp/utf8-work-hy676k32/timing-release-pair0-candidate-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-pair1-candidate.stdout": "9ea74c696737955f472a31c73e221a8b7b5e3d2949003dbf5998e45bff72e35f",
+    ".tmp/utf8-work-hy676k32/timing-release-pair1-candidate.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-pair1-candidate-process.json": "754bbce2ad154be9ec75ce39200332ea9dd833393a89de19a56468a69bff0722",
+    ".tmp/utf8-work-hy676k32/timing-release-pair1-candidate-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-pair1-before.stdout": "ba6b566b4c50a0be44a993321e8bbe5531d6f7b4b4075c48f554e789c67cc1b7",
+    ".tmp/utf8-work-hy676k32/timing-release-pair1-before.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-pair1-before-process.json": "ca7e1e54798e276f9056ec562201b197775500504abd2f3a2d87875821079b45",
+    ".tmp/utf8-work-hy676k32/timing-release-pair1-before-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-pair2-before.stdout": "468c1651ae947e3615aad3616a9431e72a6d6f2136edec0025cfeedfb5ca20eb",
+    ".tmp/utf8-work-hy676k32/timing-release-pair2-before.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-pair2-before-process.json": "b859245027b69703dd30a6442bfa06ee2634303869d972553a80433cd5b25799",
+    ".tmp/utf8-work-hy676k32/timing-release-pair2-before-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-pair2-candidate.stdout": "06e78db1dc0baa4b6de3b1e704cc97bb44427121059bc87430cb1d81574919d8",
+    ".tmp/utf8-work-hy676k32/timing-release-pair2-candidate.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-pair2-candidate-process.json": "6c0ffa3cc28c071a1b80579697b57cbf7ea562a2a94a2b0383dd3ce2a15d2e33",
+    ".tmp/utf8-work-hy676k32/timing-release-pair2-candidate-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-pair3-candidate.stdout": "149aca0416f5fe3dd3435930b148d6875fcc7abd7b71b3bcd913ca7d20c79d22",
+    ".tmp/utf8-work-hy676k32/timing-release-pair3-candidate.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-pair3-candidate-process.json": "97dc6938add26ed166722b3a4ecb7e6134a4445bdafe896363a490e7312bbaf2",
+    ".tmp/utf8-work-hy676k32/timing-release-pair3-candidate-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-pair3-before.stdout": "3cd74c63efe8d6f52733597aa4c4b2aec257cf00a28656a20b2647cb6c1ea893",
+    ".tmp/utf8-work-hy676k32/timing-release-pair3-before.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-pair3-before-process.json": "a1963a8ad4855c59707f024d1d885cda87cf057508900fd459d7d10c91a13466",
+    ".tmp/utf8-work-hy676k32/timing-release-pair3-before-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-pair4-before.stdout": "e99cb0764175dbe5213c83b65f83264f28e9cf17850772fbb976831d52c96044",
+    ".tmp/utf8-work-hy676k32/timing-release-pair4-before.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-pair4-before-process.json": "236434cc992a379d47f15c8c0ba5b72daf0cf30348401f17bbc2a8c1bf149cb0",
+    ".tmp/utf8-work-hy676k32/timing-release-pair4-before-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-pair4-candidate.stdout": "454e7773621458a001466e6a6b0e80fd7c30d88dc4c9a9cfbf1605856c6d8120",
+    ".tmp/utf8-work-hy676k32/timing-release-pair4-candidate.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-pair4-candidate-process.json": "7347180a3d074836c9942ff3ce30a53b9783ec7f56b9cf4611641dfdb44fc8b4",
+    ".tmp/utf8-work-hy676k32/timing-release-pair4-candidate-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair0-before.stdout": "af542aa6fd76003f0d976aab8f9540fd939ba8c540093f578b2a1419981d57bd",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair0-before.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair0-before-process.json": "38f3aef89ea5c55cda26939876756a9f1f799088798bbf39db436d706f093ef6",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair0-before-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair0-candidate.stdout": "eb5c8580f0c98da319d19a894b78bfee5943555edaddd498c2dd69fd5557195c",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair0-candidate.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair0-candidate-process.json": "7b890b8cd7c2b9cf8066aba772047a2f1fa2a743d707339283341450f145c476",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair0-candidate-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair1-candidate.stdout": "b2553cb9d69795d957626102fea23260cbe487d9c0c199aa04ce15fa3c7965d7",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair1-candidate.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair1-candidate-process.json": "e87c49eb789ed7affc122b94506aef5ae1d792d3ca4e8038867b13385c8b9cce",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair1-candidate-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair1-before.stdout": "ffcdcbe880d8253fa788a25bae33ead566fe2a3a64614fc231c9398564622c81",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair1-before.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair1-before-process.json": "cb0a513cd198d83b0f10f74d137b0e8b47586951c10607990d73f17e623e1b65",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair1-before-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair2-before.stdout": "b48a8b594e87224fe284f5ca132c139db0a1f730381aa498e0c8d698dd0f5f39",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair2-before.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair2-before-process.json": "9e1c2b86a653bf151ebbaeccfb240c12ed11b36132e7e7b189d2ed410119159b",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair2-before-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair2-candidate.stdout": "6c91b6e1adcf4994b4b6ad3ac5a753bb72b57c60fe5b7bbcf027153f637fbe0c",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair2-candidate.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair2-candidate-process.json": "d24708d20651925fb791a22893397823ab4d242d2aacb623a577fc7503b37d81",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair2-candidate-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair3-candidate.stdout": "303da2b9abf7cb8a4b31ad51316cc3dce226ab71bfac496e8c7fb53485b153a2",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair3-candidate.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair3-candidate-process.json": "f6fa581f55fe2fa94c59853ba20c2bdd38889df1756e1b05c7ca6017583aa4bc",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair3-candidate-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair3-before.stdout": "6764ef6c4e23e078250c8bde4383bc6e6297d50a90408f2adb0469c134f4da41",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair3-before.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair3-before-process.json": "24cc866d36003bce87ee8a5bbcc27aa58560ed94601e3980a35fdf96e01f217b",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair3-before-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair4-before.stdout": "ece21c2969e7cb4425333011c5bed69011560dea6f8736d5375f3f7fdd220b0b",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair4-before.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair4-before-process.json": "1379a89d3d83ea03b0b1b00516a910331dc202afcdef937d8b2ae02444f135ab",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair4-before-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair4-candidate.stdout": "a8a8cb8b1398eb46dd3891a343e1441b168928f6a587d5dcc74d873386800da2",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair4-candidate.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair4-candidate-process.json": "5badf16a9342e298aba83032c38341b8b688e0354f927cc738818bc31a1f603a",
+    ".tmp/utf8-work-hy676k32/timing-release-min-pair4-candidate-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/qualify_final.py": "d1bc314cd29cdb019d4c76e81aa0709ca4beeaf1b49e8574322ad70c646c9e84",
+    ".tmp/utf8-work-hy676k32/qualify_complete.py": "49df5d50accc89cbb52e4ba289008ffe6633d431f437967c911adad3ba30f394",
+    ".tmp/utf8-work-hy676k32/comparison-corrections.json": "cfb1cdf9e7bab90bfde7eca5727ebf99f0f5b89ae95830178915b9609e3033f3",
+    ".tmp/utf8-work-hy676k32/qualify.py": "94c711190b4193fd7262637cba5a222cb290ddcf3cefb12a09c37cf798ea3e69",
+    ".tmp/utf8-work-hy676k32/initial-native.json": "366f45dcf2e4ef665958b1d709614f754c436ee8a01069af446d2fd60ecfd8cd",
+    ".tmp/utf8-work-hy676k32/native-release/promql-query-fixture": "ec4efbb594a861ce3f6e08711f26238a4b561634dc03bb0c2c613432bcb8c354",
+    ".tmp/utf8-work-hy676k32/native-release/promql-frontend-fixture": "609889525eb61b3db5264bacb4f4916178304048309c505e3f7fcf8ceebf83b2",
+    ".tmp/utf8-work-hy676k32/native-release/libnetdata_promql_engine.a": "290d8b9dcaea8a873cb44d44edcbde77ea2423b70637caef04b2f8889df372a9",
+    ".tmp/utf8-work-hy676k32/native-release/unit": "367a8406ad38fa674c7c1bac2c1833cbfec92b1f6f7dacd1f911d4789998a481",
+    ".tmp/utf8-work-hy676k32/native-release/gcc-caller": "7a76de0290c1ed477acb176222e74ae34604c595b3b2f9b012365b93fdb132e4",
+    ".tmp/utf8-work-hy676k32/native-release/gpp-caller": "2b8d06af8be49b3427eaa22a743870249ff08eb00e1e1dd0e7a12e4ca0d2ecd2",
+    ".tmp/utf8-work-hy676k32/native-release-rustc.stdout": "b2bdf493bcf6d1dc55181a0efc2774b6d9cf7bf5c8dcc5bed592c994b2ad38c4",
+    ".tmp/utf8-work-hy676k32/native-release-rustc.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-rustc-process.json": "003b749169b26b065ada8f55e2e6b64cf926f79fd913cb44c6299817453936a7",
+    ".tmp/utf8-work-hy676k32/native-release-rustc-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-build.stderr": "4887ba93933523c912de95ca3cba64fe7b5ceb2e212ffcf0d610967d839f9826",
+    ".tmp/utf8-work-hy676k32/native-release-build-process.json": "d6e93bf9d68f01171773deb2a17024fad9a1dacbdb2147c35e1e3f84cd6404f9",
+    ".tmp/utf8-work-hy676k32/native-release-build-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-unit-build.stdout": "0f3f74a4af2d2762d79678887ddfc0eb97ebda254a01c4c20595f8aeb3c32644",
+    ".tmp/utf8-work-hy676k32/native-release-unit-build.stderr": "6e136b766439310d9cca5370f17b52020df0a8c0b0a5f0f894364d290c9a16c1",
+    ".tmp/utf8-work-hy676k32/native-release-unit-build-process.json": "7de1777c4168e29fe47393dac1e8ea7dd97b3d7650c58e2891eba55f9bd280a9",
+    ".tmp/utf8-work-hy676k32/native-release-unit-build-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-units0.stdout": "d50c111260f197510bb74db8d354d7bc1ba22b2b0c8cf0ff4a00035f82e497f4",
+    ".tmp/utf8-work-hy676k32/native-release-units0.stderr": "4fc2ca3ca5f197ccb262827dd929e10ba7077ab969a0e768ef9bd557a334f5aa",
+    ".tmp/utf8-work-hy676k32/native-release-units0-process.json": "35dad05726f90c645026505e93b58428a59138127d3e00f94e9a3b9f9632a1a1",
+    ".tmp/utf8-work-hy676k32/native-release-units0-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-regex.stdout": "a933c9204c5b0d462a5f96c6912bcace9b2d3d326f9aba2f2541dbbe353efac0",
+    ".tmp/utf8-work-hy676k32/native-release-regex.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-regex-process.json": "538375b125aa59d9cd049b456646421a53804c104124d6d75a60a456ad32517c",
+    ".tmp/utf8-work-hy676k32/native-release-regex-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-parser.stdout": "b10482a5f19a046b0a1d672d7a6023e07dfce501d51df054745daa7cd1f64502",
+    ".tmp/utf8-work-hy676k32/native-release-parser.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-parser-process.json": "e19541c202d28fac4ff2a071c85d68df79e91fd90c38bb8e3ecf4b0389470524",
+    ".tmp/utf8-work-hy676k32/native-release-parser-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-queries.stdout": "5394867e076eaf8e3536391c1a1b21208f8d455ea46e6bb998d269b488972815",
+    ".tmp/utf8-work-hy676k32/native-release-queries.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-queries-process.json": "f3eb413d25d4aa36f7271d87b4db475eef4e70a703e165b111de77f3844c69ef",
+    ".tmp/utf8-work-hy676k32/native-release-queries-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-gcc-link.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-gcc-link.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-gcc-link-process.json": "31ed73bb2ab2549463a8d1fe49492d4db260d107efcf709082602180960a26b1",
+    ".tmp/utf8-work-hy676k32/native-release-gcc-link-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-gcc-run.stdout": "89323956ef024b7dff645acc1656d1eff7493864b67a34ac0bfba9f19fd21199",
+    ".tmp/utf8-work-hy676k32/native-release-gcc-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-gcc-run-process.json": "3e1e6468362e5fbc83fc7d8e4ed2a8788b07ef7a9876e87348400e138dfaf7ae",
+    ".tmp/utf8-work-hy676k32/native-release-gcc-run-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-gpp-link.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-gpp-link.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-gpp-link-process.json": "458567f890560f459d259389db34b336292b9aa8055fc5aaba76b47f1b3fa9ac",
+    ".tmp/utf8-work-hy676k32/native-release-gpp-link-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-gpp-run.stdout": "89323956ef024b7dff645acc1656d1eff7493864b67a34ac0bfba9f19fd21199",
+    ".tmp/utf8-work-hy676k32/native-release-gpp-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-gpp-run-process.json": "1fec4c9f579bbbfe71b4aa687e442ec8dfc961043b558146f46bcd46187b0085",
+    ".tmp/utf8-work-hy676k32/native-release-gpp-run-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-elf-size.stdout": "1eee02409b2c95a2e276ba3fece9b6122359cb771332fbaf9c148c73d9d30c0c",
+    ".tmp/utf8-work-hy676k32/native-release-elf-size.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-elf-size-process.json": "a0c754da24e6988819e2e90b84b5e018156a42f2b496d06f4b43552316e42e00",
+    ".tmp/utf8-work-hy676k32/native-release-elf-size-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-min/promql-query-fixture": "b564cef4a9fe7b5eba92ee07a4b1663036fcb0d3bc2504186f44c479252fbb72",
+    ".tmp/utf8-work-hy676k32/native-release-min/promql-frontend-fixture": "d76236335848428db8718af1efacbddd03bc9f0a42964fec8d2366dd7c1dfe91",
+    ".tmp/utf8-work-hy676k32/native-release-min/libnetdata_promql_engine.a": "15505399b9911740f4b5158d266164f53a11fc136abd2fd28dd90e1463b7c8de",
+    ".tmp/utf8-work-hy676k32/native-release-min/unit": "e4d9a4b33e1418bc0c9ab360651a7acd262b20c595676d715c2d4efa13318346",
+    ".tmp/utf8-work-hy676k32/native-release-min/gcc-caller": "8baac9fda78665854f61284a99642ca89a2f9459f3ce72b7ab57df5961a4e2ee",
+    ".tmp/utf8-work-hy676k32/native-release-min/gpp-caller": "dfebdfd94000fcc30fc555506261e362928cb4b32dc4d16f8525d7bf48ee51ee",
+    ".tmp/utf8-work-hy676k32/native-release-min-rustc.stdout": "b2bdf493bcf6d1dc55181a0efc2774b6d9cf7bf5c8dcc5bed592c994b2ad38c4",
+    ".tmp/utf8-work-hy676k32/native-release-min-rustc.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-min-rustc-process.json": "09055b9a822436de092089dd3a32f1f5d2f6999ff5e63de224276c34245d8491",
+    ".tmp/utf8-work-hy676k32/native-release-min-rustc-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-min-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-min-build.stderr": "467ca5dfa3e32da60482ba63cf0f3087fadb7b21009aff6828b43819ca2f3247",
+    ".tmp/utf8-work-hy676k32/native-release-min-build-process.json": "3cd0558cb1d6d481d83a0641ba268d996d1dfc0a022e0898e17b1efce692d8a8",
+    ".tmp/utf8-work-hy676k32/native-release-min-build-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-min-unit-build.stdout": "36434a5d5d2c1b53fa8f84e8293622ac9c50f9ac271bda96594f7a8b9b1a3392",
+    ".tmp/utf8-work-hy676k32/native-release-min-unit-build.stderr": "00015df9a79ee741b9830fdeeea454737ad1c153d4dd7c5b5b5e6a24fa7f99a9",
+    ".tmp/utf8-work-hy676k32/native-release-min-unit-build-process.json": "923783ddeb34638572deed1b026154fd9e21ae56779fa6213c10d06dc20b6a8c",
+    ".tmp/utf8-work-hy676k32/native-release-min-unit-build-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-min-units0.stdout": "b3a6326cfca009d030f2438568d57c858bdd7e073c4dc0caa072ca31dc7427d7",
+    ".tmp/utf8-work-hy676k32/native-release-min-units0.stderr": "bdaf0f6fbcdb37aec88e308b0de508e9d4fcf76f29a182ef44e8ec8358aed67e",
+    ".tmp/utf8-work-hy676k32/native-release-min-units0-process.json": "eb337d177d68275e877a8fe035f1c9ca4d66a1960f2e2ed6044ef7419e2d6be7",
+    ".tmp/utf8-work-hy676k32/native-release-min-units0-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-min-regex.stdout": "a933c9204c5b0d462a5f96c6912bcace9b2d3d326f9aba2f2541dbbe353efac0",
+    ".tmp/utf8-work-hy676k32/native-release-min-regex.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-min-regex-process.json": "e5af63f30f13d6c6089a4e5f11dce76554d2bb5cd4d34c8538180d728ed93604",
+    ".tmp/utf8-work-hy676k32/native-release-min-regex-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-min-parser.stdout": "b10482a5f19a046b0a1d672d7a6023e07dfce501d51df054745daa7cd1f64502",
+    ".tmp/utf8-work-hy676k32/native-release-min-parser.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-min-parser-process.json": "d4987b75073d6f986d203749d67dddc321912259cfc15bc2e7b29a2180701bfd",
+    ".tmp/utf8-work-hy676k32/native-release-min-parser-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-min-queries.stdout": "0fb63cc8db9507ec51b54c26bc3f8a78c437c412f23dc800ada9827fd862a513",
+    ".tmp/utf8-work-hy676k32/native-release-min-queries.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-min-queries-process.json": "07525c515ce37b667d7ff2d5b011057438538f2ebda0c64b6e407907d7933d71",
+    ".tmp/utf8-work-hy676k32/native-release-min-queries-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-min-gcc-link.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-min-gcc-link.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-min-gcc-link-process.json": "a5501f653f2fa9bfa3c81f4f91aab05c41def79618237cdb347779b18fa29feb",
+    ".tmp/utf8-work-hy676k32/native-release-min-gcc-link-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-min-gcc-run.stdout": "89323956ef024b7dff645acc1656d1eff7493864b67a34ac0bfba9f19fd21199",
+    ".tmp/utf8-work-hy676k32/native-release-min-gcc-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-min-gcc-run-process.json": "4765df4f95c6ac56652332a6f59dc93e9177a5d31c4e842ed033173a35c515f5",
+    ".tmp/utf8-work-hy676k32/native-release-min-gcc-run-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-min-gpp-link.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-min-gpp-link.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-min-gpp-link-process.json": "308b2935502591b4ef9e492deca47487069f1e4bccb410364c3d03d0f119b695",
+    ".tmp/utf8-work-hy676k32/native-release-min-gpp-link-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-min-gpp-run.stdout": "89323956ef024b7dff645acc1656d1eff7493864b67a34ac0bfba9f19fd21199",
+    ".tmp/utf8-work-hy676k32/native-release-min-gpp-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-min-gpp-run-process.json": "d4005b60f86ea5e2dddfd99135443044469b660fe6e59db016de767771075d0c",
+    ".tmp/utf8-work-hy676k32/native-release-min-gpp-run-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/native-release-min-elf-size.stdout": "9157dbd2525d4287c12cae7dd7bb7f5190cddb55f14f2acf703d80ed67a92d89",
+    ".tmp/utf8-work-hy676k32/native-release-min-elf-size.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/native-release-min-elf-size-process.json": "cf9953df865a7836d80b3b370a73ec6dda608cdb93f7aa00eccf2f04dfae7f42",
+    ".tmp/utf8-work-hy676k32/native-release-min-elf-size-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/initial-aarch64-unknown-linux-gnu.json": "d5429a3edf168856cb5a69569be0f56e840ec321e3b48594685284bb895eef16",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release/promql-query-fixture": "510c8c450e5dbc57f04a1eb77bea4e9458fe8c98a723525e26df4fa8c2fa5400",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release/promql-frontend-fixture": "362daf13b7e350ee24bc2e769bdf5d04e746a3edc13c977fdde72af14ed72787",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release/libnetdata_promql_engine.a": "fdf48ee2cb54043a3af29a5d5046c89e0d7788e6da27f31dfd6246c6c9c244af",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release/unit": "52720b5cccd05d75f5b2ba7da72124b993400e82aa60465a5f786ea585e13777",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release/gcc-caller": "bf65a87d2b5828de222f7d2a15b1314a847f502065abdd6f4673a083d20498a6",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release/gpp-caller": "785b7d753ea3b9888f03c3045b963e78f9e2c8433e2867341a6b81c9090b1b4e",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-rustc.stdout": "b2bdf493bcf6d1dc55181a0efc2774b6d9cf7bf5c8dcc5bed592c994b2ad38c4",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-rustc.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-rustc-process.json": "9b3b15abd836c6b681c6d93b3c16ed53ccda84fc02f4db52fcbadcb9516826b5",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-rustc-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-qemu.stdout": "d8c45e9837fc577bbb30a777e3ce1c50469e6393d495783210817d24d88a5eb6",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-qemu.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-qemu-process.json": "2770e6675e450e840d7fa3683ffe681fd01b3830b3efe7b141070d05e18fef2b",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-qemu-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-build.stderr": "c9865de1c86e773f20ba78ff9e579430cad0ec23b95ddac000f6e576f0e245e6",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-build-process.json": "24b0619b843570d307001647d04ede687481767c46b3c4527c8d4ba76b4c4ac7",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-build-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-unit-build.stdout": "8609dbe326470616f9cfc6589a7ff5591d2c6fab98085a11751768267ab2bca5",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-unit-build.stderr": "0b1d7e6e91dd42076f8b691bc991b6a5daab511c8b94692f5c4d4c08d6a417d1",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-unit-build-process.json": "151721a494d008a7f9223e816ef0c19b89a24ddb7ef09204a76a6207f401e8c9",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-unit-build-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-units0.stdout": "e32ed4474455ba792c605898bff002a00ea539d8af0e5d0721c60bf7188c760e",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-units0.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-units0-process.json": "deb8386f1b3fad5465a7bd08c36857724754037a4df025334c9d234b5f6d8198",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-units0-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-units1.stdout": "9ee497ea4e562be0a6d2a2f2a3d48d3b680de925bbc25ab42c33a272cb07103e",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-units1.stderr": "811ffe329c159e81b853855dbced73df1bbae68b2d98a7972db32ff0d9ef93ff",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-units1-process.json": "660f06e3ac488920667712bd53e5dd65d7382276b366b7bb41b5d2b0d42e87df",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-units1-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-regex.stdout": "a933c9204c5b0d462a5f96c6912bcace9b2d3d326f9aba2f2541dbbe353efac0",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-regex.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-regex-process.json": "8f10c27168aa414c2da2532eaf8e53401a2fdc9d81ed0a9b7f8988d1be2b2abc",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-regex-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-parser.stdout": "b10482a5f19a046b0a1d672d7a6023e07dfce501d51df054745daa7cd1f64502",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-parser.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-parser-process.json": "9da23c05b9534b08524434a76769734b5305195a90617fc002969600354f931d",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-parser-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-queries.stdout": "4c7cb6021170a800880535344eb4ad4dbebab7856443cc6851d5d657bc980913",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-queries.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-queries-process.json": "df6d9809af8c06bb9ea6c0352bd66ee601464c5c41fece68b72ad44319af6a62",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-queries-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gcc-link.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gcc-link.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gcc-link-process.json": "bda7403a48fea5b767500c16daec2dd003a86cd1f2c29c22924ba22be6c2b894",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gcc-link-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gcc-run.stdout": "89323956ef024b7dff645acc1656d1eff7493864b67a34ac0bfba9f19fd21199",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gcc-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gcc-run-process.json": "de2c683841210c3de633fabe4449320a2dd60564c8ac8c5826805392f1d0db82",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gcc-run-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gpp-link.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gpp-link.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gpp-link-process.json": "45fb3b95a19e5805f1ca965794bd5962744c40dec1efbf25abbee7d720abd7a3",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gpp-link-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gpp-run.stdout": "89323956ef024b7dff645acc1656d1eff7493864b67a34ac0bfba9f19fd21199",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gpp-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gpp-run-process.json": "a11c5c8430b31551383a9f73a477d3affb0fb3c4022c77951727746ae4efa0c8",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-gpp-run-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min/promql-query-fixture": "dc61880576cfd6a3355aab9172af747f91c45967e9a061a0df5fe22dbece2e87",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min/promql-frontend-fixture": "ef07be4607140031298efca144585f1af3f946c545a4d2d1ff324d2aefa540b0",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min/libnetdata_promql_engine.a": "3500af0ed08342e45bafeabc273936489b1d188378f45db57fbc5958b3abebdb",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min/unit": "cecb500de78ddc4ec15f649c64a9361f2ef647b6802fc21e554b12e31f6e5de0",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min/gcc-caller": "3a8d2c443612270dd635638aa684d912315bf2656a1ef975229cf9df091ecb2f",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min/gpp-caller": "05df0ae2ce90c502f9af7faa709178cd5d94ed56cf9ca4837888937ed830da04",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-rustc.stdout": "b2bdf493bcf6d1dc55181a0efc2774b6d9cf7bf5c8dcc5bed592c994b2ad38c4",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-rustc.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-rustc-process.json": "550b8d8954cf6b8a355cf60c9d40f717dbef61af9102546a05de5e77b824f8f7",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-rustc-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-qemu.stdout": "d8c45e9837fc577bbb30a777e3ce1c50469e6393d495783210817d24d88a5eb6",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-qemu.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-qemu-process.json": "4ce37080b38bc6dbc958c937a0261f52ac7516395597aaccceedff971473b389",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-qemu-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-build.stderr": "123b6dd13d0eff06a8eb44d27a5c0d66f42c1a3a3770ed419696e519b2ca5af9",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-build-process.json": "5e36b983e26b7cf24520796dd3cfc9d28b1a0690dea0702c2a385a081e411410",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-build-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-unit-build.stdout": "0dcf2d637bc34adbd8c12a370de03c66c970d27e79a8a74e1fb6ad41df1f1d1d",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-unit-build.stderr": "17b5edeb8dcc8c36d449b434bfd688e6463c1475a0dabdda46429beca6c19e73",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-unit-build-process.json": "a35bfb80e195e42f571906c5aab85e8b727ee121fe2caac35ec1e6399d5592da",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-unit-build-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-units0.stdout": "e93ea0ab5f9ab82ee7fc5cbdebf778da8edbf267e4a0385dc257f856e7ce53ed",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-units0.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-units0-process.json": "14421815b9ba91096e7e0d2e7b0af7c3e69d6078b809d8b492f42e8808a40053",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-units0-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-units1.stdout": "354d953a36c7f50139ca4349ed2915591740e6022c19b539297a7123f6fdf282",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-units1.stderr": "88b1a08b412e0f9c41ec35612abadf5865e7756e1851c87852c512175125f477",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-units1-process.json": "7e112101d6866964658ecee422338653386d188797d774c0c775bed27bfefaf1",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-units1-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-regex.stdout": "a933c9204c5b0d462a5f96c6912bcace9b2d3d326f9aba2f2541dbbe353efac0",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-regex.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-regex-process.json": "47bf291ec4f126f58b9a7a3242bbfb776542d5f8d7880f1e76962561505e50bc",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-regex-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-parser.stdout": "b10482a5f19a046b0a1d672d7a6023e07dfce501d51df054745daa7cd1f64502",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-parser.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-parser-process.json": "8b7b0d79b1e761aadf34f7921555d158d6180612f08e6fd13a67b4c3fcb0a351",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-parser-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-queries.stdout": "c83b7130ffc8b882f7599cebe8805719affd29abbe21cf0c1112065e3021069a",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-queries.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-queries-process.json": "1af26ade37908a13632f16e646403795b5def9ac9f8ac87d2ebead599c90d7c3",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-queries-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gcc-link.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gcc-link.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gcc-link-process.json": "b9bf033c12a741cd271bb90d4a863be3e015ea5ce747e55e47ff4100c9e28083",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gcc-link-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gcc-run.stdout": "89323956ef024b7dff645acc1656d1eff7493864b67a34ac0bfba9f19fd21199",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gcc-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gcc-run-process.json": "5094dab259c160521aa1b3998ecd2a909dad94d22642fe7983eb96a858cfa65f",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gcc-run-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gpp-link.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gpp-link.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gpp-link-process.json": "613e5ca667afbd5d4e87f5ddb0a3c2a2097635d6ce417b9229538555b593cfb2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gpp-link-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gpp-run.stdout": "89323956ef024b7dff645acc1656d1eff7493864b67a34ac0bfba9f19fd21199",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gpp-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gpp-run-process.json": "bd0a792760e3f294c7ec61753d02d3bd791db1ea5eea7755c9ae4b739ebaa932",
+    ".tmp/utf8-work-hy676k32/aarch64-unknown-linux-gnu-release-min-gpp-run-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/initial-armv7-unknown-linux-gnueabihf.json": "ba88d82be589af5d7cc7f65424842ff6ee5ecdb6d922b996f1c2dd1036b033db",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release/promql-query-fixture": "12a8fe2ba1d2a5643dbf512a9df66044b43f1b2ea9f67dc3eb356cba02e2e47f",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release/promql-frontend-fixture": "96ca83bd7f379e7f30215d3aa5d145b322af4d8751a9e6b2c8849e8f9e0a3c0b",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release/libnetdata_promql_engine.a": "d33d59d5592d30831430b25ee9f106f00c3bd3155adadd5e23a9bfc258016453",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release/unit": "a7a9bdce8c05d22b3d12d52bc2d2bb52949eeb1f4b87cae39a6b16d3e1f93d95",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release/gcc-caller": "2986f68bbedbc5e8a7ea71ebf66e6c6d7ec7cc91d130c0bccb8fadf59337f112",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release/gpp-caller": "a4ee8a4869bb74300893dc3f10c31b35c65f380cb5d5c1cb68f20ac897df7bbf",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-rustc.stdout": "b2bdf493bcf6d1dc55181a0efc2774b6d9cf7bf5c8dcc5bed592c994b2ad38c4",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-rustc.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-rustc-process.json": "13b1ed53d0ced16a4be264c9163b8aa8fefdc5c6ded045a982557d4cb6b961ff",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-rustc-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-qemu.stdout": "a9df0452512a4cc35945ec3f765f95ffd0eccbc5a552096c616690da551b1f2a",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-qemu.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-qemu-process.json": "64f8431faae019b12fcdbb2db1491b65aa8fe43a34ed9bc6d7f66e1c9770fbd3",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-qemu-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-build.stderr": "7d3725a242d72031d73a191f7c6576edb05de54b6d86a49e5f7ed75760618e0e",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-build-process.json": "4218dea52c849b2c2c2033c0262922a573355196702f7199d5280be397944c08",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-build-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-unit-build.stdout": "ca82ba0a2ddfdda2dd856c7efd5b20abe04e1f55682dc50051c74c32c8f823f4",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-unit-build.stderr": "a487e86249866a39f2f418ce5cb80a8fc7200a9925d2fafc157919452d3e9b5f",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-unit-build-process.json": "8d502b82d13660296780c7db0369b61f6415b9d8dff7c050e62e6a80549289eb",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-unit-build-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-units0.stdout": "211a7f70a1c538e48b9375799581fb47f587498312994101cf6bd53eb9720aab",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-units0.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-units0-process.json": "976fbb4aa96e7a0dbbb64cb9a738d7aa1bc95bb6f52c6d25f8df3f827e40317b",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-units0-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-units1.stdout": "11197ec514ba4f2058ddf176145ee9c77708ac02f972fe5cc60a58ec275492c1",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-units1.stderr": "2bf07ce9abd0e0e7129aaa0327d4b972ec4b5b106c04d5221f325a21436caa85",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-units1-process.json": "d0a62c337de13f9979b4a3ec8e71180d542606e2edf5f0de62e8e252af6a4b8f",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-units1-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-regex.stdout": "a933c9204c5b0d462a5f96c6912bcace9b2d3d326f9aba2f2541dbbe353efac0",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-regex.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-regex-process.json": "69826dca0d01d7f337a55687f748b17f6beea223fd165b4ab3904fbccf50593e",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-regex-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-parser.stdout": "b10482a5f19a046b0a1d672d7a6023e07dfce501d51df054745daa7cd1f64502",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-parser.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-parser-process.json": "f03a3c0d0d135bb981d56f1897838dbe99d7a19a61437ae53e934b6ff26822e0",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-parser-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-queries.stdout": "2c42e2edf85d14c7a4a03163f1dab459919e6cb80407af5bf041ffb57527ae98",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-queries.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-queries-process.json": "b033e0762b7a04caa6de35c8972817dec2861ccc5b7eaaa5994211c953a973a6",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-queries-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gcc-link.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gcc-link.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gcc-link-process.json": "bb0a74d7ecd4870f7a59773506595fe48056aafa4ec24635754edcb0c1f426d2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gcc-link-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gcc-run.stdout": "89323956ef024b7dff645acc1656d1eff7493864b67a34ac0bfba9f19fd21199",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gcc-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gcc-run-process.json": "f9c29acf898539519cf758823f4cc67bc95bae289f781004b8806e832d98c677",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gcc-run-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gpp-link.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gpp-link.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gpp-link-process.json": "04535ab32f9c80171c42dc7741926ef9b9ba4a6b7888ffb3886e732da4094b86",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gpp-link-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gpp-run.stdout": "89323956ef024b7dff645acc1656d1eff7493864b67a34ac0bfba9f19fd21199",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gpp-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gpp-run-process.json": "a081eb19399e1ea24525a87edd2d3dcf26a632393c7c0c9560147cae67992fb4",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-gpp-run-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min/promql-query-fixture": "62f5d7846f648b8ca7e9961ca52d2d76baf790cca3da5e4f90f55369071f2f25",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min/promql-frontend-fixture": "411146c547a1f8471c67e2aba9920683d9c6b5316823bf214b1e2a995451626d",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min/libnetdata_promql_engine.a": "66695033e6a7f8dc2b18812b6202315497d04562bac78d784f026f063ab55284",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min/unit": "cf837e84528fb4c3ddab2802aae56b147260b38caa5bd69be01c7aadcd402215",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min/gcc-caller": "ccc3794fe0a09f06cc9e29305e7ffa107a554f1b95d1816a2013d6bf92178a3b",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min/gpp-caller": "a004a85700f7e5ae3dc4244a0004042c3fba4858b650e769083af0f0edb2b6f3",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-rustc.stdout": "b2bdf493bcf6d1dc55181a0efc2774b6d9cf7bf5c8dcc5bed592c994b2ad38c4",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-rustc.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-rustc-process.json": "fba2bb39c35d9834315b5ff79b1a446d641c6eae76b3a50ef7357ad9cfe2a3a3",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-rustc-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-qemu.stdout": "a9df0452512a4cc35945ec3f765f95ffd0eccbc5a552096c616690da551b1f2a",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-qemu.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-qemu-process.json": "1df9b21e0e9fc19703dee01935cda96fff891867fb93dd9f4d9b82729df91a26",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-qemu-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-build.stderr": "bda9ad799d97f2fbf4615f8ca65ab2ebc92312466bc8b4b03320e7e2ede135ac",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-build-process.json": "3fb38c06bfc92d7aadd991964d53988ec45d41e15089a3051bf8e8980538f458",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-build-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-unit-build.stdout": "cb09c4937b8d300afe8dc4fce27f681d5998a7858c0cc91572cd96ae060ab60d",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-unit-build.stderr": "d54324daff198f48f03f1d355fe0ca1ab2b7209bd6fe4b5f6ae2233e00fb70cb",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-unit-build-process.json": "a1a5de9e157a8797bd16e783ba4fb2c5ad1b32328880e90782b97acb199d094b",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-unit-build-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-units0.stdout": "e32ed4474455ba792c605898bff002a00ea539d8af0e5d0721c60bf7188c760e",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-units0.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-units0-process.json": "96cbb211c6f9f2c3fb086624a996b84d40c8620e52d40124787156b2e00491c1",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-units0-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-units1.stdout": "3154a2929121bcddbb7ad81f0e8188bb3756b83c858db79006253f0399c14e26",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-units1.stderr": "efa06988bf5f8175342a55c9dc66df30f5ea4e2fc58f08667d36cb9f704891b1",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-units1-process.json": "a34e928e7b0d7110c92d8da2d6d5dcf630ca145fb90a5f1dc4483c70fc7db5ab",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-units1-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-regex.stdout": "a933c9204c5b0d462a5f96c6912bcace9b2d3d326f9aba2f2541dbbe353efac0",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-regex.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-regex-process.json": "e839ebeed682399f3cba5df006011990f5e03e80011f73f04f585d6010c7cb4f",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-regex-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-parser.stdout": "b10482a5f19a046b0a1d672d7a6023e07dfce501d51df054745daa7cd1f64502",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-parser.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-parser-process.json": "91fc1d1e1d2c095d0b1f8e8ddc987a9dc582727afadca04398e30b6620d0b966",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-parser-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-queries.stdout": "2a71d96f2470798e37d209f2566a72046b5a5a7dddf5e3b4a26ffd1d00cff487",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-queries.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-queries-process.json": "f5f0a64ff66ffb7382f2898911939923bf7c5dc4630c0cd49aa94396411e548e",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-queries-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gcc-link.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gcc-link.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gcc-link-process.json": "6b1a50b32e848deaa3e09b75896a242eb4e61d95c99c65850fbe145c2fb97dd8",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gcc-link-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gcc-run.stdout": "89323956ef024b7dff645acc1656d1eff7493864b67a34ac0bfba9f19fd21199",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gcc-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gcc-run-process.json": "4f518317637ebefc0f789c8b7eb4ecd0bebeff6c492b46ab4143948ee944ce1a",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gcc-run-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gpp-link.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gpp-link.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gpp-link-process.json": "ff18fa68406f818e3602167abd67debdcbcc82fcb4826ae26ddb915ed15a5cd5",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gpp-link-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gpp-run.stdout": "89323956ef024b7dff645acc1656d1eff7493864b67a34ac0bfba9f19fd21199",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gpp-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gpp-run-process.json": "0f5ae684bcb3a2a295e8235f55fcb901d61bdcb08bd2b2dfe9e6459342007b38",
+    ".tmp/utf8-work-hy676k32/armv7-unknown-linux-gnueabihf-release-min-gpp-run-status.json": "3e42a2ad3dbeab9d1167d20261ad6305bdea31103ffc09c30f25558345966de2"
+  },
+  "limitations": [
+    "Only the native profiles execute the complete unit roster; foreign units focus on shared work and regex owners.",
+    "Native executed-query observations match exactly; parse-only failures have no execution observations. No RSS or allocator-resident-byte claim.",
+    "Original expectations retain their original sources and numerical/order contracts. New boundaries compare published before/candidate complete outcomes plus direct scalar/byte/work tests.",
+    "No new live API/DBengine throughput, concurrent query, physical ARM performance or CI-pass qualification.",
+    "Timing excludes compilation and fixture transport; all fixed shared-host samples and slower controls are retained."
+  ]
+}
