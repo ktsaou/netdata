@@ -13576,6 +13576,170 @@ mod tests {
         }
     }
     #[test]
+    fn histogram_full_hash_collisions_keep_uncertified_merge_and_duplicate_behavior() {
+        fn native(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::FloatHistogram(
+                    crate::histogram::FloatHistogram {
+                        zero_threshold: 1.0,
+                        zero_count: 2.0,
+                        count: 2.0,
+                        ..Default::default()
+                    },
+                ),
+            }
+        }
+        fn first(index: usize) -> crate::value::Sample {
+            let mut sample = native(index);
+            if index == 1 {
+                sample.value =
+                    crate::value::SampleValue::Float(f64::from_bits(crate::value::STALE_NAN_BITS));
+            }
+            sample
+        }
+        fn second(index: usize) -> crate::value::Sample {
+            let mut sample = native(index);
+            sample.time_ms = [1000, 3000][index];
+            if index == 0 {
+                sample.value =
+                    crate::value::SampleValue::Float(f64::from_bits(crate::value::STALE_NAN_BITS));
+            }
+            sample
+        }
+        let values = crate::test_storage::FULL_LABEL_HASH_COLLISION_VALUES;
+        let engine = Engine::default();
+        let control = Control::default();
+        for expression in [
+            b"histogram_quantile(1,{__name__=~\"n.+\"})".as_slice(),
+            b"histogram_fraction(-1,1,{__name__=~\"n.+\"})",
+        ] {
+            for page in [1, 17, 1024] {
+                for delayed in [false, true] {
+                    for overlap in [false, true] {
+                        let mut input = FixtureProvider::new(2, page, 2);
+                        for (ordinal, row) in input.series.iter_mut().enumerate() {
+                            row.labels = vec![
+                                (b"__name__".to_vec(), [b"n0", b"n1"][ordinal].to_vec()),
+                                (b"a".to_vec(), values[ordinal].to_vec()),
+                            ];
+                            row.source.sample = if overlap {
+                                native
+                            } else if ordinal == 0 {
+                                first
+                            } else {
+                                second
+                            };
+                        }
+                        let compiled = engine
+                            .compile(
+                                expression,
+                                EngineOptions {
+                                    lookback_ms: 1500,
+                                    delayed_name_removal: delayed,
+                                    ..EngineOptions::default()
+                                },
+                                &control,
+                            )
+                            .unwrap();
+                        let request = QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 4000,
+                            step_ms: 1000,
+                        };
+                        if !overlap && !delayed && page == 1 {
+                            let account = compiled.execution_accounting();
+                            {
+                                let header = compiled.header(request).unwrap();
+                                let prepared = Prepared::new(
+                                    &compiled.expression,
+                                    &compiled.preprocessing,
+                                    header,
+                                    compiled.options.no_step_subquery_interval_ms,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                                let header = prepared.evaluator_header();
+                                prepared.activate(header, &control, &account).unwrap();
+                                let options =
+                                    compiled.evaluation_options(header, header.start_ms, &prepared);
+                                let bounds = crate::query_bounds::find(
+                                    &compiled.expression,
+                                    options,
+                                    &prepared,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                                let scope = input.open(bounds, &control).unwrap();
+                                let catalog = Catalog::new(
+                                    &scope,
+                                    &compiled.expression,
+                                    &prepared,
+                                    options,
+                                    compiled.options.no_step_subquery_interval_ms,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                                let rosters = compiled
+                                    .prepare_rosters(
+                                        &catalog,
+                                        &prepared,
+                                        bounds,
+                                        &control,
+                                        &account,
+                                        &mut Annotations::default(),
+                                    )
+                                    .unwrap();
+                                assert!(
+                                    !rosters
+                                        .histogram(compiled.expression.root)
+                                        .unwrap()
+                                        .streams_ordered()
+                                );
+                            }
+                            account.snapshot().assert_memory_released();
+                            input.assert_closed();
+                        }
+                        let result = compiled.collect(&input, request, &control);
+                        if overlap {
+                            assert!(matches!(
+                                result,
+                                Err(ExecutionError::Evaluation(EvaluationError::Invalid(
+                                    "vector cannot contain metrics with the same labelset"
+                                )))
+                            ));
+                        } else {
+                            let (result, observed) = result.unwrap();
+                            assert_eq!(result.series.len(), 1);
+                            let row = &result.series[0];
+                            assert_eq!(row.labels.0.len(), 1);
+                            assert_eq!(&*row.labels.0[0].name, b"a");
+                            assert_eq!(&*row.labels.0[0].value, values[0]);
+                            assert_eq!(
+                                row.points
+                                    .iter()
+                                    .map(|point| (point.time_ms, float_bits(point)))
+                                    .collect::<Vec<_>>(),
+                                [
+                                    (1000, 1.0f64.to_bits()),
+                                    (3000, 1.0f64.to_bits()),
+                                    (4000, 1.0f64.to_bits())
+                                ]
+                            );
+                            assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
+                        }
+                        input.assert_closed();
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn empty_group_keys_remain_distinct_until_source_label_projection() {
         let mut provider = FixtureProvider::new(1, 1, 2);
         provider.series[0].labels = vec![

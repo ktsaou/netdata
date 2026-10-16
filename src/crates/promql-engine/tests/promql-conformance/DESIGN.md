@@ -848,8 +848,15 @@ integration, and Alertmanager remains excluded.
   an empty current tick drains normally. Vector forwarding retains the shared child, while ancestor truncation drops it.
 - **Fallbacks:** dynamic scalar arguments, Quantiles, aliases/reordering, empty rosters and One/Ordinals/Contributors
   retain ordinary behavior, including no-match early exit. Numeric and physical bound order remain unchanged.
-- **Costs:** one Plan flag and a longer-lived existing Step. Its seen hashes can grow across outputs; binding and
-  duplicate searches remain. Measure peak, allocation traffic and useful/physical sample counts separately; no
+- **Emission:** outside own preparation, Quantile/Fraction reuse the binding ordinal already selected by `choose`.
+  Checked subtraction/get and key/occurrence validation retain the missing-binding error. Dynamic and selected
+  routes use the same identity; logical preparation and Quantiles retain their ordinary searches.
+- **Duplicate proof:** canonical assembly merges equal hashes before certification. The complete singleton binding
+  bijection therefore proves distinct hashes, allowing certified nonlogical emission to omit its seen buffer.
+  Uncertified, plural and own-preparation routes keep hash-only duplicate handling. Poll after checked label copy
+  before phase publication or fallback sample ownership, even when the hash walk is omitted.
+- **Costs:** one Plan flag and a longer-lived existing Step, with no additional index or cache. Presence/group and
+  other metadata searches remain. Measure peak, allocation traffic and useful/physical sample counts separately; no
   universal linear-work or lower-RSS claim. Procedure and finite evidence belong to
   [the owning guide](README.md#ordered-histogram-streaming).
 

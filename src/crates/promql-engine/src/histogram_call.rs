@@ -988,12 +988,24 @@ impl<'a> Step<'a> {
             )
         } else {
             let mut found = None;
-            for (position, entry) in self.plan.bindings.iter().enumerate() {
+            if matches!(self.arguments.function, Function::Quantiles) {
+                for (position, entry) in self.plan.bindings.iter().enumerate() {
+                    control.check()?;
+                    account.work(1);
+                    if self.binding_matches(entry, key, occurrence, control, account)? {
+                        found = Some(position);
+                        break;
+                    }
+                }
+            } else {
+                // Single-quantile selection already advanced past this frozen binding.
                 control.check()?;
                 account.work(1);
-                if self.binding_matches(entry, key, occurrence, control, account)? {
-                    found = Some(position);
-                    break;
+                if let Some(ordinal) = self.position.checked_sub(1)
+                    && let Some(entry) = self.plan.bindings.get(ordinal)
+                    && self.binding_matches(entry, key, occurrence, control, account)?
+                {
+                    found = Some(ordinal);
                 }
             }
             let ordinal = found.ok_or(EvaluationError::Invalid(
@@ -1008,13 +1020,18 @@ impl<'a> Step<'a> {
                 )?,
             )
         };
-        let hash = label_hash::full(&labels, control, account)?;
-        for previous in &*self.seen {
+        if preparation.is_none() && self.plan.streams_ordered() {
+            // Hash-merged output certification proves distinct frozen binding hashes.
             control.check()?;
-            account.work(1);
-            self.duplicate |= *previous == hash;
+        } else {
+            let hash = label_hash::full(&labels, control, account)?;
+            for previous in &*self.seen {
+                control.check()?;
+                account.work(1);
+                self.duplicate |= *previous == hash;
+            }
+            self.seen.push(hash);
         }
-        self.seen.push(hash);
         self.phase = Phase::Choose;
         Ok(EvaluatedSample {
             ordinal,
@@ -1790,6 +1807,159 @@ mod tests {
             start_timestamps: false,
             delayed_name_removal: false,
         }
+    }
+
+    fn frozen_emission_plan(
+        count: usize,
+        certified: bool,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Plan {
+        let mut rows = AccountedVec::new(account, MemoryKind::Workspace);
+        for ordinal in 0..count {
+            row(
+                &mut rows,
+                2,
+                &[(b"a", format!("{ordinal:08}").as_bytes())],
+                account,
+            );
+        }
+        let mut plan = Plan::new(rows, control, account).unwrap();
+        let mut cache = Cache::new(account);
+        for (ordinal, row) in plan.rows.iter().enumerate() {
+            cache.bindings.push(Binding {
+                key: BindingKey::Native(ordinal),
+                occurrence: 0,
+                labels: row
+                    .labels
+                    .copy_checked(account, MemoryKind::Workspace, control)
+                    .unwrap(),
+            });
+        }
+        plan.finish(cache);
+        if certified {
+            let mut outputs = AccountedVec::new(account, MemoryKind::Workspace);
+            for binding in &*plan.bindings {
+                row(
+                    &mut outputs,
+                    1,
+                    &[(b"a", &binding.labels.0[0].value)],
+                    account,
+                );
+                let output = outputs.last_mut().unwrap();
+                output.drop_name = true;
+                output.hash = label_hash::full(&output.labels, control, account).unwrap();
+            }
+            let sources: Vec<_> = (0..count).collect();
+            plan.certify_ordered_streaming(&outputs, &sources, control, account)
+                .unwrap();
+        }
+        assert_eq!(plan.streams_ordered(), certified);
+        plan
+    }
+
+    #[test]
+    fn frozen_histogram_emission_reuses_selected_identity_with_bounded_work() {
+        let mut measured = Vec::new();
+        for count in [32, 128] {
+            for certified in [false, true] {
+                for function in [Function::Quantile, Function::Fraction] {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let plan = frozen_emission_plan(count, certified, &control, &account);
+                    let selected = [count - 1, count - 1];
+                    let mut step = distribution_step(&plan, &account);
+                    step.arguments.function = function;
+                    if !certified {
+                        step.selected = Some(&selected);
+                    }
+                    for row in 0..count {
+                        step.active.push(Active {
+                            row,
+                            kind: 2,
+                            skip: false,
+                        });
+                    }
+                    let mut work = 0;
+                    let mut emitted = 0;
+                    while step.choose(false, &control, &account).unwrap() {
+                        let ordinal = if certified { emitted } else { count - 1 };
+                        let before = account.snapshot().work;
+                        let sample = step
+                            .emit(-0.0, None, distribution_options(), None, &control, &account)
+                            .unwrap();
+                        work += account.snapshot().work - before;
+                        assert_eq!(sample.ordinal, ordinal);
+                        assert_eq!(sample.labels.0.len(), 1);
+                        assert_eq!(&*sample.labels.0[0].name, b"a");
+                        assert_eq!(
+                            &*sample.labels.0[0].value,
+                            format!("{ordinal:08}").as_bytes()
+                        );
+                        assert!(
+                            matches!(sample.value, OwnedValue::Float(value) if value.to_bits() == (-0.0f64).to_bits())
+                        );
+                        assert_eq!(sample.source_time_ms, 2000);
+                        assert_eq!(sample.source_start_time_ms, 0);
+                        assert!(sample.drop_name && sample.float_samples.is_some());
+                        emitted += 1;
+                    }
+                    assert_eq!(emitted, if certified { count } else { 1 });
+                    assert!(!step.duplicate);
+                    drop(step);
+                    drop(plan);
+                    account.snapshot().assert_memory_released();
+                    println!(
+                        "{{\"histogram_emit_bindings\":{count},\"certified\":{certified},\"emitted\":{emitted},\"emit_work\":{work}}}"
+                    );
+                    measured.push((count, certified, emitted, work));
+                }
+            }
+        }
+        for (count, certified, emitted, work) in measured {
+            assert!(
+                work <= 64 * emitted as u64,
+                "count={count},certified={certified},emit_work={work}"
+            );
+        }
+    }
+
+    #[test]
+    fn certified_histogram_emission_polls_after_copy_before_sample_ownership() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let plan = frozen_emission_plan(1, true, &control, &account);
+        let before = account.snapshot().work;
+        let labels = plan.bindings[0]
+            .labels
+            .copy_checked(&account, MemoryKind::Workspace, &control)
+            .unwrap();
+        let copy_work = account.snapshot().work - before;
+        drop(labels);
+        let mut step = distribution_step(&plan, &account);
+        step.active.push(Active {
+            row: 0,
+            kind: 2,
+            skip: false,
+        });
+        assert!(step.choose(false, &control, &account).unwrap());
+        let before = account.snapshot().work;
+        let outcome =
+            crate::test_storage::interrupt_after_work(&account, &control, 1 + copy_work, || {
+                step.emit(0.5, None, distribution_options(), None, &control, &account)
+            });
+        assert!(matches!(
+            outcome,
+            Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+        ));
+        assert_eq!(account.snapshot().work - before, 1 + copy_work);
+        assert_eq!(account.snapshot().statistics.samples.peak_samples, 0);
+        drop(outcome);
+        drop(step);
+        drop(plan);
+        account.snapshot().assert_memory_released();
     }
 
     #[test]

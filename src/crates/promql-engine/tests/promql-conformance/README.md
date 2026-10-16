@@ -5391,11 +5391,39 @@ The existing C histogram caller now includes unequal-end one-tick ranges beside 
 per program across functions, raw/rate inputs, names and pages. It asserts complete membership, labels, timestamps,
 bits, diagnostics, logical totals and cleanup; physical reads and live-sample peaks remain observations.
 
-A Plan flag and a longer-lived Step have measurable costs. Existing seen hashes span more outputs, and frozen
-binding/duplicate searches remain. Preserve all peak categories, allocation traffic, slower controls and actual
-caller statistics beside finite timings. Lower allocation traffic does not prove lower peak RAM or process RSS.
+A Plan flag and a longer-lived Step have measurable costs. Preserve all peak categories, allocation traffic, slower
+controls and actual caller statistics beside finite timings. Lower allocation traffic does not prove lower peak RAM
+or process RSS. The initial adapter qualification below predates the separate frozen-emission improvement.
 
-The [qualification](histogram-streaming-qualification.json) records 700 passing units and two ignored measurements
+Frozen Quantile/Fraction emission reuses the ordinal already selected by `choose`, with checked bounds and the
+existing key/occurrence validation. This includes dynamic parameters and selected filters. Own logical preparation
+and Quantiles retain their original searches. The existing ordered certificate has a separate use: canonical
+assembly merges equal hashes before certification, so the complete singleton binding bijection proves distinct
+binding hashes. Certified emission outside own preparation can omit hash computation, duplicate scans and seen
+storage. Uncertified output retains hash-only duplicates, including unequal byte labels with the same full hash.
+
+Omitting the hash walk must retain the control poll after label copy, before phase publication and fallback sample
+ownership. Test cancellation at the final label-copy work charge and require zero sample peak. The distinguishing
+unit filters are `frozen_histogram_emission_reuses_selected_identity_with_bounded_work`,
+`certified_histogram_emission_polls_after_copy_before_sample_ownership` and
+`histogram_full_hash_collisions_keep_uncertified_merge_and_duplicate_behavior`. The growth control checks complete
+outputs and cleanup before measuring emission alone, keeping group-presence scans outside the measured interval.
+Repeated selected ordinals emit once; actual disjoint/overlapping collision timelines retain merge/error behavior.
+The [separate qualification](histogram-emission-qualification.json) records its actual source, binaries and costs.
+
+The emission qualification passes 703 units with two ignored measurements per optimized native profile, 4,344 native
+original comparisons at pages 1/17/1024 and 1,448 compiled ARM32/ARM64 release comparisons at page 17. Four current
+default-feature C programs cover all three page sizes and 288 complete queries. Sample statistics and fetched entries
+are unchanged. Other ABI, Agent/live, installation and language cohorts retain their historical source identities.
+
+At 128 bindings, isolated certified emission falls from 19,200 to 1,536 work units; an uncertified last-only selection
+falls from 150 to 23. Whole-query timing differences are modest and comparable to control variation: 256-group scalar
+quantile range medians are 332.44/326.77 ms, and fraction medians are 305.75/298.02 ms. Fourteen of 84 workloads are
+0.08–4.41% slower in the finite alternating panel. This does not establish a general throughput improvement. Across
+724 same-input cases, workspace peak changes are -32..0 bytes and allocation traffic changes are -16,704..0 bytes;
+the other seven memory categories are unchanged. Keep traffic, simultaneous peak and process RSS distinct.
+
+The initial adapter [qualification](histogram-streaming-qualification.json) records 700 passing units and two ignored measurements
 in each optimized native profile. All 4,344 native and 4,344 compiled ARM32/ARM64 release comparisons match the
 pinned original semantically and bitwise at pages 1/17/1024. The release page-17 cohort reuses the verified output
 of the identical earlier candidate binary. Earlier release/ARM32/containing artifacts keep their actual source
