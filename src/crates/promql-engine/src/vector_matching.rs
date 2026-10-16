@@ -431,7 +431,7 @@ impl Plan {
             hashes.push(label_hash::full(&entry.labels, control, account)?);
         }
         let many = usize::from(cardinality == Cardinality::OneToMany);
-        let Some(plan) = crate::pair_discovery::Plan::new(
+        let Some(mut plan) = crate::pair_discovery::Plan::new(
             pairs,
             hashes,
             many,
@@ -442,6 +442,13 @@ impl Plan {
         else {
             return Ok(());
         };
+        plan.certify_frontier(
+            [&self.sides[0].signatures, &self.sides[1].signatures],
+            self.signature_count,
+            many,
+            control,
+            account,
+        )?;
         control.check()?;
         replay.rows = ReplayRows::PairDiscovery(AccountedBox::new(
             plan,
@@ -629,6 +636,7 @@ pub(crate) struct Step<'a> {
     seen: AccountedVec<u64>,
     seen_index: PositionIndex,
     duplicate: bool,
+    frontier: bool,
     phase: Phase,
     position: usize,
     retry: bool,
@@ -667,6 +675,7 @@ impl<'a> Step<'a> {
             seen: AccountedVec::new(account, MemoryKind::Workspace),
             seen_index: PositionIndex::new(account),
             duplicate: false,
+            frontier: false,
             phase: Phase::StartLeft,
             position: 0,
             retry: false,
@@ -767,6 +776,17 @@ impl<'a> Step<'a> {
         control.check()?;
         let completed = replay.completed.borrow();
         if let Some(step) = completed.as_ref().filter(|step| step.key == key) {
+            if let ReplayRows::PairDiscovery(plan) = &replay.rows
+                && plan.has_frontier()
+                && !self.operator.is_set()
+                && self.matching.fill_left.is_none()
+                && self.matching.fill_right.is_none()
+            {
+                control.check()?;
+                self.frontier = true;
+                self.phase = Phase::Pairs;
+                return Ok(());
+            }
             let left = self.plan.sides[0].rows.len();
             let rows = left + self.plan.sides[1].rows.len();
             // Ascending bits retain physical row order across the side boundary.
@@ -916,6 +936,11 @@ impl<'a> Step<'a> {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), Interrupted> {
+        if self.frontier {
+            control.check()?;
+            account.work(1);
+            return Ok(());
+        }
         if self
             .seen_index
             .find(
@@ -981,6 +1006,9 @@ impl<'a> Step<'a> {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<bool, EvaluationError> {
+        if self.frontier {
+            return Ok(false);
+        }
         let Some(progress) = progress else {
             return Ok(false);
         };
@@ -1011,7 +1039,11 @@ impl<'a> Step<'a> {
         let Some(kept) = plan.state(ordinal, control, account)? else {
             return Ok(false);
         };
-        let hash = plan.hash(ordinal);
+        let hash = if plan.has_frontier() {
+            label_hash::full(&self.plan.cache.entries[ordinal].labels, control, account)?
+        } else {
+            plan.hash(ordinal)
+        };
         self.reserve_pair(signature, hash, control, account)?;
         if kept {
             self.record_seen(hash, control, account)?;
@@ -1167,6 +1199,11 @@ impl<'a> Step<'a> {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
+        if self.frontier {
+            control.check()?;
+            account.work(1);
+            return Ok(());
+        }
         let (reserved_side, reserved_position) =
             self.reservation_position(signature, control, account)?;
         if self.matching.cardinality == Cardinality::OneToOne {
@@ -1374,6 +1411,45 @@ impl<'a> Step<'a> {
             return Ok(true);
         }
     }
+    fn choose_frontier(
+        &mut self,
+        progress: Option<Progress<'_>>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        let replay = self.plan.replay.as_ref().expect("pair frontier owner");
+        let ReplayRows::PairDiscovery(plan) = &replay.rows else {
+            unreachable!("pair frontier owner")
+        };
+        let completed = replay.completed.borrow();
+        let completed = completed.as_ref().expect("completed pair inputs");
+        let many = usize::from(self.swapped());
+        let inputs = crate::pair_discovery::Inputs {
+            members: &completed.members,
+            left_rows: self.plan.sides[0].rows.len(),
+            many,
+        };
+        let target = progress
+            .filter(|progress| *progress.key == completed.key)
+            .and_then(|progress| progress.target);
+        let Some(pair) = plan.next(self.position, target, &inputs, control, account)? else {
+            return Ok(false);
+        };
+        self.position = pair[many] + 1;
+        let operands = [many, 1 - many].map(|side| Operand {
+            side,
+            row: pair[side],
+            kind: 1,
+            fill: None,
+        });
+        self.choice = Some(Choice::Pair {
+            left: operands[0],
+            right: operands[1],
+            signature: self.plan.sides[many].signatures[pair[many]],
+        });
+        Ok(true)
+    }
+
     pub(crate) fn advance(
         &mut self,
         node: NodeId,
@@ -1433,7 +1509,12 @@ impl<'a> Step<'a> {
                     self.phase = Phase::Pairs;
                 }
                 Phase::Pairs => {
-                    self.phase = if self.choose(control, account)? {
+                    let chosen = if self.frontier {
+                        self.choose_frontier(progress, control, account)?
+                    } else {
+                        self.choose(control, account)?
+                    };
+                    self.phase = if chosen {
                         Phase::ReadLeft
                     } else {
                         Phase::Finished
@@ -1841,8 +1922,17 @@ mod tests {
         control: &Control,
         account: &QueryAccounting,
     ) -> Plan {
+        grouped_pair_plan_rows(3, matching, control, account)
+    }
+
+    fn grouped_pair_plan_rows(
+        rows: usize,
+        matching: &VectorMatching,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Plan {
         let many = usize::from(matching.cardinality == Cardinality::OneToMany);
-        let counts = if many == 0 { [3, 1] } else { [1, 3] };
+        let counts = if many == 0 { [rows, 1] } else { [1, rows] };
         let mut plan = discovery_plan_shape(counts, true, matching, control, account);
         for row in 0..3 {
             let mut key = AccountedVec::new(account, MemoryKind::Workspace);
@@ -1881,7 +1971,16 @@ mod tests {
         control: &Control,
         account: &QueryAccounting,
     ) -> Plan {
-        let mut plan = grouped_pair_plan(matching, control, account);
+        prefix_pair_plan_rows(3, matching, control, account)
+    }
+
+    fn prefix_pair_plan_rows(
+        rows: usize,
+        matching: &VectorMatching,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Plan {
+        let mut plan = grouped_pair_plan_rows(rows, matching, control, account);
         plan.certify_replay(&[0, 1, 2], matching.cardinality, control, account)
             .unwrap();
         plan.certify_pair_discovery(matching.cardinality, control, account)
@@ -1930,6 +2029,12 @@ mod tests {
                     &account,
                 );
                 assert_eq!(trace.scans, 2 * usize::from(cold));
+                assert_eq!(step.frontier, !cold);
+                if !cold {
+                    assert!(step.active.iter().all(|rows| rows.is_empty()));
+                    assert!(step.reservations.is_empty());
+                    assert!(step.seen.is_empty());
+                }
                 assert_eq!(
                     trace.rereads,
                     rows.into_iter()
@@ -1941,7 +2046,6 @@ mod tests {
                     outputs
                 );
                 if target == 99 {
-                    assert_eq!(step.seen.len(), 3);
                     assert!(matches!(step.phase, Phase::Finished));
                 }
             }
@@ -1971,7 +2075,7 @@ mod tests {
                     on: true,
                     ..VectorMatching::default()
                 };
-                let plan = prefix_pair_plan(&matching, &control, &account);
+                let plan = prefix_pair_plan_rows(4, &matching, &control, &account);
                 let many = usize::from(cardinality == Cardinality::OneToMany);
                 let members = if many == 0 {
                     [&[0, 1, 2][..], &[0][..]]
@@ -2120,7 +2224,7 @@ mod tests {
     #[test]
     fn pair_prefix_polls_after_seen_and_before_credit_publication() {
         for cardinality in [Cardinality::ManyToOne, Cardinality::OneToMany] {
-            for publish in [false, true] {
+            for (publish, frontier) in [(false, false), (true, false), (true, true)] {
                 let mut terminal_work = 0;
                 for boundary in 0..3 {
                     let engine = EngineAccounting::default();
@@ -2131,7 +2235,12 @@ mod tests {
                         on: true,
                         ..VectorMatching::default()
                     };
-                    let plan = prefix_pair_plan(&matching, &control, &account);
+                    let plan = prefix_pair_plan_rows(
+                        if frontier { 3 } else { 4 },
+                        &matching,
+                        &control,
+                        &account,
+                    );
                     let many = usize::from(cardinality == Cardinality::OneToMany);
                     let members = if many == 0 {
                         [&[0, 1, 2][..], &[0][..]]
@@ -2160,6 +2269,7 @@ mod tests {
                     });
                     let mut step = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
                     step.enable_pair_discovery(key, &control, &account).unwrap();
+                    assert_eq!(step.frontier, frontier);
                     if publish {
                         loop {
                             let Action::Child {
@@ -2249,7 +2359,7 @@ mod tests {
                             result,
                             Err(EvaluationError::Interrupted(Interrupted::Cancelled))
                         ));
-                        if boundary == 2 {
+                        if boundary == 2 && !frontier {
                             assert_eq!(step.seen.len(), seen_before + 1);
                         }
                         if !publish {
@@ -2269,6 +2379,208 @@ mod tests {
                     drop(plan);
                     account.snapshot().assert_memory_released();
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn pair_frontier_keeps_unscoped_warm_traversals_fresh() {
+        for cardinality in [Cardinality::ManyToOne, Cardinality::OneToMany] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let matching = VectorMatching {
+                cardinality,
+                on: true,
+                ..VectorMatching::default()
+            };
+            let plan = prefix_pair_plan(&matching, &control, &account);
+            let many = usize::from(cardinality == Cardinality::OneToMany);
+            let members = if many == 0 {
+                [&[0, 1, 2][..], &[0][..]]
+            } else {
+                [&[0][..], &[0, 1, 2][..]]
+            };
+            let key = discovery_key();
+            let cold = {
+                let mut step = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+                step.enable_pair_discovery(key, &control, &account).unwrap();
+                discovery_trace_scoped(
+                    &mut step,
+                    members,
+                    Some(Progress {
+                        key: &key,
+                        target: Some(2),
+                    }),
+                    None,
+                    &control,
+                    &account,
+                )
+            };
+            for target in [None, Some(0), None] {
+                let mut warm = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+                warm.enable_pair_discovery(key, &control, &account).unwrap();
+                assert!(warm.frontier);
+                let trace = discovery_trace_scoped(
+                    &mut warm,
+                    [&[], &[]],
+                    target.map(|target| Progress {
+                        key: &key,
+                        target: Some(target),
+                    }),
+                    target,
+                    &control,
+                    &account,
+                );
+                assert_eq!(trace.scans, 0);
+                if target.is_none() {
+                    assert_eq!(trace.outputs, cold.outputs);
+                    assert_eq!(trace.rereads, cold.rereads);
+                    assert!(matches!(warm.phase, Phase::Finished));
+                } else {
+                    assert_eq!(trace.outputs, cold.outputs[..1]);
+                    assert_eq!(trace.rereads, cold.rereads[..2]);
+                }
+                assert!(warm.active.iter().all(|rows| rows.is_empty()));
+                assert!(warm.reservations.is_empty());
+                assert!(warm.seen.is_empty());
+            }
+            let mut ordinary = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+            let trace = discovery_trace_scoped(
+                &mut ordinary,
+                members,
+                Some(Progress {
+                    key: &key,
+                    target: Some(2),
+                }),
+                Some(2),
+                &control,
+                &account,
+            );
+            assert_eq!(trace.scans, 2);
+            assert_eq!(trace.outputs, cold.outputs[2..]);
+            assert_eq!(trace.rereads, cold.rereads[4..]);
+            assert_eq!(ordinary.seen.len(), 3);
+            assert_eq!(ordinary.reservations.len(), 3);
+            drop(ordinary);
+            drop(plan);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn pair_frontier_retains_unbound_and_full_hash_collision_errors() {
+        for cardinality in [Cardinality::ManyToOne, Cardinality::OneToMany] {
+            for collision in [false, true] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let matching = VectorMatching {
+                    cardinality,
+                    on: true,
+                    ..VectorMatching::default()
+                };
+                let count = if collision { 3 } else { 4 };
+                let mut plan = grouped_pair_plan_rows(count, &matching, &control, &account);
+                if collision {
+                    for (index, value) in crate::test_storage::FULL_LABEL_HASH_COLLISION_VALUES
+                        .into_iter()
+                        .enumerate()
+                    {
+                        plan.cache.entries[index].labels = OwnedLabels::copy_from(
+                            &[LabelRef { name: b"a", value }],
+                            &account,
+                            MemoryKind::Workspace,
+                        );
+                        assert_eq!(
+                            label_hash::full(&plan.cache.entries[index].labels, &control, &account)
+                                .unwrap(),
+                            0x9c71_0b2e_3747_e3bd
+                        );
+                    }
+                }
+                plan.certify_replay(&[0, 1, 2], cardinality, &control, &account)
+                    .unwrap();
+                plan.certify_pair_discovery(cardinality, &control, &account)
+                    .unwrap();
+                let key = discovery_key();
+                let many = usize::from(cardinality == Cardinality::OneToMany);
+                let rows: Vec<_> = (0..count).collect();
+                let members = if many == 0 {
+                    [rows.as_slice(), &[0][..]]
+                } else {
+                    [&[0][..], rows.as_slice()]
+                };
+                {
+                    let mut cold = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+                    cold.enable_pair_discovery(key, &control, &account).unwrap();
+                    let trace = discovery_trace_scoped(
+                        &mut cold,
+                        members,
+                        Some(Progress {
+                            key: &key,
+                            target: Some(0),
+                        }),
+                        Some(0),
+                        &control,
+                        &account,
+                    );
+                    assert_eq!(trace.outputs.len(), 1);
+                }
+                let mut warm = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+                warm.enable_pair_discovery(key, &control, &account).unwrap();
+                assert!(!warm.frontier);
+                let progress = Some(Progress {
+                    key: &key,
+                    target: Some(99),
+                });
+                let mut reads = Vec::new();
+                let failure = loop {
+                    match warm.advance(
+                        NodeId(0),
+                        discovery_options(),
+                        None,
+                        progress,
+                        &control,
+                        &account,
+                    ) {
+                        Ok(Action::Child {
+                            side,
+                            ordinal: Some(ordinal),
+                        }) => {
+                            let row = plan.sides[side]
+                                .rows
+                                .iter()
+                                .position(|row| row.ordinal == *ordinal)
+                                .unwrap();
+                            reads.push((side, row));
+                            warm.receive(
+                                discovery_sample(&plan, side, row, &control, &account),
+                                &control,
+                                &account,
+                            )
+                            .unwrap();
+                        }
+                        Ok(Action::Sample(_)) => {}
+                        Err(error) => break error,
+                        _ => panic!("the ordinary unverified pair error must remain reached"),
+                    }
+                };
+                let expected_rows = if collision { 1..2 } else { 1..4 };
+                assert_eq!(
+                    reads,
+                    expected_rows
+                        .flat_map(|row| [(many, row), (1 - many, 0)])
+                        .collect::<Vec<_>>()
+                );
+                assert!(
+                    matches!(failure, EvaluationError::Invalid(message) if message ==
+                    if collision { "multiple matches for labels: grouping labels must ensure unique matches" }
+                    else { "frozen binary label cache key is missing" })
+                );
+                drop(warm);
+                drop(plan);
+                account.snapshot().assert_memory_released();
             }
         }
     }

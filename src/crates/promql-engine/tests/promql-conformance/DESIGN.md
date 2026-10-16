@@ -1171,3 +1171,34 @@ integration, and Alertmanager remains excluded.
   walks can still grow quadratically with series count; no linear-runtime or optimality claim follows.
 - **Evidence:** the [procedure](README.md#wrapped-grouped-joins) separates complete original outcomes, declared
   ordering-policy qualification, callback/control phases, query-owned memory and paired timing measurements.
+
+## Completed pair-metadata traversal
+
+- **Choice:** extend the existing optional pair-discovery plan with direct traversal of completed operand
+  membership. Eligible warm requests avoid rebuilding active-row, signature, reservation and seen tables and
+  rescanning an already verified physical prefix. Cold discovery, original root replay and set operations retain
+  their existing owners. No additional expression shape is admitted by this change.
+- **Certificate:** require the existing Float, alias, signature and cardinality proof, then prove that every
+  statically matching many-side row has a frozen output binding and every bound output has a distinct canonical
+  full hash. Include suppressed outputs. A globally unmatched row is allowed; an unbound possible match or a hash
+  collision retains ordinary evaluation and its original reached errors. Temporary proof indexes are accounted
+  and released before execution.
+- **Progress:** the exact-key completed membership bitmap and successful two-bit pair credit remain authoritative.
+  Advance a physical many-side cursor only across inactive, unmatched or successfully credited rows. Choose the
+  earlier of the next unverified pair and a fresh requested pair. Cache ordinals do not order traversal. Backward
+  requests remain fresh; an absent or freshly suppressed target continues into unknown suffixes and ordinary
+  Finished. A full, unscoped traversal reads every active pair freshly.
+- **Phases:** the stronger certificate excludes reservation and seen conflicts, so only this warm mode omits those
+  tables. Original child reads, labels, arithmetic, output and terminal control remain. Publish the cursor after
+  control checks; publish credit only after successful original phases. Drop all temporary borrows before child
+  actions. Preparation and every replay-key change clear cursor and credit together.
+- **Ownership:** a private enum stores either ordinary saved hashes or the certified cursor. Successful
+  certification releases the obsolete hash buffer. An ordinary prefix consumer of a certified plan derives its
+  original hash from immutable frozen labels. No raw values, child-label copy, timeline or second page cache is
+  retained. AMD64/ARM64 Step grows from680 to688bytes, and ARM32 from496 to504bytes. The other measured
+  replay/plan layouts remain unchanged on each target.
+- **Complexity and scope:** certified physical-prefix selection is amortized over rows and requests for an exact
+  key. This does not establish linear whole-query execution: child evaluation, fallback paths and other metadata
+  work remain. Public API/ABI, storage, contexts, math, dependencies, temporary backing and disabled implicit caps
+  are unchanged. See the [qualification procedure](README.md#completed-pair-metadata-traversal) for complete
+  results, costs and the separate original/order-policy reports.

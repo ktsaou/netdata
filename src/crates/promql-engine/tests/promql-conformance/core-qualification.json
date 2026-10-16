@@ -69993,5 +69993,22 @@
     "candidate_wrapped_c_cpp_arms": 5760,
     "native_bare_control_arms": 1536,
     "boundary_scope": "Pure wrappers; full input Done and exact keys, successful kept/suppressed pair phases, fresh selected values and unvisited suffixes. No full-Done prefix shortcut, raw array, API/storage/metadata authority change."
+  },
+  "pair_frontier_qualification": {
+    "receipt": "pair-frontier-qualification.json",
+    "sha256": "af6c9f7b732d34fd863d333969521abed8605f0e192e25c2960ddc99071ccd95",
+    "status": "qualified_completed_pair_metadata_traversal",
+    "meaning": "Replace repeated certified warm pair metadata reconstruction and physical-prefix scans with direct completed membership and an accounted physical frontier. Preserve fresh selected values, unknown suffixes and ordinary failure/completion phases.",
+    "native_complete_policy_comparisons": 8088,
+    "foreign_complete_policy_comparisons": 2000,
+    "native_published_packet_comparisons": 8088,
+    "strict_original_failures_per_cohort": 7,
+    "declared_dense_float_order_boundaries": 32,
+    "native_units_per_profile": 682,
+    "candidate_wrapped_c_cpp_arms": 5760,
+    "native_bare_control_arms": 1536,
+    "native_unchanged_sample_statistics_rows": 3456,
+    "foreign_unchanged_sample_statistics_rows": 3840,
+    "boundary_scope": "Existing optional PairDiscovery only; exhaustive binding and full-hash uniqueness certificate, completed membership, physical prefix and original fresh/suffix/Finished phases. No new raw data, interface, storage or numerical policy."
   }
 }

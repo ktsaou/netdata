@@ -118,6 +118,10 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#wrapped-grouped-joins` for pre-copy eligibility,
   complete input discovery, kept/suppressed pair phases, fresh requested values, suffix continuation and separate
   original/order-policy qualification.
+- Direct pair-metadata traversal MUST also follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#completed-pair-metadata-traversal` for exhaustive
+  binding/full-hash certification, physical prefix ownership, fresh backward/full requests, hash-buffer release,
+  ordinary fallback phases and measured Step/layout costs.
 - Callback failure controls MUST establish their actual phase: output begin precedes preparation. The same guide
   records calibrated cursor landmarks and native traces for the first-final rate case.
 - Label projection MUST preserve virtual reset and reserved-name errors before matching; measure retained vector

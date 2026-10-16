@@ -25,6 +25,10 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Certified warm pair metadata avoids repeated reconstruction and processed-prefix walks. The
+  [pair traversal panel](#completed-pair-metadata-traversal) records 8,088 native and 2,000 compiled ARM complete
+  comparisons, 682 native units/profile and actual C/C++ consumers. Fixed 1,024-group thresholds improve
+  6.5–6.9× with 8 KiB lower workspace peaks. All small/fallback costs, including the 8 B Step increase, remain visible.
 - Scheduled selector points transfer their existing owned labels into sample completion. The
   [label ownership panel](#scheduled-selector-label-ownership) records 1,656 native and 1,104 compiled ARM
   comparisons, 654 native units/profile and actual C/C++ consumers. Workspace peaks fall in 864 cases; mapped
@@ -4797,3 +4801,131 @@ is compile-only. The qualification verifies 170 closed process records and binds
 compiler and binary identities. All 71 earlier qualification-ledger objects remain unchanged. No ABI, provider,
 contexts, storage, arithmetic or dependency change is introduced. Explicit cancellation/deadlines remain active;
 implicit caps remain disabled. Earlier broader language, SRE and live-Agent evidence keeps its original attribution.
+
+## Completed pair-metadata traversal
+
+Eligible warm joins now consume their existing completed input bitmap directly. They avoid rebuilding active-row,
+signature, reservation and seen tables for each requested output, and avoid repeatedly walking the same processed
+physical prefix. This extends the private mechanism described above without admitting new expression shapes or
+changing language support. Original cold discovery, root full-pair replay, set operators and unsupported fallbacks
+retain their existing behavior.
+
+The extra certificate requires every statically possible matching pair to have a frozen output binding, and every
+bound output to have a distinct canonical full hash, including suppressed comparisons. Globally unmatched rows are
+allowed. An unbound possible match or hash conflict retains ordinary traversal, fresh operand reads and its reached
+error. The temporary proof indexes are query-accounted and released before execution.
+
+For the exact replay key, a physical many-side cursor advances only over inactive, unmatched or successfully
+credited rows. Unknown predecessors run before a later requested pair. Backward requests remain fresh; an absent
+or freshly suppressed target continues into the unverified suffix and ordinary Finished. Full unscoped traversal
+reads every active pair freshly. A prefix never grants full Done. Cursor publication follows control checks;
+successful pair credit retains the original phases. Preparation and key replacement clear both together, and no
+temporary borrow spans a child action.
+
+A private enum retains either ordinary pair hashes or the certified cursor. Certification releases the obsolete
+hash buffer. Ordinary prefix consumers of a certified plan derive the same canonical hash from frozen labels.
+This adds no raw values, timeline, child-label copies or page cache. Physical-prefix metadata selection is amortized
+over rows and requests for its exact key; child computation and other metadata work can still repeat. This does not
+establish linear whole-query execution or an optimal endpoint.
+
+`nested_pair_frontier_avoids_rebuilding_metadata_for_every_output` checks54 complete value/label/time/release cases:
+32/128/512 series, three leaf/grouped/threshold expressions, pages1/17/1024 and both physical orders. The unchanged
+published production runtime completes those outcome checks, then fails only the final work-growth bound. For16×
+more rows, the old work multipliers are102–120×; current multipliers are18.8–20.1×, below the40× test bound. Fetched
+and logical queryable sample counts are identical in every pair. This is a finite causal test, not a general
+complexity proof.
+
+Direct pair/Step owners cover reversed65-pair physical/cache order, sparse membership, credit-word and side-word
+boundaries, backward/suppressed/missing/full requests, globally unmatched rows, exhaustive binding, actual full-hash
+collisions, empty warm tables, fallback reservation/seen behavior, ordinary prefix consumers after hash release,
+exact-key/preparation clearing, terminal interruption before publication and fresh suppression reaching a failing
+unknown suffix. All29 focused Debug units pass. Final runtime equals that Debug source; only a test loop changes
+to zipped iteration for strict Clippy, and both optimized full suites execute that corrected test.
+
+Both optimized native profiles pass682 units each, with no ignored tests. The existing1,348-case original corpus
+at pages1/17/1024 produces8,088 complete comparisons equal to the published predecessor and the separate exact
+Decision9 ordering expectations. All32 existing dense Float declarations are reused. The raw strict reports retain
+seven failures and20 bit differences per cohort, exactly unchanged; policy passes are not universal strict-original
+passes. No new Go capture, tolerance, default feature, interface or arithmetic change is introduced.
+
+`pair_frontier_cases.performance_cases()` regenerates all30 actual page17 scaling inputs exactly:4/16/64/256/1024
+groups with one member, plus32 groups with four members, using bare grouped raw ratios, raw `abs`, thresholds, rate
+`abs` and unaggregated leaf `abs`. At1,024 groups, both profiles have these same observations:
+
+| Workload | Work units before → after | Workspace acquired before → after | Workspace peak before → after |
+| --- | ---: | ---: | ---: |
+| Bare raw grouped ratio | 9,616,209 → 9,616,209 | 50,734,156 → 50,750,556 B | 2,990,780 → 2,990,780 B |
+| Raw grouped ratio, `abs` | 132,826,849 → 14,828,813 | 595,036,154 → 74,512,074 B | 3,375,894 → 3,367,702 B |
+| Raw grouped ratio, threshold | 254,374,236 → 18,684,876 | 1,002,102,272 → 98,670,800 B | 3,719,424 → 3,711,232 B |
+| Rate grouped ratio, `abs` | 134,848,763 → 16,850,727 | 614,737,358 → 94,213,278 B | 4,446,806 → 4,438,614 B |
+| Ungrouped raw ratio, `abs` | 132,450,104 → 13,341,763 | 556,839,602 → 36,315,522 B | 3,309,842 → 3,301,650 B |
+
+Across all30 pairs per profile, work falls in24 and is unchanged in six. Workspace peaks fall in23, stay equal in
+five and rise8B in two small bare controls. Acquired/released workspace falls in24 and rises in all six bare
+controls, by80–16,400B. Every other memory kind and every current-memory field are unchanged. Fetched samples,
+pages, provider calls, output samples, temporary storage and cancellation references are identical. Cumulative
+allocation traffic is not peak RAM or process RSS; query JSON does not export basic sample statistics.
+
+The native replay/plan layout measurements retain ReplayRows48B, Replay64B, CompletedStep128B and Plan328B;
+Step grows680→688B. This accounts for the retained bare-control allocation cost. Query-fixture `.text` changes
+by−9,904B in release and+4,800B in release-min. These are executable sections, not static-archive sizes.
+ARM64 has the same layouts. ARM32 retains ReplayRows32B, Replay40B, CompletedStep112B and Plan224B, while
+Step grows496→504B in both profiles. These are actual compiled measurements, not native-layout assumptions.
+
+The broader 8,088 paired comparisons also retain the small fallback costs: work falls in 3,468 and stays equal in
+4,620. Workspace peaks fall in 3,468, stay equal in 318 and rise exactly 8 B in 4,302. Allocation traffic falls in
+3,468, stays equal in 18 and rises in 4,602 by at most 320 B. All seven other memory kinds and all memory-current
+fields match. Every fetched/page/provider/output count, temporary observation and cancellation-reference observation
+matches. Successful snapshots can retain owned Result storage; all snapshots retain the query's Accounting owner.
+They do not claim post-owner-drop total memory. Separate unit lifecycle checks verify release after owners drop.
+
+Actual native C11 and C++17 consumers each assert 480 wrapped and 384 bare lifecycle arms in both profiles.
+All 3,456 native rows match their same-language/profile/mode published predecessor's status, output count, fetched
+count and three basic sample statistics. Wrapped work and workspace traffic fall; bare work stays equal and its
+workspace peak rises 8 B. These observations retain every memory kind. C rows expose no page, provider-call,
+temporary-storage or close/abort counters; the complete query panels and caller assertions cover their distinct
+scopes. Normalized C ratios establish lifecycle phases, while original distinct-value cases establish arithmetic.
+
+ARM64 and ARM32 execute both optimized profiles under QEMU: 500 selected complete page17 queries and 41 focused
+unit executions per cohort. All 2,000 query results equal both the published same-target/profile packets and the
+current native packets, with zero paired bit differences. Eight foreign C11/C++17 programs assert another 3,840
+wrapped lifecycle arms. Together with native consumers, 16 actual candidate programs assert 5,760 wrapped and
+1,536 bare arms. This is compiled foreign execution; no full foreign unit-suite or physical-device timing claim
+is made.
+
+All 3,840 foreign caller rows preserve the same-target/profile/compiler published predecessor's status, output,
+fetched count and three basic sample statistics. Work and workspace traffic fall in every wrapped row; workspace
+peaks fall by 24 or 120 B. Other memory kinds and all current-memory fields match. Error snapshots can retain a
+borrowed error message, so these rows do not imply an all-zero post-drop snapshot. The complete expression packets
+qualify values; C/C++ rows retain their actual passing result assertions and lifecycle observations.
+
+Formatting, strict production/fixture Clippy and installed Rust 1.91 all-target fixture compilation pass. The MSRV
+check is compile-only. Public API/ABI, contexts, storage/provider policy, arithmetic, dependency locks, temporary
+backing and panic containment are unchanged. Explicit cancellation/deadlines remain active and implicit caps stay
+disabled. Earlier broader language, SRE and live-Agent cohorts retain their actual source and binary identities.
+
+The fixed timing panel covers the 30 scaling cases, four standalone controls and six earlier raw/Rate/Fold join
+controls. Five alternating before/candidate pairs per optimized profile check all 2,400 reference/warm/measured
+responses, complete results and each binary's own nonelapsed observations. At 1,024 groups and one member, medians
+are:
+
+| Timing workload | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| Bare raw grouped ratio | 131.82 → 131.87 ms | 218.37 → 218.88 ms |
+| Raw grouped ratio, `abs` | 895.75 → 194.91 ms | 1,559.41 → 334.50 ms |
+| Raw grouped ratio, threshold | 1,727.86 → 264.42 ms | 3,001.27 → 433.62 ms |
+| Rate grouped ratio, `abs` | 987.40 → 273.36 ms | 1,725.02 → 475.27 ms |
+| Ungrouped raw ratio, `abs` | 849.92 → 137.42 ms | 1,494.28 → 237.92 ms |
+
+Lower-cardinality and standalone costs remain visible. At 32 groups with four members, grouped raw `abs` improves
+16.39→14.72 ms in release and 26.87→25.62 ms in release-min; its threshold improves 22.51→20.73 and 38.78→35.66 ms.
+Twelve release and eight release-min medians are slower. The largest increases are 3.63% and 2.63%, respectively;
+for example, the eight-group standalone rate control changes 1.45→1.50 ms in release. These finite observations
+do not prove zero overhead or identify the cause of small timing changes.
+
+All 80 timing arrays, every scaling observation, all eight memory categories, native/foreign layouts, binary/source
+identities, unchanged sample-statistics counts and explicit costs are retained in the
+[qualification](pair-frontier-qualification.json). It verifies 266 consumed terminal process records and preserves
+all 72 pre-existing top-level qualification-ledger entries. Timings began after the owned builds and ARM checks
+closed. The host remains shared, without CPU/frequency isolation; these measurements establish no live HTTP,
+DBengine disk I/O, concurrent throughput, physical-device performance or process RSS result.

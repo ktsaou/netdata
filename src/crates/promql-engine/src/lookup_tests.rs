@@ -1693,7 +1693,10 @@ fn wrapped_group_joins_reuse_input_discovery_and_processed_pairs() {
 }
 
 fn window_join_discovery_cases(expression: &[u8], options: EngineOptions) -> Vec<u64> {
-    let count = 64;
+    join_discovery_work(expression, options, 64)
+}
+
+fn join_discovery_work(expression: &[u8], options: EngineOptions, count: usize) -> Vec<u64> {
     let mut work = Vec::new();
     for page_size in [1, 17, 1024] {
         for reversed in [false, true] {
@@ -1773,6 +1776,32 @@ fn window_join_discovery_cases(expression: &[u8], options: EngineOptions) -> Vec
         }
     }
     work
+}
+
+#[test]
+fn nested_pair_frontier_avoids_rebuilding_metadata_for_every_output() {
+    let mut growth = Vec::new();
+    for expression in [
+        b"abs(m_total / on(instance) n_total)".as_slice(),
+        b"abs(sum by(instance)(m_total) / on(instance) sum by(instance)(n_total))",
+        b"(sum by(instance)(m_total) / on(instance) sum by(instance)(n_total)) > .5",
+    ] {
+        let work = [32, 128, 512]
+            .map(|count| join_discovery_work(expression, EngineOptions::default(), count));
+        let [small, medium, large] = work;
+        growth.extend(
+            small
+                .into_iter()
+                .zip(medium)
+                .zip(large)
+                .map(|((small, medium), large)| (small, medium, large)),
+        );
+    }
+    assert_eq!(growth.len(), 18);
+    assert!(
+        growth.iter().all(|(small, _, large)| *large < 40 * small),
+        "16x more rows must not rebuild whole join metadata for each output: {growth:?}"
+    );
 }
 
 #[test]
