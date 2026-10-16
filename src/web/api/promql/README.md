@@ -138,7 +138,10 @@ there is no fallback that loads the entire response into RAM. Small scalar resul
 Completed single-series results with one sample kind read their point records through the existing 8 KiB output
 window. Multiple-series and mixed-kind results retain exact-sized reads. This introduces no additional heap buffer;
 [the integration measurements](../../../../tests/promql-integration/README.md#output-record-reading) record its
-scope, real-account checks and measured costs.
+scope, real-account checks and measured costs. Float point serialization reuses that window for pinned sample
+formatting and complete-record assembly, without another heap allocation. Its
+[separate measurements](../../../../tests/promql-integration/README.md#float-point-serialization) retain complete
+byte/account checks, timing distributions and finite qualification limits.
 Counter reconstruction keeps 16 page-boundary checkpoints in RAM and spills longer histories into one query-owned
 backing file. Such counter queries need backing even when their final result is small. Checkpoints preserve the
 query's starting basis and exact accumulated bits; copy scratch stays within 8 KiB. DBengine page formats are unchanged.

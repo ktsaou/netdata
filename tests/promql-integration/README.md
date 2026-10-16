@@ -102,7 +102,7 @@ assembly times of 118.474 → 4.181 ms. The probe uses controlled allocation/pol
 Agent accounting or end-to-end latency. The first prototype over-read sparse, bursty and large histogram records;
 the final ownership guard and partial-window consumption pass the corresponding byte bounds.
 
-The fixed live API panel uses the same Rust archive in the before and current optimized Agents. Both codecs
+The following retained measurements cover output record reading. Its live API panel used the same Rust archive in both optimized Agents. Both codecs
 pass all 82 HTTP/readiness checks and 224 complete measured responses, with normal zero exits. Seven-sample
 median wire times from the two cohorts are:
 
@@ -143,6 +143,65 @@ on cached data, bounded read counts/bytes and cleanup. Native, ARM32, ARM64 and 
 The allocation/control shim does not qualify daemon accounts, numerical formatting, gzip or transports; the
 separate real Agent panel does. `--output-source` accepts an in-repository captured output.c for before/current
 comparison. `--allow-legacy-reads` only disables the old large-case read-count bound; other checks remain active.
+
+## Float point serialization
+
+Float points use the engine's existing sample timestamp and float formatters, then append one complete record.
+The already accounted 8 KiB window holds the record at its front and aligned formatter scratch at its tail.
+Compile-time bounds keep those regions separate. Initial and terminal cancellation checks and the predecessor
+link update remain. Histogram, scalar/string and generic backing/transport paths retain their existing owners.
+This adds no heap buffer, retained point field or numerical conversion.
+
+[Point append qualification](point-append-qualification.json) binds the original and final source, actual Rust
+archives and complete caller results. For 100,000 points, observed polls fall from 1,000,779 to 400,779;
+physical writes remain 780 / 3,198,000 bytes. Seven alternating measured pairs after one warmup pair give
+isolated collection medians of 23.922 → 20.194 ms, about 16% less time. All 200 full case pairs pass.
+The 12 successful timing groups retain every sample; the short-write median is slower by about 8 µs on
+4.2 ms. These controlled allocation/polling measurements are separate from real Agent latency.
+
+The following warm live API measurements use the unchanged Rust archive. The final Agent passes all 82
+HTTP/readiness checks and 224 complete measured responses, and both owned processes exit normally:
+
+| Query | Raw before → after (ms) | Gorilla before → after (ms) |
+|---|---:|---:|
+| Scalar | 0.348 → 0.363 | 0.350 → 0.338 |
+| Fleet gauge | 0.796 → 0.915 | 0.822 → 1.061 |
+| Local counter rate | 0.909 → 0.993 | 0.823 → 0.912 |
+| Fleet average | 1.053 → 0.979 | 0.829 → 1.024 |
+| Six-group histogram | 17.762 → 19.063 | 18.102 → 17.761 |
+| 100,000-point delivery, plain | 118.003 → 106.937 | 117.476 → 107.360 |
+| 100,000-point delivery, gzip | 134.889 → 116.919 | 128.644 → 120.596 |
+
+Large-response latency improves about 6–13% in these fixtures. Cohorts ran separately on a shared host;
+small-control variation does not establish attribution, and this is not saturation, cold-data or high-cardinality
+qualification. Per-request statistics still precede completed response assembly. Client overlap is measured
+separately from evaluator concurrency.
+
+All 16 actual output/account records match the retained original Agent exactly; the current 672-record
+storage/provider/API/delivery panel passes. Plain 2,049-point and 100,000-point outputs retain the same
+20,212 Result / 14,592 Workspace peak bytes. Codec allocations remain separately accounted. Probe executable
+text grows 560 bytes; the containing Agent's text shrinks 56 bytes, with data/BSS unchanged. Focused GCC
+reports a 208-byte point frame versus 192 originally; the rejected stack-buffer version used 592 bytes.
+Those per-function reports do not measure the whole Agent stack or process memory.
+
+Build a Rust static archive and run the focused Linux/GNU-linker caller from the repository root:
+
+```sh
+cargo +stable build --manifest-path src/crates/promql-engine/Cargo.toml --release --locked --lib
+python3 tests/promql-integration/point_append.py --library src/crates/promql-engine/target/release/libnetdata_promql_engine.a
+```
+
+Supply the corresponding archive path if using a different Cargo target directory. Cross targets require a
+matching archive and installed `--cc`/`--runner` tools; sanitizer flags can be passed through `--cc`.
+The 25 cases use real Rust getters and 21 float × 10 timestamp frozen independent examples, including signed
+zero, specials, subnormals and pinned timestamp edge cases. They compare complete headers/payloads/chains,
+cardinality and successful byte extents; cover seams, interleaving, synthetic histogram coexistence, cancellation,
+formatter/write failures and cleanup; and stream the 100,000-point expectation without an array. Native,
+ARM32, ARM64 and native C ASan/UBSan pass, plus the 29 reader regressions. Foreign archives were rebuilt
+from current Rust source offline; the final C refinement reuses them because Rust source did not change.
+The allocation/control shim is separate from real daemon accounting; histogram coexistence does not test
+Rust histogram iteration, and C sanitizers do not instrument the Rust archive. `--output-source` accepts a
+captured in-repository output.c; `--allow-legacy-polls` suppresses only the old work bound for timing comparisons.
 
 ## Caller checks
 

@@ -175,6 +175,43 @@ static uint32_t histogram_bucket(void *context, const netdata_promql_histogram_b
     return NETDATA_PROMQL_OK;
 }
 
+static bool float_record_append(PROMQL_OUTPUT *output, const netdata_promql_sample_t *point,
+                                 PROMQL_READ_FRAME *frame) {
+    enum { text_offset = PROMQL_BODY_WINDOW - sizeof(netdata_promql_numeric_text_t) };
+    netdata_promql_numeric_text_t *text = (void *)(output->window + text_offset);
+    _Static_assert(_Alignof(netdata_promql_numeric_text_t) <= _Alignof(max_align_t),
+                   "numeric text must fit malloc alignment");
+    _Static_assert(text_offset % _Alignof(netdata_promql_numeric_text_t) == 0,
+                   "numeric text scratch must be aligned");
+    _Static_assert(sizeof(POINT_RECORD) + 2 * sizeof(text->bytes) + 5 <= text_offset,
+                   "float record and numeric scratch must not overlap");
+    if(!promql_read_poll(frame)) goto cancelled;
+    size_t used = sizeof(POINT_RECORD);
+    output->window[used++] = '[';
+    if(netdata_promql_api_timestamp_text(point->time_ms, text) != NETDATA_PROMQL_OK ||
+       text->len > sizeof(text->bytes)) goto invalid;
+    memcpy(output->window + used, text->bytes, text->len); used += text->len;
+    output->window[used++] = ',';
+    output->window[used++] = '"';
+    if(netdata_promql_api_float_text(point->value.payload.float_bits, text) != NETDATA_PROMQL_OK ||
+       text->len > sizeof(text->bytes)) goto invalid;
+    memcpy(output->window + used, text->bytes, text->len); used += text->len;
+    output->window[used++] = '"';
+    output->window[used++] = ']';
+    POINT_RECORD record = {.next = NO_RECORD, .length = used - sizeof(POINT_RECORD)};
+    memcpy(output->window, &record, sizeof(record));
+    if(!promql_body_append(output->records, output->window, used, frame, &output->failure)) return false;
+    // The replaced header rewrite checked cancellation after copying, before publishing the chain.
+    if(!promql_read_poll(frame)) goto cancelled;
+    return true;
+invalid:
+    output->failure = EINVAL;
+    return false;
+cancelled:
+    output->failure = ECANCELED;
+    return false;
+}
+
 static uint32_t point_append(PROMQL_OUTPUT *output, OUTPUT_SERIES *series, const netdata_promql_sample_t *point,
                               PROMQL_READ_FRAME *frame, netdata_promql_bytes_t *error) {
     bool histogram = point->value.kind == NETDATA_PROMQL_VALUE_FLOAT_HISTOGRAM;
@@ -184,11 +221,14 @@ static uint32_t point_append(PROMQL_OUTPUT *output, OUTPUT_SERIES *series, const
     POINT_CHAIN *chain = histogram ? &series->histograms : &series->floats;
     uint64_t offset = promql_body_length(output->records);
     POINT_RECORD record = {.next = NO_RECORD};
-    if(!promql_body_append(output->records, &record, sizeof(record), frame, &output->failure) ||
-       !promql_json_text(output->records, "[", frame, &output->failure) ||
-       !promql_json_time(output->records, point->time_ms, false, frame, &output->failure) ||
-       !promql_json_text(output->records, ",", frame, &output->failure)) return output_failure(output, frame, error);
-    if(histogram) {
+    if(!histogram) {
+        if(!float_record_append(output, point, frame)) return output_failure(output, frame, error);
+    }
+    else {
+        if(!promql_body_append(output->records, &record, sizeof(record), frame, &output->failure) ||
+           !promql_json_text(output->records, "[", frame, &output->failure) ||
+           !promql_json_time(output->records, point->time_ms, false, frame, &output->failure) ||
+           !promql_json_text(output->records, ",", frame, &output->failure)) return output_failure(output, frame, error);
         const netdata_promql_float_histogram_t *value = point->value.payload.float_histogram;
         if(!promql_json_text(output->records, "{\"count\":", frame, &output->failure) ||
            !promql_json_float(output->records, value->count_bits, false, frame, &output->failure) ||
@@ -206,14 +246,13 @@ static uint32_t point_append(PROMQL_OUTPUT *output, OUTPUT_SERIES *series, const
         }
         netdata_promql_report_release(output->child_report); output->child_report = NULL;
         if((json.buckets && !promql_json_text(output->records, "]", frame, &output->failure)) ||
-           !promql_json_text(output->records, "}", frame, &output->failure)) return output_failure(output, frame, error);
+           !promql_json_text(output->records, "}", frame, &output->failure) ||
+           !promql_json_text(output->records, "]", frame, &output->failure)) return output_failure(output, frame, error);
+        record.length = promql_body_length(output->records) - offset - sizeof(record);
+        if(!promql_body_write(output->records, offset, &record, sizeof(record), frame, &output->failure))
+            return output_failure(output, frame, error);
     }
-    else if(!promql_json_float(output->records, point->value.payload.float_bits, false, frame, &output->failure))
-        return output_failure(output, frame, error);
-    if(!promql_json_text(output->records, "]", frame, &output->failure)) return output_failure(output, frame, error);
-    record.length = promql_body_length(output->records) - offset - sizeof(record);
-    if(!promql_body_write(output->records, offset, &record, sizeof(record), frame, &output->failure) ||
-       (chain->last != NO_RECORD && !promql_body_write(output->records, chain->last, &offset, sizeof(offset), frame, &output->failure)))
+    if(chain->last != NO_RECORD && !promql_body_write(output->records, chain->last, &offset, sizeof(offset), frame, &output->failure))
         return output_failure(output, frame, error);
     if(chain->first == NO_RECORD) chain->first = offset;
     chain->last = offset; chain->count++;
