@@ -772,6 +772,25 @@ integration, and Alertmanager remains excluded.
 - **Evidence:** [average reuse qualification](average-read-reuse-qualification.json) binds complete results and
   credits, saved-state comparisons, calibrated failures, C execution phases, memory and matched query measurements.
 
+## Validated float rate acquisition reuse
+
+- **Choice:** the initial ordinary `rate`, `increase` and `delta` float pass collects its existing endpoints/count
+  during acquisition. After complete validation and terminal control, a pure-float acquisition can omit its
+  separate consuming traversal. One private `FloatStep::scan` serves both float-rate callers; Avg and rates share
+  the unchanged current-window/bounds certificate.
+- **Arithmetic:** last-minus-first still precedes every chronological reset addition. Reset replay, raw/no-matrix
+  calls, instant/extended rates, statistics projection, buffered/wrapping/wider windows and fresh evaluation/cache
+  boundaries retain their existing paths.
+- **Histograms:** allocation state includes stale histograms and earlier reached history. For populated histogram
+  acquisitions, discard provisional float state and consume normally with the completed progress before later
+  native/mixed handling. Generic helpers still run after acquisition validation.
+- **Ownership:** existing fixed endpoint fields and their sample leases suffice; no raw array, value cache,
+  persistent layout or interface is added. Failed acquisition may report two earlier local owned endpoint units,
+  while useful reads stay zero. That reflects ownership timing, not extra heap allocation.
+- **Cost:** fewer reads and allocation/view traffic do not imply lower peak RAM. The actual fixture text increases
+  and all slower controls remain explicit; source-bound evidence is in the
+  [rate acquisition qualification](rate-acquisition-qualification.json).
+
 ## Histogram constructor key lookup
 
 - **Choice:** a transient position index replaces repeated constructor lookup for larger classic histogram group

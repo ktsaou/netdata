@@ -99,6 +99,24 @@ impl Progress {
 }
 
 impl MatrixWindow {
+    pub(crate) fn can_reuse_acquisition(self, bounds: Option<TimeBounds>) -> bool {
+        !self.statistics
+            && self.buffer_ms.is_none()
+            && self.reduce_delta
+            && self.range_ms > 0
+            && self
+                .end_ms
+                .checked_sub(self.range_ms)
+                .and_then(|lower| lower.checked_add(1))
+                .is_some_and(|lower| {
+                    bounds.is_some_and(|bounds| {
+                        bounds.start_ms >= lower
+                            && bounds.end_ms <= self.end_ms
+                            && bounds.start_ms <= bounds.end_ms
+                    })
+                })
+    }
+
     fn prunable(self) -> bool {
         self.buffer_ms.is_none()
             && self.range_ms > 0

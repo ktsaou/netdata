@@ -2,7 +2,7 @@
 // Pinned Prometheus promql/functions.go:474–629,759–803; see NOTICE.
 use crate::{
     accounting::QueryAccounting,
-    matrix_reader::{MatrixWindow, scan as scan_matrix},
+    matrix_reader::{MatrixWindow, Progress, scan as scan_matrix},
     numerical::{source_add, source_mul, source_sub},
     storage::{Control, Series, StorageError, TimeBounds},
     value::{SampleRef, SampleValueRef},
@@ -187,13 +187,9 @@ pub(crate) fn rate_with<S: Series>(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateResult, StorageError> {
-    let bounds = input.bounds();
     let mut step = FloatStep::new(input, kind);
     loop {
-        let progress =
-            scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
-                step.receive(sample, control, account)
-            })?;
+        let progress = step.scan(series, matrix, control, account)?;
         if let Some(result) = step.finish_pass() {
             return Ok(result);
         }
@@ -215,6 +211,44 @@ pub(crate) struct FloatStep {
     overlap: bool,
 }
 impl FloatStep {
+    pub(crate) fn scan<S: Series>(
+        &mut self,
+        series: &S,
+        matrix: Option<MatrixWindow>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<Progress>, StorageError> {
+        let bounds = self.input.bounds();
+        let Some(window) =
+            matrix.filter(|window| !self.reset_pass && window.can_reuse_acquisition(bounds))
+        else {
+            return scan_matrix(series, bounds, matrix, control, account, |sample| {
+                self.receive(sample, control, account)
+            });
+        };
+        let acquisition =
+            crate::matrix_reader::probe(series, bounds, window, control, account, |sample| {
+                self.receive(sample, control, account)
+            })?;
+        let progress = if acquisition.populated && acquisition.histograms_allocated {
+            // Native and stale-histogram input retains the original consuming phase.
+            *self = Self::new(self.input, self.kind);
+            crate::matrix_reader::consume(
+                series,
+                bounds,
+                window.with_progress(Some(acquisition.progress)),
+                control,
+                account,
+                |sample| self.receive(sample, control, account),
+            )?
+            .progress
+        } else {
+            account.samples_read(acquisition.progress.sample_units);
+            acquisition.progress
+        };
+        Ok(Some(progress))
+    }
+
     pub(crate) fn nonempty(&self) -> bool {
         self.count != 0 || self.histograms
     }

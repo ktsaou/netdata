@@ -139,6 +139,11 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Average acquisition reuse MUST preserve full saved traversal state, completed validation before read credit,
   stale-histogram consumption and later native arithmetic phases; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#validated-average-acquisition-reuse` for causal controls.
+- Float rate acquisition reuse MUST retain the separate chronological reset pass, full validation/terminal control
+  before credit, and fresh consuming state for any histogram allocation, including stale history. Failed probes
+  can truthfully own earlier endpoint sample units. Check all three kinds, shared Avg eligibility, actual operation
+  failures, empty/stale histories and page-bounded memory; the finite procedure and costs are in
+  `src/crates/promql-engine/tests/promql-conformance/README.md#validated-float-rate-acquisition-reuse`.
 - Histogram constructor lookup MUST preserve encoded-key identity, separate passes and tiny-set cost; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-constructor-key-lookup` for collision,
   ordering and terminal interruption controls.

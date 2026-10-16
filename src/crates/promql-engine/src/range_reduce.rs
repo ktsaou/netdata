@@ -747,23 +747,9 @@ pub(crate) fn fold<S: Series>(
     let mut step = FoldStep::new(kind, options.start_timestamps);
     let reuse_initial_average = kind == FoldKind::Avg
         && options.anchor_start_ms.is_none()
-        && options.matrix.is_some_and(|window| {
-            !window.statistics
-                && window.buffer_ms.is_none()
-                && window.reduce_delta
-                && window.range_ms > 0
-                && window
-                    .end_ms
-                    .checked_sub(window.range_ms)
-                    .and_then(|lower| lower.checked_add(1))
-                    .is_some_and(|lower| {
-                        bounds.is_some_and(|bounds| {
-                            bounds.start_ms >= lower
-                                && bounds.end_ms <= window.end_ms
-                                && bounds.start_ms <= bounds.end_ms
-                        })
-                    })
-        });
+        && options
+            .matrix
+            .is_some_and(|window| window.can_reuse_acquisition(bounds));
     loop {
         let mut position = 0u64;
         let progress = if reuse_initial_average && !step.native_pass {

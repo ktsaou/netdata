@@ -25,6 +25,10 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Validated ordinary float rate endpoints reuse their initial acquisition. The
+  [rate acquisition panel](#validated-float-rate-acquisition-reuse) records 691 native units/profile, 4,630 strict
+  original comparisons and 12 actual C/C++ programs. Fixed `rate`/`increase` inputs fetch 25% fewer entries and
+  `delta` inputs 50% fewer; all measured query peaks stay equal. Timing gains, slower controls and text costs remain explicit.
 - Certified warm pair metadata avoids repeated reconstruction and processed-prefix walks. The
   [pair traversal panel](#completed-pair-metadata-traversal) records 8,088 native and 2,000 compiled ARM complete
   comparisons, 682 native units/profile and actual C/C++ consumers. Fixed 1,024-group thresholds improve
@@ -2816,6 +2820,71 @@ The final cohort passes 562 units per profile, 128,652 retained builtin comparis
 controls in every current caller. The fresh Debug Agent passes 672 storage records and 66 live HTTP/readiness
 checks, including the new instant/range average cases. These finite cohorts do not prove arbitrary-input behavior,
 foreign whole-Agent execution, total RSS or production disk throughput.
+
+## Validated float rate acquisition reuse
+
+Ordinary float `rate`, `increase` and `delta` collect first/last/count/start fields during the initial validation
+traversal. Their shared `FloatStep::scan` reuses a successfully completed pure-float acquisition and credits logical
+reads only after full reached-page validation and terminal control. Last-minus-first remains before chronological
+reset additions; the reset pass still performs its original acquisition and consumption.
+
+Avg and float rates share the existing eligibility predicate: no statistics projection or buffer, `reduce_delta`,
+a positive non-wrapping current window, and valid consumer bounds contained in that window. Overlapping schedules
+are allowed; the separate history-pruning condition `step >= range` is not required. Raw/no-matrix calls,
+instant/extended rates and unproven bounds retain their previous paths.
+
+Any populated histogram allocation, including stale history, discards tentative float state and consumes normally
+with the completed progress. Later native/mixed phases remain fresh. Endpoint sample leases describe actual ownership:
+a failed initial acquisition can now show up to two earlier local sample units while useful reads remain zero.
+No raw array, retained value cache, new persistent field, public interface or resource limit is added.
+
+Five new direct owners check 126 complete float cases, 507 actual open/read/seek failures, close-triggered
+cancellation before credit, unused malformed tails, fallback paths and 2,048/100,000-point histories. Existing Avg
+fault/control owners and 1,152 complete saved-progress/sequence comparisons qualify the shared predicate.
+Both optimized native profiles pass all 691 units; four compiled ARM cohorts each execute eight focused owners.
+
+The affected unchanged-original subset is 308 wrapped-rate requests plus 155 ordinary rate/average requests.
+Native pages 1/17/1024 and foreign page 17 yield 4,630 complete comparisons, all with zero raw strict failures or
+paired numerical bit differences. These counts do not requalify the wider historical panels or remove their
+ordering disagreements. The historical window generator has a different pre-commit identity; all other 248 capture
+artifacts match, and today's complete 2,266 generated inputs equal the frozen captured inputs exactly. The report
+preserves both generator hashes and the original results without recapture.
+
+Actual C11/C++17 consumers execute `--range-rates-only` and `--window-folds-only`: 12 programs, 24 executions and
+12,672 lifecycle arms across all three targets and both profiles. Failures are calibrated to actual first-final
+reads; callback counts are not fixed. Caller ratios establish lifecycle and statistics behavior, while the complete
+original panels establish distinct numeric results. Foreign execution uses QEMU, not physical devices.
+
+`rate_acquisition_cases.empty_cases()` supplies 48 empty/all-stale histories, covering float, integer histogram
+and float histogram input, all three extrapolated functions, instant/range execution and `absent` wrappers.
+Both native profiles at pages 1/17/1024 check 576 responses against explicit empty/one expectations. All 288 paired
+nonelapsed observation groups match the actual published predecessor.
+
+`rate_acquisition_cases.performance_cases()` reproduces all 27 fixed scaling/fallback/control inputs. Five
+alternating pairs per native profile check every complete warm/measured result and each binary's own nonelapsed
+observations: 1,080 responses plus 108 anchors, producing 54 timing groups. All owned qualification jobs finish
+before timing begins. The [source-bound report](rate-acquisition-qualification.json) retains every sample, result
+binding, observation category, binary and code-size cost.
+
+At 1,024 groups, five-sample median engine milliseconds are:
+
+| Function in grouped ratio | Release before → after | Release-min before → after | Fetched-entry reduction |
+| --- | ---: | ---: | ---: |
+| `rate` | 279.615 → 252.931 | 484.191 → 420.598 | 25% |
+| `increase` | 288.917 → 248.735 | 465.901 → 420.493 | 25% |
+| `delta` | 227.275 → 203.828 | 389.201 → 345.288 | 50% |
+
+The rate input changes 655,360 → 491,520 fetched entries, 163,840 → 122,880 page deliveries and
+331,783 → 249,863 provider calls in both profiles. Its workspace peak stays 4,438,614 bytes. All eight memory-kind
+peaks stay equal in all 54 timing groups; workspace and borrowed-view traffic decrease in 20 of 27 groups per
+profile. Borrowed-view traffic is not physical allocation or disk I/O.
+
+Three release medians are slower: raw-root 64 groups by 1.26%, raw-root 1,024 groups by 1.93%, and the all-native
+fallback by 0.94%. No release-min median is slower in this finite run; that is not a zero-overhead guarantee.
+Query-fixture ELF text grows by 43,632 bytes in release and 28,048 bytes in release-min. Timings are synthetic
+shared-host engine execution without CPU/frequency isolation, excluding compilation and fixture transport.
+They establish neither live HTTP/DBengine disk or concurrent throughput, whole-Agent size, physical ARM timing
+nor process RSS. Existing APIs, storage/provider policy, numerical reference and disabled caps remain unchanged.
 
 ## Histogram constructor key lookup
 
