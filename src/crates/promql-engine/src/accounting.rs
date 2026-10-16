@@ -697,7 +697,11 @@ pub struct AccountedVec<T> {
 }
 impl<T> AccountedVec<T> {
     pub fn new(query: &QueryAccounting, kind: MemoryKind) -> Self {
-        Self::new_in(Some(&AllocationContext::new(query, kind)))
+        // Acquire the sole owner before the empty vector to avoid needless unwind state.
+        Self {
+            lease: Some(query.hold(kind, 0)),
+            values: Vec::new(),
+        }
     }
     pub(crate) fn new_in(context: Option<&AllocationContext>) -> Self {
         Self {
@@ -1554,5 +1558,83 @@ mod tests {
         assert_eq!(snapshot.completed_executions, 2);
         assert_eq!(snapshot.memory[3].current, 0);
         assert!(snapshot.elapsed > Duration::ZERO);
+    }
+
+    #[cfg(feature = "fixtures")]
+    #[test]
+    #[ignore = "explicit source-bound constructor timing; no retained buffers"]
+    fn measure_empty_vector_owners() {
+        fn run<T>(
+            name: &str,
+            query: &QueryAccounting,
+            engine: &EngineAccounting,
+            mut make: impl FnMut() -> AccountedVec<T>,
+        ) {
+            let rounds = 1_000_000u64;
+            let before = query.snapshot();
+            let engine_before = engine.snapshot();
+            let start = Instant::now();
+            let mut checksum = 0u64;
+            for _ in 0..rounds {
+                let buffer = std::hint::black_box(make());
+                checksum = checksum.wrapping_add(buffer.capacity() as u64);
+                drop(buffer);
+            }
+            let elapsed_ns = start.elapsed().as_nanos();
+            let after = query.snapshot();
+            assert_eq!(after, before);
+            assert_eq!(engine.snapshot(), engine_before);
+            assert_eq!(
+                checksum,
+                (Vec::<T>::new().capacity() as u64).wrapping_mul(rounds)
+            );
+            let memory: Vec<_> = after
+                .memory
+                .iter()
+                .map(|entry| {
+                    [
+                        entry.current,
+                        entry.peak,
+                        entry.acquired,
+                        entry.released,
+                        u64::from(entry.overflowed),
+                    ]
+                })
+                .collect();
+            println!(
+                "{}",
+                serde_json::json!({
+                    "case": name,
+                    "rounds": rounds,
+                    "elapsed_ns": elapsed_ns,
+                    "capacity_checksum": checksum,
+                    "memory": memory,
+                    "work": after.work,
+                    "output_samples": after.output_samples,
+                    "observations_unchanged": true,
+                })
+            );
+        }
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let context = AllocationContext::new(&query, MemoryKind::Workspace);
+        macro_rules! cases {
+            ($kind:ty, $suffix:literal) => {
+                run(concat!("direct_", $suffix), &query, &engine, || {
+                    AccountedVec::<$kind>::new(&query, MemoryKind::Workspace)
+                });
+                run(concat!("context_", $suffix), &query, &engine, || {
+                    AccountedVec::<$kind>::new_in(Some(&context))
+                });
+                run(concat!("untracked_", $suffix), &query, &engine, || {
+                    AccountedVec::<$kind>::default()
+                });
+            };
+        }
+        cases!(u8, "u8");
+        cases!(u64, "u64");
+        cases!((), "zst");
+        drop((context, query));
+        engine.snapshot().assert_memory_released();
     }
 }

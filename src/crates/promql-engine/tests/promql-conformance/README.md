@@ -5207,3 +5207,71 @@ setting was supplied, but the old reader expected 48 records and omitted 55 alre
 The corrected reader validates all 103. Valid compiled programs and transcripts were reused; missing fixture
 setup and reader failures are not counted as passing engine executions. Source phases and the test-only final
 formatting change are explicit in the report.
+
+## Direct empty-vector owners
+
+`AccountedVec::new` acquires its existing zero-byte query lease directly, without creating and dropping an
+intermediate `AllocationContext`. Acquiring that lease before the infallible empty vector also avoids unnecessary
+unwind state. An empty tracked vector still retains exactly one query owner; optional-context `new_in`, untracked
+vectors, later growth, checked shared-owner guards and accounting/control boundaries are unchanged.
+
+The [qualification](empty-vector-owner-qualification.json) preserves immutable before, first-candidate and final
+source/binary identities. Both final optimized profiles pass 696 units with two explicitly ignored measurements.
+Eight actual C11/C++17 programs cover both native profiles and ARM32/ARM64 release under QEMU; each preserves all
+103 full-suite records and 72 label-output arms. Formatting, strict production/fixture Clippy and installed Rust
+1.91 all-target compilation pass. The MSRV check is compile-only; foreign release-min and physical ARM throughput
+are outside this panel.
+
+Run the bounded constructor measurement from the Cargo root:
+
+```sh
+cargo test --locked --features fixtures --release accounting::tests::measure_empty_vector_owners -- --exact --ignored --nocapture --test-threads=1
+cargo test --locked --features fixtures --profile release-min accounting::tests::measure_empty_vector_owners -- --exact --ignored --nocapture --test-threads=1
+```
+
+The unchanged measurement body was added before baseline preservation. Nine cases construct/drop one million
+empty vectors each, without retaining an array. Direct, existing-context and untracked u8/u64/zero-sized values
+assert complete query/engine snapshot and capacity equality. The existing actual-adapter measurement runs beside
+them. Eight alternating process pairs per profile/probe discard the first warmup pair, yielding 240 complete
+case pairs, 210 measured pairs and 30 groups. All nonelapsed fields match exactly.
+
+| Workload | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| 1,000,000 direct u8 owners | 28.597 → 17.660 ms | 28.356 → 22.992 ms |
+| 1,000,000 direct u64 owners | 27.938 → 17.591 ms | 28.201 → 23.130 ms |
+| 1,000,000 direct zero-sized owners | 27.509 → 17.233 ms | 27.438 → 21.760 ms |
+| 100,000 float callbacks | 5.132 → 3.933 ms | 6.674 → 6.455 ms |
+| 50,000 two-float callbacks | 7.165 → 5.641 ms | 11.234 → 9.914 ms |
+| 10,000 histogram callbacks | 1.707 → 1.399 ms | 2.852 → 2.532 ms |
+
+These are seven-pair median fixture-loop times. Unchanged-context and untracked controls vary too: for example,
+release-min untracked u64 is 8.968→9.163 ms, while context u64 is 26.961→20.224 ms. The full report retains all
+groups and raw samples; unrelated control variation does not establish causal speedups or zero overhead.
+
+Actual emitted-code checks select the concrete raw u8 constructor symbol and verify its address against all
+demangled aliases. Resolve PIC indirect calls through actual ELF GOT relocations: an objdump display alias or
+missing printed callee name is insufficient. Both release unit and default-feature C caller reduce checked atomic
+increments from two to one. Both size-profile owners remove the temporary context/new_in route and call
+`QueryAccounting::hold` directly. Their initial stack reservation falls 24→0 B and saved registers two→one;
+release falls 40→32 B with the same register-count change. These are constructor prologues, not whole-query stacks.
+
+The containing Release Agent gains 29,700 B of executable text and 24 B of data; BSS stays equal. Removing a
+temporary reference does not remove an allocation: all constructor snapshots, actual C/C++ records and the 16
+complete real Agent output/account records remain equal. No heap-byte, peak-RAM or process-RSS reduction is claimed.
+The original private baseline reader's wrong shared-test count and metadata readers' alias/GOT assumptions remain
+recorded separately from successful engine executions. No runtime check was repeated to repair those readers.
+
+The real containing Agent passes the unchanged six-phase, 672-record storage/API panel and 82 HTTP/readiness
+checks plus 224 complete measured responses. Both private Agents exit normally. The fixed warm live API panel
+includes these median wire times against the retained singleton-output predecessor:
+
+| Delivery workload | Raw before → after (ms) | Gorilla before → after (ms) |
+| --- | ---: | ---: |
+| 100,000 points, plain | 96.389 → 91.916 | 92.698 → 95.161 |
+| 100,000 points, gzip | 103.691 → 103.663 | 103.550 → 105.923 |
+
+All complete bodies, statistics, clocks, serial medians and two-client spans are rechecked. Other controls are
+retained too: the raw six-group histogram is 18.959→20.445 ms. Mixed live results do not establish an end-to-end
+speedup. These separately run cohorts use a warm, small two-host/one-tier fixture on a shared workstation, without
+CPU isolation. Large `vector(1)` delivery does not read 100,000 stored DBengine samples; client overlap does not
+establish concurrent evaluator throughput. No cold-disk, high-cardinality, saturation or full-language claim is added.

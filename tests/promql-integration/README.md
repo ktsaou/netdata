@@ -451,3 +451,20 @@ report preserves slower small controls, body bytes, statistics, raw timings, two
 It establishes no maximum throughput, cold/high-cardinality behavior or total-memory reduction. The new Agent costs
 1,504 B of executable text; the examined release callback reserves 64 B more initial stack while removing its
 128 B temporary sample-vector heap allocation. Raw samples remain paged and resource caps remain disabled.
+
+## Direct empty-vector ownership
+
+The [constructor panel](../../src/crates/promql-engine/tests/promql-conformance/README.md#direct-empty-vector-owners)
+removes a temporary query-reference pair while preserving zero-byte leases and all memory/accounting boundaries.
+The current optimized Agent passes 672 storage/API records, 82 HTTP/readiness checks and 224 complete measured
+responses. All 16 real output/account records remain exactly equal to the singleton-output predecessor.
+
+| Delivery workload | Raw before → after (ms) | Gorilla before → after (ms) |
+| --- | ---: | ---: |
+| 100,000 points, plain | 96.389 → 91.916 | 92.698 → 95.161 |
+| 100,000 points, gzip | 103.691 → 103.663 | 103.550 → 105.923 |
+
+These warm shared-host results are mixed; they establish no blanket live-query speedup. The linked report retains
+all small controls, full response checks and separate constructor/adapter timings. The Agent gains 29,700 B of
+executable text and 24 B of data, with equal BSS. Heap observations remain equal; no process-memory decrease is
+claimed. Raw samples remain paged, resource caps remain disabled, and no production service or installation changes.

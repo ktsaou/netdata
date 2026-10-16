@@ -137,6 +137,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   ordering. Include ordinary-provider timing and inspect optimized default-path code: equal results and resource
   counters do not establish zero runtime overhead. The capacity/error/cleanup and actual optimized C caller panel is
   in `src/crates/promql-engine/tests/promql-conformance/README.md#exact-c-label-descriptor-capacity`.
+- Empty-vector ownership measurement and concrete optimized constructor inspection are owned by
+  `src/crates/promql-engine/tests/promql-conformance/README.md#direct-empty-vector-owners`.
 - Single-series head optimizations MUST retain generic multiplicity/kind handling and meaningful control polling;
   see `src/crates/promql-engine/tests/promql-conformance/README.md#single-series-range-head-preparation` for causal controls.
 - Average acquisition reuse MUST preserve full saved traversal state, completed validation before read credit,
