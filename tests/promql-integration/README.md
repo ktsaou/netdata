@@ -60,8 +60,9 @@ not isolate Rust memory or establish IoT/large-parent sizing.
 
 The [recorded Release baseline](live-release-qualification.json) retains the earlier binary and results. The
 [direct set qualification](../../src/crates/promql-engine/tests/promql-conformance/instant-set-qualification.json)
-binds the current engine, a fresh containing Release build, the same 82 HTTP/readiness checks and 224 complete
-measured responses. Seven-sample median wire times are:
+binds its Rust engine and containing Release build, with 82 HTTP/readiness checks and
+224 complete measured responses. Its histogram-replay measurements are retained below; the later C output
+measurements follow under [output record reading](#output-record-reading). Seven-sample median wire times were:
 
 | Query | Raw before → current (ms) | Gorilla before → current (ms) |
 |---|---:|---:|
@@ -83,8 +84,67 @@ inputs; its live sample-unit peak changes 7→5, which is not a RAM-byte measure
 The live before/current cohorts ran at different times on a shared host. Do not attribute every control's timing
 change to this set optimization or infer maximum throughput. All serial outliers, two-client spans and whole-process
 readings remain retained. The earlier baseline also preserves the caller's corrected `data.stats` parsing failure.
-Both current measured Agents exit normally; shutdown response reads time out while native cleanup finishes.
-The current change is private Rust replay behavior; storage, provider, API and resource-limit contracts remain.
+Both Agents in that cohort exit normally; shutdown response reads time out while native cleanup finishes.
+That cohort changed private Rust replay behavior; storage, provider, API and resource-limit contracts remain.
+
+## Output record reading
+
+Final C response assembly reuses its existing 8 KiB workspace when one series has a single sample kind.
+Those point records are physically consecutive. Multiple-series and mixed float/histogram results retain
+exact-sized reads. Reader metadata is local to one chain, so sorting, labels and annotations can reuse the same
+scratch buffer. Large points consume the cached prefix before refilling. This adds no heap buffer or retained
+per-series field; generic body/backing and transport behavior are unchanged.
+
+[Output record qualification](output-record-qualification.json) retains the original, rejected prototype and final
+source/binary identities. The original 100,000-point chain makes 199,680 file reads; the final reader makes 390,
+with the same 3,194,878 bytes read. Seven alternating measured pairs after one warmup pair give median isolated
+assembly times of 118.474 → 4.181 ms. The probe uses controlled allocation/polling; it does not measure actual
+Agent accounting or end-to-end latency. The first prototype over-read sparse, bursty and large histogram records;
+the final ownership guard and partial-window consumption pass the corresponding byte bounds.
+
+The fixed live API panel uses the same Rust archive in the before and current optimized Agents. Both codecs
+pass all 82 HTTP/readiness checks and 224 complete measured responses, with normal zero exits. Seven-sample
+median wire times from the two cohorts are:
+
+| Query | Raw before → current (ms) | Gorilla before → current (ms) |
+|---|---:|---:|
+| Scalar | 0.341 → 0.348 | 0.351 → 0.350 |
+| Fleet gauge | 0.657 → 0.796 | 0.783 → 0.822 |
+| Local counter rate | 0.785 → 0.909 | 0.666 → 0.823 |
+| Fleet average | 0.805 → 1.053 | 0.817 → 0.829 |
+| Six-group histogram | 18.388 → 17.762 | 19.054 → 18.102 |
+| 100,000-point delivery, plain | 237.216 → 118.003 | 234.433 → 117.476 |
+| 100,000-point delivery, gzip | 247.216 → 134.889 | 247.050 → 128.644 |
+
+Plain delivery improves about 50%; gzip improves about 45–48% in this fixture. Live cohorts ran at different
+times on a shared host; small-control changes cannot all be attributed to this reader. Seven of the 16 paired
+normal probe controls have slower medians: the largest relative increase is 11.1% (180 → 200 ns), and the largest
+absolute increase is about 6 µs for mixed chains. Probe executable text grows 480 bytes. The measured containing
+Agent adds 2,052 text bytes and 32 data bytes. All costs and raw samples remain in the report; these results do not
+establish saturation throughput, cold-disk or high-cardinality scaling.
+
+Both actual Agent builds also pass 672 storage/provider/API/delivery records each. All 16 output records, including
+their real Result/Workspace peaks, match exactly between builds. Plain 2,049-point and 100,000-point results each
+peak at 20,212 Result bytes and 14,592 Workspace bytes. Gzip has additional bounded codec allocations. These are
+query-account categories; they are not total process or system memory.
+
+Run the focused Linux/GNU-linker probe from the repository root:
+
+```sh
+python3 tests/promql-integration/output_records.py
+python3 tests/promql-integration/output_records.py --cc arm-linux-gnueabihf-gcc-14 --runner 'qemu-arm -L /usr/arm-linux-gnueabihf'
+python3 tests/promql-integration/output_records.py --cc 'gcc -fsanitize=address,undefined -fno-omit-frame-pointer'
+```
+
+It compiles the actual output/body/backing code, checks 29 complete cases and retains source copies, commands,
+PIDs, statuses and counters in a new private scratch directory. Coverage includes inline/spill boundaries,
+interleaved and mixed chains, a point over 8 KiB, sparse offsets above 2 GiB, short/EINTR/error I/O, cancellation
+on cached data, bounded read counts/bytes and cleanup. Native, ARM32, ARM64 and native ASan/UBSan pass.
+The allocation/control shim does not qualify daemon accounts, numerical formatting, gzip or transports; the
+separate real Agent panel does. `--output-source` accepts an in-repository captured output.c for before/current
+comparison. `--allow-legacy-reads` only disables the old large-case read-count bound; other checks remain active.
+
+## Caller checks
 
 The launch, lifecycle and measurement-envelope checks run without starting an Agent:
 

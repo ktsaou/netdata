@@ -135,6 +135,10 @@ memory is reported separately from query-owned allocations; accounting is not a 
 Temporary backing is required for large results and computations that need external storage. Keep the configured
 directory writable with sufficient space. If backing is unavailable or full, the query returns an explicit error;
 there is no fallback that loads the entire response into RAM. Small scalar results can complete without backing.
+Completed single-series results with one sample kind read their point records through the existing 8 KiB output
+window. Multiple-series and mixed-kind results retain exact-sized reads. This introduces no additional heap buffer;
+[the integration measurements](../../../../tests/promql-integration/README.md#output-record-reading) record its
+scope, real-account checks and measured costs.
 Counter reconstruction keeps 16 page-boundary checkpoints in RAM and spills longer histories into one query-owned
 backing file. Such counter queries need backing even when their final result is small. Checkpoints preserve the
 query's starting basis and exact accumulated bits; copy scratch stays within 8 KiB. DBengine page formats are unchanged.

@@ -286,14 +286,54 @@ static uint32_t compare_series(void *context, uint64_t left, uint64_t right,
     return NETDATA_PROMQL_OK;
 }
 
+typedef struct { uint64_t offset; size_t length; } POINT_WINDOW;
+
+static const uint8_t *chain_bytes(PROMQL_OUTPUT *output, POINT_WINDOW *window, uint64_t offset,
+                                  size_t length, bool read_ahead, PROMQL_READ_FRAME *frame) {
+    uint64_t total = promql_body_length(output->records);
+    if(length > PROMQL_BODY_WINDOW || offset > total || length > total - offset) {
+        output->failure = EINVAL;
+        return NULL;
+    }
+    if(length > window->length || offset < window->offset ||
+       offset - window->offset > window->length - length) {
+        size_t count = read_ahead ? (size_t)MIN(total - offset, (uint64_t)PROMQL_BODY_WINDOW) : length;
+        if(!promql_body_read(output->records, offset, output->window, count, frame, &output->failure)) return NULL;
+        window->offset = offset;
+        window->length = count;
+    }
+    else if(!promql_read_poll(frame)) {
+        output->failure = ECANCELED;
+        return NULL;
+    }
+    return output->window + (size_t)(offset - window->offset);
+}
+
 static bool write_chain(PROMQL_OUTPUT *output, POINT_CHAIN chain, bool matrix, PROMQL_READ_FRAME *frame) {
+    // Other output phases reuse the same scratch bytes, so reader state belongs to this chain only.
+    POINT_WINDOW window = {0};
+    // One series of one value kind has no other point chain interleaved in its records.
+    bool read_ahead = output->count == 1 &&
+        (!output->series[0].floats.count || !output->series[0].histograms.count);
     uint64_t position = chain.first;
     if(matrix && !promql_json_text(output->body, "[", frame, &output->failure)) return false;
     for(uint64_t i = 0; i < chain.count; i++) {
         POINT_RECORD record;
-        if(position == NO_RECORD || !promql_body_read(output->records, position, &record, sizeof(record), frame, &output->failure) ||
-           (i && !promql_json_text(output->body, ",", frame, &output->failure)) ||
-           !copy_blob(output, output->records, position + sizeof(record), record.length, output->body, frame)) return false;
+        if(position == NO_RECORD) return false;
+        const uint8_t *bytes = chain_bytes(output, &window, position, sizeof(record), read_ahead, frame);
+        if(!bytes) return false;
+        memcpy(&record, bytes, sizeof(record));
+        if(i && !promql_json_text(output->body, ",", frame, &output->failure)) return false;
+        uint64_t offset = position + sizeof(record);
+        while(record.length) {
+            size_t count = (size_t)MIN(record.length, (uint64_t)PROMQL_BODY_WINDOW);
+            if(offset >= window.offset && offset - window.offset < window.length)
+                count = MIN(count, window.length - (size_t)(offset - window.offset));
+            bytes = chain_bytes(output, &window, offset, count, read_ahead, frame);
+            if(!bytes || !promql_body_append(output->body, bytes, count, frame, &output->failure)) return false;
+            offset += count;
+            record.length -= count;
+        }
         position = record.next;
     }
     if(position != NO_RECORD) { output->failure = EINVAL; return false; }
