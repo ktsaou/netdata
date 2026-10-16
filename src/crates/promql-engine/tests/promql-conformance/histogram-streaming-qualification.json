@@ -1,0 +1,4544 @@
+{
+  "schema_version": 1,
+  "status": "qualified_private_optimization",
+  "scope": "Retain one literal Quantile/Fraction evaluator behind a certified ordered adapter. No public, numerical, storage, ownership or cap contract change; no language feature added or dropped.",
+  "comparison_base_git": "5d31fc7952e71fb4e5644708d0bc830bf61856f3",
+  "reference": {
+    "reference": "github.com/prometheus/prometheus@v0.315.0",
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go_version": "go1.27.1",
+    "go_arch": "amd64",
+    "go_os": "linux",
+    "unicode_version": "17.0.0"
+  },
+  "original_capture": {
+    "probe_sha256": "4c8d1edc3048c968bacee5a3b8c9fd28488492aa17a1bd02355943dbbcaeb78f",
+    "probe_source": "capture/plural_histogram.go",
+    "source_sha256": "36c256c93917b1c8c6c24f4b7bd05cb71c55b63eac44b4c5262a12352fb4cee5",
+    "results_sha256": "11cc8c34fd9273cf8dfe74ff6cb8e7c6922bec35da484ae6b86d5e0b4548ed3f",
+    "dataset_sha256": "2e829c6a52a269052fd8351f8ed65e476dd1b6492b58d4329750245ac8b700ed",
+    "requests_sha256": "5182c410bb50298b5a40d9616da6f79d4cbad5ef66b78f6f5f4e22960509a0cc"
+  },
+  "inputs": {
+    "generator": {
+      "path": "histogram_streaming_cases.py",
+      "sha256": "2b5a1f5cfe6f36e7915ae955a0d9ad2ef8de1a7cfc4b1a12cb447dc184a7ec30"
+    },
+    "retained_generator": {
+      "path": "histogram_contributor_cases.py",
+      "sha256": "c5d0c4b3524d0f845c7d08e5da1da0086965b31e85b68645f46b42b8a3b153f5"
+    },
+    "c_caller": {
+      "path": "histogram_contributors.c",
+      "sha256": "a480e360ae881dc6d5206438ad6790d649b5a1b8c46bfdecad7f1b7e780c2c98"
+    },
+    "cases": 724,
+    "retained_cases": 436,
+    "new_cases": 288,
+    "series": 106,
+    "pages": [
+      1,
+      17,
+      1024
+    ]
+  },
+  "implementation": [
+    "Certify nonempty complete one-to-one canonical labels/hash/drop/kind/source identities after the histogram own node finishes.",
+    "Only resolved literal Quantile/Fraction scalar parameters and runtimeAll qualify; own logical preparation remains unchanged.",
+    "Frozen-child ancestor consumption uses the same adapter. Every invocation still performs fullAll discovery and fresh value reads.",
+    "Keep adapter normalization and sparse ordinal alignment; retain Vector child until actualDone or ordinary parent truncation.",
+    "Dynamic, selected/no-match, reordered/aliased, empty, plural, invariant and boundary routes retain prior evaluation. No discovery/value/raw-history cache added."
+  ],
+  "native_profiles": {
+    "release": {
+      "passed_units": 700,
+      "ignored_units": 2,
+      "archive": {
+        "path": ".tmp/histogram-range-bxwqbvoj/final-native-release/libnetdata_promql_engine.a",
+        "sha256": "307a72de1cb5d38e2f68274445da401ad4e990c8222f13261af0aa220bc02b0c"
+      },
+      "unit": {
+        "path": ".tmp/histogram-range-bxwqbvoj/final-native-release/unit",
+        "sha256": "aebace5bee89c6cd85fbb8ac3b2ec611ba018eda5e78609750ed8a9d6daf68be"
+      },
+      "fixture": {
+        "path": ".tmp/histogram-range-bxwqbvoj/early-query-fixture",
+        "sha256": "65b354f303b0261bfba282cfdd0773257a5517dc11a274ffb7f5228c24375d4a"
+      },
+      "archive_source_manifest": "qualified-source.json"
+    },
+    "release-min": {
+      "passed_units": 700,
+      "ignored_units": 2,
+      "archive": {
+        "path": ".tmp/histogram-range-bxwqbvoj/final-native-release-min/libnetdata_promql_engine.a",
+        "sha256": "75511b8ea3d84491f6fe4bd7ed638889a313f33ef48e7946f727e77d7708ce40"
+      },
+      "unit": {
+        "path": ".tmp/histogram-range-bxwqbvoj/final-native-release-min/unit",
+        "sha256": "67fe6330f2d41473b70d4aa2b6f7c5474d3f8811b627d368e5cd49d3c748a517"
+      },
+      "fixture": {
+        "path": ".tmp/histogram-range-bxwqbvoj/final-native-release-min/promql-query-fixture",
+        "sha256": "cc107f811a85ac8d37b0440fbb54d5edcc69b16520978a4f22ee85c511eace73"
+      },
+      "archive_source_manifest": "qualified-final-source.json"
+    }
+  },
+  "native_original_comparisons": 4344,
+  "foreign_original_comparisons": 4344,
+  "semantic_mismatches": 0,
+  "bitwise_differences": 0,
+  "reused_exact_binary_comparisons": 724,
+  "controls": {
+    "growth_unit": "ordered_literal_histograms_do_not_restart_for_every_group",
+    "phase_unit": "ordered_histogram_streaming_keeps_acquisition_and_filter_phases",
+    "phase_scope": "Actual cold/later acquisition failures, cancellation, selected/empty filters, dynamic scalar re-entry, accepted/reordered native inputs and parent truncation; complete release.",
+    "existing_c_cpp_programs": 8,
+    "existing_records_each": {
+      "full": 103,
+      "owned_labels": 72
+    },
+    "physical_record_changes_each": 15,
+    "physical_record_policy": "Only request_kind2/delayed0/pages1,17,1024 and arms0,2,3,4,5 change. Work deltas -9765,+52,+51,+51,+11 respectively; arm0fetches -24. Every other field/row and all72labels remain exact.",
+    "histogram_c_programs": 8,
+    "complete_histogram_query_assertions": 576,
+    "logical_sample_totals": "4/12unchanged; useful reads and simultaneous sample peaks remain physical observations.",
+    "coupled_test_correction": "First release roster699pass/1fail/2ignored rejected7168reads against old24448. Corrected only the cfg(test)range expectation to448*groups for8ticks; all outputs/logical totals/provider-fetch/work checks retained. Independently derived from raw16g plus logical216g plus final216g.",
+    "static": [
+      "format",
+      "strict production Clippy",
+      "strict fixture Clippy",
+      "installed Rust1.91all-target fixture compile"
+    ],
+    "live_http_checks": 29,
+    "live_host_readiness_checks": 12,
+    "live_normal_zero_exits": 1
+  },
+  "memory": {
+    "status": "pass",
+    "paired_cases": 724,
+    "page_size": 17,
+    "memory": [
+      {
+        "index": 0,
+        "kind": "compiled",
+        "minimum_peak_delta_bytes": 0,
+        "maximum_peak_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      {
+        "index": 1,
+        "kind": "workspace",
+        "minimum_peak_delta_bytes": 0,
+        "maximum_peak_delta_bytes": 40,
+        "changed_cases": 718
+      },
+      {
+        "index": 2,
+        "kind": "result",
+        "minimum_peak_delta_bytes": 0,
+        "maximum_peak_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      {
+        "index": 3,
+        "kind": "provider_held",
+        "minimum_peak_delta_bytes": 0,
+        "maximum_peak_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      {
+        "index": 4,
+        "kind": "borrowed_view",
+        "minimum_peak_delta_bytes": 0,
+        "maximum_peak_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      {
+        "index": 5,
+        "kind": "regex_estimate",
+        "minimum_peak_delta_bytes": 0,
+        "maximum_peak_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      {
+        "index": 6,
+        "kind": "shared_cache_reference",
+        "minimum_peak_delta_bytes": 0,
+        "maximum_peak_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      {
+        "index": 7,
+        "kind": "accounting",
+        "minimum_peak_delta_bytes": 0,
+        "maximum_peak_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    ],
+    "native_profile_nonelapsed_observations_equal": true,
+    "scope": "Same-input native before/candidate tracked peaks; all8categories retained. Both native profiles have identical nonelapsed observations at each page size. Allocation traffic is distinct from simultaneous peak bytes; no process RSS claim."
+  },
+  "memory_kind_order": [
+    "compiled",
+    "workspace",
+    "result",
+    "provider_held",
+    "borrowed_view",
+    "regex_estimate",
+    "shared_cache_reference",
+    "accounting"
+  ],
+  "timing": {
+    "profile": "native release",
+    "pairs": 6,
+    "warmup_pairs": 1,
+    "complete_results": 1728,
+    "measured_results": 1440,
+    "workload_groups": 72,
+    "groups": [
+      {
+        "id": "g16:group-scalar:equal",
+        "before": {
+          "median_elapsed_ns": 3134336.0,
+          "measured_samples": 10,
+          "work": 139292,
+          "samples_fetched": 8640,
+          "workspace_peak_bytes": 134931,
+          "workspace_acquired_bytes": 1217940,
+          "memory_peak_bytes_by_kind": [
+            0,
+            134931,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1217940,
+            512,
+            0,
+            2350080,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 3137321.5,
+          "measured_samples": 10,
+          "work": 139292,
+          "samples_fetched": 8640,
+          "workspace_peak_bytes": 134931,
+          "workspace_acquired_bytes": 1217940,
+          "memory_peak_bytes_by_kind": [
+            0,
+            134931,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1217940,
+            512,
+            0,
+            2350080,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:group-scalar:instant",
+        "before": {
+          "median_elapsed_ns": 3119212.0,
+          "measured_samples": 10,
+          "work": 139285,
+          "samples_fetched": 8640,
+          "workspace_peak_bytes": 134931,
+          "workspace_acquired_bytes": 1217940,
+          "memory_peak_bytes_by_kind": [
+            0,
+            134931,
+            0,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1217940,
+            0,
+            0,
+            2350080,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 3134922.0,
+          "measured_samples": 10,
+          "work": 139285,
+          "samples_fetched": 8640,
+          "workspace_peak_bytes": 134931,
+          "workspace_acquired_bytes": 1217940,
+          "memory_peak_bytes_by_kind": [
+            0,
+            134931,
+            0,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1217940,
+            0,
+            0,
+            2350080,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:group-scalar:partial-one",
+        "before": {
+          "median_elapsed_ns": 3205146.0,
+          "measured_samples": 10,
+          "work": 139292,
+          "samples_fetched": 8640,
+          "workspace_peak_bytes": 134931,
+          "workspace_acquired_bytes": 1217940,
+          "memory_peak_bytes_by_kind": [
+            0,
+            134931,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1217940,
+            512,
+            0,
+            2350080,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 3165081.5,
+          "measured_samples": 10,
+          "work": 139292,
+          "samples_fetched": 8640,
+          "workspace_peak_bytes": 134931,
+          "workspace_acquired_bytes": 1217940,
+          "memory_peak_bytes_by_kind": [
+            0,
+            134931,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1217940,
+            512,
+            0,
+            2350080,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:group-scalar:three-ticks",
+        "before": {
+          "median_elapsed_ns": 9634572.5,
+          "measured_samples": 10,
+          "work": 418076,
+          "samples_fetched": 43200,
+          "workspace_peak_bytes": 135336,
+          "workspace_acquired_bytes": 3341676,
+          "memory_peak_bytes_by_kind": [
+            0,
+            135336,
+            512,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            3341676,
+            512,
+            0,
+            11750400,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 9482668.5,
+          "measured_samples": 10,
+          "work": 418076,
+          "samples_fetched": 43200,
+          "workspace_peak_bytes": 135336,
+          "workspace_acquired_bytes": 3341676,
+          "memory_peak_bytes_by_kind": [
+            0,
+            135336,
+            512,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            3341676,
+            512,
+            0,
+            11750400,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:group-vector:equal",
+        "before": {
+          "median_elapsed_ns": 1964370.0,
+          "measured_samples": 10,
+          "work": 93044,
+          "samples_fetched": 5184,
+          "workspace_peak_bytes": 134931,
+          "workspace_acquired_bytes": 795136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            134931,
+            20930,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            795136,
+            27170,
+            0,
+            1410048,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1999745.0,
+          "measured_samples": 10,
+          "work": 93044,
+          "samples_fetched": 5184,
+          "workspace_peak_bytes": 134931,
+          "workspace_acquired_bytes": 795136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            134931,
+            20930,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            795136,
+            27170,
+            0,
+            1410048,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:group-vector:instant",
+        "before": {
+          "median_elapsed_ns": 2002384.5,
+          "measured_samples": 10,
+          "work": 91181,
+          "samples_fetched": 5184,
+          "workspace_peak_bytes": 134931,
+          "workspace_acquired_bytes": 795136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            134931,
+            20930,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            795136,
+            27170,
+            0,
+            1410048,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1997685.0,
+          "measured_samples": 10,
+          "work": 91181,
+          "samples_fetched": 5184,
+          "workspace_peak_bytes": 134931,
+          "workspace_acquired_bytes": 795136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            134931,
+            20930,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            795136,
+            27170,
+            0,
+            1410048,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:group-vector:partial-one",
+        "before": {
+          "median_elapsed_ns": 2004370.0,
+          "measured_samples": 10,
+          "work": 93044,
+          "samples_fetched": 5184,
+          "workspace_peak_bytes": 134931,
+          "workspace_acquired_bytes": 795136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            134931,
+            20930,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            795136,
+            27170,
+            0,
+            1410048,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1991055.0,
+          "measured_samples": 10,
+          "work": 93044,
+          "samples_fetched": 5184,
+          "workspace_peak_bytes": 134931,
+          "workspace_acquired_bytes": 795136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            134931,
+            20930,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            795136,
+            27170,
+            0,
+            1410048,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:group-vector:three-ticks",
+        "before": {
+          "median_elapsed_ns": 6188878.5,
+          "measured_samples": 10,
+          "work": 263224,
+          "samples_fetched": 25920,
+          "workspace_peak_bytes": 135336,
+          "workspace_acquired_bytes": 2080432,
+          "memory_peak_bytes_by_kind": [
+            0,
+            135336,
+            20930,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            2080432,
+            27170,
+            0,
+            7050240,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 5789586.5,
+          "measured_samples": 10,
+          "work": 263224,
+          "samples_fetched": 25920,
+          "workspace_peak_bytes": 135336,
+          "workspace_acquired_bytes": 2080432,
+          "memory_peak_bytes_by_kind": [
+            0,
+            135336,
+            20930,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            2080432,
+            27170,
+            0,
+            7050240,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:histogram-raw:equal",
+        "before": {
+          "median_elapsed_ns": 3132296.5,
+          "measured_samples": 10,
+          "work": 218308,
+          "samples_fetched": 2688,
+          "workspace_peak_bytes": 89382,
+          "workspace_acquired_bytes": 1385506,
+          "memory_peak_bytes_by_kind": [
+            0,
+            89382,
+            4822,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1385506,
+            6070,
+            0,
+            731136,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 3169061.5,
+          "measured_samples": 10,
+          "work": 218308,
+          "samples_fetched": 2688,
+          "workspace_peak_bytes": 89390,
+          "workspace_acquired_bytes": 1385514,
+          "memory_peak_bytes_by_kind": [
+            0,
+            89390,
+            4822,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1385514,
+            6070,
+            0,
+            731136,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:histogram-raw:instant",
+        "before": {
+          "median_elapsed_ns": 3101742.0,
+          "measured_samples": 10,
+          "work": 218186,
+          "samples_fetched": 2688,
+          "workspace_peak_bytes": 89382,
+          "workspace_acquired_bytes": 1385506,
+          "memory_peak_bytes_by_kind": [
+            0,
+            89382,
+            4822,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1385506,
+            6070,
+            0,
+            731136,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 3169436.0,
+          "measured_samples": 10,
+          "work": 218186,
+          "samples_fetched": 2688,
+          "workspace_peak_bytes": 89390,
+          "workspace_acquired_bytes": 1385514,
+          "memory_peak_bytes_by_kind": [
+            0,
+            89390,
+            4822,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1385514,
+            6070,
+            0,
+            731136,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:histogram-raw:partial-one",
+        "before": {
+          "median_elapsed_ns": 7701697.0,
+          "measured_samples": 10,
+          "work": 548603,
+          "samples_fetched": 7008,
+          "workspace_peak_bytes": 89510,
+          "workspace_acquired_bytes": 3478592,
+          "memory_peak_bytes_by_kind": [
+            0,
+            89510,
+            4822,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            3478592,
+            6070,
+            0,
+            1906176,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 3224701.0,
+          "measured_samples": 10,
+          "work": 219272,
+          "samples_fetched": 2688,
+          "workspace_peak_bytes": 89518,
+          "workspace_acquired_bytes": 1389322,
+          "memory_peak_bytes_by_kind": [
+            0,
+            89518,
+            4822,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1389322,
+            6070,
+            0,
+            731136,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:histogram-raw:three-ticks",
+        "before": {
+          "median_elapsed_ns": 23426184.0,
+          "measured_samples": 10,
+          "work": 1609675,
+          "samples_fetched": 34080,
+          "workspace_peak_bytes": 91974,
+          "workspace_acquired_bytes": 9965840,
+          "memory_peak_bytes_by_kind": [
+            0,
+            91974,
+            4822,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            9965840,
+            6070,
+            0,
+            9269760,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 9253470.0,
+          "measured_samples": 10,
+          "work": 595320,
+          "samples_fetched": 12480,
+          "workspace_peak_bytes": 91982,
+          "workspace_acquired_bytes": 3698014,
+          "memory_peak_bytes_by_kind": [
+            0,
+            91982,
+            4822,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            3698014,
+            6070,
+            0,
+            3394560,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:histogram-scalar:equal",
+        "before": {
+          "median_elapsed_ns": 6607056.0,
+          "measured_samples": 10,
+          "work": 404709,
+          "samples_fetched": 10368,
+          "workspace_peak_bytes": 148288,
+          "workspace_acquired_bytes": 2789938,
+          "memory_peak_bytes_by_kind": [
+            0,
+            148288,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            2789938,
+            512,
+            0,
+            2820096,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 6689745.0,
+          "measured_samples": 10,
+          "work": 404709,
+          "samples_fetched": 10368,
+          "workspace_peak_bytes": 148296,
+          "workspace_acquired_bytes": 2789946,
+          "memory_peak_bytes_by_kind": [
+            0,
+            148296,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            2789946,
+            512,
+            0,
+            2820096,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:histogram-scalar:instant",
+        "before": {
+          "median_elapsed_ns": 6596155.0,
+          "measured_samples": 10,
+          "work": 404702,
+          "samples_fetched": 10368,
+          "workspace_peak_bytes": 148288,
+          "workspace_acquired_bytes": 2789938,
+          "memory_peak_bytes_by_kind": [
+            0,
+            148288,
+            0,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            2789938,
+            0,
+            0,
+            2820096,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 6704560.0,
+          "measured_samples": 10,
+          "work": 404702,
+          "samples_fetched": 10368,
+          "workspace_peak_bytes": 148296,
+          "workspace_acquired_bytes": 2789946,
+          "memory_peak_bytes_by_kind": [
+            0,
+            148296,
+            0,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            2789946,
+            0,
+            0,
+            2820096,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:histogram-scalar:partial-one",
+        "before": {
+          "median_elapsed_ns": 17467393.5,
+          "measured_samples": 10,
+          "work": 1414204,
+          "samples_fetched": 10368,
+          "workspace_peak_bytes": 152870,
+          "workspace_acquired_bytes": 8372300,
+          "memory_peak_bytes_by_kind": [
+            0,
+            152870,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            8372300,
+            512,
+            0,
+            2820096,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 6679610.0,
+          "measured_samples": 10,
+          "work": 406113,
+          "samples_fetched": 10368,
+          "workspace_peak_bytes": 151998,
+          "workspace_acquired_bytes": 2795674,
+          "memory_peak_bytes_by_kind": [
+            0,
+            151998,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            2795674,
+            512,
+            0,
+            2820096,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:histogram-scalar:three-ticks",
+        "before": {
+          "median_elapsed_ns": 53049512.0,
+          "measured_samples": 10,
+          "work": 4242034,
+          "samples_fetched": 51840,
+          "workspace_peak_bytes": 153542,
+          "workspace_acquired_bytes": 24706684,
+          "memory_peak_bytes_by_kind": [
+            0,
+            153542,
+            512,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            24706684,
+            512,
+            0,
+            14100480,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 20084755.0,
+          "measured_samples": 10,
+          "work": 1217319,
+          "samples_fetched": 51840,
+          "workspace_peak_bytes": 153550,
+          "workspace_acquired_bytes": 7976790,
+          "memory_peak_bytes_by_kind": [
+            0,
+            153550,
+            512,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            7976790,
+            512,
+            0,
+            14100480,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:histogram-vector:equal",
+        "before": {
+          "median_elapsed_ns": 4077689.0,
+          "measured_samples": 10,
+          "work": 236890,
+          "samples_fetched": 6912,
+          "workspace_peak_bytes": 142422,
+          "workspace_acquired_bytes": 1693474,
+          "memory_peak_bytes_by_kind": [
+            0,
+            142422,
+            4822,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1693474,
+            6070,
+            0,
+            1880064,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 4057014.5,
+          "measured_samples": 10,
+          "work": 236890,
+          "samples_fetched": 6912,
+          "workspace_peak_bytes": 142430,
+          "workspace_acquired_bytes": 1693482,
+          "memory_peak_bytes_by_kind": [
+            0,
+            142430,
+            4822,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1693482,
+            6070,
+            0,
+            1880064,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:histogram-vector:instant",
+        "before": {
+          "median_elapsed_ns": 4016494.5,
+          "measured_samples": 10,
+          "work": 236768,
+          "samples_fetched": 6912,
+          "workspace_peak_bytes": 142422,
+          "workspace_acquired_bytes": 1693474,
+          "memory_peak_bytes_by_kind": [
+            0,
+            142422,
+            4822,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1693474,
+            6070,
+            0,
+            1880064,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 4072889.0,
+          "measured_samples": 10,
+          "work": 236768,
+          "samples_fetched": 6912,
+          "workspace_peak_bytes": 142430,
+          "workspace_acquired_bytes": 1693482,
+          "memory_peak_bytes_by_kind": [
+            0,
+            142430,
+            4822,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1693482,
+            6070,
+            0,
+            1880064,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:histogram-vector:partial-one",
+        "before": {
+          "median_elapsed_ns": 7661852.5,
+          "measured_samples": 10,
+          "work": 574025,
+          "samples_fetched": 6912,
+          "workspace_peak_bytes": 143430,
+          "workspace_acquired_bytes": 3556160,
+          "memory_peak_bytes_by_kind": [
+            0,
+            143430,
+            4822,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            3556160,
+            6070,
+            0,
+            1880064,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 4074409.5,
+          "measured_samples": 10,
+          "work": 237854,
+          "samples_fetched": 6912,
+          "workspace_peak_bytes": 142558,
+          "workspace_acquired_bytes": 1697290,
+          "memory_peak_bytes_by_kind": [
+            0,
+            142558,
+            4822,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1697290,
+            6070,
+            0,
+            1880064,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:histogram-vector:three-ticks",
+        "before": {
+          "median_elapsed_ns": 22752719.5,
+          "measured_samples": 10,
+          "work": 1709135,
+          "samples_fetched": 34560,
+          "workspace_peak_bytes": 145894,
+          "workspace_acquired_bytes": 10290136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            145894,
+            4822,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            10290136,
+            6070,
+            0,
+            9400320,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 12015610.0,
+          "measured_samples": 10,
+          "work": 700180,
+          "samples_fetched": 34560,
+          "workspace_peak_bytes": 145902,
+          "workspace_acquired_bytes": 4713510,
+          "memory_peak_bytes_by_kind": [
+            0,
+            145902,
+            4822,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            4713510,
+            6070,
+            0,
+            9400320,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:raw-rate:equal",
+        "before": {
+          "median_elapsed_ns": 1361430.0,
+          "measured_samples": 10,
+          "work": 71933,
+          "samples_fetched": 3456,
+          "workspace_peak_bytes": 131955,
+          "workspace_acquired_bytes": 497136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            131955,
+            52036,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            497136,
+            64932,
+            0,
+            940032,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1369870.0,
+          "measured_samples": 10,
+          "work": 71933,
+          "samples_fetched": 3456,
+          "workspace_peak_bytes": 131955,
+          "workspace_acquired_bytes": 497136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            131955,
+            52036,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            497136,
+            64932,
+            0,
+            940032,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:raw-rate:instant",
+        "before": {
+          "median_elapsed_ns": 1301685.5,
+          "measured_samples": 10,
+          "work": 61690,
+          "samples_fetched": 3456,
+          "workspace_peak_bytes": 131955,
+          "workspace_acquired_bytes": 497136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            131955,
+            52036,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            497136,
+            64932,
+            0,
+            940032,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1314975.0,
+          "measured_samples": 10,
+          "work": 61690,
+          "samples_fetched": 3456,
+          "workspace_peak_bytes": 131955,
+          "workspace_acquired_bytes": 497136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            131955,
+            52036,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            497136,
+            64932,
+            0,
+            940032,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:raw-rate:partial-one",
+        "before": {
+          "median_elapsed_ns": 1359749.5,
+          "measured_samples": 10,
+          "work": 71933,
+          "samples_fetched": 3456,
+          "workspace_peak_bytes": 131955,
+          "workspace_acquired_bytes": 497136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            131955,
+            52036,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            497136,
+            64932,
+            0,
+            940032,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1361974.5,
+          "measured_samples": 10,
+          "work": 71933,
+          "samples_fetched": 3456,
+          "workspace_peak_bytes": 131955,
+          "workspace_acquired_bytes": 497136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            131955,
+            52036,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            497136,
+            64932,
+            0,
+            940032,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g16:raw-rate:three-ticks",
+        "before": {
+          "median_elapsed_ns": 3802811.5,
+          "measured_samples": 10,
+          "work": 180665,
+          "samples_fetched": 17280,
+          "workspace_peak_bytes": 132360,
+          "workspace_acquired_bytes": 1261824,
+          "memory_peak_bytes_by_kind": [
+            0,
+            132360,
+            52036,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1261824,
+            64932,
+            0,
+            4700160,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 3831031.0,
+          "measured_samples": 10,
+          "work": 180665,
+          "samples_fetched": 17280,
+          "workspace_peak_bytes": 132360,
+          "workspace_acquired_bytes": 1261824,
+          "memory_peak_bytes_by_kind": [
+            0,
+            132360,
+            52036,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1261824,
+            64932,
+            0,
+            4700160,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:group-scalar:equal",
+        "before": {
+          "median_elapsed_ns": 216998.0,
+          "measured_samples": 10,
+          "work": 8360,
+          "samples_fetched": 540,
+          "workspace_peak_bytes": 16643,
+          "workspace_acquired_bytes": 92424,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16643,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            92424,
+            512,
+            0,
+            146880,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 217213.5,
+          "measured_samples": 10,
+          "work": 8360,
+          "samples_fetched": 540,
+          "workspace_peak_bytes": 16643,
+          "workspace_acquired_bytes": 92424,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16643,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            92424,
+            512,
+            0,
+            146880,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:group-scalar:instant",
+        "before": {
+          "median_elapsed_ns": 219198.0,
+          "measured_samples": 10,
+          "work": 8353,
+          "samples_fetched": 540,
+          "workspace_peak_bytes": 16643,
+          "workspace_acquired_bytes": 92424,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16643,
+            0,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            92424,
+            0,
+            0,
+            146880,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 216503.5,
+          "measured_samples": 10,
+          "work": 8353,
+          "samples_fetched": 540,
+          "workspace_peak_bytes": 16643,
+          "workspace_acquired_bytes": 92424,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16643,
+            0,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            92424,
+            0,
+            0,
+            146880,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:group-scalar:partial-one",
+        "before": {
+          "median_elapsed_ns": 221008.0,
+          "measured_samples": 10,
+          "work": 8360,
+          "samples_fetched": 540,
+          "workspace_peak_bytes": 16643,
+          "workspace_acquired_bytes": 92424,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16643,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            92424,
+            512,
+            0,
+            146880,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 229578.0,
+          "measured_samples": 10,
+          "work": 8360,
+          "samples_fetched": 540,
+          "workspace_peak_bytes": 16643,
+          "workspace_acquired_bytes": 92424,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16643,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            92424,
+            512,
+            0,
+            146880,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:group-scalar:three-ticks",
+        "before": {
+          "median_elapsed_ns": 625495.5,
+          "measured_samples": 10,
+          "work": 25140,
+          "samples_fetched": 2700,
+          "workspace_peak_bytes": 17315,
+          "workspace_acquired_bytes": 232008,
+          "memory_peak_bytes_by_kind": [
+            0,
+            17315,
+            512,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            232008,
+            512,
+            0,
+            734400,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 624115.5,
+          "measured_samples": 10,
+          "work": 25140,
+          "samples_fetched": 2700,
+          "workspace_peak_bytes": 17315,
+          "workspace_acquired_bytes": 232008,
+          "memory_peak_bytes_by_kind": [
+            0,
+            17315,
+            512,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            232008,
+            512,
+            0,
+            734400,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:group-vector:equal",
+        "before": {
+          "median_elapsed_ns": 139298.5,
+          "measured_samples": 10,
+          "work": 5368,
+          "samples_fetched": 324,
+          "workspace_peak_bytes": 16305,
+          "workspace_acquired_bytes": 60430,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16305,
+            1307,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            60430,
+            1307,
+            0,
+            88128,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 143029.0,
+          "measured_samples": 10,
+          "work": 5368,
+          "samples_fetched": 324,
+          "workspace_peak_bytes": 16305,
+          "workspace_acquired_bytes": 60430,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16305,
+            1307,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            60430,
+            1307,
+            0,
+            88128,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:group-vector:instant",
+        "before": {
+          "median_elapsed_ns": 143753.5,
+          "measured_samples": 10,
+          "work": 5336,
+          "samples_fetched": 324,
+          "workspace_peak_bytes": 16305,
+          "workspace_acquired_bytes": 60430,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16305,
+            1307,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            60430,
+            1307,
+            0,
+            88128,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 143269.5,
+          "measured_samples": 10,
+          "work": 5336,
+          "samples_fetched": 324,
+          "workspace_peak_bytes": 16305,
+          "workspace_acquired_bytes": 60430,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16305,
+            1307,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            60430,
+            1307,
+            0,
+            88128,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:group-vector:partial-one",
+        "before": {
+          "median_elapsed_ns": 139878.5,
+          "measured_samples": 10,
+          "work": 5368,
+          "samples_fetched": 324,
+          "workspace_peak_bytes": 16305,
+          "workspace_acquired_bytes": 60430,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16305,
+            1307,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            60430,
+            1307,
+            0,
+            88128,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 141974.5,
+          "measured_samples": 10,
+          "work": 5368,
+          "samples_fetched": 324,
+          "workspace_peak_bytes": 16305,
+          "workspace_acquired_bytes": 60430,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16305,
+            1307,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            60430,
+            1307,
+            0,
+            88128,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:group-vector:three-ticks",
+        "before": {
+          "median_elapsed_ns": 386977.0,
+          "measured_samples": 10,
+          "work": 15408,
+          "samples_fetched": 1620,
+          "workspace_peak_bytes": 16710,
+          "workspace_acquired_bytes": 143194,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16710,
+            1307,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            143194,
+            1307,
+            0,
+            440640,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 389832.0,
+          "measured_samples": 10,
+          "work": 15408,
+          "samples_fetched": 1620,
+          "workspace_peak_bytes": 16710,
+          "workspace_acquired_bytes": 143194,
+          "memory_peak_bytes_by_kind": [
+            0,
+            16710,
+            1307,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            143194,
+            1307,
+            0,
+            440640,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:histogram-raw:equal",
+        "before": {
+          "median_elapsed_ns": 228658.0,
+          "measured_samples": 10,
+          "work": 13086,
+          "samples_fetched": 168,
+          "workspace_peak_bytes": 13922,
+          "workspace_acquired_bytes": 100564,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13922,
+            613,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            100564,
+            613,
+            0,
+            45696,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 230133.0,
+          "measured_samples": 10,
+          "work": 13086,
+          "samples_fetched": 168,
+          "workspace_peak_bytes": 13930,
+          "workspace_acquired_bytes": 100572,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13930,
+            613,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            100572,
+            613,
+            0,
+            45696,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:histogram-raw:instant",
+        "before": {
+          "median_elapsed_ns": 244268.0,
+          "measured_samples": 10,
+          "work": 13083,
+          "samples_fetched": 168,
+          "workspace_peak_bytes": 13922,
+          "workspace_acquired_bytes": 100564,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13922,
+            613,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            100564,
+            613,
+            0,
+            45696,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 241503.0,
+          "measured_samples": 10,
+          "work": 13083,
+          "samples_fetched": 168,
+          "workspace_peak_bytes": 13930,
+          "workspace_acquired_bytes": 100572,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13930,
+            613,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            100572,
+            613,
+            0,
+            45696,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:histogram-raw:partial-one",
+        "before": {
+          "median_elapsed_ns": 222358.5,
+          "measured_samples": 10,
+          "work": 13107,
+          "samples_fetched": 168,
+          "workspace_peak_bytes": 13922,
+          "workspace_acquired_bytes": 101108,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13922,
+            613,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            101108,
+            613,
+            0,
+            45696,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 227803.0,
+          "measured_samples": 10,
+          "work": 13119,
+          "samples_fetched": 168,
+          "workspace_peak_bytes": 13930,
+          "workspace_acquired_bytes": 101116,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13930,
+            613,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            101116,
+            613,
+            0,
+            45696,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:histogram-raw:three-ticks",
+        "before": {
+          "median_elapsed_ns": 596985.5,
+          "measured_samples": 10,
+          "work": 35791,
+          "samples_fetched": 780,
+          "workspace_peak_bytes": 15084,
+          "workspace_acquired_bytes": 256658,
+          "memory_peak_bytes_by_kind": [
+            0,
+            15084,
+            613,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            256658,
+            613,
+            0,
+            212160,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 619605.5,
+          "measured_samples": 10,
+          "work": 35799,
+          "samples_fetched": 780,
+          "workspace_peak_bytes": 15092,
+          "workspace_acquired_bytes": 256666,
+          "memory_peak_bytes_by_kind": [
+            0,
+            15092,
+            613,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            256666,
+            613,
+            0,
+            212160,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:histogram-scalar:equal",
+        "before": {
+          "median_elapsed_ns": 456026.5,
+          "measured_samples": 10,
+          "work": 24036,
+          "samples_fetched": 648,
+          "workspace_peak_bytes": 28112,
+          "workspace_acquired_bytes": 216550,
+          "memory_peak_bytes_by_kind": [
+            0,
+            28112,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            216550,
+            512,
+            0,
+            176256,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 459321.5,
+          "measured_samples": 10,
+          "work": 24036,
+          "samples_fetched": 648,
+          "workspace_peak_bytes": 28120,
+          "workspace_acquired_bytes": 216558,
+          "memory_peak_bytes_by_kind": [
+            0,
+            28120,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            216558,
+            512,
+            0,
+            176256,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:histogram-scalar:instant",
+        "before": {
+          "median_elapsed_ns": 459711.0,
+          "measured_samples": 10,
+          "work": 24029,
+          "samples_fetched": 648,
+          "workspace_peak_bytes": 28112,
+          "workspace_acquired_bytes": 216550,
+          "memory_peak_bytes_by_kind": [
+            0,
+            28112,
+            0,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            216550,
+            0,
+            0,
+            176256,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 473306.0,
+          "measured_samples": 10,
+          "work": 24029,
+          "samples_fetched": 648,
+          "workspace_peak_bytes": 28120,
+          "workspace_acquired_bytes": 216558,
+          "memory_peak_bytes_by_kind": [
+            0,
+            28120,
+            0,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            216558,
+            0,
+            0,
+            176256,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:histogram-scalar:partial-one",
+        "before": {
+          "median_elapsed_ns": 456676.5,
+          "measured_samples": 10,
+          "work": 24086,
+          "samples_fetched": 648,
+          "workspace_peak_bytes": 28661,
+          "workspace_acquired_bytes": 219014,
+          "memory_peak_bytes_by_kind": [
+            0,
+            28661,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            219014,
+            512,
+            0,
+            176256,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 459661.0,
+          "measured_samples": 10,
+          "work": 24103,
+          "samples_fetched": 648,
+          "workspace_peak_bytes": 28669,
+          "workspace_acquired_bytes": 219022,
+          "memory_peak_bytes_by_kind": [
+            0,
+            28669,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            219022,
+            512,
+            0,
+            176256,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:histogram-scalar:three-ticks",
+        "before": {
+          "median_elapsed_ns": 1293070.5,
+          "measured_samples": 10,
+          "work": 72430,
+          "samples_fetched": 3240,
+          "workspace_peak_bytes": 29333,
+          "workspace_acquired_bytes": 575104,
+          "memory_peak_bytes_by_kind": [
+            0,
+            29333,
+            512,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            575104,
+            512,
+            0,
+            881280,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1335630.0,
+          "measured_samples": 10,
+          "work": 72453,
+          "samples_fetched": 3240,
+          "workspace_peak_bytes": 29341,
+          "workspace_acquired_bytes": 575112,
+          "memory_peak_bytes_by_kind": [
+            0,
+            29341,
+            512,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            575112,
+            512,
+            0,
+            881280,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:histogram-vector:equal",
+        "before": {
+          "median_elapsed_ns": 284137.5,
+          "measured_samples": 10,
+          "work": 13983,
+          "samples_fetched": 432,
+          "workspace_peak_bytes": 19957,
+          "workspace_acquired_bytes": 124372,
+          "memory_peak_bytes_by_kind": [
+            0,
+            19957,
+            613,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            124372,
+            613,
+            0,
+            117504,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 287718.0,
+          "measured_samples": 10,
+          "work": 13983,
+          "samples_fetched": 432,
+          "workspace_peak_bytes": 19965,
+          "workspace_acquired_bytes": 124380,
+          "memory_peak_bytes_by_kind": [
+            0,
+            19965,
+            613,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            124380,
+            613,
+            0,
+            117504,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:histogram-vector:instant",
+        "before": {
+          "median_elapsed_ns": 411742.0,
+          "measured_samples": 10,
+          "work": 13980,
+          "samples_fetched": 432,
+          "workspace_peak_bytes": 19957,
+          "workspace_acquired_bytes": 124372,
+          "memory_peak_bytes_by_kind": [
+            0,
+            19957,
+            613,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            124372,
+            613,
+            0,
+            117504,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 353127.0,
+          "measured_samples": 10,
+          "work": 13980,
+          "samples_fetched": 432,
+          "workspace_peak_bytes": 19965,
+          "workspace_acquired_bytes": 124380,
+          "memory_peak_bytes_by_kind": [
+            0,
+            19965,
+            613,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            124380,
+            613,
+            0,
+            117504,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:histogram-vector:partial-one",
+        "before": {
+          "median_elapsed_ns": 298513.0,
+          "measured_samples": 10,
+          "work": 14004,
+          "samples_fetched": 432,
+          "workspace_peak_bytes": 19957,
+          "workspace_acquired_bytes": 124916,
+          "memory_peak_bytes_by_kind": [
+            0,
+            19957,
+            613,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            124916,
+            613,
+            0,
+            117504,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 293907.5,
+          "measured_samples": 10,
+          "work": 14016,
+          "samples_fetched": 432,
+          "workspace_peak_bytes": 19965,
+          "workspace_acquired_bytes": 124924,
+          "memory_peak_bytes_by_kind": [
+            0,
+            19965,
+            613,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            124924,
+            613,
+            0,
+            117504,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:histogram-vector:three-ticks",
+        "before": {
+          "median_elapsed_ns": 787808.5,
+          "measured_samples": 10,
+          "work": 41502,
+          "samples_fetched": 2160,
+          "workspace_peak_bytes": 21109,
+          "workspace_acquired_bytes": 324682,
+          "memory_peak_bytes_by_kind": [
+            0,
+            21109,
+            613,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            324682,
+            613,
+            0,
+            587520,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 800429.0,
+          "measured_samples": 10,
+          "work": 41510,
+          "samples_fetched": 2160,
+          "workspace_peak_bytes": 21117,
+          "workspace_acquired_bytes": 324690,
+          "memory_peak_bytes_by_kind": [
+            0,
+            21117,
+            613,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            324690,
+            613,
+            0,
+            587520,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:raw-rate:equal",
+        "before": {
+          "median_elapsed_ns": 97234.5,
+          "measured_samples": 10,
+          "work": 3674,
+          "samples_fetched": 216,
+          "workspace_peak_bytes": 13329,
+          "workspace_acquired_bytes": 35904,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13329,
+            3250,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            35904,
+            3666,
+            0,
+            58752,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 98959.0,
+          "measured_samples": 10,
+          "work": 3674,
+          "samples_fetched": 216,
+          "workspace_peak_bytes": 13329,
+          "workspace_acquired_bytes": 35904,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13329,
+            3250,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            35904,
+            3666,
+            0,
+            58752,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:raw-rate:instant",
+        "before": {
+          "median_elapsed_ns": 96124.0,
+          "measured_samples": 10,
+          "work": 3445,
+          "samples_fetched": 216,
+          "workspace_peak_bytes": 13329,
+          "workspace_acquired_bytes": 35904,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13329,
+            3250,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            35904,
+            3666,
+            0,
+            58752,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 96649.5,
+          "measured_samples": 10,
+          "work": 3445,
+          "samples_fetched": 216,
+          "workspace_peak_bytes": 13329,
+          "workspace_acquired_bytes": 35904,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13329,
+            3250,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            35904,
+            3666,
+            0,
+            58752,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:raw-rate:partial-one",
+        "before": {
+          "median_elapsed_ns": 97129.0,
+          "measured_samples": 10,
+          "work": 3674,
+          "samples_fetched": 216,
+          "workspace_peak_bytes": 13329,
+          "workspace_acquired_bytes": 35904,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13329,
+            3250,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            35904,
+            3666,
+            0,
+            58752,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 96519.0,
+          "measured_samples": 10,
+          "work": 3674,
+          "samples_fetched": 216,
+          "workspace_peak_bytes": 13329,
+          "workspace_acquired_bytes": 35904,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13329,
+            3250,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            35904,
+            3666,
+            0,
+            58752,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g1:raw-rate:three-ticks",
+        "before": {
+          "median_elapsed_ns": 243398.0,
+          "measured_samples": 10,
+          "work": 9724,
+          "samples_fetched": 1080,
+          "workspace_peak_bytes": 13734,
+          "workspace_acquired_bytes": 85488,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13734,
+            3250,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            85488,
+            3666,
+            0,
+            293760,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 250083.5,
+          "measured_samples": 10,
+          "work": 9724,
+          "samples_fetched": 1080,
+          "workspace_peak_bytes": 13734,
+          "workspace_acquired_bytes": 85488,
+          "memory_peak_bytes_by_kind": [
+            0,
+            13734,
+            3250,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            85488,
+            3666,
+            0,
+            293760,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:group-scalar:equal",
+        "before": {
+          "median_elapsed_ns": 824009.0,
+          "measured_samples": 10,
+          "work": 33935,
+          "samples_fetched": 2160,
+          "workspace_peak_bytes": 40023,
+          "workspace_acquired_bytes": 317448,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40023,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            317448,
+            512,
+            0,
+            587520,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 804929.0,
+          "measured_samples": 10,
+          "work": 33935,
+          "samples_fetched": 2160,
+          "workspace_peak_bytes": 40023,
+          "workspace_acquired_bytes": 317448,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40023,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            317448,
+            512,
+            0,
+            587520,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:group-scalar:instant",
+        "before": {
+          "median_elapsed_ns": 803284.0,
+          "measured_samples": 10,
+          "work": 33928,
+          "samples_fetched": 2160,
+          "workspace_peak_bytes": 40023,
+          "workspace_acquired_bytes": 317448,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40023,
+            0,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            317448,
+            0,
+            0,
+            587520,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 806614.0,
+          "measured_samples": 10,
+          "work": 33928,
+          "samples_fetched": 2160,
+          "workspace_peak_bytes": 40023,
+          "workspace_acquired_bytes": 317448,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40023,
+            0,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            317448,
+            0,
+            0,
+            587520,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:group-scalar:partial-one",
+        "before": {
+          "median_elapsed_ns": 803668.5,
+          "measured_samples": 10,
+          "work": 33935,
+          "samples_fetched": 2160,
+          "workspace_peak_bytes": 40023,
+          "workspace_acquired_bytes": 317448,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40023,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            317448,
+            512,
+            0,
+            587520,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 809189.0,
+          "measured_samples": 10,
+          "work": 33935,
+          "samples_fetched": 2160,
+          "workspace_peak_bytes": 40023,
+          "workspace_acquired_bytes": 317448,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40023,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            317448,
+            512,
+            0,
+            587520,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:group-scalar:three-ticks",
+        "before": {
+          "median_elapsed_ns": 2393697.0,
+          "measured_samples": 10,
+          "work": 102131,
+          "samples_fetched": 10800,
+          "workspace_peak_bytes": 40428,
+          "workspace_acquired_bytes": 853704,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40428,
+            512,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            853704,
+            512,
+            0,
+            2937600,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 2409541.5,
+          "measured_samples": 10,
+          "work": 102131,
+          "samples_fetched": 10800,
+          "workspace_peak_bytes": 40428,
+          "workspace_acquired_bytes": 853704,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40428,
+            512,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            853704,
+            512,
+            0,
+            2937600,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:group-vector:equal",
+        "before": {
+          "median_elapsed_ns": 521656.0,
+          "measured_samples": 10,
+          "work": 22397,
+          "samples_fetched": 1296,
+          "workspace_peak_bytes": 40023,
+          "workspace_acquired_bytes": 207328,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40023,
+            5228,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            207328,
+            6476,
+            0,
+            352512,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 520431.0,
+          "measured_samples": 10,
+          "work": 22397,
+          "samples_fetched": 1296,
+          "workspace_peak_bytes": 40023,
+          "workspace_acquired_bytes": 207328,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40023,
+            5228,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            207328,
+            6476,
+            0,
+            352512,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:group-vector:instant",
+        "before": {
+          "median_elapsed_ns": 511331.5,
+          "measured_samples": 10,
+          "work": 21900,
+          "samples_fetched": 1296,
+          "workspace_peak_bytes": 40023,
+          "workspace_acquired_bytes": 207328,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40023,
+            5228,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            207328,
+            6476,
+            0,
+            352512,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 507876.0,
+          "measured_samples": 10,
+          "work": 21900,
+          "samples_fetched": 1296,
+          "workspace_peak_bytes": 40023,
+          "workspace_acquired_bytes": 207328,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40023,
+            5228,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            207328,
+            6476,
+            0,
+            352512,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:group-vector:partial-one",
+        "before": {
+          "median_elapsed_ns": 509911.0,
+          "measured_samples": 10,
+          "work": 22397,
+          "samples_fetched": 1296,
+          "workspace_peak_bytes": 40023,
+          "workspace_acquired_bytes": 207328,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40023,
+            5228,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            207328,
+            6476,
+            0,
+            352512,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 517161.0,
+          "measured_samples": 10,
+          "work": 22397,
+          "samples_fetched": 1296,
+          "workspace_peak_bytes": 40023,
+          "workspace_acquired_bytes": 207328,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40023,
+            5228,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            207328,
+            6476,
+            0,
+            352512,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:group-vector:three-ticks",
+        "before": {
+          "median_elapsed_ns": 1456679.0,
+          "measured_samples": 10,
+          "work": 63501,
+          "samples_fetched": 6480,
+          "workspace_peak_bytes": 40428,
+          "workspace_acquired_bytes": 530512,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40428,
+            5228,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            530512,
+            6476,
+            0,
+            1762560,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1464259.5,
+          "measured_samples": 10,
+          "work": 63501,
+          "samples_fetched": 6480,
+          "workspace_peak_bytes": 40428,
+          "workspace_acquired_bytes": 530512,
+          "memory_peak_bytes_by_kind": [
+            0,
+            40428,
+            5228,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            530512,
+            6476,
+            0,
+            1762560,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:histogram-raw:equal",
+        "before": {
+          "median_elapsed_ns": 798454.0,
+          "measured_samples": 10,
+          "work": 53136,
+          "samples_fetched": 672,
+          "workspace_peak_bytes": 28561,
+          "workspace_acquired_bytes": 355624,
+          "memory_peak_bytes_by_kind": [
+            0,
+            28561,
+            1204,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            355624,
+            1204,
+            0,
+            182784,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 825858.5,
+          "measured_samples": 10,
+          "work": 53136,
+          "samples_fetched": 672,
+          "workspace_peak_bytes": 28569,
+          "workspace_acquired_bytes": 355632,
+          "memory_peak_bytes_by_kind": [
+            0,
+            28569,
+            1204,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            355632,
+            1204,
+            0,
+            182784,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:histogram-raw:instant",
+        "before": {
+          "median_elapsed_ns": 810709.0,
+          "measured_samples": 10,
+          "work": 53115,
+          "samples_fetched": 672,
+          "workspace_peak_bytes": 28561,
+          "workspace_acquired_bytes": 355624,
+          "memory_peak_bytes_by_kind": [
+            0,
+            28561,
+            1204,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            355624,
+            1204,
+            0,
+            182784,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 824863.5,
+          "measured_samples": 10,
+          "work": 53115,
+          "samples_fetched": 672,
+          "workspace_peak_bytes": 28569,
+          "workspace_acquired_bytes": 355632,
+          "memory_peak_bytes_by_kind": [
+            0,
+            28569,
+            1204,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            355632,
+            1204,
+            0,
+            182784,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:histogram-raw:partial-one",
+        "before": {
+          "median_elapsed_ns": 1029117.5,
+          "measured_samples": 10,
+          "work": 69180,
+          "samples_fetched": 888,
+          "workspace_peak_bytes": 28561,
+          "workspace_acquired_bytes": 463436,
+          "memory_peak_bytes_by_kind": [
+            0,
+            28561,
+            1204,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            463436,
+            1204,
+            0,
+            241536,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 822654.0,
+          "measured_samples": 10,
+          "work": 53289,
+          "samples_fetched": 672,
+          "workspace_peak_bytes": 28569,
+          "workspace_acquired_bytes": 356176,
+          "memory_peak_bytes_by_kind": [
+            0,
+            28569,
+            1204,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            356176,
+            1204,
+            0,
+            182784,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:histogram-raw:three-ticks",
+        "before": {
+          "median_elapsed_ns": 2968223.0,
+          "measured_samples": 10,
+          "work": 194118,
+          "samples_fetched": 4200,
+          "workspace_peak_bytes": 29483,
+          "workspace_acquired_bytes": 1263692,
+          "memory_peak_bytes_by_kind": [
+            0,
+            29483,
+            1204,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1263692,
+            1204,
+            0,
+            1142400,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 2336767.0,
+          "measured_samples": 10,
+          "work": 145043,
+          "samples_fetched": 3120,
+          "workspace_peak_bytes": 29491,
+          "workspace_acquired_bytes": 941896,
+          "memory_peak_bytes_by_kind": [
+            0,
+            29491,
+            1204,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            941896,
+            1204,
+            0,
+            848640,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:histogram-scalar:equal",
+        "before": {
+          "median_elapsed_ns": 1688187.0,
+          "measured_samples": 10,
+          "work": 97874,
+          "samples_fetched": 2592,
+          "workspace_peak_bytes": 51760,
+          "workspace_acquired_bytes": 729088,
+          "memory_peak_bytes_by_kind": [
+            0,
+            51760,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            729088,
+            512,
+            0,
+            705024,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1691407.5,
+          "measured_samples": 10,
+          "work": 97874,
+          "samples_fetched": 2592,
+          "workspace_peak_bytes": 51768,
+          "workspace_acquired_bytes": 729096,
+          "memory_peak_bytes_by_kind": [
+            0,
+            51768,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            729096,
+            512,
+            0,
+            705024,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:histogram-scalar:instant",
+        "before": {
+          "median_elapsed_ns": 1692132.0,
+          "measured_samples": 10,
+          "work": 97867,
+          "samples_fetched": 2592,
+          "workspace_peak_bytes": 51760,
+          "workspace_acquired_bytes": 729088,
+          "memory_peak_bytes_by_kind": [
+            0,
+            51760,
+            0,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            729088,
+            0,
+            0,
+            705024,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1698072.0,
+          "measured_samples": 10,
+          "work": 97867,
+          "samples_fetched": 2592,
+          "workspace_peak_bytes": 51768,
+          "workspace_acquired_bytes": 729096,
+          "memory_peak_bytes_by_kind": [
+            0,
+            51768,
+            0,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            729096,
+            0,
+            0,
+            705024,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:histogram-scalar:partial-one",
+        "before": {
+          "median_elapsed_ns": 2228728.0,
+          "measured_samples": 10,
+          "work": 146474,
+          "samples_fetched": 2592,
+          "workspace_peak_bytes": 52612,
+          "workspace_acquired_bytes": 1018796,
+          "memory_peak_bytes_by_kind": [
+            0,
+            52612,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1018796,
+            512,
+            0,
+            705024,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1690677.5,
+          "measured_samples": 10,
+          "work": 98137,
+          "samples_fetched": 2592,
+          "workspace_peak_bytes": 52620,
+          "workspace_acquired_bytes": 731560,
+          "memory_peak_bytes_by_kind": [
+            0,
+            52620,
+            512,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            731560,
+            512,
+            0,
+            705024,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:histogram-scalar:three-ticks",
+        "before": {
+          "median_elapsed_ns": 6592306.0,
+          "measured_samples": 10,
+          "work": 439898,
+          "samples_fetched": 12960,
+          "workspace_peak_bytes": 53284,
+          "workspace_acquired_bytes": 2913484,
+          "memory_peak_bytes_by_kind": [
+            0,
+            53284,
+            512,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            2913484,
+            512,
+            0,
+            3525120,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 5033787.0,
+          "measured_samples": 10,
+          "work": 294781,
+          "samples_fetched": 12960,
+          "workspace_peak_bytes": 53292,
+          "workspace_acquired_bytes": 2051760,
+          "memory_peak_bytes_by_kind": [
+            0,
+            53292,
+            512,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            2051760,
+            512,
+            0,
+            3525120,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:histogram-vector:equal",
+        "before": {
+          "median_elapsed_ns": 1037362.5,
+          "measured_samples": 10,
+          "work": 57184,
+          "samples_fetched": 1728,
+          "workspace_peak_bytes": 44138,
+          "workspace_acquired_bytes": 436264,
+          "memory_peak_bytes_by_kind": [
+            0,
+            44138,
+            1204,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            436264,
+            1204,
+            0,
+            470016,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1032923.0,
+          "measured_samples": 10,
+          "work": 57184,
+          "samples_fetched": 1728,
+          "workspace_peak_bytes": 44146,
+          "workspace_acquired_bytes": 436272,
+          "memory_peak_bytes_by_kind": [
+            0,
+            44146,
+            1204,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            436272,
+            1204,
+            0,
+            470016,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:histogram-vector:instant",
+        "before": {
+          "median_elapsed_ns": 1038047.0,
+          "measured_samples": 10,
+          "work": 57163,
+          "samples_fetched": 1728,
+          "workspace_peak_bytes": 44138,
+          "workspace_acquired_bytes": 436264,
+          "memory_peak_bytes_by_kind": [
+            0,
+            44138,
+            1204,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            436264,
+            1204,
+            0,
+            470016,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1052262.0,
+          "measured_samples": 10,
+          "work": 57163,
+          "samples_fetched": 1728,
+          "workspace_peak_bytes": 44146,
+          "workspace_acquired_bytes": 436272,
+          "memory_peak_bytes_by_kind": [
+            0,
+            44146,
+            1204,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            436272,
+            1204,
+            0,
+            470016,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:histogram-vector:partial-one",
+        "before": {
+          "median_elapsed_ns": 1194055.5,
+          "measured_samples": 10,
+          "work": 73438,
+          "samples_fetched": 1728,
+          "workspace_peak_bytes": 44138,
+          "workspace_acquired_bytes": 532556,
+          "memory_peak_bytes_by_kind": [
+            0,
+            44138,
+            1204,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            532556,
+            1204,
+            0,
+            470016,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 1034767.5,
+          "measured_samples": 10,
+          "work": 57337,
+          "samples_fetched": 1728,
+          "workspace_peak_bytes": 44146,
+          "workspace_acquired_bytes": 436816,
+          "memory_peak_bytes_by_kind": [
+            0,
+            44146,
+            1204,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            436816,
+            1204,
+            0,
+            470016,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:histogram-vector:three-ticks",
+        "before": {
+          "median_elapsed_ns": 3504893.0,
+          "measured_samples": 10,
+          "work": 217786,
+          "samples_fetched": 8640,
+          "workspace_peak_bytes": 45060,
+          "workspace_acquired_bytes": 1486636,
+          "memory_peak_bytes_by_kind": [
+            0,
+            45060,
+            1204,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1486636,
+            1204,
+            0,
+            2350080,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 3017383.0,
+          "measured_samples": 10,
+          "work": 169377,
+          "samples_fetched": 8640,
+          "workspace_peak_bytes": 45068,
+          "workspace_acquired_bytes": 1199400,
+          "memory_peak_bytes_by_kind": [
+            0,
+            45068,
+            1204,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            1199400,
+            1204,
+            0,
+            2350080,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:raw-rate:equal",
+        "before": {
+          "median_elapsed_ns": 350497.0,
+          "measured_samples": 10,
+          "work": 15764,
+          "samples_fetched": 864,
+          "workspace_peak_bytes": 37047,
+          "workspace_acquired_bytes": 128136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            37047,
+            13000,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            128136,
+            15912,
+            0,
+            235008,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 341903.0,
+          "measured_samples": 10,
+          "work": 15764,
+          "samples_fetched": 864,
+          "workspace_peak_bytes": 37047,
+          "workspace_acquired_bytes": 128136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            37047,
+            13000,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            128136,
+            15912,
+            0,
+            235008,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:raw-rate:instant",
+        "before": {
+          "median_elapsed_ns": 329178.0,
+          "measured_samples": 10,
+          "work": 14204,
+          "samples_fetched": 864,
+          "workspace_peak_bytes": 37047,
+          "workspace_acquired_bytes": 128136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            37047,
+            13000,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            128136,
+            15912,
+            0,
+            235008,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 340047.5,
+          "measured_samples": 10,
+          "work": 14204,
+          "samples_fetched": 864,
+          "workspace_peak_bytes": 37047,
+          "workspace_acquired_bytes": 128136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            37047,
+            13000,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            128136,
+            15912,
+            0,
+            235008,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:raw-rate:partial-one",
+        "before": {
+          "median_elapsed_ns": 346807.5,
+          "measured_samples": 10,
+          "work": 15764,
+          "samples_fetched": 864,
+          "workspace_peak_bytes": 37047,
+          "workspace_acquired_bytes": 128136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            37047,
+            13000,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            128136,
+            15912,
+            0,
+            235008,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 348252.5,
+          "measured_samples": 10,
+          "work": 15764,
+          "samples_fetched": 864,
+          "workspace_peak_bytes": 37047,
+          "workspace_acquired_bytes": 128136,
+          "memory_peak_bytes_by_kind": [
+            0,
+            37047,
+            13000,
+            0,
+            816,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            128136,
+            15912,
+            0,
+            235008,
+            0,
+            0,
+            888
+          ]
+        }
+      },
+      {
+        "id": "g4:raw-rate:three-ticks",
+        "before": {
+          "median_elapsed_ns": 931753.0,
+          "measured_samples": 10,
+          "work": 40728,
+          "samples_fetched": 4320,
+          "workspace_peak_bytes": 37452,
+          "workspace_acquired_bytes": 320712,
+          "memory_peak_bytes_by_kind": [
+            0,
+            37452,
+            13000,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            320712,
+            15912,
+            0,
+            1175040,
+            0,
+            0,
+            888
+          ]
+        },
+        "candidate": {
+          "median_elapsed_ns": 939092.5,
+          "measured_samples": 10,
+          "work": 40728,
+          "samples_fetched": 4320,
+          "workspace_peak_bytes": 37452,
+          "workspace_acquired_bytes": 320712,
+          "memory_peak_bytes_by_kind": [
+            0,
+            37452,
+            13000,
+            0,
+            1360,
+            0,
+            0,
+            888
+          ],
+          "memory_acquired_bytes_by_kind": [
+            0,
+            320712,
+            15912,
+            0,
+            1175040,
+            0,
+            0,
+            888
+          ]
+        }
+      }
+    ],
+    "scope": "Ten measured samples/side/workload after one warmup pair; alternating native release processes on a shared host. Full analytical outcomes and all nonelapsed observations checked. No CPU isolation, live speedup, concurrency, cold-disk, RSS or physical-ARM throughput claim."
+  },
+  "containing_agent": {
+    "binary": {
+      "path": ".tmp/histogram-range-bxwqbvoj/candidate-netdata",
+      "sha256": "433c1d74c1d8d0a41bd6b6d22b1a59f864c0bb0b3fad95b34135b07aa27a792d"
+    },
+    "rust_archive": {
+      "path": ".tmp/histogram-range-bxwqbvoj/candidate-promql.a",
+      "sha256": "8be658da74fb6ee39545ddb106c19d086d55f8c22768df53764e7a718c9069da"
+    },
+    "build_type": "Release",
+    "elf_sizes": {
+      "before": {
+        "text": 35864700,
+        "data": 1223312,
+        "bss": 1073520
+      },
+      "candidate": {
+        "text": 35869286,
+        "data": 1223432,
+        "bss": 1073520
+      }
+    }
+  },
+  "source_attribution": {
+    "manifests": {
+      "qualified-source.json": {
+        "inputs": 348,
+        "sha256": "738c16d30c6484f259d78400ffed4c943639a4fef4cb254eb37c6f3ef62286bd"
+      },
+      "qualified-final-source.json": {
+        "inputs": 348,
+        "sha256": "26ef19fe04afac6c4c50ab6e054e4fafe73cfa37ba744aec3b6caebf604060df"
+      },
+      "containing-source.json": {
+        "inputs": 3926,
+        "sha256": "65d73ad36c3ce966e7568c294be5976a227d379c5daa5a5fc109b263e8e39b17"
+      },
+      "containing-final-source.json": {
+        "inputs": 3926,
+        "sha256": "d00a9e6b7a4847468ad089a0b4f2a23c724398e43c765b3b04dde1d4e6e1e3c4"
+      }
+    },
+    "production_equivalence": {
+      "status": "pass",
+      "historical_source_manifest": {
+        "path": ".tmp/histogram-range-bxwqbvoj/qualified-source.json",
+        "sha256": "738c16d30c6484f259d78400ffed4c943639a4fef4cb254eb37c6f3ef62286bd"
+      },
+      "final_source_manifest": {
+        "path": ".tmp/histogram-range-bxwqbvoj/qualified-final-source.json",
+        "sha256": "26ef19fe04afac6c4c50ab6e054e4fafe73cfa37ba744aec3b6caebf604060df"
+      },
+      "changed_inputs": {
+        "src/crates/promql-engine/src/lookup_tests.rs": {
+          "before": "0abe09ab8540fba41b999a673accc5e677e08e619b16f5ada02e80e651286430",
+          "after": "8a0a0bd19a7d5c336d6342f096b4165479ee567e24a3b211ea5eea5b336fdee5"
+        }
+      },
+      "exclusion": {
+        "file": "src/crates/promql-engine/src/execution.rs",
+        "sha256": "dd07ee0d745705f170575bb4530825c2e1d641cdd84eebe2fa8571896f5f5220",
+        "declaration": "#[cfg(test)] #[path = \"lookup_tests.rs\"] mod lookup_tests;"
+      },
+      "scope": "One test-only physical-read expectation correction. Every other348-roster input is byte-identical. Actual historical binaries and their earlier manifests retain their identities; this is production-source equivalence, not retroactive whole-source qualification."
+    },
+    "scope": "Earlier release/ARM32/containing artifacts retain their actual348/3926input precursor identity. Only excluded lookup_tests.rs changes afterward. New units, release-min and ARM64 retain their final source identities; no historical binary is reattributed."
+  },
+  "limits": [
+    "Finite source-bound outcomes do not prove every possible input or100%compatibility.",
+    "Shared-host native fixture timings lack CPU/frequency isolation and do not establish maximum throughput.",
+    "All8tracked memory kinds and traffic retained. Lower traffic does not prove lower simultaneous peak or RSS.",
+    "Actual ARM callers/fixtures execute under installed QEMU; no foreign Rust-unit, release-min or physical-device timing claim.",
+    "Unchanged live regressions are separate from synthetic timing; no live/cardinality/concurrency/cold-disk speedup claim.",
+    "Seen hashes and frozen binding/duplicate searches remain; this does not establish globally linear histogram evaluation.",
+    "Paged raw history, provider-owned temporary backing and disabled implicit limits remain unchanged."
+  ],
+  "retained_evidence": {
+    ".tmp/histogram-range-bxwqbvoj/native-qualification.json": "fadc76768b60052756a55436cfa695ea71edd75ef58a2f335925d5c3e0b372b1",
+    ".tmp/histogram-range-bxwqbvoj/arm32-qualification.json": "844c6c2da68519fa51cbbc79bbba6632d13e45ef8733388c01750f7108727927",
+    ".tmp/histogram-range-bxwqbvoj/arm64-qualification.json": "0824d00d83bb484195df6fc68695602b04d4c1d17d00feda45f44c7b2c65e2b2",
+    ".tmp/histogram-range-bxwqbvoj/bridge-release-qualification.json": "08fa2c26e59146ae67abd53187dc141a022d478e4519bb45dc5bee2078366c54",
+    ".tmp/histogram-range-bxwqbvoj/bridge-release-min-qualification.json": "2c64eec04ad3a272683f9328b12e1b7074504a22f1a10476d77a0d708df9c238",
+    ".tmp/histogram-range-bxwqbvoj/bridge-arm32-qualification.json": "1efc0d8d100ce868cc6c95f4a1502b21d7f843bfbff3a6da1c74d25ad2fd83e2",
+    ".tmp/histogram-range-bxwqbvoj/bridge-arm64-qualification.json": "418755b354708904933bfb72724711b5dd11e29919e1c87ba173e92b1a404f52",
+    ".tmp/histogram-range-bxwqbvoj/histogram-c-qualification.json": "e1fe45d03532eb0696bb0c691d93d0af956aad0146de1f1797be611c43f0e9a1",
+    ".tmp/histogram-range-bxwqbvoj/selected-final-static-receipt.json": "2835ab1cb8099d4232c8872b5a4722fb3213558a73f6caa76926c5f8c8c1cda7",
+    ".tmp/histogram-range-bxwqbvoj/candidate-agent-build.json": "2ec97a362709040bb44728064b756782a0f299a714f07245334c212057472ad0",
+    ".tmp/histogram-range-bxwqbvoj/live-qualification.json": "9ef5373113f353bbbe0863617a48878712b6c6f5b8678aefc086f2a7111b6265",
+    ".tmp/histogram-range-bxwqbvoj/paired-timings.json": "171751ac73a47c584df0ecd43454594f65c66505b6941df65aed6eae4d15fd13",
+    ".tmp/histogram-range-bxwqbvoj/resource-summary.json": "2f5eb5787b139d32b75cc4e88e08b1f58d1122fb5f899b475c1041f1e2d508c3",
+    ".tmp/histogram-range-bxwqbvoj/test-only-equivalence.json": "6c71b3a5f06485b4822e4519ae7ba84984bd018e42319f35f91716540d983138"
+  }
+}

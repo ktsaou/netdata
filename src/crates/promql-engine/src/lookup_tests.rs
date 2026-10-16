@@ -1016,6 +1016,125 @@ fn ordinary_histogram_contributors_bound_unrelated_groups() {
 }
 
 #[test]
+fn ordered_literal_histograms_do_not_restart_for_every_group() {
+    fn point<const INCREMENT: u64>(index: usize) -> crate::value::Sample {
+        crate::value::Sample {
+            time_ms: (index as i64 + 1) * 1000,
+            start_time_ms: 0,
+            value: crate::value::SampleValue::Float((INCREMENT * (index as u64 + 1)) as f64),
+        }
+    }
+    let child = "sum by(job,le)(rate(request_duration_seconds_bucket[3s]))";
+    for (consumer, expected) in [
+        (format!("histogram_quantile(.5,{child})"), 2.0),
+        (format!("histogram_fraction(0,2,{child})"), 0.5),
+    ] {
+        for scalar in [false, true] {
+            let expression = if scalar {
+                format!("scalar(sum({consumer}))")
+            } else {
+                consumer.clone()
+            };
+            for end_ms in [3001, 5000] {
+                for page in [1, 17, 1024] {
+                    for delayed in [false, true] {
+                        let mut work = Vec::new();
+                        for count in [4, 16] {
+                            let mut provider = FixtureProvider::new(5, page, count * 6);
+                            for (index, series) in provider.series.iter_mut().enumerate() {
+                                series.labels = vec![
+                                    (
+                                        b"__name__".to_vec(),
+                                        b"request_duration_seconds_bucket".to_vec(),
+                                    ),
+                                    (
+                                        b"instance".to_vec(),
+                                        format!("w{}", index % 6 / 3).into_bytes(),
+                                    ),
+                                    (
+                                        b"job".to_vec(),
+                                        format!("j{}", count - 1 - index / 6).into_bytes(),
+                                    ),
+                                    (
+                                        b"le".to_vec(),
+                                        ["1", "2", "+Inf"][index % 3].as_bytes().to_vec(),
+                                    ),
+                                ];
+                                series.source.sample = match index % 3 {
+                                    0 => point::<1>,
+                                    1 => point::<2>,
+                                    _ => point::<4>,
+                                };
+                            }
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let settings = EngineOptions {
+                                delayed_name_removal: delayed,
+                                ..EngineOptions::default()
+                            };
+                            let query = engine
+                                .compile(expression.as_bytes(), settings, &control)
+                                .unwrap();
+                            let report = query.collect_reported(
+                                &provider,
+                                QueryRequest::Range {
+                                    start_ms: 3000,
+                                    end_ms,
+                                    step_ms: 1000,
+                                },
+                                &control,
+                            );
+                            let result = report.result.as_ref().unwrap();
+                            assert!(
+                                report.annotations.is_empty()
+                                    && result.scalar.is_none()
+                                    && result.string.is_none()
+                            );
+                            assert_eq!(result.series.len(), if scalar { 1 } else { count });
+                            let mut jobs: Vec<_> =
+                                (0..count).map(|index| format!("j{index}")).collect();
+                            jobs.sort_unstable();
+                            let times = if end_ms == 3001 {
+                                &[3000][..]
+                            } else {
+                                &[3000, 4000, 5000][..]
+                            };
+                            for (index, series) in result.series.iter().enumerate() {
+                                if scalar {
+                                    assert!(series.labels.0.is_empty());
+                                } else {
+                                    assert_eq!(series.labels.0.len(), 1);
+                                    assert_eq!(&*series.labels.0[0].name, b"job");
+                                    assert_eq!(&*series.labels.0[0].value, jobs[index].as_bytes());
+                                }
+                                assert_eq!(series.points.len(), times.len());
+                                for (point, time) in series.points.iter().zip(times) {
+                                    assert_eq!(point.time_ms, *time);
+                                    assert!(matches!(point.value, OwnedValue::Float(value)
+                                        if value.to_bits() == (expected * if scalar { count as f64 } else { 1.0 }).to_bits()));
+                                }
+                            }
+                            work.push(report.observations.work);
+                            println!(
+                                "{{\"ordered_histogram_groups\":{count},\"scalar\":{scalar},\"end_ms\":{end_ms},\"page\":{page},\"delayed\":{delayed},\"work\":{}}}",
+                                report.observations.work
+                            );
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                        assert!(
+                            work[1] <= 6 * work[0],
+                            "histogram restarts amplify group work: {work:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn nested_set_prefix_reuses_successful_operands() {
     let mut reads = Vec::new();
     for page_size in [1, 17, 1024] {
@@ -1162,12 +1281,8 @@ fn histogram_lookup_work(count: usize, page_size: usize, range: bool) -> u64 {
         (2 * count * ticks) as u64
     );
     let expected_read = if range {
-        match count {
-            16 => 24448,
-            32 => 85760,
-            64 => 318976,
-            _ => unreachable!("declared range statistics cohort"),
-        }
+        // One ordered child removes the former per-output discovery replays.
+        (56 * count * ticks) as u64
     } else {
         (14 * count) as u64
     };

@@ -16,7 +16,9 @@ int main(void) {
         netdata_promql_engine_observations_t idle = engine_observations(engine);
         for (unsigned page = 0; page < 3; page++) {
             for (unsigned window = 0; window < 2; window++) {
-                for (unsigned function = 0; function < 3; function++) {
+                for (unsigned variant = 0; variant < 6; variant++) {
+                    unsigned function = variant % 3;
+                    unsigned range = variant / 3;
                     join_fixture source;
                     memset(&source, 0, sizeof(source));
                     init_fixture(&source.source, 3, pages[page]);
@@ -45,12 +47,18 @@ int main(void) {
                     assert(length > 0 && (size_t)length < sizeof(expression));
                     netdata_promql_query_t *query = compile(engine, expression);
                     netdata_promql_request_t request = instant(3000);
+                    if (range) {
+                        request.kind = NETDATA_PROMQL_REQUEST_RANGE;
+                        request.end_ms = 3001;
+                        request.step_ms = 1000;
+                    }
                     netdata_promql_result_t *result = NULL;
                     netdata_promql_report_t *report = NULL;
                     assert(netdata_promql_collect(query, &input, &request, NULL, &result, &report) == NETDATA_PROMQL_OK);
                     released(&source.source);
                     netdata_promql_result_info_t info;
                     assert(netdata_promql_result_info(result, &info) == NETDATA_PROMQL_OK);
+                    assert(info.header.value_type == (range ? NETDATA_PROMQL_TYPE_MATRIX : NETDATA_PROMQL_TYPE_VECTOR));
                     assert(info.annotation_count == 0 && info.series_count == (function == 2 ? 4u : 2u));
                     unsigned seen = 0;
                     for (uint64_t row = 0; row < info.series_count; row++) {
@@ -85,9 +93,9 @@ int main(void) {
                     assert(netdata_promql_report_observations(report, &observed) == NETDATA_PROMQL_OK);
                     statistics_valid(&observed.statistics);
                     assert(observed.statistics.samples.total_queryable_samples == (window ? 12u : 4u));
-                    printf("{\"function\":%u,\"window\":%u,\"delayed\":%u,\"page\":%" PRIu64
+                    printf("{\"function\":%u,\"window\":%u,\"delayed\":%u,\"range\":%u,\"page\":%" PRIu64
                            ",\"work\":%" PRIu64 ",\"fetched\":%" PRIu64 ",\"statistics\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 "]}\n",
-                           function, window, delayed, pages[page], observed.work, observed.samples_fetched,
+                           function, window, delayed, range, pages[page], observed.work, observed.samples_fetched,
                            observed.statistics.samples.total_queryable_samples, observed.statistics.samples.samples_read,
                            observed.statistics.samples.peak_samples);
                     assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);

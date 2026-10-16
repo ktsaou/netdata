@@ -5,9 +5,10 @@ use crate::{
     annotations::AnnotationBuilder,
     evaluator::EvaluationError,
     evaluator_order,
-    frontend::ast::{Cardinality, NodeId, VectorMatching},
+    frontend::ast::{Cardinality, Expr, NodeId, ParsedExpression, VectorMatching},
     label_hash,
     position_index::PositionIndex,
+    query_preparation::Prepared,
     result::OwnedLabels,
     storage::{Control, InitialSample, Interrupted},
 };
@@ -693,6 +694,50 @@ impl Rosters {
             .as_deref_mut()
             .expect("histogram plan")
             .finish(cache);
+    }
+    pub(crate) fn certify_histogram_streaming(
+        &mut self,
+        node: NodeId,
+        expression: &ParsedExpression,
+        prepared: &Prepared<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        let roster = &mut self.nodes[node.0];
+        let (Some(plan), Some(rows), Some(sources)) =
+            (&mut roster.histogram, &roster.output, &roster.sources)
+        else {
+            return Ok(());
+        };
+        control.check()?;
+        if prepared.flags().invariants[node.0] || prepared.flags().boundaries[node.0] {
+            return Ok(());
+        }
+        let Expr::Call {
+            function: Some(function),
+            arguments,
+            ..
+        } = &expression.arena[node].expression
+        else {
+            return Ok(());
+        };
+        let Some(function) = crate::histogram_call::Function::parse(function.name) else {
+            return Ok(());
+        };
+        if matches!(function, crate::histogram_call::Function::Quantiles) {
+            return Ok(());
+        }
+        for argument in &arguments[..function.vector_argument()] {
+            control.check()?;
+            account.work(1);
+            let argument = prepared
+                .preprocessing
+                .child(expression, node, *argument, control, account)?;
+            if !matches!(expression.arena[argument].expression, Expr::Number { .. }) {
+                return Ok(());
+            }
+        }
+        plan.certify_ordered_streaming(rows, sources, control, account)
     }
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn prepare_binary(

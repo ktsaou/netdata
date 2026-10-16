@@ -126,6 +126,7 @@ pub(crate) struct Plan {
     metadata: AccountedVec<Row>,
     groups: AccountedVec<Group>,
     bindings: AccountedVec<Binding>,
+    ordered_streaming: bool,
 }
 
 fn lookup_group(
@@ -165,6 +166,7 @@ impl Plan {
             metadata: AccountedVec::new(account, MemoryKind::Workspace),
             groups: AccountedVec::new(account, MemoryKind::Workspace),
             bindings: AccountedVec::new(account, MemoryKind::Workspace),
+            ordered_streaming: false,
         };
         let context = AllocationContext::new(account, MemoryKind::Workspace);
         let mut keys = AccountedVec::<AccountedVec<u8>>::new(account, MemoryKind::Workspace);
@@ -240,6 +242,38 @@ impl Plan {
     }
     pub(crate) fn finish(&mut self, cache: Cache) {
         self.bindings = cache.bindings;
+    }
+    pub(crate) fn certify_ordered_streaming(
+        &mut self,
+        rows: &[Descriptor],
+        sources: &[usize],
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        control.check()?;
+        if rows.is_empty() || rows.len() != self.bindings.len() {
+            return Ok(());
+        }
+        for (ordinal, (row, binding)) in rows.iter().zip(&*self.bindings).enumerate() {
+            control.check()?;
+            account.work(1);
+            if row.ordinal != ordinal
+                || row.kinds != 1
+                || !row.drop_name
+                || row.heads.multiple()
+                || !matches!(sources.get(row.sources.clone()), Some([source]) if *source == ordinal)
+                || row.hash != label_hash::full(&binding.labels, control, account)?
+                || !binary_labels::same(&row.labels, &binding.labels, control, account)?
+            {
+                return Ok(());
+            }
+        }
+        control.check()?;
+        self.ordered_streaming = true;
+        Ok(())
+    }
+    pub(crate) fn streams_ordered(&self) -> bool {
+        self.ordered_streaming
     }
     fn row(
         &self,

@@ -5316,9 +5316,9 @@ body directly, checks successful completion, and calibrates genuinely subsequent
 cold/warm failures and cancellation. API callbacks can follow buffered output-head preparation; they do not by
 themselves identify those evaluator phases. Separate API sink abort/cancellation checks verify release.
 
-Compile `histogram_contributors.c` against the static library like the existing C11 embedding caller. It reuses the
-paged provider and asserts complete labels/kinds/timestamps/bits, diagnostics, logical totals and release across 36
-raw/window/name/page cases. Eight actual before/candidate programs across both native profiles and ARM32/ARM64
+The checkpoint's 36-case `histogram_contributors.c` version reused the paged provider and asserted complete
+labels/kinds/timestamps/bits, diagnostics, logical totals and release across raw/window/name/page cases.
+Eight actual before/candidate programs across both native profiles and ARM32/ARM64
 release pass 288 query assertions. Logical totals stay 4/12; raw quantile useful reads fall 80→32 and fetched
 entries 240→96, while sample peak stays 6. Rate inputs retain their existing fold reuse and the same physical
 counts. Eight rebuilt existing C/C++ callers also preserve all 103 full-suite and 72 label records each. Format,
@@ -5346,8 +5346,96 @@ controls retain identical tracked allocations/work; tiny-vector and one-job grou
 1.1%/0.4% slower. All controls remain in the report. The containing Agent gains 8,477 B of text, loses 40 B of data
 and keeps the same BSS.
 
-Ordered range consumers still repeat some All discovery: candidate vector-range work grows 213,178→1,690,703 when
+At this checkpoint, ordered range consumers still repeat some All discovery: candidate vector-range work grows
+213,178→1,690,703 when
 jobs grow 4→16; scalar-range work grows 432,986→4,214,386. That residual remains a separate measured opportunity.
 The unchanged small live API checks establish integration regressions, not a live speedup, cold-disk,
 large-cardinality, concurrency/saturation, physical ARM throughput or complete-language proof. Raw paging,
 provider-owned temporary backing and disabled implicit caps remain unchanged.
+
+## Ordered histogram streaming
+
+Literal `histogram_quantile` and `histogram_fraction` can retain one existing evaluator behind the ordered-output
+adapter when their frozen bindings already match canonical output identities. Every binding must participate once,
+with matching labels/hash/drop flags and a single Float head. Scalar parameters must resolve to numeric literals.
+The runtime filter must be `All`. Dynamic scalar parameters, selected/no-match filters, aliases, reordered bindings,
+empty rosters and optional plural quantiles keep their existing route. No language feature is added or dropped.
+
+The certificate is published after the histogram's own complete node finishing. Own logical preparation is excluded;
+later ancestors consume the already-frozen child through the adapter. Child annotations and logical primary sample
+units keep their original owners. Each invocation performs fresh full-vector discovery and ordinary fresh native or
+classic value reads. The certificate stores order eligibility; it grants no discovery credit and retains no values.
+
+The adapter preserves descriptor hash/head/drop handling and aligns each sparse current sample by its emitted
+canonical ordinal. A whole-query roster may be nonempty while a particular tick has no output. Vector forwarding
+keeps the shared child until actual Done; parent truncation drops it through the ordinary frame lifetime.
+
+The distinguishing control compares instant, equal-bound range and unequal-bound one-tick range requests at the same
+evaluation time. The one-tick form cannot revisit time: its old excess work isolates per-row construction. Include
+three-tick ranges and grouped-rate/raw controls. Check complete results before work predicates; a work counter is not
+a CPU measurement. The regression filters are `ordered_literal_histograms_do_not_restart_for_every_group` and
+`ordered_histogram_streaming_keeps_acquisition_and_filter_phases`.
+
+The phase test drives actual adapter execution, calibrates cold and genuinely later acquisitions, then injects
+provider errors/cancellation and checks release. It covers classic/native admission, reordered-native fallback,
+One/Ordinals/Contributors, empty selections, ancestor truncation and provider-backed scalar re-entry. Own logical
+preparation keeps the original path; early certification must not be confused with cached discovery completion.
+
+Generate focused expressions with `histogram_streaming_cases.cases()`. It retains the 436 contributor expressions
+and adds 288 cases for sparse leading/middle/trailing groups, an entirely empty tick, equal numeric bucket spellings,
+native values, wrappers, dynamic parameters, selected parents and fallback clocks. New stable cases use the default
+profile; plural quantiles retain the explicit test profile. Compare the complete bound original probe output, exact
+bits, independent name overrides and range order using the existing checked packet/comparison helpers.
+
+The existing C histogram caller now includes unequal-end one-tick ranges beside instant requests: 72 full queries
+per program across functions, raw/rate inputs, names and pages. It asserts complete membership, labels, timestamps,
+bits, diagnostics, logical totals and cleanup; physical reads and live-sample peaks remain observations.
+
+A Plan flag and a longer-lived Step have measurable costs. Existing seen hashes span more outputs, and frozen
+binding/duplicate searches remain. Preserve all peak categories, allocation traffic, slower controls and actual
+caller statistics beside finite timings. Lower allocation traffic does not prove lower peak RAM or process RSS.
+
+The [qualification](histogram-streaming-qualification.json) records 700 passing units and two ignored measurements
+in each optimized native profile. All 4,344 native and 4,344 compiled ARM32/ARM64 release comparisons match the
+pinned original semantically and bitwise at pages 1/17/1024. The release page-17 cohort reuses the verified output
+of the identical earlier candidate binary. Earlier release/ARM32/containing artifacts keep their actual source
+identity: a later correction changes only the excluded `lookup_tests.rs` physical-read expectation. Every other
+348-input core entry is byte-identical. No historical reference or runtime accounting algorithm was changed.
+
+The corrected eight-tick raw histogram test reads 7,168/14,336/28,672 useful samples for 16/32/64 groups. Raw
+preparation contributes `16g`, and histogram preparation/final consumption contribute `216g` each, giving `448g`.
+The previous per-output final discovery cost `72g² + 376g`; logical queryable totals and complete outputs stay exact.
+The first full release run rejected the smaller physical count; the rebuilt full rosters pass the corrected check.
+
+Eight actual before/candidate C programs pass 576 complete queries. Raw one-tick Quantile/Fraction useful reads
+fall 36→32 and fetched entries 108→96, with the same 6/7 sample peaks. Rate inputs retain their existing folded
+reads and logical totals 4/12 stay unchanged; plural quantiles retain their prior route. Eight existing C/C++ callers
+pass 103 full and 72 label records each. Their precise comparison allows only 15 affected work/read records;
+statuses, chunks, calibrated first/failing cursor phases and all other fields remain exact. Format, strict
+production/fixture Clippy, installed Rust 1.91 compilation and 41 real HTTP/readiness checks pass, with normal Agent exit.
+
+The timing panel runs six alternating before/candidate process pairs, discards the first pair, and checks all
+1,728 complete outcomes plus each binary's stable nonelapsed observations. Each of its 72 workload groups has ten
+measured samples per side. Inputs have 1/4/16 jobs, two workers, three classic bounds and five stored points per
+series; ranges evaluate at 3000–5000 ms. The unequal-end one-tick form uses 3000–3001 ms with a 1000 ms step.
+
+| Workload | Before → after | Speedup |
+| --- | ---: | ---: |
+| one-tick vector range, 16 jobs | 7.662 → 4.074 ms | 1.88× |
+| one-tick scalar range, 16 jobs | 17.467 → 6.680 ms | 2.62× |
+| three-tick vector range, 16 jobs | 22.753 → 12.016 ms | 1.89× |
+| three-tick scalar range, 16 jobs | 53.050 → 20.085 ms | 2.64× |
+| three-tick scalar range, 4 jobs | 6.592 → 5.034 ms | 1.31× |
+
+These are native-release fixture medians on a shared host without CPU/frequency isolation. All 72 groups remain
+in the report: 42 have slower medians by 0.1–3.9%, including small single-group cases and unchanged-work controls.
+The panel does not establish their causes or a universal speedup. No additional timing run was used to replace
+those results. Instant/equal-bound routes and non-histogram controls retain their original work counts.
+
+The 16-job three-tick scalar case reduces work 4,242,034→1,217,319 and workspace traffic 24,706,684→7,976,790 B;
+peak workspace is 153,542→153,550 B. The one-tick scalar peak falls 152,870→151,998 B. Across the 724-expression
+page-17 bridge, workspace peak rises 0–40 B; all seven other tracked memory-kind peaks remain unchanged. Both
+native profiles have identical nonelapsed observations at each page size. The containing Agent gains 4,586 B of
+text and 120 B of data, with unchanged BSS. Lower traffic does not establish lower process RSS. Frozen binding and
+seen-hash searches remain; no global linear-work, live speedup, concurrency/saturation, cold-disk or physical-ARM
+throughput claim follows from this finite panel. Raw paging, provider-owned backing and disabled implicit caps remain.

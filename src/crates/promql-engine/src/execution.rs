@@ -3138,6 +3138,14 @@ impl CompiledQuery {
                 )?;
                 rosters.release_output(child);
             }
+            // Bindings and canonical output are frozen before an ancestor consumes this child.
+            rosters.certify_histogram_streaming(
+                node,
+                &self.expression,
+                prepared,
+                control,
+                account,
+            )?;
         }
         // Final consumption must validate its own first delivery, even on the same key.
         rosters.clear_replay_progress(control, account)?;
@@ -16327,6 +16335,375 @@ mod tests {
                         input.assert_closed();
                     }
                     drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn ordered_histogram_streaming_keeps_acquisition_and_filter_phases() {
+        #[derive(Clone, Copy)]
+        enum Restriction {
+            All,
+            One(usize),
+            Ordinals(&'static [usize]),
+            Contributors(usize),
+        }
+        struct Trace {
+            landmarks: Vec<Vec<usize>>,
+            ordinals: Vec<usize>,
+            final_acquisitions: Vec<usize>,
+        }
+        fn acquisitions(input: &FixtureProvider) -> Vec<usize> {
+            input
+                .series
+                .iter()
+                .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
+                .collect()
+        }
+        fn drive(
+            compiled: &CompiledQuery,
+            input: &FixtureProvider,
+            restriction: Restriction,
+            eligible: bool,
+            stop: Option<(usize, bool)>,
+            truncate: bool,
+        ) -> Trace {
+            let control = Control::default();
+            let account = compiled.execution_accounting();
+            let mut trace = Trace {
+                landmarks: Vec::new(),
+                ordinals: Vec::new(),
+                final_acquisitions: Vec::new(),
+            };
+            {
+                let header = compiled
+                    .header(QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 1001,
+                        step_ms: 1000,
+                    })
+                    .unwrap();
+                let prepared = Prepared::new(
+                    &compiled.expression,
+                    &compiled.preprocessing,
+                    header,
+                    compiled.options.no_step_subquery_interval_ms,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let header = prepared.evaluator_header();
+                prepared.activate(header, &control, &account).unwrap();
+                let options = compiled.evaluation_options(header, header.start_ms, &prepared);
+                let bounds = crate::query_bounds::find(
+                    &compiled.expression,
+                    options,
+                    &prepared,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let scope = input.open(bounds, &control).unwrap();
+                let catalog = Catalog::new(
+                    &scope,
+                    &compiled.expression,
+                    &prepared,
+                    options,
+                    compiled.options.no_step_subquery_interval_ms,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let rosters = compiled
+                    .prepare_rosters(
+                        &catalog,
+                        &prepared,
+                        bounds,
+                        &control,
+                        &account,
+                        &mut Annotations::default(),
+                    )
+                    .unwrap();
+                assert_eq!(
+                    rosters
+                        .histogram(compiled.expression.root)
+                        .unwrap()
+                        .streams_ordered(),
+                    eligible
+                );
+                let contributors = if matches!(restriction, Restriction::Contributors(_)) {
+                    let mut builder = crate::aggregate_replay::Builder::new(
+                        compiled.expression.root,
+                        true,
+                        &account,
+                    );
+                    builder.record(0, 1, &control, &account).unwrap();
+                    let plan = builder.finish(2, &control, &account).unwrap();
+                    let key = crate::vector_matching::ReplayKey::new(
+                        options,
+                        0,
+                        prepared.lookback_ns(options.lookback_ms),
+                        bounds,
+                    );
+                    plan.complete(key, &control, &account).unwrap();
+                    let Restriction::Contributors(group) = restriction else {
+                        unreachable!()
+                    };
+                    assert!(
+                        plan.activate(
+                            crate::evaluator::RowFilter::One(group),
+                            key,
+                            &control,
+                            &account
+                        )
+                        .unwrap()
+                    );
+                    Some(plan)
+                } else {
+                    None
+                };
+                let mut machine = Machine::new(
+                    &catalog,
+                    &compiled.expression,
+                    compiled.expression.root,
+                    options,
+                    &control,
+                    &account,
+                    EvaluationMetadata {
+                        prepared: &prepared,
+                        rosters: &rosters,
+                        timestamp_selectors: &compiled.timestamp_selectors,
+                        data_bounds: bounds,
+                        annotations: None,
+                        binary_preparation: None,
+                        histogram_preparation: None,
+                        info_preparation: None,
+                        count_preparation: None,
+                    },
+                );
+                match restriction {
+                    Restriction::All => (),
+                    Restriction::One(ordinal) => machine.restrict_one(ordinal),
+                    Restriction::Ordinals(ordinals) => machine.restrict(ordinals),
+                    Restriction::Contributors(_) => {
+                        machine.restrict_contributors(contributors.as_ref().unwrap())
+                    }
+                }
+                trace.landmarks.push(acquisitions(input));
+                loop {
+                    let stopping = stop.is_some_and(|(after, _)| after == trace.ordinals.len());
+                    let cancelled = stopping && stop.unwrap().1;
+                    if cancelled {
+                        control.cancellation.cancel();
+                    }
+                    let next = machine.next();
+                    if stopping {
+                        let error = next.unwrap_err();
+                        if cancelled {
+                            assert!(matches!(
+                                error,
+                                EvaluationError::Interrupted(Interrupted::Cancelled)
+                            ));
+                        } else {
+                            assert!(
+                                matches!(&error, EvaluationError::Storage(StorageError::Provider(bytes)) if &**bytes == b"injected page failure")
+                            );
+                        }
+                        break;
+                    }
+                    let Some(sample) = next.unwrap() else {
+                        break;
+                    };
+                    assert_eq!(sample.source_time_ms, 1000);
+                    assert!(matches!(sample.value, OwnedValue::Float(value) if value.is_finite()));
+                    assert_eq!(
+                        sample
+                            .labels
+                            .get_checked(b"instance", &account, &control)
+                            .unwrap(),
+                        if sample.ordinal == 0 { b"a" } else { b"b" }
+                    );
+                    trace.ordinals.push(sample.ordinal);
+                    drop(sample);
+                    trace.landmarks.push(acquisitions(input));
+                    if truncate {
+                        break;
+                    }
+                }
+                trace.final_acquisitions = acquisitions(input);
+            }
+            input.assert_closed();
+            account.snapshot().assert_memory_released();
+            trace
+        }
+        fn point<const VALUE: u64>(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(VALUE as f64),
+            }
+        }
+        fn quantile(index: usize) -> crate::value::Sample {
+            let mut sample = point::<1>(index);
+            sample.value = crate::value::SampleValue::Float(0.25);
+            sample
+        }
+        fn native(index: usize) -> crate::value::Sample {
+            let mut sample = point::<1>(index);
+            sample.value =
+                crate::value::SampleValue::FloatHistogram(crate::histogram::FloatHistogram {
+                    zero_threshold: 1.0,
+                    zero_count: 2.0,
+                    count: 2.0,
+                    ..Default::default()
+                });
+            sample
+        }
+        let provider = |page, histogram| {
+            let count = if histogram { 2 } else { 4 };
+            let mut input = FixtureProvider::new(3, page, count + 1);
+            for (index, row) in input.series.iter_mut().enumerate() {
+                row.source.counters = Default::default();
+                if index == count {
+                    row.labels = vec![(b"__name__".to_vec(), b"q".to_vec())];
+                    row.source.sample = quantile;
+                } else {
+                    row.labels = vec![
+                        (b"__name__".to_vec(), b"counter_total".to_vec()),
+                        (
+                            b"instance".to_vec(),
+                            if index < count / 2 { b"a" } else { b"b" }.to_vec(),
+                        ),
+                    ];
+                    if histogram {
+                        row.source.sample = native;
+                    } else {
+                        row.labels.push((
+                            b"le".to_vec(),
+                            if index % 2 == 0 {
+                                b"1".as_slice()
+                            } else {
+                                b"+Inf".as_slice()
+                            }
+                            .to_vec(),
+                        ));
+                        row.source.sample = if index % 2 == 0 {
+                            point::<1>
+                        } else {
+                            point::<2>
+                        };
+                    }
+                }
+            }
+            input
+        };
+        for function in [
+            "histogram_quantile(.5,counter_total)",
+            "histogram_fraction(0,1,counter_total)",
+        ] {
+            for page in [1, 17, 1024] {
+                for delayed in [false, true] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let settings = EngineOptions {
+                        delayed_name_removal: delayed,
+                        ..EngineOptions::default()
+                    };
+                    let compiled = engine
+                        .compile(function.as_bytes(), settings, &control)
+                        .unwrap();
+                    for histogram in [false, true] {
+                        let input = provider(page, histogram);
+                        let normal = drive(&compiled, &input, Restriction::All, true, None, false);
+                        assert_eq!(normal.ordinals, [0, 1]);
+                        let selected = if histogram { 1 } else { 3 };
+                        assert!(normal.landmarks[2][selected] > normal.landmarks[1][selected]);
+                        for (after, target, acquisition) in [
+                            (0, selected, normal.landmarks[0][selected] + 1),
+                            (1, selected, normal.landmarks[1][selected] + 1),
+                        ] {
+                            let mut input = provider(page, histogram);
+                            input.series[target].source.fail_acquisition = Some(acquisition);
+                            let trace = drive(
+                                &compiled,
+                                &input,
+                                Restriction::All,
+                                true,
+                                Some((after, false)),
+                                false,
+                            );
+                            assert_eq!(trace.ordinals.len(), after);
+                            assert_eq!(trace.final_acquisitions[target], acquisition);
+                        }
+                        let input = provider(page, histogram);
+                        assert_eq!(
+                            drive(
+                                &compiled,
+                                &input,
+                                Restriction::All,
+                                true,
+                                Some((1, true)),
+                                false
+                            )
+                            .ordinals,
+                            [0]
+                        );
+                        let input = provider(page, histogram);
+                        assert_eq!(
+                            drive(&compiled, &input, Restriction::All, true, None, true).ordinals,
+                            [0]
+                        );
+                        for restriction in [
+                            Restriction::One(1),
+                            Restriction::Ordinals(&[1]),
+                            Restriction::Contributors(0),
+                        ] {
+                            let input = provider(page, histogram);
+                            assert_eq!(
+                                drive(&compiled, &input, restriction, true, None, false).ordinals,
+                                [1]
+                            );
+                        }
+                        for restriction in [
+                            Restriction::One(99),
+                            Restriction::Ordinals(&[]),
+                            Restriction::Contributors(1),
+                        ] {
+                            let input = provider(page, histogram);
+                            let empty = drive(&compiled, &input, restriction, true, None, false);
+                            assert!(empty.ordinals.is_empty());
+                            assert_eq!(empty.landmarks[0], empty.final_acquisitions);
+                        }
+                    }
+                    let mut reversed = provider(page, true);
+                    reversed.series.swap(0, 1);
+                    assert_eq!(
+                        drive(&compiled, &reversed, Restriction::All, false, None, false).ordinals,
+                        [0, 1]
+                    );
+                    let dynamic = function
+                        .replace("(.5,", "(scalar(q),")
+                        .replace("(0,1,", "(scalar(q),1,");
+                    let dynamic = engine
+                        .compile(dynamic.as_bytes(), settings, &control)
+                        .unwrap();
+                    let input = provider(page, false);
+                    let trace = drive(&dynamic, &input, Restriction::All, false, None, false);
+                    assert_eq!(trace.ordinals, [0, 1]);
+                    assert!(trace.landmarks[2][4] > trace.landmarks[1][4]);
+                    let mut input = provider(page, false);
+                    input.series[4].source.fail_acquisition = Some(trace.landmarks[1][4] + 1);
+                    drive(
+                        &dynamic,
+                        &input,
+                        Restriction::All,
+                        false,
+                        Some((1, false)),
+                        false,
+                    );
+                    drop((compiled, dynamic));
                     engine.accounting.snapshot().assert_memory_released();
                 }
             }

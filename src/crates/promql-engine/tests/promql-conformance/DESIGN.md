@@ -833,6 +833,26 @@ integration, and Alertmanager remains excluded.
 - **Evidence:** [active distribution qualification](histogram-distribution-qualification.json) binds exact
   pre-sort sequences, sparse/skipped/native/control cases, complete queries, caller/Agent checks and measurements.
 
+## Ordered histogram streaming
+
+- **Choice:** a histogram whose frozen binding order already equals canonical output order keeps one existing Step
+  behind the descriptor adapter. This removes repeated full-vector construction per output row without a new cache.
+- **Admission:** Quantile/Fraction scalar arguments must resolve to numeric literals. Require nonempty, complete
+  one-to-one identity sources, matching full labels/hash/drop flags and single Float output heads. Invariant and
+  boundary owners retain their ordinary route. Runtime admission requires `All`; other filters keep selected replay.
+- **Publication:** certify after the histogram's own complete node finishing. Its own logical preparation starts
+  with a new false Plan and is explicitly excluded at runtime. Ancestors may consume the finished child; stored
+  child diagnostics and primary sample-unit owners remain authoritative. No discovery-completion credit is added.
+- **Traversal:** each invocation still performs fresh full-vector discovery, ordinary Count/Native reads and actual
+  child Done. Keep descriptor hash/head/drop normalization. Align sparse samples by their emitted canonical ordinal;
+  an empty current tick drains normally. Vector forwarding retains the shared child, while ancestor truncation drops it.
+- **Fallbacks:** dynamic scalar arguments, Quantiles, aliases/reordering, empty rosters and One/Ordinals/Contributors
+  retain ordinary behavior, including no-match early exit. Numeric and physical bound order remain unchanged.
+- **Costs:** one Plan flag and a longer-lived existing Step. Its seen hashes can grow across outputs; binding and
+  duplicate searches remain. Measure peak, allocation traffic and useful/physical sample counts separately; no
+  universal linear-work or lower-RSS claim. Procedure and finite evidence belong to
+  [the owning guide](README.md#ordered-histogram-streaming).
+
 ## Completed set-input discovery
 
 - **Choice:** eligible ordinary forward instant and range sets reuse active-input membership after both original child

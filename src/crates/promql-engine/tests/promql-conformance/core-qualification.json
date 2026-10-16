@@ -70923,5 +70923,14 @@
     "foreign_original_comparisons": 2616,
     "same_input_policy": "All three consumers/eight ordinary reducers, native/mixed values, scopes, name modes and pages; complete exact outcomes.",
     "scope": "Histogram demand only; existing join admission, contributor ownership and numerical/public contracts preserved. Scoped costs and remaining range discovery are retained in the qualification."
+  },
+  "ordered_histogram_streaming": {
+    "status": "qualified_private_optimization",
+    "qualification": "histogram-streaming-qualification.json",
+    "sha256": "099e6721c3dec38375ee91c3379303b8ed523c692cdb9c6bad726c847b81cdb8",
+    "native_units_per_profile": 700,
+    "native_original_comparisons": 4344,
+    "foreign_original_comparisons": 4344,
+    "scope": "Literal/All/canonical-identity adapter only; full original discovery, fresh values, sparse order and logical/error/release owners preserved. Scoped timing, physical statistics, memory/layout costs and remaining binding/seen searches retained in report."
   }
 }

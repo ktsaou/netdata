@@ -477,6 +477,7 @@ enum State<'a> {
         sources: &'a [usize],
         position: usize,
         running: bool,
+        streaming: bool,
     },
     Pass,
     Labels {
@@ -995,6 +996,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     }
     pub(crate) fn restrict_one(&mut self, ordinal: usize) {
         self.frames[0].filter = RowFilter::One(ordinal);
+    }
+    #[cfg(test)]
+    pub(crate) fn restrict_contributors(&mut self, plan: &'a crate::aggregate_replay::Plan) {
+        self.frames[0].filter = RowFilter::Contributors(plan);
     }
     pub(crate) fn bypass_root_order(&mut self) {
         self.frames[0].bypass_order = true;
@@ -2642,6 +2647,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 sources,
                 position: 0,
                 running: false,
+                streaming: matches!(self.frames[index].filter, RowFilter::All)
+                    && self
+                        .histogram_preparation
+                        .is_none_or(|value| value.node != node)
+                    && self
+                        .rosters
+                        .histogram(node)
+                        .is_some_and(|plan| plan.streams_ordered()),
             };
             return Ok(None);
         }
@@ -3257,8 +3270,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     descriptors,
                     position,
                     running,
+                    streaming,
                     ..
                 } => {
+                    if *streaming {
+                        // A current tick can omit earlier frozen bindings.
+                        *position = sample.ordinal;
+                    }
                     let descriptor = &descriptors[*position];
                     if !filter.accepts(descriptor.ordinal, self.control, self.account)?
                         || matches!(mode, OutputMode::Vector)
@@ -3284,7 +3302,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             self.control,
                         )?;
                     }
-                    if matches!(mode, OutputMode::Vector) {
+                    if matches!(mode, OutputMode::Vector) && !*streaming {
                         *position += 1;
                         *running = false;
                         self.frames.truncate(index + 1);
@@ -4102,7 +4120,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     sources,
                     position,
                     running,
+                    streaming,
                 } => {
+                    if *streaming {
+                        if *running {
+                            self.frames.pop();
+                        } else {
+                            *running = true;
+                            self.push_filtered(node, RowFilter::All, true, OutputMode::Matrix)?;
+                        }
+                        continue;
+                    }
                     if *running {
                         *position += 1;
                         *running = false;
