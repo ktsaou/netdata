@@ -69978,5 +69978,20 @@
     "candidate_grouped_c_cpp_arms": 4608,
     "candidate_window_c_cpp_control_arms": 3264,
     "boundary_scope": "All8ordinary aggregates; source-defined contributor order, exact cold completion, nested ordinal unions and conservative fallback. No raw-point certificate, raw array, metadata authority, payload cache, dependency or ABI change."
+  },
+  "wrapped_group_qualification": {
+    "receipt": "wrapped-group-qualification.json",
+    "sha256": "ab6e38d594d21506446d0e07f1d79b9e14889220e90bab0df3fe6328b85320b3",
+    "status": "qualified_wrapped_grouped_joins",
+    "meaning": "Reuse eligible grouped contributors, complete input discovery and successful non-target pair metadata through common pure alert wrappers. Preserve fresh selected values, unknown suffixes, exact phases and conservative fallback.",
+    "native_complete_policy_comparisons": 8088,
+    "foreign_complete_policy_comparisons": 5392,
+    "native_published_packet_comparisons": 8088,
+    "strict_original_failures_per_cohort": 7,
+    "declared_dense_float_order_boundaries": 32,
+    "native_units_per_profile": 676,
+    "candidate_wrapped_c_cpp_arms": 5760,
+    "native_bare_control_arms": 1536,
+    "boundary_scope": "Pure wrappers; full input Done and exact keys, successful kept/suppressed pair phases, fresh selected values and unvisited suffixes. No full-Done prefix shortcut, raw array, API/storage/metadata authority change."
   }
 }

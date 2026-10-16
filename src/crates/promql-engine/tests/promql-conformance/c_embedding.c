@@ -2326,25 +2326,35 @@ int main(int argc, char **argv) {
         puts("{\"window_fold_embedding\":\"pass\",\"functions\":17,\"cases\":816}");
         return 0;
     }
-    if (argc == 2 && strcmp(argv[1], "--aggregate-joins-only") == 0) {
+    if (argc == 2 && (strcmp(argv[1], "--aggregate-joins-only") == 0 ||
+                      strcmp(argv[1], "--wrapped-aggregate-joins-only") == 0)) {
+        unsigned wrapped = strcmp(argv[1], "--wrapped-aggregate-joins-only") == 0;
         const char *operators[] = {"sum", "avg", "count", "min", "max", "group", "stdvar", "stddev"};
         const char *templates[] = {
             "(%s by(zone)(m_total)+1) / on(zone) (%s by(zone)(m_total)+1)",
             "(%s without(member)(rate(m_total[3s]))+1) / on(zone) (%s without(member)(rate(m_total[3s]))+1)",
             "(clamp_min(%s by(zone)(abs(m_total)),0)+1) / on(zone) (clamp_min(%s by(zone)(abs(m_total)),0)+1)",
-            "(sum by(zone)(%s by(zone,member)(m_total))+1) / on(zone) (sum by(zone)(%s by(zone,member)(m_total))+1)"
+            "(sum by(zone)(%s by(zone,member)(m_total))+1) / on(zone) (sum by(zone)(%s by(zone,member)(m_total))+1)",
+            "(%s by(zone)(sum_over_time(m_total[3s]))+1) / on(zone) (%s by(zone)(sum_over_time(m_total[3s]))+1)"
         };
+        const char *wrappers[] = {"abs(%s)", "(%s) > .5", "(%s) > bool .5", "((%s))", "clamp_min((%s),.25)"};
         for (unsigned op = 0; op < sizeof(operators) / sizeof(operators[0]); op++) {
-            for (unsigned t = 0; t < sizeof(templates) / sizeof(templates[0]); t++) {
+            for (unsigned t = 0; t < (wrapped ? 5u : 4u); t++) {
                 char expression[256];
                 int length = snprintf(expression, sizeof(expression), templates[t], operators[op], operators[op]);
                 assert(length > 0 && (size_t)length < sizeof(expression));
-                four_series_float_query_members(engine, FOUR_SERIES_RATE, expression, 1);
+                char outer[512];
+                if (wrapped) {
+                    length = snprintf(outer, sizeof(outer), wrappers[t], expression);
+                    assert(length > 0 && (size_t)length < sizeof(outer));
+                }
+                four_series_float_query_members(engine, FOUR_SERIES_RATE, wrapped ? outer : expression, 1);
                 balanced(engine, &idle);
             }
         }
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
-        puts("{\"group_contributor_embedding\":\"pass\",\"operators\":8,\"cases\":384}");
+        puts(wrapped ? "{\"wrapped_group_embedding\":\"pass\",\"operators\":8,\"cases\":480}" :
+                       "{\"group_contributor_embedding\":\"pass\",\"operators\":8,\"cases\":384}");
         return 0;
     }
     if (argc == 2 && strcmp(argv[1], "--regex-only") == 0) {

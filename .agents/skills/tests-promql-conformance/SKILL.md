@@ -114,6 +114,10 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Grouped-contributor changes MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#grouped-aggregate-contributors` for output ordinals,
   cold completion, nested membership ownership, existing window-cache phases and measured metadata costs.
+- Wrapped-join changes MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#wrapped-grouped-joins` for pre-copy eligibility,
+  complete input discovery, kept/suppressed pair phases, fresh requested values, suffix continuation and separate
+  original/order-policy qualification.
 - Callback failure controls MUST establish their actual phase: output begin precedes preparation. The same guide
   records calibrated cursor landmarks and native traces for the first-final rate case.
 - Label projection MUST preserve virtual reset and reserved-name errors before matching; measure retained vector

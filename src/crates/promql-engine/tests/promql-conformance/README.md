@@ -4588,8 +4588,8 @@ Ordinary grouped operands can now reuse complete join discovery and evaluate onl
 contributors. This covers SUM/AVG/COUNT/MIN/MAX/GROUP/STDVAR/STDDEV, by/without, admitted Float maps and nested
 ordinary aggregates over supported raw or per-series window leaves. Actual Pair certification still requires Float
 outputs, unambiguous identities and the existing root, cardinality, clock and option guards. This is a performance
-change; no language feature is added or dropped. Admission remains rooted at the eligible vector-matching expression;
-other enclosing expression shapes can retain ordinary execution.
+change; no language feature is added or dropped. This initial cohort admits the eligible vector-matching root;
+the [wrapped-join extension](#wrapped-grouped-joins) covers common enclosing expression shapes.
 
 Existing group projection records child **output ordinals**, including aliases and hash-only group collisions,
 before child labels are moved or dropped. The plan retains accounted identities and ranges. It retains no child
@@ -4680,3 +4680,120 @@ is compile-only. Query-fixture `.text` grows 48,656/8,496 B in release/release-m
 Timings use a synthetic engine/provider on a shared host without CPU/frequency isolation. They do not establish
 live HTTP, DBengine disk I/O, concurrent throughput, device performance or RSS. Owned output and derived metadata
 can grow; all implicit caps remain disabled. Earlier language, SRE and live-Agent panels retain their identities.
+
+## Wrapped grouped joins
+
+Common pure alert comparisons and Float functions now retain grouped-join reuse. Examples include a grouped ratio
+followed by a threshold, `abs`, `clamp_min`, scalar arithmetic, parentheses or unary operators. The same admission
+also reaches supported unaggregated raw/Rate/Fold joins. This changes execution cost, without adding or dropping
+language features. Existing clock, delayed-name, input-kind, uniqueness, cardinality and leaf guards remain active.
+
+Three coupled repetitions are addressed: contributor demand through the wrapper, repeated operand membership
+discovery, and repeated value acquisition for already-processed non-target pairs. Input membership is reusable
+only after both original streams finish successfully. Separate pair credit distinguishes suppressed and kept
+outcomes, reproduces their original reservation/seen effects, and retains the requested pair's fresh evaluation.
+An unknown suffix remains ordinary work. If a previously kept target now produces no sample, traversal continues;
+a prefix never earns full Done or a direct singleton shortcut. Preparation and every ReplayKey change clear credit.
+
+Only accounted identities, hashes and compact pair states are retained. Raw samples remain paged across time and
+series; no raw-history array, saved pair values or child-label copy is added. Existing replay-enum and Step maximum
+layouts are preserved through optional boxed metadata. Small-query peak memory and executable size can increase.
+Metadata restoration and prefix walks remain potentially quadratic; this does not establish linear complexity.
+
+The `wrapped_group_joins` unit filter covers 576 distinguishing numerical/order/release cases across all eight
+ordinary aggregates, raw/Rate/Fold and mapped shapes, three page sizes and both source orders. The old production
+runtime completes every result check and then fails its final work bound. Direct `pair_discovery::tests` and
+`vector_matching::tests` cover sparse/backward requests, suppressed and unmatched inputs, exact keys, replacement,
+preparation clearing, alias rejection, credit-word boundaries, reservations, seen effects, cancellation after seen
+and before credit, and continuation into an unvisited failing suffix. The preparation-wiring owner covers 48 moved,
+copied and fallback shapes. Earlier group, hash-collision, late-group and set-prefix owners retain their coverage.
+
+`wrapped_group_cases.cases()` supplies 1,348 complete original requests across both profiles, all eight aggregates,
+by/without, nested/maps, raw/windows, comparisons, sparse/native/mixed and IEEE states, fixed/offset and unsupported
+fallbacks. Use the existing original-cursor capture and comparison APIs with exact numeric checks. Original reports
+remain distinct from the Decision9 ordering policy: seven strict numerical failures and 20 bit differences are
+already present in the published implementation. Repeated unchanged Go execution yields multiple complete outcomes
+at each of the eight implicated STDVAR/STDDEV boundaries.
+
+`wrapped_group_policy.declarations()` covers all 32 structurally equivalent cases: eight operators, both profiles,
+and the mapped-inner/derived-fallback shapes. Capture the declared child using the unchanged original, sort decoded
+full label bytes, inject it beside the untouched opposite raw metric, and capture the declared outer expression.
+The helper requires unique dropped-name Float rows at every requested tick, with no diagnostics. These retained
+captures are finite, dense Floats; this method does not qualify sparse/native children or internal flags generally.
+The original map boundary is unspecified, while aggregation consumes its matrix sequentially. This applies the
+existing deterministic-order policy without changing tolerance or replacing the strict reports.
+
+Compile `c_embedding.c` as C11 or C++17 and pass `--wrapped-aggregate-joins-only` for the 480-arm callback panel:
+eight operators, five raw/Rate/map/nested/Fold wrapper shapes, pages 1/17/1024 and success/provider/cancel/output arms.
+The existing `--aggregate-joins-only` retains its 384 bare controls. Normalized C ratios establish lifecycle phases;
+the distinct-value original comparisons establish numerical outcomes.
+
+Both optimized native profiles pass all 676 library units. All 8,088 complete query comparisons pass the separate
+exact ordering reference at pages 1/17/1024 and also equal the published implementation's complete packets, with
+zero paired bit differences. This is policy-qualified compatibility, not 8,088 strict original passes. The original
+seven failures and 20 bit differences per cohort remain in their reports. All 35 focused Debug owners pass; the
+final source only tightens their causal work assertion and adds the C fixture mode. Both full optimized suites
+execute the tighter assertion. No full Debug-suite claim is made.
+
+Across those 8,088 native paired queries, workspace peaks are unchanged in 4,284 cases and rise in 3,804 by at most
+2,424 B. Work increases by at most 211 units in the cases that do not benefit. All eight memory categories and
+allocation traffic remain separate in the qualification; tracked peaks are not process RSS.
+
+The original causal baseline uses 32 groups, four members per side, three stored samples and two output instants.
+Both optimized profiles have the following counters. This dataset differs from the fixed timing panel.
+
+| Original causal baseline | Work units before → after | Fetched samples | Workspace acquired | Workspace peak |
+| --- | ---: | ---: | ---: | ---: |
+| raw grouped ratio, threshold | 238,969,528 → 1,336,150 | 4,919,040 → 19,056 | 1,553,217,616 → 7,978,688 B | 124,592 → 129,240 B |
+| rate grouped ratio, threshold | 233,502,870 → 1,522,310 | 73,728 → 73,728 | 1,294,602,192 → 10,695,744 B | 263,664 → 268,312 B |
+
+The unchanged rate read count reflects the existing completed-window cache; the optimization removes repeated
+intermediate work. Bare root joins keep the same memory/read/allocation counters and add two work units. Other
+wrapper shapes and all small/scaling costs remain visible. Query-fixture `.text` changes by −50,576 B in release
+and +6,720 B in release-min; these are measured executable sections, not the Rust static archive's file size.
+
+ARM64 and ARM32 execute all 5,392 page17 query comparisons across both profiles under QEMU, with zero policy or
+native-packet bit differences, plus 140 focused unit-test executions. Twelve actual candidate C/C++ programs assert
+5,760 wrapped lifecycle arms; four native programs also assert 1,536 bare controls. Two predecessor C programs assert
+960 wrapped arms. The 1,920 native before/candidate C observations retain all 1,152 differences in exported sample
+statistics. Those counts describe read/sample ownership; they do not change expression results. No full foreign
+unit-suite or physical ARM performance claim is made.
+
+The fixed timing panel uses `wrapped_group_cases.performance_cases()` and six retained controls. It covers group
+counts 4/8/16/32, member counts 1/4/16/64, raw/Rate bare, threshold and abs joins, and standalone aggregates. Five
+alternating before/candidate pairs per profile check all 3,720 reference/warm/measured responses and each binary's
+own nonelapsed counters. Representative medians at 32 groups and four members are:
+
+| Timing workload | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| raw ratio, threshold | 4625.95 → 22.99 ms | 7827.72 → 38.92 ms |
+| raw ratio, abs | 1662.10 → 16.15 ms | 2832.99 → 27.07 ms |
+| rate ratio, threshold | 3291.01 → 33.72 ms | 6125.39 → 57.11 ms |
+| rate ratio, abs | 1204.11 → 25.75 ms | 2270.94 → 43.40 ms |
+| bare raw ratio | 11.13 → 11.33 ms | 19.18 → 19.46 ms |
+| bare rate ratio | 19.56 → 19.39 ms | 33.12 → 32.78 ms |
+| standalone raw | 2.29 → 2.32 ms | 3.94 → 3.91 ms |
+| standalone rate | 6.00 → 5.82 ms | 9.56 → 9.73 ms |
+
+Existing-query controls from the same panel retain slower candidate medians as well as improvements:
+
+| Timing control | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| raw direct | 3.99 → 4.06 ms | 6.99 → 6.82 ms |
+| raw clamp | 4.99 → 5.08 ms | 8.84 → 8.74 ms |
+| rate direct | 5.60 → 5.51 ms | 9.49 → 9.42 ms |
+| rate clamp | 7.13 → 7.10 ms | 12.23 → 12.15 ms |
+| sum_over_time direct | 4.63 → 4.66 ms | 8.24 → 8.18 ms |
+| sum_over_time clamp | 5.93 → 5.99 ms | 10.55 → 10.48 ms |
+
+All 124 case/profile timing arrays and resource costs are retained in the
+[qualification](wrapped-group-qualification.json). No median is over 10% slower in this finite panel; that does not
+prove zero overhead or assign a cause to small changes. Native timing began alongside one remaining ARM64 emulator
+on a host exposing 112 available CPUs. These are synthetic shared-host paged-provider measurements without
+CPU/frequency isolation, not live HTTP, DBengine disk I/O, concurrent throughput, device performance or RSS evidence.
+
+Format, strict production/fixture Clippy and installed Rust1.91 all-targets fixture compilation pass; the MSRV check
+is compile-only. The qualification verifies 170 closed process records and binds actual source, reference, helper,
+compiler and binary identities. All 71 earlier qualification-ledger objects remain unchanged. No ABI, provider,
+contexts, storage, arithmetic or dependency change is introduced. Explicit cancellation/deadlines remain active;
+implicit caps remain disabled. Earlier broader language, SRE and live-Agent evidence keeps its original attribution.

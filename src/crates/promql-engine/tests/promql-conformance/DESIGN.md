@@ -1131,8 +1131,8 @@ integration, and Alertmanager remains excluded.
 - **Choice:** ordinary aggregate operands retain accounted group-to-child output ordinal membership, built during
   existing label projection. The existing hash-only grouping authority, alias unions, first labels and source order
   remain unchanged. Membership retains identities; values still pass through the original reducers.
-- **Admission:** build the private plan only along eligible root arithmetic/comparison operand paths, including
-  admitted Float maps, ordinary nested aggregates and supported raw/window leaves. Keep the actual Float output,
+- **Admission:** the initial cohort builds the private plan along eligible root arithmetic/comparison operand paths,
+  including admitted Float maps, ordinary nested aggregates and supported raw/window leaves. Keep the actual Float output,
   cardinality and complete Pair proof. The aggregate certificate never grants a one-raw-point scheduling marker.
 - **Completion:** a full child traversal must reach successful Done for the exact clock before membership filters
   later requests. Clear preparation credit before final delivery. Singleton group lookup is direct; nested requests
@@ -1146,3 +1146,28 @@ integration, and Alertmanager remains excluded.
   peak. The [procedure and measurements](README.md#grouped-aggregate-contributors) and
   [qualification](group-contributor-qualification.json) keep complete original outcomes, actual callback phases,
   resource counters and fixed paired timings separate from historical broader cohorts.
+
+## Wrapped grouped joins
+
+- **Choice:** resolve the first eligible arithmetic/comparison vector join through existing pure scalar/Float,
+  unary, parenthesis and preprocessing paths. Demand the established contributor plans from that join. Keep the
+  original clock, kind, uniqueness, cardinality and supported-leaf checks; unsupported shapes use ordinary evaluation.
+- **Ownership handoff:** check original input aliases before label projection moves or copies their descriptors.
+  An optional candidate marker carries only that eligibility. Final output certification consumes it; unsuccessful
+  admission drops it. The marker cannot authorize input or value reuse.
+- **Discovery:** publish accounted active input membership only after both original operand streams reach Done for
+  the exact ReplayKey. Preserve suppressed and unmatched inputs and their strictly increasing physical ordinals.
+  Restore sparse inputs in that order. Preparation, replacement or key changes clear completed progress.
+- **Pair credit:** retain static pair identities, their original result hashes, and two bits per pair for unknown,
+  suppressed or kept. Grant credit only after the original operand, label, reservation, seen and control phases
+  succeed. A known non-target pair may reconstruct its original reservation and kept-only seen effect without
+  reading its values again. The requested pair always follows fresh ordinary evaluation.
+- **Completion:** a processed prefix does not prove an unvisited suffix or full Done. If a fresh target becomes
+  suppressed, continue ordinary traversal and preserve later operand failures. Do not replace a prefix with direct
+  singleton output; surrounding operators may reject a sample or drain additional input.
+- **Memory and limits:** reuse the existing discovery bitmap and replay wrapper. Optional boxed metadata keeps
+  the maximum replay-enum and evaluator-Step layout unchanged. No raw samples, retained values, child labels,
+  payload cache, dependency, ABI, provider, contexts or storage change is added. Metadata restoration and prefix
+  walks can still grow quadratically with series count; no linear-runtime or optimality claim follows.
+- **Evidence:** the [procedure](README.md#wrapped-grouped-joins) separates complete original outcomes, declared
+  ordering-policy qualification, callback/control phases, query-owned memory and paired timing measurements.

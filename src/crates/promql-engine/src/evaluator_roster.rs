@@ -694,24 +694,28 @@ impl Rosters {
             .expect("histogram plan")
             .finish(cache);
     }
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn prepare_binary(
         &mut self,
         node: NodeId,
         children: [NodeId; 2],
         matching: &VectorMatching,
         mut set_discovery: bool,
+        mut pair_discovery: bool,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
-        if set_discovery {
+        if set_discovery || pair_discovery {
             // Ordered copies lose their source ranges, so inspect aliases before copying.
             for child in children {
                 let Some(rows) = &self.nodes[child.0].output else {
                     set_discovery = false;
+                    pair_discovery = false;
                     break;
                 };
                 if !crate::scheduled_expression::unique_rows(rows, control, account)? {
                     set_discovery = false;
+                    pair_discovery = false;
                     break;
                 }
             }
@@ -721,6 +725,8 @@ impl Rosters {
         let mut plan = crate::vector_matching::Plan::new(left, right, matching, control, account)?;
         if set_discovery {
             plan.certify_set_discovery(control, account)?;
+        } else if pair_discovery {
+            plan.prepare_pair_discovery(control, account)?;
         }
         self.nodes[node.0].binary = Some(AccountedBox::new(
             plan,
@@ -740,7 +746,7 @@ impl Rosters {
             control.check()?;
             account.work(1);
             if let Some(plan) = &roster.binary {
-                plan.clear_set_discovery();
+                plan.clear_discovery();
             }
             if let Some(plan) = &roster.sorting {
                 plan.clear_emission();
@@ -777,6 +783,32 @@ impl Rosters {
         }
         plan.certify_replay(sources, cardinality, control, account)
     }
+    pub(crate) fn certify_binary_prefix(
+        &mut self,
+        node: NodeId,
+        cardinality: Cardinality,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        // The candidate retains eligibility from before operand ownership moved.
+        if !self
+            .binary(node)
+            .is_some_and(|plan| plan.has_pair_candidate())
+        {
+            return Ok(());
+        }
+        self.certify_binary_replay(node, cardinality, control, account)?;
+        if let Some(plan) = self.nodes[node.0].binary.as_deref_mut() {
+            plan.certify_pair_discovery(cardinality, control, account)?;
+        }
+        Ok(())
+    }
+    pub(crate) fn discard_pair_candidate(&mut self, node: NodeId) {
+        if let Some(plan) = self.nodes[node.0].binary.as_deref_mut() {
+            plan.discard_pair_candidate();
+        }
+    }
+
     pub(crate) fn certify_sort_emit(
         &mut self,
         node: NodeId,
@@ -1326,7 +1358,7 @@ pub(crate) fn group_position<T>(
 mod tests {
     #[test]
     fn set_discovery_checks_original_aliases_and_descriptor_presence() {
-        for case in 0..4 {
+        for (case, pair) in (0..4).flat_map(|case| [false, true].map(|pair| (case, pair))) {
             let engine = crate::accounting::EngineAccounting::default();
             let account = engine.query();
             let control = Control::default();
@@ -1372,16 +1404,21 @@ mod tests {
                     NodeId(2),
                     [NodeId(0), NodeId(1)],
                     &VectorMatching::default(),
-                    true,
+                    !pair,
+                    pair,
                     &control,
                     &account,
                 )
                 .unwrap();
             let plan = rosters.binary(NodeId(2)).unwrap();
             assert_eq!(
-                plan.has_set_discovery(),
+                if pair {
+                    plan.has_pair_candidate()
+                } else {
+                    plan.has_set_discovery()
+                },
                 case == 0 || case == 2,
-                "case {case}"
+                "case {case} pair{pair}"
             );
             assert!(
                 plan.sides

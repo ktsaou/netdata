@@ -598,7 +598,7 @@ enum OutputMode {
     Matrix,
     Vector,
 }
-fn set_discovery_target(
+fn discovery_target(
     mode: OutputMode,
     bypass_order: bool,
     filter: RowFilter<'_>,
@@ -2856,7 +2856,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     );
                     let frame = &self.frames[index];
                     if operator.is_set()
-                        && set_discovery_target(
+                        && discovery_target(
                             frame.mode,
                             frame.bypass_order,
                             frame.filter,
@@ -2885,17 +2885,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             _ => None,
                         }
                     {
-                        step.enable_replay(
-                            target,
-                            crate::vector_matching::ReplayKey::new(
-                                frame.options,
-                                frame.step_index,
-                                self.prepared.lookback_ns(frame.options.lookback_ms),
-                                self.data_bounds,
-                            ),
-                            self.control,
-                            self.account,
-                        )?;
+                        let key = crate::vector_matching::ReplayKey::new(
+                            frame.options,
+                            frame.step_index,
+                            self.prepared.lookback_ns(frame.options.lookback_ms),
+                            self.data_bounds,
+                        );
+                        if step.has_pair_discovery() {
+                            step.enable_pair_discovery(key, self.control, self.account)?;
+                        } else {
+                            step.enable_replay(target, key, self.control, self.account)?;
+                        }
                     }
                     self.frames[index].state = State::Binary(AccountedBox::new(
                         step,
@@ -4014,25 +4014,19 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 }
                 State::Binary(step) => {
                     let options = self.options;
-                    let progress = if step.has_set_discovery() {
-                        set_discovery_target(
-                            mode,
-                            bypass_order,
-                            filter,
-                            node,
-                            self.binary_preparation,
-                        )
-                        .map(|target| {
-                            (
-                                crate::vector_matching::ReplayKey::new(
-                                    options,
-                                    self.step_index,
-                                    self.prepared.lookback_ns(options.lookback_ms),
-                                    self.data_bounds,
-                                ),
-                                target,
-                            )
-                        })
+                    let progress = if step.has_set_discovery() || step.has_pair_discovery() {
+                        discovery_target(mode, bypass_order, filter, node, self.binary_preparation)
+                            .map(|target| {
+                                (
+                                    crate::vector_matching::ReplayKey::new(
+                                        options,
+                                        self.step_index,
+                                        self.prepared.lookback_ns(options.lookback_ms),
+                                        self.data_bounds,
+                                    ),
+                                    target,
+                                )
+                            })
                     } else {
                         None
                     };
@@ -4040,12 +4034,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         node,
                         options,
                         self.binary_preparation,
-                        progress.as_ref().map(|(key, target)| {
-                            crate::vector_matching::SetProgress {
+                        progress
+                            .as_ref()
+                            .map(|(key, target)| crate::vector_matching::Progress {
                                 key,
                                 target: *target,
-                            }
-                        }),
+                            }),
                         self.control,
                         self.account,
                     )? {
@@ -5271,7 +5265,7 @@ mod filter_tests {
                                 None
                             };
                             assert_eq!(
-                                set_discovery_target(mode, bypass_order, filter, node, preparation),
+                                discovery_target(mode, bypass_order, filter, node, preparation),
                                 expected
                             );
                         }

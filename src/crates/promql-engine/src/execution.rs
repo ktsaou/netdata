@@ -880,57 +880,16 @@ impl CompiledQuery {
         )? {
             return Ok(());
         }
-        if let Some((left, right, matching)) = self.binary_replay_root(header)
-            && [self.expression.root, left, right].into_iter().all(|node| {
-                !prepared.flags().invariants[node.0]
-                    && !prepared.flags().boundaries[node.0]
-                    && rosters.matrix(node).is_none()
-            })
-        {
-            let selectors = [
-                self.binary_replay_operand(
-                    left,
-                    evaluator_header,
-                    prepared,
-                    &rosters,
-                    control,
-                    account,
-                )?,
-                self.binary_replay_operand(
-                    right,
-                    evaluator_header,
-                    prepared,
-                    &rosters,
-                    control,
-                    account,
-                )?,
-            ];
-            if let [Some(left_selector), Some(right_selector)] = selectors {
-                let lookback_ms = prepared.lookback_ms(self.options.lookback_ms);
-                let grid = evaluator_header.into();
-                let supported = [left_selector, right_selector].into_iter().all(|selector| {
-                    let Expr::Selector(value) = &self.expression.arena[selector].expression else {
-                        unreachable!("resolved binary selector")
-                    };
-                    crate::evaluator::supports_selector_schedule(
-                        selector,
-                        value,
-                        prepared,
-                        self.timestamp_selectors[selector.0],
-                        lookback_ms,
-                        grid,
-                    )
-                });
-                if supported {
-                    rosters.certify_binary_replay(
-                        self.expression.root,
-                        matching.cardinality,
-                        control,
-                        account,
-                    )?;
-                }
-            }
-        }
+        self.certify_pair_replay(
+            self.expression.root,
+            header,
+            evaluator_header,
+            false,
+            prepared,
+            &mut rosters,
+            control,
+            account,
+        )?;
         let mut traversal = crate::query_scopes::Traversal::new(
             evaluator_header.into(),
             !prepared.flags().boundaries[self.expression.root.0]
@@ -1228,8 +1187,74 @@ impl CompiledQuery {
         Ok(Some(copies))
     }
 
-    fn binary_replay_root(
+    #[allow(clippy::too_many_arguments)]
+    fn certify_pair_replay(
         &self,
+        node: NodeId,
+        shape_header: OutputHeader,
+        header: OutputHeader,
+        prefix: bool,
+        prepared: &Prepared,
+        rosters: &mut Rosters,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        if (!prefix || self.binary_replay_grid_matches(node, header, prepared, rosters))
+            && let Some((left, right, matching)) = self.binary_replay_children(node, shape_header)
+            && [node, left, right].into_iter().all(|node| {
+                !prepared.flags().invariants[node.0]
+                    && !prepared.flags().boundaries[node.0]
+                    && rosters.matrix(node).is_none()
+            })
+        {
+            let selectors = [
+                self.binary_replay_operand(left, header, prepared, rosters, control, account)?,
+                self.binary_replay_operand(right, header, prepared, rosters, control, account)?,
+            ];
+            if let [Some(left_selector), Some(right_selector)] = selectors {
+                let lookback_ms = prepared.lookback_ms(self.options.lookback_ms);
+                let grid = header.into();
+                let supported = [left_selector, right_selector].into_iter().all(|selector| {
+                    let Expr::Selector(value) = &self.expression.arena[selector].expression else {
+                        unreachable!("resolved binary selector")
+                    };
+                    crate::evaluator::supports_selector_schedule(
+                        selector,
+                        value,
+                        prepared,
+                        self.timestamp_selectors[selector.0],
+                        lookback_ms,
+                        grid,
+                    )
+                });
+                if supported {
+                    if prefix {
+                        rosters.certify_binary_prefix(
+                            node,
+                            matching.cardinality,
+                            control,
+                            account,
+                        )?;
+                    } else {
+                        rosters.certify_binary_replay(
+                            node,
+                            matching.cardinality,
+                            control,
+                            account,
+                        )?;
+                    }
+                }
+            }
+        }
+        if prefix {
+            rosters.discard_pair_candidate(node);
+        }
+        Ok(())
+    }
+
+    fn binary_replay_children(
+        &self,
+        node: NodeId,
         header: OutputHeader,
     ) -> Option<(NodeId, NodeId, &crate::frontend::ast::VectorMatching)> {
         let Expr::Binary {
@@ -1238,7 +1263,7 @@ impl CompiledQuery {
             operator,
             matching: Some(matching),
             ..
-        } = &self.expression.arena[self.expression.root].expression
+        } = &self.expression.arena[node].expression
         else {
             return None;
         };
@@ -1264,6 +1289,43 @@ impl CompiledQuery {
                 ))
             && !self.options.delayed_name_removal)
             .then_some((*left, *right, matching))
+    }
+
+    fn binary_replay_target(
+        &self,
+        header: OutputHeader,
+        prepared: &Prepared,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<NodeId>, Interrupted> {
+        let mut node = self.expression.root;
+        loop {
+            control.check()?;
+            account.work(1);
+            if prepared.flags().invariants[node.0] || prepared.flags().boundaries[node.0] {
+                return Ok(None);
+            }
+            if let Some((left, right, _)) = self.binary_replay_children(node, header) {
+                return Ok([left, right]
+                    .into_iter()
+                    .all(|child| {
+                        !prepared.flags().invariants[child.0]
+                            && !prepared.flags().boundaries[child.0]
+                    })
+                    .then_some(node));
+            }
+            let grid = crate::query_scopes::Grid::from(header);
+            if crate::query_scopes::Grid::from(prepared.source_header(node, header)) != grid
+                || crate::query_scopes::Grid::from(prepared.scope_header(node, header)) != grid
+            {
+                return Ok(None);
+            }
+            let Some(child) = self.binary_replay_map_child(node, prepared, control, account)?
+            else {
+                return Ok(None);
+            };
+            node = child;
+        }
     }
 
     fn binary_replay_map_child(
@@ -1310,15 +1372,12 @@ impl CompiledQuery {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Option<NodeId>, Interrupted> {
-        let Some((left, right, _)) = self.binary_replay_root(header) else {
+        let Some(join) = self.binary_replay_target(header, prepared, control, account)? else {
             return Ok(None);
         };
-        if [self.expression.root, left, right]
-            .into_iter()
-            .any(|node| prepared.flags().invariants[node.0] || prepared.flags().boundaries[node.0])
-        {
-            return Ok(None);
-        }
+        let (left, right, _) = self
+            .binary_replay_children(join, header)
+            .expect("resolved join");
         let mut demanded = false;
         'operands: for mut current in [left, right] {
             loop {
@@ -2279,6 +2338,9 @@ impl CompiledQuery {
                     [*left, *right],
                     matching,
                     set_discovery,
+                    node != self.expression.root
+                        && self.binary_replay_target(header, prepared, control, account)?
+                            == Some(node),
                     control,
                     account,
                 )?;
@@ -2973,6 +3035,27 @@ impl CompiledQuery {
                 control,
                 account,
             )?;
+            if node != self.expression.root
+                && matches!(
+                    expression,
+                    Expr::Binary {
+                        matching: Some(_),
+                        ..
+                    }
+                )
+                && self.binary_replay_target(header, prepared, control, account)? == Some(node)
+            {
+                self.certify_pair_replay(
+                    node,
+                    header,
+                    header,
+                    true,
+                    prepared,
+                    &mut rosters,
+                    control,
+                    account,
+                )?;
+            }
             if crate::vector_sort::is_sort(expression) {
                 self.certify_sort_emission(
                     node,
@@ -6783,8 +6866,19 @@ mod tests {
         request: QueryRequest,
         control: &Control,
     ) -> (usize, Vec<usize>) {
+        let (descriptors, baseline, _) =
+            float_map_join_preparation_with_discovery(compiled, calibration, request, control);
+        (descriptors, baseline)
+    }
+
+    fn float_map_join_preparation_with_discovery(
+        compiled: &CompiledQuery,
+        calibration: &FixtureProvider,
+        request: QueryRequest,
+        control: &Control,
+    ) -> (usize, Vec<usize>, usize) {
         let account = compiled.execution_accounting();
-        let descriptors = {
+        let (descriptors, pair_plans) = {
             let header = compiled.header(request).unwrap();
             let prepared = Prepared::new(
                 &compiled.expression,
@@ -6827,7 +6921,19 @@ mod tests {
                     &mut Annotations::default(),
                 )
                 .unwrap();
+            let mut pair_plans = 0;
             for position in 0..compiled.expression.arena.nodes.len() {
+                if let Some(plan) = rosters.binary(NodeId(position)) {
+                    assert!(
+                        !plan.has_pair_candidate(),
+                        "preparation retained a candidate marker"
+                    );
+                    assert!(
+                        !plan.has_completed_pair_discovery(),
+                        "preparation retained pair progress"
+                    );
+                    pair_plans += usize::from(plan.has_pair_discovery());
+                }
                 if let Some(plan) = rosters.group_replay(NodeId(position)) {
                     assert!(
                         !plan.has_completion(),
@@ -6840,7 +6946,10 @@ mod tests {
                     assert_eq!(progress, 0, "preparation retained sort progress");
                 }
             }
-            rosters.descriptors(compiled.expression.root).len()
+            (
+                rosters.descriptors(compiled.expression.root).len(),
+                pair_plans,
+            )
         };
         calibration.assert_closed();
         account.snapshot().assert_memory_released();
@@ -6850,7 +6959,89 @@ mod tests {
             .iter()
             .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
             .collect();
-        (descriptors, baseline)
+        (descriptors, baseline, pair_plans)
+    }
+
+    #[test]
+    fn wrapped_join_preparation_retains_moved_and_copied_input_eligibility() {
+        let request = QueryRequest::Range {
+            start_ms: 2000,
+            end_ms: 3000,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            for (expression, rows, admitted) in [
+                ("abs(a_total / on(instance,member) b_total)", 4, true),
+                (
+                    "abs(sum by(instance)(a_total) / on(instance) sum by(instance)(b_total))",
+                    2,
+                    true,
+                ),
+                (
+                    "abs((a_total*2) / on(instance,member) abs(b_total))",
+                    4,
+                    true,
+                ),
+                (
+                    "(sum by(instance)(a_total) / on(instance) sum by(instance)(b_total))",
+                    2,
+                    true,
+                ),
+                (
+                    "abs(sum by(instance)(rate(a_total[3s])) / on(instance) sum by(instance)(rate(b_total[3s])))",
+                    2,
+                    true,
+                ),
+                (
+                    "abs(sum by(instance)(sum_over_time(a_total[3s])) / on(instance) sum by(instance)(sum_over_time(b_total[3s])))",
+                    2,
+                    true,
+                ),
+                (
+                    "clamp_min((a_total / on(instance,member) b_total),scalar(vector(time())))",
+                    4,
+                    false,
+                ),
+                (
+                    "abs(sum by(instance)(a_total @ 2) / on(instance) sum by(instance)(b_total))",
+                    2,
+                    false,
+                ),
+            ] {
+                for delayed in [false, true] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let compiled = engine
+                        .compile(
+                            expression.as_bytes(),
+                            EngineOptions {
+                                delayed_name_removal: delayed,
+                                ..EngineOptions::default()
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let mut provider = float_map_join_unit_provider(page);
+                    for (index, row) in provider.series.iter_mut().enumerate() {
+                        row.labels[0].1 = if index < 4 { b"a_total" } else { b"b_total" }.to_vec();
+                        row.labels[1].1 = ((index % 4) / 2).to_string().into_bytes();
+                        row.labels
+                            .push((b"member".to_vec(), (index % 2).to_string().into_bytes()));
+                    }
+                    let (descriptors, _, pair_plans) = float_map_join_preparation_with_discovery(
+                        &compiled, &provider, request, &control,
+                    );
+                    assert_eq!(descriptors, rows, "{expression} delayed{delayed}");
+                    assert_eq!(
+                        pair_plans,
+                        usize::from(admitted && !delayed),
+                        "{expression} delayed{delayed}"
+                    );
+                    drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
     }
 
     fn window_join_failures(function: &str, normalize_fold: bool) {

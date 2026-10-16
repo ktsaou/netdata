@@ -1529,8 +1529,7 @@ fn instant_root_numeric_fold_keeps_raw_memory_independent_of_history() {
     }
 }
 
-#[test]
-fn grouped_aggregate_joins_reuse_discovery_and_selected_contributors() {
+fn grouped_join_work(expression: &str, page_size: usize, reversed: bool) -> u64 {
     fn point<const MEMBER: usize>(index: usize) -> crate::value::Sample {
         crate::value::Sample {
             time_ms: (index as i64 + 1) * 1000,
@@ -1540,6 +1539,77 @@ fn grouped_aggregate_joins_reuse_discovery_and_selected_contributors() {
     }
     let generators: [fn(usize) -> crate::value::Sample; 4] =
         [point::<0>, point::<1>, point::<2>, point::<3>];
+    let mut provider = FixtureProvider::new(2, page_size, 64);
+    provider.filter_selectors = true;
+    for (position, series) in provider.series.iter_mut().enumerate() {
+        let index = if position < 32 || !reversed {
+            position % 32
+        } else {
+            63 - position
+        };
+        let member = index % 4;
+        series.source.sample = generators[member];
+        series.labels = vec![
+            (
+                b"__name__".to_vec(),
+                if position < 32 {
+                    b"m_total"
+                } else {
+                    b"n_total"
+                }
+                .to_vec(),
+            ),
+            (b"instance".to_vec(), (index / 4).to_string().into_bytes()),
+            (b"job".to_vec(), (member % 2).to_string().into_bytes()),
+            (b"member".to_vec(), member.to_string().into_bytes()),
+        ];
+    }
+    let engine = Engine::default();
+    let control = Control::default();
+    let query = engine
+        .compile(expression.as_bytes(), EngineOptions::default(), &control)
+        .unwrap();
+    let report = query.collect_reported(
+        &provider,
+        QueryRequest::Range {
+            start_ms: 2000,
+            end_ms: 3000,
+            step_ms: 1000,
+        },
+        &control,
+    );
+    let result = report.result.as_ref().unwrap();
+    assert_eq!(result.series.len(), 8, "{expression}");
+    assert!(report.annotations.is_empty());
+    for (position, series) in result.series.iter().enumerate() {
+        assert_eq!(series.labels.0.len(), 1);
+        assert_eq!(&*series.labels.0[0].name, b"instance");
+        assert_eq!(&*series.labels.0[0].value, position.to_string().as_bytes());
+        assert_eq!(series.points.len(), 2);
+        for (tick, point) in series.points.iter().enumerate() {
+            assert_eq!(point.time_ms, (tick as i64 + 2) * 1000);
+            let OwnedValue::Float(value) = point.value else {
+                panic!("grouped ratio must be float");
+            };
+            assert_eq!(value.to_bits(), 1.0f64.to_bits(), "{expression}");
+        }
+    }
+    assert_eq!(report.observations.output_samples, 16);
+    println!(
+        "{{\"group_contributors_query\":{expression:?},\"page_size\":{page_size},\"reversed\":{reversed},\"work\":{},\"fetched\":{},\"workspace_peak\":{}}}",
+        report.observations.work,
+        report.observations.samples_fetched,
+        report.observations.memory[MemoryKind::Workspace as usize].peak
+    );
+    let work = report.observations.work;
+    provider.assert_closed();
+    drop((report, query));
+    engine.accounting.snapshot().assert_memory_released();
+    work
+}
+
+#[test]
+fn grouped_aggregate_joins_reuse_discovery_and_selected_contributors() {
     let mut work = Vec::new();
     for operator in [
         "sum", "avg", "count", "min", "max", "group", "stdvar", "stddev",
@@ -1564,73 +1634,8 @@ fn grouped_aggregate_joins_reuse_discovery_and_selected_contributors() {
         ] {
             for page_size in [1, 17, 1024] {
                 for reversed in [false, true] {
-                    let mut provider = FixtureProvider::new(2, page_size, 64);
-                    provider.filter_selectors = true;
-                    for (position, series) in provider.series.iter_mut().enumerate() {
-                        let index = if position < 32 || !reversed {
-                            position % 32
-                        } else {
-                            63 - position
-                        };
-                        let member = index % 4;
-                        series.source.sample = generators[member];
-                        series.labels = vec![
-                            (
-                                b"__name__".to_vec(),
-                                if position < 32 {
-                                    b"m_total"
-                                } else {
-                                    b"n_total"
-                                }
-                                .to_vec(),
-                            ),
-                            (b"instance".to_vec(), (index / 4).to_string().into_bytes()),
-                            (b"job".to_vec(), (member % 2).to_string().into_bytes()),
-                            (b"member".to_vec(), member.to_string().into_bytes()),
-                        ];
-                    }
-                    let engine = Engine::default();
-                    let control = Control::default();
                     let expression = format!("{left} / on(instance) {right}");
-                    let query = engine
-                        .compile(expression.as_bytes(), EngineOptions::default(), &control)
-                        .unwrap();
-                    let report = query.collect_reported(
-                        &provider,
-                        QueryRequest::Range {
-                            start_ms: 2000,
-                            end_ms: 3000,
-                            step_ms: 1000,
-                        },
-                        &control,
-                    );
-                    let result = report.result.as_ref().unwrap();
-                    assert_eq!(result.series.len(), 8, "{expression}");
-                    assert!(report.annotations.is_empty());
-                    for (position, series) in result.series.iter().enumerate() {
-                        assert_eq!(series.labels.0.len(), 1);
-                        assert_eq!(&*series.labels.0[0].name, b"instance");
-                        assert_eq!(&*series.labels.0[0].value, position.to_string().as_bytes());
-                        assert_eq!(series.points.len(), 2);
-                        for (tick, point) in series.points.iter().enumerate() {
-                            assert_eq!(point.time_ms, (tick as i64 + 2) * 1000);
-                            let OwnedValue::Float(value) = point.value else {
-                                panic!("grouped ratio must be float");
-                            };
-                            assert_eq!(value.to_bits(), 1.0f64.to_bits(), "{expression}");
-                        }
-                    }
-                    assert_eq!(report.observations.output_samples, 16);
-                    println!(
-                        "{{\"group_contributors_query\":{expression:?},\"page_size\":{page_size},\"reversed\":{reversed},\"work\":{},\"fetched\":{},\"workspace_peak\":{}}}",
-                        report.observations.work,
-                        report.observations.samples_fetched,
-                        report.observations.memory[MemoryKind::Workspace as usize].peak
-                    );
-                    work.push(report.observations.work);
-                    provider.assert_closed();
-                    drop((report, query));
-                    engine.accounting.snapshot().assert_memory_released();
+                    work.push(grouped_join_work(&expression, page_size, reversed));
                 }
             }
         }
@@ -1639,6 +1644,51 @@ fn grouped_aggregate_joins_reuse_discovery_and_selected_contributors() {
     assert!(
         work.iter().all(|work| *work < 750_000),
         "grouped joins must reuse completed discovery and requested contributors: {work:?}"
+    );
+}
+
+#[test]
+fn wrapped_group_joins_reuse_input_discovery_and_processed_pairs() {
+    let mut work = Vec::new();
+    for operator in [
+        "sum", "avg", "count", "min", "max", "group", "stdvar", "stddev",
+    ] {
+        for (left, right) in [
+            (
+                format!("{operator} by(instance)(m_total)"),
+                format!("{operator} by(instance)(n_total)"),
+            ),
+            (
+                format!("{operator} without(member,job)(rate(m_total[3s]))"),
+                format!("{operator} without(member,job)(rate(n_total[3s]))"),
+            ),
+            (
+                format!("{operator} by(instance)(sum_over_time(m_total[3s]))"),
+                format!("{operator} by(instance)(sum_over_time(n_total[3s]))"),
+            ),
+            (
+                format!("sum by(instance)({operator} by(instance,job)(abs(m_total)))"),
+                format!("sum by(instance)({operator} by(instance,job)(abs(n_total)))"),
+            ),
+        ] {
+            let join = format!("{left} / on(instance) {right}");
+            for expression in [
+                format!("({join})"),
+                format!("abs({join})"),
+                format!("({join}) > .5"),
+            ] {
+                for page_size in [1, 17, 1024] {
+                    for reversed in [false, true] {
+                        work.push(grouped_join_work(&expression, page_size, reversed));
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(work.len(), 8 * 4 * 3 * 3 * 2);
+    assert!(
+        work.iter().all(|work| *work < 750_000),
+        "wrapped grouped joins must reuse input discovery and successful non-target pairs: {work:?}"
     );
 }
 

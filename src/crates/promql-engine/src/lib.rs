@@ -27,6 +27,7 @@ mod classic_replay;
 mod count_values;
 mod derived_matrix;
 mod derived_range;
+mod pair_discovery;
 mod quantile_aggregate;
 mod topk;
 mod vector_sort;
