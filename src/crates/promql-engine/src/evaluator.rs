@@ -486,7 +486,7 @@ enum State<'a> {
     },
     Map {
         operation: MapOperation,
-        seen: AccountedVec<(u64, u8)>,
+        seen: UniqueKinds,
         last_diagnostic: Option<crate::binary_value::Diagnostic>,
     },
     Selection {
@@ -1327,7 +1327,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     fn map(&self, operation: MapOperation) -> State<'a> {
         State::Map {
             operation,
-            seen: AccountedVec::new(self.account, MemoryKind::Workspace),
+            seen: UniqueKinds::new(self.account),
             last_diagnostic: None,
         }
     }
@@ -4570,21 +4570,92 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     }
 }
 
+pub(crate) struct UniqueKinds {
+    entries: AccountedVec<(u64, u8)>,
+    lookup: Option<AccountedBox<crate::position_index::PositionIndex>>,
+}
+
+impl UniqueKinds {
+    pub(crate) fn new(account: &QueryAccounting) -> Self {
+        Self {
+            entries: AccountedVec::new(account, MemoryKind::Workspace),
+            lookup: None,
+        }
+    }
+
+    fn insert(
+        &mut self,
+        identity: (u64, u8),
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> Result<(), EvaluationError> {
+        let duplicate = if let Some(lookup) = &self.lookup {
+            lookup
+                .find(
+                    identity.0,
+                    |prior| Ok(self.entries[prior] == identity),
+                    control,
+                    account,
+                )?
+                .is_some()
+        } else {
+            crate::evaluator_order::contains(&self.entries, &identity, control, account)?
+        };
+        // A completed comparison must still observe cancellation before a duplicate error.
+        control.check()?;
+        if duplicate {
+            return Err(EvaluationError::Invalid(
+                "vector cannot contain metrics with the same labelset",
+            ));
+        }
+        self.entries.reserve_copy_with(1, |amount| {
+            control.check()?;
+            account.work(amount as u64);
+            Ok::<_, Interrupted>(())
+        })?;
+        let position = self.entries.len();
+        if let Some(lookup) = &mut self.lookup {
+            lookup.insert_new(
+                identity.0,
+                position,
+                |prior| Ok(self.entries[prior].0),
+                control,
+                account,
+            )?;
+        } else if position == 1 {
+            // Singleton replays keep their old vector allocation without a lookup allocation.
+            let mut lookup = crate::position_index::PositionIndex::new(account);
+            lookup.insert_new(self.entries[0].0, 0, |_| unreachable!(), control, account)?;
+            lookup.insert_new(
+                identity.0,
+                position,
+                |prior| Ok(self.entries[prior].0),
+                control,
+                account,
+            )?;
+            self.lookup = Some(AccountedBox::new(
+                lookup,
+                &AllocationContext::new(account, MemoryKind::Workspace),
+            ));
+        }
+        self.entries.push(identity);
+        control.check()?;
+        Ok(())
+    }
+}
+
 pub(crate) fn remember_unique_kind(
-    seen: &mut AccountedVec<(u64, u8)>,
+    seen: &mut UniqueKinds,
     labels: &OwnedLabels,
     kind: u8,
     account: &QueryAccounting,
     control: &Control,
 ) -> Result<(), EvaluationError> {
-    let identity = (label_hash::full(labels, control, account)?, kind);
-    if crate::evaluator_order::contains(seen, &identity, control, account)? {
-        return Err(EvaluationError::Invalid(
-            "vector cannot contain metrics with the same labelset",
-        ));
-    }
-    seen.push(identity);
-    Ok(())
+    seen.insert(
+        (label_hash::full(labels, control, account)?, kind),
+        account,
+        control,
+    )
 }
 
 pub(crate) fn metadata(name: &[u8]) -> bool {
@@ -4681,6 +4752,213 @@ pub(crate) fn scalar_binary(
 mod filter_tests {
     use super::*;
     use crate::accounting::EngineAccounting;
+
+    #[test]
+    fn mapped_identity_keeps_full_hash_kinds_and_lazy_ownership() {
+        let engine = EngineAccounting::default();
+        {
+            let account = engine.query();
+            let control = Control::default();
+            let mut seen = UniqueKinds::new(&account);
+            assert_eq!(
+                account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                0
+            );
+            seen.insert((0, 0), &account, &control).unwrap();
+            assert!(seen.lookup.is_none());
+            assert_eq!(
+                account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                (seen.entries.capacity() * size_of::<(u64, u8)>()) as u64
+            );
+            assert!(matches!(
+                seen.insert((0, 0), &account, &control),
+                Err(EvaluationError::Invalid(_))
+            ));
+            assert!(seen.lookup.is_none());
+            let mut expected = vec![(0, 0)];
+            let started = account.snapshot().work;
+            for identity in [(0, 1), (0, 2), (1_u64 << 32, 0), (u64::MAX, 2)]
+                .into_iter()
+                .chain((1..=512).map(|index| ((index << 32) | 0xdead_beef, 0)))
+            {
+                seen.insert(identity, &account, &control).unwrap();
+                expected.push(identity);
+            }
+            assert_eq!(&*seen.entries, expected);
+            assert!(account.snapshot().work - started < 100 * expected.len() as u64);
+            for &identity in expected.iter().rev() {
+                assert!(matches!(
+                    seen.insert(identity, &account, &control),
+                    Err(EvaluationError::Invalid(_))
+                ));
+            }
+            assert_eq!(&*seen.entries, expected);
+            println!(
+                "mapped identity layout: Frame={} State={} UniqueKinds={} index_box={}",
+                size_of::<Frame<'_>>(),
+                size_of::<State<'_>>(),
+                size_of::<UniqueKinds>(),
+                AccountedBox::<crate::position_index::PositionIndex>::allocation_bytes()
+            );
+        }
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn mapped_identity_retains_real_full_hash_collisions_and_kind_equality() {
+        for prefix in [0, 2, 8] {
+            let engine = EngineAccounting::default();
+            {
+                let account = engine.query();
+                let control = Control::default();
+                let mut seen = UniqueKinds::new(&account);
+                for index in 0..prefix {
+                    seen.insert((index, 0), &account, &control).unwrap();
+                }
+                let labels = crate::test_storage::FULL_LABEL_HASH_COLLISION_VALUES.map(|value| {
+                    let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+                    labels.push(b"a", value, &account, MemoryKind::Workspace);
+                    assert_eq!(
+                        label_hash::full(&labels, &control, &account).unwrap(),
+                        0x9c71_0b2e_3747_e3bd
+                    );
+                    labels
+                });
+                for kind in 0..=2 {
+                    remember_unique_kind(&mut seen, &labels[0], kind, &account, &control).unwrap();
+                    assert!(matches!(
+                        remember_unique_kind(&mut seen, &labels[1], kind, &account, &control),
+                        Err(EvaluationError::Invalid(
+                            "vector cannot contain metrics with the same labelset"
+                        ))
+                    ));
+                }
+            }
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn mapped_identity_terminal_poll_precedes_duplicate_or_new_publication() {
+        for count in [1, 2, 12] {
+            for duplicate in [false, true] {
+                let engine = EngineAccounting::default();
+                {
+                    let account = engine.query();
+                    let fresh = Control::default();
+                    let mut seen = UniqueKinds::new(&account);
+                    for hash in 0..count {
+                        seen.insert((hash, 0), &account, &fresh).unwrap();
+                    }
+                    let identity = (if duplicate { 0 } else { u64::MAX }, 0);
+                    let before = account.snapshot().work;
+                    if let Some(lookup) = &seen.lookup {
+                        assert_eq!(
+                            lookup
+                                .find(
+                                    identity.0,
+                                    |prior| Ok(seen.entries[prior] == identity),
+                                    &fresh,
+                                    &account
+                                )
+                                .unwrap()
+                                .is_some(),
+                            duplicate
+                        );
+                    } else {
+                        assert_eq!(
+                            crate::evaluator_order::contains(
+                                &seen.entries,
+                                &identity,
+                                &fresh,
+                                &account
+                            )
+                            .unwrap(),
+                            duplicate
+                        );
+                    }
+                    let comparison_work = account.snapshot().work - before;
+                    assert!(comparison_work > 0);
+                    let expected = seen.entries.to_vec();
+                    let held = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+                    let cancelled = Control::default();
+                    let result = crate::test_storage::interrupt_after_work(
+                        &account,
+                        &cancelled,
+                        comparison_work,
+                        || seen.insert(identity, &account, &cancelled),
+                    );
+                    assert!(matches!(
+                        result,
+                        Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                    ));
+                    assert_eq!(&*seen.entries, expected);
+                    assert_eq!(
+                        account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                        held
+                    );
+                    assert!(matches!(
+                        seen.insert((0, 0), &account, &fresh),
+                        Err(EvaluationError::Invalid(_))
+                    ));
+                }
+                engine.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn mapped_identity_interrupted_growth_keeps_prior_keys_and_releases_owners() {
+        let successful_work = {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let work;
+            {
+                let mut seen = UniqueKinds::new(&account);
+                for hash in 0..2 {
+                    seen.insert((hash, 0), &account, &control).unwrap();
+                }
+                let before = account.snapshot().work;
+                seen.insert((2, 0), &account, &control).unwrap();
+                work = account.snapshot().work - before;
+            }
+            account.snapshot().assert_memory_released();
+            work
+        };
+        let mut interrupted_replacement = false;
+        for budget in 1..=successful_work {
+            let engine = EngineAccounting::default();
+            {
+                let account = engine.query();
+                let control = Control::default();
+                let mut seen = UniqueKinds::new(&account);
+                for hash in 0..2 {
+                    seen.insert((hash, 0), &account, &control).unwrap();
+                }
+                let held = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+                let result =
+                    crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                        seen.insert((2, 0), &account, &control)
+                    });
+                assert!(matches!(
+                    result,
+                    Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                ));
+                interrupted_replacement |=
+                    account.snapshot().memory[MemoryKind::Workspace as usize].peak > held;
+                let fresh = Control::default();
+                for hash in 0..2 {
+                    assert!(matches!(
+                        seen.insert((hash, 0), &account, &fresh),
+                        Err(EvaluationError::Invalid(_))
+                    ));
+                }
+            }
+            engine.snapshot().assert_memory_released();
+        }
+        assert!(interrupted_replacement);
+    }
 
     #[test]
     fn recycled_frames_keep_fresh_state_and_return_only_bounded_empty_storage() {

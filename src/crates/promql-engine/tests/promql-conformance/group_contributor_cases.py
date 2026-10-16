@@ -166,3 +166,41 @@ def mapped_cases():
                 output.append(_case(f"mapped-fallback-groups-{profile}-{index}-{instant}",
                                     expression, _records(), profile, instant=instant))
     return output
+
+
+def identity_cases():
+    output = []
+    selector = '{__name__=~"m.+"}'
+    expressions = (
+        f'-{selector}', f'abs({selector})', f'{selector}*2',
+        f'{selector}>0', f'{selector}>bool 0', f'0<{selector}',
+        f'0<bool {selector}', f'abs({selector})<0', f'-{selector}+0',
+        f'histogram_count({selector})', f'histogram_sum({selector})',
+        f'timestamp({selector})', f'scalar(abs({selector}))',
+        f'sum(abs({selector}))', f'abs({selector} @2)',
+        f'sum_over_time((-{selector})[2s:1s])',
+    )
+    for state in ('unique', 'alias-float', 'alias-native', 'alias-mixed',
+                  'disjoint', 'filtered', 'special', 'empty'):
+        records = []
+        for index in range(4):
+            labels = {'__name__': f'm{index}', 'instance': str(index if state == 'unique' else index // 2), 'job': 'worker'}
+            points = []
+            for tick in range(6):
+                kind, value = 'float', float((index + 1) * (tick + 1))
+                if state == 'alias-native' or state == 'alias-mixed' and index % 2:
+                    kind = 'float_histogram'
+                elif state == 'disjoint' and (tick + index) % 2:
+                    value = '7ff0000000000002'
+                elif state == 'filtered' and index % 2:
+                    value = -value
+                elif state == 'special':
+                    value = ('8000000000000000', '0000000000000000', '7ff8000000000042', '7ff0000000000000')[index]
+                if state != 'empty':
+                    points.append((tick * 1000, value, kind))
+            records.append(series(labels, points))
+        for profile in ('server-default', 'upstream-tests'):
+            for instant in (False, True):
+                for index, expression in enumerate(expressions):
+                    output.append(_case(f'map-identity:{state}:{profile}:{instant}:{index}', expression, records, profile, instant=instant))
+    return output

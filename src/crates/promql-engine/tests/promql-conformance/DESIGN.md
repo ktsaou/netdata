@@ -262,6 +262,23 @@ its actual work, resources and delivered points. See [final range output](README
   [measured grouping and joins](README.md#compact-group-and-join-lookups),
   [source-bound cohorts](core-qualification.json).
 
+#### Mapped label and kind identity
+
+`UniqueKinds` retains accepted `(full label hash, kind)` tuples in encounter order. Both mapped evaluation and final
+delayed-name duplicate cleanup use this owner at their original phases. Kind zero is an exact identity value, not a
+wildcard. Unequal label bytes with the same full hash retain the pinned hash-only duplicate behavior.
+
+The original vector handles empty and singleton cases. Only a second distinct accepted tuple creates an accounted
+boxed `PositionIndex`; the index stores positions and uses complete tuple equality on every target. A duplicate of
+the first tuple allocates no index. Checked tuple growth and index rebuilding retain overlapping allocation charges.
+Terminal cancellation polling precedes duplicate errors and follows successful insertion. Operation, diagnostic,
+omission, name-removal and per-tick ownership rules remain with their existing callers.
+
+The native frame remains 240 B. Plural queries pay additional index/header metadata; no raw samples or output values
+are cached here. Other lookup owners, including delayed output-ID merging, can still make total execution quadratic.
+See the [mapped identity procedure](README.md#mapped-label-identity-lookup) for causal controls and
+complete-query costs.
+
 ### 16. Observe resources now; keep every resource cap disabled
 
 - **Choice:** account current/peak owned and query-held borrowed bytes, sample/work totals, retained series/groups,

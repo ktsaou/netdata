@@ -2736,6 +2736,81 @@ The [range uniqueness qualification](range-uniqueness-qualification.json) binds 
 expression/SRE panels, actual C callers and a rebuilt Agent's storage/API checks. Earlier ledger entries keep their
 actual source and binary identities.
 
+## Mapped label identity lookup
+
+Mapped evaluation and final delayed-name duplicate cleanup use one private `UniqueKinds` owner. It keeps the original
+accepted `(full label hash, kind)` entries and lazily creates an accounted position index on the second distinct
+accepted identity. Empty and singleton paths allocate no index. The native evaluator frame remains 240 bytes.
+Index slots and an 80-byte native boxed owner are added metadata costs on plural paths.
+
+Equality checks the complete 64-bit hash and exact kind, including on ARM32. Kind zero is a valid distinct kind.
+Float and histogram identities with the same hash can coexist where the original caller permits them; another of
+the same kind is a duplicate. Unequal labelsets with equal full hashes keep the original hash-only behavior.
+The index does not determine encounter order, reducer arithmetic, output IDs or labels.
+
+The check stays after the original operation, diagnostic selection, omission, value reconciliation and name removal.
+A terminal control poll follows lookup before a duplicate error or insertion. Checked tuple growth and index
+rebuilding account overlapping allocations; errors and cancellation abort the query and release all owners.
+The final cleanup guard and per-tick lifetime remain unchanged. No raw samples or computed values are stored here.
+
+Qualification procedure:
+
+- Freeze the actual baseline and candidate inputs and binaries. Compare complete labels, values, timestamps,
+  membership, diagnostics and errors before any work or timing comparison. Keep both option profiles.
+- Run the `mapped_identity` causal units. They cover zero/singleton allocations, promotion after a distinct second
+  identity, kinds zero/one/two, full-width keys, real unequal-label/full-hash collisions, terminal cancellation at the
+  decisive comparison, interrupted growth, preserved prior keys and complete ownership release.
+- The actual expression growth check uses `abs(sum by(instance,job)(counter_total))` at three instants. Complete
+  results in both name modes precede its immediate-name scaling bound. Direct `abs(counter_total)` is a useful
+  control but already uses per-series preparation; it does not reproduce the plural grouped scan.
+- Run `identity_cases()` beside retained mapped/contributor/bridge expressions. Its complete original outcomes cover
+  duplicate and disjoint aliases, native/mixed values, omissions, bool/scalar-left maps, nested consumers, subqueries,
+  invariant clocks, NaNs, infinities, signed zeros and both name-removal modes at instant/range requests.
+- Use pages 1, 17 and 1024 for native profiles, actual default-feature C callbacks and explicit foreign scope. Execute
+  the full-hash/kind and interruption owners on ARM32/64; native-only success does not establish pointer-width behavior.
+- Measure fixed alternating ordinary queries after qualification writers close. Retain every primary timing, slower
+  case, all eight memory categories, logical/useful/owned sample statistics, frame layout and linked binary costs.
+  Keep any declared follow-up separate from the original primary results.
+
+An initial absolute work-per-input test budget did not separate ordinary grouping and sorting costs. The retained
+complete outcomes instead support a scaling check on the immediate-name grouped path and a separate bound on the
+compound identity owner. Delayed-name execution retains a separate hash-to-output-ID merge scan, so this change
+does not establish linear total execution. Finite synthetic timings do not establish live DBengine, RSS, maximum
+or concurrent throughput, or arbitrary-input performance. Index metadata can increase query peak memory.
+
+The closed qualification has 719 passing units and two existing ignored tests per native profile, 21,792 complete
+original expression comparisons and 672 actual C queries. Another 192 native C queries use the signed predecessor.
+Native profiles use pages 1/17/1024; ARM32/64 release uses page 17 under QEMU and executes four focused identity
+owners per target. The new 512-request corpus has 185 nonempty vector/matrix outcomes, 13 scalar values, 154 empty
+results and 160 expected errors. These are expression outcomes, not new function counts or branch-coverage proof.
+
+The fixed timing panel has 60 cases per profile, six alternating pairs, one warmup pair and five measured samples
+per side: 1,440 complete outcomes across 120 groups. It includes the motivating large filter, grouped raw rows,
+empty/singleton/two-row maps and retained raw/rate/histogram/quantile controls.
+
+| Profile | Query shape | Median before → after | Time reduction |
+| --- | --- | ---: | ---: |
+| release | 512 grouped raw rows | 26.470 → 24.939 ms | 5.8% |
+| release | 7,168 filtered groups | 2172.109 → 1924.593 ms | 11.4% |
+| release-min | 512 grouped raw rows | 44.850 → 41.621 ms | 7.2% |
+| release-min | 7,168 filtered groups | 3650.553 → 2821.303 ms | 22.7% |
+
+All 55 slower primary medians remain in the report. The rule declared before execution repeats every primary case
+at least 5% slower with 20 more samples per side. Eight groups produce 320 further complete outcomes; the largest
+remaining slowdown is 2.7% on the release raw-query control. Primary measurements are not replaced. These shared-host
+observations do not prove that every input is faster or that any remaining difference has one identified CPU cause.
+
+At 7,168 filtered groups, work falls from 165,531,458 to 88,901,456. Measured current and peak memory remain equal
+in all eight categories across all 120 timing groups. Workspace acquired/released bytes increase by 0–786,576 per
+query in 26 groups; every field in the other seven categories remains equal. Actual paired C logical/useful/owned-peak
+sample statistics remain equal. Extra metadata is real even when another phase determines the whole-query peak.
+
+Native C text changes by −10,648/+6,284 bytes in release/min; fixture text changes by +16,996/+4,964 bytes. Full
+file/data/BSS costs and actual candidate layouts, including ARM32 Frame 208 B and index box 56 B, remain in the
+[mapped identity qualification](mapped-identity-qualification.json). Format, strict default/fixture Clippy and installed
+Rust 1.91 all-target compilation pass; this is compile-only MSRV evidence. Earlier ledger objects retain their
+actual source and binary attribution.
+
 ## Bounded binary matching and pair replay
 
 Vector/vector arithmetic, comparisons, `bool`, `and`, `or`, `unless`, `on`, `ignoring`, group modifiers and optional

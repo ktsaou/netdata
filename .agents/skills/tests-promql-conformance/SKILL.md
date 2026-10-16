@@ -93,6 +93,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Shared grouping/ranking/quantile changes MUST include the complete retained reducer panels and separate declared
   ordering controls in `src/crates/promql-engine/tests/promql-conformance/README.md#compact-group-and-join-lookups`.
   Preserve strict original failures; a policy report does not replace or modify them.
+- Mapped hash/kind uniqueness MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#mapped-label-identity-lookup` for compound identity,
+  terminal controls, lazy metadata ownership and the limits of total-work claims.
 - Copied grouping keys MUST preserve raw empty values, source order and the shared by/without predicate;
   preserve ownership-transfer paths and full ranking labels. Measure retained capacity separately from inputs,
   and check omitted/retained byte walks plus terminal cancellation; see the same guide's copied grouping-label section.

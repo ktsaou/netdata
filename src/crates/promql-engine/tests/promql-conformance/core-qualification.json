@@ -70980,5 +70980,15 @@
     "actual_candidate_C_queries": 672,
     "whole_query_timing_outcomes": 1080,
     "scope": "Local ordered scalar-map admission reuses existing group contributor ownership, including nested All consumers. Complete cold/fresh/next-clock/ordinal/native/mixed and C controls; original/runtime/page/profile evidence and all metadata/code/slower costs retained. No raw cache or public contract change."
+  },
+  "mapped_label_identity_lookup": {
+    "status": "qualified_private_optimization",
+    "qualification": "mapped-identity-qualification.json",
+    "sha256": "e6f8a2426aa834004da9dfe79e06b6ee78569c0f8b20210def9d535f4493b51a",
+    "native_units_per_profile": 719,
+    "complete_expression_comparisons": 21792,
+    "actual_candidate_C_queries": 672,
+    "whole_query_timing_outcomes": 1440,
+    "scope": "Both mapped/final duplicate helper consumers reuse accounted positional metadata with exact full-hash/kind identity, zero/singleton lazy ownership and terminal-control phases. Complete original/C/foreign/profile/page evidence, actual growth and all index/code/slower costs retained. No raw cache or public contract change; separate delayed output-ID lookup remains."
   }
 }

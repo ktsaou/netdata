@@ -925,7 +925,7 @@ impl CompiledQuery {
                 },
             );
             machine.set_step_index(step_index);
-            let mut seen = AccountedVec::new(account, MemoryKind::Workspace);
+            let mut seen = crate::evaluator::UniqueKinds::new(account);
             while let Some(mut sample) = machine.next()? {
                 control.check().map_err(EvaluationError::from)?;
                 if sample.drop_name && self.options.delayed_name_removal {
@@ -4022,6 +4022,74 @@ mod tests {
     use super::*;
     use crate::{result::OwnedValue, test_storage::FixtureProvider};
     use std::sync::atomic::Ordering;
+
+    #[test]
+    fn mapped_identity_growth_checks_complete_results_before_work_bound() {
+        let mut measured = Vec::new();
+        for count in [64, 256, 1024, 4096] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut provider = FixtureProvider::new(3, 17, count);
+                for (index, series) in provider.series.iter_mut().enumerate() {
+                    series.labels[1].1 = format!("i{index:05}").into_bytes();
+                }
+                let query = engine
+                    .compile(
+                        b"abs(sum by(instance,job)(counter_total))",
+                        options(delayed),
+                        &control,
+                    )
+                    .unwrap();
+                let report = query.collect_reported(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 3000,
+                        step_ms: 1000,
+                    },
+                    &control,
+                );
+                let result = report.result.as_ref().unwrap();
+                assert_eq!(result.series.len(), count);
+                assert!(report.annotations.is_empty());
+                assert_eq!(report.observations.output_samples, (3 * count) as u64);
+                for (index, row) in result.series.iter().enumerate() {
+                    assert_eq!(row.labels.0.len(), 2);
+                    assert_eq!(&*row.labels.0[0].name, b"instance");
+                    assert_eq!(&*row.labels.0[0].value, format!("i{index:05}").as_bytes());
+                    assert_eq!(&*row.labels.0[1].name, b"job");
+                    assert_eq!(&*row.labels.0[1].value, b"worker");
+                    assert_eq!(row.points.len(), 3);
+                    for (tick, point) in row.points.iter().enumerate() {
+                        assert_eq!(point.time_ms, (tick as i64 + 1) * 1000);
+                        assert_eq!(float_bits(point), (tick as f64 + 1.0).to_bits());
+                    }
+                }
+                assert_eq!(
+                    report.observations.memory[MemoryKind::Workspace as usize].current,
+                    0
+                );
+                measured.push((count, delayed, report.observations.work));
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+        println!("complete mapped identity outcomes: {measured:?}");
+        // Delayed cleanup also has a separate hash-to-output-ID merge lookup.
+        let work_at = |count| {
+            measured
+                .iter()
+                .find(|row| row.0 == count && !row.1)
+                .unwrap()
+                .2
+        };
+        assert!(
+            work_at(4096) < 6 * work_at(1024),
+            "mapped identity replay: {measured:?}"
+        );
+    }
 
     #[test]
     fn failed_parent_retains_completed_selector_sample_totals() {
