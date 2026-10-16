@@ -70950,5 +70950,15 @@
     "expressions_per_cohort": 104,
     "complete_comparisons": 416,
     "scope": "Separate GoAST-derived original selector tables; exact complementary full expression outcomes on unchanged native release/release-min and ARM32/ARM64release fixtures. No engine or performance change; historical21320capture remains unchanged."
+  },
+  "direct_classic_quantile_probes": {
+    "status": "qualified_private_optimization",
+    "qualification": "classic-quantile-probes-qualification.json",
+    "sha256": "0bda08e3a6b69f61c7f8bf8b5993b85c71c1147465a1453734bca07da816f777",
+    "native_units_per_profile": 706,
+    "complete_expression_comparisons": 5864,
+    "classic_replay_comparisons": 66704,
+    "plural_mutation_steps": 2896,
+    "scope": "Complete uncoalesced/unrepaired total sweep admits existing direct probes with loop-top redispatch; no field/value array. Full helpers/expressions/native-foreign/Cqualification and both-profile finite whole-query timings retain all memory/code/slower-control costs. Historical integration evidence remains separate."
   }
 }

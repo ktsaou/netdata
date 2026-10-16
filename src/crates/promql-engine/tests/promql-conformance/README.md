@@ -1000,9 +1000,11 @@ accounting remains a separate required surface.
 Single-call count replay retains sorted bound/ordinal metadata and constant scalar scratch. It suspends for
 one original count at a time; the evaluator can supply that count through its existing frame loop. Adjacent
 equal bounds coalesce from their first count, preserving signed zero and NaN payloads. Quantile makes one
-full correction sweep, literal Go binary-search prefix probes and one endpoint sweep; fraction makes a
-terminal-count sweep and a rank sweep. For N inputs and M coalesced runs, count reads are bounded by
-N*(2+ceil(log2 M)) and 2N respectively. Child-expression replay adds its own work. No raw or corrected count
+full correction sweep, then uses direct probes when raw/coalesced positions coincide and no count was repaired.
+Other quantiles retain literal Go binary-search prefix probes and an endpoint sweep; fraction makes a
+terminal-count sweep and a rank sweep. For N inputs and M coalesced runs, generic count reads are bounded by
+N*(2+ceil(log2 M)) and 2N respectively. Eligible direct quantiles use at most N+ceil(log2 N)+2 reads.
+Child-expression replay adds its own work. No raw or corrected count
 array, history buffer or additional resource cap is introduced. The canonical numerical contract below
 now supplies the retained AMD64 operand behavior on every device.
 
@@ -1013,6 +1015,43 @@ python3 tests/promql-conformance/classic_replay.py --capture \
 python3 tests/promql-conformance/classic_replay.py --supplement "${PROMQL_CLASSIC_OPERAND_CAPTURE_DIR:?}" \
   --reference "${PROMQL_CLASSIC_CAPTURE_DIR:?}" --binary "${PROMQL_KERNEL_BINARY:?}"
 ```
+
+### Direct classic quantile probes
+
+The first quantile sweep still reads every count, applies the pinned correction rules and records all diagnostic
+fields. Only a completed, nonterminal `QuantileTotal` transition with `groups == bounds.len()` and both copied result
+repair flags false may reuse the existing prepared traversal. This proves raw/coalesced positional identity and
+unchanged count bits. It does not require finite counts or globally unique numerical bounds: NaN equality has its
+original behavior. Duplicate/coalesced bounds, precision repairs, monotonicity repairs and fractions keep generic
+prefix replay. Constructor and zero-total exits remain unchanged.
+
+Keep `finish_run`, its search and its reset before admission. The reset releases obsolete correction/count/previous
+sample owners while preserving total ownership, result metadata, rank and search state. Redispatch at the generic
+loop top before another Count index. Simply setting the prepared bit inside the generic loop can index past the
+bounds. Credit belongs to this Replay at this instant; no Plan cache, new field, count array or raw history is added.
+
+The original binary-search predicate and interpolation operands remain unchanged. Remaining probes and endpoints
+read fresh child values. Prepared interpolation may read the target before its predecessor. The complete first
+sweep still exposes fixed input failures; later callback failures follow actual physical operations. Cancellation
+must be checked after completed scratch release and before the first direct request. Primary logical participation
+stays distinct from useful/fetched reads, work, owning peaks and allocation traffic.
+
+The existing classic replay command above reuses 16,676 original/helper supplement inputs; the classic mutation gate
+also qualifies the shared prepared dispatcher with 724 original operation steps. Focused units check complete
+numeric/diagnostic/sample outcomes before request bounds, late repairs/coalescing fallbacks and cancellation at the
+promotion boundary. With 30 ordinary increasing buckets and q=.95, the source-bound helper witness changes from
+181 Count requests to 37, preserving the complete value and metadata.
+
+Whole-query measurements use `histogram_quantile(.95,sum by(job,le)(rate(request_duration_seconds_bucket[3s])))`,
+its `scalar(sum(...))` wrapper and the grouped-rate control, at 16/256 groups and 3/30 buckets. Each group has two
+workers; each bucket has five one-second counter samples `tick * bucket_index`, with `+Inf` last. Range evaluation
+uses seconds 3, 4 and 5 and page size 17. Compare complete original results before examining resource observations.
+Fixed alternating before/candidate processes include small and unchanged controls; retain all slower rows and all
+eight memory categories. The fixture includes owned result collection; the grouped control emits one row per
+bucket, while the quantile emits one per group. Subtracting the control does not isolate quantile evaluation.
+The [qualification record](classic-quantile-probes-qualification.json) retains actual
+source/build identities and finite scope. These synthetic observations do not establish RSS, concurrency, live API,
+cold-disk or physical-ARM performance.
 
 The gate compares 16,676 single-call outcomes bit for bit in both profiles: the original 1,676 steps and
 15,000 independent count permutations, including quiet/signaling NaNs, infinities, signed zeros and

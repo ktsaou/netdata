@@ -860,6 +860,27 @@ integration, and Alertmanager remains excluded.
   universal linear-work or lower-RSS claim. Procedure and finite evidence belong to
   [the owning guide](README.md#ordered-histogram-streaming).
 
+## Direct classic quantile probes
+
+- **Choice:** after the ordinary full quantile correction sweep, reuse existing prepared probes when raw/coalesced
+  positions coincide and neither copied result repair flag is set. Repaired, coalesced and fraction cases retain
+  their generic sweeps. Invalid-quantile, missing-infinity, short-group and zero-total exits stay with their owners.
+- **Proof:** `groups == bounds.len()` makes sorted raw positions equal coalesced positions. Without precision or
+  monotonicity repair, correction returns each original current count unchanged, including its bits. NaNs,
+  infinities and signed zeros need no added restriction. Binary-search predicates and interpolation stay pinned.
+- **Transition:** complete the original `finish_run/search/reset_sweep` first, then admit only the successful
+  nonterminal total transition using `self.result`, not reset correction scratch. Redispatch at the generic loop
+  top before indexing another Count. Remaining probes and endpoints still request fresh child values.
+- **Ownership:** reset releases obsolete correction/count/previous sample owners and preserves total/result/rank
+  state. Reuse is confined to this Replay at this instant. No field, buffer, index, cache or raw-value array is added.
+  Logical source participation remains unchanged; actual numerical reads and resource traffic describe the new work.
+- **Controls:** the complete first sweep retains input errors. Prepared traversal polls before its next action;
+  cancellation after promotion releases all owners. Errors from remaining physical operations retain their existing
+  precedence; the provider contract does not promise errors at omitted callbacks.
+- **Evidence:** the [owning guide](README.md#direct-classic-quantile-probes) describes complete helper/original,
+  duplicate/repair/control, plural dispatcher, caller and finite whole-query qualification. Fewer Count requests do
+  not by themselves establish lower peak RAM or general throughput.
+
 ## Completed set-input discovery
 
 - **Choice:** eligible ordinary forward instant and range sets reuse active-input membership after both original child

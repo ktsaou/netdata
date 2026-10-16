@@ -201,10 +201,10 @@ impl Replay {
         mut poll: impl FnMut() -> Result<(), E>,
     ) -> Result<Action, E> {
         assert!(!self.waiting, "count request has not completed");
-        if self.prepared {
-            return self.next_prepared(bounds, poll);
-        }
         loop {
+            if self.prepared {
+                return self.next_prepared(bounds, poll);
+            }
             poll()?;
             if self.phase == Phase::Done {
                 return Ok(Action::Done(self.take_result()));
@@ -219,7 +219,18 @@ impl Replay {
                 };
                 self.run_start = self.position;
                 let samples = self.count_samples.take();
-                self.finish_run(bucket, samples, self.position == bounds.len());
+                let last = self.position == bounds.len();
+                let complete_total = last && self.phase == Phase::QuantileTotal;
+                self.finish_run(bucket, samples, last);
+                // A completed unrepaired sweep makes raw bucket positions directly addressable.
+                if complete_total
+                    && self.phase != Phase::Done
+                    && self.groups == bounds.len()
+                    && !self.result.fixed_precision
+                    && !self.result.forced_monotonicity
+                {
+                    self.prepared = true;
+                }
                 continue;
             }
             self.waiting = true;
@@ -527,6 +538,171 @@ mod tests {
         accounting::{AccountedBox, AccountedVec, AllocationContext, EngineAccounting, MemoryKind},
         storage::{Control, Interrupted},
     };
+
+    fn result_bits(result: &BucketQuantileResult) -> (u64, bool, bool, u64, u64, u64) {
+        (
+            result.value.to_bits(),
+            result.forced_monotonicity,
+            result.fixed_precision,
+            result.min_bound.to_bits(),
+            result.max_bound.to_bits(),
+            result.max_decrease.to_bits(),
+        )
+    }
+
+    #[test]
+    fn unrepaired_quantiles_keep_complete_results_with_direct_probe_read_bounds() {
+        let mut measurements = Vec::new();
+        for length in [3usize, 30, 128] {
+            for q in [0.0, 0.05, 0.5, 0.95, 1.0] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let buckets: Vec<_> = (1..=length)
+                    .rev()
+                    .map(|index| ClassicBucket {
+                        upper_bound: if index == length {
+                            f64::INFINITY
+                        } else {
+                            index as f64
+                        },
+                        count: index as f64,
+                    })
+                    .collect();
+                let expected = crate::histogram_classic::bucket_quantile(q, &mut buckets.clone());
+                let mut bounds: Vec<_> = buckets
+                    .iter()
+                    .enumerate()
+                    .map(|(ordinal, bucket)| Bound {
+                        upper_bound: bucket.upper_bound,
+                        ordinal,
+                    })
+                    .collect();
+                let mut replay = Replay::new(Operation::Quantile(q), &mut bounds, &account, || {
+                    Ok::<_, ()>(())
+                })
+                .unwrap();
+                let mut reads = 0;
+                let result = loop {
+                    match replay.next(&bounds, || Ok::<_, ()>(())).unwrap() {
+                        Action::Count(ordinal) => {
+                            reads += 1;
+                            replay.receive(
+                                buckets[ordinal].count,
+                                Some(OwnedSamples::new(&account, 1)),
+                            );
+                        }
+                        Action::Done(result) => break result,
+                    }
+                };
+                assert_eq!(result_bits(&result.result), result_bits(&expected));
+                assert_eq!(result.samples.units(), 1);
+                drop((result, replay));
+                assert_eq!(account.current_samples(), 0);
+                account.snapshot().assert_memory_released();
+                measurements.push((length, q, reads));
+            }
+        }
+        println!("classic quantile Count requests: {measurements:?}");
+        for &(length, q, reads) in &measurements {
+            assert!(
+                reads <= length + length.next_power_of_two().ilog2() as usize + 2,
+                "repeated prefix reads: length={length}, q={q}, reads={reads}"
+            );
+        }
+        assert_eq!(measurements[8], (30, 0.95, 37));
+    }
+
+    #[test]
+    fn repaired_and_coalesced_quantiles_retain_generic_prefix_replay() {
+        for (upper, counts) in [
+            (vec![1.0, 2.0, f64::INFINITY], vec![2.0, 1.0, 4.0]),
+            (vec![1.0, 2.0, f64::INFINITY], vec![2.0, 2.0 - 1e-13, 4.0]),
+            (vec![1.0, 1.0, 2.0, f64::INFINITY], vec![1.0, 1.0, 3.0, 4.0]),
+            (vec![1.0, 2.0, f64::INFINITY], vec![1.0, 3.0, 2.0]),
+        ] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let mut original: Vec<_> = upper
+                .iter()
+                .zip(&counts)
+                .map(|(&upper_bound, &count)| ClassicBucket { upper_bound, count })
+                .collect();
+            let expected = crate::histogram_classic::bucket_quantile(0.75, &mut original);
+            let mut bounds: Vec<_> = upper
+                .iter()
+                .enumerate()
+                .map(|(ordinal, &upper_bound)| Bound {
+                    upper_bound,
+                    ordinal,
+                })
+                .collect();
+            let mut replay = Replay::new(Operation::Quantile(0.75), &mut bounds, &account, || {
+                Ok::<_, ()>(())
+            })
+            .unwrap();
+            let result = loop {
+                match replay.next(&bounds, || Ok::<_, ()>(())).unwrap() {
+                    Action::Count(ordinal) => {
+                        replay.receive(counts[ordinal], Some(OwnedSamples::new(&account, 1)))
+                    }
+                    Action::Done(result) => break result,
+                }
+            };
+            assert_eq!(result_bits(&result.result), result_bits(&expected));
+            assert!(!replay.prepared);
+            drop((replay, result));
+            assert_eq!(account.current_samples(), 0);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn promotion_boundary_polls_after_releasing_completed_correction_scratch() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let mut bounds: Vec<_> = (0..30)
+            .map(|ordinal| Bound {
+                upper_bound: if ordinal == 29 {
+                    f64::INFINITY
+                } else {
+                    ordinal as f64 + 1.0
+                },
+                ordinal,
+            })
+            .collect();
+        let mut replay = Replay::new(Operation::Quantile(0.95), &mut bounds, &account, || {
+            Ok::<_, ()>(())
+        })
+        .unwrap();
+        for ordinal in 0..30 {
+            assert!(matches!(
+                replay.next(&bounds, || Ok::<_, ()>(())).unwrap(),
+                Action::Count(value) if value == ordinal
+            ));
+            replay.receive(ordinal as f64 + 1.0, Some(OwnedSamples::new(&account, 1)));
+        }
+        let mut polls = 0;
+        assert!(matches!(
+            replay.next(&bounds, || {
+                polls += 1;
+                if polls == 2 {
+                    Err(Interrupted::Cancelled)
+                } else {
+                    Ok(())
+                }
+            }),
+            Err(Interrupted::Cancelled)
+        ));
+        assert_eq!(polls, 2);
+        assert_eq!(account.current_samples(), 1);
+        assert!(replay.correction_samples.is_none());
+        assert!(replay.previous_samples.is_none());
+        assert!(replay.count_samples.is_none());
+        assert!(replay.prepared);
+        drop(replay);
+        assert_eq!(account.current_samples(), 0);
+        account.snapshot().assert_memory_released();
+    }
 
     #[test]
     fn invalid_quantiles_leave_metadata_untouched_and_never_request_counts() {

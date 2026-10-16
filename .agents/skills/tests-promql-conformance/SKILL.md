@@ -164,6 +164,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Active histogram distribution MUST retain group identity, skipped ranges and pre-sort bound/ordinal order; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-active-group-distribution` for sparse/native,
   control and complete-query qualification. Keep failed deep derived-replay witnesses separate from passing panels.
+- Direct classic quantile probes MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#direct-classic-quantile-probes` for completed-sweep
+  admission, correction/coalescing fallbacks, redispatch, ownership and full-query measurements.
 - Set discovery reuse MUST retain suppressed inputs, selected/unverified rereads and cold first final discovery.
   Check physical side-row order, empty sides, tail padding, zero-word and final reconstruction controls, original
   aliases, exact keys and successful preparation clearing; calibrate control budgets against actual traversal. See

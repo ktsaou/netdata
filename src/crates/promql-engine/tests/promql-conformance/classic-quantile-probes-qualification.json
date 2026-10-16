@@ -1,0 +1,703 @@
+{
+  "schema_version": 1,
+  "status": "qualified_private_optimization",
+  "scope": "Existing prepared probes after a completed uncoalesced/unrepaired classic quantile sweep. No new field, array, cache, feature, numerical algorithm, API/ABI/storage/provider/reference or implicit cap.",
+  "comparison_base_git": "8db1a3139b16d50f131fb2133c46d44fb8bc3cf6",
+  "reference": {
+    "reference": "github.com/prometheus/prometheus@v0.315.0",
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go_version": "go1.27.1",
+    "go_arch": "amd64",
+    "go_os": "linux",
+    "unicode_version": "17.0.0"
+  },
+  "implementation": [
+    "Keep original complete QuantileTotal finish_run/search/reset_sweep before admission; test copied result flags, not reset correction scratch.",
+    "Only a successful non-Done total transition with groups==bounds.len() and both repair flags false sets the existing prepared bit.",
+    "Loop-top redispatch reaches existing direct binary-search/endpoint traversal before another generic Count index. Remaining child values stay fresh.",
+    "Position identity is sufficient for NaN bounds; no finite/NaN/signed-zero exclusion. Preserve corrected/duplicate/fraction generic paths and existing plural prepared path.",
+    "Reset releases obsolete correction/count/previous owners while retaining total/result/rank state. Credit stays local to this Replay/instant; raw histories remain paged."
+  ],
+  "controls": {
+    "new_units": 3,
+    "complete_numeric_request_cases": 15,
+    "old_witness": "All15complete value/diagnostic/sample-release checks pass before the new read bound fails; repair/coalescing control passes, promotion-boundary cancellation and scratch release checks pass before expected prepared-state failure.",
+    "new_witness": "All15complete outcomes pass before efficient read bounds; explicit late repair/precision/coalescing fallbacks and post-total cancellation release pass.",
+    "helper_count_rows": [
+      [
+        "buckets",
+        "before_requests",
+        "candidate_requests"
+      ],
+      [
+        3,
+        8,
+        4
+      ],
+      [
+        30,
+        181,
+        37
+      ],
+      [
+        128,
+        1009,
+        137
+      ]
+    ],
+    "sample_policy": "Logical participation remains separate from useful reads/fetched entries/work/owning peaks; failures follow actual physical operations."
+  },
+  "qualification": {
+    "native_units_per_profile": 706,
+    "native_ignored_per_profile": 2,
+    "native_profiles": [
+      "release",
+      "release-min"
+    ],
+    "native_bridge_pages": [
+      1,
+      17,
+      1024
+    ],
+    "native_bridge_comparisons": 4344,
+    "foreign_bridge_comparisons": 1448,
+    "new_native_q95_queries": 48,
+    "new_foreign_q95_queries": 24,
+    "new_q95_page_size": 17,
+    "new_q95_scope": "24complete fresh original outcomes each native;12G16outcomes each ARMreleaseQEMU. G256scaling is native only.",
+    "complete_expression_comparisons": 5864,
+    "classic_replay_inputs_per_build": 16676,
+    "classic_replay_comparisons": 66704,
+    "plural_mutation_runs_per_build": 690,
+    "plural_mutation_steps_per_build": 724,
+    "plural_mutation_steps_all_builds": 2896,
+    "counts_overlap": "Helper inputs and mutation chains overlap; bridge/plural and new synthetic outcomes are not counts of unique language features.",
+    "semantic_mismatches": 0,
+    "bitwise_differences": 0,
+    "current_default_feature_C_programs": 4,
+    "complete_C_queries": 288,
+    "C_pages": [
+      1,
+      17,
+      1024
+    ],
+    "C_statistics": {
+      "release": {
+        "logical": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "useful_reads": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "owning_peak": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        }
+      },
+      "release-min": {
+        "logical": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "useful_reads": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "owning_peak": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        }
+      },
+      "arm32": {
+        "logical": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "useful_reads": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "owning_peak": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        }
+      },
+      "arm64": {
+        "logical": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "useful_reads": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        },
+        "owning_peak": {
+          "minimum_delta": 0,
+          "maximum_delta": 0,
+          "changed_cases": 0
+        }
+      }
+    },
+    "static_checks": [
+      "format",
+      "strict default Clippy",
+      "strict fixture Clippy",
+      "installed Rust1.91all-target fixture compile"
+    ]
+  },
+  "original_capture": {
+    "classic_reference": "tests/promql-conformance/.tmp/classic-capture-k52nr1ni",
+    "classic_supplement": "tests/promql-conformance/.tmp/classic-replay-capture-e4idju5y",
+    "bridge_results_sha256": "11cc8c34fd9273cf8dfe74ff6cb8e7c6922bec35da484ae6b86d5e0b4548ed3f",
+    "new_query_probe_sha256": "4c8d1edc3048c968bacee5a3b8c9fd28488492aa17a1bd02355943dbbcaeb78f",
+    "new_query_results_sha256": "21afd69432e534806162851a3059f95f2764f787b1743b74bf10e55d731ae5b9",
+    "new_query_cases": [
+      {
+        "id": "probe-g16-b3",
+        "dataset_sha256": "e2a563f313476394d31314a230e2bb82a742fcfcea890c3f0295d62c58a0a87a",
+        "requests_sha256": "ad7aef2153bced8d06fc4e957553b410536b37c3eeed2b3053da9205139505ec"
+      },
+      {
+        "id": "probe-g16-b30",
+        "dataset_sha256": "56a3cd58b62e3d5c2cc5d2baccd2db99f46e06cdc1f46bc9f20aa27ffa3ee905",
+        "requests_sha256": "8ceadc921b3a092815588e4b6719d5853ee51cea5a0aff7b668c91a0608bdb85"
+      },
+      {
+        "id": "probe-g256-b3",
+        "dataset_sha256": "6dffec27293bb7633baf6d285ed54ada2b7a33be579bbcecebdea93ec82e1822",
+        "requests_sha256": "df8f6afd1d2f125bb9b6e501b4252db301b1793a54fe6f32e74fd5e357c0614a"
+      },
+      {
+        "id": "probe-g256-b30",
+        "dataset_sha256": "2c34506f6cbfeaa90543d9d0d3deb70d1d10c2045b94008f706ddb7ae13d286e",
+        "requests_sha256": "6405c366b4da85300ddd69b66bb20e9e7c01d0e3db75900b20f80e3f0fe97473"
+      }
+    ],
+    "authority": "Existing unchanged source-verified classic/operand/bridge captures reused. The retained general Go query probe is authenticated separately; fresh synthetic datasets/requests/ordered IDs/runtime headers/results and complete analytical declarations have new source-bound receipts."
+  },
+  "binaries": {
+    "release": {
+      "profile": "release",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "library_features": [],
+      "fixture_features": [
+        "fixtures"
+      ],
+      "unit": {
+        "passed": 706,
+        "ignored": 2,
+        "path": ".tmp/classic-probe-yo905n__/release/unit",
+        "sha256": "e9d0de71f35a52ded4194e1df44e290605943b466413cd905b6f21be0bf7a8df"
+      },
+      "archive": {
+        "path": ".tmp/classic-probe-yo905n__/release/libnetdata_promql_engine.a",
+        "sha256": "4be29abaf44672a2dc2e55c08d0235e8c0842a4ab359ad90ad7e4318c4b1202c"
+      },
+      "fixture": {
+        "path": ".tmp/classic-probe-yo905n__/early-promql-query-fixture",
+        "sha256": "20853bcdd05aaa13ecf9591cf98d6fddcbdcbb6f57813fd00bcbea9bac60a66f"
+      },
+      "kernel": {
+        "path": ".tmp/classic-probe-yo905n__/early-promql-kernel-fixture",
+        "sha256": "438ffeb82dde8d610e2f4b00a508d47b9fc67235bb3d07d9082bfd58a7c67372"
+      },
+      "c_binary": {
+        "path": ".tmp/classic-probe-yo905n__/release/histogram-c",
+        "sha256": "159ebad2a01e82bd60150fcb40f92488d57986bf309d1c00426870be6bca9d4a"
+      }
+    },
+    "release-min": {
+      "profile": "release-min",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "library_features": [],
+      "fixture_features": [
+        "fixtures"
+      ],
+      "unit": {
+        "passed": 706,
+        "ignored": 2,
+        "path": ".tmp/classic-probe-yo905n__/release-min/unit",
+        "sha256": "7c645a7d9a227de80c6756032be6afa76f42a965a3873c6f6215d197b0de692e"
+      },
+      "archive": {
+        "path": ".tmp/classic-probe-yo905n__/release-min/libnetdata_promql_engine.a",
+        "sha256": "28d89f338115fb2787d210b67552950334fef7a1f18f8fd9f2f15b4597bd07ef"
+      },
+      "fixture": {
+        "path": ".tmp/classic-probe-yo905n__/release-min/promql-query-fixture",
+        "sha256": "aa0432401c608fe76bcf350f37250df10cdf4540e1d3f8e08e247a9ab9ea0596"
+      },
+      "kernel": {
+        "path": ".tmp/classic-probe-yo905n__/release-min/promql-kernel-fixture",
+        "sha256": "b0403a7604820c9fb41183d8c2dd6b50be2fe773129279533192ff8e02ff5219"
+      },
+      "c_binary": {
+        "path": ".tmp/classic-probe-yo905n__/release-min/histogram-c",
+        "sha256": "7098461b18f20506808b9c5836cc2b46d049ddca7906adaff72854b207a971f6"
+      }
+    },
+    "arm32": {
+      "profile": "release",
+      "target": "armv7-unknown-linux-gnueabihf",
+      "runner": [
+        "qemu-arm",
+        "-L",
+        "/usr/arm-linux-gnueabihf"
+      ],
+      "library_features": [],
+      "fixture_features": [
+        "fixtures"
+      ],
+      "unit": null,
+      "archive": {
+        "path": ".tmp/classic-probe-yo905n__/arm32/libnetdata_promql_engine.a",
+        "sha256": "42b9906f542d214ff57c1d286ed79e042745519d7478a9c774889782b6d5c019"
+      },
+      "fixture": {
+        "path": ".tmp/classic-probe-yo905n__/arm32/promql-query-fixture",
+        "sha256": "5e62db493819a5150fdee350a0ad8234bcef05a0967f49765b47a5e44dc83ce6"
+      },
+      "kernel": {
+        "path": ".tmp/classic-probe-yo905n__/arm32/promql-kernel-fixture",
+        "sha256": "a612673d8368fb56369131732ace5f5bd06bebed47ed28fd08326d0c4a260dd4"
+      },
+      "c_binary": {
+        "path": ".tmp/classic-probe-yo905n__/arm32/histogram-c",
+        "sha256": "d136489e8de708a630884f63af2a0ec46ad83190fdb9e8e2b7b807cab01b202e"
+      }
+    },
+    "arm64": {
+      "profile": "release",
+      "target": "aarch64-unknown-linux-gnu",
+      "runner": [
+        "qemu-aarch64",
+        "-L",
+        "/usr/aarch64-linux-gnu"
+      ],
+      "library_features": [],
+      "fixture_features": [
+        "fixtures"
+      ],
+      "unit": null,
+      "archive": {
+        "path": ".tmp/classic-probe-yo905n__/arm64/libnetdata_promql_engine.a",
+        "sha256": "d0b398a5febf1e837c003874bd5f2ec4e38e329bd810b209fdfba08fd104021b"
+      },
+      "fixture": {
+        "path": ".tmp/classic-probe-yo905n__/arm64/promql-query-fixture",
+        "sha256": "e65d6bce6cc10c65d360838f64281063377d3c295f965a346457e16a7ec2e525"
+      },
+      "kernel": {
+        "path": ".tmp/classic-probe-yo905n__/arm64/promql-kernel-fixture",
+        "sha256": "aabadff745dd2fd865d284794909b780c142914e01c6005e62f5b6b0ed5f7efd"
+      },
+      "c_binary": {
+        "path": ".tmp/classic-probe-yo905n__/arm64/histogram-c",
+        "sha256": "9d5279c8f306500583a5b266c3b03c359d7708aa1843bba2058f2b3a626cb7bb"
+      }
+    }
+  },
+  "memory_kind_order": [
+    "compiled",
+    "workspace",
+    "result",
+    "provider_held",
+    "borrowed_view",
+    "regex_estimate",
+    "shared_cache_reference",
+    "accounting"
+  ],
+  "memory": [
+    {
+      "kind": "compiled",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "workspace",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": -1130747904,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 24
+      },
+      "released": {
+        "minimum_delta_bytes": -1130747904,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 24
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "result",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "provider_held",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "borrowed_view",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "regex_estimate",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "shared_cache_reference",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    },
+    {
+      "kind": "accounting",
+      "peak": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "acquired": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "released": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      },
+      "current": {
+        "minimum_delta_bytes": 0,
+        "maximum_delta_bytes": 0,
+        "changed_cases": 0
+      }
+    }
+  ],
+  "query_fixture_size": {
+    "release": {
+      "before": {
+        "file_bytes": 5520128,
+        "text": 4276094,
+        "data": 257168,
+        "bss": 3164
+      },
+      "candidate": {
+        "file_bytes": 5519568,
+        "text": 4273878,
+        "data": 257064,
+        "bss": 1364
+      }
+    },
+    "release-min": {
+      "before": {
+        "file_bytes": 3525336,
+        "text": 2731457,
+        "data": 243688,
+        "bss": 596
+      },
+      "candidate": {
+        "file_bytes": 3525112,
+        "text": 2731085,
+        "data": 243688,
+        "bss": 980
+      }
+    }
+  },
+  "timing": {
+    "profiles": [
+      "release",
+      "release-min"
+    ],
+    "pairs_per_profile": 6,
+    "warmup_pairs": 1,
+    "measured_samples_per_side_per_case": 5,
+    "complete_outcomes": 576,
+    "workload_groups": 48,
+    "columns": [
+      "profile",
+      "id",
+      "before",
+      "candidate"
+    ],
+    "side_columns": [
+      "median_elapsed_ns",
+      "work",
+      "samples_fetched",
+      "pages",
+      "provider_calls",
+      "memory_peak_bytes_by_kind",
+      "memory_acquired_bytes_by_kind"
+    ],
+    "rows": [
+      ["release","g16:b30:control",[59053235,3143098,259200,51840,104644,[0,1200200,197136,0,1360,0,0,888],[0,20323592,249968,0,70502400,0,0,888]],[57335643,3143098,259200,51840,104644,[0,1200200,197136,0,1360,0,0,888],[0,20323592,249968,0,70502400,0,0,888]]],
+      ["release","g16:b30:quantile",[165572596,11949253,345600,69120,139204,[0,1200776,4864,0,1360,0,0,888],[0,70896576,6112,0,94003200,0,0,888]],[90555158,5385757,345600,69120,139204,[0,1200776,4864,0,1360,0,0,888],[0,35560704,6112,0,94003200,0,0,888]]],
+      ["release","g16:b30:scalar",[293308499,21967037,518400,103680,208324,[0,1206952,512,0,1360,0,0,888],[0,127550640,512,0,141004800,0,0,888]],[145418143,8840045,518400,103680,208324,[0,1206952,512,0,1360,0,0,888],[0,56878896,512,0,141004800,0,0,888]]],
+      ["release","g16:b3:control",[5606698,271651,25920,5184,10468,[0,135591,21056,0,1360,0,0,888],[0,2084968,27296,0,7050240,0,0,888]],[5434590,271651,25920,5184,10468,[0,135591,21056,0,1360,0,0,888],[0,2084968,27296,0,7050240,0,0,888]]],
+      ["release","g16:b3:quantile",[11618663,732496,34560,6912,13924,[0,146280,4864,0,1360,0,0,888],[0,4731888,6112,0,9400320,0,0,888]],[9453454,553816,34560,6912,13924,[0,146280,4864,0,1360,0,0,888],[0,3750096,6112,0,9400320,0,0,888]]],
+      ["release","g16:b3:scalar",[19282463,1274294,51840,10368,20836,[0,153928,512,0,1360,0,0,888],[0,8009376,512,0,14100480,0,0,888]],[15215650,916934,51840,10368,20836,[0,153928,512,0,1360,0,0,888],[0,6045792,512,0,14100480,0,0,888]]],
+      ["release","g16:fraction-scalar:range",[17105172,1099903,51840,10368,20836,[0,153992,512,0,1360,0,0,888],[0,7033600,512,0,14100480,0,0,888]],[17366960,1099903,51840,10368,20836,[0,153992,512,0,1360,0,0,888],[0,7033600,512,0,14100480,0,0,888]]],
+      ["release","g16:fraction:range",[10625452,645525,34560,6912,13924,[0,146856,4864,0,1360,0,0,888],[0,4246288,6112,0,9400320,0,0,888]],[11485564,645525,34560,6912,13924,[0,146856,4864,0,1360,0,0,888],[0,4246288,6112,0,9400320,0,0,888]]],
+      ["release","g1:group-vector:three-ticks",[378206,15408,1620,324,658,[0,16710,1307,0,1360,0,0,888],[0,143194,1307,0,440640,0,0,888]],[372307,15408,1620,324,658,[0,16710,1307,0,1360,0,0,888],[0,143194,1307,0,440640,0,0,888]]],
+      ["release","g1:histogram-scalar:three-ticks",[1270168,72390,3240,648,1306,[0,29341,512,0,1360,0,0,888],[0,574824,512,0,881280,0,0,888]],[1211079,67254,3240,648,1306,[0,29341,512,0,1360,0,0,888],[0,544368,512,0,881280,0,0,888]]],
+      ["release","g1:histogram-vector:three-ticks",[764493,41489,2160,432,874,[0,21117,613,0,1360,0,0,888],[0,324594,613,0,587520,0,0,888]],[756753,38921,2160,432,874,[0,21117,613,0,1360,0,0,888],[0,309366,613,0,587520,0,0,888]]],
+      ["release","g1:raw-rate:three-ticks",[239218,9724,1080,216,442,[0,13734,3250,0,1360,0,0,888],[0,85488,3666,0,293760,0,0,888]],[230938,9724,1080,216,442,[0,13734,3250,0,1360,0,0,888],[0,85488,3666,0,293760,0,0,888]]],
+      ["release","g256:b30:control",[1644173475,135255100,4147200,829440,1674244,[0,19108520,3154176,0,1360,0,0,888],[0,324966152,4005728,0,1128038400,0,0,888]],[1637465411,135255100,4147200,829440,1674244,[0,19108520,3154176,0,1360,0,0,888],[0,324966152,4005728,0,1128038400,0,0,888]]],
+      ["release","g256:b30:quantile",[2870471332,198092228,5529600,1105920,2227204,[0,19109096,77824,0,1360,0,0,888],[0,1133934336,104032,0,1504051200,0,0,888]],[1630613289,90428780,5529600,1105920,2227204,[0,19109096,77824,0,1360,0,0,888],[0,568560384,104032,0,1504051200,0,0,888]]],
+      ["release","g256:b30:scalar",[4952100282,363384639,8294400,1658880,3333124,[0,19115272,512,0,1360,0,0,888],[0,2039678640,512,0,2256076800,0,0,888]],[2612582547,148057743,8294400,1658880,3333124,[0,19115272,512,0,1360,0,0,888],[0,908930736,512,0,2256076800,0,0,888]]],
+      ["release","g256:b3:control",[98085890,5387585,414720,82944,167428,[0,2051240,336896,0,1360,0,0,888],[0,33148168,442976,0,112803840,0,0,888]],[94568771,5387585,414720,82944,167428,[0,2051240,336896,0,1360,0,0,888],[0,33148168,442976,0,112803840,0,0,888]]],
+      ["release","g256:b3:quantile",[197116460,13279047,552960,110592,222724,[0,2177640,77824,0,1360,0,0,888],[0,75299328,104032,0,150405120,0,0,888]],[159241519,10348191,552960,110592,222724,[0,2177640,77824,0,1360,0,0,888],[0,59590656,104032,0,150405120,0,0,888]]],
+      ["release","g256:b3:scalar",[340448483,22955056,829440,165888,333316,[0,2183816,512,0,1360,0,0,888],[0,127018416,512,0,225607680,0,0,888]],[254258263,17093344,829440,165888,333316,[0,2183816,512,0,1360,0,0,888],[0,95601072,512,0,225607680,0,0,888]]],
+      ["release","g4:group-vector:three-ticks",[1402437,63501,6480,1296,2620,[0,40428,5228,0,1360,0,0,888],[0,530512,6476,0,1762560,0,0,888]],[1440047,63501,6480,1296,2620,[0,40428,5228,0,1360,0,0,888],[0,530512,6476,0,1762560,0,0,888]]],
+      ["release","g4:histogram-scalar:three-ticks",[4807346,294421,12960,2592,5212,[0,53292,512,0,1360,0,0,888],[0,2051472,512,0,3525120,0,0,888]],[4603357,273733,12960,2592,5212,[0,53292,512,0,1360,0,0,888],[0,1929648,512,0,3525120,0,0,888]]],
+      ["release","g4:histogram-vector:three-ticks",[2902113,169257,8640,1728,3484,[0,45068,1204,0,1360,0,0,888],[0,1199304,1204,0,2350080,0,0,888]],[2798395,158913,8640,1728,3484,[0,45068,1204,0,1360,0,0,888],[0,1138392,1204,0,2350080,0,0,888]]],
+      ["release","g4:raw-rate:three-ticks",[890081,40728,4320,864,1756,[0,37452,13000,0,1360,0,0,888],[0,320712,15912,0,1175040,0,0,888]],[885732,40728,4320,864,1756,[0,37452,13000,0,1360,0,0,888],[0,320712,15912,0,1175040,0,0,888]]],
+      ["release","g64:fraction-scalar:range",[69081685,4608882,207360,41472,83332,[0,559304,512,0,1360,0,0,888],[0,27894352,512,0,56401920,0,0,888]],[70544029,4608882,207360,41472,83332,[0,559304,512,0,1360,0,0,888],[0,27894352,512,0,56401920,0,0,888]]],
+      ["release","g64:fraction:range",[42252321,2710157,138240,27648,55684,[0,553128,19456,0,1360,0,0,888],[0,16889248,25696,0,37601280,0,0,888]],[43018913,2710157,138240,27648,55684,[0,553128,19456,0,1360,0,0,888],[0,16889248,25696,0,37601280,0,0,888]]],
+      ["release-min","g16:b30:control",[96181423,3143098,259200,51840,104644,[0,1200200,197136,0,1360,0,0,888],[0,20323592,249968,0,70502400,0,0,888]],[97165115,3143098,259200,51840,104644,[0,1200200,197136,0,1360,0,0,888],[0,20323592,249968,0,70502400,0,0,888]]],
+      ["release-min","g16:b30:quantile",[287558916,11949253,345600,69120,139204,[0,1200776,4864,0,1360,0,0,888],[0,70896576,6112,0,94003200,0,0,888]],[157475691,5385757,345600,69120,139204,[0,1200776,4864,0,1360,0,0,888],[0,35560704,6112,0,94003200,0,0,888]]],
+      ["release-min","g16:b30:scalar",[513507618,21967037,518400,103680,208324,[0,1206952,512,0,1360,0,0,888],[0,127550640,512,0,141004800,0,0,888]],[252981145,8840045,518400,103680,208324,[0,1206952,512,0,1360,0,0,888],[0,56878896,512,0,141004800,0,0,888]]],
+      ["release-min","g16:b3:control",[9259085,271651,25920,5184,10468,[0,135591,21056,0,1360,0,0,888],[0,2084968,27296,0,7050240,0,0,888]],[9059687,271651,25920,5184,10468,[0,135591,21056,0,1360,0,0,888],[0,2084968,27296,0,7050240,0,0,888]]],
+      ["release-min","g16:b3:quantile",[20052696,732496,34560,6912,13924,[0,146280,4864,0,1360,0,0,888],[0,4731888,6112,0,9400320,0,0,888]],[16060593,553816,34560,6912,13924,[0,146280,4864,0,1360,0,0,888],[0,3750096,6112,0,9400320,0,0,888]]],
+      ["release-min","g16:b3:scalar",[33123247,1274294,51840,10368,20836,[0,153928,512,0,1360,0,0,888],[0,8009376,512,0,14100480,0,0,888]],[25887124,916934,51840,10368,20836,[0,153928,512,0,1360,0,0,888],[0,6045792,512,0,14100480,0,0,888]]],
+      ["release-min","g16:fraction-scalar:range",[29647520,1099903,51840,10368,20836,[0,153992,512,0,1360,0,0,888],[0,7033600,512,0,14100480,0,0,888]],[29402892,1099903,51840,10368,20836,[0,153992,512,0,1360,0,0,888],[0,7033600,512,0,14100480,0,0,888]]],
+      ["release-min","g16:fraction:range",[18107565,645525,34560,6912,13924,[0,146856,4864,0,1360,0,0,888],[0,4246288,6112,0,9400320,0,0,888]],[18033476,645525,34560,6912,13924,[0,146856,4864,0,1360,0,0,888],[0,4246288,6112,0,9400320,0,0,888]]],
+      ["release-min","g1:group-vector:three-ticks",[600305,15408,1620,324,658,[0,16710,1307,0,1360,0,0,888],[0,143194,1307,0,440640,0,0,888]],[618475,15408,1620,324,658,[0,16710,1307,0,1360,0,0,888],[0,143194,1307,0,440640,0,0,888]]],
+      ["release-min","g1:histogram-scalar:three-ticks",[2127950,72390,3240,648,1306,[0,29341,512,0,1360,0,0,888],[0,574824,512,0,881280,0,0,888]],[2037782,67254,3240,648,1306,[0,29341,512,0,1360,0,0,888],[0,544368,512,0,881280,0,0,888]]],
+      ["release-min","g1:histogram-vector:three-ticks",[1293428,41489,2160,432,874,[0,21117,613,0,1360,0,0,888],[0,324594,613,0,587520,0,0,888]],[1242108,38921,2160,432,874,[0,21117,613,0,1360,0,0,888],[0,309366,613,0,587520,0,0,888]]],
+      ["release-min","g1:raw-rate:three-ticks",[376116,9724,1080,216,442,[0,13734,3250,0,1360,0,0,888],[0,85488,3666,0,293760,0,0,888]],[374187,9724,1080,216,442,[0,13734,3250,0,1360,0,0,888],[0,85488,3666,0,293760,0,0,888]]],
+      ["release-min","g256:b30:control",[2451087685,135255100,4147200,829440,1674244,[0,19108520,3154176,0,1360,0,0,888],[0,324966152,4005728,0,1128038400,0,0,888]],[2539101115,135255100,4147200,829440,1674244,[0,19108520,3154176,0,1360,0,0,888],[0,324966152,4005728,0,1128038400,0,0,888]]],
+      ["release-min","g256:b30:quantile",[4866851956,198092228,5529600,1105920,2227204,[0,19109096,77824,0,1360,0,0,888],[0,1133934336,104032,0,1504051200,0,0,888]],[2706616474,90428780,5529600,1105920,2227204,[0,19109096,77824,0,1360,0,0,888],[0,568560384,104032,0,1504051200,0,0,888]]],
+      ["release-min","g256:b30:scalar",[8692985303,363384639,8294400,1658880,3333124,[0,19115272,512,0,1360,0,0,888],[0,2039678640,512,0,2256076800,0,0,888]],[4307682271,148057743,8294400,1658880,3333124,[0,19115272,512,0,1360,0,0,888],[0,908930736,512,0,2256076800,0,0,888]]],
+      ["release-min","g256:b3:control",[159844251,5387585,414720,82944,167428,[0,2051240,336896,0,1360,0,0,888],[0,33148168,442976,0,112803840,0,0,888]],[157510735,5387585,414720,82944,167428,[0,2051240,336896,0,1360,0,0,888],[0,33148168,442976,0,112803840,0,0,888]]],
+      ["release-min","g256:b3:quantile",[329617512,13279047,552960,110592,222724,[0,2177640,77824,0,1360,0,0,888],[0,75299328,104032,0,150405120,0,0,888]],[269677885,10348191,552960,110592,222724,[0,2177640,77824,0,1360,0,0,888],[0,59590656,104032,0,150405120,0,0,888]]],
+      ["release-min","g256:b3:scalar",[554388224,22955056,829440,165888,333316,[0,2183816,512,0,1360,0,0,888],[0,127018416,512,0,225607680,0,0,888]],[435111296,17093344,829440,165888,333316,[0,2183816,512,0,1360,0,0,888],[0,95601072,512,0,225607680,0,0,888]]],
+      ["release-min","g4:group-vector:three-ticks",[2306999,63501,6480,1296,2620,[0,40428,5228,0,1360,0,0,888],[0,530512,6476,0,1762560,0,0,888]],[2344069,63501,6480,1296,2620,[0,40428,5228,0,1360,0,0,888],[0,530512,6476,0,1762560,0,0,888]]],
+      ["release-min","g4:histogram-scalar:three-ticks",[8258855,294421,12960,2592,5212,[0,53292,512,0,1360,0,0,888],[0,2051472,512,0,3525120,0,0,888]],[7887408,273733,12960,2592,5212,[0,53292,512,0,1360,0,0,888],[0,1929648,512,0,3525120,0,0,888]]],
+      ["release-min","g4:histogram-vector:three-ticks",[4903006,169257,8640,1728,3484,[0,45068,1204,0,1360,0,0,888],[0,1199304,1204,0,2350080,0,0,888]],[4775536,158913,8640,1728,3484,[0,45068,1204,0,1360,0,0,888],[0,1138392,1204,0,2350080,0,0,888]]],
+      ["release-min","g4:raw-rate:three-ticks",[1450986,40728,4320,864,1756,[0,37452,13000,0,1360,0,0,888],[0,320712,15912,0,1175040,0,0,888]],[1461607,40728,4320,864,1756,[0,37452,13000,0,1360,0,0,888],[0,320712,15912,0,1175040,0,0,888]]],
+      ["release-min","g64:fraction-scalar:range",[119398563,4608882,207360,41472,83332,[0,559304,512,0,1360,0,0,888],[0,27894352,512,0,56401920,0,0,888]],[119488902,4608882,207360,41472,83332,[0,559304,512,0,1360,0,0,888],[0,27894352,512,0,56401920,0,0,888]]],
+      ["release-min","g64:fraction:range",[72540136,2710157,138240,27648,55684,[0,553128,19456,0,1360,0,0,888],[0,16889248,25696,0,37601280,0,0,888]],[72458116,2710157,138240,27648,55684,[0,553128,19456,0,1360,0,0,888],[0,16889248,25696,0,37601280,0,0,888]]]
+    ],
+    "slower_case_count": 11,
+    "slower_cases": [
+      [
+        "release",
+        "g16:fraction-scalar:range",
+        1.530461079257206
+      ],
+      [
+        "release",
+        "g16:fraction:range",
+        8.094827401224913
+      ],
+      [
+        "release",
+        "g4:group-vector:three-ticks",
+        2.6817603928019684
+      ],
+      [
+        "release",
+        "g64:fraction-scalar:range",
+        2.1168331374661786
+      ],
+      [
+        "release",
+        "g64:fraction:range",
+        1.8143192654434204
+      ],
+      [
+        "release-min",
+        "g16:b30:control",
+        1.0227463571629736
+      ],
+      [
+        "release-min",
+        "g1:group-vector:three-ticks",
+        3.0267947126877193
+      ],
+      [
+        "release-min",
+        "g256:b30:control",
+        3.5907907554111107
+      ],
+      [
+        "release-min",
+        "g4:group-vector:three-ticks",
+        1.60684941779341
+      ],
+      [
+        "release-min",
+        "g4:raw-rate:three-ticks",
+        0.7319850088147062
+      ],
+      [
+        "release-min",
+        "g64:fraction-scalar:range",
+        0.07566171462214388
+      ]
+    ],
+    "scope": "Fixed finite alternating same-input native processes. Include small G1/G4histogram/rate/group and G16/G64fraction generic-loop controls. Complete outcomes and stable nonelapsed observations checked. All slower rows retained."
+  },
+  "source_attribution": {
+    "actual_final_runtime_inputs": 348,
+    "manifest_path": ".tmp/classic-probe-yo905n__/qualified-source.json",
+    "manifest_sha256": "0c24b2ff295fa1c67e9d43e986c477d09cab3e72f729b674e0570cec6580f205",
+    "actual_baseline_manifest_path": ".tmp/classic-probe-yo905n__/before-source.json",
+    "actual_baseline_manifest_sha256": "da23a8273c7bb0647b830eddc7523ad43a9dd290ecca82aa8928b741fb24a878",
+    "baseline_identity": "Retained Stage66query fixtures, whose348actual source inputs equal the signed comparison base. The baseline helper is newly compiled from those unchanged inputs.",
+    "intermediate_identity": "Regression/development source snapshots are retained separately; final optimized/foreign/C inputs use the formatted qualified manifest. Intermediate cfg(test)formatting is not reattributed to final signed source."
+  },
+  "limits": [
+    "Finite source-bound results and mathematical admission proof do not establish arbitrary-input equivalence or maximum throughput. No language feature is added/dropped.",
+    "Shared-host synthetic whole-query observations include owned result collection. Grouped controls emit one row per bucket, quantiles one per group; subtracting controls does not isolate quantile CPU.",
+    "All48group outcomes and memory costs are retained, including slower controls. Requested-byte accounting is not process RSS or physical DBengine/cache RAM; no whole-query peak reduction is assumed.",
+    "ARM32/ARM64qualification is release under installed QEMU, not physical ARM or ARMrelease-min performance.",
+    "No current Agent/live/install or generic ABI campaign; public/header/layout/provider/HTTP/storage paths are unchanged. Historical integration and unaffected language panels retain actual prior identities."
+  ],
+  "retained_evidence": {
+    ".tmp/classic-probe-yo905n__/baseline-kernel-build.json": "014f2567cb61660cd7b091e9ab75aa745efafca5eec13681c7fdda89e90206d5",
+    ".tmp/classic-probe-yo905n__/kernel-baseline.json": "891ade5430110ae252ccfa3d1caa0cbb325c801e1dfbff84f83c16d1f4e4ac0a",
+    ".tmp/classic-probe-yo905n__/baseline-receipt.json": "eff683926dde1cbab8c8e503b30099e806d205ba01014595af24c873b44fb178",
+    ".tmp/classic-probe-yo905n__/regression-receipt.json": "f197997d77150d4acf69ba1b72a68d37c33486e0d214662527798d2e8c6c24a4",
+    ".tmp/classic-probe-yo905n__/early-qualification.json": "7a66ddfa5a1693cf29be1430151694634b4650bad9f5e740d9b5f607db348ad5",
+    ".tmp/classic-probe-yo905n__/qualification.json": "39424e0007c96c3873ce918eb1f7fadb578a66ab4e33159de91a22aa8f522285",
+    ".tmp/classic-probe-yo905n__/static-qualification.json": "b5e8ff183e93f01e69b98a7ae022cbf37e562429f4ce9c25218510ea6e66c675",
+    ".tmp/classic-probe-yo905n__/paired-timings.json": "fef6eecd3b140585a0f218a9f3fbfcbf0598154d558fe54e6267b072590084aa",
+    ".tmp/classic-probe-yo905n__/resource-summary.json": "37b0875c9835054a6da778e1b6858cc7ecd6d39a5ed6a87b9a763878aa92851b"
+  }
+}
