@@ -1,0 +1,108 @@
+{
+  "cases": [
+    {
+      "expectedLiteralPrefixMatchers": 3,
+      "expectedMatches": [
+        "eHl6LTAxNmEtaXhiLWRw",
+        "eHl6LTAxNmEtaXhiLWRwWFhY",
+        "eHl6LTAxNmEtaXhiLW9w",
+        "eHl6LTAxNmEtaXhiLW9wWFhY",
+        "eHl6LTAxNmEtaXhiLWRwCg=="
+      ],
+      "expectedNotMatches": [
+        "WFlaLTAxNmEtaXhiLWRw",
+        "eHl6LTAxNmEtaXhiLWQ=",
+        "WFlaLTAxNmEtaXhiLW9w",
+        "eHl6LTAxNmEtaXhiLW8=",
+        "eHl6",
+        "ZHA="
+      ],
+      "line": 486,
+      "pattern": "KHh5ei0wMTZhLWl4Yi1kcC4qfHh5ei0wMTZhLWl4Yi1vcC4qKQ=="
+    },
+    {
+      "expectedLiteralPrefixMatchers": 3,
+      "expectedMatches": [
+        "eHl6LTAxNmEtaXhiLWRw",
+        "WFlaLTAxNmEtaXhiLWRwWFhY",
+        "eHl6LTAxNmEtaXhiLW9w",
+        "WFlaLTAxNmEtaXhiLW9wWFhY",
+        "eHl6LTAxNmEtaXhiLWRwCg=="
+      ],
+      "expectedNotMatches": [
+        "eHl6LTAxNmEtaXhiLWQ=",
+        "eHl6",
+        "ZHA="
+      ],
+      "line": 494,
+      "pattern": "KD9pKSh4eXotMDE2YS1peGItZHAuKnx4eXotMDE2YS1peGItb3AuKik="
+    },
+    {
+      "expectedLiteralPrefixMatchers": 10,
+      "expectedMatches": [
+        "eHl6LWFhYS0xMTE=",
+        "eHl6LWFhYS0xMTFYWFg=",
+        "eHl6LWFhYS0zMzM=",
+        "eHl6LWFhYS0zMzNYWFg=",
+        "eHl6LWJiYi0yMjI=",
+        "eHl6LWJiYi0yMjJYWFg=",
+        "eHl6LWJiYi00NDQ=",
+        "eHl6LWJiYi00NDRYWFg="
+      ],
+      "expectedNotMatches": [
+        "WFlaLWFhYS0xMTE=",
+        "eHl6LWFhYS0xMQ==",
+        "eHl6LWFhYS0yMjI=",
+        "eHl6LWJiYi0xMTE="
+      ],
+      "line": 502,
+      "pattern": "KHh5ei0oYWFhLSgxMTEuKil8YmJiLSgyMjIuKikpKXwoeHl6LShhYWEtKDMzMy4qKXxiYmItKDQ0NC4qKSkp"
+    },
+    {
+      "expectedLiteralPrefixMatchers": 10,
+      "expectedMatches": [
+        "eHl6LWFhYS0xMTE=",
+        "WFlaLWFhYS0xMTFYWFg=",
+        "eHl6LWFhYS0zMzM=",
+        "eHl6LUFBQS0zMzNYWFg=",
+        "eHl6LWJiYi0yMjI=",
+        "eHl6LUJCQi0yMjJYWFg=",
+        "WFlaLWJiYi00NDQ=",
+        "eHl6LWJiYi00NDRYWFg="
+      ],
+      "expectedNotMatches": [
+        "eHl6LWFhYS0xMQ==",
+        "eHl6LWFhYS0yMjI=",
+        "eHl6LWJiYi0xMTE="
+      ],
+      "line": 510,
+      "pattern": "KD9pKSh4eXotKGFhYS0oMTExLiopfGJiYi0oMjIyLiopKSl8KHh5ei0oYWFhLSgzMzMuKil8YmJiLSg0NDQuKikpKQ=="
+    },
+    {
+      "expectedLiteralPrefixMatchers": 3,
+      "expectedMatches": [
+        "eHl6LWFhYQ==",
+        "eHl6LUFBQQ==",
+        "eHl6LWFhYVhYWA==",
+        "eHl6LUFBQVhYWA==",
+        "eHl6LWJiYg==",
+        "eHl6LUJCQlhYWA=="
+      ],
+      "expectedNotMatches": [
+        "WFlaLWFhYQ==",
+        "eHl6LWFh",
+        "eXotYWFh",
+        "YWFh"
+      ],
+      "line": 518,
+      "pattern": "KHh5ei0oKD9pKShhYWEuKnxiYmIuKikpKQ=="
+    }
+  ],
+  "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+  "function": "TestStringMatcherFromRegexp_LiteralPrefix",
+  "function_line": 477,
+  "function_sha256": "8968f74eec8d6a674e55a38d3a593625d99e393a394e210ab79775e284c29d14",
+  "schema_version": 1,
+  "source": "model/labels/regexp_test.go",
+  "source_sha256": "8d2733bd69a66adc95e3864e609a0544dca9bfb629b80de12494b1b8052a6023"
+}

@@ -631,6 +631,53 @@ estimates cannot be a guaranteed bound. This accounting trade-off retains the qu
 original regex cases pass unchanged in both build profiles. Engine-owned runtime accounting and foreign allocation
 leases are described in the C embedding and allocation ownership sections below.
 
+### Literal prefix selector examples
+
+`selector-prefix-inputs.json` preserves the five entries in the pinned Prometheus test table
+`model/labels/regexp_test.go::TestStringMatcherFromRegexp_LiteralPrefix`. The standalone Go AST extractor
+`capture/selector_prefix_sources.go` reads the literal table that this function iterates. It uses `strconv.Unquote`
+and retains source positions, file/function hashes, matcher counts and all 32 positive plus 20 negative declarations.
+Computed, missing, duplicate and unexpected fields are rejected. Matcher counts describe the Go test's provenance;
+they do not assert the Rust optimizer's internal shape.
+
+`selector_prefix_cases.py` turns each declared pattern/subject pair into complete `=~` and `!~` expressions. Each
+subject has a unique series ID and finite value. The 104 outcomes must have complementary singleton/empty membership,
+exact labels, timestamp, value bits and empty diagnostics. Regex patterns and actual newline subjects retain their
+original bytes through PromQL string quoting. The old 21,320-case capture and its hash-pinned hooks stay unchanged.
+
+Run from this crate with the pinned Go toolchain. `PROMQL_UPSTREAM_DIR` must identify the verified original source
+facade, and `PROMQL_PREFIX_DIR` an existing private directory for fresh files. First extract and check the source:
+
+```sh
+go run tests/promql-conformance/capture/selector_prefix_sources.go "${PROMQL_UPSTREAM_DIR:?}" \
+  > "${PROMQL_PREFIX_DIR:?}/source.json"
+python3 tests/promql-conformance/selector_prefix_cases.py \
+  --check-source "${PROMQL_PREFIX_DIR:?}/source.json"
+python3 tests/promql-conformance/selector_prefix_cases.py --write-dir "${PROMQL_PREFIX_DIR:?}"
+```
+
+Run the unchanged named original test with `-count=1` and the exact test-name filter before capturing expressions.
+Authenticate the retained general query probe through `plural_histogram.load`, then run that probe with the new
+`dataset.json` and `requests.json` as its two arguments. Its historical loader authenticates the probe; it does not
+qualify the new request roster. Separately bind the new ledger, dataset, requests, ordered IDs, runtime header and
+raw output before and after execution. Retain that output as `original.json`, then check a source-bound candidate:
+
+```sh
+python3 tests/promql-conformance/selector_prefix_cases.py \
+  --check-original "${PROMQL_PREFIX_DIR:?}/original.json"
+"${PROMQL_QUERY_BINARY:?}" < "${PROMQL_PREFIX_DIR:?}/inputs.jsonl" \
+  > "${PROMQL_PREFIX_DIR:?}/candidate.jsonl"
+python3 tests/promql-conformance/selector_prefix_cases.py \
+  --compare "${PROMQL_PREFIX_DIR:?}/original.json" "${PROMQL_PREFIX_DIR:?}/candidate.jsonl"
+```
+
+The [qualification record](selector-prefix-qualification.json) contains 416 exact comparisons: all 104 expressions
+on retained native release/release-min and ARM32/ARM64 release fixtures, with page size 17 and QEMU for ARM.
+All 348 prior runtime inputs are byte-identical; no engine rebuild or fix was needed. Seven focused validator tests,
+six actual extractor rejection controls and three CLI checks qualify the new capture workflow. This adds finite
+matching evidence; it makes no new language-feature, optimizer-branch, performance, memory, C embedding or live API
+claim. Historical qualification keeps its actual source and binary identities.
+
 ## Bounded UTF-8 validation
 
 The shared validator used by regex subjects, quoted grouping labels and label-function names validates at most

@@ -70941,5 +70941,14 @@
     "native_original_comparisons": 4344,
     "foreign_original_comparisons": 1448,
     "scope": "Checked frozen Q/F ordinals and certified nonlogical seen omission, with post-copy cancellation, full-hash collision/logical/plural/filter fallbacks; all8memory categories, complete finite timings and slower controls retained. Historical integration evidence remains separately attributed."
+  },
+  "literal_prefix_selector_examples": {
+    "status": "qualified_coverage_extension",
+    "qualification": "selector-prefix-qualification.json",
+    "sha256": "6c38f78b9ea676990f260522e746677314001d29173d9745155b9ee96c577da8",
+    "source_pairs": 52,
+    "expressions_per_cohort": 104,
+    "complete_comparisons": 416,
+    "scope": "Separate GoAST-derived original selector tables; exact complementary full expression outcomes on unchanged native release/release-min and ARM32/ARM64release fixtures. No engine or performance change; historical21320capture remains unchanged."
   }
 }

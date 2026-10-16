@@ -80,6 +80,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   whole-subject acceptance. Prefix/group-zero, sparse/nullable captures, partial-construction ownership, full capture
   controls and binary-footprint checks are in
   `src/crates/promql-engine/tests/promql-conformance/README.md#selector-backend-capture-tables`.
+- Source-defined selector prefix combinations MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#literal-prefix-selector-examples` for original table
+  binding, preserved historical captures and complete complementary selector outcomes.
 - Follow the conformance README for pinned differential panels; preserve its stated tolerance and bit diagnostics.
 - Shared UTF-8 validation MUST preserve valid cross-batch scalars, valid U+FFFD, first-invalid-byte work and caller
   error/control phases. Compare actual fallback and capture consumers beside optimized selector controls; work

@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "status": "qualified_coverage_extension",
+  "scope": "Source-defined selector prefix combinations through complete PromQL expressions; no engine implementation or public contract change.",
+  "comparison_base_git": "4f3571d2336a4298895e60994b5845d69346aed2",
+  "reference": {
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go_arch": "amd64",
+    "go_os": "linux",
+    "go_version": "go1.27.1",
+    "reference": "github.com/prometheus/prometheus@v0.315.0",
+    "unicode_version": "17.0.0"
+  },
+  "source": {
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "function": "TestStringMatcherFromRegexp_LiteralPrefix",
+    "function_line": 477,
+    "function_sha256": "8968f74eec8d6a674e55a38d3a593625d99e393a394e210ab79775e284c29d14",
+    "schema_version": 1,
+    "source": "model/labels/regexp_test.go",
+    "source_sha256": "8d2733bd69a66adc95e3864e609a0544dca9bfb629b80de12494b1b8052a6023"
+  },
+  "inputs": {
+    "ledger": {
+      "path": "src/crates/promql-engine/tests/promql-conformance/selector-prefix-inputs.json",
+      "sha256": "52db46c3849c678116b4afc86e3db031ab7ccaffb5b1372c1b40f76310f0704a"
+    },
+    "source_tables": 5,
+    "positive_declarations": 32,
+    "negative_declarations": 20,
+    "pattern_subject_pairs": 52,
+    "expressions": 104,
+    "operators": [
+      "=~",
+      "!~"
+    ],
+    "nonempty_per_cohort": 52,
+    "empty_per_cohort": 52,
+    "validation": "Original pattern/subject bytes, unique case IDs and finite values; complete complementary membership, labels, timestamp, kind, value bits and empty diagnostics.",
+    "matcher_counts": "Retained Go test provenance only; not a Rust optimizer-shape assertion."
+  },
+  "original_capture": {
+    "probe_source": "capture/plural_histogram.go",
+    "probe_sha256": "4c8d1edc3048c968bacee5a3b8c9fd28488492aa17a1bd02355943dbbcaeb78f",
+    "original_named_test_passes": 6,
+    "original_named_test_scope": "Fresh exact parent plus five subtests, count1; original declarations and independent anchored dot-newline checks pass, no cached test result.",
+    "complete_expression_report": {
+      "required": 104,
+      "evaluated": 104,
+      "semantic_failures": {},
+      "unexpected_results": [],
+      "bitwise_differences": [],
+      "semantic_pass": true,
+      "bitwise_pass": true
+    },
+    "new_dataset_sha256": "b7da9db93c9d618a0c94522d981ecd43bb5a303efa1a5b3818823c16e640ce23",
+    "new_requests_sha256": "eb416b5d3524d85bd939bdffd3105f7e6ccb47c0a2a1bef025534d4a421d7eb0",
+    "new_results_sha256": "a10bf6c3e1e4a9fbd76645c076f63fcd842f527f0e7f869ec40edfb6ef2880f9",
+    "authority": "Historical plural capture authenticates the retained general probe only. The new ledger/dataset/requests/ordered IDs/runtime header/raw results are separately bound in the new original receipt."
+  },
+  "candidate_qualification": {
+    "complete_comparisons": 416,
+    "cohorts": {
+      "release": {
+        "fixture": {
+          "path": ".tmp/histogram-emit-petj8grx/early-query-fixture",
+          "sha256": "69168fb33440016ac97a0173a2a8f7ca1d8a9f70f75d815eae764853d62cc388"
+        },
+        "runner": [],
+        "target": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "features": [
+          "fixtures"
+        ],
+        "page_size": 17,
+        "expressions": 104,
+        "report": {
+          "required": 104,
+          "evaluated": 104,
+          "semantic_failures": {},
+          "unexpected_results": [],
+          "bitwise_differences": [],
+          "semantic_pass": true,
+          "bitwise_pass": true
+        },
+        "actual_source_manifest": ".tmp/histogram-emit-petj8grx/candidate-source.json",
+        "source_reuse": "All348actual prior source inputs remain byte-identical; no engine build performed."
+      },
+      "release-min": {
+        "fixture": {
+          "path": ".tmp/histogram-emit-petj8grx/release-min/promql-query-fixture",
+          "sha256": "7986df7cce095662fb868b0850cd561fbb5619f05ab101cc2c4185694acb94e2"
+        },
+        "runner": [],
+        "target": "x86_64-unknown-linux-gnu",
+        "profile": "release-min",
+        "features": [
+          "fixtures"
+        ],
+        "page_size": 17,
+        "expressions": 104,
+        "report": {
+          "required": 104,
+          "evaluated": 104,
+          "semantic_failures": {},
+          "unexpected_results": [],
+          "bitwise_differences": [],
+          "semantic_pass": true,
+          "bitwise_pass": true
+        },
+        "actual_source_manifest": ".tmp/histogram-emit-petj8grx/candidate-source.json",
+        "source_reuse": "All348actual prior source inputs remain byte-identical; no engine build performed."
+      },
+      "arm32": {
+        "fixture": {
+          "path": ".tmp/histogram-emit-petj8grx/arm32/promql-query-fixture",
+          "sha256": "a365b725bad7c7060b971817fffc96bba8421366f4aee0b20bd3ac437eab1a7a"
+        },
+        "runner": [
+          "qemu-arm",
+          "-L",
+          "/usr/arm-linux-gnueabihf"
+        ],
+        "target": "armv7-unknown-linux-gnueabihf",
+        "profile": "release",
+        "features": [
+          "fixtures"
+        ],
+        "page_size": 17,
+        "expressions": 104,
+        "report": {
+          "required": 104,
+          "evaluated": 104,
+          "semantic_failures": {},
+          "unexpected_results": [],
+          "bitwise_differences": [],
+          "semantic_pass": true,
+          "bitwise_pass": true
+        },
+        "actual_source_manifest": ".tmp/histogram-emit-petj8grx/candidate-source.json",
+        "source_reuse": "All348actual prior source inputs remain byte-identical; no engine build performed."
+      },
+      "arm64": {
+        "fixture": {
+          "path": ".tmp/histogram-emit-petj8grx/arm64/promql-query-fixture",
+          "sha256": "8066fa6f4e3ce1551860b970bca526ceeceedb339ea4dde00391e26b8e61845c"
+        },
+        "runner": [
+          "qemu-aarch64",
+          "-L",
+          "/usr/aarch64-linux-gnu"
+        ],
+        "target": "aarch64-unknown-linux-gnu",
+        "profile": "release",
+        "features": [
+          "fixtures"
+        ],
+        "page_size": 17,
+        "expressions": 104,
+        "report": {
+          "required": 104,
+          "evaluated": 104,
+          "semantic_failures": {},
+          "unexpected_results": [],
+          "bitwise_differences": [],
+          "semantic_pass": true,
+          "bitwise_pass": true
+        },
+        "actual_source_manifest": ".tmp/histogram-emit-petj8grx/candidate-source.json",
+        "source_reuse": "All348actual prior source inputs remain byte-identical; no engine build performed."
+      }
+    },
+    "focused_validator_tests": 7,
+    "actual_extractor_rejections": [
+      "computed-pattern",
+      "missing-field",
+      "duplicate-field",
+      "extra-field",
+      "computed-subjects",
+      "extra-statement"
+    ],
+    "cli_checks": 3,
+    "source_format": "gofmtclean"
+  },
+  "source_attribution": {
+    "runtime_inputs_unchanged": 348,
+    "runtime_manifest": {
+      "path": ".tmp/selector-prefix-mi5gb4xk/before-source.json",
+      "sha256": "da23a8273c7bb0647b830eddc7523ad43a9dd290ecca82aa8928b741fb24a878"
+    },
+    "capture_and_runtime_inputs": 352,
+    "capture_manifest": {
+      "path": ".tmp/selector-prefix-mi5gb4xk/candidate-source.json",
+      "sha256": "bd70c89bd6424ca9af97375adea6452b79869a979c06f441c9682b1ce9c20e12"
+    },
+    "reuse": "All348actual prior runtime inputs remain byte-identical. Binaries retain their actual previous source/profile/feature identities. No engine rebuild performed.",
+    "historical_regex_capture": "All21320old inputs/captures/hooks remain unchanged and were revalidated before/after; these are not new executions in this panel."
+  },
+  "limits": [
+    "Finite matching evidence only: no new feature, demonstrated engine defect, arbitrary-pattern equivalence or Rust optimizer branch proof.",
+    "ARM32/ARM64 evidence is release under installed QEMU, not physical ARM execution or release-min on ARM.",
+    "No current full unit/parser/regex/SRE campaign, C or Agent rebuild, live API, installation, timing, memory, RSS or throughput qualification was performed or is claimed.",
+    "Existing useful language support and historical evidence retain their prior scopes and source/binary identities."
+  ],
+  "retained_evidence": {
+    ".tmp/selector-prefix-mi5gb4xk/preflight.json": "ae037ef750ab0c7cd20727b0938f50c7e54e055b1ffb9c2b31a7f5d87d8d1773",
+    ".tmp/selector-prefix-mi5gb4xk/extraction-receipt.json": "70ac83ea52fb4677f5230ea3850c2e8160af9a8215fd99535678d9e98c60df10",
+    ".tmp/selector-prefix-mi5gb4xk/development-receipt.json": "05f7f59acf516a4b90a91ecd8714e528766b3c0d5020c09509ab10ebf7a0c6e0",
+    ".tmp/selector-prefix-mi5gb4xk/original-receipt.json": "1d3494c90f740bb16f324c0c5c24b5a08059acdfb161aa99f26a54c6585e2dd8",
+    ".tmp/selector-prefix-mi5gb4xk/qualification.json": "a421085b80f4d9c0b9bb6b73d85fc116a3767d17a7e8493a6ee2e8bc5698b9ec",
+    ".tmp/selector-prefix-mi5gb4xk/source-guards.json": "2c70577166b7489ba304579cd6537088878b909d10ae2785b2830000fcd98d88"
+  }
+}
