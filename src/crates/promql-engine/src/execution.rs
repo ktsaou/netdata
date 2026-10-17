@@ -1492,9 +1492,9 @@ impl CompiledQuery {
             {
                 return Ok(None);
             }
-            if let Some(plan) = rosters.group_replay(node) {
+            if let Some(selector) = rosters.group_selector(node) {
                 // A group resolves a supported leaf without promising one raw point per result.
-                return Ok(Some(plan.selector()));
+                return Ok(Some(selector));
             }
             if let Expr::Call {
                 function: Some(function),
@@ -7892,8 +7892,15 @@ mod tests {
                                     .unwrap();
                                 (0..query.expression.arena.nodes.len())
                                     .filter(|&index| {
-                                        if let Some(plan) = rosters.group_replay(NodeId(index)) {
+                                        let node = NodeId(index);
+                                        if let Some(plan) = rosters.group_replay(node) {
                                             assert!(!plan.has_completion());
+                                        }
+                                        if rosters.group_selector(node).is_some() {
+                                            assert_eq!(
+                                                rosters.group_replay(node).is_some(),
+                                                rosters.groups(node).unwrap().len() > 1
+                                            );
                                             true
                                         } else {
                                             false
@@ -7912,6 +7919,145 @@ mod tests {
                             );
                         }
                     }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn shared_proof_owner_preserves_group_and_schedule_identities() {
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for (expression, scheduled, groups, filtering) in [
+                    ("counter_total", true, 0, 0),
+                    ("abs(counter_total)", true, 0, 0),
+                    ("counter_total*2", true, 0, 0),
+                    (
+                        "label_join(counter_total,\"row\",\"/\",\"instance\")",
+                        true,
+                        0,
+                        0,
+                    ),
+                    (
+                        "label_replace(counter_total,\"row\",\"$1\",\"instance\",\"(.*)\")",
+                        true,
+                        0,
+                        0,
+                    ),
+                    ("abs(sum by(job)(counter_total))", false, 1, 0),
+                    ("topk(1,sum by(job)(counter_total))", false, 1, 0),
+                    ("quantile(.5,sum by(job)(counter_total))", false, 1, 0),
+                    (
+                        "abs(sum by(job)(sum by(instance)(counter_total)))",
+                        false,
+                        2,
+                        1,
+                    ),
+                    ("abs(sum by(instance)(counter_total))", false, 1, 1),
+                    ("abs(sum by(job)(timestamp(counter_total)))", false, 0, 0),
+                ] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let provider = FixtureProvider::new(4, page, 2);
+                    let query = engine
+                        .compile(expression.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let account = query.execution_accounting();
+                    {
+                        let header = query
+                            .header(QueryRequest::Range {
+                                start_ms: 1000,
+                                end_ms: 3000,
+                                step_ms: 1000,
+                            })
+                            .unwrap();
+                        let prepared = Prepared::new(
+                            &query.expression,
+                            &query.preprocessing,
+                            header,
+                            query.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let header = prepared.evaluator_header();
+                        prepared.activate(header, &control, &account).unwrap();
+                        let evaluation =
+                            query.evaluation_options(header, header.start_ms, &prepared);
+                        let bounds = crate::query_bounds::find(
+                            &query.expression,
+                            evaluation,
+                            &prepared,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let scope = provider.open(bounds, &control).unwrap();
+                        let catalog = Catalog::new(
+                            &scope,
+                            &query.expression,
+                            &prepared,
+                            evaluation,
+                            query.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let rosters = query
+                            .prepare_rosters(
+                                &catalog,
+                                &prepared,
+                                bounds,
+                                &control,
+                                &account,
+                                &mut Annotations::default(),
+                            )
+                            .unwrap();
+                        assert_eq!(
+                            rosters.scheduled_selector(query.expression.root).is_some(),
+                            scheduled,
+                            "{expression}"
+                        );
+                        let (mut group_count, mut filter_count) = (0, 0);
+                        for index in 0..query.expression.arena.nodes.len() {
+                            let node = NodeId(index);
+                            if rosters.scheduled_selector(node).is_some() {
+                                assert!(!matches!(
+                                    query.expression.arena[node].expression,
+                                    Expr::Aggregate { .. }
+                                ));
+                                assert!(rosters.group_selector(node).is_none());
+                            }
+                            if let Some(selector) = rosters.group_selector(node) {
+                                assert!(rosters.scheduled_selector(node).is_none());
+                                assert!(matches!(
+                                    query.expression.arena[selector].expression,
+                                    Expr::Selector(_)
+                                ));
+                                assert_eq!(
+                                    rosters.group_replay(node).is_some(),
+                                    rosters.groups(node).unwrap().len() > 1
+                                );
+                                group_count += 1;
+                            }
+                            if let Some(plan) = rosters.group_replay(node) {
+                                assert!(!plan.has_completion());
+                                filter_count += 1;
+                            }
+                        }
+                        assert_eq!(
+                            (group_count, filter_count),
+                            (groups, filtering),
+                            "{expression}"
+                        );
+                        println!(
+                            "shared-proof-identities expression={expression:?} page={page} delayed={delayed} scheduled={scheduled} groups={group_count} filtering={filter_count}"
+                        );
+                    }
+                    provider.assert_closed();
+                    account.snapshot().assert_memory_released();
+                    drop((account, query));
+                    engine.accounting.snapshot().assert_memory_released();
                 }
             }
         }

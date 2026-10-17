@@ -152,6 +152,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-per-series-fold-join-discovery` for the
   shared Rate/Fold proof, global-absence exclusion, original-operand phases, numerical/name distinctions,
   clock/fallback boundaries, calibrated failures, C statistics and Pair costs. Window outputs earn no raw-point marker.
+- Shared schedule/group ownership MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#shared-scheduling-and-group-proof-owner` for distinct
+  proof semantics, productive singleton provenance, terminal controls and actual per-target layout/getter costs.
 - Empty group contributor ownership MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#empty-group-owners` for zero-only elision,
   productive singleton provenance, full range unions, opposite/parameter faults and actual C statistics.

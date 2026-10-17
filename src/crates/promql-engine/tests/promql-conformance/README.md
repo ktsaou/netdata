@@ -5730,6 +5730,61 @@ and derived metadata/state may grow. No language feature is added or dropped. Ea
 live-Agent cohorts retain their own identities.
 
 
+## Shared scheduling and group proof owner
+
+Scheduling and ordinary aggregate provenance now share one tagged metadata owner. Their meanings remain
+distinct: a group never becomes a per-series schedule. Singleton groups keep selector provenance inline; plural
+groups retain the same filtering Plan. The builder still finishes and checks cancellation before publication.
+No raw values or histories are cached, and child, parameter and opposite-input evaluation remains unchanged.
+
+Run from the Cargo root:
+
+```sh
+cargo test --locked --features fixtures --release -- shared_proof_owner_ --nocapture
+```
+
+Four unchanged-production witnesses each finish 108 complete Engine outcomes before the intended singleton-box
+allocation failure. Current native/ARM tests preserve those outputs and separately check 66 schedule/group
+identities per cohort. Complete-result cases cover both names, pages and instant/equal/range requests; the
+identity records specifically use unequal ranges. Existing productive singleton, later-range, empty/plural,
+parameter/opposite-input, clock, selection and quantile controls remain.
+
+| Actual target layout | Before → current |
+| --- | ---: |
+| AMD64/ARM64 node metadata | 480 → 472 B |
+| ARM32 node metadata | 320 → 312 B |
+| Additional inactive singleton allocation, AMD64/ARM64 | 280 → 0 B |
+| Additional inactive singleton allocation, ARM32 | 216 → 0 B |
+
+Both native profiles pass 765 units with two unchanged ignored and 13 focused checks. Each QEMU target passes
+16 focused checks and 20,118 page-17 outcomes. All 160,944 current outcomes qualify; 120,708 native before/current
+results match exactly, with 140,826 additional exact portable pairs reusing terminal captures. All before results
+and original/policy analyses are authenticated reuse; no new Go or baseline query is needed for this representation.
+Inherited 360 current/270 native-before raw original failures stay visible beside their unchanged order policies.
+
+Every paired native outcome lowers Workspace peak and allocation traffic. No fixture or C row increases any
+accounted memory category; raw reads and cancellation references stay unchanged. Actual default C archives pass
+546 paired controls and all 402 statistic triples match. Productive singleton admission is Engine fixture
+coverage; existing zero-input and one-source C cases make no C throughput claim.
+
+Timing uses 176 cases/profile: 140 retained controls plus 36 raw/map/label/singleton/nested/ratio getter controls.
+Five alternating serial pairs retain 14,080 primary queries, including 10,560 measured outcomes. Representative
+ordinary-name medians are microseconds:
+
+| Complete query case | Release before → current | Release-min before → current |
+| --- | ---: | ---: |
+| `2-topk-1-raw-2-False` | 125.129 → 125.829 | 209.718 → 219.138 |
+| `shared-label-join-32-False` | 398.957 → 398.346 | 706.993 → 740.954 |
+| `shared-singleton-ratio-32-False` | 19438.362 → 19924.287 | 34863.681 → 35602.043 |
+
+All 210 slower primary medians remain. Every median at least 5% slower receives a fixed five-pair follow-up,
+totaling 240 queries, without replacing primary samples. Six unique linked pairs retain all text/data/file
+costs, including a 22,424 B text increase in the release C program. Accounted memory and fixture timings
+establish neither RSS bounds nor universal, live API,
+concurrent, default-C-library or physical ARM speed. No language, public API or storage contract changes.
+See the [shared-owner qualification](shared-proof-owner-qualification.json) for complete samples, source/binary
+identities, inherited raw failures and costs.
+
 ## Empty group owners
 
 Globally empty ordinary-group unions keep their completed validation and cancellation checks without allocating

@@ -326,14 +326,37 @@ pub(crate) struct ScalarShape {
 }
 
 #[derive(Default)]
+enum SeriesProof {
+    #[default]
+    None,
+    Scheduled(NodeId),
+    SingletonGroup(NodeId),
+    Group(AccountedBox<crate::aggregate_replay::Plan>),
+}
+impl SeriesProof {
+    fn group_replay(&self) -> Option<&crate::aggregate_replay::Plan> {
+        match self {
+            Self::Group(plan) => Some(plan),
+            _ => None,
+        }
+    }
+    fn group_selector(&self) -> Option<NodeId> {
+        match self {
+            Self::SingletonGroup(selector) => Some(*selector),
+            Self::Group(plan) => Some(plan.selector()),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Default)]
 struct NodeRoster {
     sample_units: u64,
     primary_statistics: bool,
-    scheduled_selector: Option<NodeId>,
+    proof: SeriesProof,
     output: Option<AccountedVec<Descriptor>>,
     sources: Option<AccountedVec<usize>>,
     groups: Option<AccountedVec<GroupDescriptor>>,
-    group_replay: Option<AccountedBox<crate::aggregate_replay::Plan>>,
     annotations: Option<AnnotationBuilder>,
     projection: Option<AccountedVec<(usize, usize)>>,
     binary: Option<AccountedBox<crate::vector_matching::Plan>>,
@@ -392,10 +415,17 @@ impl Rosters {
         }
     }
     pub(crate) fn scheduled_selector(&self, node: NodeId) -> Option<NodeId> {
-        self.nodes[node.0].scheduled_selector
+        match &self.nodes[node.0].proof {
+            SeriesProof::Scheduled(selector) => Some(*selector),
+            _ => None,
+        }
     }
     pub(crate) fn certify_schedule(&mut self, node: NodeId, selector: NodeId) {
-        self.nodes[node.0].scheduled_selector = Some(selector);
+        debug_assert!(matches!(
+            self.nodes[node.0].proof,
+            SeriesProof::None | SeriesProof::Scheduled(_)
+        ));
+        self.nodes[node.0].proof = SeriesProof::Scheduled(selector);
     }
     pub(crate) fn prepare_matrix(
         &mut self,
@@ -796,7 +826,7 @@ impl Rosters {
             if let Some(plan) = &roster.sorting {
                 plan.clear_emission();
             }
-            if let Some(plan) = &roster.group_replay {
+            if let Some(plan) = roster.proof.group_replay() {
                 plan.clear();
             }
         }
@@ -1183,7 +1213,10 @@ impl Rosters {
         self.nodes[node.0].groups.as_deref()
     }
     pub(crate) fn group_replay(&self, node: NodeId) -> Option<&crate::aggregate_replay::Plan> {
-        self.nodes[node.0].group_replay.as_deref()
+        self.nodes[node.0].proof.group_replay()
+    }
+    pub(crate) fn group_selector(&self, node: NodeId) -> Option<NodeId> {
+        self.nodes[node.0].proof.group_selector()
     }
     pub(crate) fn finish_group_flags(
         &mut self,
@@ -1311,13 +1344,19 @@ impl Rosters {
         }
         if let Some(replay) = replay {
             let plan = replay.finish(groups.len(), control, account)?;
-            // Empty unions cannot filter members or certify a productive join.
-            if !groups.is_empty() {
-                self.nodes[node.0].group_replay = Some(AccountedBox::new(
+            debug_assert!(!matches!(
+                self.nodes[node.0].proof,
+                SeriesProof::Scheduled(_)
+            ));
+            // A singleton keeps selector provenance but cannot filter its members.
+            self.nodes[node.0].proof = match groups.len() {
+                0 => SeriesProof::None,
+                1 => SeriesProof::SingletonGroup(plan.selector()),
+                _ => SeriesProof::Group(AccountedBox::new(
                     plan,
                     &AllocationContext::new(account, MemoryKind::Workspace),
-                ));
-            }
+                )),
+            };
         }
         self.nodes[node.0].groups = Some(groups);
         Ok(())
@@ -1544,6 +1583,140 @@ mod tests {
     use super::*;
     use crate::accounting::EngineAccounting;
     use std::collections::VecDeque;
+
+    #[test]
+    fn shared_proof_owner_keeps_singleton_results_without_a_filter_box() {
+        let mut complete = 0;
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for (expression, job) in [
+                    ("abs(sum(counter_total))", false),
+                    ("abs(sum by(job)(counter_total))", true),
+                    ("topk(1,sum(counter_total))", false),
+                    ("quantile(.5,sum(counter_total))", false),
+                    ("sum(abs(sum by(instance)(counter_total)))", false),
+                    ("sum(sum(counter_total))", false),
+                ] {
+                    for request in [
+                        crate::execution::QueryRequest::Instant { time_ms: 2000 },
+                        crate::execution::QueryRequest::Range {
+                            start_ms: 2000,
+                            end_ms: 2000,
+                            step_ms: 1000,
+                        },
+                        crate::execution::QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        },
+                    ] {
+                        let engine = crate::execution::Engine::default();
+                        let control = Control::default();
+                        let provider = crate::test_storage::FixtureProvider::new(4, page, 2);
+                        let options = crate::execution::EngineOptions {
+                            delayed_name_removal: delayed,
+                            ..crate::execution::EngineOptions::default()
+                        };
+                        let query = engine
+                            .compile(expression.as_bytes(), options, &control)
+                            .unwrap();
+                        let report = query.collect_reported(&provider, request, &control);
+                        let result = report.result.as_ref().unwrap();
+                        assert!(report.annotations.is_empty() && result.scalar.is_none());
+                        assert_eq!(result.series.len(), 1);
+                        let row = &result.series[0];
+                        assert_eq!(row.labels.0.len(), usize::from(job));
+                        if job {
+                            assert_eq!(
+                                (&*row.labels.0[0].name, &*row.labels.0[0].value),
+                                (&b"job"[..], &b"worker"[..])
+                            );
+                        }
+                        let times = match request {
+                            crate::execution::QueryRequest::Range { start_ms: 1000, .. } => {
+                                &[1000_i64, 2000, 3000][..]
+                            }
+                            _ => &[2000_i64][..],
+                        };
+                        assert_eq!(row.points.len(), times.len());
+                        assert_eq!(report.observations.output_samples, times.len() as u64);
+                        for (point, &time_ms) in row.points.iter().zip(times) {
+                            assert_eq!(point.time_ms, time_ms);
+                            let crate::result::OwnedValue::Float(value) = &point.value else {
+                                panic!("expected complete float output");
+                            };
+                            assert_eq!(value.to_bits(), (2.0 * (time_ms / 1000) as f64).to_bits());
+                        }
+                        provider.assert_closed();
+                        drop((report, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                        complete += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(complete, 108);
+        println!("shared-proof-complete results={complete}");
+        println!(
+            "shared-proof-layout roster_bytes={} legacy_proof_fields_bytes={} shared_proof_bytes={}",
+            std::mem::size_of::<NodeRoster>(),
+            std::mem::size_of::<Option<NodeId>>()
+                + std::mem::size_of::<Option<AccountedBox<crate::aggregate_replay::Plan>>>(),
+            std::mem::size_of::<SeriesProof>()
+        );
+        let mut acquired = Vec::new();
+        for demanded in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut rosters = Rosters::new(&account, 2, &control).unwrap();
+            let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+            rows.push(Descriptor {
+                labels: OwnedLabels::new(&account, MemoryKind::Workspace),
+                ordinal: 0,
+                hash: 0,
+                drop_name: false,
+                first_order: 0,
+                sources: 0..1,
+                kinds: 1,
+                heads: HeadSummary::default(),
+            });
+            rosters.output(NodeId(0), rows, &control, &account).unwrap();
+            rosters.certify_schedule(NodeId(0), NodeId(0));
+            let before = account.snapshot().memory[MemoryKind::Workspace as usize].acquired;
+            rosters
+                .prepare_groups(
+                    NodeId(1),
+                    NodeId(0),
+                    None,
+                    false,
+                    demanded.then_some(NodeId(0)),
+                    &account,
+                    &control,
+                )
+                .unwrap();
+            assert_eq!(rosters.groups(NodeId(1)).unwrap().len(), 1);
+            assert_eq!(rosters.scheduled_selector(NodeId(0)), Some(NodeId(0)));
+            assert!(rosters.scheduled_selector(NodeId(1)).is_none());
+            assert_eq!(
+                rosters.group_selector(NodeId(1)),
+                demanded.then_some(NodeId(0))
+            );
+            assert!(rosters.group_selector(NodeId(0)).is_none());
+            assert!(rosters.group_replay(NodeId(1)).is_none());
+            let bytes = account.snapshot().memory[MemoryKind::Workspace as usize].acquired - before;
+            println!("shared-proof-singleton demanded={demanded} acquired={bytes}");
+            acquired.push(bytes);
+            drop(rosters);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+        assert_eq!(
+            acquired[1], acquired[0],
+            "singleton provenance must not allocate an inactive filtering plan"
+        );
+    }
 
     #[test]
     fn empty_group_owners_keep_complete_results_and_finish_controls_without_heap_cost() {

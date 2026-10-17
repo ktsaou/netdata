@@ -1608,7 +1608,7 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
   globally empty group union cannot filter members or certify a productive Pair; keep ordinary All evaluation.
 - **Retained:** singleton/plural static selector provenance and exact clocks, full range unions, child/parameter/
   opposite-input errors, diagnostics and cleanup. Singleton proof remains necessary for productive nested joins.
-- **Boundary:** no inline marker, new field/type/cache, proof traversal, provider/storage/public/numerical change
+- **Zero-only change boundary:** no inline marker, new field/type/cache, proof traversal or public change
   or implicit cap. Initially empty but later productive group unions keep their owner.
 - **Evidence:** whole empty outcomes precede the old 280-byte ownership failure. Productive raw/rate singleton
   joins, later rows and real required-input faults qualify. Fresh originals need no new order policy; inherited
@@ -1616,3 +1616,20 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
 - **Trade-off:** nonempty construction pays an emptiness check; retain all normal/fallback/slower and linked
   costs. Accounted memory and fixture timings do not prove RSS bounds or universal speed. See the existing
   [procedure and finite evidence](README.md#empty-group-owners).
+
+## Shared scheduling and group proof owner
+
+- **Choice:** one tagged owner replaces disjoint scheduling/group fields. Keep the stronger scheduling marker
+  separate from aggregate provenance; store singleton provenance inline and retain plural filtering ownership.
+- **Construction:** ordinary aggregate nodes and certified raw/map/label schedule nodes are disjoint. Keep the
+  contributor builder's final validation/control. A singleton filtering Plan always declined activation, so its
+  completion/active allocation is unnecessary; its selector identity still certifies productive nested joins.
+- **Retained:** exact clocks, complete range unions, plural membership/Done credit, fresh requested values,
+  parameters/opposite inputs, diagnostics and cleanup. No additional field, traversal, value cache or public change.
+- **Evidence:** actual node layouts shrink by eight bytes on AMD64, ARM64 and ARM32. Inactive singleton ownership
+  removes 280 bytes on 64-bit and 216 bytes on ARM32. All native paired workspace peaks/traffic decrease; raw reads
+  stay unchanged. Complete results, scheduling separation, actual C statistics and target scopes are measured.
+- **Trade-off:** tagged getters change branch/code shape. Retain all tiny/normal/fallback/slower timing and linked
+  costs rather than infer speed from smaller structs. The earlier empty-owner cohort remains historical evidence;
+  singleton representation is now inline. See the
+  [procedure and finite evidence](README.md#shared-scheduling-and-group-proof-owner).
