@@ -73036,5 +73036,18 @@
     "positive_tracked_memory_rows": 0,
     "higher_provider_call_rows": 824,
     "scope": "Joint local window/driver admission, full headers and stateful fallbacks; exact outcomes and separately retained newly actual physical Seek errors. Actual native/foreign/C/Agent, all memory/layout/linked and primary/slower costs retain source identities. No raw history or public contract change."
+  },
+  "fresh_pair_result_hashes": {
+    "status": "qualified_private_optimization",
+    "report": "fresh-pair-hash-qualification.json",
+    "report_sha256": "a4019a571f9385d641ba88a0c26bb33c8da756d53fc08027c7a82bb49705e834",
+    "complete_current_original_outcomes": 13152,
+    "matched_accepted_before_pairs": 13152,
+    "native_units_per_profile": 775,
+    "focused_foreign_units_per_target": 35,
+    "c_pairs": 1344,
+    "current_cpp_cases": 336,
+    "tracked_memory_change": "none",
+    "scope": "One local full u64 result digest; exact reservations/filters/late controls, complete original bits, callers and all slower/timing/linked costs retained. External C test caller repaired; no persistent state or public change."
   }
 }

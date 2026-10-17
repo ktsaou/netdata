@@ -1606,18 +1606,21 @@ impl<'a> Step<'a> {
                 Phase::Emit => {
                     self.phase = Phase::Pairs;
                     let value = self.values[0].take().expect("first replay value");
-                    let (ordinal, labels, parts, drop_name) = match self
+                    let (ordinal, labels, parts, drop_name, hash) = match self
                         .choice
                         .expect("binary choice")
                     {
                         Choice::Set(operand) => {
                             let descriptor = &self.plan.sides[operand.side].rows[operand.row];
                             control.check()?;
+                            let labels = SampleLabels::Borrowed(&descriptor.labels);
+                            let hash = label_hash::full(&labels, control, account)?;
                             (
                                 self.set_ordinal(operand),
-                                SampleLabels::Borrowed(&descriptor.labels),
+                                labels,
                                 value,
                                 descriptor.drop_name,
+                                hash,
                             )
                         }
                         Choice::Pair {
@@ -1687,10 +1690,10 @@ impl<'a> Step<'a> {
                                 labels,
                                 crate::statistics::ValueParts::new(value, account),
                                 self.return_bool,
+                                hash,
                             )
                         }
                     };
-                    let hash = label_hash::full(&labels, control, account)?;
                     self.record_seen(hash, control, account)?;
                     if !self.operator.is_set() {
                         self.record_pair_prefix(progress, ordinal, true, control, account)?;
@@ -2011,6 +2014,165 @@ mod tests {
             .unwrap();
         assert!(plan.has_pair_discovery());
         plan
+    }
+
+    #[test]
+    fn fresh_pair_publication_does_not_repeat_reserved_label_bytes() {
+        let mut observations = Vec::new();
+        for delayed in [false, true] {
+            for preparing in [false, true] {
+                for width in [16, 4096] {
+                    for (operator, return_bool, expected) in [
+                        (TokenKind::ADD, false, Some(1002.0f64)),
+                        (TokenKind::LSS, false, Some(1.0)),
+                        (TokenKind::GTR, false, None),
+                        (TokenKind::GTR, true, Some(0.0)),
+                        (TokenKind::LOR, false, Some(1.0)),
+                    ] {
+                        let engine = EngineAccounting::default();
+                        let account = engine.query();
+                        let control = Control::default();
+                        let matching = VectorMatching::default();
+                        let bytes = vec![b'x'; width];
+                        let mut plan = discovery_plan(1, &matching, &control, &account);
+                        // Both singleton signatures remain equal after this label replacement.
+                        for side in &mut plan.sides {
+                            side.rows[0].labels = labels(&bytes, &account);
+                            side.rows[0].hash =
+                                label_hash::full(&side.rows[0].labels, &control, &account).unwrap();
+                        }
+                        let mut cache = Cache::new(&account);
+                        if !operator.is_set() {
+                            let mut key = AccountedVec::new(&account, MemoryKind::Workspace);
+                            for side in &plan.sides {
+                                binary_labels::append(
+                                    &mut key,
+                                    &side.rows[0].labels,
+                                    None,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                            }
+                            Step::new(&plan, &matching, operator, return_bool, &account)
+                                .result_labels(
+                                    &mut cache,
+                                    key,
+                                    [&plan.sides[0].rows[0].labels, &plan.sides[1].rows[0].labels],
+                                    !delayed && return_bool,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                        }
+                        let cache = RefCell::new(if preparing {
+                            cache
+                        } else {
+                            plan.cache = cache;
+                            Cache::new(&account)
+                        });
+                        let preparation = preparing.then_some(Preparation {
+                            node: NodeId(0),
+                            cache: &cache,
+                        });
+                        let options = EvaluationOptions {
+                            delayed_name_removal: delayed,
+                            ..discovery_options()
+                        };
+                        let mut step = Step::new(&plan, &matching, operator, return_bool, &account);
+                        loop {
+                            match step
+                                .advance(NodeId(0), options, preparation, None, &control, &account)
+                                .unwrap()
+                            {
+                                Action::Child { side, .. } => {
+                                    step.receive(
+                                        discovery_sample(&plan, side, 0, &control, &account),
+                                        &control,
+                                        &account,
+                                    )
+                                    .unwrap();
+                                    if matches!(step.phase, Phase::WaitRight)
+                                        || operator.is_set()
+                                            && matches!(step.phase, Phase::WaitLeft)
+                                    {
+                                        break;
+                                    }
+                                }
+                                _ => panic!("fresh input discovery precedes publication"),
+                            }
+                        }
+                        let before = account.snapshot().work;
+                        let action = step
+                            .advance(NodeId(0), options, preparation, None, &control, &account)
+                            .unwrap();
+                        let work = account.snapshot().work - before;
+                        match (action, expected) {
+                            (Action::Sample(sample), Some(expected)) => {
+                                assert_eq!(sample.ordinal, 0);
+                                assert_eq!(sample.labels.0.len(), 1);
+                                assert_eq!(&*sample.labels.0[0].name, b"id");
+                                assert_eq!(&*sample.labels.0[0].value, bytes);
+                                assert!(
+                                    matches!(sample.value, OwnedValue::Float(value) if value.to_bits() == expected.to_bits())
+                                );
+                                assert_eq!(sample.drop_name, return_bool);
+                                assert_eq!(
+                                    (sample.source_time_ms, sample.source_start_time_ms),
+                                    (1000, 0)
+                                );
+                                assert_eq!(sample.float_samples.is_some(), !operator.is_set());
+                                if !operator.is_set() {
+                                    assert_eq!(step.seen.len(), 1);
+                                    assert!(step.active[0][0].reserved);
+                                }
+                                drop(sample);
+                                assert!(matches!(
+                                    step.advance(
+                                        NodeId(0),
+                                        options,
+                                        preparation,
+                                        None,
+                                        &control,
+                                        &account
+                                    )
+                                    .unwrap(),
+                                    Action::Done(None)
+                                ));
+                            }
+                            (Action::Done(None), None) => {
+                                assert!(step.seen.is_empty());
+                                assert!(step.active[0][0].reserved);
+                            }
+                            _ => panic!("complete fresh binary result"),
+                        }
+                        observations.push((delayed, preparing, width, operator, return_bool, work));
+                        drop(step);
+                        drop(cache);
+                        drop(plan);
+                        account.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+        eprintln!("complete fresh Pair publication observations: {observations:?}");
+        for &(delayed, preparing, width, operator, return_bool, work) in &observations {
+            if operator.is_set() || operator == TokenKind::GTR && !return_bool {
+                continue;
+            }
+            let filtered = observations
+                .iter()
+                .find(|row| {
+                    (row.0, row.1, row.2, row.3, row.4)
+                        == (delayed, preparing, width, TokenKind::GTR, false)
+                })
+                .unwrap()
+                .5;
+            assert!(
+                work <= filtered + 128,
+                "kept publication must not repeat reserved label bytes: {width}, {operator:?}, preparing={preparing}, delayed={delayed}, kept={work}, filtered={filtered}"
+            );
+        }
     }
 
     #[test]

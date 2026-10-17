@@ -32,7 +32,7 @@ int main(void) {
         assert(netdata_promql_engine_create(&options, &engine) == NETDATA_PROMQL_OK);
         netdata_promql_engine_observations_t idle = engine_observations(engine);
         for (unsigned expression = 0; expression < sizeof(expressions) / sizeof(expressions[0]); expression++) {
-            four_series_float_query_members(engine, FOUR_SERIES_RATE, expressions[expression], 1);
+            four_series_float_query_members(engine, FOUR_SERIES_RATE, expressions[expression], 1, 0);
             balanced(engine, &idle);
         }
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);

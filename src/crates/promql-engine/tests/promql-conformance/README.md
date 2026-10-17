@@ -4081,6 +4081,57 @@ source/controller/binary identities, actual C statistics, resource observations 
 captures stream gzip from the start and verify raw/compressed hashes after full EOF. Portable source controls
 are committed; full comparative captures remain local.
 
+### Fresh Pair result digests
+
+Fresh kept vector pairs reuse the successful full result-label hash computed before reservation. The local
+emission tuple carries all 64 bits to duplicate tracking, including zero. Result labels do not change between
+these phases. Initial field validation, reservation before false filtering, full-key cache equality and late
+seen/prefix/pending control checks remain authoritative. Set emission still hashes once. No cache or retained
+field is added.
+
+The source test `fresh_pair_publication_does_not_repeat_reserved_label_bytes` checks 40 complete value/label/time/ownership/phase cases before its work bound. It covers
+preparation and frozen labels, both name modes, arithmetic/kept/filtered/bool and Set. On unchanged runtime it
+fails only the intended long-label work assertion; with 4,096-byte labels, kept emission falls from 32,819 to 28,719 work
+units while the filtered and Set paths retain their counts.
+
+All 13,152 current original comparisons and 13,152 matched accepted-before pairs pass, including exact bits:
+1,644 cases across 38 datasets at pages 1/17/1024 in both native builds and page 17 on each emulated ARM target. Both native
+builds pass 775 units with two unchanged ignored tests; each ARM target passes 35 distinct focused units.
+All 8 tracked memory categories and every other serialized non-work observation remain equal. This stage
+reduces counted work in 8,656 paired rows; it does not reduce Workspace peak or establish process RSS.
+
+Actual default-library C qualification passes 1,344 paired records and 336 current C++ controls, plus both full
+current C programs. The stale output-identity test call now supplies `completed_group=0` to its existing helper.
+The failed compiler capture remains retained. Current controllers have 432 output, 168 owned-label and 72 histogram
+records per profile. Rust source/binaries retain their actual earlier compilation identity: the later correction
+is an external C test controller, not a Rust rebuild.
+
+The finite timing panel uses 56 cases per profile, 1/32 series, and 16/512-byte labels, both names, arithmetic/filter/bool
+and raw/Set controls. Five alternating pairs retain 25 measured samples per side/case;at least 5% slower primary medians
+receive fixed follow-ups. The report keeps every sample and slower median.
+
+| Execution timing case | Release current/before median | Release-min current/before median |
+| --- | --- | --- |
+| One series, 16-byte labels, m+n | 0.972 | 1.002 |
+| 32 series, 512-byte labels, m+n | 0.975 | 0.998 |
+| Same arithmetic, delayed names | 0.982 | 1.013 |
+| 32 series, filtered comparison | 1.019 | 1.042 |
+| 32 series, Set control | 0.997 | 1.006 |
+
+release: 13 slower primary medians, 0 follow-up groups; release-min: 31 slower primary medians, 2 follow-up groups. Follow-up observations remain separate from their primary samples.
+These are reported engine execution times, including preparation/evaluation/collection. Parsing/compilation,
+JSON conversion and compression are excluded; they are not end-to-end API latency or concurrent throughput.
+
+The initial 128-series timing preflight exceeded its declared 250 ms scaling gate, so no large primary batch ran.
+All 112 cold before/current outcomes remain exact and retained. Delayed-name generic replay still fetches 595,200
+entries from 768 input points; that separate performance opportunity is not fixed by digest reuse.
+
+Ten matched linked executables retain text/data/BSS/file costs. The measured 64-bit Step remains 688 bytes and
+ARM32 Step 504 bytes; all measured discovery/index layouts stay equal. No whole-query stack or live-Agent claim
+follows. The [fresh Pair qualification](fresh-pair-hash-qualification.json) binds actual sources, callers,
+complete comparisons, timing samples, failed attempts and cost evidence. The existing borrowed-binary workflow
+remains the qualification owner.
+
 ## Completed vector-sort publication
 
 `sort`, `sort_desc`, `sort_by_label` and `sort_by_label_desc` complete their existing sorting callbacks before

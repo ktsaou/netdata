@@ -1141,6 +1141,10 @@ integration, and Alertmanager remains excluded.
   name flags, hash-only duplicates and cardinality remain unchanged.
 - **Phases:** poll at the replaced Set copy and after successful frozen lookup. Missing-key errors retain their
   earlier phase. Hashing, reservation, values, diagnostics, seen tracking and successful replay credit stay intact.
+- **Fresh Pair digest:** reuse the first successful full 64-bit result hash after reservation. Labels remain
+  immutable until emission; false filtering still follows the original hash/reservation. Seen/prefix/pending
+  checks remain. Set hashes once, without moving any observable work or fallible phase. This is a local tuple
+  value, not a retained cache. See [fresh Pair result digests](README.md#fresh-pair-result-digests).
 - **Lifetime:** the frozen Plan outlives evaluated samples and Machine frames/re-entry. OrderedRows keeps its
   conditional canonical replacement; real mutation, retained descriptors and public output materialize independent
   checked/accounted ownership. Borrowing never reaches the mutable preparation RefCell.
