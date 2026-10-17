@@ -48,6 +48,74 @@ def _records(state="dense", groups=3, members=4):
     return output
 
 
+def empty_owner_cases():
+    """Globally empty owners beside productive singleton and later-range controls."""
+    from base64 import b64decode
+    from copy import deepcopy
+
+    ordinary = _records(groups=4, members=2)
+    later = deepcopy(ordinary)
+    for record in later:
+        labels = {b64decode(label["name"]): b64decode(label["value"])
+                  for label in record["labels"]}
+        if labels[b"__name__"] == b"m_total":
+            for point in record["points"]:
+                if point["time_ms"] < 2000:
+                    point["float"] = "7ff0000000000002"
+    queries = []
+    for operator in OPERATORS:
+        empty = f'{operator} by(cluster,zone)(m_total{{member="missing"}})'
+        selected = f"sum(topk(64,{empty}))"
+        ordinary_group = f"{operator} by(cluster,zone)(m_total)"
+        queries.extend((
+            selected,
+            f"absent({selected})",
+            f"quantile(.5,{operator} by(cluster)({empty}))",
+            f"topk(64,{empty}) or on(cluster,zone) sum by(cluster,zone)(n_total)",
+            f"vector(scalar({selected}))",
+            f"{empty} / on() group_left sum(n_total)",
+            f"sum(n_total) / on() group_right {empty}",
+            f"sum(topk(64,{ordinary_group}))",
+            f"sum(topk(64,{operator} by(cluster,zone)(rate(m_total[2s]))))",
+            f"{ordinary_group} / on() group_left sum(n_total)",
+            f"sum(n_total) / on() group_right {ordinary_group}",
+        ))
+    empty = 'sum by(cluster,zone)(m_total{member="missing"})'
+    queries.extend((
+        f"topk(NaN,{empty})",
+        f"bottomk(Inf,{empty})",
+        f"topk(scalar(sum(n_total)),{empty})",
+        f"quantile(NaN,{empty})",
+        'histogram_quantile(.5,sum by(le)(m_total{member="missing"}))',
+        "sum(topk(64,sum by(cluster,zone)(m_total @ 1)))",
+        "sum(topk(64,sum by(cluster,zone)(m_total offset 1s)))",
+        "sum_over_time((sum(topk(64,sum by(cluster,zone)(m_total))))[2s:1s] @ 3)",
+    ))
+    output = []
+    for shape, records in (("empty", []), ("ordinary", ordinary), ("later", later),
+                           ("singleton", _records(groups=1, members=2))):
+        declarations = [("server-default", index, expression) for index, expression in enumerate(queries)]
+        declarations.extend(("upstream-tests", len(queries) + index, expression) for index, expression in enumerate((
+            f"sum(limitk(64,{empty}))", f"sum(limit_ratio(1,{empty}))",
+            "sum(limitk(64,sum by(cluster,zone)(m_total)))",
+            "sum(limit_ratio(1,sum by(cluster,zone)(m_total)))",
+        )))
+        for profile, index, expression in declarations:
+            for delayed in (False, True):
+                for mode in ("instant", "equal", "range"):
+                    output.append({
+                        "request": {"id": f"empty-owner:{shape}:{profile}:{delayed}:{mode}:{index}",
+                            "query": expression, "profile": profile, "delayed_name_removal": delayed,
+                            "mode": "instant" if mode == "instant" else "range", "time_ms": 3000,
+                            "start_ms": 0 if mode == "range" else 3000, "end_ms": 3000, "step_ms": 1000,
+                            "lookback_ms": 1, "subquery_step_ms": 1000},
+                        "dataset": {"schema_version": 1, "series": deepcopy(records)}, "faults": {},
+                    })
+    if len(output) != len({case["request"]["id"] for case in output}):
+        raise ValueError("duplicate empty group owner input identity")
+    return output
+
+
 def cases():
     output = []
     for profile in ("server-default", "upstream-tests"):

@@ -7906,11 +7906,212 @@ mod tests {
                             drop((account, query));
                             engine.accounting.snapshot().assert_memory_released();
                             assert_eq!(
-                                found, expected,
+                                found,
+                                if groups == 0 { 0 } else { expected },
                                 "{expression} {request:?} {groups} {delayed}"
                             );
                         }
                     }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn empty_group_owners_keep_productive_singleton_joins_and_later_rows() {
+        fn late(index: usize) -> crate::value::Sample {
+            let tick = (index + 1) as f64;
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(if index < 2 {
+                    f64::from_bits(0x7ff0_0000_0000_0002)
+                } else {
+                    100.0 + tick * tick
+                }),
+            }
+        }
+        for window in [false, true] {
+            let m = if window {
+                "rate(m_total[2s])"
+            } else {
+                "m_total"
+            };
+            let n = if window {
+                "rate(n_total[2s])"
+            } else {
+                "n_total"
+            };
+            for reverse in [false, true] {
+                let expression = if reverse {
+                    format!("sum by(job)({n}) / on(job) group_right sum by(job,id)({m})")
+                } else {
+                    format!("sum by(job,id)({m}) / on(job) group_left sum by(job)({n})")
+                };
+                let expression = format!("abs({expression})");
+                for page in [1, 17, 1024] {
+                    for later in [false, true] {
+                        let mut growth = Vec::new();
+                        for groups in [2_usize, 4, 8, 16] {
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let mut provider = local_grouped_operand_provider(page, groups);
+                            if later {
+                                for row in &mut provider.series[..groups * 2] {
+                                    row.source.sample = late;
+                                }
+                            }
+                            let query = engine
+                                .compile(expression.as_bytes(), options(false), &control)
+                                .unwrap();
+                            let request = QueryRequest::Range {
+                                start_ms: 2000,
+                                end_ms: 4000,
+                                step_ms: 1000,
+                            };
+                            let (rows, _, pairs) = float_map_join_preparation_with_discovery(
+                                &query, &provider, request, &control,
+                            );
+                            assert_eq!((rows, pairs), (groups, 1));
+                            let fetched_before: usize = provider
+                                .series
+                                .iter()
+                                .map(|row| {
+                                    row.source.counters.samples_returned.load(Ordering::Relaxed)
+                                })
+                                .sum();
+                            let report = query.collect_reported(&provider, request, &control);
+                            let result = report.result.as_ref().unwrap();
+                            assert!(report.annotations.is_empty());
+                            assert_eq!(result.series.len(), groups);
+                            let first = if later { if window { 4 } else { 3 } } else { 2 };
+                            for (identity, row) in result.series.iter().enumerate() {
+                                assert_eq!(row.labels.0.len(), 2);
+                                assert_eq!(&*row.labels.0[0].name, b"id");
+                                assert_eq!(
+                                    &*row.labels.0[0].value,
+                                    format!("{identity:06}").as_bytes()
+                                );
+                                assert_eq!(
+                                    (&*row.labels.0[1].name, &*row.labels.0[1].value),
+                                    (&b"job"[..], &b"worker"[..])
+                                );
+                                assert_eq!(row.points.len(), 5 - first);
+                                for (offset, point) in row.points.iter().enumerate() {
+                                    let tick = (first + offset) as f64;
+                                    let scale = if later {
+                                        2.0
+                                    } else if identity.is_multiple_of(2) {
+                                        6.0
+                                    } else {
+                                        24.0
+                                    };
+                                    let left = scale
+                                        * if window {
+                                            2.0 * tick - 1.0
+                                        } else {
+                                            100.0 + tick * tick
+                                        };
+                                    let right = 4.0
+                                        * groups as f64
+                                        * if window { 1.0 } else { 100.0 + tick };
+                                    let expected =
+                                        if reverse { right / left } else { left / right };
+                                    assert_eq!(point.time_ms, (first + offset) as i64 * 1000);
+                                    assert_eq!(float_bits(point), expected.to_bits());
+                                }
+                            }
+                            assert_eq!(
+                                report.observations.output_samples,
+                                (groups * (5 - first)) as u64
+                            );
+                            let fetched: usize = provider
+                                .series
+                                .iter()
+                                .map(|row| {
+                                    assert!(row.source.counters.peak.load(Ordering::Relaxed) <= 1);
+                                    row.source.counters.samples_returned.load(Ordering::Relaxed)
+                                })
+                                .sum();
+                            assert_eq!(
+                                report.observations.samples_fetched,
+                                (fetched - fetched_before) as u64
+                            );
+                            println!(
+                                "empty-group-singleton window={window} reverse={reverse} page={page} later={later} groups={groups} work={} fetched={}",
+                                report.observations.work, report.observations.samples_fetched
+                            );
+                            growth.push((
+                                report.observations.work,
+                                report.observations.samples_fetched,
+                            ));
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                        // The singleton reduction may reread all its members for each selected row.
+                        assert!(growth[3].0 <= growth[1].0 * 32 && growth[3].1 <= growth[1].1 * 32);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn empty_group_owners_keep_opposite_input_and_parameter_failures() {
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for expression in [
+                    "sum by(job,id)(m_total{missing=\"yes\"}) / on(job) group_left sum by(job)(n_total)",
+                    "sum by(job)(n_total) / on(job) group_right sum by(job,id)(m_total{missing=\"yes\"})",
+                    "topk(scalar(sum(n_total)),sum by(job,id)(m_total{missing=\"yes\"}))",
+                    "topk(NaN,sum by(job,id)(m_total{missing=\"yes\"}) / on(job) group_left sum by(job)(n_total))",
+                ] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut provider = local_grouped_operand_provider(page, 4);
+                    provider.series[8].source.fail_acquisition = Some(1);
+                    let query = engine
+                        .compile(expression.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 2000,
+                            end_ms: 4000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    );
+                    assert!(
+                        matches!(&report.result, Err(ExecutionError::Evaluation(
+                        EvaluationError::Storage(StorageError::Provider(bytes))))
+                        if &**bytes == b"injected page failure"),
+                        "{expression}: {:?}",
+                        report.result
+                    );
+                    assert!(
+                        provider.series[..8].iter().all(|row| row
+                            .source
+                            .counters
+                            .opened
+                            .load(Ordering::Relaxed)
+                            == 0)
+                    );
+                    assert_eq!(
+                        provider.series[8]
+                            .source
+                            .counters
+                            .opened
+                            .load(Ordering::Relaxed),
+                        1
+                    );
+                    println!(
+                        "empty-group-required expression={expression:?} page={page} delayed={delayed} target=8 acquisition=1"
+                    );
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
                 }
             }
         }

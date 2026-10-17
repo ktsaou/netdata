@@ -1310,10 +1310,14 @@ impl Rosters {
             }
         }
         if let Some(replay) = replay {
-            self.nodes[node.0].group_replay = Some(AccountedBox::new(
-                replay.finish(groups.len(), control, account)?,
-                &AllocationContext::new(account, MemoryKind::Workspace),
-            ));
+            let plan = replay.finish(groups.len(), control, account)?;
+            // Empty unions cannot filter members or certify a productive join.
+            if !groups.is_empty() {
+                self.nodes[node.0].group_replay = Some(AccountedBox::new(
+                    plan,
+                    &AllocationContext::new(account, MemoryKind::Workspace),
+                ));
+            }
         }
         self.nodes[node.0].groups = Some(groups);
         Ok(())
@@ -1540,6 +1544,111 @@ mod tests {
     use super::*;
     use crate::accounting::EngineAccounting;
     use std::collections::VecDeque;
+
+    #[test]
+    fn empty_group_owners_keep_complete_results_and_finish_controls_without_heap_cost() {
+        let mut complete = 0;
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for expression in [
+                    "topk(1,sum by(id)(m))",
+                    "bottomk(1,sum by(id)(m))",
+                    "quantile(.5,sum by(id)(m))",
+                    "limitk(1,sum by(id)(m))",
+                    "limit_ratio(.5,sum by(id)(m))",
+                    "histogram_quantile(.5,sum by(le)(m))",
+                    "sum(topk(1,sum by(id)(m)))",
+                    "abs(sum by(id)(sum by(job,id)(m)))",
+                ] {
+                    for request in [
+                        crate::execution::QueryRequest::Instant { time_ms: 1000 },
+                        crate::execution::QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 1000,
+                            step_ms: 1000,
+                        },
+                        crate::execution::QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        },
+                    ] {
+                        let engine = crate::execution::Engine::default();
+                        let control = Control::default();
+                        let provider = crate::test_storage::FixtureProvider::new(1, page, 0);
+                        let mut options = crate::execution::EngineOptions {
+                            delayed_name_removal: delayed,
+                            ..crate::execution::EngineOptions::default()
+                        };
+                        options.parser.experimental_functions = expression.starts_with("limit");
+                        let query = engine
+                            .compile(expression.as_bytes(), options, &control)
+                            .unwrap();
+                        let report = query.collect_reported(&provider, request, &control);
+                        let result = report.result.as_ref().unwrap();
+                        assert!(result.series.is_empty() && result.scalar.is_none());
+                        assert!(report.annotations.is_empty());
+                        assert_eq!(report.observations.output_samples, 0);
+                        assert_eq!(report.observations.samples_fetched, 0);
+                        provider.assert_closed();
+                        drop((report, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                        complete += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(complete, 144);
+        println!("empty-group-complete results={complete}");
+        let mut acquired = Vec::new();
+        for (demanded, cancelled) in [(false, false), (true, false), (true, true)] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut rosters = Rosters::new(&account, 2, &control).unwrap();
+            rosters
+                .output(
+                    NodeId(0),
+                    AccountedVec::new(&account, MemoryKind::Workspace),
+                    &control,
+                    &account,
+                )
+                .unwrap();
+            let before = account.snapshot().memory[MemoryKind::Workspace as usize].acquired;
+            if cancelled {
+                control.cancellation.cancel();
+            }
+            let result = rosters.prepare_groups(
+                NodeId(1),
+                NodeId(0),
+                None,
+                false,
+                demanded.then_some(NodeId(0)),
+                &account,
+                &control,
+            );
+            if cancelled {
+                assert_eq!(result, Err(Interrupted::Cancelled));
+                assert!(rosters.groups(NodeId(1)).is_none());
+            } else {
+                result.unwrap();
+                assert!(rosters.groups(NodeId(1)).unwrap().is_empty());
+            }
+            let bytes = account.snapshot().memory[MemoryKind::Workspace as usize].acquired - before;
+            println!(
+                "empty-group-owner demanded={demanded} cancelled={cancelled} acquired={bytes}"
+            );
+            acquired.push(bytes);
+            drop(rosters);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+        assert_eq!(
+            acquired[1], acquired[0],
+            "an empty group must preserve control without allocating an unused replay owner"
+        );
+    }
 
     #[test]
     fn empty_grouping_observes_outer_metadata_work_and_cancellation() {

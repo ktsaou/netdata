@@ -5730,6 +5730,69 @@ and derived metadata/state may grow. No language feature is added or dropped. Ea
 live-Agent cohorts retain their own identities.
 
 
+## Empty group owners
+
+Globally empty ordinary-group unions keep their completed validation and cancellation checks without allocating
+an unused boxed contributor owner. Singleton and plural groups retain their existing provenance: a singleton
+side can certify productive nested `group_left`/`group_right` joins. This adds no language feature, value cache,
+proof traversal, storage change or public interface. All child, opposite-input and parameter evaluation remains.
+
+Run from the Cargo root:
+
+```sh
+cargo test --locked --features fixtures --release -- empty_group_owners_ --nocapture
+```
+
+Three focused tests cover complete empty outputs, retained singleton joins, initially stale/later-productive
+range unions, cancellation and actual opposite-input/parameter errors. Unchanged production completes 144 whole
+empty outcomes before the intended ownership assertion fails: empty demanded preparation acquires 280 Workspace
+bytes versus zero without demand. The candidate acquires zero in both cases and in the cancelled finish path.
+Removing only the new roster test reproduces the entire signed parent file. Both native profiles pass 763 units
+with two unchanged ignored; the completed Rust suites/static gates retain their actual `candidate2` identities
+across later C-assertion-only corrections. Each QEMU target passes 14 focused tests and 20,118 page-17 outcomes.
+
+`group_contributor_cases.empty_owner_cases()` adds 2,400 pinned-Go originals across four datasets. Use it as
+`inputs` with the existing `cursor_calls.capture`/`qualify` APIs. Cases include eight ordinary operators, productive
+empty-result adapters, opposite-side joins, raw/rate/nested/fallback and fixed/offset/subquery paths, dynamic or
+invalid parameters, separate profiles/names and instant/equal/range requests. Its 54 actual execution errors are
+30 NaN parameters and 24 integer overflows; parse acceptance does not count as execution coverage.
+
+All 160,944 current outcomes qualify. Native before/current results match exactly in 120,708 comparisons:
+106,308 authenticated accepted captures and 14,400 fresh baseline queries. Portable exact comparisons reuse
+terminal captures for another 140,826 pairs. Inherited raw original failures remain 360 current and 270 native
+before, separately from their existing deterministic-order policies. The new corpus needs no policy exception;
+paired and portable bits match, while original continuous numerics retain upstream's test tolerance.
+
+Actual default C archives pass 546 cases per side across profiles. New zero-selected-series collect/stream,
+begin/commit/selection-error and pre-cancelled controls contribute 210; existing owned-label controls contribute
+336. All 402 overlapping statistic triples match exactly. Raw/queryable/read counts stay zero for new cases;
+scalar parameters can still hold logical sample units, so error-phase logical peaks are measured rather than
+assumed zero. Both C modes preserve complete output, retained/source-wiped/query-released ownership and cleanup.
+Use the existing caller's `--empty-groups-only` and `--owned-labels-only` modes. Productive singleton Pair admission
+is qualified in Engine fixtures; these zero-input C controls make no C throughput claim.
+
+Among 120,708 paired native outcomes, 16,020 lower Workspace peak and 16,308 lower allocation traffic. No fixture
+row increases any of the eight accounted memory categories. Raw reads and cancellation-reference traffic remain
+unchanged. These are accounted bytes, not RSS or a total-query bound; raw histories remain paged across both axes.
+
+Five alternating serial pairs/profile execute 11,200 primary queries, with 8,400 measured outcomes across 140
+cases/profile. The 104 retained controls are joined by 36 empty-depth cases across six consumers and both names.
+Representative ordinary-name medians are microseconds:
+
+| Consumer and body | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| topk, 16 empty groups | 107.349 → 90.039 | 157.988 → 134.099 |
+| quantile, 16 empty groups | 106.509 → 89.090 | 156.579 → 128.889 |
+| histogram_quantile, 16 empty groups | 118.319 → 97.899 | 171.108 → 146.319 |
+
+All 99 slower primary medians remain in the evidence. Every median
+at least 5% slower receives a fixed five-pair follow-up, totaling 240 queries, without replacing
+the primary samples. Six unique linked pairs include both native C programs; two caller modes reuse each exact
+binary and do not count as extra linked programs. Shared-host fixture timing does not establish live API,
+concurrent, default-C-library or physical ARM speed. Initial test/C calibration failures remain separately bound.
+See the [empty-owner qualification](empty-group-owner-qualification.json) for all samples, raw failures, exact
+source/binary attribution and linked costs.
+
 ## Selection group contributors
 
 `topk`, `bottomk`, `limitk` and `limit_ratio` now demand the same existing grouped-child contributor metadata as

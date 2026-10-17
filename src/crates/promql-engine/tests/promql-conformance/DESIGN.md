@@ -1601,3 +1601,18 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
   The finite panel includes reduced peaks, all positive costs, slower follow-ups and linked-size changes; no universal
   speed or total-memory bound follows. The actual C shape checks one inner group; plural activation belongs to
   Engine fixtures. See the [procedure and evidence](README.md#selection-group-contributors).
+
+## Empty group owners
+
+- **Choice:** finish empty contributor construction and final control, then omit its unused boxed owner. A full
+  globally empty group union cannot filter members or certify a productive Pair; keep ordinary All evaluation.
+- **Retained:** singleton/plural static selector provenance and exact clocks, full range unions, child/parameter/
+  opposite-input errors, diagnostics and cleanup. Singleton proof remains necessary for productive nested joins.
+- **Boundary:** no inline marker, new field/type/cache, proof traversal, provider/storage/public/numerical change
+  or implicit cap. Initially empty but later productive group unions keep their owner.
+- **Evidence:** whole empty outcomes precede the old 280-byte ownership failure. Productive raw/rate singleton
+  joins, later rows and real required-input faults qualify. Fresh originals need no new order policy; inherited
+  raw failures remain separate. Rust gate reuse across C-only assertion calibration keeps actual source identity.
+- **Trade-off:** nonempty construction pays an emptiness check; retain all normal/fallback/slower and linked
+  costs. Accounted memory and fixture timings do not prove RSS bounds or universal speed. See the existing
+  [procedure and finite evidence](README.md#empty-group-owners).
