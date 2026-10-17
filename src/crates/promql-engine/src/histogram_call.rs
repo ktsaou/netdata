@@ -277,7 +277,7 @@ impl Plan {
     }
     fn row(
         &self,
-        sample: &EvaluatedSample,
+        sample: &EvaluatedSample<'_>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<usize, EvaluationError> {
@@ -387,7 +387,7 @@ pub(crate) enum Action<'a> {
         argument: usize,
         ordinal: Option<&'a usize>,
     },
-    Sample(EvaluatedSample),
+    Sample(EvaluatedSample<'a>),
     Done(Option<AnnotationBuilder>),
 }
 pub(crate) struct Step<'a> {
@@ -452,7 +452,7 @@ impl<'a> Step<'a> {
     }
     pub(crate) fn receive(
         &mut self,
-        sample: EvaluatedSample,
+        sample: EvaluatedSample<'_>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
@@ -951,7 +951,7 @@ impl<'a> Step<'a> {
         preparation: Option<Preparation<'a>>,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<EvaluatedSample, EvaluationError> {
+    ) -> Result<EvaluatedSample<'a>, EvaluationError> {
         let key = self.choice.expect("chosen histogram");
         // Delayed instant parents may consume repeated labels before final cleanup.
         let occurrence = self.occurrence(control, account)?;
@@ -1035,7 +1035,7 @@ impl<'a> Step<'a> {
         self.phase = Phase::Choose;
         Ok(EvaluatedSample {
             ordinal,
-            labels,
+            labels: labels.into(),
             float_samples: Some(
                 samples.unwrap_or_else(|| crate::statistics::OwnedSamples::new(account, 1)),
             ),

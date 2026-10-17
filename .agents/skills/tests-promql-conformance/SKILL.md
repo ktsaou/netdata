@@ -118,6 +118,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Borrowed aggregate lookup MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-aggregate-lookup-labels` for selected-byte
   identity, zero/empty digests, reached diagnostic borrowing, ownership, controls and complete operator comparisons.
+- Borrowed aggregate results MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-aggregate-result-labels` for frozen lifetimes,
+  normalization, real/no-op mutation, retained ownership, interruption and actual layout/resource comparisons.
 - Completed sort publication MUST preserve callback/error phases, hash-only duplicates, eligible input kinds,
   delayed-name gates and snapshot lifecycle. Check lookup growth and terminal interruption, actual child acquisition
   phases and temporary allocation costs; see the same guide's completed vector-sort publication section.

@@ -71057,5 +71057,20 @@
     "primary_timing_groups": 64,
     "followup_outcomes": 132,
     "limits": "Finite comparison, allocation traffic distinct from peaks, all costs/slower cases retained; no new public or language contract."
+  },
+  "borrowed_aggregate_result_labels": {
+    "report": "aggregate-result-labels-qualification.json",
+    "scope": "Borrow frozen ordinary aggregate-result labels through private evaluated samples, materializing only for real mutation or retained ownership. No public/provider/storage/numerical/ordering/limit/language contract change. Finite source-bound complete-result/resource/layout/timing evidence.",
+    "complete_current_outcomes": 9498,
+    "native_units_per_profile": 744,
+    "unchanged_ignored_per_profile": 2,
+    "actual_default_C_queries": 336,
+    "reducer_complete_comparisons": 56124,
+    "strict_original_failures_retained": 216,
+    "actual_existing_layout_pairs_unchanged": 57,
+    "primary_timing_outcomes": 1280,
+    "primary_timing_groups": 64,
+    "followup_outcomes": 88,
+    "limits": "Finite comparison; allocation traffic distinct from peaks; all linked/layout/timing costs retained. No new public or language contract."
   }
 }

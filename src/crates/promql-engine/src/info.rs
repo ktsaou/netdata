@@ -328,7 +328,7 @@ impl Plan {
     }
     fn row(
         &self,
-        sample: &EvaluatedSample,
+        sample: &EvaluatedSample<'_>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<usize, EvaluationError> {
@@ -485,7 +485,7 @@ enum Phase {
 }
 pub(crate) enum Action<'a> {
     Child(Option<&'a usize>),
-    Sample(EvaluatedSample),
+    Sample(EvaluatedSample<'a>),
     Done,
 }
 pub(crate) struct Step<'a> {
@@ -497,7 +497,7 @@ pub(crate) struct Step<'a> {
     seen: AccountedVec<u64>,
     duplicate: bool,
     position: usize,
-    pending: Option<EvaluatedSample>,
+    pending: Option<EvaluatedSample<'a>>,
 }
 impl<'a> Step<'a> {
     pub(crate) fn new(plan: &'a Plan, account: &QueryAccounting) -> Self {
@@ -515,7 +515,7 @@ impl<'a> Step<'a> {
     }
     pub(crate) fn receive(
         &mut self,
-        sample: EvaluatedSample,
+        sample: EvaluatedSample<'a>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
@@ -680,21 +680,19 @@ impl<'a> Step<'a> {
                             ordinal
                         };
                         sample.ordinal = ordinal;
-                        sample.labels = cache.bindings[ordinal].labels.copy_checked(
-                            account,
-                            MemoryKind::Workspace,
-                            control,
-                        )?;
+                        sample.labels = cache.bindings[ordinal]
+                            .labels
+                            .copy_checked(account, MemoryKind::Workspace, control)?
+                            .into();
                         sample.drop_name = cache.bindings[ordinal].drop_name;
                     } else {
                         let ordinal = binding(&self.plan.bindings, hash, control, account)?
                             .ok_or(EvaluationError::Invalid("INFO output binding is missing"))?;
                         sample.ordinal = ordinal;
-                        sample.labels = self.plan.bindings[ordinal].labels.copy_checked(
-                            account,
-                            MemoryKind::Workspace,
-                            control,
-                        )?;
+                        sample.labels = self.plan.bindings[ordinal]
+                            .labels
+                            .copy_checked(account, MemoryKind::Workspace, control)?
+                            .into();
                         sample.drop_name = self.plan.bindings[ordinal].drop_name;
                     }
                     sample.source_time_ms = options.time_ms;

@@ -929,7 +929,7 @@ impl CompiledQuery {
             while let Some(mut sample) = machine.next()? {
                 control.check().map_err(EvaluationError::from)?;
                 if sample.drop_name && self.options.delayed_name_removal {
-                    drop_reserved(&mut sample.labels, false, account, control)?;
+                    sample.labels.drop_reserved(false, account, control)?;
                 }
                 if self.options.delayed_name_removal
                     && cleanup_guard.checks(
@@ -2965,7 +2965,7 @@ impl CompiledQuery {
                                 drop_name: sample.drop_name,
                                 first_order: 0,
                                 sources: 0..0,
-                                labels: sample.labels,
+                                labels: sample.labels.into_owned(account, control)?,
                                 kinds: 1,
                                 heads: HeadSummary::default(),
                             });
@@ -3221,7 +3221,7 @@ impl CompiledQuery {
     fn record_descriptor(
         &self,
         node: NodeId,
-        point: (crate::evaluator::EvaluatedSample, u64),
+        point: (crate::evaluator::EvaluatedSample<'_>, u64),
         state: (&mut AccountedVec<Descriptor>, &mut DescriptorIndex),
         metadata: (&Prepared<'_>, &Rosters),
         control: &Control,
@@ -3268,7 +3268,7 @@ impl CompiledQuery {
             drop_name: sample.drop_name,
             first_order: position,
             sources: 0..0,
-            labels: sample.labels,
+            labels: sample.labels.into_owned(account, control)?,
             kinds: kind,
             heads,
         });
@@ -3824,7 +3824,7 @@ impl CompiledQuery {
                 )
             });
             let mut traversal = crate::query_scopes::Traversal::new(grid, clock.shortcut);
-            let mut emit = |time_ms, sample: &crate::evaluator::EvaluatedSample| {
+            let mut emit = |time_ms, sample: &crate::evaluator::EvaluatedSample<'_>| {
                 sink.chunk_checked(
                     OutputChunk::Series {
                         series_id: position,
@@ -16428,6 +16428,212 @@ mod tests {
             series.source.counters = Default::default();
         }
         provider
+    }
+
+    #[test]
+    fn aggregate_label_borrows_outlive_machines_and_materialize_at_descriptor_boundaries() {
+        use crate::{evaluator::EvaluatedSample, sample_labels::SampleLabels};
+
+        for delayed in [false, true] {
+            for page in [1, 17] {
+                let (collected, retained) = {
+                    let input = mapped_group_provider(page, 2);
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            b"abs(sum by(instance)(counter_total))",
+                            options(delayed),
+                            &control,
+                        )
+                        .unwrap();
+                    let request = QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 2000,
+                        step_ms: 1000,
+                    };
+                    let account = query.execution_accounting();
+                    {
+                        let header = query.header(request).unwrap();
+                        let prepared = Prepared::new(
+                            &query.expression,
+                            &query.preprocessing,
+                            header,
+                            query.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let header = prepared.evaluator_header();
+                        prepared.activate(header, &control, &account).unwrap();
+                        let options = query.evaluation_options(header, header.start_ms, &prepared);
+                        let bounds = crate::query_bounds::find(
+                            &query.expression,
+                            options,
+                            &prepared,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let scope = input.open(bounds, &control).unwrap();
+                        let catalog = Catalog::new(
+                            &scope,
+                            &query.expression,
+                            &prepared,
+                            options,
+                            query.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let rosters = query
+                            .prepare_rosters(
+                                &catalog,
+                                &prepared,
+                                bounds,
+                                &control,
+                                &account,
+                                &mut Annotations::default(),
+                            )
+                            .unwrap();
+                        let mut machine = Machine::new(
+                            &catalog,
+                            &query.expression,
+                            query.expression.root,
+                            options,
+                            &control,
+                            &account,
+                            EvaluationMetadata {
+                                prepared: &prepared,
+                                rosters: &rosters,
+                                timestamp_selectors: &query.timestamp_selectors,
+                                data_bounds: bounds,
+                                annotations: None,
+                                binary_preparation: None,
+                                histogram_preparation: None,
+                                info_preparation: None,
+                                count_preparation: None,
+                            },
+                        );
+                        let first = machine.next().unwrap().unwrap();
+                        let second = machine.next().unwrap().unwrap();
+                        assert!(machine.next().unwrap().is_none());
+                        drop(machine);
+                        assert!(matches!(first.labels, SampleLabels::Borrowed(_)));
+                        assert!(matches!(second.labels, SampleLabels::Borrowed(_)));
+                        assert_eq!(first.labels.0.len(), 1);
+                        assert_eq!(first.labels.0[0].name.as_ref(), b"instance");
+                        assert_ne!(first.labels.0[0].value, second.labels.0[0].value);
+
+                        let hash =
+                            crate::label_hash::full(&first.labels, &control, &account).unwrap();
+                        let make_sample = || EvaluatedSample {
+                            ordinal: first.ordinal,
+                            labels: SampleLabels::Borrowed(first.labels.as_ref()),
+                            value: OwnedValue::Float(1.0),
+                            float_samples: None,
+                            source_time_ms: first.source_time_ms,
+                            source_start_time_ms: 0,
+                            drop_name: first.drop_name,
+                        };
+                        let record = |descriptors: &mut AccountedVec<Descriptor>,
+                                      index: &mut DescriptorIndex,
+                                      control: &Control| {
+                            query.record_descriptor(
+                                query.expression.root,
+                                (make_sample(), hash),
+                                (descriptors, index),
+                                (&prepared, &rosters),
+                                control,
+                                &account,
+                            )
+                        };
+                        let mut descriptors = AccountedVec::new(&account, MemoryKind::Workspace);
+                        let mut index = DescriptorIndex::new(&account);
+                        let before = account.snapshot().work;
+                        assert_eq!(record(&mut descriptors, &mut index, &control).unwrap(), 0);
+                        let conversion_work = account.snapshot().work - before;
+                        assert!(conversion_work > 0);
+                        assert_eq!(descriptors.len(), 1);
+                        assert!(descriptors[0].labels.same(&first.labels));
+                        assert_ne!(descriptors[0].labels.0.as_ptr(), first.labels.0.as_ptr());
+                        let before = account.snapshot().memory;
+                        assert_eq!(record(&mut descriptors, &mut index, &control).unwrap(), 0);
+                        assert_eq!(
+                            account.snapshot().memory,
+                            before,
+                            "existing descriptor must not copy labels"
+                        );
+                        drop((descriptors, index));
+
+                        let before = account.snapshot().memory;
+                        let mut descriptors = AccountedVec::new(&account, MemoryKind::Workspace);
+                        let mut index = DescriptorIndex::new(&account);
+                        let cancelled = Control::default();
+                        let error = crate::test_storage::interrupt_after_work(
+                            &account,
+                            &cancelled,
+                            conversion_work,
+                            || record(&mut descriptors, &mut index, &cancelled),
+                        )
+                        .unwrap_err();
+                        assert_eq!(error, EvaluationError::Interrupted(Interrupted::Cancelled));
+                        assert!(descriptors.is_empty());
+                        // The provisional index exists before conversion; failure discards the whole local owner.
+                        let probe = account.snapshot().work;
+                        assert!(
+                            index
+                                .find(
+                                    first.ordinal + 1,
+                                    &first.labels,
+                                    &descriptors,
+                                    &control,
+                                    &account
+                                )
+                                .unwrap()
+                                .is_none()
+                        );
+                        assert!(account.snapshot().work > probe);
+                        drop((descriptors, index));
+                        assert!(
+                            account
+                                .snapshot()
+                                .memory
+                                .iter()
+                                .zip(before)
+                                .all(|(now, old)| now.current == old.current)
+                        );
+                        let mut descriptors = AccountedVec::new(&account, MemoryKind::Workspace);
+                        let mut index = DescriptorIndex::new(&account);
+                        assert_eq!(record(&mut descriptors, &mut index, &control).unwrap(), 0);
+                        assert!(descriptors[0].labels.same(&first.labels));
+                    }
+                    input.assert_closed();
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    let (result, _) = query.collect(&input, request, &control).unwrap();
+                    input.assert_closed();
+                    (result, engine.accounting.clone())
+                };
+                assert_eq!(collected.series.len(), 2);
+                for (group, row) in collected.series.iter().enumerate() {
+                    assert_eq!(
+                        row.labels.0[0].value.as_ref(),
+                        format!("g{group:04}").as_bytes()
+                    );
+                    assert_eq!(row.points.len(), 2);
+                    for (tick, point) in row.points.iter().enumerate() {
+                        assert_eq!(point.time_ms, (tick as i64 + 1) * 1000);
+                        assert_eq!(
+                            float_bits(point),
+                            (2.0 * (group + 1) as f64 * (tick + 1) as f64).to_bits()
+                        );
+                    }
+                }
+                drop(collected);
+                retained.snapshot().assert_memory_released();
+            }
+        }
     }
 
     #[test]

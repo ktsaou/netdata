@@ -133,17 +133,17 @@ impl Scan {
     }
 }
 
-pub(crate) enum Action {
+pub(crate) enum Action<'a> {
     Child {
         ordinal: usize,
         options: EvaluationOptions,
         step_index: i64,
     },
-    Sample(EvaluatedSample),
+    Sample(EvaluatedSample<'a>),
     Done,
 }
 
-struct Heads {
+struct Heads<'a> {
     clock: Clock,
     row: Row,
     options: EvaluationOptions,
@@ -153,9 +153,9 @@ struct Heads {
     value_origin: Option<Origin>,
     value_waiting: bool,
     value_seen: u64,
-    emitted: Option<EvaluatedSample>,
+    emitted: Option<EvaluatedSample<'a>>,
 }
-impl Heads {
+impl<'a> Heads<'a> {
     fn new(clock: Clock, row: Row, options: EvaluationOptions) -> Self {
         Self {
             clock,
@@ -170,7 +170,7 @@ impl Heads {
             emitted: None,
         }
     }
-    fn child(&self, time_ms: i64, step_index: i64) -> Action {
+    fn child(&self, time_ms: i64, step_index: i64) -> Action<'a> {
         let grid = self.clock.grid;
         Action::Child {
             ordinal: self.row.ordinal,
@@ -184,7 +184,7 @@ impl Heads {
             step_index,
         }
     }
-    fn receive(&mut self, sample: EvaluatedSample) -> bool {
+    fn receive(&mut self, sample: EvaluatedSample<'a>) -> bool {
         if let Some(scan) = &mut self.scan {
             return scan.receive(sample.value.kind_bit());
         }
@@ -203,7 +203,7 @@ impl Heads {
         &mut self,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<Option<Action>, EvaluationError> {
+    ) -> Result<Option<Action<'a>>, EvaluationError> {
         loop {
             control.check()?;
             account.work(1);
@@ -260,7 +260,7 @@ pub(crate) struct Step<'a> {
     filter: RowFilter<'a>,
     position: usize,
     consumer: Traversal,
-    heads: Option<Heads>,
+    heads: Option<Heads<'a>>,
 }
 impl<'a> Step<'a> {
     pub(crate) fn new(
@@ -289,7 +289,7 @@ impl<'a> Step<'a> {
             false,
         )
     }
-    pub(crate) fn receive(&mut self, sample: EvaluatedSample) -> bool {
+    pub(crate) fn receive(&mut self, sample: EvaluatedSample<'a>) -> bool {
         self.heads
             .as_mut()
             .expect("requested matrix row")
@@ -299,7 +299,7 @@ impl<'a> Step<'a> {
         &mut self,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<Action, EvaluationError> {
+    ) -> Result<Action<'a>, EvaluationError> {
         loop {
             control.check()?;
             account.work(1);
@@ -349,12 +349,12 @@ impl<'a> Step<'a> {
     }
 }
 
-pub(crate) struct SeriesIterator {
-    heads: Heads,
+pub(crate) struct SeriesIterator<'a> {
+    heads: Heads<'a>,
     current_lane: Option<usize>,
     advance_current: bool,
 }
-impl SeriesIterator {
+impl<'a> SeriesIterator<'a> {
     pub(crate) fn new(clock: Clock, row: Row, options: EvaluationOptions) -> Self {
         Self {
             heads: Heads::new(clock, row, options),
@@ -362,14 +362,14 @@ impl SeriesIterator {
             advance_current: false,
         }
     }
-    pub(crate) fn receive(&mut self, sample: EvaluatedSample) -> bool {
+    pub(crate) fn receive(&mut self, sample: EvaluatedSample<'a>) -> bool {
         self.heads.receive(sample)
     }
     pub(crate) fn advance(
         &mut self,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<Action, EvaluationError> {
+    ) -> Result<Action<'a>, EvaluationError> {
         loop {
             control.check()?;
             account.work(1);

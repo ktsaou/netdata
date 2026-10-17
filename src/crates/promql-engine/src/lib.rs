@@ -98,6 +98,7 @@ mod range_quantile_rank;
 mod range_rates;
 mod range_reduce;
 pub mod result;
+mod sample_labels;
 mod scheduled_expression;
 mod shared;
 pub mod statistics;

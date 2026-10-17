@@ -276,7 +276,7 @@ pub(crate) enum Action<'a> {
         options: EvaluationOptions,
     },
     Series {
-        sample: Option<EvaluatedSample>,
+        sample: Option<EvaluatedSample<'a>>,
         invalid_quantile: Option<f64>,
         annotations: [Option<AnnotationKind>; 6],
         metric: &'a [u8],
@@ -372,7 +372,7 @@ impl<'a> Step<'a> {
 
     pub(crate) fn receive(
         &mut self,
-        sample: EvaluatedSample,
+        sample: EvaluatedSample<'_>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<bool, Interrupted> {
@@ -468,7 +468,7 @@ impl<'a> Step<'a> {
             }
             Some(EvaluatedSample {
                 ordinal: row.ordinal,
-                labels,
+                labels: labels.into(),
                 float_samples: output.float_samples,
                 value,
                 source_time_ms: self.input.options.time_ms,

@@ -19,6 +19,7 @@ use crate::{
     range_rates::{self, RateFunction},
     range_reduce::{FoldKind, FoldOptions, RangeFunction, fold},
     result::{OwnedLabels, OwnedValue},
+    sample_labels::SampleLabels,
     storage::{
         Control, InitialSample, Interrupted, QueryProvider, Series, StorageError, TimeBounds,
         label, matches_checked, validate_labels_checked,
@@ -318,16 +319,16 @@ pub struct EvaluationOptions {
 }
 
 #[derive(Debug)]
-pub(crate) struct EvaluatedSample {
+pub(crate) struct EvaluatedSample<'a> {
     pub ordinal: usize,
-    pub labels: OwnedLabels,
+    pub labels: SampleLabels<'a>,
     pub value: OwnedValue,
     pub(crate) float_samples: Option<crate::statistics::OwnedSamples>,
     pub source_time_ms: i64,
     pub source_start_time_ms: i64,
     pub drop_name: bool,
 }
-impl EvaluatedSample {
+impl EvaluatedSample<'_> {
     pub(crate) fn into_parts(self) -> crate::statistics::ValueParts {
         crate::statistics::ValueParts {
             value: self.value,
@@ -410,7 +411,7 @@ impl PointwiseFunction {
     }
     fn apply(
         self,
-        sample: &EvaluatedSample,
+        sample: &EvaluatedSample<'_>,
         account: &QueryAccounting,
         control: &Control,
     ) -> Result<Option<f64>, EvaluationError> {
@@ -1136,7 +1137,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         series: &S,
         grid: crate::query_scopes::Grid,
         mut annotations: Option<&'b mut AnnotationBuilder>,
-        mut visit: impl FnMut(i64, i64, Option<EvaluatedSample>) -> Result<bool, E>,
+        mut visit: impl FnMut(i64, i64, Option<EvaluatedSample<'b>>) -> Result<bool, E>,
     ) -> Result<u64, E> {
         let header = grid.header(self.prepared.header);
         let mut leaf = self.replay(
@@ -1331,7 +1332,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             last_diagnostic: None,
         }
     }
-    fn sample(&self, value: f64) -> EvaluatedSample {
+    fn sample(&self, value: f64) -> EvaluatedSample<'a> {
         self.sample_owned(
             value,
             Some(crate::statistics::OwnedSamples::new(self.account, 1)),
@@ -1341,10 +1342,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         &self,
         value: f64,
         float_samples: Option<crate::statistics::OwnedSamples>,
-    ) -> EvaluatedSample {
+    ) -> EvaluatedSample<'a> {
         EvaluatedSample {
             ordinal: 0,
-            labels: OwnedLabels::new(self.account, MemoryKind::Workspace),
+            labels: OwnedLabels::new(self.account, MemoryKind::Workspace).into(),
             float_samples,
             value: OwnedValue::Float(value),
             source_time_ms: self.options.time_ms,
@@ -1352,7 +1353,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             drop_name: false,
         }
     }
-    fn rebind(mut sample: EvaluatedSample, boundary_time_ms: Option<i64>) -> EvaluatedSample {
+    fn rebind(
+        mut sample: EvaluatedSample<'a>,
+        boundary_time_ms: Option<i64>,
+    ) -> EvaluatedSample<'a> {
         if let Some(time_ms) = boundary_time_ms {
             sample.source_time_ms = time_ms;
             sample.source_start_time_ms = 0;
@@ -2056,7 +2060,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         series_ordinal: usize,
         series: &S,
         initial: Option<&InitialSample>,
-    ) -> Result<Option<EvaluatedSample>, EvaluationError> {
+    ) -> Result<Option<EvaluatedSample<'a>>, EvaluationError> {
         self.control.check()?;
         self.account.work(1);
         self.prepared.activate(
@@ -2082,7 +2086,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         series_ordinal: usize,
         series: &S,
         initial: Option<&InitialSample>,
-    ) -> Result<Option<EvaluatedSample>, EvaluationError> {
+    ) -> Result<Option<EvaluatedSample<'a>>, EvaluationError> {
         let series_labels = series.label_views_checked(self.account, self.control)?;
         validate_labels_checked(&series_labels, self.account, self.control)?;
         let selector = self.selector(selector_node);
@@ -2558,7 +2562,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         series_ordinal: usize,
         series_labels: &[crate::storage::LabelRef<'_>],
         value: Option<(i64, i64, crate::statistics::ValueParts)>,
-    ) -> Result<Option<EvaluatedSample>, EvaluationError> {
+    ) -> Result<Option<EvaluatedSample<'a>>, EvaluationError> {
         value
             .map(|value| {
                 let labels = OwnedLabels::copy_from_checked(
@@ -2584,7 +2588,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         series_ordinal: usize,
         mut labels: OwnedLabels,
         value: (i64, i64, crate::statistics::ValueParts),
-    ) -> Result<EvaluatedSample, EvaluationError> {
+    ) -> Result<EvaluatedSample<'a>, EvaluationError> {
         let (source_time_ms, source_start_time_ms, value) = value;
         let (source_time_ms, source_start_time_ms) =
             if matches!(operation, SelectorOperation::Instant)
@@ -2604,7 +2608,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         } = value;
         Ok(EvaluatedSample {
             ordinal: series_ordinal,
-            labels,
+            labels: labels.into(),
             float_samples,
             value,
             source_time_ms,
@@ -2613,7 +2617,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         })
     }
 
-    fn enter(&mut self, index: usize) -> Result<Option<EvaluatedSample>, EvaluationError> {
+    fn enter(&mut self, index: usize) -> Result<Option<EvaluatedSample<'a>>, EvaluationError> {
         let node = self.frames[index].node;
         if self
             .prepared
@@ -3194,9 +3198,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
 
     fn propagate(
         &mut self,
-        mut sample: EvaluatedSample,
+        mut sample: EvaluatedSample<'a>,
         origin: usize,
-    ) -> Result<Option<EvaluatedSample>, EvaluationError> {
+    ) -> Result<Option<EvaluatedSample<'a>>, EvaluationError> {
         for index in (0..origin).rev() {
             self.control.check()?;
             self.account.work(1);
@@ -3257,11 +3261,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                 "label projection source is missing",
                             ))?;
                     let descriptor = &descriptors[position];
-                    sample.labels = descriptor.labels.copy_checked(
-                        self.account,
-                        MemoryKind::Workspace,
-                        self.control,
-                    )?;
+                    sample.labels = descriptor
+                        .labels
+                        .copy_checked(self.account, MemoryKind::Workspace, self.control)?
+                        .into();
                     sample.drop_name = descriptor.drop_name;
                     sample.source_time_ms = self.options.time_ms;
                     sample.source_start_time_ms = 0;
@@ -3296,11 +3299,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.control,
                         self.account,
                     )? {
-                        sample.labels = descriptor.labels.copy_checked(
-                            self.account,
-                            MemoryKind::Workspace,
-                            self.control,
-                        )?;
+                        sample.labels = descriptor
+                            .labels
+                            .copy_checked(self.account, MemoryKind::Workspace, self.control)?
+                            .into();
                     }
                     if matches!(mode, OutputMode::Vector) && !*streaming {
                         *position += 1;
@@ -3392,7 +3394,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     if drop_name && !self.options.delayed_name_removal {
                         let name_only = matches!(operation,
                             MapOperation::Pointwise(function) if !function.drops_metadata());
-                        drop_reserved(&mut sample.labels, name_only, self.account, self.control)?;
+                        sample
+                            .labels
+                            .drop_reserved(name_only, self.account, self.control)?;
                     }
                     sample.source_time_ms = self.options.time_ms;
                     sample.source_start_time_ms = 0;
@@ -3572,7 +3576,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         Ok(Some(sample))
     }
 
-    pub(crate) fn next(&mut self) -> Result<Option<EvaluatedSample>, EvaluationError> {
+    pub(crate) fn next(&mut self) -> Result<Option<EvaluatedSample<'a>>, EvaluationError> {
         let _inner_phase = self.account.phase(crate::statistics::Phase::Inner);
         loop {
             self.control.check()?;
@@ -4349,7 +4353,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         labels: std::mem::replace(
                             labels,
                             OwnedLabels::new(self.account, MemoryKind::Workspace),
-                        ),
+                        )
+                        .into(),
                         float_samples: Some(crate::statistics::OwnedSamples::new(self.account, 1)),
                         value: OwnedValue::Float(1.0),
                         source_time_ms: self.options.time_ms,

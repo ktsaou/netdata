@@ -385,7 +385,7 @@ pub(crate) enum Action<'a> {
         parameter: bool,
         ordinal: Option<&'a usize>,
     },
-    Sample(EvaluatedSample),
+    Sample(EvaluatedSample<'a>),
     Done(Option<AnnotationKind>),
 }
 pub(crate) struct Step<'a> {
@@ -417,7 +417,7 @@ pub(crate) struct Step<'a> {
     emit_row: usize,
     emit_group: usize,
     emit_position: usize,
-    emitted: Option<EvaluatedSample>,
+    emitted: Option<EvaluatedSample<'a>>,
 }
 impl<'a> Step<'a> {
     pub(crate) fn new(
@@ -510,7 +510,7 @@ impl<'a> Step<'a> {
     }
     pub(crate) fn receive(
         &mut self,
-        sample: EvaluatedSample,
+        sample: EvaluatedSample<'a>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
@@ -866,11 +866,10 @@ impl<'a> Step<'a> {
                         }
                         let representative = &self.plan.inputs[canonical.representative];
                         sample.ordinal = canonical.ordinal;
-                        sample.labels = representative.labels.copy_checked(
-                            account,
-                            MemoryKind::Workspace,
-                            control,
-                        )?;
+                        sample.labels = representative
+                            .labels
+                            .copy_checked(account, MemoryKind::Workspace, control)?
+                            .into();
                         sample.drop_name = representative.drop_name;
                     }
                     sample.source_time_ms = self.options.time_ms;

@@ -189,7 +189,7 @@ impl Plan {
     }
     fn row(
         &self,
-        sample: &EvaluatedSample,
+        sample: &EvaluatedSample<'_>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<usize, EvaluationError> {
@@ -329,7 +329,7 @@ struct Comparison {
 pub(crate) enum Action<'a> {
     Continue,
     Child(Option<&'a usize>),
-    Sample(EvaluatedSample),
+    Sample(EvaluatedSample<'a>),
     Done,
 }
 pub(crate) struct Step<'a> {
@@ -347,7 +347,7 @@ pub(crate) struct Step<'a> {
     expected: Option<usize>,
     value: Option<f64>,
     value_samples: Option<crate::statistics::OwnedSamples>,
-    emitted: Option<EvaluatedSample>,
+    emitted: Option<EvaluatedSample<'a>>,
     position: usize,
     range_warning: bool,
 }
@@ -396,7 +396,7 @@ impl<'a> Step<'a> {
     }
     pub(crate) fn receive(
         &mut self,
-        sample: EvaluatedSample,
+        sample: EvaluatedSample<'a>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
@@ -900,11 +900,10 @@ mod tests {
                     step.receive(
                         EvaluatedSample {
                             ordinal,
-                            labels: row.labels.copy_checked(
-                                account,
-                                MemoryKind::Workspace,
-                                control,
-                            )?,
+                            labels: row
+                                .labels
+                                .copy_checked(account, MemoryKind::Workspace, control)?
+                                .into(),
                             value: OwnedValue::Float(value),
                             float_samples: None,
                             source_time_ms: -1,
@@ -954,11 +953,10 @@ mod tests {
                     step.receive(
                         EvaluatedSample {
                             ordinal,
-                            labels: row.labels.copy_checked(
-                                account,
-                                MemoryKind::Workspace,
-                                control,
-                            )?,
+                            labels: row
+                                .labels
+                                .copy_checked(account, MemoryKind::Workspace, control)?
+                                .into(),
                             value: OwnedValue::Float(f64::from(round) * 1000.0 + ordinal as f64),
                             float_samples: None,
                             source_time_ms: -1,
@@ -1530,7 +1528,8 @@ mod tests {
                         labels: plan.rows[0]
                             .labels
                             .copy_checked(&account, MemoryKind::Workspace, &control)
-                            .unwrap(),
+                            .unwrap()
+                            .into(),
                         value: OwnedValue::from_sample_checked(
                             crate::value::SampleValueRef::FloatHistogram(histogram.as_ref()),
                             &control,
@@ -1672,7 +1671,8 @@ mod tests {
                             labels: plan.rows[ordinal]
                                 .labels
                                 .copy_checked(&account, MemoryKind::Workspace, &control)
-                                .unwrap(),
+                                .unwrap()
+                                .into(),
                             value: OwnedValue::Float(1.0),
                             float_samples: None,
                             source_time_ms: 4000,
@@ -1953,7 +1953,8 @@ mod tests {
                             labels: plan.rows[index]
                                 .labels
                                 .copy_checked(&account, MemoryKind::Workspace, &control)
-                                .unwrap(),
+                                .unwrap()
+                                .into(),
                             value,
                             float_samples: None,
                             source_time_ms: 4000,

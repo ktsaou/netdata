@@ -174,11 +174,11 @@ impl<'a> Step<'a> {
     }
     pub(crate) fn receive(
         &mut self,
-        sample: EvaluatedSample,
+        sample: EvaluatedSample<'_>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
-        let mut labels = sample.labels;
+        let mut labels = sample.labels.into_owned(account, control)?;
         labels.reset_checked(account, control)?;
         let mut value = AccountedVec::new(account, MemoryKind::Workspace);
         match &sample.value {
@@ -305,7 +305,7 @@ impl<'a> Step<'a> {
         &mut self,
         time_ms: i64,
         account: &QueryAccounting,
-    ) -> Option<EvaluatedSample> {
+    ) -> Option<EvaluatedSample<'a>> {
         let group = self.groups.get_mut(self.position)?;
         self.position += 1;
         Some(EvaluatedSample {
@@ -313,7 +313,8 @@ impl<'a> Step<'a> {
             labels: std::mem::replace(
                 &mut group.labels,
                 OwnedLabels::new(account, MemoryKind::Workspace),
-            ),
+            )
+            .into(),
             float_samples: Some(crate::statistics::OwnedSamples::new(account, 1)),
             value: OwnedValue::Float(group.count as f64),
             source_time_ms: time_ms,

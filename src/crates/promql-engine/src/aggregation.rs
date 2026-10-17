@@ -11,6 +11,7 @@ use crate::{
     histogram_work::{HistogramEvaluationError, HistogramWork},
     numerical::{compensated_add, source_add, source_div, source_mul, source_sub, sqrt},
     result::{OwnedLabels, OwnedValue},
+    sample_labels::SampleLabels,
     storage::{Control, StorageError},
 };
 use tokens::TokenKind;
@@ -222,7 +223,7 @@ impl<'a> Group<'a> {
         time_ms: i64,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<(Option<EvaluatedSample>, Option<AnnotationKind>), StorageError> {
+    ) -> Result<(Option<EvaluatedSample<'a>>, Option<AnnotationKind>), StorageError> {
         use TokenKind::*;
         if matches!(operator, SUM | AVG) {
             if self.has_float && self.has_histogram {
@@ -274,11 +275,7 @@ impl<'a> Group<'a> {
             };
             (OwnedValue::Float(value), None)
         };
-        let mut labels = self
-            .labels
-            .copy_checked(account, MemoryKind::Workspace, control)?;
-        // Source removes empty label values only after hashing the raw grouping key.
-        labels.reset_checked(account, control)?;
+        let labels = SampleLabels::aggregate(self.labels, account, control)?;
         Ok((
             Some(EvaluatedSample {
                 ordinal: self.ordinal,

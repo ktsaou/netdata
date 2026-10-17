@@ -149,7 +149,7 @@ pub(crate) enum Action<'a> {
         parameter: bool,
         ordinal: Option<&'a usize>,
     },
-    Sample(EvaluatedSample),
+    Sample(EvaluatedSample<'a>),
     Done(Option<AnnotationKind>),
 }
 pub(crate) struct Step<'a> {
@@ -235,7 +235,7 @@ impl<'a> Step<'a> {
     }
     pub(crate) fn receive(
         &mut self,
-        sample: EvaluatedSample,
+        sample: EvaluatedSample<'_>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
@@ -308,7 +308,7 @@ impl<'a> Step<'a> {
         labels.reset_checked(account, control)?;
         Ok(Action::Sample(EvaluatedSample {
             ordinal,
-            labels,
+            labels: labels.into(),
             float_samples: Some(crate::statistics::OwnedSamples::new(account, 1)),
             value: OwnedValue::Float(value),
             source_time_ms: self.options.time_ms,

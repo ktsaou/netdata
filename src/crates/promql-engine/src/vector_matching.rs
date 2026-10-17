@@ -13,6 +13,7 @@ use crate::{
     label_hash,
     position_index::{PositionIndex, SignatureIndex},
     result::{OwnedLabels, OwnedValue, append_bytes_checked},
+    sample_labels::SampleLabels,
     storage::{Control, Interrupted},
 };
 use std::cell::{Cell, RefCell};
@@ -544,7 +545,7 @@ impl Plan {
     fn position(
         &self,
         side: usize,
-        sample: &EvaluatedSample,
+        sample: &EvaluatedSample<'_>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<usize, EvaluationError> {
@@ -620,7 +621,7 @@ pub(crate) enum Action<'a> {
         side: usize,
         ordinal: Option<&'a usize>,
     },
-    Sample(EvaluatedSample),
+    Sample(EvaluatedSample<'a>),
     Done(Option<Diagnostic>),
 }
 pub(crate) struct Step<'a> {
@@ -864,7 +865,7 @@ impl<'a> Step<'a> {
     }
     pub(crate) fn receive(
         &mut self,
-        sample: EvaluatedSample,
+        sample: EvaluatedSample<'_>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
@@ -1072,17 +1073,17 @@ impl<'a> Step<'a> {
         operand: Operand,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<OperandLabels<'a>, Interrupted> {
+    ) -> Result<SampleLabels<'a>, Interrupted> {
         let labels = &self.plan.sides[operand.side].rows[operand.row].labels;
         Ok(if operand.fill.is_some() {
-            OperandLabels::Owned(binary_labels::matched(
+            SampleLabels::Owned(binary_labels::matched(
                 labels,
                 self.matching,
                 control,
                 account,
             )?)
         } else {
-            OperandLabels::Borrowed(labels)
+            SampleLabels::Borrowed(labels)
         })
     }
     fn result_labels(
@@ -1674,7 +1675,7 @@ impl<'a> Step<'a> {
                     }
                     return Ok(Action::Sample(EvaluatedSample {
                         ordinal,
-                        labels,
+                        labels: labels.into(),
                         float_samples: parts.float_samples,
                         value: parts.value,
                         drop_name,
@@ -1693,18 +1694,6 @@ impl<'a> Step<'a> {
                     return Ok(Action::Done(self.last_diagnostic));
                 }
             }
-        }
-    }
-}
-enum OperandLabels<'a> {
-    Borrowed(&'a OwnedLabels),
-    Owned(OwnedLabels),
-}
-impl OperandLabels<'_> {
-    fn as_ref(&self) -> &OwnedLabels {
-        match self {
-            Self::Borrowed(value) => value,
-            Self::Owned(value) => value,
         }
     }
 }
@@ -1823,14 +1812,15 @@ mod tests {
         row: usize,
         control: &Control,
         account: &QueryAccounting,
-    ) -> EvaluatedSample {
+    ) -> EvaluatedSample<'static> {
         let descriptor = &plan.sides[side].rows[row];
         EvaluatedSample {
             ordinal: descriptor.ordinal,
             labels: descriptor
                 .labels
                 .copy_checked(account, MemoryKind::Workspace, control)
-                .unwrap(),
+                .unwrap()
+                .into(),
             value: OwnedValue::Float((1000 * side + row + 1) as f64),
             float_samples: None,
             source_time_ms: 1000,
@@ -4243,7 +4233,7 @@ mod tests {
             for (position, (ordinal, value)) in source.into_iter().enumerate() {
                 let sample = EvaluatedSample {
                     ordinal,
-                    labels: labels(value, &account),
+                    labels: labels(value, &account).into(),
                     value: OwnedValue::Float(1.0),
                     float_samples: None,
                     source_time_ms: 0,

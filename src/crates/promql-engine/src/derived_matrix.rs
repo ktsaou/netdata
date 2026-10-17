@@ -101,7 +101,7 @@ impl Reader {
         }
     }
 
-    pub(crate) fn receive(&mut self, sample: EvaluatedSample) -> bool {
+    pub(crate) fn receive(&mut self, sample: EvaluatedSample<'_>) -> bool {
         self.receive_value(sample.into_parts())
     }
     pub(crate) fn receive_value(&mut self, parts: crate::statistics::ValueParts) -> bool {

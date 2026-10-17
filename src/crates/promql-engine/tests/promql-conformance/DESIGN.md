@@ -1081,10 +1081,33 @@ integration, and Alertmanager remains excluded.
   annotation formatting consumes their bytes synchronously. Native operation errors retain their earlier phase.
 - **Controls:** check/count examined labels, checked grouping-name comparisons and selected hash chunks. Poll
   after the final charge. Removed copies remove actual copy work; checked warning lookup can add comparison work.
-- **Ownership:** prepared copied/transferred descriptors, ranking labels and `Group::finish` remain with their
-  existing owners. This introduces no retained field, metadata provider, shared-label owner or raw-history array.
+- **Ownership:** prepared copied/transferred descriptors and ranking labels retain their existing owners.
+  [Aggregate-result borrowing](#borrowed-aggregate-result-labels) handles finalization separately. Lookup adds no
+  retained field, metadata provider, shared-label owner or raw-history array.
 - **Evidence:** [borrowed lookup qualification](borrowed-aggregate-qualification.json) records exact complete
   operator/reducer results, selected C/target owners and actual whole-query allocation, timing and linked costs.
+
+## Borrowed aggregate-result labels
+
+- **Choice:** ordinary `Group::finish` borrows clean immutable roster labels through the existing private
+  borrowed/owned representation, generalized as `SampleLabels`. Copies occur at real ownership boundaries.
+- **Normalization:** numerical and native-histogram finalization precede the checked empty-value scan. An empty
+  raw value enters the existing copied/reset fallback; clean labels retain the original frozen owner. Group
+  hashes, source order, first matches and final output identity remain unchanged.
+- **Lifetimes:** evaluated samples and retained actions use the frozen roster lifetime independently of a mutable
+  `Machine` frame. Short replay borrows stay short. No unsafe lifetime extension or provider borrowing is added.
+- **Mutation:** borrowed no-op reserved removal validates the initial name and scans without copying. Actual
+  removal materializes checked/accounted ownership, then applies existing policy. Owned removal keeps its path.
+  Failed materialization retains the original borrowed owner; partial copied buffers retire normally.
+- **Retention:** existing-descriptor lookup precedes materialization. New descriptors and `count_values` own their
+  labels. Conversion failure after provisional index insertion discards that complete local preparation owner.
+  Selector, mutable-cache, projection and ranking producers keep their existing owners; public collection remains
+  independently owned after query/provider/internal lifetimes end.
+- **Resources:** no raw-history array, global metadata cache or shared heap owner is introduced. Checked scans and
+  copies account actual work; allocation traffic, peak bytes, layouts and linked code costs are separate measures.
+- **Evidence:** [aggregate-result label qualification](aggregate-result-labels-qualification.json) binds meaningful
+  ownership/interruption controls, complete expressions/reducers, actual C consumers, three-target layouts and
+  matched query measurements. Historical attempts retain their own source identities and dispositions.
 
 ## Completed vector-sort publication
 

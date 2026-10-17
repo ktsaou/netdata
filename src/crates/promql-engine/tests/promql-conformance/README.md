@@ -3802,6 +3802,74 @@ comparative captures remain local, and no new whole-panel replay runner is provi
 and conformance procedures retain their original roles. No new metadata provider, persistent label owner, raw-
 history array, implicit cap or operator workflow is introduced.
 
+## Borrowed aggregate-result labels
+
+Ordinary aggregate finalization now borrows clean immutable roster labels. The private sample label owner reuses
+the earlier borrowed/owned representation; consumers copy only for real mutation or retained ownership. This
+removes copies discarded by existing-descriptor lookups. Raw empty values keep the existing copied/reset
+fallback after numerical or native-histogram finalization.
+
+Samples and pending actions carry the frozen roster lifetime, independent of mutable Machine frames. Short
+replay lifetimes stay short. New descriptors and count_values own their labels; failed conversion releases
+partial copies, and failed descriptor preparation discards its provisional local index. Borrowed no-op reserved-
+label removal checks the initial name and scans without copying. Real removal invokes the existing policy after
+checked materialization. Selector, mutable-cache, projection, ranking and public result owners retain their
+existing behavior.
+
+Both native profiles pass 744 units with two unchanged ignored tests, 1,487 complete cases at pages 1/17/1024,
+and 336 actual default-feature C query cases in total. Each ARM target passes 18 focused owner units and 288
+complete selected queries under QEMU. The combined current query count is 9,498. Formatting, strict
+default/fixture Clippy and installed Rust 1.91 compile-only checks pass. Five new controls cover source
+lifetime, machine re-entry, conversion interruption/recovery, normalization, reserved removal and independent
+public results.
+
+The 84 additional physical-owner cases cover nested maps, both name-removal modes, count_values, ranking, joins,
+set operations, projections and subqueries. They produce 168 fresh complete signed-before outcomes; two explicit
+info profile-gate errors do not establish successful info coverage. Other baselines retain their actual
+source/runtime identities. The 56,124 fresh reducer outcomes equal exact retained analysis inputs; all 216
+strict-original differences remain failures, including membership and point-count differences. Unchanged
+approved ordering-policy analyses keep their historical attribution.
+
+| Query | Workspace acquired before → after, bytes | Workspace peak before → after, bytes | Release ratio | Release-min ratio |
+| --- | --- | --- | --- | --- |
+| One group/input | 13,938 → 13,839 | 7,406 → 7,406 | 0.978 | 1.104 |
+| 2,048 groups | 6,638,666 → 6,430,880 | 1,594,434 → 1,594,434 | 0.975 | 0.991 |
+| 512 inputs, one group | 1,054,974 → 1,054,974 | 262,298 → 262,298 | 0.980 | 1.005 |
+| 4,096 groups, sum | 32,048,248 → 27,645,048 | 4,240,520 → 4,240,520 | 0.896 | 0.945 |
+| 4,096 groups, abs(sum) | 56,088,844 → 49,924,364 | 6,020,640 → 6,020,640 | 0.967 | 0.998 |
+
+Memory columns are paired release page17 observations. Allocation traffic is distinct from peak RAM or process
+RSS; selected large peaks remain unchanged. Across all 1,421 observation-bearing release cases, 0 reduce
+workspace peak and 1163 reduce acquired/released workspace bytes. All eight categories retain equal
+current/overflow and nonincreasing peaks/traffic in paired native comparisons.
+
+Timing ratios divide current by before median engine time. The declared 32 cases per profile use five
+alternating pairs, one warmup and one measured result per case/process after owned qualification closes: 1,280
+complete outcomes across 64 groups. 40 primary medians are no higher and 24 are higher. Every ratio at least
+1.05 receives twenty measured repetitions per side; the follow-up retains 88 complete outcomes across 2 groups.
+Both panels retain every slower result; shared-host measurements do not establish universal, live or concurrent
+speedups.
+
+Repeated ratios span 0.972–0.992; the report retains both primary and repeat results without attributing their
+differences to a cause.
+
+Actual default C output-caller text changes by -3,272 bytes in release and +3,020 bytes in release-min. All
+eight matched linked pairs and data/BSS/file costs remain visible. Separate actual diagnostic builds on AMD64,
+ARM32 and ARM64 find all 57 existing type-size/alignment pairs unchanged; the new private enum matches
+OwnedLabels on each target. Diagnostics are excluded from normal runtime binaries and timing.
+
+From src/crates/promql-engine, run the focused regressions with:
+
+```sh
+cargo test --locked --features fixtures --release sample_labels::tests::
+cargo test --locked --features fixtures --profile release-min aggregate_label_borrows_outlive_machines_and_materialize_at_descriptor_boundaries
+```
+
+The [aggregate-result label qualification](aggregate-result-labels-qualification.json) records exact
+source/binary identities, actual layout comparisons and every timing/resource/code-cost row. Portable focused
+tests are committed; full comparative captures remain local, with no new whole-panel replay runner. This
+introduces no new metadata provider, retained label cache, raw-history array, implicit cap or operator workflow.
+
 ## Completed vector-sort publication
 
 `sort`, `sort_desc`, `sort_by_label` and `sort_by_label_desc` complete their existing sorting callbacks before
