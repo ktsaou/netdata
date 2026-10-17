@@ -1965,7 +1965,14 @@ impl CompiledQuery {
                         )?,
                         header,
                         child_primary,
-                        false,
+                        // Quantile sorting and interpolation repeatedly request input groups.
+                        matches!(
+                            expression,
+                            Expr::Aggregate {
+                                operator: TokenKind::QUANTILE,
+                                ..
+                            }
+                        ),
                     ));
                     tasks.push(Task::AggregateParameter(node, header));
                     tasks.push(Task::Visit(
@@ -7243,6 +7250,576 @@ mod tests {
                 .all(|rows| rows[3].0 <= rows[1].0 * 8 && rows[3].1 <= rows[1].1 * 8),
             "local grouped joins must avoid repeated complete operand reductions: {growth:?}"
         );
+    }
+
+    #[test]
+    fn quantile_grouped_inputs_check_complete_results_before_bounded_work() {
+        let mut growth = Vec::new();
+        for window in [false, true] {
+            let body = if window {
+                "rate(m_total[2s])"
+            } else {
+                "m_total"
+            };
+            let expression = format!("quantile(.5,sum by(job,id)({body}))");
+            for page in [17, 1024] {
+                for delayed in [false, true] {
+                    for (mode, request) in [
+                        ("instant", QueryRequest::Instant { time_ms: 2000 }),
+                        (
+                            "equal",
+                            QueryRequest::Range {
+                                start_ms: 2000,
+                                end_ms: 2000,
+                                step_ms: 1000,
+                            },
+                        ),
+                        (
+                            "range",
+                            QueryRequest::Range {
+                                start_ms: 2000,
+                                end_ms: 4000,
+                                step_ms: 1000,
+                            },
+                        ),
+                    ] {
+                        for groups in [2_usize, 4, 8, 16] {
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let provider = local_grouped_operand_provider(page, groups);
+                            let query = engine
+                                .compile(expression.as_bytes(), options(delayed), &control)
+                                .unwrap();
+                            let report = query.collect_reported(&provider, request, &control);
+                            let result = report.result.as_ref().unwrap();
+                            assert!(report.annotations.is_empty());
+                            assert_eq!(result.series.len(), 1);
+                            let row = &result.series[0];
+                            assert!(row.labels.0.is_empty());
+                            let points = if mode == "range" { 3 } else { 1 };
+                            assert_eq!(row.points.len(), points);
+                            for (tick, point) in row.points.iter().enumerate() {
+                                let time = (tick + 2) as f64;
+                                let expected = 15.0
+                                    * if window {
+                                        2.0 * time - 1.0
+                                    } else {
+                                        100.0 + time * time
+                                    };
+                                assert_eq!(point.time_ms, (tick as i64 + 2) * 1000);
+                                assert_eq!(float_bits(point), expected.to_bits());
+                            }
+                            assert_eq!(report.observations.output_samples, points as u64);
+                            let fetched: usize = provider
+                                .series
+                                .iter()
+                                .map(|row| {
+                                    row.source.counters.samples_returned.load(Ordering::Relaxed)
+                                })
+                                .sum();
+                            assert_eq!(report.observations.samples_fetched, fetched as u64);
+                            assert!(provider.series.iter().all(|row| {
+                                row.source.counters.peak.load(Ordering::Relaxed) <= 1
+                            }));
+                            assert_eq!(
+                                report.observations.memory[MemoryKind::Workspace as usize].current,
+                                0
+                            );
+                            println!(
+                                "quantile-group-growth window={window} page={page} delayed={delayed} mode={mode} groups={groups} fetched={} work={}",
+                                report.observations.samples_fetched, report.observations.work
+                            );
+                            growth.push((
+                                report.observations.samples_fetched,
+                                report.observations.work,
+                            ));
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            growth
+                .chunks_exact(4)
+                .all(|rows| rows[3].0 <= rows[1].0 * 8 && rows[3].1 <= rows[1].1 * 8),
+            "quantile grouped inputs must avoid repeated complete reductions: {growth:?}"
+        );
+    }
+
+    #[test]
+    fn quantile_grouped_inputs_keep_cold_selected_and_next_clock_failures() {
+        fn acquisitions(input: &FixtureProvider) -> Vec<usize> {
+            input
+                .series
+                .iter()
+                .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
+                .collect()
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let query = engine
+                    .compile(
+                        b"quantile(.5,sum by(job,id)(m_total))",
+                        options(delayed),
+                        &Control::default(),
+                    )
+                    .unwrap();
+                let mut landmarks: Vec<Vec<usize>> = Vec::new();
+                let (mut selected, mut excluded) = (0, 0);
+                for fault in ["none", "cold", "warm", "next", "cancel"] {
+                    let control = Control::default();
+                    let mut provider = local_grouped_operand_provider(page, 4);
+                    let phase = match fault {
+                        "cold" => Some(0),
+                        "warm" | "cancel" => Some(1),
+                        "next" => Some(2),
+                        _ => None,
+                    };
+                    if let Some(phase) = phase
+                        && fault != "cancel"
+                    {
+                        let target = if fault == "warm" { selected } else { excluded };
+                        provider.series[target].source.fail_acquisition =
+                            Some(landmarks[phase][target] + 1);
+                    }
+                    let account = query.execution_accounting();
+                    {
+                        let header = query
+                            .header(QueryRequest::Range {
+                                start_ms: 2000,
+                                end_ms: 4000,
+                                step_ms: 1000,
+                            })
+                            .unwrap();
+                        let prepared = Prepared::new(
+                            &query.expression,
+                            &query.preprocessing,
+                            header,
+                            query.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let header = prepared.evaluator_header();
+                        prepared.activate(header, &control, &account).unwrap();
+                        let initial = query.evaluation_options(header, header.start_ms, &prepared);
+                        let bounds = crate::query_bounds::find(
+                            &query.expression,
+                            initial,
+                            &prepared,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let scope = provider.open(bounds, &control).unwrap();
+                        let catalog = Catalog::new(
+                            &scope,
+                            &query.expression,
+                            &prepared,
+                            initial,
+                            query.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let rosters = query
+                            .prepare_rosters(
+                                &catalog,
+                                &prepared,
+                                bounds,
+                                &control,
+                                &account,
+                                &mut Annotations::default(),
+                            )
+                            .unwrap();
+                        let plans: Vec<_> = (0..query.expression.arena.nodes.len())
+                            .filter_map(|index| {
+                                rosters
+                                    .group_replay(NodeId(index))
+                                    .map(|plan| (NodeId(index), plan))
+                            })
+                            .collect();
+                        assert_eq!(plans.len(), 1);
+                        let (child, plan) = plans[0];
+                        assert!(
+                            !plan.has_completion(),
+                            "preparation must clear group credit"
+                        );
+                        let descriptors = rosters.groups(child).unwrap();
+                        let cold_identity = descriptors[0]
+                            .labels
+                            .0
+                            .iter()
+                            .find(|label| &*label.name == b"id")
+                            .unwrap()
+                            .value
+                            .to_vec();
+                        let selected_identity = descriptors[1]
+                            .labels
+                            .0
+                            .iter()
+                            .find(|label| &*label.name == b"id")
+                            .unwrap()
+                            .value
+                            .to_vec();
+                        if fault == "none" {
+                            landmarks.push(acquisitions(&provider));
+                        } else {
+                            assert_eq!(acquisitions(&provider), landmarks[0]);
+                        }
+                        for (current, (time, step, ordinal)) in
+                            [(2000, 0, 0), (2000, 0, 1), (3000, 1, 1)]
+                                .into_iter()
+                                .enumerate()
+                        {
+                            let options = query.evaluation_options(header, time, &prepared);
+                            let key = crate::vector_matching::ReplayKey::new(
+                                options,
+                                step,
+                                prepared.lookback_ns(options.lookback_ms),
+                                bounds,
+                            );
+                            let before = acquisitions(&provider);
+                            if fault == "cancel" && current == 1 {
+                                control.cancellation.cancel();
+                            }
+                            let mut machine = Machine::new(
+                                &catalog,
+                                &query.expression,
+                                child,
+                                options,
+                                &control,
+                                &account,
+                                EvaluationMetadata {
+                                    prepared: &prepared,
+                                    rosters: &rosters,
+                                    timestamp_selectors: &query.timestamp_selectors,
+                                    data_bounds: bounds,
+                                    annotations: None,
+                                    binary_preparation: None,
+                                    histogram_preparation: None,
+                                    info_preparation: None,
+                                    count_preparation: None,
+                                },
+                            );
+                            machine.restrict_one(ordinal);
+                            machine.set_step_index(step);
+                            let next = machine.next();
+                            if phase == Some(current) {
+                                if fault == "cancel" {
+                                    assert!(matches!(
+                                        next,
+                                        Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                                    ));
+                                    assert_eq!(acquisitions(&provider), before);
+                                } else {
+                                    assert!(matches!(&next, Err(EvaluationError::Storage(
+                                        StorageError::Provider(bytes))) if &**bytes == b"injected page failure"));
+                                    let target = if fault == "warm" { selected } else { excluded };
+                                    let acquired = provider.series[target]
+                                        .source
+                                        .counters
+                                        .opened
+                                        .load(Ordering::Relaxed);
+                                    assert_eq!(acquired, landmarks[current][target] + 1);
+                                    println!(
+                                        "quantile-group-phase fault={fault} page={page} delayed={delayed} phase={current} target={target} acquisition={acquired}"
+                                    );
+                                }
+                                drop(next);
+                                drop(machine);
+                                if current == 0 {
+                                    assert!(!plan.has_completion());
+                                } else if current == 2 {
+                                    assert!(
+                                        !plan
+                                            .activate(
+                                                crate::evaluator::RowFilter::One(ordinal),
+                                                key,
+                                                &control,
+                                                &account
+                                            )
+                                            .unwrap()
+                                    );
+                                }
+                                break;
+                            }
+                            let sample = next.unwrap().unwrap();
+                            assert_eq!(sample.ordinal, ordinal);
+                            let descriptor = &descriptors[ordinal];
+                            assert!(
+                                crate::binary_labels::same(
+                                    &sample.labels,
+                                    &descriptor.labels,
+                                    &control,
+                                    &account
+                                )
+                                .unwrap()
+                            );
+                            let identity = descriptor
+                                .labels
+                                .0
+                                .iter()
+                                .find(|label| &*label.name == b"id")
+                                .unwrap();
+                            let identity = std::str::from_utf8(&identity.value)
+                                .unwrap()
+                                .parse::<usize>()
+                                .unwrap();
+                            let expected = (if identity.is_multiple_of(2) {
+                                6.0
+                            } else {
+                                24.0
+                            }) * (100.0 + ((time / 1000) as f64).powi(2));
+                            assert!(
+                                matches!(sample.value, OwnedValue::Float(value) if value.to_bits() == expected.to_bits())
+                            );
+                            drop(sample);
+                            assert!(machine.next().unwrap().is_none());
+                            drop(machine);
+                            assert!(plan.has_completion());
+                            if fault == "none" {
+                                landmarks.push(acquisitions(&provider));
+                            }
+                        }
+                        if fault == "none" {
+                            let warm: Vec<_> = (0..provider.series.len())
+                                .filter(|&index| landmarks[2][index] > landmarks[1][index])
+                                .collect();
+                            assert_eq!(warm.len(), 2, "both selected members must be fresh");
+                            assert!(warm.iter().all(|&index| {
+                                provider.series[index]
+                                    .labels
+                                    .iter()
+                                    .any(|(key, value)| key == b"id" && value == &selected_identity)
+                            }));
+                            selected = warm[0];
+                            excluded = (0..provider.series.len())
+                                .find(|index| {
+                                    !warm.contains(index)
+                                        && provider.series[*index].labels.iter().any(
+                                            |(key, value)| {
+                                                key == b"id"
+                                                    && value != &cold_identity
+                                                    && value != &selected_identity
+                                            },
+                                        )
+                                        && landmarks[1][*index] > landmarks[0][*index]
+                                        && landmarks[3][*index] > landmarks[2][*index]
+                                })
+                                .unwrap();
+                        }
+                    }
+                    provider.assert_closed();
+                    account.snapshot().assert_memory_released();
+                }
+                for cancel in [false, true] {
+                    let provider = local_grouped_operand_provider(page, 4);
+                    let control = Control::default();
+                    let mut sink = RecordingSink {
+                        fail_after: (!cancel).then_some(1),
+                        cancel: cancel.then(|| control.cancellation.clone()),
+                        ..RecordingSink::default()
+                    };
+                    let report = query.execute_reported(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 2000,
+                            end_ms: 4000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                        &mut sink,
+                    );
+                    if cancel {
+                        assert!(matches!(
+                            &report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                                Interrupted::Cancelled
+                            )))
+                        ));
+                    } else {
+                        assert!(matches!(&report.result, Err(ExecutionError::Sink(bytes))
+                            if &**bytes == b"sink failure"));
+                        report.assert_retained_callback_error_memory();
+                    }
+                    assert!(sink.begun && sink.aborted && !sink.committed);
+                    provider.assert_closed();
+                }
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn quantile_grouped_inputs_preserve_preparation_admission_and_fallbacks() {
+        let range = QueryRequest::Range {
+            start_ms: 2000,
+            end_ms: 4000,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            for groups in [0, 1, 4] {
+                for delayed in [false, true] {
+                    for request in [
+                        QueryRequest::Instant { time_ms: 2000 },
+                        QueryRequest::Range {
+                            start_ms: 2000,
+                            end_ms: 2000,
+                            step_ms: 1000,
+                        },
+                        range,
+                    ] {
+                        for (expression, expected) in [
+                            ("quantile(.5,sum by(id)(m_total))", 1),
+                            ("quantile(NaN,sum by(id)(m_total))", 1),
+                            ("quantile(.5,abs(sum by(id)(m_total)))", 1),
+                            ("quantile(.5,sum by(id)(rate(m_total[2s])))", 1),
+                            ("quantile(.5,sum by(job)(sum by(job,id)(m_total)))", 2),
+                            ("quantile(.5,sum by(id)(m_total @ 2))", 0),
+                            ("quantile(.5,sum by(id)(m_total offset 1s))", 1),
+                            ("quantile(.5,sum by(id)(timestamp(m_total)))", 0),
+                            ("quantile(.5,sum by(id)(m_total*scalar(m_total)))", 0),
+                            ("quantile(.5,m_total)", 0),
+                            ("topk(1,sum by(id)(m_total))", 0),
+                            (
+                                "last_over_time((quantile(.5,sum by(id)(m_total)))[2s:1s] @ 2)",
+                                1,
+                            ),
+                        ] {
+                            let engine = Engine::default();
+                            let provider = local_grouped_operand_provider(page, groups);
+                            let control = Control::default();
+                            let query = engine
+                                .compile(expression.as_bytes(), options(delayed), &control)
+                                .unwrap();
+                            let account = query.execution_accounting();
+                            let found = {
+                                let header = query.header(request).unwrap();
+                                let prepared = Prepared::new(
+                                    &query.expression,
+                                    &query.preprocessing,
+                                    header,
+                                    query.options.no_step_subquery_interval_ms,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                                let header = prepared.evaluator_header();
+                                prepared.activate(header, &control, &account).unwrap();
+                                let options =
+                                    query.evaluation_options(header, header.start_ms, &prepared);
+                                let bounds = crate::query_bounds::find(
+                                    &query.expression,
+                                    options,
+                                    &prepared,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                                let scope = provider.open(bounds, &control).unwrap();
+                                let catalog = Catalog::new(
+                                    &scope,
+                                    &query.expression,
+                                    &prepared,
+                                    options,
+                                    query.options.no_step_subquery_interval_ms,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                                let rosters = query
+                                    .prepare_rosters(
+                                        &catalog,
+                                        &prepared,
+                                        bounds,
+                                        &control,
+                                        &account,
+                                        &mut Annotations::default(),
+                                    )
+                                    .unwrap();
+                                (0..query.expression.arena.nodes.len())
+                                    .filter(|&index| {
+                                        if let Some(plan) = rosters.group_replay(NodeId(index)) {
+                                            assert!(!plan.has_completion());
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    })
+                                    .count()
+                            };
+                            provider.assert_closed();
+                            account.snapshot().assert_memory_released();
+                            drop((account, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                            assert_eq!(
+                                found, expected,
+                                "{expression} {request:?} {groups} {delayed}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn quantile_grouped_inputs_keep_parameter_errors_and_invalid_q_body_reads() {
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for parameter in ["scalar(n_total)", "NaN", "Inf", "-Inf"] {
+                    let mut provider = local_grouped_operand_provider(page, 4);
+                    if parameter.starts_with("scalar") {
+                        for row in &mut provider.series {
+                            row.source.fail_acquisition = Some(1);
+                        }
+                    } else {
+                        provider.series[7].source.fail_acquisition = Some(1);
+                    }
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let expression = format!("quantile({parameter},sum by(job,id)(m_total))");
+                    let query = engine
+                        .compile(expression.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 2000 },
+                        &control,
+                    );
+                    assert!(matches!(&report.result, Err(ExecutionError::Evaluation(
+                        EvaluationError::Storage(StorageError::Provider(bytes))))
+                        if &**bytes == b"injected page failure"));
+                    if parameter.starts_with("scalar") {
+                        assert!(provider.series[..8].iter().all(|row| {
+                            row.source.counters.opened.load(Ordering::Relaxed) == 0
+                        }));
+                        assert!(provider.series[8..].iter().any(|row| {
+                            row.source.counters.opened.load(Ordering::Relaxed) == 1
+                        }));
+                    } else {
+                        assert_eq!(
+                            provider.series[7]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            1,
+                            "invalid quantile still reads the late body member"
+                        );
+                    }
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
     }
 
     fn ordered_binary_provider(page: usize, count: usize) -> FixtureProvider {

@@ -2290,7 +2290,8 @@ static void owned_label_outputs(netdata_promql_engine_t *engine, unsigned schedu
     static const char *names[] = {"zz00", "zz01", "zz02", "zz03", "zz04", "zz05", "zz06", "zz07",
                                   "zz08", "zz09", "zz10", "zz11", "zz12", "zz13", "zz14"};
     const char *owned_expressions[] = {"m", "label_replace(m,\"added\",\"north\",\"__name__\",\".*\")", "sum by(zone)(m)",
-                                        "quantile by(zone)(0.5,m)"};
+                                        "quantile by(zone)(0.5,m)",
+                                        "quantile by(zone)(0.5,sum by(zone,zz00)(m))"};
     const char *scheduled_expressions[] = {"m+0", "0+m", "m>0", "timestamp(m)"};
     const char **expressions = scheduled ? scheduled_expressions : owned_expressions;
     unsigned expression_count = scheduled ? sizeof(scheduled_expressions) / sizeof(scheduled_expressions[0]) :
@@ -2381,7 +2382,7 @@ static void owned_label_outputs(netdata_promql_engine_t *engine, unsigned schedu
                            memory.current, memory.peak, memory.acquired, memory.released);
                 }
                 putchar(']');
-                if (scheduled || shape == 3) {
+                if (scheduled || shape >= 3) {
                     statistics_valid(&observed.statistics);
                     printf(",\"statistics\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 "]",
                            observed.statistics.samples.total_queryable_samples,

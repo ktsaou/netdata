@@ -5730,6 +5730,83 @@ and derived metadata/state may grow. No language feature is added or dropped. Ea
 live-Agent cohorts retain their own identities.
 
 
+## Quantile group contributors
+
+Aggregate `quantile()` now demands existing contributor metadata from its resolved body. Eligible ordinary grouped
+inputs can reuse completed validation and read only the requested group's original members. Raw, rate/fold,
+supported float maps and nested ordinary groups retain their existing eligibility proofs. This private admission
+adds no language feature, raw value cache, Task field, provider or public interface.
+
+Scanning, Go-sort comparisons and interpolation request input ordinals in instant, equal-header and range queries.
+Each child clamps demand against its own invariant, boundary, source and scope clock. Fixed grouped bodies and
+unsupported children keep ordinary traversal. Parameter demand, Finish, primary role and parameter-first order stay
+unchanged. The first complete child must reach successful Done before credit; warm members stay fresh, changed
+clocks validate again, and preparation clears credit before final execution. Sorting, arithmetic and diagnostics stay.
+
+`quantile_grouped_inputs_` runs four focused units. Its 96 actual Engine outcomes check labels, times, exact bits,
+annotations, reads, page lifetimes and release before the final growth bound. Unchanged production passes those
+results, then fails the growth bound. The corrected inner-Machine owner derives both cold and warm identities;
+its excluded target differs from both. Actual cold/warm/next-clock acquisitions, failed/new-key credit, cancellation,
+sink errors, invalid-quantile body reads and parameter errors are checked. An initial passing test hit a selected
+cold member; that limitation remains retained and is not credited with the corrected nonmember witness.
+
+Run from the Cargo root, after creating `tests/promql-conformance/.tmp`:
+
+```sh
+cargo test --locked --features fixtures --release -- quantile_grouped_inputs_ --nocapture
+```
+
+`quantile_aggregate_cases.grouped_input_cases()` supplies 1,536 fresh original cases across six datasets. Pass it as
+`inputs` to the existing `cursor_calls.capture`/`qualify` APIs. Both profiles and independent name/mode options cover
+all eight ordinary operators, raw/window/nested maps, ordinary-child empty aliases, native/mixed, empty/singleton and
+clock/fallback cases. Continuous fields use the declared upstream tolerance; Boolean-derived requests require exact
+numbers. All paired numeric bits in this finite panel also match. Retained base and label owners add 3,942 cases.
+
+All 43,824 current original-or-policy outcomes pass. Native before/current results are exact in 32,868 comparisons:
+23,652 reuse authenticated accepted-before captures, and 9,216 execute the accepted binary on fresh inputs. Reuse
+adds no execution. The 38,346 exact portable result pairs also reuse completed captures. Both native profiles pass
+756 units with two unchanged ignored; each QEMU target passes nine focused units plus 5,478 complete outcomes.
+Two raw membership failures per base cohort remain failures: 16 current and 12 before. Eight declared map-order
+boundaries qualify separately. These are not complete strict-original parity claims.
+
+Actual native default C callers pass 240 cases per side. Their 240 memory pairs overlap 96 exact statistic triples.
+The grouped-child shape has one source and one inner group: 24 successful and 24 expected provider-error arms across
+profiles check plan construction, owned/streamed labels, retained output after query release and cleanup. Plural
+contributor activation belongs to the Engine/inner-Machine fixtures; this C shape makes no such claim. Use the
+caller's existing `--owned-labels-only` mode. Broad fixture captures omit logical sample statistics.
+
+Among 32,868 native observations, 2,640 fetch fewer entries and 3,888 reduce Workspace allocation traffic. No row
+reduces Workspace peak. All 7,584 Workspace cost rows remain: at most 880 extra peak bytes or 1,328 acquired bytes
+in this expression panel. The C panel has 24 cost rows, at most 280 extra peak or 344 acquired bytes. These finite
+maxima are not arbitrary-cardinality bounds. Raw histories remain paged across both metrics and time.
+
+Five alternating pairs per profile run 1,920 primary queries, including 1,440 measured outcomes across 48 groups.
+The 16-group, two-member timing cases have these median milliseconds with ordinary name handling:
+
+| Body | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| `sum by(job)(m)` | 47.756 → 4.231 | 85.064 → 7.503 |
+| `sum by(job)(rate(m[2s]))` | 14.896 → 2.886 | 27.993 → 5.024 |
+| Direct `m` control | 4.376 → 4.348 | 7.948 → 7.939 |
+| Unsupported `sum by(job)(timestamp(m))` control | 34.761 → 34.257 | 66.954 → 66.893 |
+
+The raw case removes 25,249,312 acquired Workspace bytes and reduces fetching from 60,288 to 4,668 entries. The
+rate case removes 8,598,712 acquired bytes; its 5,376 fetched entries stay unchanged. Both selected timing peaks
+stay unchanged. One-group raw/rate controls add 280 peak/344 acquired bytes and have 2.1–3.4% slower primary medians.
+
+All 23 slower primary medians remain, including a 12.4% maximum. Every case at the predeclared 5% threshold receives
+the fixed 420-query follow-up, with 20 measured results per side. Repeat ratios range from 0.9855 to 1.0647. The
+largest repeat is an empty size-profile control, 18.800 → 20.015 microseconds, or +1.216 microseconds. Primary samples
+are not replaced and no unmeasured cause is assigned. Preflight adds 96 separate queries; its maximum before is
+82.8 ms, below the 5 s repetition guard.
+
+Formatting, strict default/fixture Clippy and installed MSRV compilation pass. All six linked-size pairs remain,
+including 16 extra C text bytes per native profile. The
+[quantile-group qualification](quantile-group-contributor-qualification.json) binds complete outcomes, all costs,
+source/binary/capture identities and the retained calibration correction. These
+shared-host fixture timings establish no live/API/default-library/concurrent latency, RSS or physical ARM speed.
+Metadata and owned complete output can grow; implicit limits remain disabled.
+
 ## Grouped aggregate contributors
 
 Ordinary grouped operands can now reuse complete join discovery and evaluate only the selected group's original

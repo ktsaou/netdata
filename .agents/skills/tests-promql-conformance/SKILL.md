@@ -152,6 +152,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-per-series-fold-join-discovery` for the
   shared Rate/Fold proof, global-absence exclusion, original-operand phases, numerical/name distinctions,
   clock/fallback boundaries, calibrated failures, C statistics and Pair costs. Window outputs earn no raw-point marker.
+- Quantile grouped inputs MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#quantile-group-contributors` for local body demand,
+  both cold/warm identity exclusions, exact clocks, parameter ordering and separate C/statistic scopes.
 - Grouped-contributor changes MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#grouped-aggregate-contributors` for output ordinals,
   cold completion, nested membership ownership, existing window-cache phases and measured metadata costs.

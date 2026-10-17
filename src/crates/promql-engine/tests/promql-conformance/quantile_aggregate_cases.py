@@ -537,3 +537,92 @@ def result_label_cases():
     if len(result) != len({row["request"]["id"] for row in result}):
         raise ValueError("duplicate emitted QUANTILE label case")
     return result
+
+
+def grouped_input_cases():
+    """Grouped child identities, clocks and kinds with independent public options."""
+    from base64 import b64decode
+
+    ordinary = result_label_records(4, 96)
+    aliases = []
+    mixed = []
+    histograms = []
+    for index, row in enumerate(ordinary):
+        labels = {
+            b64decode(label["name"]): b64decode(label["value"])
+            for label in row["labels"]
+        }
+        alias_labels = dict(labels)
+        if index % 2:
+            alias_labels.pop(b"empty")
+        else:
+            alias_labels[b"empty"] = b""
+        aliases.append(
+            series(
+                alias_labels,
+                [(time * 1000, index + time + 1, "float") for time in range(3)],
+            )
+        )
+        histogram = series(
+            labels,
+            [(time * 1000, index + time + 1, "float_histogram") for time in range(3)],
+        )
+        histograms.append(histogram)
+        mixed.append(deepcopy(histogram if index % 2 else row))
+
+    queries = []
+    for operator in ("sum", "avg", "count", "min", "max", "group", "stdvar", "stddev"):
+        queries.extend(
+            (
+                f"quantile(.5,{operator} by(job)(m))",
+                f"quantile(.5,{operator} without(member,padding)(rate(m[2s])))",
+                f"quantile(.5,abs({operator} by(job,empty)({operator} by(job,empty,member)(m)))) > bool 0",
+            )
+        )
+    queries.extend(
+        (
+            "quantile(NaN,sum by(job,empty)(m))",
+            "quantile(Inf,sum by(job,empty)(m))",
+            "quantile(time()/2,sum by(job,empty)(m))",
+            "quantile(.5,sum by(job)(m @ 1))",
+            "quantile(.5,sum by(job)(m offset 1s))",
+            "quantile(.5,sum by(job)(timestamp(m)))",
+            "quantile(.5,sum by(job)(m*scalar(m)))",
+            "sum_over_time((quantile(.5,sum by(job,empty)(m)))[2s:1s] @ 2)",
+        )
+    )
+    result = []
+    for shape, records in (
+        ("empty", []),
+        ("singleton", result_label_records(1)),
+        ("ordinary", ordinary),
+        ("raw-empty-aliases", aliases),
+        ("mixed", mixed),
+        ("native", histograms),
+    ):
+        for profile in ("server-default", "upstream-tests"):
+            for delayed in (False, True):
+                for mode in ("instant", "range"):
+                    for index, query in enumerate(queries):
+                        result.append(
+                            {
+                                "request": {
+                                    "id": f"quantile-group:{shape}:{profile}:{delayed}:{mode}:{index}",
+                                    "query": query,
+                                    "profile": profile,
+                                    "delayed_name_removal": delayed,
+                                    "mode": mode,
+                                    "time_ms": 2000,
+                                    "start_ms": 0,
+                                    "end_ms": 2000,
+                                    "step_ms": 1000,
+                                    "lookback_ms": 1,
+                                    "subquery_step_ms": 1000,
+                                },
+                                "dataset": {"schema_version": 1, "series": deepcopy(records)},
+                                "faults": {},
+                            }
+                        )
+    if len(result) != len({row["request"]["id"] for row in result}):
+        raise ValueError("duplicate grouped QUANTILE input case")
+    return result

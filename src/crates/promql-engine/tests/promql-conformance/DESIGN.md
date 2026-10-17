@@ -1565,3 +1565,22 @@ The [finite qualification](README.md#borrowed-quantile-result-labels) records ac
 complete original/order-policy/native/C/foreign outcomes and all resource/timing/linked costs. Two historical raw
 membership differences per quantile corpus remain explicit. No public type, field, cache or operator workflow is
 introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-execution claim follows.
+
+## Quantile group contributors
+
+- **Choice:** aggregate QUANTILE seeds existing contributor demand from its resolved body. Keep parameter demand,
+  Finish, primary role, Task shape and LIFO parameter-first order unchanged. Selection aggregates retain their
+  existing admission. The local consumer repeats ordinal requests during scanning, sorting and interpolation in
+  instant, equal-header and range queries; no outer unequal-range condition is needed.
+- **Proof and ownership:** each child retains its own invariant/boundary/source/scope clamp and existing supported
+  ordinary/raw/window/map proof. First full child Done, exact-key selected fresh members, changed-clock validation
+  and final preparation clearing keep their current owners. No arithmetic, histogram, name, raw-history, metadata,
+  storage/provider/public interface or implicit-limit policy changes.
+- **Controls:** actual Engine outcomes precede growth assertions; actual inner-group failures exclude both cold
+  and warm requested identities. Preserve the initial miscalibrated test beside the corrected native/foreign
+  executions. The real C shape validates single-group plan/ownership/output/cleanup, while plural activation is
+  qualified by Engine/inner-Machine fixtures. Logical C statistics and broad physical fixture scopes stay distinct.
+- **Trade-off:** metadata can raise peak memory and tiny-query costs while reducing raw replay and cumulative
+  allocation. The 16-group timing cases save about 25.2/8.6 MB allocation traffic with equal peaks, but expression
+  qualification retains up to 880 extra peak bytes, all slower controls and all linked costs. There is no universal
+  speed or total-memory bound. See the [finite procedure and evidence](README.md#quantile-group-contributors).
