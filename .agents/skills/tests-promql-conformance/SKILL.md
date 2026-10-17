@@ -124,6 +124,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Borrowed projection results MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-projection-result-labels` for exact frozen
   bytes, mutation/retention, terminal controls and page/target-matched compressed comparisons.
+- Borrowed binary/set results MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-binary-result-labels` for exact cache/side
+  bytes, mutable preparation ownership, terminal controls, Machine retention and fixture/C statistic scope.
 - Completed sort publication MUST preserve callback/error phases, hash-only duplicates, eligible input kinds,
   delayed-name gates and snapshot lifecycle. Check lookup growth and terminal interruption, actual child acquisition
   phases and temporary allocation costs; see the same guide's completed vector-sort publication section.

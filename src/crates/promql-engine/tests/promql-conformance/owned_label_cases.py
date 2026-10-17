@@ -89,3 +89,74 @@ def cases():
                 )
     inputs.append(_case("labels-empty-selector", 'm{missing="none"}', _records(1, 1)))
     return inputs
+
+
+def binary_result_cases():
+    """Immutable binary/set label outputs and their real ownership consumers."""
+    from copy import deepcopy
+    import grouped_join_cases
+    import instant_set_cases
+    import mapped_rate_cases
+
+    output = []
+    for family, inputs in (
+        ("grouped", grouped_join_cases.cases()),
+        ("rate", mapped_rate_cases.cases()),
+        ("set", instant_set_cases.cases()),
+    ):
+        for original in inputs:
+            supplied = original["request"]
+            profiles = (supplied["profile"],) if family != "set" else ("server-default", "upstream-tests")
+            delayed_options = (supplied["delayed_name_removal"],) if "delayed_name_removal" in supplied else (False, True)
+            for profile in profiles:
+                for delayed in delayed_options:
+                    case = deepcopy(original)
+                    case["request"].update(
+                        id=f'binary-labels:{family}:{supplied["id"]}:{profile}:d{int(delayed)}',
+                        profile=profile, delayed_name_removal=delayed)
+                    output.append(case)
+
+    expressions = (
+        "m + n",
+        "m / on(id) n",
+        "m > bool on(id) n",
+        "m < on(id) n",
+        "m and on(id) n",
+        "m or on(id) n",
+        "m unless on(id) n",
+        "sum by(job)(m / on(id) n)",
+        "abs(m or m) / on(id) n",
+        "abs(m + n)",
+        'label_join((m+n),"row","/","id","job")',
+        'count_values("result",m+n)',
+    )
+    for state in ("dense", "long", "empty-values", "native", "mixed", "stale", "empty"):
+        records = []
+        if state != "empty":
+            for metric in ("m", "n"):
+                for index in (3, 1, 0, 2):
+                    labels = {"__name__": metric, "id": str(index), "job": "worker",
+                              "__type__": "gauge", "__unit__": "KiB"}
+                    if state == "long":
+                        labels["long"] = "v" * 512
+                    if state == "empty-values":
+                        labels.update(empty="", opaque=b"\xff\0")
+                    points = []
+                    for tick in range(3):
+                        value = float((index + 1) * (tick + 1) + (metric == "n"))
+                        kind = "float_histogram" if state == "native" or state == "mixed" and index % 2 else "float"
+                        if state == "stale" and index != tick:
+                            value, kind = "7ff0000000000002", "float"
+                        points.append((1000 * tick, value, kind))
+                    records.append(series(labels, points))
+        for profile in ("server-default", "upstream-tests"):
+            for delayed in (False, True):
+                for instant in (False, True):
+                    for index, expression in enumerate(expressions):
+                        case = _case(f"binary-labels:owners:{state}:{profile}:d{int(delayed)}:i{int(instant)}:{index}",
+                                     expression, records)
+                        case["request"].update(profile=profile, delayed_name_removal=delayed,
+                            mode="instant" if instant else "range", time_ms=2000)
+                        output.append(case)
+    assert len({case["request"]["id"] for case in output}) == len(output)
+    return output

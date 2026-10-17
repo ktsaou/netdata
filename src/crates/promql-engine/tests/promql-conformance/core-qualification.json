@@ -71098,5 +71098,20 @@
     "first_followup_query_executions": 100,
     "tiny_control_query_executions": 6144,
     "limits": "Existing language/contracts preserved; all memory/slower costs retained. Historical strict differences remain disagreements. Shared-host fixture timing does not prove live or universal throughput."
+  },
+  "borrowed_binary_result_labels": {
+    "report": "binary-result-labels-qualification.json",
+    "scope": "Borrow exact immutable binary/set result labels using existing SampleLabels; mutable preparation remains owned. No public API/ABI, language, numerical, storage/provider/context or implicit-cap change.",
+    "fresh_original_comparisons": 13152,
+    "matched_before_original_comparisons": 9864,
+    "native_units_per_profile": 745,
+    "actual_default_C_queries": 864,
+    "actual_C_basic_statistic_pairs": 720,
+    "lower_workspace_traffic_observations": 7620,
+    "lower_workspace_peak_observations": 288,
+    "primary_timing_groups": 68,
+    "primary_timing_query_executions": 18200,
+    "followup_query_executions": 0,
+    "limits": "Exact finite label-ownership change; all costs retained. Fixture statistics and actual C export scope differ. No new language/numerical/public/live/default-library throughput guarantee."
   }
 }

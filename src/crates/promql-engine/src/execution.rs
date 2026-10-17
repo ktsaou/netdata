@@ -16435,11 +16435,22 @@ mod tests {
     fn aggregate_label_borrows_outlive_machines_and_materialize_at_descriptor_boundaries() {
         use crate::{evaluator::EvaluatedSample, sample_labels::SampleLabels};
 
-        for (expression, expected_labels) in [
-            ("abs(sum by(instance)(counter_total))", 1),
+        for (expression, expected_labels, value_factor) in [
+            ("abs(sum by(instance)(counter_total))", 1, 1.0),
             (
                 "label_join(abs(sum by(instance)(counter_total)), \"row\", \"/\", \"instance\")",
                 2,
+                1.0,
+            ),
+            (
+                "sum by(instance)(counter_total) + on(instance) sum by(instance)(counter_total)",
+                1,
+                2.0,
+            ),
+            (
+                "sum by(instance)(counter_total) or sum by(instance)(counter_total)",
+                1,
+                1.0,
             ),
         ] {
             for delayed in [false, true] {
@@ -16525,7 +16536,10 @@ mod tests {
                             let second = machine.next().unwrap().unwrap();
                             assert!(machine.next().unwrap().is_none());
                             drop(machine);
-                            assert!(matches!(first.labels, SampleLabels::Borrowed(_)));
+                            assert!(
+                                matches!(first.labels, SampleLabels::Borrowed(_)),
+                                "immutable result labels must borrow their frozen owner: {expression}"
+                            );
                             assert!(matches!(second.labels, SampleLabels::Borrowed(_)));
                             assert_eq!(first.labels.0.len(), expected_labels);
                             if expected_labels == 2 {
@@ -16688,7 +16702,8 @@ mod tests {
                             assert_eq!(point.time_ms, (tick as i64 + 1) * 1000);
                             assert_eq!(
                                 float_bits(point),
-                                (2.0 * (group + 1) as f64 * (tick + 1) as f64).to_bits()
+                                (value_factor * 2.0 * (group + 1) as f64 * (tick + 1) as f64)
+                                    .to_bits()
                             );
                         }
                     }

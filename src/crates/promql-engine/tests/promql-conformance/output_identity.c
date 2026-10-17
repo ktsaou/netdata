@@ -12,7 +12,11 @@ int main(void) {
         "abs(label_join(sum by(zone)(m_total),\"zone\",\"\",\"zone\")) > bool 0",
         "abs(label_replace(sum by(zone)(m_total),\"zone\",\"$1\",\"zone\",\"(.*)\")) > bool 0",
         "abs(label_join(sum by(zone)(rate(m_total[3s])),\"zone\",\"\",\"zone\")) > bool 0",
-        "abs(label_replace(sum by(zone)(rate(m_total[3s])),\"zone\",\"$1\",\"zone\",\"(.*)\")) > bool 0"
+        "abs(label_replace(sum by(zone)(rate(m_total[3s])),\"zone\",\"$1\",\"zone\",\"(.*)\")) > bool 0",
+        "(sum by(zone)(m_total) + on(zone) sum by(zone)(m_total)) > bool 0",
+        "(sum by(zone)(m_total) or sum by(zone)(m_total)) > bool 0",
+        "(sum by(zone)(rate(m_total[3s])) + on(zone) sum by(zone)(rate(m_total[3s]))) > bool 0",
+        "(sum by(zone)(rate(m_total[3s])) or sum by(zone)(rate(m_total[3s]))) > bool 0"
     };
     for (unsigned delayed = 0; delayed < 2; delayed++) {
         netdata_promql_engine_options_t options;

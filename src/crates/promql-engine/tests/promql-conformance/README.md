@@ -3938,6 +3938,90 @@ hashes/counts and compressed hashes. Resource baselines match page, architecture
 become integers only in analysis. The source tests are committed; full comparative captures remain local. No
 public API, provider, storage, numerical, language or implicit-cap contract changes.
 
+## Borrowed binary-result labels
+
+Set emission borrows exact immutable side-descriptor labels. Arithmetic and comparison emission borrows the
+matching frozen result-cache entry after complete-key lookup. Both use the existing SampleLabels representation;
+the mutable preparation cache still returns owned labels. No aggregate empty-value normalization is applied to
+these bytes. Cache keys, first-writer results, suppressed comparisons, source ordinals and name flags retain their
+existing meaning.
+
+A terminal control check replaces each removed immutable copy. Frozen lookup still reports a missing key before
+that check. Matching, reservation, duplicate detection, values, diagnostics and replay credit keep their original
+phases. The frozen Plan outlives samples and Machine re-entry; actual mutation, retained descriptors and public
+results obtain independent checked/accounted ownership. OrderedRows keeps its existing conditional canonical
+descriptor replacement. No new cache, field, owner or representation is introduced.
+
+The extended actual Machine test fails at the intended arithmetic-label borrow assertion on unchanged
+production, then passes with frozen borrowing. It checks grouped arithmetic and sets beside aggregate/projection
+owners, both name-removal modes, lifetime after Machine drop, interrupted materialization and independently
+collected output. The existing full-key collision test also checks borrowed pointer identity, zero allocation,
+empty keys/labels and cancellation after successful lookup.
+
+The public generator `owned_label_cases.binary_result_cases()` supplies 1,644 fresh original outcomes over 38
+datasets: 1,588 non-error outcomes and 56 intentional errors. Arithmetic, bool/filter comparisons, matching
+modifiers, sets, grouped/mapped-rate parents, native/mixed/stale/empty histories, byte/long/empty labels and real/
+no-op mutations use independent profile and name-removal options. Both native profiles compare all cases at
+pages1/17/1024; each ARM target compares them at page17 under QEMU. All 13,152 current original comparisons and
+9,864 matched signed-before comparisons pass, including exact numeric bits. This finite panel does not qualify
+arbitrary expressions or reclassify earlier strict-original disagreements.
+
+Both native profiles pass 745 units with two unchanged ignored tests. Each emulated ARM target passes 34 focused
+units in release; this is neither a full foreign suite nor physical-device throughput. Formatting, strict
+default/fixture Clippy and installed Rust1.91 compile-only checks pass.
+
+Actual default-feature C callers pass 432 cases per native profile, with 864 current and 864 matched-before
+executions in total. Histogram/output callers export all three basic sample statistics on 720 paired cases;
+these match exactly. The remaining 144 owned-label pairs omit statistics and check fetched entries, ownership,
+work and memory. The broad query fixture also omits logical statistics. Complete distinguishing expression
+values are checked by the original panel; normalized C cases check callback/error/cleanup behavior.
+
+Across 9,864 native fixture observations, 7,620 reduce Workspace acquisition and 288 reduce Workspace peak.
+No tracked memory category increases. All eight categories retain equal current/overflow, and physical pages,
+fetched entries, provider calls and reference observations remain exactly equal. These are accounted allocation
+measurements; many query peaks stay unchanged, and they do not measure process RSS.
+
+| Release page1024 case | Workspace acquired, before → current | Workspace peak, before → current |
+| --- | --- | --- |
+| One row, m+n, 16-byte value | 47,044 → 46,072 B | 12,215 → 12,215 B |
+| One row, m or n, 16-byte value | 42,590 → 40,445 B | 11,588 → 11,588 B |
+| 1,024 rows, m+n, 512-byte value | 71,559,477 → 66,523,857 B | 5,871,344 → 5,871,344 B |
+| 1,024 rows, abs(m or n), 512-byte value | 639,573,900 → 632,001,850 B | 4,873,440 → 4,873,440 B |
+
+The fixed timing panel uses 34 cases per profile and five alternating before/current pairs, retaining every
+sample and slower median. Singleton processes use 64 warmups and 16 measured queries; 128-row processes use two
+warmups and three measured queries; 1,024-row processes use one warmup and three measured queries. Complete
+results and serialized observations compare beside elapsed engine time. Every primary ratio at least1.05 gets
+a separately declared follow-up. Measurements exclude serialization/compression and establish shared-host
+fixture latency only; actual default-library, live, concurrent, device and universal throughput remain separate.
+
+The panel completes 18,200 queries across 68 case/profile groups. Five primary medians are slower, with a maximum
+current/before ratio of1.0283. No group reaches the follow-up threshold: zero follow-up groups/queries. Every
+primary sample and slower row remains in the report.
+
+| Timing case | Release current/before median | Release-min current/before median |
+| --- | --- | --- |
+| One row, m+n, 16-byte value | 0.957 | 0.959 |
+| One row, m or n, 16-byte value | 0.939 | 0.933 |
+| 1,024 rows, m+n, 512-byte value | 0.879 | 0.936 |
+| 1,024 rows, abs(m+n), 16-byte value | 1.015 | 0.926 |
+
+All ten linked executable cost pairs remain in the report. Native C text falls by60–188bytes; ARM32/ARM64 fixture
+text grows by2,388/8,900bytes. Text, data, BSS and file size remain separate measures. There is no new type-layout
+or stack measurement. Public APIs, storage/provider/context contracts, numerics and implicit caps stay unchanged.
+
+From src/crates/promql-engine, run the meaningful ownership regression in either optimized profile:
+
+```sh
+cargo test --locked --features fixtures --release \
+  aggregate_label_borrows_outlive_machines_and_materialize_at_descriptor_boundaries
+```
+
+The [binary-result qualification](binary-result-labels-qualification.json) binds complete original outcomes,
+source/controller/binary identities, actual C statistics, resource observations and all timing/code costs. New
+captures stream gzip from the start and verify raw/compressed hashes after full EOF. Portable source controls
+are committed; full comparative captures remain local.
+
 ## Completed vector-sort publication
 
 `sort`, `sort_desc`, `sort_by_label` and `sort_by_label_desc` complete their existing sorting callbacks before

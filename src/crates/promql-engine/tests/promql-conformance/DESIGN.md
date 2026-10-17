@@ -1123,6 +1123,24 @@ integration, and Alertmanager remains excluded.
   expressions, actual native C owners, focused ARM executions and all slower/memory/code-cost rows. Compressed
   query captures retain raw/compressed hashes; resource baselines match page, target and profile.
 
+## Borrowed binary-result labels
+
+- **Choice:** Set results borrow immutable side-descriptor labels; frozen Pair cache hits borrow the exact entry
+  labels through existing SampleLabels. Mutable preparation hits/inserts retain owned labels. No new field,
+  shared owner, representation or cache is added.
+- **Identity:** retain exact frozen bytes, including empty values. Aggregate normalization does not apply here.
+  Undelimited keys, complete-key collision checks, first-writer results, false comparisons, source ordinals,
+  name flags, hash-only duplicates and cardinality remain unchanged.
+- **Phases:** poll at the replaced Set copy and after successful frozen lookup. Missing-key errors retain their
+  earlier phase. Hashing, reservation, values, diagnostics, seen tracking and successful replay credit stay intact.
+- **Lifetime:** the frozen Plan outlives evaluated samples and Machine frames/re-entry. OrderedRows keeps its
+  conditional canonical replacement; real mutation, retained descriptors and public output materialize independent
+  checked/accounted ownership. Borrowing never reaches the mutable preparation RefCell.
+- **Evidence:** [the binary-result procedure](README.md#borrowed-binary-result-labels) and its finite qualification
+  bind causal ownership failure, complete original outcomes, terminal controls, actual native C statistics and
+  matched memory/timing/linked costs. Fixture statistics, foreign focused execution, query allocations and actual
+  default-library/live throughput retain their distinct scopes.
+
 ## Completed vector-sort publication
 
 - **Choice:** after the original numeric or label sorting callback completes, duplicate validation retains the

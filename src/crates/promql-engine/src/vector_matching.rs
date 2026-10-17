@@ -1575,13 +1575,10 @@ impl<'a> Step<'a> {
                     {
                         Choice::Set(operand) => {
                             let descriptor = &self.plan.sides[operand.side].rows[operand.row];
+                            control.check()?;
                             (
                                 self.set_ordinal(operand),
-                                descriptor.labels.copy_checked(
-                                    account,
-                                    MemoryKind::Workspace,
-                                    control,
-                                )?,
+                                SampleLabels::Borrowed(&descriptor.labels),
                                 value,
                                 descriptor.drop_name,
                             )
@@ -1632,7 +1629,8 @@ impl<'a> Step<'a> {
                                     !options.delayed_name_removal && self.return_bool,
                                     control,
                                     account,
-                                )?
+                                )
+                                .map(|(ordinal, labels)| (ordinal, SampleLabels::Owned(labels)))?
                             } else {
                                 frozen_labels(&self.plan.cache, &key, control, account)?
                             };
@@ -1675,7 +1673,7 @@ impl<'a> Step<'a> {
                     }
                     return Ok(Action::Sample(EvaluatedSample {
                         ordinal,
-                        labels: labels.into(),
+                        labels,
                         float_samples: parts.float_samples,
                         value: parts.value,
                         drop_name,
@@ -1700,19 +1698,18 @@ impl<'a> Step<'a> {
 fn reservation_hash(signature: usize, hash: u64) -> u64 {
     label_hash::avalanche(signature as u64) ^ hash.rotate_left(17)
 }
-fn frozen_labels(
-    cache: &Cache,
+fn frozen_labels<'a>(
+    cache: &'a Cache,
     key: &[u8],
     control: &Control,
     account: &QueryAccounting,
-) -> Result<(usize, OwnedLabels), EvaluationError> {
+) -> Result<(usize, SampleLabels<'a>), EvaluationError> {
     let hash = label_hash::bytes(key, control, account)?;
     if let Some(position) = cache.position(key, hash, control, account)? {
+        control.check()?;
         return Ok((
             position,
-            cache.entries[position]
-                .labels
-                .copy_checked(account, MemoryKind::Workspace, control)?,
+            SampleLabels::Borrowed(&cache.entries[position].labels),
         ));
     }
     Err(EvaluationError::Invalid(
@@ -4292,9 +4289,56 @@ mod tests {
                 )
                 .unwrap();
         }
+        let before = account.snapshot();
         let (position, result) = frozen_labels(&cache, &target, &control, &account).unwrap();
+        let lookup_work = account.snapshot().work - before.work;
         assert_eq!(position, 63);
+        assert!(
+            matches!(result, SampleLabels::Borrowed(value) if std::ptr::eq(value, &cache.entries[position].labels))
+        );
         assert_eq!(&*result.0[0].value, b"target");
+        assert_eq!(account.snapshot().memory, before.memory);
+        drop(result);
+        assert!(lookup_work > 0);
+        let cancelled = Control::default();
+        let result =
+            crate::test_storage::interrupt_after_work(&account, &cancelled, lookup_work, || {
+                frozen_labels(&cache, &target, &cancelled, &account)
+            });
+        assert!(matches!(
+            result,
+            Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+        ));
+        drop(result);
+        let empty_key = AccountedVec::new(&account, MemoryKind::Workspace);
+        let empty_hash = label_hash::bytes(&empty_key, &control, &account).unwrap();
+        let empty_position = cache.entries.len();
+        cache.entries.push(CacheEntry {
+            key: Key {
+                bytes: empty_key,
+                hash: empty_hash,
+            },
+            labels: OwnedLabels::new(&account, MemoryKind::Workspace),
+        });
+        cache
+            .index
+            .insert_new(
+                empty_hash,
+                empty_position,
+                |prior| Ok(cache.entries[prior].key.hash),
+                &control,
+                &account,
+            )
+            .unwrap();
+        let before = account.snapshot().memory;
+        let (position, result) = frozen_labels(&cache, &[], &control, &account).unwrap();
+        assert_eq!(position, empty_position);
+        assert!(
+            matches!(result, SampleLabels::Borrowed(value) if std::ptr::eq(value, &cache.entries[position].labels))
+        );
+        assert!(result.0.is_empty());
+        assert_eq!(account.snapshot().memory, before);
+        drop(result);
         assert_eq!(size_of::<Active>(), size_of::<usize>() * 2);
         eprintln!(
             "index layout: Active={} Side={} Cache={} PositionIndex={}",
@@ -4303,7 +4347,7 @@ mod tests {
             size_of::<Cache>(),
             size_of::<PositionIndex>()
         );
-        drop((cache, target, result));
+        drop((cache, target));
         account.snapshot().assert_memory_released();
     }
 }
