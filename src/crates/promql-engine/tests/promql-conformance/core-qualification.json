@@ -71030,5 +71030,18 @@
     "whole_query_timing_outcomes": 2320,
     "followup_timing_outcomes": 176,
     "scope": "Exact completed shared-prefix proof, unchanged fixed state/layouts and public contracts. Counted-digit no-jump reconstruction, full-depth ladders/late failures, complete-child/provenance/control owners, actual native/foreign/C, paged-growth and all time/memory/code costs retained."
+  },
+  "compact_position_slots": {
+    "status": "qualified_private_optimization",
+    "qualification": "compact-slots-qualification.json",
+    "sha256": "a6abde177f6bdf8d9f77eed645fe78ceab471d74c14ca8ef3de89bfd3ed52494",
+    "native_units_per_profile": 736,
+    "complete_expression_comparisons": 5456,
+    "retained_reducer_complete_comparisons": 56124,
+    "strict_original_differences_retained": 216,
+    "actual_current_C_queries": 672,
+    "whole_query_primary_timing_outcomes": 1040,
+    "whole_query_followup_timing_outcomes": 88,
+    "scope": "Lossless four-byte ordinary position slots; unchanged headers and full identity/ownership. Shared cold callbacks reduce generic growth code. Complete native/foreign/C/policy equivalence, actual all-category memory and every timing/code cost retained. No raw cache or public contract change."
   }
 }

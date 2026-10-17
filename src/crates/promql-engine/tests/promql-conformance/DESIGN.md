@@ -262,6 +262,30 @@ its actual work, resources and delivered points. See [final range output](README
   [measured grouping and joins](README.md#compact-group-and-join-lookups),
   [source-bound cohorts](core-qualification.json).
 
+#### Four-byte position slots
+
+Ordinary tables store one `u32` per logical slot. A position whose encoded value needs more bits promotes the
+table to two words per slot; the complete `usize` position remains authoritative. Hashes and caller predicates
+retain their full identity rules. Empty and singleton indexes keep their existing allocation-free representation.
+
+One tracked buffer and the existing state word preserve the header budget. Interpret the width marker only for
+allocated tables: a singleton can use every state bit. Table counts have spare bits under the buffer's existing
+checked allocation bounds. ARM32 needs one word for every representable position; no position cap is introduced.
+
+Select width before probing or visiting. A width-only promotion copies physical bucket/signature offsets and
+does not invoke rehash callbacks. A simultaneous capacity increase preserves the original rehash traversal.
+Dense conversion retains its required-sparse-allocation comparison in the same width. Replacement allocations
+remain private until success, with both capacity leases live during copying and unchanged work per logical slot.
+
+Cold rebuild and dense-conversion loops borrow their hash/key callbacks through shared routines. Hot equality
+predicates remain specialized. This shares growth code without boxing callbacks or adding persistent metadata.
+
+The ordinary table payload halves on 64-bit targets. Whole-query peaks can stay unchanged when other metadata
+dominates. A rare width-only promotion temporarily holds compact old plus wide new storage and can exceed an
+always-wide steady table; this overlap remains accounted. Linked code, callback dispatch and stack costs are
+separate from heap payload. See [the finite slot qualification](README.md#four-byte-position-slots) for measured
+query, memory and code tradeoffs; raw histories and public interfaces are unchanged.
+
 #### Mapped label and kind identity
 
 `UniqueKinds` retains accepted `(full label hash, kind)` tuples in encounter order. Both mapped evaluation and final

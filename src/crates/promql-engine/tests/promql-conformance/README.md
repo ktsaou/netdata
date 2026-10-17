@@ -2483,6 +2483,8 @@ uniqueness retain their original phases. Ordinary aggregation releases positions
 Empty/singleton indexes have no slot allocation. Sparse slots grow at two-thirds load; active signature domains
 use dense positions only when they fit the sparse replacement already required. Rebuilds charge both allocations
 and check cancellation before publication. They contain positions rather than raw samples or copied payloads.
+The later [four-byte slot qualification](#four-byte-position-slots) narrows ordinary payloads while retaining
+full-size positions and these ownership rules.
 
 Before/after fixtures at the accepted `038cda1169` source preserve complete answers and sample reads in both builds:
 
@@ -2512,6 +2514,72 @@ capture. Inspect each helper's callable `qualify` interface: a known strict orde
 the separate policy gate from running. Follow the conformance workflow's recorded process-owner route for these
 helpers when process signals have not been approved. The current source, helper and binary bindings are recorded
 under `lookup_index_qualification` in [core-qualification.json](core-qualification.json).
+
+## Four-byte position slots
+
+The current lookup stores ordinary encoded positions in four-byte slots. Positions remain full-size `usize`
+values: a larger encoded position promotes the whole table to two words per slot on 64-bit targets. Empty and
+singleton indexes allocate no slots. Full hashes, caller equality, first writers and owner traversal remain
+unchanged; these tables contain metadata positions, never raw samples.
+
+One tracked buffer and the existing state word keep the header budget unchanged. Width-only promotion preserves
+physical probe/signature offsets without invoking rehash callbacks. Capacity growth retains the original callback
+order. Both allocations remain accounted until successful replacement, including cancellation cleanup. A rare
+width-only promotion can temporarily hold more bytes than an always-wide steady table; that overlap is measured.
+Cold growth routines share borrowed callbacks; hot equality predicates remain specialized.
+
+The [qualification report](compact-slots-qualification.json) retains source/binary/input identities and all costs.
+The release fixture at page 17 records these whole-query observations:
+
+| Query case | Workspace peak before → after | Workspace acquired before → after |
+| --- | ---: | ---: |
+| One-to-one join, 512 series | 859,008 → 846,720 B | 3,796,746 → 3,747,722 B |
+| Group-left join, 512 series | 799,402 → 787,114 B | 3,341,714 → 3,300,834 B |
+| Grouped abs, 4,096 series/three ticks | 6,020,640 → 6,020,640 B | 78,320,455 → 77,665,255 B |
+
+Halving slot payload does not halve query RAM: labels, rosters and output can dominate. Acquired/released counters
+describe tracked allocation traffic, separately from retained peak bytes. ARM32 slots are already four bytes;
+its executed C query memory observations remain unchanged. No implicit resource limit is enabled.
+
+Ten native index units include full-width singletons, the encoded 32-bit boundary, low-word-zero occupancy,
+collisions, growth order, sparse/dense width-only promotion and interrupted replacement. Both native profiles
+pass 736 units with two unchanged ignored tests. ARM32/ARM64 execute six/ten focused units. The query panel compares
+5,456 complete outcomes over 682 retained cases, native pages 1/17/1024 and foreign page 17. Its 64 error cases per run
+remain complete error comparisons; they intentionally do not expose allocation observations. Eight actual GNU C
+callers linked against default-feature archives execute 672 query cases. These are separate from fixture-feature
+executables and do not claim a new C++ or sanitizer panel.
+
+Complete TOPK/BOTTOMK, LIMIT and aggregate QUANTILE interactions replay all 56,124 retained outcomes. Exact equality
+to every authenticated signed-base report input permits reuse of its unchanged original strict and approved
+ordering-policy analyses. Keep their source/input/output/report hashes and historical binary attribution, and
+bind fresh current executions separately. The same 216 strict differences remain, including tie-dependent membership
+and point-count differences; they are not literal Prometheus passes. Paired numerical-bit differences remain zero.
+
+The matched timing protocol uses 26 existing owner queries per native profile, five alternating pairs, and one warm
+plus one measured request per case/process. Empty/singleton/two-ID, 32/33 sort, ranking, grouping/join, mapped/output
+identity and raw controls remain visible. Retain every slower primary median and repeat all at least 5% slower groups;
+the report records both panels and all eight memory categories. Timings describe engine elapsed time on a shared
+host, without a claim about live DBengine, concurrent throughput, RSS or physical ARM performance.
+
+The 52 primary medians include 12 slower groups. Both groups at least 5% slower receive 20 measured samples per
+side. The size-optimized one-group control remains slower in that repeat, from 28.8945 to 32.2045 microseconds;
+the release singleton control changes direction. Both panels remain in the report without a causal explanation.
+
+Sharing cold growth removes much of the preliminary code cost. The same-source release C caller's GNU size text
+total changes by +44,676 B on native, +13,336 B on ARM64 and -54,612 B on ARM32 relative to the baseline. All profile
+text/data/BSS/file costs are retained; GNU size text includes read-only data. Enclosing type diagnostics and query
+heap observations do not establish whole-function stack or process RSS bounds.
+
+From the crate directory, run the focused owned-index checks with either profile:
+
+```sh
+cargo test --locked --features fixtures --release position_index::tests::
+cargo test --locked --features fixtures --profile release-min position_index::tests::
+```
+
+The broad panel reuses the retained complete grouping/join inputs, sort 32/33 controls and grouped Map/output-ID
+inputs described by the report. Authenticated captures and detailed receipts stay in their recorded evidence
+directories; the focused units above are self-contained source checks.
 
 ## Completed unique float join scans
 
