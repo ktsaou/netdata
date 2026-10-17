@@ -757,49 +757,137 @@ mod tests {
     }
 
     #[test]
-    fn scheduled_quantile_rank_uses_one_traversal_per_nibble() {
+    fn uniform_scheduled_ranks_wait_for_complete_child_success() {
         for page in [1, 17, 1024] {
-            let engine = EngineAccounting::default();
-            let account = engine.query();
-            let control = Control::default();
-            let rows = [row(&account)];
-            let source = GeneratedSeries::new(2, page, counter);
-            let mut step = Step::new(input(2), &rows, RowFilter::All, &account);
-            let mut traversals = 0;
-            loop {
-                match step.advance(&control, &account).unwrap() {
-                    Action::ScheduledPass { .. } => {
-                        traversals += 1;
-                        assert!(traversals <= 34);
-                        step.scheduled_pass(&control, &account, |visit| {
-                            drive(&source, &control, &account, visit)
-                        })
-                        .unwrap();
-                    }
-                    Action::Series {
-                        sample: Some(sample),
-                        sample_units,
-                        ..
-                    } => {
-                        assert_eq!(sample.source_time_ms, 2000);
-                        assert!(
-                            matches!(sample.value, OwnedValue::Float(value) if value.to_bits() == 1.5f64.to_bits())
-                        );
-                        assert_eq!(sample_units, 2);
-                        break;
-                    }
-                    _ => panic!("unexpected quantile continuation"),
+            for failure in ["page", "after", "after_cancel", "terminal"] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let rows = [row(&account)];
+                let mut source =
+                    GeneratedSeries::new(page + 1, page, crate::test_storage::two_classes);
+                let mut step = Step::new(input(page + 1), &rows, RowFilter::All, &account);
+                prime_rank(&mut step, &source, &control, &account);
+                step.scheduled_pass(&control, &account, |visit| {
+                    drive(&source, &control, &account, visit)
+                })
+                .unwrap();
+                assert!(matches!(
+                    step.advance(&control, &account).unwrap(),
+                    Action::ScheduledPass { .. }
+                ));
+                if failure == "page" {
+                    source.fail_page = Some(1);
                 }
+                let result = step.scheduled_pass(&control, &account, |visit| {
+                    let result = drive(&source, &control, &account, visit);
+                    if failure != "after" {
+                        control.cancellation.cancel();
+                    }
+                    result?;
+                    if failure == "terminal" {
+                        Ok(())
+                    } else {
+                        Err(StorageError::Provider(b"after uniform visitor".to_vec().into()).into())
+                    }
+                });
+                if failure == "terminal" {
+                    result.unwrap();
+                    assert!(!step.dry && step.scheduled_complete);
+                    assert!(matches!(
+                        step.advance(&control, &account),
+                        Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                    ));
+                } else {
+                    assert!(
+                        matches!(&result, Err(EvaluationError::Storage(StorageError::Provider(bytes)))
+                        if &**bytes == if failure == "page" { &b"injected page failure"[..] } else { &b"after uniform visitor"[..] })
+                    );
+                    assert!(step.dry && !step.scheduled_complete);
+                    drop(result);
+                }
+                // The completed keys remain provisional until the entire child succeeds.
+                if failure != "page" {
+                    let Pass::Complete(output) = step
+                        .kernel
+                        .finish_pass(&Control::default(), &account)
+                        .unwrap()
+                    else {
+                        panic!("uniform rank pass must still be unconsumed");
+                    };
+                    let expected: f64 = if (page + 1).is_multiple_of(2) {
+                        1.5
+                    } else {
+                        1.0
+                    };
+                    assert!(
+                        matches!(output.value, Some(OwnedValue::Float(value)) if value.to_bits() == expected.to_bits())
+                    );
+                }
+                assert_eq!(step.position, 0);
+                assert!(step.backed.is_none());
+                assert_eq!(step.sample_units, (page + 1) as u64);
+                assert_eq!(source.counters.opened.load(Ordering::Relaxed), 4);
+                assert_eq!(source.counters.closed.load(Ordering::Relaxed), 4);
+                assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                drop(step);
+                drop(rows);
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
             }
-            assert_eq!(traversals, 18);
-            assert_eq!(source.counters.opened.load(Ordering::Relaxed), 18);
-            assert_eq!(source.counters.closed.load(Ordering::Relaxed), 18);
-            assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
-            drop(step);
-            drop(rows);
-            account.snapshot().assert_memory_released();
-            drop(account);
-            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn scheduled_quantile_rank_uses_one_traversal_per_required_pass() {
+        for page in [1, 17, 1024] {
+            for (sample, expected, passes) in [
+                (counter as fn(usize) -> crate::value::Sample, 1.5f64, 4),
+                (crate::test_storage::adjacent_counter, 1.0, 18),
+            ] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let rows = [row(&account)];
+                let source = GeneratedSeries::new(2, page, sample);
+                let mut step = Step::new(input(2), &rows, RowFilter::All, &account);
+                let mut traversals = 0;
+                loop {
+                    match step.advance(&control, &account).unwrap() {
+                        Action::ScheduledPass { .. } => {
+                            traversals += 1;
+                            assert!(traversals <= 34);
+                            step.scheduled_pass(&control, &account, |visit| {
+                                drive(&source, &control, &account, visit)
+                            })
+                            .unwrap();
+                        }
+                        Action::Series {
+                            sample: Some(sample),
+                            sample_units,
+                            ..
+                        } => {
+                            assert_eq!(sample.source_time_ms, 2000);
+                            assert!(
+                                matches!(sample.value, OwnedValue::Float(value) if value.to_bits() == expected.to_bits())
+                            );
+                            assert_eq!(sample_units, 2);
+                            break;
+                        }
+                        _ => panic!("unexpected quantile continuation"),
+                    }
+                }
+                assert_eq!(traversals, passes);
+                assert_eq!(source.counters.opened.load(Ordering::Relaxed), passes);
+                assert_eq!(source.counters.closed.load(Ordering::Relaxed), passes);
+                assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+                drop(step);
+                drop(rows);
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
         }
     }
 }

@@ -204,7 +204,7 @@ mod tests {
                 assert_eq!(result.annotation, None);
                 assert_eq!(
                     source.counters.opened.load(Ordering::Relaxed),
-                    if (3..=5).contains(&case) { 1 } else { 33 }
+                    [4, 4, 5, 1, 1, 1, 3, 3][case]
                 );
                 assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
                 assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
@@ -274,37 +274,62 @@ mod tests {
     #[test]
     fn long_histories_keep_one_page_and_constant_owned_workspace() {
         for page in [1, 17, 1024] {
-            let mut previous = None;
-            for count in [2048, 100_000] {
-                let engine = EngineAccounting::default();
-                let account = engine.query();
-                let source = GeneratedSeries::new(count, page, counter);
-                let result =
-                    evaluate(&source, window(count), &Control::default(), &account).unwrap();
-                // Consecutive integers in these even, divisible-by-four windows have MAD n/4.
-                assert_eq!(result.value, Some(count as f64 / 4.0));
-                let snapshot = account.snapshot();
-                let peaks = [
-                    MemoryKind::Workspace,
-                    MemoryKind::ProviderHeld,
-                    MemoryKind::BorrowedView,
-                ]
-                .map(|kind| snapshot.memory[kind as usize].peak);
-                if let Some(previous) = previous {
-                    assert_eq!(peaks, previous);
+            for (sample, scans, expected) in [
+                (
+                    counter as fn(usize) -> Sample,
+                    [15, 17],
+                    [512.0f64.to_bits(), 25_000.0f64.to_bits()],
+                ),
+                (
+                    crate::test_storage::subnormal_counter,
+                    [33, 33],
+                    [512, 25_000],
+                ),
+                (
+                    crate::test_storage::two_classes,
+                    [4, 4],
+                    [0.5f64.to_bits(); 2],
+                ),
+            ] {
+                let mut previous = None;
+                for ((count, scans), expected) in
+                    [2048, 100_000].into_iter().zip(scans).zip(expected)
+                {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let source = GeneratedSeries::new(count, page, sample);
+                    let result =
+                        evaluate(&source, window(count), &Control::default(), &account).unwrap();
+                    assert_eq!(result.value.unwrap().to_bits(), expected);
+                    let snapshot = account.snapshot();
+                    let peaks = [
+                        MemoryKind::Workspace,
+                        MemoryKind::ProviderHeld,
+                        MemoryKind::BorrowedView,
+                    ]
+                    .map(|kind| snapshot.memory[kind as usize].peak);
+                    if let Some(previous) = previous {
+                        assert_eq!(peaks, previous);
+                    }
+                    previous = Some(peaks);
+                    assert_eq!(snapshot.samples_fetched, scans * count as u64);
+                    assert!(snapshot.work > snapshot.samples_fetched);
+                    assert_eq!(
+                        source.counters.opened.load(Ordering::Relaxed),
+                        scans as usize
+                    );
+                    assert_eq!(
+                        source.counters.closed.load(Ordering::Relaxed),
+                        scans as usize
+                    );
+                    assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+                    assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                    snapshot.assert_memory_released();
+                    drop(result);
+                    assert_eq!(account.current_samples(), 0);
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
                 }
-                previous = Some(peaks);
-                assert_eq!(snapshot.samples_fetched, 33 * count as u64);
-                assert!(snapshot.work > snapshot.samples_fetched);
-                assert_eq!(source.counters.opened.load(Ordering::Relaxed), 33);
-                assert_eq!(source.counters.closed.load(Ordering::Relaxed), 33);
-                assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
-                assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
-                snapshot.assert_memory_released();
-                drop(result);
-                assert_eq!(account.current_samples(), 0);
-                drop(account);
-                engine.snapshot().assert_memory_released();
             }
         }
     }
@@ -380,7 +405,11 @@ mod tests {
                     let engine = EngineAccounting::default();
                     let account = engine.query();
                     let source = ReplayFault {
-                        source: GeneratedSeries::new(35, page, counter),
+                        source: GeneratedSeries::new(
+                            35,
+                            page,
+                            crate::test_storage::subnormal_counter,
+                        ),
                         open,
                         cancel,
                         seek_ms: None,
@@ -413,32 +442,37 @@ mod tests {
     #[test]
     fn original_seek_target_survives_clipped_cursor_bounds() {
         for page in [1, 17, 1024] {
-            let engine = EngineAccounting::default();
-            let account = engine.query();
-            let source = ReplayFault {
-                source: GeneratedSeries::new(5, page, counter),
-                open: 0,
-                cancel: false,
-                seek_ms: Some(-3000),
-            };
-            let input = NumericRangeInput {
-                bounds: Some(TimeBounds {
-                    start_ms: 2000,
-                    end_ms: 5000,
-                }),
-                seek_ms: -3000,
-                matrix: None,
-            };
-            let result = evaluate(&source, input, &Control::default(), &account).unwrap();
-            assert_eq!(result.value, Some(1.0));
-            assert_eq!(source.source.counters.opened.load(Ordering::Relaxed), 33);
-            assert_eq!(source.source.counters.closed.load(Ordering::Relaxed), 33);
-            assert_eq!(source.source.counters.active.load(Ordering::Relaxed), 0);
-            account.snapshot().assert_memory_released();
-            drop(result);
-            assert_eq!(account.current_samples(), 0);
-            drop(account);
-            engine.snapshot().assert_memory_released();
+            for (sample, expected, scans) in [
+                (counter as fn(usize) -> Sample, 1.0f64, 10),
+                (crate::test_storage::subnormal_counter, 0.0, 33),
+            ] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let source = ReplayFault {
+                    source: GeneratedSeries::new(5, page, sample),
+                    open: 0,
+                    cancel: false,
+                    seek_ms: Some(-3000),
+                };
+                let input = NumericRangeInput {
+                    bounds: Some(TimeBounds {
+                        start_ms: 2000,
+                        end_ms: 5000,
+                    }),
+                    seek_ms: -3000,
+                    matrix: None,
+                };
+                let result = evaluate(&source, input, &Control::default(), &account).unwrap();
+                assert_eq!(result.value.unwrap().to_bits(), expected.to_bits());
+                assert_eq!(source.source.counters.opened.load(Ordering::Relaxed), scans);
+                assert_eq!(source.source.counters.closed.load(Ordering::Relaxed), scans);
+                assert_eq!(source.source.counters.active.load(Ordering::Relaxed), 0);
+                account.snapshot().assert_memory_released();
+                drop(result);
+                assert_eq!(account.current_samples(), 0);
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
         }
     }
 

@@ -96,6 +96,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Shared grouping/ranking/quantile changes MUST include the complete retained reducer panels and separate declared
   ordering controls in `src/crates/promql-engine/tests/promql-conformance/README.md#compact-group-and-join-lookups`.
   Preserve strict original failures; a policy report does not replace or modify them.
+- Temporal rank completion MUST preserve both validated populations, source provenance and genuine final-depth
+  fault controls; follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#early-completion-of-temporal-ranks`.
 - Mapped hash/kind uniqueness MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#mapped-label-identity-lookup` for compound identity,
   terminal controls, lazy metadata ownership and the limits of total-work claims.

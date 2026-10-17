@@ -321,6 +321,30 @@ pub(crate) fn counter(index: usize) -> Sample {
     }
 }
 
+#[cfg(test)]
+pub(crate) fn adjacent_counter(index: usize) -> Sample {
+    Sample {
+        value: SampleValue::Float(f64::from_bits(0x3ff0_0000_0000_0000 + index as u64 % 2)),
+        ..counter(index)
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn subnormal_counter(index: usize) -> Sample {
+    Sample {
+        value: SampleValue::Float(f64::from_bits(index as u64 + 1)),
+        ..counter(index)
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn two_classes(index: usize) -> Sample {
+    Sample {
+        value: SampleValue::Float(if index.is_multiple_of(2) { 1.0 } else { 2.0 }),
+        ..counter(index)
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct FixtureCounts {
     pub scopes_opened: AtomicUsize,

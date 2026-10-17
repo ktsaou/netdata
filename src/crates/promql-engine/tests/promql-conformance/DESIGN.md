@@ -1105,8 +1105,8 @@ integration, and Alertmanager remains excluded.
   reset/drop and `finish_pass`. The final visitor alone grants no completion. A failed driver discards query-local
   provisional counters; no rank, backing or output is published from that pass.
 - **Accounting and control:** the Rank-only entry adds no poll, allocation or returned error. It charges actual
-  float/native/stale samples by 4/1/0 work units immediately and reuses the existing selector charges. Keep ordinary
-  receive and MAD unchanged. Partial failures therefore retain actual work without deferred `4*N` arithmetic.
+  float/native/stale samples by 4/1/0 work units immediately and reuses the existing selector charges. This traversal
+  reuse does not apply to ordinary receive or MAD. Partial failures retain actual work without deferred `4*N` arithmetic.
 - **Diagnostics:** preparation owns completed child/root annotations. Internal scheduled replays suppress their
   own builders; removing a second internal traversal removes no observable message. Preserve the remaining child
   diagnostic drain for errors and cancellation. Mixed native notes and classic nonmonotone fallback controls
@@ -1136,6 +1136,31 @@ integration, and Alertmanager remains excluded.
 - **Evidence:** [work-accounting qualification](rank-work-accounting-qualification.json) binds original-charge
   invariant tests, exact complete results and nonelapsed observations, native/compiled-ARM/C owners, retained
   reducer/temporal panels and every warm timing group, including slower controls.
+
+
+## Early completion of temporal ranks
+
+- **Choice:** the shared temporal quantile/MAD radix selector may finish after a completed replay proves both
+  admitted populations uniform. Keep the fixed two-lane counter tables and ordinary sixteen-pass fallback.
+- **Representation:** reuse each prefix word for its first admitted full normalized key. Mask both sides during
+  admission. Explicit seen bits permit key zero; nonuniform bits are sticky for the whole pass. If refinement
+  continues, reconstruct `(representative & old_mask) | (selected_digit << shift)`, clearing lower bits. Never
+  assume the representative's current digit was selected.
+- **Completion:** both existing rank validations and their control polls precede the uniformity proof. Neither
+  a single uniform lane nor the last sample visitor grants completion. Scheduled counters remain provisional until
+  the entire child driver and Reader succeed; original current-pass error and cancellation phases remain.
+- **Numerics:** the proof returns normalized ordered keys. Membership, ordinal Fetch, NaN/zero source provenance,
+  provider-owned exact sort backing, MAD deviations and interpolation retain their owners and operation order.
+- **Accounting:** receive keeps its existing infallible `work(3)` boundary and caller charges. This logical work
+  unit does not count every primitive instruction. Fewer physical passes reduce actual work and reads; existing
+  logical queryable totals stay fixed. Future omitted replay callbacks are not a fixed physical roster contract.
+- **Ownership:** the two flag bytes fit existing measured padding on AMD64/ARM32/ARM64. Selector, both medians,
+  Kernel and enclosing Step/Frame sizes are unchanged. No new allocation, raw-value cache, backing policy, cap or
+  public contract is introduced. Exact general sort backing remains provider-owned.
+- **Evidence:** [rank completion qualification](rank-completion-qualification.json) retains complete original
+  comparisons, true final-depth temporal/MAD failures, provisional scheduled controls, generated page-bounded
+  histories, actual GNU C callers, type/linked-code costs and both-profile whole-query timings. Historical cohorts
+  keep their source identities; finite generated inputs do not establish live/concurrent throughput or process RSS.
 
 
 ## Received-page accounting

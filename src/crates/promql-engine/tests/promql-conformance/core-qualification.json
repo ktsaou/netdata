@@ -71008,5 +71008,16 @@
     "new_complete_comparisons": 800,
     "preserved_prefix_comparisons": 416,
     "scope": "101raw original declarations/100distinct pairs/200new complementary queries; shared tooling preserves104prefix queries. Four exact unchanged runtimes, actual originals, duplicate literal positions and strict complete outputs. No new engine or language-feature count."
+  },
+  "early_temporal_rank_completion": {
+    "status": "qualified_private_optimization",
+    "qualification": "rank-completion-qualification.json",
+    "sha256": "d9082218fcd643df92de64fdbb757d7633074b1aa4a2aab21296b65642887f06",
+    "native_units_per_profile": 729,
+    "complete_expression_comparisons": 40192,
+    "retained_reducer_interaction_comparisons": 56124,
+    "whole_query_timing_outcomes": 2160,
+    "followup_timing_outcomes": 132,
+    "scope": "Shared fixed-memory ranks finish only after whole-pass/both-lane validation. Original NaN/zero provenance, full-depth faults, both profiles/pages/foreign/C owners, generated history, unchanged layouts and all slower/code/memory costs retained. No raw cache or public change."
   }
 }

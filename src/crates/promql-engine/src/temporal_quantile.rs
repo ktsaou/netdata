@@ -695,22 +695,41 @@ mod tests {
 
     #[test]
     fn long_rank_and_origin_replays_keep_one_page_and_constant_memory() {
-        type SourceCase = (fn(usize) -> Sample, f64, [u64; 2], u64);
-        let cases: [SourceCase; 3] = [
+        type SourceCase = (fn(usize) -> Sample, f64, [u64; 2], [u64; 2]);
+        let cases: [SourceCase; 5] = [
             (
                 counter,
                 0.5,
                 [1024.5f64.to_bits(), 50_000.5f64.to_bits()],
-                17,
+                [8, 9],
+            ),
+            // Adjacent low-bit keys retain the complete sixteen-pass rank path.
+            (
+                crate::test_storage::adjacent_counter,
+                0.5,
+                [1.0f64.to_bits(); 2],
+                [17; 2],
+            ),
+            (
+                crate::test_storage::two_classes,
+                0.5,
+                [1.5f64.to_bits(); 2],
+                [3; 2],
             ),
             // The terminal source sort origins are separately pinned by the inverse-sort controls.
-            (nan, 1.0, [0x7ff8_0000_0000_03fc, 0x7ff8_0000_0000_c34c], 2),
-            (zero, 1.0, [0, 0], 2),
+            (
+                nan,
+                1.0,
+                [0x7ff8_0000_0000_03fc, 0x7ff8_0000_0000_c34c],
+                [2; 2],
+            ),
+            (zero, 1.0, [0, 0], [2; 2]),
         ];
         for page in [1, 17, 1024] {
             for (sample, q, expected, passes) in cases {
                 let mut previous = None;
-                for (count, bits) in [2048, 100_000].into_iter().zip(expected) {
+                for ((count, bits), passes) in [2048, 100_000].into_iter().zip(expected).zip(passes)
+                {
                     let engine = EngineAccounting::default();
                     let account = engine.query();
                     let source = GeneratedSeries::new(count, page, sample);

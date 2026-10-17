@@ -4025,9 +4025,11 @@ executable tokens and line counts are unchanged.
 
 ## Scheduled derived quantile rank traversals
 
-An earned scheduled single-selector subquery now classifies exact quantile ranks during its existing complete
-validation traversal. The sixteen rank passes each use one traversal. Membership, ordinal Fetch and provider-owned
-temporary materialization keep their original phases. Ordinary and MAD paths keep their existing behavior.
+An earned scheduled single-selector subquery classifies exact quantile ranks during its existing complete
+validation traversal. Each required rank pass uses one traversal; the original qualification below required sixteen.
+Membership, ordinal Fetch and provider-owned temporary materialization keep their original phases. This traversal
+reuse applies to scheduled quantiles. The later [rank completion change](#early-completion-of-temporal-ranks) also
+reduces unnecessary passes in ordinary quantiles and both MAD medians.
 
 The rank counters remain provisional until the complete child driver and Reader finish successfully. A late page
 error, an error after the final visitor, or terminal cancellation still prevents rank completion and output. The
@@ -4051,10 +4053,10 @@ The ambiguous pattern repeats −1, −0, +0 and 1 and uses the existing exact-s
 | ambiguous | 299,008 → 167,936 | 27,980,302 → 15,797,326 | 39,134 → 39,134 B |
 
 Across 864 native query/profile groups, 408 fetch fewer entries. Every measured workspace, provider-held and
-borrowed-view peak is unchanged. The existing generated 2,048/100,000-point test keeps flat peaks, one open cursor
-and full release. Its computed ambiguous case reads `41*N` at both sizes; the retained red fails at 2,048 points with
-`73*N`. This is finite growth evidence. Raw values remain paged on both axes; no history array, cache, cap or
-backing policy is added.
+borrowed-view peak is unchanged. At that checkpoint, the generated 2,048/100,000-point test kept flat peaks, one open
+cursor and full release. Its computed ambiguous case read `41*N` at both sizes; the retained red failed at 2,048 points
+with `73*N`. This is finite growth evidence. Raw values remain paged on both axes; no history array, cache, cap or
+backing policy is added. The later rank completion cohort below measures the same generated history again.
 
 The warm timing panel checks 1,200 complete responses after all owned qualification jobs close. It uses five
 alternating before/current pairs per profile, one warm run before each measured query, and retains empty/small/raw
@@ -4132,6 +4134,106 @@ of the preceding stage's actual final builds, with their original compiler recei
 Query JSON does not export basic statistics; their unchanged owners retain unit and C assertion coverage.
 No original-Go capture, live Agent, SRE replay or full foreign C caller roster was rerun for this private change.
 Earlier cohorts keep their actual source and binary identities; all 52 previous ledger objects are unchanged.
+
+
+## Early completion of temporal ranks
+
+The shared temporal quantile/MAD selector stops refining a rank when a complete successful replay proves that both
+candidate populations each contain one normalized key. Repeated values can therefore finish before all sixteen
+four-bit passes. This changes physical reads and work; selected ranks, interpolation and logical sample participation
+keep their existing owners. The [rank completion qualification](rank-completion-qualification.json) records the
+actual source, binary, result, resource and timing cohorts.
+
+The selector reuses its two prefix words to retain the first admitted full key in each lane. Admission masks both
+sides, so the saved lower bits cannot change that pass's population. Seen flags distinguish a valid zero key from
+an absent population; nonuniform flags remain sticky after any differing key. Both ordinary rank/control validations
+run before completion. When another pass is needed, reconstruct each prefix from its old high bits and selected
+digit, clearing all lower bits. The first admitted key need not have the selected digit.
+
+This proves normalized keys, not original NaN payloads or zero signs. Membership, ordinal Fetch and exact
+provider-owned sort backing still decide original provenance. Scheduled counters remain provisional until the entire
+child driver and Reader succeed. A later page failure, post-visitor error or terminal cancellation still prevents
+completion. Successful completion may omit future redundant physical passes; no fixed callback roster is promised.
+
+Regression controls preserve genuine sixteen-pass temporal and thirty-three-scan MAD paths using adjacent low-bit
+keys and positive subnormals. They also cover missing ranks, cancellation between lanes, reversed inputs, asymmetric
+lanes, early two-class completion and invalidation after the last scheduled visitor. The long-history sources generate
+one page at a time; fixture JSON datasets are qualification inputs, not evidence that the runtime retains raw history.
+
+Default-feature layout diagnostics on native AMD64, ARM32 and ARM64 keep the selector at 296 bytes, temporal Step
+and derived Kernel at 440 bytes, and MAD Median/Step at 352/368 bytes. Enclosing derived Step and evaluator Frame
+also retain their measured sizes. No heap owner, raw-value cache, provider policy, API, ABI or implicit cap is added.
+These type measurements do not establish a whole-function stack bound or process RSS.
+
+Both native optimized profiles pass 729 units with two ignored measurements each. Four rebuilt query cohorts match
+40,192 complete original outcomes: native release/release-min at pages 1/17/1024 and compiled ARM32/ARM64 release
+under QEMU at page 17. Each foreign target executes twelve focused units. Four actual default-feature GNU C callers
+check generated backed queries, existing calibrated failures and raw/computed four-series quantiles; native C
+observations match the previous archives. Formatting, strict default/fixture Clippy and installed Rust 1.91 compilation
+pass. The MSRV check is compile-only; these C runs add no C++ or sanitizer claim.
+
+For the generated 100,000-point mixed-zero history at page 1:
+
+| Route | Fetched entries before → after | Recorded work before → after | Workspace peak before → after |
+| --- | ---: | ---: | ---: |
+| raw | 3,600,038 → 800,010 | 14,336,255 → 3,136,143 | 30,296 → 30,296 B |
+| computed | 4,100,000 → 1,300,000 | 644,974,257 → 194,172,465 | 39,100 → 39,100 B |
+
+All twelve generated size/page/route rows reduce reads and work at unchanged peaks. The 2,048/100,000-point controls
+retain exact results, logical counts, one active cursor/page and balanced cleanup. A separate 512-point discrete
+computed case reduces fetched entries from 19,968 to 5,632 with the same original outcome, crossing its synthetic
+15N read regression bound. That test bound is not an enabled query limit.
+
+
+The required reducer interaction check also passes 56,124 comparisons under its separate approved ordering
+rules. Its strict reports retain 216 original ordering differences and zero numerical bit differences.
+
+Paired timing starts after every owned qualification job closes. Each of 54 cases per native profile has five
+alternating process pairs, one warm and one measured query per case/process. All 2,160 warm/measured outcomes
+match their freshly captured original results; nonelapsed observations repeat exactly within each phase.
+
+`large-early` alternates 1 and 2; `large-ordinary` contains 1…4096; `large-backed` cycles −1, −0, +0 and 1.
+
+| Profile | Computed 4,096-point instant case | Median before → after (ms) | Before/after ratio |
+| --- | --- | ---: | ---: |
+| release | large-early, quantile | 320.095 → 84.366 | 3.794× |
+| release | large-early, mad | 1162.593 → 154.646 | 7.518× |
+| release | large-ordinary, quantile | 317.178 → 168.860 | 1.878× |
+| release | large-backed, mad | 1156.982 → 194.270 | 5.956× |
+| release-min | large-early, quantile | 522.741 → 141.242 | 3.701× |
+| release-min | large-early, mad | 1951.541 → 265.934 | 7.338× |
+| release-min | large-ordinary, quantile | 531.491 → 283.852 | 1.872× |
+| release-min | large-backed, mad | 1943.650 → 321.289 | 6.050× |
+
+All 108 primary candidate/before median ratios span 0.122–1.057; 14 are slower. The qualification retains every
+sample, all eight memory categories and physical counts. Generated logical/one-page assertions remain distinct from
+the JSON observations. Every memory peak/current/overflow field matches; 80 groups reduce workspace allocation traffic
+and 80 reduce cumulative borrowed exposure. Neither is simultaneous RAM or process RSS.
+
+The primary cases at least 5% slower are:
+
+| Profile | Case | Median before → after (ns) | Candidate/before ratio |
+| --- | --- | ---: | ---: |
+| release | `timing:single:computed:quantile:instant` | 52,840 → 55,859 | 1.057 |
+| release | `timing:large-near:raw:quantile:instant` | 8,714,530 → 9,152,688 | 1.050 |
+| release-min | `timing:empty:raw:mad:instant` | 11,480 → 12,139 | 1.057 |
+
+Every primary ratio at least 1.05 receives a balanced follow-up: 3 groups, 132 complete outcomes, twenty measured
+samples per phase/group. Its candidate/before median ratios span 0.949–1.008. Both panels remain intact; the repeat
+does not replace primary evidence or establish a cause.
+
+| Profile | Repeated case | Median before → after (ns) | Candidate/before ratio |
+| --- | --- | ---: | ---: |
+| release | `timing:single:computed:quantile:instant` | 56,384 → 53,725 | 0.953 |
+| release | `timing:large-near:raw:quantile:instant` | 8,741,295 → 8,815,210 | 1.008 |
+| release-min | `timing:empty:raw:mad:instant` | 11,400 → 10,820 | 0.949 |
+
+The matched default-feature C executable adds 5,584/416 bytes of text in release/release-min, with 0/24 bytes
+of data and unchanged BSS. Fixture text changes by −428/+448 bytes; its other linked costs remain in the report.
+Long constant histories are semantic controls; this timing panel uses singleton/empty one-class cases. These
+are shared-host engine timings at page 17, without isolated CPU, production-disk, live/concurrent throughput,
+physical-ARM throughput or process-RSS claims. Earlier containing-Agent/install/language cohorts keep their
+original identities. No new operator command or installation procedure is introduced.
 
 
 ## Completed direct float-map join scans
