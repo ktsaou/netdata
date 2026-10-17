@@ -158,6 +158,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Generic derived range changes MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#known-empty-derived-histogram-probes` for actual
   Float completion, type-union provenance, backing fallbacks and source-bound physical/error/memory scopes.
+- Ordinary selector clock changes MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#single-clock-plain-selectors` for joint window/driver
+  admission, stateful fallbacks, newly actual Seek errors and distinct Rust/provider reconstruction costs.
 - Shared schedule/group ownership MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#shared-scheduling-and-group-proof-owner` for distinct
   proof semantics, productive singleton provenance, terminal controls and actual per-target layout/getter costs.

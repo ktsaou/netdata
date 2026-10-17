@@ -4120,6 +4120,67 @@ mod tests {
     use std::sync::atomic::Ordering;
 
     #[test]
+    fn plain_selector_later_clocks_keep_results_before_work_growth() {
+        let mut measured = Vec::new();
+        for delayed in [false, true] {
+            for count in [64, 256] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let provider = FixtureProvider::new(count, 17, 1);
+                let source =
+                    format!("sum_over_time((counter_total or counter_total)[{count}s:1s])");
+                let query = engine
+                    .compile(
+                        source.as_bytes(),
+                        EngineOptions {
+                            lookback_ms: 1,
+                            ..options(delayed)
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let time_ms = count as i64 * 1000;
+                let report =
+                    query.collect_reported(&provider, QueryRequest::Instant { time_ms }, &control);
+                let output = report.result.as_ref().unwrap();
+                assert!(report.annotations.is_empty());
+                assert_eq!(output.series.len(), 1);
+                let row = &output.series[0];
+                assert_eq!(row.labels.0.len(), 2);
+                assert_eq!(&*row.labels.0[0].name, b"instance");
+                assert_eq!(&*row.labels.0[0].value, b"0");
+                assert_eq!(&*row.labels.0[1].name, b"job");
+                assert_eq!(&*row.labels.0[1].value, b"worker");
+                assert_eq!(row.points.len(), 1);
+                assert_eq!(row.points[0].time_ms, time_ms);
+                assert_eq!(
+                    float_bits(&row.points[0]),
+                    ((count * (count + 1) / 2) as f64).to_bits()
+                );
+                assert_eq!(report.observations.output_samples, 1);
+                measured.push((delayed, count, report.observations.work));
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+        println!("complete later Plain lookup results: {measured:?}");
+        for delayed in [false, true] {
+            let work_at = |count| {
+                measured
+                    .iter()
+                    .find(|row| row.0 == delayed && row.1 == count)
+                    .unwrap()
+                    .2
+            };
+            assert!(
+                work_at(256) < 6 * work_at(64),
+                "later Plain selector work growth: {measured:?}"
+            );
+        }
+    }
+
+    #[test]
     fn mapped_identity_growth_checks_complete_results_before_work_bound() {
         let mut measured = Vec::new();
         for count in [64, 256, 1024, 4096] {

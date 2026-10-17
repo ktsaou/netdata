@@ -140,6 +140,8 @@ typedef struct {
     int errors;
     bool alias_shared, file_shared;
     uint32_t open_error, seek_error, next_error;
+    unsigned cold_first_samples, cold_target;
+    uint64_t storage_points, reconstruction_points;
 } CHECKPOINT_SCENARIO;
 
 static bool checkpoint_series(netdata_promql_provider_t *provider, void *query, const char *dimension,
@@ -211,11 +213,44 @@ static uint32_t checkpoint_begin(void *handle, const netdata_promql_output_heade
     void *query = NULL;
     netdata_promql_series_open_t series = {0}, other = {0};
     netdata_promql_cursor_open_t cursor = {0}, second = {0};
+    const char *dimension = test->mode == 1 || test->mode == 7 ? "legacy" :
+                            test->mode == 8 ? "reset_gap" : "native";
     if(netdata_promql_callback_accounting(control, &account) != NETDATA_PROMQL_OK ||
        provider.query_open(provider.context, bounds, control, &query, error) != NETDATA_PROMQL_OK ||
-       !checkpoint_series(&provider, query, test->mode == 1 ? "legacy" : "native", false, bounds, control, &series) ||
+       !checkpoint_series(&provider, query, dimension, false, bounds, control, &series) ||
        provider.cursor_open(provider.context, series.handle, bounds, control, &cursor, error) != NETDATA_PROMQL_OK) {
         test->errors++; goto finished;
+    }
+    if(test->mode >= 6) {
+        netdata_promql_page_t page;
+        netdata_promql_resources_t observations;
+        uint32_t status = provider.cursor_next(provider.context, cursor.handle, control, &page, &observations, error);
+        if(status != NETDATA_PROMQL_OK || !page.samples.len || page.samples.len > 1024) {
+            test->errors++; goto finished;
+        }
+        for(uint64_t i = 0; i < page.samples.len; i++)
+            test->errors += page.samples.data[i].time_ms != (int64_t)(PROVIDER_BASE + i + 1) * 1000 ||
+                page.samples.data[i].value.kind != NETDATA_PROMQL_VALUE_FLOAT ||
+                page.samples.data[i].value.payload.float_bits != netdata_promql_double_bits(2.0 * (i + 1));
+        test->cold_first_samples = (unsigned)page.samples.len;
+        test->cold_target = test->points / 2 + 1;
+        int64_t when = (int64_t)(PROVIDER_BASE + test->cold_target) * 1000;
+        if(page.samples.data[page.samples.len - 1].time_ms >= when || test->cold_target <= 73) {
+            test->errors++; goto finished;
+        }
+        // The skipped reset/gap prefix must still contribute to the same query basis.
+        double expected = 2.0 * (test->cold_target - (test->mode == 8 ? 73 : 0));
+        status = provider.cursor_seek(provider.context, cursor.handle, when, control, error);
+        if(status == NETDATA_PROMQL_OK)
+            status = provider.cursor_next(provider.context, cursor.handle, control, &page, &observations, error);
+        test->errors += status != NETDATA_PROMQL_OK;
+        if(status == NETDATA_PROMQL_OK)
+            test->errors += !page.samples.len || page.samples.data[0].time_ms != when ||
+                page.samples.data[0].value.kind != NETDATA_PROMQL_VALUE_FLOAT ||
+                page.samples.data[0].value.payload.float_bits != netdata_promql_double_bits(expected);
+        test->errors += context.reconstruction_points < test->cold_target ||
+            context.storage_points[0] < context.reconstruction_points;
+        goto finished;
     }
     test->errors += checkpoint_read_all(&provider, cursor.handle, test->points, control);
     PROMQL_PROVIDER_QUERY *owned = query;
@@ -273,6 +308,8 @@ static uint32_t checkpoint_begin(void *handle, const netdata_promql_output_heade
         }
     }
 finished:
+    test->storage_points = context.storage_points[0];
+    test->reconstruction_points = context.reconstruction_points;
     if(second.handle) provider.cursor_close(provider.context, second.handle, account);
     if(cursor.handle) provider.cursor_close(provider.context, cursor.handle, account);
     if(other.handle) provider.series_close(provider.context, other.handle, account);
@@ -290,7 +327,8 @@ static uint32_t checkpoint_chunk(void *context __maybe_unused, const netdata_pro
 
 static int checkpoint_callbacks(netdata_promql_engine_t *engine, unsigned points) {
     const char *names[] = {"native-seeks", "legacy-seeks", "alias-basis", "failed-open-cleanup",
-                          "failed-seek-sticky", "two-metrics-one-file"};
+                          "failed-seek-sticky", "two-metrics-one-file", "native-cold-seek",
+                          "legacy-cold-seek", "reset-gap-cold-seek"};
     int errors = 0;
     for(unsigned mode = 0; mode < sizeof(names) / sizeof(names[0]); mode++) {
         CHECKPOINT_SCENARIO test = {.engine = engine, .mode = mode, .points = points};
@@ -318,10 +356,12 @@ static int checkpoint_callbacks(netdata_promql_engine_t *engine, unsigned points
         test.errors += status != NETDATA_PROMQL_OK || remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current != 0;
         printf("{\"checkpoint_callback\":\"%s\",\"errors\":%d,\"status\":%u,\"open_error\":%u,\"seek_error\":%u,"
                "\"next_error\":%u,\"alias_shared\":%s,\"file_shared\":%s,\"provider_peak\":%"PRIu64
-               ",\"remaining_provider\":%"PRIu64"}\n", names[mode], test.errors, status, test.open_error,
+               ",\"remaining_provider\":%"PRIu64",\"cold_first_samples\":%u,\"cold_target\":%u"
+               ",\"storage_points\":%"PRIu64",\"provider_folds\":%"PRIu64"}\n", names[mode], test.errors, status, test.open_error,
                test.seek_error, test.next_error, test.alias_shared ? "true" : "false", test.file_shared ? "true" : "false",
                observations.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].peak,
-               remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current);
+               remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current, test.cold_first_samples,
+               test.cold_target, test.storage_points, test.reconstruction_points);
         errors += test.errors;
     }
     return errors;

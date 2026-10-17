@@ -5786,8 +5786,75 @@ steps. Three-tick ranges evaluate 16–18 seconds. Medians below are microsecond
 All 52 slower primary medians remain. One crosses the 5% follow-up threshold; its fixed 54-query follow-up does
 not reproduce that slowdown. Primary samples are never replaced. Six matched GNU-size comparisons retain
 all executable costs: fixture text grows 20–248 B; C text changes −12/+148 B, with 8 B extra data in release-min.
-There is no new live Agent, concurrent throughput, physical ARM or RSS claim. Full-grid selector prefixes and
-required Float exhaustion still repeat work. See the [complete finite qualification](derived-kind-qualification.json).
+There is no new live Agent, concurrent throughput, physical ARM or RSS claim. These measurements precede the
+[single-clock selector change](#single-clock-plain-selectors); required Float exhaustion still remains. See the
+[complete finite qualification](derived-kind-qualification.json).
+
+## Single-clock Plain selectors
+
+Generic subquery bodies retain their full request grid while evaluating each requested instant. Ordinary Plain
+selectors now omit earlier logical projections when a checked supported schedule, exact grid membership and
+positive lookback prove they carry no state. Both the local window and completion driver use that admission.
+The full request header, prepared offsets, raw source clocks and sample indexes remain unchanged. Initial reads,
+whole-page validation, predecessor search and required cursor completion still occur. No cache, persistent field
+or raw-history array is added. Fixed bindings, histogram-statistics decoding, smoothing and unsupported clocks
+retain their prior traversal. Statistics need that history to infer resets from an earlier future sample.
+
+From the Cargo root, run the causal complete-query regression:
+
+```sh
+cargo test --locked --features fixtures --release -- plain_selector_later_clocks_keep_results_before_work_growth --nocapture
+```
+
+It completes all four independent 64/256-point sums, labels, timestamps and cleanup checks before testing work
+growth. For four times the input, old counted work grows about 9×; current work grows about 4.1×. At 256 points,
+work falls 4,797,106→1,438,606 in default name mode. This is a work observation, not an elapsed-time guarantee.
+
+`temporary_quantile_cases.plain_lookup_cases()` declares 1,944 cases with dense/sparse/stale data, start timestamps,
+integer/float-native and mixed samples, fixed request endpoints, offsets, both names and instant/equal/range
+requests. Each page has 1,308 productive and 490 empty successes, plus 146 declared execution faults; none is a
+parse error. The numeric `@0.001` controls are empty. Separate productive `@16` controls verify a complete sum 40.
+
+Sparse data can need more provider calls even when pages and work fall. With points 8,000→4 and 16,000→5,
+lookback 1,001 and an 8-second generic sum, an earlier prefix could carry the future point after `Next`; a direct
+later lookup requests `Seek(8999)` first. A declared failure on that actual operation returns the exact error on
+current page 1. Old traversal, held pages 17/1024 and fixed anchors do not call that seek. These separate physical
+observations do not broaden the fixed eight-policy roster or turn its strict original failures into passes.
+
+Both native profiles pass 774 units with two pre-existing ignored controls; each emulated ARM target passes
+19 distinct focused checks. All 56,736 complete current outcomes match accepted-before results exactly:
+21,276 per native profile and 7,092 per ARM target. The separate later-seek cohort retains all 128 outcomes,
+including four newly reached physical errors. Original comparisons and policies remain unchanged.
+
+All eight memory categories and ownership balances are checked. No paired query increases tracked memory;
+5,526 target/page outcomes fetch fewer entries, and 12,344 reduce Workspace allocation traffic. None reduces
+Workspace peak. All measured Reader/Step/BackingSource/Action layouts are unchanged. There are 824 rows with
+more provider calls; these costs remain explicit even when work falls. The actual default C quantile keeps
+16 logical samples, peak 20 samples, 15,680 fetched entries and 43,417 B Workspace peak at page 17. Its useful
+consumer sample count falls 8,240→1,010; this is distinct from raw fetched entries and C reconstruction work.
+Both full C programs and 12 C++ cases pass. The rebuilt Agent passes all 678 isolated integration records.
+
+Timing uses 136 workloads per profile, five serial alternating pairs, two warmups and five measured repetitions
+per pair: 19,040 primary queries plus 544 preflight queries. The roster includes tiny/empty/native/mixed controls,
+zero-lookback and statistics fallbacks, and sparse page-1 callback costs. All 74 slower primary medians remain;
+none reaches the declared 5% follow-up threshold. Medians below are microseconds, in default name mode:
+
+| Complete query | Release before → current | Release-min before → current |
+| --- | ---: | ---: |
+| 16-point instant sum | 1218.755 → 990.378 | 1890.928 → 1618.672 |
+| 16-point backed quantile | 3514.138 → 2919.835 | 5417.617 → 4634.356 |
+| Three-tick backed quantile | 10388.264 → 8458.677 | 16088.123 → 13580.993 |
+| 256-point sum, 1 ms lookback | 109346.098 → 19558.234 | 147355.158 → 29856.110 |
+| 256-point sum, 300 s lookback | 137994.303 → 80859.869 | 173400.474 → 108913.492 |
+
+The six matched linked-cost comparisons retain all changes: fixture text changes −7,956…+316 B, and native
+default C text grows 320/256 B. No process RSS, concurrent throughput, physical ARM or live API latency is claimed.
+
+The [finite qualification](plain-lookup-qualification.json) retains exact outcomes, positive callback costs,
+all eight memory categories, sample statistics, actual C/C++ callers, a rebuilt Agent, matched timings and limits.
+The [integration guide](../../../../../tests/promql-integration/README.md#counter-checkpoint-memory) describes
+the cold native/legacy/reset-gap reconstruction controls. Rust fetched-entry savings do not establish fewer
+points folded by the C counter provider.
 
 ## Completed singleton aggregate values
 

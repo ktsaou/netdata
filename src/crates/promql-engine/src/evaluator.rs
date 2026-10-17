@@ -2160,19 +2160,33 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     _ => (),
                 }
                 let fixed = self.invariants[selector_node.0];
-                let window = self.instant_window(selector_node);
                 let options = self.options;
-                let mut position = crate::query_scopes::Traversal::new(
-                    crate::query_scopes::Grid {
-                        start_ms: options.start_ms,
-                        end_ms: options.end_ms,
-                        interval_ms: options.step_ms,
-                    },
-                    false,
-                );
+                let grid = crate::query_scopes::Grid {
+                    start_ms: options.start_ms,
+                    end_ms: options.end_ms,
+                    interval_ms: options.step_ms,
+                };
                 let target_index = self.step_index;
+                let single_lookup = !fixed
+                    && !selector.skip_histogram_buckets
+                    && target_index > 0
+                    && options.lookback_ms > 0
+                    && options.time_ms <= grid.end_ms
+                    && grid
+                        .interval_ms
+                        .checked_mul(target_index)
+                        .and_then(|width| grid.start_ms.checked_add(width))
+                        == Some(options.time_ms)
+                    && self.supports_schedule(selector_node, grid);
+                let mut window = self.instant_window(selector_node);
+                if single_lookup {
+                    // Plain values have no state from earlier logical lookups.
+                    window.first_lookup_ms = window.lookup_ms;
+                }
+                let mut position = crate::query_scopes::Traversal::new(grid, false);
                 let next_lookup = || {
-                    if fixed
+                    if single_lookup
+                        || fixed
                         || position
                             .current()
                             .is_some_and(|(_, index)| index == target_index)

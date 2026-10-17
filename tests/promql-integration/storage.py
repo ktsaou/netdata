@@ -36,7 +36,8 @@ PROVIDER_CASES |= {f"checkpoint-{mode}-{pages}" for mode in ("native", "legacy")
 PROVIDER_CASES |= {"checkpoint-short-no-backing", "checkpoint-long-no-backing"}
 PROVIDER_CASES |= {"checkpoint-reset-gap", "checkpoint-reset-gap-alias", "checkpoint-negative", "checkpoint-absolute"}
 CHECKPOINT_CALLBACK_CASES = {"native-seeks", "legacy-seeks", "alias-basis", "failed-open-cleanup",
-                             "failed-seek-sticky", "two-metrics-one-file"}
+                             "failed-seek-sticky", "two-metrics-one-file", "native-cold-seek",
+                             "legacy-cold-seek", "reset-gap-cold-seek"}
 DISCOVERY_CASES = {"negative", "reversed", "between-seconds", "zero", "positive-wide", "full-clock", "future-wide"}
 OUTPUT_CASES = {"scalar-no-backing", "string-escaping", "vector-no-backing", "large-no-backing",
                 "plain-2049", "plain-100000", "gzip-2049", "gzip-100000"}

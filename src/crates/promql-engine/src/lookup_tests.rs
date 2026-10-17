@@ -1280,12 +1280,8 @@ fn histogram_lookup_work(count: usize, page_size: usize, range: bool) -> u64 {
             .total_queryable_samples,
         (2 * count * ticks) as u64
     );
-    let expected_read = if range {
-        // One ordered child removes the former per-output discovery replays.
-        (56 * count * ticks) as u64
-    } else {
-        (14 * count) as u64
-    };
+    // Ordinary child replays admit only their requested logical clock.
+    let expected_read = (14 * count * ticks) as u64;
     assert_eq!(
         report.observations.statistics.samples.samples_read,
         expected_read

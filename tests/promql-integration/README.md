@@ -243,6 +243,14 @@ views after spill. Its callback cases use the existing output callback's borrowe
 before returning. Short no-backing queries succeed; the longer counter case returns a specific provider error.
 Large counter histories can therefore require writable backing even when their output is tiny. Checkpoint disk
 traffic remains separate from Rust temporary-float-store observations.
+
+Three additional callback controls read only the first four-sample batch, then seek to point 4,099 of 8,196.
+They verify native and legacy counter value 8,198 and reset/gap value 8,052 without first building a complete
+checkpoint timeline. Both codecs read/fold 4,100 points, peak at 44,532 tracked provider bytes and release them all.
+These source-bound observations check counter reconstruction after a cold seek; fewer entries fetched by Rust
+do not imply fewer points folded by the C provider. The
+[single-clock selector qualification](../../src/crates/promql-engine/tests/promql-conformance/plain-lookup-qualification.json)
+binds the rebuilt Agent and its complete isolated storage/integration cohort.
 The [checkpoint qualification](checkpoint-qualification.json) binds the source, executable, complete storage/live
 receipts and actual module execution on AMD64/ARM64/ARM32. Existing Rust expression qualification retains its
 unchanged source/binary identity; these C-only changes do not reattribute or rerun the full expression corpus.

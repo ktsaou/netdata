@@ -200,3 +200,72 @@ def derived_kind_cases():
     ):
         add(name, populations["dense"], {"m": fault})
     return output
+
+
+def plain_lookup_cases():
+    """Later Plain lookups with original headers, predecessors and stateful controls."""
+    labels = {"__name__": "m", "job": "one"}
+    dense = [(index * 1000, (-1.0, -0.0, 0.0, 1.0)[(index - 1) % 4], "float")
+             for index in range(1, 17)]
+    populations = {
+        "dense-starts": [series(labels, dense)],
+        "sparse-starts": [series(labels, [(time, float(index + 1), "float")
+                                          for index, time in enumerate((900, 2000, 5000, 8000, 16000))])],
+        "stale-starts": [series(labels, [(time, STALE if time == 8000 else value, kind)
+                                         for time, value, kind in dense])],
+        "integer-native": [series(labels, [(time, value, "histogram") for time, value, _ in dense])],
+        "float-native": [series(labels, [(time, value, "float_histogram") for time, value, _ in dense])],
+        "mixed": [series(labels, [(time, value, "float" if index % 2 else "float_histogram")
+                                 for index, (time, value, _) in enumerate(dense)])],
+        "native-future": [series(labels, [(900, 8.0, "float_histogram"),
+                                          (5000, 4.0, "float_histogram")])],
+    }
+    for records in populations.values():
+        for record in records:
+            for point in record["points"]:
+                point["start_time_ms"] = point["time_ms"] - 250
+    native = populations["native-future"][0]["points"]
+    for point, count, hint in zip(native, (8.0, 4.0), (2, 0)):
+        point["float_histogram"].update(count=bits(count), zero_count=bits(count), reset_hint=hint)
+    populations["initial-error"] = deepcopy(populations["dense-starts"])
+    populations["required-eof"] = deepcopy(populations["dense-starts"])
+    expressions = (
+        "sum_over_time((m or m)[8s:1s])",
+        "quantile_over_time(0.5,(m or m)[8s:1s])",
+        "sum_over_time((timestamp(m) or timestamp(m))[8s:1s])",
+        "sum_over_time((start_timestamp(m) or start_timestamp(m))[8s:1s])",
+        "sum_over_time((m @start() or m @end())[8s:1s])",
+        "sum_over_time((timestamp(m @start()) or timestamp(m @end()))[8s:1s])",
+        "sum_over_time((m offset 1ms or m offset 1ms)[8s:1s])",
+        "sum_over_time((m offset -1ms or m offset -1ms)[8s:1s])",
+        "sum_over_time((m offset 0.0005 or m offset 0.0005)[8s:1s])",
+        "sum_over_time((m @0.001 or m @0.001)[8s:1s])",
+        "histogram_count(m)",
+        "m",
+    )
+    output = []
+    for population, records in populations.items():
+        time = 1000 if population == "native-future" else 16000
+        end = 5000 if population == "native-future" else 18000
+        faults = ({"m": {"next_times": [1000], "message": "required initial lookup"}}
+                  if population == "initial-error" else
+                  {"m": {"next_eof": True, "message": "required lookup completion"}}
+                  if population == "required-eof" else {})
+        for lookback in (1, 1001, 0):
+            for delayed in (False, True):
+                for index, expression in enumerate(expressions):
+                    for mode in ("instant", "equal", "range"):
+                        output.append({
+                            "request": {
+                                "id": f"plain-lookup:{population}:{lookback}:{int(delayed)}:{index}:{mode}",
+                                "query": expression, "profile": "upstream-tests",
+                                "delayed_name_removal": delayed,
+                                "mode": "instant" if mode == "instant" else "range",
+                                "time_ms": time, "start_ms": time,
+                                "end_ms": end if mode == "range" else time,
+                                "step_ms": 1000, "lookback_ms": lookback, "subquery_step_ms": 1000,
+                            },
+                            "dataset": {"schema_version": 1, "series": deepcopy(records)},
+                            "faults": deepcopy(faults),
+                        })
+    return output

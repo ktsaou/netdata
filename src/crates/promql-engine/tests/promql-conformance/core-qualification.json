@@ -73024,5 +73024,17 @@
     "unchanged_ignored_units": 2,
     "positive_tracked_memory_rows": 0,
     "scope": "Both generic callers, exact frozen Float-only union, actual Float completion and backing fallback; no raw history cache, language/numerical/provider/ABI/storage/API/cap change. Final code/source/binary phases and every measured cost retain actual identities."
+  },
+  "single_clock_plain_selectors": {
+    "status": "qualified_private_optimization",
+    "report": "plain-lookup-qualification.json",
+    "report_sha256": "e97c17e7318009fdc54f27e7c188da1b716da292625fdca00efddc6476f12f50",
+    "complete_current_outcomes": 56736,
+    "new_cases_per_target_page": 1944,
+    "native_units_per_profile": 774,
+    "unchanged_ignored_units": 2,
+    "positive_tracked_memory_rows": 0,
+    "higher_provider_call_rows": 824,
+    "scope": "Joint local window/driver admission, full headers and stateful fallbacks; exact outcomes and separately retained newly actual physical Seek errors. Actual native/foreign/C/Agent, all memory/layout/linked and primary/slower costs retain source identities. No raw history or public contract change."
   }
 }

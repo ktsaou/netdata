@@ -198,7 +198,7 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   whole-history RAM fallback. Missing, full or failed backing produces a specific storage error when that path is
   reached. Diskless providers need another suitable backend or return that error.
 - **Accounting:** logical extent and read/write traffic are separate from RAM, RSS and allocated filesystem blocks.
-  Production backing policy belongs to the later provider integration.
+  Netdata supplies the concrete backend through its containing provider.
 - **Evidence:** [temporary interface](../../src/storage.rs),
   [paged float-bit owner](../../src/temporary_float_bits.rs).
 
@@ -229,6 +229,14 @@ first-productive-time series IDs with a bounded prefix pass and compact row-orde
 evaluation. Direct clock initialization retains latched errors for their original lookup phase and withholds the
 certificate when such an error exists. Preparation owns logical statistics and diagnostics; final traversal accounts
 its actual work, resources and delivered points. See [final range output](README.md#certified-final-range-output).
+
+An ordinary selector inside a generic body can evaluate only its requested logical instant when the checked
+nonwrapping schedule, exact grid membership and positive lookback prove that earlier Plain projections carry no
+state. The local window and driver use the same admission. Full request headers, prepared offsets, raw source clocks,
+sample indexes and the ordinary predecessor search remain intact. Fixed bindings, histogram-statistics decoding,
+smoothed selectors and unsupported clocks keep their existing traversal. This adds no retained samples or cache.
+Sparse data can require an additional physical Seek; its actual error remains observable. See
+[single-clock Plain selectors](README.md#single-clock-plain-selectors).
 
 ### 15. Advance within the immutable raw page already held
 
