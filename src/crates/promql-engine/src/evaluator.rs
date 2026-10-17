@@ -4,7 +4,7 @@ use crate::{
     accounting::{AccountedBox, AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
     aggregation::Group,
     annotations::{AnnotationBuilder, AnnotationKind},
-    evaluator_roster::{Descriptor, Rosters, copy_group_key, projection_index},
+    evaluator_roster::{Descriptor, Rosters, group_hash, projection_index},
     float_functions::FloatFunction,
     frontend::{
         ast::{Expr, NodeId, ParsedExpression, ValueType, VectorSelector},
@@ -3443,20 +3443,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     else {
                         unreachable!()
                     };
-                    let views = sample.labels.views_checked(self.account, self.control)?;
-                    let labels = copy_group_key(
+                    let hash = group_hash(
                         &sample.labels,
                         grouping.as_deref(),
                         *without,
                         self.control,
                         self.account,
                     )?;
-                    let hash = if !without && grouping.as_ref().is_none_or(|names| names.is_empty())
-                    {
-                        0
-                    } else {
-                        label_hash::grouping(&labels, self.control, self.account)?
-                    };
                     let position = if let Some(lookup) = lookup {
                         lookup.find(
                             hash,
@@ -3486,7 +3479,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         {
                             annotations.add(
                                 kind,
-                                label(&views, b"__name__"),
+                                sample.labels.get_checked(
+                                    b"__name__",
+                                    self.account,
+                                    self.control,
+                                )?,
                                 self.expression.arena[self.prepared.preprocessing.child(
                                     self.expression,
                                     node,

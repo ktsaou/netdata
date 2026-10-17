@@ -3,7 +3,7 @@
 use crate::{
     accounting::QueryAccounting,
     evaluator::EvaluationError,
-    result::OwnedLabels,
+    result::{OwnedLabel, OwnedLabels},
     storage::{Control, Interrupted},
 };
 
@@ -115,6 +115,18 @@ impl Digest {
         }
         Ok(())
     }
+    fn grouping_label(
+        &mut self,
+        label: &OwnedLabel,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        self.field(&label.name, control, account)?;
+        self.write(&[255]);
+        self.field(&label.value, control, account)?;
+        self.write(&[255]);
+        Ok(())
+    }
     fn sized_field(
         &mut self,
         bytes: &[u8],
@@ -155,11 +167,25 @@ pub(crate) fn grouping(
 ) -> Result<u64, Interrupted> {
     let mut digest = Digest::new();
     for label in labels.0.iter() {
-        digest.field(&label.name, control, account)?;
-        digest.write(&[255]);
-        digest.field(&label.value, control, account)?;
-        digest.write(&[255]);
+        digest.grouping_label(label, control, account)?;
     }
+    Ok(digest.finish())
+}
+pub(crate) fn grouping_filtered(
+    labels: &OwnedLabels,
+    control: &Control,
+    account: &QueryAccounting,
+    mut keep: impl FnMut(&OwnedLabel) -> Result<bool, Interrupted>,
+) -> Result<u64, Interrupted> {
+    let mut digest = Digest::new();
+    for label in labels.0.iter() {
+        control.check()?;
+        account.work(1);
+        if keep(label)? {
+            digest.grouping_label(label, control, account)?;
+        }
+    }
+    control.check()?;
     Ok(digest.finish())
 }
 pub(crate) fn full(

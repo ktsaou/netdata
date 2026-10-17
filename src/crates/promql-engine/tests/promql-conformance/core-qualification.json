@@ -71043,5 +71043,19 @@
     "whole_query_primary_timing_outcomes": 1040,
     "whole_query_followup_timing_outcomes": 88,
     "scope": "Lossless four-byte ordinary position slots; unchanged headers and full identity/ownership. Shared cold callbacks reduce generic growth code. Complete native/foreign/C/policy equivalence, actual all-category memory and every timing/code cost retained. No raw cache or public contract change."
+  },
+  "borrowed_aggregate_lookup_labels": {
+    "report": "borrowed-aggregate-qualification.json",
+    "scope": "Borrow selected existing labels for ordinary aggregate lookup and reached diagnostic metric names. No new language feature or change to public/provider/storage/numerical/ordering/limits contracts. Finite source-bound outcome/resource/timing evidence.",
+    "complete_current_outcomes": 8826,
+    "native_units_per_profile": 739,
+    "unchanged_ignored_per_profile": 2,
+    "actual_default_C_queries": 336,
+    "reducer_complete_comparisons": 56124,
+    "strict_original_failures_retained": 216,
+    "primary_timing_outcomes": 1280,
+    "primary_timing_groups": 64,
+    "followup_outcomes": 132,
+    "limits": "Finite comparison, allocation traffic distinct from peaks, all costs/slower cases retained; no new public or language contract."
   }
 }

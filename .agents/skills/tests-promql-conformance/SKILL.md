@@ -115,6 +115,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Copied grouping keys MUST preserve raw empty values, source order and the shared by/without predicate;
   preserve ownership-transfer paths and full ranking labels. Measure retained capacity separately from inputs,
   and check omitted/retained byte walks plus terminal cancellation; see the same guide's copied grouping-label section.
+- Borrowed aggregate lookup MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-aggregate-lookup-labels` for selected-byte
+  identity, zero/empty digests, reached diagnostic borrowing, ownership, controls and complete operator comparisons.
 - Completed sort publication MUST preserve callback/error phases, hash-only duplicates, eligible input kinds,
   delayed-name gates and snapshot lifecycle. Check lookup growth and terminal interruption, actual child acquisition
   phases and temporary allocation costs; see the same guide's completed vector-sort publication section.

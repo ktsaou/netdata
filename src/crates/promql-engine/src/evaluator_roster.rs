@@ -1365,6 +1365,22 @@ pub(crate) fn copy_group_key(
     Ok(result)
 }
 
+pub(crate) fn group_hash(
+    labels: &OwnedLabels,
+    grouping: Option<&[AccountedVec<u8>]>,
+    without: bool,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<u64, Interrupted> {
+    control.check()?;
+    if !without && grouping.is_none_or(|names| names.is_empty()) {
+        return Ok(0);
+    }
+    label_hash::grouping_filtered(labels, control, account, |label| {
+        keep_group_label(&label.name, grouping, without, control, account)
+    })
+}
+
 fn keep_group_label(
     name: &[u8],
     grouping: Option<&[AccountedVec<u8>]>,
@@ -1668,6 +1684,193 @@ mod tests {
         account.snapshot().assert_memory_released();
         drop(account);
         engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn borrowed_group_hash_matches_copied_keys_without_allocating() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut source = OwnedLabels::new(&account, MemoryKind::Workspace);
+        for (name, value) in [
+            (b"__name__".as_slice(), b"m".as_slice()),
+            (b"__type__", b"counter"),
+            (b"__unit__", b"bytes"),
+            (b"a", b""),
+            (b"b", b"kept"),
+        ] {
+            source.push(name, value, &account, MemoryKind::Workspace);
+        }
+        source.push(b"z", &vec![b'x'; 65_536], &account, MemoryKind::Workspace);
+        let groupings: [Option<&[&[u8]]>; 6] = [
+            None,
+            Some(&[]),
+            Some(&[b"missing"]),
+            Some(&[b"a", b"a"]),
+            Some(&[b"b", b"__name__", b"a", b"__type__", b"__unit__"]),
+            Some(&[b"z", b"a", b"z"]),
+        ];
+        for names in groupings {
+            let names: Option<Vec<_>> = names.map(|names| {
+                names
+                    .iter()
+                    .map(|name| {
+                        let mut owned = AccountedVec::new(&account, MemoryKind::Workspace);
+                        owned.extend_from_slice(name);
+                        owned
+                    })
+                    .collect()
+            });
+            for without in [false, true] {
+                let expected = {
+                    let copied =
+                        copy_group_key(&source, names.as_deref(), without, &control, &account)
+                            .unwrap();
+                    if !without && names.as_ref().is_none_or(|names| names.is_empty()) {
+                        0
+                    } else {
+                        label_hash::grouping(&copied, &control, &account).unwrap()
+                    }
+                };
+                let before = account.snapshot().memory;
+                assert_eq!(
+                    group_hash(&source, names.as_deref(), without, &control, &account).unwrap(),
+                    expected
+                );
+                assert_eq!(account.snapshot().memory, before);
+                assert_eq!(source.0.len(), 6);
+                assert!(source.0[3].value.is_empty());
+                assert_eq!(source.0[5].value.len(), 65_536);
+            }
+        }
+        drop(source);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn borrowed_group_hash_preserves_zero_empty_and_delimiter_identity() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let names = [b"a".as_slice(), b"c", b"missing"].map(|name| {
+            let mut owned = AccountedVec::new(&account, MemoryKind::Workspace);
+            owned.extend_from_slice(name);
+            owned
+        });
+        let mut first = OwnedLabels::new(&account, MemoryKind::Workspace);
+        first.push(b"a", b"b\xffc\xffd", &account, MemoryKind::Workspace);
+        let mut second = OwnedLabels::new(&account, MemoryKind::Workspace);
+        second.push(b"a", b"b", &account, MemoryKind::Workspace);
+        second.push(b"c", b"d", &account, MemoryKind::Workspace);
+        assert_eq!(
+            group_hash(&first, Some(&names[..2]), false, &control, &account).unwrap(),
+            group_hash(&second, Some(&names[..2]), false, &control, &account).unwrap()
+        );
+        for grouping in [None, Some(&[][..])] {
+            let before = account.snapshot();
+            assert_eq!(
+                group_hash(&first, grouping, false, &control, &account),
+                Ok(0)
+            );
+            assert_eq!(account.snapshot().work, before.work);
+            let cancelled = Control::default();
+            cancelled.cancellation.cancel();
+            assert_eq!(
+                group_hash(&first, grouping, false, &cancelled, &account),
+                Err(Interrupted::Cancelled)
+            );
+        }
+        let empty_digest = 0xef46_db37_51d8_e999;
+        assert_eq!(
+            group_hash(&first, Some(&names[2..]), false, &control, &account),
+            Ok(empty_digest)
+        );
+        assert_eq!(
+            group_hash(&second, Some(&names[..2]), true, &control, &account),
+            Ok(empty_digest)
+        );
+        drop((first, second, names));
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn borrowed_group_hash_observes_long_scans_and_terminal_interruption() {
+        for shape in 0..3 {
+            let mut terminal_work = 0;
+            for boundary in 0..4 {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let mut source = OwnedLabels::new(&account, MemoryKind::Workspace);
+                let mut name = AccountedVec::new(&account, MemoryKind::Workspace);
+                match shape {
+                    0 => {
+                        name.extend_from_slice(b"missing");
+                        for position in 0..10_000 {
+                            source.push(
+                                format!("tag_{position:05}").as_bytes(),
+                                b"omitted",
+                                &account,
+                                MemoryKind::Workspace,
+                            );
+                        }
+                    }
+                    1 => {
+                        name.extend_from_slice(b"a");
+                        source.push(b"a", &vec![b'x'; 65_536], &account, MemoryKind::Workspace);
+                    }
+                    _ => {
+                        name.extend_from_slice(&vec![b'a'; 16_384]);
+                        source.push(&name, b"value", &account, MemoryKind::Workspace);
+                    }
+                }
+                let before = account.snapshot();
+                let operation = || {
+                    group_hash(
+                        &source,
+                        Some(std::slice::from_ref(&name)),
+                        false,
+                        &control,
+                        &account,
+                    )
+                };
+                let result = match boundary {
+                    0 => operation(),
+                    3 => {
+                        control.cancellation.cancel();
+                        operation()
+                    }
+                    _ => crate::test_storage::interrupt_after_work(
+                        &account,
+                        &control,
+                        if boundary == 1 { 64 } else { terminal_work },
+                        operation,
+                    ),
+                };
+                let work = account.snapshot().work - before.work;
+                if boundary == 0 {
+                    assert!(result.is_ok());
+                    terminal_work = work;
+                    assert!(terminal_work > 64);
+                } else {
+                    assert_eq!(result, Err(Interrupted::Cancelled), "{shape}/{boundary}");
+                    if boundary == 2 {
+                        assert_eq!(work, terminal_work);
+                    } else if boundary == 3 {
+                        assert_eq!(work, 0);
+                    }
+                }
+                assert_eq!(account.snapshot().memory, before.memory);
+                drop((source, name));
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
+        }
     }
 
     #[test]

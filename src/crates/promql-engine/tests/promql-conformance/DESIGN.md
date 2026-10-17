@@ -1051,15 +1051,16 @@ integration, and Alertmanager remains excluded.
 
 ## Copied grouping-label construction
 
-- **Choice:** four copied grouping consumers construct only the selected label fields through the existing
+- **Choice:** retained key-owning grouping consumers construct only the selected label fields through the existing
   checked filtered-copy owner. They share the exact selection predicate with in-place grouping.
-- **Scope:** copied roster groups, quantile groups, temporary top-k group keys and per-evaluation aggregate lookup.
+- **Scope:** copied roster groups, quantile groups and temporary top-k group keys. Per-evaluation aggregate lookup
+  now [borrows labels](#borrowed-aggregate-lookup-labels); the earlier four-path cohort keeps its source attribution.
   The roster branch that transfers owned descriptors still filters those labels in place.
 - **Identity:** keep raw empty values and source order. `by` may explicitly select `__name__`; `without` excludes
   it. Ordinary `__type__` and `__unit__` fields follow grouping names. Binary result projection has different
   reserved-name/reset rules and does not define grouping selection.
 - **Phases:** original grouping hashes, first hash matches, binding positions, full ranking descriptors,
-  diagnostic views, output reset, parameters, warnings and numerical operations remain in place.
+  output reset, parameters, warnings and numerical operations remain in place.
 - **Controls:** omitted label visits and retained byte copies remain checked and accounted. A final poll follows
   the last copy charge before the grouped key returns; interruption drops every partial copied buffer.
 - **Limits:** copied keys avoid discarded payloads and input-sized unused outer capacity. Input metadata,
@@ -1067,6 +1068,23 @@ integration, and Alertmanager remains excluded.
   cache, metadata provider, persistent view or query limit.
 - **Evidence:** [copied grouping qualification](grouped-label-qualification.json) binds the actual capacity red,
   final sources/executables, complete query measurements, interruption controls and containing-Agent checks.
+
+## Borrowed aggregate lookup labels
+
+- **Choice:** ordinary aggregate receive hashes selected immutable sample labels directly. The existing prepared
+  group remains the owner of its grouping labels; lookup needs no copied key or diagnostic view array.
+- **Identity:** use the same `by`/`without` predicate and source-order name/255/value/255 encoding as owned keys.
+  Keep raw empty values and hash-only first matches, including delimiter aliases. No grouping and `by()` use
+  literal zero; other empty selections retain the ordinary empty digest. Full-label identity encoding is separate.
+- **Diagnostics:** after `Group::add` and diagnostic-node/builder gates, borrow the checked metric name directly
+  as the annotation argument. Child-span resolution follows it. Sample labels remain alive and unchanged;
+  annotation formatting consumes their bytes synchronously. Native operation errors retain their earlier phase.
+- **Controls:** check/count examined labels, checked grouping-name comparisons and selected hash chunks. Poll
+  after the final charge. Removed copies remove actual copy work; checked warning lookup can add comparison work.
+- **Ownership:** prepared copied/transferred descriptors, ranking labels and `Group::finish` remain with their
+  existing owners. This introduces no retained field, metadata provider, shared-label owner or raw-history array.
+- **Evidence:** [borrowed lookup qualification](borrowed-aggregate-qualification.json) records exact complete
+  operator/reducer results, selected C/target owners and actual whole-query allocation, timing and linked costs.
 
 ## Completed vector-sort publication
 

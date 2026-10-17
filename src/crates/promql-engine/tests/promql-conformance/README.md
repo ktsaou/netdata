@@ -3673,15 +3673,17 @@ disk-throughput or process-RSS evidence. Membership reconstruction and later pro
 
 ## Copied grouping-label construction
 
-Four copied grouping paths now copy only selected fields: prepared copied roster groups, quantile groups,
+The retained cohort qualified four copied grouping paths: prepared copied roster groups, quantile groups,
 temporary top-k group keys and per-evaluation aggregate lookup. They use the existing checked filtered-copy
 owner and share the exact by/without predicate with the in-place transfer path. Transferred descriptor labels
 still retain their existing capacity. Full input and ranking labels remain owned by their original plans.
+The aggregate lookup has since moved to [borrowed labels](#borrowed-aggregate-lookup-labels); the three retained
+key-owning paths continue to use checked copies. Measurements below retain their original source attribution.
 
 Grouping preserves raw empty values, original label order, first hash matches and existing binding positions.
 `by` can explicitly keep `__name__`; `without` excludes it. `__type__` and `__unit__` follow ordinary grouping
 selection. Binary result projection has different reserved-name/reset semantics and is not reused here.
-Diagnostic views, output reset, parameter validation, warnings and numerical operations retain their phases.
+That cohort retained diagnostic views, output reset, parameter validation, warnings and numerical operations.
 
 A retained quantile-plan regression keeps two fields from 8, 17 and 65 input labels. The unchanged native owner
 retains 1,039, 3,343 and 12,559 bytes, including its group descriptor. Direct construction retains 655 bytes in
@@ -3734,6 +3736,71 @@ lower elapsed time for every query on a shared host.
 All 18 C/C++ callers, 72 distinct ARM target/profile grouping checks, 672 storage records and 82 live HTTP/readiness
 checks pass. The cohort preserves all 46 preceding ledger objects and their source/binary identities. Caller
 sanitizers exclude Rust instrumentation; ARM checks execute the library and callers, not a complete foreign Agent.
+
+## Borrowed aggregate lookup labels
+
+Ordinary aggregate lookup now hashes the selected fields of the existing immutable sample labels. It no longer
+creates a temporary grouping key or diagnostic view array. Reached warnings borrow the checked metric name after
+aggregation and diagnostic gates, before child-span resolution. Prepared key owners, ranking labels, output
+copies and provider paging retain their existing lifetimes.
+
+Selection uses the existing by/without predicate and source-order name/255/value/255 encoding. Raw empty values,
+delimiter aliases and hash-only first matches remain meaningful. No grouping and by() return literal zero;
+by(missing) and other empty selections retain the ordinary empty digest. Label/name/hash walks and the terminal
+charge are checked. Eliminated copies remove actual work; checked warning-name lookup can add comparison work.
+
+Both native profiles pass 739 units with two unchanged ignored tests, 1,403 complete cases at pages 1/17/1024,
+and 336 actual default-feature C queries in total. Each ARM target passes 13 focused roster units and 204
+complete selected queries under QEMU. The combined current query count is 8,826. Formatting, strict
+default/fixture Clippy and installed Rust 1.91 compile-only checks pass.
+
+The additional 720 ordinary cases cover all eight aggregation operators, by/without, nesting, joins,
+native/mixed values, warnings and changing membership. Together with the plain grouped control they produce
+1,442 fresh complete before outcomes on signed fixtures. Existing owner baselines retain their actual
+source/binary attribution. The 56,124 fresh reducer outcomes equal exact retained analysis inputs; all 216
+strict-original differences remain failures under strict comparison, including membership and point-count
+differences. The unchanged approved ordering-policy analyses are reused with historical attribution.
+
+| Query | Workspace acquired before → after, bytes | Workspace peak before → after, bytes | Release ratio | Release-min ratio |
+| --- | --- | --- | --- | --- |
+| One group/input | 14,584 → 13,938 | 7,406 → 7,406 | 0.893 | 1.007 |
+| 2,048 groups | 7,971,742 → 6,638,666 | 1,594,434 → 1,594,434 | 0.901 | 0.914 |
+| 512 inputs, one group | 1,186,046 → 1,054,974 | 262,298 → 262,298 | 0.910 | 0.933 |
+| 4,096 groups, sum | 42,837,112 → 32,048,248 | 4,240,520 → 4,240,520 | 0.896 | 0.877 |
+| 4,096 groups, abs(sum) | 77,665,255 → 56,088,844 | 6,020,640 → 6,020,640 | 0.871 | 0.882 |
+
+Memory columns are paired release page17 observations. Tracked allocation traffic is distinct from peak RAM and
+process RSS; the large selected peaks remain unchanged. Across all 1,339 observation-bearing release cases, 654
+reduce workspace peak and 1118 reduce acquired/released workspace bytes. All eight categories retain equal
+current/overflow and nonincreasing peaks/traffic in paired native comparisons.
+
+Timing ratios divide current by before median engine time. The declared 32 cases per profile use five
+alternating pairs, one warmup and one measured result per case/process after owned qualification closes: 1,280
+complete outcomes and 64 groups. 55 primary medians are no higher and 9 are higher. All slower cases remain in
+the report. Every ratio at least 1.05 receives twenty measured repetitions per side; the follow-up retains 132
+complete outcomes across 3 groups. Shared-host observations do not establish universal, live or concurrent
+speedups.
+
+The repeated ratios span 0.994–1.011. Both primary and repeat panels remain visible without attributing their
+differences to a cause.
+
+Actual default C output-caller text changes by +7,280 bytes in release and +224 bytes in release-min; their
+data/BSS changes and all eight matched fixture/C linked pairs are retained. No persistent type fields changed,
+so no additional diagnostic type-layout compilation was performed. Foreign checks establish selected behavior
+under QEMU, not physical ARM throughput.
+
+From src/crates/promql-engine, the focused regressions run with:
+
+```sh
+cargo test --locked --features fixtures --release borrowed_group_hash_
+cargo test --locked --features fixtures --profile release-min borrowed_group_hash_
+```
+
+The [borrowed lookup qualification](borrowed-aggregate-qualification.json) records source/binary identities, all
+timing/resource rows and retained local raw-evidence paths. Public focused tests are portable; complete
+comparative captures remain local, and no new whole-panel replay runner is provided. Existing input generators
+and conformance procedures retain their original roles. No new metadata provider, persistent label owner, raw-
+history array, implicit cap or operator workflow is introduced.
 
 ## Completed vector-sort publication
 
