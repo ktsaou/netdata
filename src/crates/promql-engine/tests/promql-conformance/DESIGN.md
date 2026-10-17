@@ -1549,3 +1549,19 @@ integration, and Alertmanager remains excluded.
   work remain. Public API/ABI, storage, contexts, math, dependencies, temporary backing and disabled implicit caps
   are unchanged. See the [qualification procedure](README.md#completed-pair-metadata-traversal) for complete
   results, costs and the separate original/order-policy reports.
+
+## Borrowed quantile-result labels
+
+Quantile emission borrows immutable GroupDescriptor labels for the prepared roster lifetime, using the existing
+SampleLabels::aggregate constructor. Sorting/index snapshots retain their own lifetimes; refreshing a snapshot
+leaves descriptor label addresses intact. Empty-valued labels keep the existing copied normalization, preserving
+raw group/hash identity. The helper's existing final control check precedes publication.
+
+Retained descriptors, public output and actual mutation materialize independent labels through the existing
+owners. Whole-matrix and per-step name flags retain their existing precedence. Source paging, parameter and
+error phases, sorting/interpolation arithmetic, sample leases and provider backing keep their existing contracts.
+
+The [finite qualification](README.md#borrowed-quantile-result-labels) records actual owner/terminal controls,
+complete original/order-policy/native/C/foreign outcomes and all resource/timing/linked costs. Two historical raw
+membership differences per quantile corpus remain explicit. No public type, field, cache or operator workflow is
+introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-execution claim follows.

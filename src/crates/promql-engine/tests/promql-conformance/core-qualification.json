@@ -71157,5 +71157,18 @@
     "followup_query_executions": 480,
     "strict_current_upstream_bit_difference_fields": 48,
     "limits": "Existing continuous tolerance, exact discrete and before/current/portable outputs. All original bit differences/costs preserved; no language/public/live/universal throughput claim."
+  },
+  "borrowed_quantile_result_labels": {
+    "status": "qualified_finite_private_ownership_optimization",
+    "report": "quantile-result-labels-qualification.json",
+    "before_revision": "bbecc5a347c66db69884d263a5208167b19e60d5",
+    "current_inputs_sha256": "9dd3a3a640a9bb1cb479b174cb2de2c1b7b40c307a5a968dbfeb506e36a5f390",
+    "native_units_per_profile": 752,
+    "current_outcomes": 31536,
+    "exact_native_before_current": 23652,
+    "reused_portable_result_pairs": 27594,
+    "raw_original_membership_failures_current": 16,
+    "raw_original_membership_failures_before": 12,
+    "scope": "Full aggregate quantile plus fresh independent label/profile/name cases; original membership disagreements remain failures with separate approved ordering policy. All memory and timing/linked costs remain. No universal/live/device/concurrency/RSS/MSRV-execution claim."
   }
 }

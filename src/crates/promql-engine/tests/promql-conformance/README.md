@@ -3870,6 +3870,65 @@ source/binary identities, actual layout comparisons and every timing/resource/co
 tests are committed; full comparative captures remain local, with no new whole-panel replay runner. This
 introduces no new metadata provider, retained label cache, raw-history array, implicit cap or operator workflow.
 
+## Borrowed quantile-result labels
+
+Aggregate `quantile()` now reuses the existing frozen aggregate-label owner. Clean group labels borrow the
+prepared roster. Empty values keep copied normalization, preserving raw group identity. Retained results and
+real mutations materialize independent labels; whole-matrix and per-step name flags retain their prior behavior.
+Quantile sorting, interpolation, source paging and temporary backing keep their existing contracts.
+
+Both native profiles pass 752 units with two unchanged ignored tests. The full 3,558-case aggregate-quantile
+corpus and 384 fresh label cases produce 31,536 current outcomes across native pages 1/17/1024 and emulated
+ARM32/ARM64 page17. All 23,652 native before/current outcomes are exact; 27,594 reused portable result pairs
+are exact, adding no executions. The fresh cases cross both profiles and name modes independently.
+
+Two existing raw original membership failures per full quantile cohort remain failures: 16 current and 12 before.
+Eight declared map-order boundaries qualify them separately. No paired numeric-bit difference occurs in this
+panel. These figures establish finite policy-qualified coverage. The original captures and arithmetic contract
+are unchanged.
+
+Two focused published-owner checks cover clean/empty/zero labels, exact bytes and addresses, retained/mutated
+ownership, name flags, complete sample fields and initial/middle/terminal cancellation with release. The actual
+Machine lifetime check covers 42 consumer/name/page combinations per native profile. Each ARM target passes
+seven focused owner tests. Actual default C callers pass 192 cases per side across both native profiles,
+including collected/streamed labels after query release and provider errors. All 192 memory pairs and the
+separate 48 quantile sample-statistic triples retain their accounting contracts; those triples are exact.
+
+Across 23,652 native observations, 2,994 reduce Workspace allocation traffic and 132 reduce its peak. All eight
+accounted memory categories are nonincreasing; physical sample reads are unchanged. The timing panel's
+32-group short-label `label_join` case saves 1,040,704 acquired bytes, while the 32-group long-label sum saves
+343,296 bytes. Their Workspace peaks are unchanged. Traffic and tracked capacities are distinct from process RSS.
+
+| Consumer | Release before → current, ms | Release-min before → current, ms |
+| --- | ---: | ---: |
+| 32 groups, short labels, label_join | 21.835 → 20.319 | 40.221 → 36.115 |
+| 32 groups, 1,024-byte labels, sum | 5.168 → 5.047 | 9.542 → 8.938 |
+| 32 groups, empty-value fallback, sum | 5.119 → 5.277 | 9.348 → 8.994 |
+
+The fixed timing panel keeps all 48 group medians: five alternating pairs, one warmup and three measured queries
+per process, totaling 1,920 outcomes and 1,440 measured results. Another 96 preflight queries bound repetition.
+All 12 slower primary medians remain. The empty release control's 20.9% primary increase receives the declared
+20 measurements per side; its repeated increase is 2.2%, or 0.245 microseconds. The 60 follow-up outcomes retain
+both samples without assigning their difference a cause. Release-min has no slower primary median. Shared-host
+fixture measurements establish no universal, live or concurrent speed claim.
+
+All six matched linked-cost pairs remain visible. Actual default C caller text changes by -300 bytes in release
+and -140 in release-min; release data grows by 24 bytes. Formatting, strict default/fixture Clippy and installed
+Rust 1.91 compilation pass. This introduces no public layout, operator setting or dependency change.
+
+From src/crates/promql-engine, run the focused ownership checks with:
+
+```sh
+cargo test --locked --features fixtures --release quantile_emission_
+cargo test --locked --features fixtures --profile release-min \
+  aggregate_label_borrows_outlive_machines_and_materialize_at_descriptor_boundaries
+```
+
+The [quantile-label qualification](quantile-result-labels-qualification.json) binds actual current/before inputs,
+original/policy identities, every resource/timing/linked cost and failed attempts. Full comparative captures stay
+local; committed controls exercise the current owners. MSRV evidence is compilation only; foreign execution is
+emulated release. Broad fixture results omit logical sample statistics; the actual C triples above are separate.
+
 ## Borrowed projection-result labels
 
 Productive label_join and label_replace emission now borrows exact immutable prepared descriptor labels through

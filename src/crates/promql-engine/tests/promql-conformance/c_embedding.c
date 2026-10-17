@@ -2289,10 +2289,12 @@ static void label_copy_abort(void *context, const netdata_promql_accounting_cont
 static void owned_label_outputs(netdata_promql_engine_t *engine, unsigned scheduled) {
     static const char *names[] = {"zz00", "zz01", "zz02", "zz03", "zz04", "zz05", "zz06", "zz07",
                                   "zz08", "zz09", "zz10", "zz11", "zz12", "zz13", "zz14"};
-    const char *owned_expressions[] = {"m", "label_replace(m,\"added\",\"north\",\"__name__\",\".*\")", "sum by(zone)(m)"};
+    const char *owned_expressions[] = {"m", "label_replace(m,\"added\",\"north\",\"__name__\",\".*\")", "sum by(zone)(m)",
+                                        "quantile by(zone)(0.5,m)"};
     const char *scheduled_expressions[] = {"m+0", "0+m", "m>0", "timestamp(m)"};
     const char **expressions = scheduled ? scheduled_expressions : owned_expressions;
-    unsigned expression_count = scheduled ? 4 : 3;
+    unsigned expression_count = scheduled ? sizeof(scheduled_expressions) / sizeof(scheduled_expressions[0]) :
+                                           sizeof(owned_expressions) / sizeof(owned_expressions[0]);
     const uint64_t counts[] = {9, 17}, pages[] = {1, 17, 1024};
     netdata_promql_engine_observations_t idle = engine_observations(engine);
     for (unsigned ci = 0; ci < 2; ci++) for (unsigned shape = 0; shape < expression_count; shape++) {
@@ -2310,13 +2312,13 @@ static void owned_label_outputs(netdata_promql_engine_t *engine, unsigned schedu
                 memset(&output, 0, sizeof(output));
                 output.source = &source;
                 output.label_count = scheduled ? source.label_count - (shape != 2) :
-                                                shape == 2 ? 1 : source.label_count + (shape == 1);
+                                                shape >= 2 ? 1 : source.label_count + (shape == 1);
                 if (scheduled) {
                     unsigned first = shape != 2;
                     for (uint64_t label = first; label < source.label_count; label++)
                         output.expected[label - first] = source.labels[label];
                 }
-                else if (shape == 2) output.expected[0] = source.labels[1];
+                else if (shape >= 2) output.expected[0] = source.labels[1];
                 else {
                     output.expected[0] = source.labels[0];
                     if (shape == 1) {
@@ -2379,7 +2381,7 @@ static void owned_label_outputs(netdata_promql_engine_t *engine, unsigned schedu
                            memory.current, memory.peak, memory.acquired, memory.released);
                 }
                 putchar(']');
-                if (scheduled) {
+                if (scheduled || shape == 3) {
                     statistics_valid(&observed.statistics);
                     printf(",\"statistics\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 "]",
                            observed.statistics.samples.total_queryable_samples,

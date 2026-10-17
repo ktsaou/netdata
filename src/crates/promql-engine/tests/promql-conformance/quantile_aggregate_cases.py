@@ -464,3 +464,76 @@ def cases():
     if len(inputs) != len({row["request"]["id"] for row in inputs}):
         raise ValueError("duplicate independent QUANTILE query identity")
     return inputs
+
+
+def result_label_records(groups=3, width=0, empty=False):
+    """Small paged groups with stable labels and independently varying members."""
+    return [
+        series(
+            {
+                "__name__": "m",
+                "job": f"group{group:05d}",
+                "member": str(member),
+                "empty": "" if empty else "kept",
+                "padding": "x" * width if width else "short",
+            },
+            [
+                (time * 1000, 2 * group + member + time + 1, "float")
+                for time in range(3)
+            ],
+        )
+        for group in reversed(range(groups))
+        for member in (1, 0)
+    ]
+
+
+def result_label_cases():
+    """Complete emitted-label outcomes with independent profile and name options."""
+    queries = (
+        "quantile by(job)(0.5,m)",
+        "quantile by(__name__,job,empty,padding)(0.5,m)",
+        "quantile without(member)(0.5,m)",
+        "sum(quantile by(job,padding)(0.5,m))",
+        "abs(quantile by(job,padding)(0.5,m))",
+        'label_join(quantile by(job,padding)(0.5,m),"alias","/","job")',
+        'label_replace(quantile by(job,padding)(0.5,m),"job","$1","job","(.*)")',
+        'label_replace(quantile by(job,padding)(0.5,m),"alias","$1","job","(.*)")',
+        "quantile by(job)(0.5,m)+on(job)quantile by(job)(0.5,m)",
+        "topk(1,quantile by(job,padding)(0.5,m))",
+        "quantile(0.5,quantile by(job)(0.5,m))",
+        "sum_over_time((quantile by(job)(0.5,m))[2s:1s])",
+    )
+    result = []
+    for shape, groups, width, empty in (
+        ("no-data", 0, 0, False),
+        ("short", 3, 0, False),
+        ("long", 3, 96, False),
+        ("empty-value", 3, 96, True),
+    ):
+        records = result_label_records(groups, width, empty)
+        for profile in ("server-default", "upstream-tests"):
+            for delayed in (False, True):
+                for mode in ("instant", "range"):
+                    for index, query in enumerate(queries):
+                        result.append(
+                            {
+                                "request": {
+                                    "id": f"quantile-label:{shape}:{profile}:{delayed}:{mode}:{index}",
+                                    "query": query,
+                                    "profile": profile,
+                                    "delayed_name_removal": delayed,
+                                    "mode": mode,
+                                    "time_ms": 2000,
+                                    "start_ms": 0,
+                                    "end_ms": 2000,
+                                    "step_ms": 1000,
+                                    "lookback_ms": 1,
+                                    "subquery_step_ms": 1000,
+                                },
+                                "dataset": {"schema_version": 1, "series": deepcopy(records)},
+                                "faults": {},
+                            }
+                        )
+    if len(result) != len({row["request"]["id"] for row in result}):
+        raise ValueError("duplicate emitted QUANTILE label case")
+    return result

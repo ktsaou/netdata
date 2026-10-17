@@ -302,13 +302,11 @@ impl<'a> Step<'a> {
         let descriptor = &self.descriptors[ordinal];
         let step_flag =
             self.snapshot.as_ref().expect("quantile snapshot").groups[ordinal].drop_name;
-        let mut labels = descriptor
-            .labels
-            .copy_checked(account, MemoryKind::Workspace, control)?;
-        labels.reset_checked(account, control)?;
+        let labels =
+            crate::sample_labels::SampleLabels::aggregate(&descriptor.labels, account, control)?;
         Ok(Action::Sample(EvaluatedSample {
             ordinal,
-            labels: labels.into(),
+            labels,
             float_samples: Some(crate::statistics::OwnedSamples::new(account, 1)),
             value: OwnedValue::Float(value),
             source_time_ms: self.options.time_ms,
@@ -514,5 +512,207 @@ impl<'a> Step<'a> {
             }
         }
         Ok(Action::Continue)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        accounting::EngineAccounting, result::OwnedLabels, sample_labels::SampleLabels,
+        storage::LabelRef,
+    };
+
+    fn published<'a>(
+        plan: &'a Plan,
+        descriptors: &'a [GroupDescriptor],
+        drop_name: bool,
+        account: &QueryAccounting,
+    ) -> Step<'a> {
+        let mut step = Step::new(
+            plan,
+            descriptors,
+            EvaluationOptions {
+                time_ms: 3000,
+                start_ms: 1000,
+                end_ms: 3000,
+                step_ms: 1000,
+                lookback_ms: 1,
+                start_timestamps: false,
+                delayed_name_removal: false,
+            },
+            2,
+            account,
+        );
+        let mut indices = AccountedVec::new(account, MemoryKind::Workspace);
+        indices.push(0);
+        step.groups.push(Group { indices, drop_name });
+        step.publish(&Control::default(), account).unwrap();
+        step
+    }
+
+    #[test]
+    fn quantile_emission_borrows_frozen_groups_and_materializes_retained_labels() {
+        for shape in 0..3 {
+            for whole_drop_name in [None, Some(false), Some(true)] {
+                for drop_name in [false, true] {
+                    let account = EngineAccounting::default().query();
+                    let control = Control::default();
+                    let bytes = vec![0xff; 65_536];
+                    let mut refs = vec![
+                        LabelRef {
+                            name: b"__name__",
+                            value: b"m",
+                        },
+                        LabelRef {
+                            name: b"id",
+                            value: &bytes,
+                        },
+                    ];
+                    if shape == 1 {
+                        refs.insert(
+                            1,
+                            LabelRef {
+                                name: b"empty",
+                                value: b"",
+                            },
+                        );
+                    } else if shape == 2 {
+                        refs.clear();
+                    }
+                    let descriptors = [GroupDescriptor {
+                        hash: 0,
+                        labels: OwnedLabels::copy_from(&refs, &account, MemoryKind::Workspace),
+                        whole_drop_name,
+                    }];
+                    let mut parameters = Parameters::new(true);
+                    parameters.push(-1.0, &account);
+                    let plan = Plan::new(parameters, &account);
+                    let mut step = published(&plan, &descriptors, drop_name, &account);
+                    let before = account.snapshot().memory;
+                    let Action::Sample(sample) = step.advance(&control, &account).unwrap() else {
+                        panic!("published quantile group must emit");
+                    };
+                    assert_eq!(sample.ordinal, 0);
+                    assert_eq!(sample.source_time_ms, 3000);
+                    assert_eq!(sample.source_start_time_ms, 0);
+                    assert_eq!(sample.drop_name, whole_drop_name.unwrap_or(drop_name));
+                    let OwnedValue::Float(value) = sample.value else {
+                        panic!("quantile emits a float");
+                    };
+                    assert_eq!(value.to_bits(), f64::NEG_INFINITY.to_bits());
+                    if shape == 1 {
+                        assert!(matches!(sample.labels, SampleLabels::Owned(_)));
+                        assert_eq!(sample.labels.0.len(), 2);
+                        assert_eq!(descriptors[0].labels.0.len(), 3);
+                        assert!(descriptors[0].labels.0[1].value.is_empty());
+                    } else {
+                        assert!(matches!(sample.labels, SampleLabels::Borrowed(labels)
+                            if std::ptr::eq(labels, &descriptors[0].labels)));
+                        assert_eq!(account.snapshot().memory, before);
+                    }
+                    let retained = sample.labels.into_owned(&account, &control).unwrap();
+                    drop(sample.float_samples);
+                    let mut replay = Step::new(&plan, &descriptors, step.options, 2, &account);
+                    let Action::Sample(mut sample) = replay.advance(&control, &account).unwrap()
+                    else {
+                        panic!("completed snapshot must replay");
+                    };
+                    sample
+                        .labels
+                        .make_owned(&account, &control)
+                        .unwrap()
+                        .set(b"id", b"changed", &account, MemoryKind::Workspace, &control)
+                        .unwrap();
+                    assert_eq!(descriptors[0].labels.0.len(), refs.len());
+                    if shape != 2 {
+                        assert_eq!(
+                            descriptors[0].labels.0.last().unwrap().value.as_ref(),
+                            &bytes
+                        );
+                        assert_eq!(retained.0.last().unwrap().value.as_ref(), &bytes);
+                    }
+                    drop((sample, replay, step));
+                    drop((plan, descriptors));
+                    assert_eq!(retained.0.len(), if shape == 2 { 0 } else { 2 });
+                    drop(retained);
+                    account.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn quantile_emission_controls_cover_complete_label_walks_and_release() {
+        for empty in [false, true] {
+            let account = EngineAccounting::default().query();
+            let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+            for index in 0..10_000 {
+                labels.push(
+                    format!("label_{index:05}").as_bytes(),
+                    if empty && index == 9999 {
+                        b""
+                    } else {
+                        b"value"
+                    },
+                    &account,
+                    MemoryKind::Workspace,
+                );
+            }
+            let descriptors = [GroupDescriptor {
+                hash: 0,
+                labels,
+                whole_drop_name: None,
+            }];
+            let mut parameters = Parameters::new(true);
+            parameters.push(-1.0, &account);
+            let plan = Plan::new(parameters, &account);
+            let mut step = published(&plan, &descriptors, false, &account);
+            let before = account.snapshot().work;
+            let sample = step.advance(&Control::default(), &account).unwrap();
+            let work = account.snapshot().work - before;
+            assert!(work > 8192);
+            drop((sample, step));
+            for budget in [0, 1, 8192, work] {
+                let mut step = Step::new(
+                    &plan,
+                    &descriptors,
+                    EvaluationOptions {
+                        time_ms: 3000,
+                        start_ms: 1000,
+                        end_ms: 3000,
+                        step_ms: 1000,
+                        lookback_ms: 1,
+                        start_timestamps: false,
+                        delayed_name_removal: false,
+                    },
+                    2,
+                    &account,
+                );
+                let control = Control::default();
+                if budget == 0 {
+                    control.cancellation.cancel();
+                }
+                let before = account.snapshot().memory;
+                let result =
+                    crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                        step.advance(&control, &account)
+                    });
+                assert!(matches!(
+                    result,
+                    Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                ));
+                assert!(
+                    account
+                        .snapshot()
+                        .memory
+                        .iter()
+                        .zip(before)
+                        .all(|(now, old)| now.current == old.current)
+                );
+            }
+            drop((plan, descriptors));
+            account.snapshot().assert_memory_released();
+        }
     }
 }

@@ -17235,9 +17235,16 @@ mod tests {
                 1,
                 1.0,
             ),
+            ("quantile by(instance)(0.5,counter_total)", 1, 0.5),
+            ("abs(quantile by(instance)(0.5,counter_total))", 1, 0.5),
+            (
+                "label_join(quantile by(instance)(0.5,counter_total), \"row\", \"/\", \"instance\")",
+                2,
+                0.5,
+            ),
         ] {
             for delayed in [false, true] {
-                for page in [1, 17] {
+                for page in [1, 17, 1024] {
                     let (collected, retained) = {
                         let input = mapped_group_provider(page, 2);
                         let engine = Engine::default();
