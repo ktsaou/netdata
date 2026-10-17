@@ -2291,7 +2291,9 @@ static void owned_label_outputs(netdata_promql_engine_t *engine, unsigned schedu
                                   "zz08", "zz09", "zz10", "zz11", "zz12", "zz13", "zz14"};
     const char *owned_expressions[] = {"m", "label_replace(m,\"added\",\"north\",\"__name__\",\".*\")", "sum by(zone)(m)",
                                         "quantile by(zone)(0.5,m)",
-                                        "quantile by(zone)(0.5,sum by(zone,zz00)(m))"};
+                                        "quantile by(zone)(0.5,sum by(zone,zz00)(m))",
+                                        "sum by(zone)(topk(1,sum by(zone,zz00)(m)))",
+                                        "sum by(zone)(bottomk(1,sum by(zone,zz00)(m)))"};
     const char *scheduled_expressions[] = {"m+0", "0+m", "m>0", "timestamp(m)"};
     const char **expressions = scheduled ? scheduled_expressions : owned_expressions;
     unsigned expression_count = scheduled ? sizeof(scheduled_expressions) / sizeof(scheduled_expressions[0]) :

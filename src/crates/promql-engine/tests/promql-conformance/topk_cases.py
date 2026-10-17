@@ -131,3 +131,95 @@ def cases():
     if len(inputs) != len({row["request"]["id"] for row in inputs}):
         raise ValueError("duplicate independently declared selection identity")
     return inputs
+
+
+def grouped_input_cases():
+    """Selection over paged groups, with complete outcomes from the original engine."""
+    from base64 import b64decode
+    from quantile_aggregate_cases import result_label_records
+
+    ordinary = result_label_records(4, 96)
+    aliases, mixed, histograms = [], [], []
+    for index, row in enumerate(ordinary):
+        labels = {
+            b64decode(label["name"]): b64decode(label["value"])
+            for label in row["labels"]
+        }
+        alias_labels = dict(labels)
+        if index % 2:
+            alias_labels.pop(b"empty")
+        else:
+            alias_labels[b"empty"] = b""
+        aliases.append(series(alias_labels, [
+            (time * 1000, index + time + 1, "float") for time in range(3)
+        ]))
+        histogram = series(labels, [
+            (time * 1000, index + time + 1, "float_histogram") for time in range(3)
+        ])
+        histograms.append(histogram)
+        mixed.append(deepcopy(histogram if index % 2 else row))
+
+    result = []
+    for operator, parameter, profiles in (
+        ("topk", "2", ("server-default", "upstream-tests")),
+        ("bottomk", "2", ("server-default", "upstream-tests")),
+        ("limitk", "64", ("upstream-tests",)),
+        ("limit_ratio", ".5", ("upstream-tests",)),
+    ):
+        queries = []
+        for reducer in ("sum", "avg", "count", "min", "max", "group", "stdvar", "stddev"):
+            for body in ("m", "rate(m[2s])"):
+                queries.append(
+                    f"sum({operator}({parameter},{reducer} by(job,empty)({body})))"
+                )
+        queries.extend((
+            f"sum({operator}({parameter},abs(sum by(job,empty)(sum by(job,empty,member)(m)))))",
+            f"count({operator}({'2' if operator != 'limit_ratio' else '.5'},sum by(job)(m)))",
+            f"sum({operator}(0,sum by(job,empty)(m)))",
+            f"sum({operator}(NaN,sum by(job,empty)(m)))",
+            f"sum({operator}(Inf,sum by(job,empty)(m)))",
+            f"sum({operator}(-Inf,sum by(job,empty)(m)))",
+            f"sum({operator}(time()+1,sum by(job,empty)(m)))",
+            f"sum({operator}({parameter},sum by(job,empty)(m @ 1)))",
+            f"sum({operator}({parameter},sum by(job,empty)(m offset 1s)))",
+            f"sum({operator}({parameter},sum by(job,empty)(timestamp(m))))",
+            f"sum({operator}({parameter},sum by(job,empty)(m*scalar(m))))",
+            f"sum_over_time((sum({operator}({parameter},sum by(job,empty)(m))))[2s:1s] @ 2)",
+            f"sum(topk(scalar(count({operator}({parameter},sum by(job,empty)(m)))),sum by(job)(m)))",
+        ))
+        if operator in ("topk", "bottomk"):
+            queries.append(f"{operator}(2,sum by(job,empty)(m))")
+        if operator == "limit_ratio":
+            queries.append("sum(limit_ratio(-.5,sum by(job,empty)(m)))")
+        for shape, records in (
+            ("empty", []),
+            ("singleton", result_label_records(1)),
+            ("ordinary", ordinary),
+            ("raw-empty-aliases", aliases),
+            ("mixed", mixed),
+            ("native", histograms),
+        ):
+            for profile in profiles:
+                for delayed in (False, True):
+                    for mode in ("instant", "equal", "range"):
+                        for index, query in enumerate(queries):
+                            result.append({
+                                "request": {
+                                    "id": f"selection-group:{operator}:{shape}:{profile}:{delayed}:{mode}:{index}",
+                                    "query": query,
+                                    "profile": profile,
+                                    "delayed_name_removal": delayed,
+                                    "mode": "instant" if mode == "instant" else "range",
+                                    "time_ms": 2000,
+                                    "start_ms": 0 if mode == "range" else 2000,
+                                    "end_ms": 2000,
+                                    "step_ms": 1000,
+                                    "lookback_ms": 1,
+                                    "subquery_step_ms": 1000,
+                                },
+                                "dataset": {"schema_version": 1, "series": deepcopy(records)},
+                                "faults": {},
+                            })
+    if len(result) != len({row["request"]["id"] for row in result}):
+        raise ValueError("duplicate grouped selection input case")
+    return result

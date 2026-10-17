@@ -1569,8 +1569,8 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
 ## Quantile group contributors
 
 - **Choice:** aggregate QUANTILE seeds existing contributor demand from its resolved body. Keep parameter demand,
-  Finish, primary role, Task shape and LIFO parameter-first order unchanged. Selection aggregates retain their
-  existing admission. The local consumer repeats ordinal requests during scanning, sorting and interpolation in
+  Finish, primary role, Task shape and LIFO parameter-first order unchanged. The selection extension below shares this
+  established demand. The local consumer repeats ordinal requests during scanning, sorting and interpolation in
   instant, equal-header and range queries; no outer unequal-range condition is needed.
 - **Proof and ownership:** each child retains its own invariant/boundary/source/scope clamp and existing supported
   ordinary/raw/window/map proof. First full child Done, exact-key selected fresh members, changed-clock validation
@@ -1584,3 +1584,20 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
   allocation. The 16-group timing cases save about 25.2/8.6 MB allocation traffic with equal peaks, but expression
   qualification retains up to 880 extra peak bytes, all slower controls and all linked costs. There is no universal
   speed or total-memory bound. See the [finite procedure and evidence](README.md#quantile-group-contributors).
+
+## Selection group contributors
+
+- **Choice:** extend the existing numeric-aggregate body demand to TOPK/BOTTOMK/LIMITK/LIMIT_RATIO, leaving accepted
+  QUANTILE demand unchanged. Keep parameter Visit false, body primary role, Finish, Task shape and LIFO order.
+  A nested selection inside a scalar parameter independently requests its own grouped child.
+- **Proof and ownership:** preserve each child's clock/invariant/boundary/leaf checks, complete cold Done, fresh
+  selected members, exact-key invalidation and preparation clearing. A nonproductive or cached-empty selection may
+  request no final body. No arithmetic, tie/hash/native/name, provider/storage/contexts/public ABI or cap changes.
+- **Controls:** complete actual Engine outcomes precede growth assertions; actual inner-group faults distinguish
+  both cold/warm identities, selected values and next clocks. Qualify parameter and nested parameter priority.
+  Independently captured original child rows establish only the declared empty-alias order policy; injected
+  controls never supply performance or physical observations. Raw original failures remain visible.
+- **Trade-off:** extra metadata can raise tiny-query peaks and time while removing repeated raw reads/allocation.
+  The finite panel includes reduced peaks, all positive costs, slower follow-ups and linked-size changes; no universal
+  speed or total-memory bound follows. The actual C shape checks one inner group; plural activation belongs to
+  Engine fixtures. See the [procedure and evidence](README.md#selection-group-contributors).

@@ -1965,14 +1965,8 @@ impl CompiledQuery {
                         )?,
                         header,
                         child_primary,
-                        // Quantile sorting and interpolation repeatedly request input groups.
-                        matches!(
-                            expression,
-                            Expr::Aggregate {
-                                operator: TokenKind::QUANTILE,
-                                ..
-                            }
-                        ),
+                        // Numeric aggregate controllers repeatedly request input groups.
+                        true,
                     ));
                     tasks.push(Task::AggregateParameter(node, header));
                     tasks.push(Task::Visit(
@@ -7253,6 +7247,120 @@ mod tests {
     }
 
     #[test]
+    fn selection_grouped_inputs_check_complete_results_before_bounded_work() {
+        let mut growth = Vec::new();
+        for (operator, parameter) in [
+            ("topk", "2"),
+            ("bottomk", "2"),
+            ("limitk", "64"),
+            ("limit_ratio", "1"),
+        ] {
+            for window in [false, true] {
+                let body = if window {
+                    "rate(m_total[2s])"
+                } else {
+                    "m_total"
+                };
+                let expression = format!("sum({operator}({parameter},sum by(job,id)({body})))");
+                for page in [17, 1024] {
+                    for delayed in [false, true] {
+                        for (mode, request) in [
+                            ("instant", QueryRequest::Instant { time_ms: 2000 }),
+                            (
+                                "equal",
+                                QueryRequest::Range {
+                                    start_ms: 2000,
+                                    end_ms: 2000,
+                                    step_ms: 1000,
+                                },
+                            ),
+                            (
+                                "range",
+                                QueryRequest::Range {
+                                    start_ms: 2000,
+                                    end_ms: 4000,
+                                    step_ms: 1000,
+                                },
+                            ),
+                        ] {
+                            for groups in [2_usize, 4, 8, 16] {
+                                let engine = Engine::default();
+                                let control = Control::default();
+                                let provider = local_grouped_operand_provider(page, groups);
+                                let mut settings = options(delayed);
+                                settings.parser.experimental_functions =
+                                    operator.starts_with("limit");
+                                let query = engine
+                                    .compile(expression.as_bytes(), settings, &control)
+                                    .unwrap();
+                                let report = query.collect_reported(&provider, request, &control);
+                                let result = report.result.as_ref().unwrap();
+                                assert!(report.annotations.is_empty());
+                                assert_eq!(result.series.len(), 1);
+                                let row = &result.series[0];
+                                assert!(row.labels.0.is_empty());
+                                let points = if mode == "range" { 3 } else { 1 };
+                                assert_eq!(row.points.len(), points);
+                                let slope = match operator {
+                                    "topk" if groups > 2 => 48.0,
+                                    "bottomk" if groups > 2 => 12.0,
+                                    "topk" | "bottomk" => 30.0,
+                                    _ => 15.0 * groups as f64,
+                                };
+                                for (tick, point) in row.points.iter().enumerate() {
+                                    let time = (tick + 2) as f64;
+                                    let expected = slope
+                                        * if window {
+                                            2.0 * time - 1.0
+                                        } else {
+                                            100.0 + time * time
+                                        };
+                                    assert_eq!(point.time_ms, (tick as i64 + 2) * 1000);
+                                    assert_eq!(float_bits(point), expected.to_bits());
+                                }
+                                assert_eq!(report.observations.output_samples, points as u64);
+                                let fetched: usize = provider
+                                    .series
+                                    .iter()
+                                    .map(|row| {
+                                        row.source.counters.samples_returned.load(Ordering::Relaxed)
+                                    })
+                                    .sum();
+                                assert_eq!(report.observations.samples_fetched, fetched as u64);
+                                assert!(provider.series[..groups * 2].iter().all(|row| {
+                                    row.source.counters.peak.load(Ordering::Relaxed) == 1
+                                }));
+                                assert_eq!(
+                                    report.observations.memory[MemoryKind::Workspace as usize]
+                                        .current,
+                                    0
+                                );
+                                println!(
+                                    "selection-group-growth operator={operator} window={window} page={page} delayed={delayed} mode={mode} groups={groups} fetched={} work={}",
+                                    report.observations.samples_fetched, report.observations.work
+                                );
+                                growth.push((
+                                    report.observations.samples_fetched,
+                                    report.observations.work,
+                                ));
+                                provider.assert_closed();
+                                drop((report, query));
+                                engine.accounting.snapshot().assert_memory_released();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            growth
+                .chunks_exact(4)
+                .all(|rows| rows[3].0 <= rows[1].0 * 8 && rows[3].1 <= rows[1].1 * 8),
+            "selection grouped inputs must avoid repeated complete reductions: {growth:?}"
+        );
+    }
+
+    #[test]
     fn quantile_grouped_inputs_check_complete_results_before_bounded_work() {
         let mut growth = Vec::new();
         for window in [false, true] {
@@ -7349,8 +7457,7 @@ mod tests {
         );
     }
 
-    #[test]
-    fn quantile_grouped_inputs_keep_cold_selected_and_next_clock_failures() {
+    fn grouped_input_failure_checks(expression: &str) {
         fn acquisitions(input: &FixtureProvider) -> Vec<usize> {
             input
                 .series
@@ -7361,12 +7468,10 @@ mod tests {
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
                 let engine = Engine::default();
+                let mut settings = options(delayed);
+                settings.parser.experimental_functions = expression.starts_with("limit");
                 let query = engine
-                    .compile(
-                        b"quantile(.5,sum by(job,id)(m_total))",
-                        options(delayed),
-                        &Control::default(),
-                    )
+                    .compile(expression.as_bytes(), settings, &Control::default())
                     .unwrap();
                 let mut landmarks: Vec<Vec<usize>> = Vec::new();
                 let (mut selected, mut excluded) = (0, 0);
@@ -7527,7 +7632,7 @@ mod tests {
                                         .load(Ordering::Relaxed);
                                     assert_eq!(acquired, landmarks[current][target] + 1);
                                     println!(
-                                        "quantile-group-phase fault={fault} page={page} delayed={delayed} phase={current} target={target} acquisition={acquired}"
+                                        "grouped-input-phase expression={expression:?} fault={fault} page={page} delayed={delayed} phase={current} target={target} acquisition={acquired}"
                                     );
                                 }
                                 drop(next);
@@ -7657,6 +7762,25 @@ mod tests {
     }
 
     #[test]
+    fn quantile_grouped_inputs_keep_cold_selected_and_next_clock_failures() {
+        grouped_input_failure_checks("quantile(.5,sum by(job,id)(m_total))");
+    }
+
+    #[test]
+    fn selection_grouped_inputs_keep_cold_selected_and_next_clock_failures() {
+        for (operator, parameter) in [
+            ("topk", "2"),
+            ("bottomk", "2"),
+            ("limitk", "2"),
+            ("limit_ratio", "1"),
+        ] {
+            grouped_input_failure_checks(&format!(
+                "{operator}({parameter},sum by(job,id)(m_total))"
+            ));
+        }
+    }
+
+    #[test]
     fn quantile_grouped_inputs_preserve_preparation_admission_and_fallbacks() {
         let range = QueryRequest::Range {
             start_ms: 2000,
@@ -7686,7 +7810,28 @@ mod tests {
                             ("quantile(.5,sum by(id)(timestamp(m_total)))", 0),
                             ("quantile(.5,sum by(id)(m_total*scalar(m_total)))", 0),
                             ("quantile(.5,m_total)", 0),
-                            ("topk(1,sum by(id)(m_total))", 0),
+                            ("topk(1,sum by(id)(m_total))", 1),
+                            ("bottomk(1,sum by(id)(m_total))", 1),
+                            ("limitk(1,sum by(id)(m_total))", 1),
+                            ("limit_ratio(.5,sum by(id)(m_total))", 1),
+                            ("topk(0,sum by(id)(m_total))", 1),
+                            ("limit_ratio(0,sum by(id)(m_total))", 1),
+                            ("topk(1,sum by(id)(m_total @ 2))", 0),
+                            ("bottomk(1,sum by(id)(m_total @ 2))", 0),
+                            ("limitk(1,sum by(id)(m_total @ 2))", 0),
+                            ("limit_ratio(.5,sum by(id)(m_total @ 2))", 0),
+                            ("topk(1,sum by(id)(m_total offset 1s))", 1),
+                            ("bottomk(1,sum by(id)(m_total offset 1s))", 1),
+                            ("limitk(1,sum by(id)(m_total offset 1s))", 1),
+                            ("limit_ratio(.5,sum by(id)(m_total offset 1s))", 1),
+                            ("topk(1,sum by(id)(timestamp(m_total)))", 0),
+                            ("bottomk(1,sum by(id)(timestamp(m_total)))", 0),
+                            ("limitk(1,sum by(id)(timestamp(m_total)))", 0),
+                            ("limit_ratio(.5,sum by(id)(timestamp(m_total)))", 0),
+                            (
+                                "last_over_time((limit_ratio(.5,sum by(id)(m_total)))[2s:1s] @ 2)",
+                                1,
+                            ),
                             (
                                 "last_over_time((quantile(.5,sum by(id)(m_total)))[2s:1s] @ 2)",
                                 1,
@@ -7695,8 +7840,10 @@ mod tests {
                             let engine = Engine::default();
                             let provider = local_grouped_operand_provider(page, groups);
                             let control = Control::default();
+                            let mut settings = options(delayed);
+                            settings.parser.experimental_functions = expression.contains("limit");
                             let query = engine
-                                .compile(expression.as_bytes(), options(delayed), &control)
+                                .compile(expression.as_bytes(), settings, &control)
                                 .unwrap();
                             let account = query.execution_accounting();
                             let found = {
@@ -7817,6 +7964,161 @@ mod tests {
                     provider.assert_closed();
                     drop((report, query));
                     engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn selection_grouped_inputs_keep_parameter_and_late_body_error_priority() {
+        for operator in ["topk", "bottomk", "limitk", "limit_ratio"] {
+            for page in [1, 17, 1024] {
+                for delayed in [false, true] {
+                    for parameter in [
+                        "scalar(n_total)",
+                        "0",
+                        "0.5",
+                        "-0.5",
+                        "NaN",
+                        "Inf",
+                        "-Inf",
+                        "9223372036854774784",
+                        "-9223372036854775808",
+                    ] {
+                        let mut provider = local_grouped_operand_provider(page, 4);
+                        let parameter_fault = parameter.starts_with("scalar");
+                        if parameter_fault {
+                            for row in &mut provider.series {
+                                row.source.fail_acquisition = Some(1);
+                            }
+                        } else {
+                            provider.series[7].source.fail_acquisition = Some(1);
+                        }
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let mut settings = options(delayed);
+                        settings.parser.experimental_functions = operator.starts_with("limit");
+                        let expression = format!("{operator}({parameter},sum by(job,id)(m_total))");
+                        let query = engine
+                            .compile(expression.as_bytes(), settings, &control)
+                            .unwrap();
+                        let report = query.collect_reported(
+                            &provider,
+                            QueryRequest::Instant { time_ms: 2000 },
+                            &control,
+                        );
+                        assert!(matches!(&report.result, Err(ExecutionError::Evaluation(
+                            EvaluationError::Storage(StorageError::Provider(bytes))))
+                            if &**bytes == b"injected page failure"));
+                        if parameter_fault {
+                            assert!(provider.series[..8].iter().all(|row| {
+                                row.source.counters.opened.load(Ordering::Relaxed) == 0
+                            }));
+                            assert!(provider.series[8..].iter().any(|row| {
+                                row.source.counters.opened.load(Ordering::Relaxed) == 1
+                            }));
+                        } else {
+                            assert_eq!(
+                                provider.series[7]
+                                    .source
+                                    .counters
+                                    .opened
+                                    .load(Ordering::Relaxed),
+                                1,
+                                "{operator}({parameter}) must prepare the late body member"
+                            );
+                        }
+                        provider.assert_closed();
+                        drop((report, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn selection_grouped_inputs_keep_nested_parameter_clock_and_error_order() {
+        for (operator, parameter, winners) in [
+            ("topk", "2", 2),
+            ("bottomk", "2", 2),
+            ("limitk", "2", 2),
+            ("limit_ratio", "1", 4),
+        ] {
+            for page in [1, 17, 1024] {
+                for delayed in [false, true] {
+                    for (points, request) in [
+                        (1, QueryRequest::Instant { time_ms: 2000 }),
+                        (
+                            1,
+                            QueryRequest::Range {
+                                start_ms: 2000,
+                                end_ms: 2000,
+                                step_ms: 1000,
+                            },
+                        ),
+                        (
+                            3,
+                            QueryRequest::Range {
+                                start_ms: 2000,
+                                end_ms: 4000,
+                                step_ms: 1000,
+                            },
+                        ),
+                    ] {
+                        for fault in [false, true] {
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let mut provider = local_grouped_operand_provider(page, 4);
+                            if fault {
+                                provider.series[7].source.fail_acquisition = Some(1);
+                                for row in &mut provider.series[8..] {
+                                    row.source.fail_acquisition = Some(1);
+                                }
+                            }
+                            let expression = format!(
+                                "sum(topk(scalar(count({operator}({parameter},sum by(job,id)(m_total)))),sum by(job,id)(n_total)))"
+                            );
+                            let mut settings = options(delayed);
+                            settings.parser.experimental_functions = operator.starts_with("limit");
+                            let query = engine
+                                .compile(expression.as_bytes(), settings, &control)
+                                .unwrap();
+                            let report = query.collect_reported(&provider, request, &control);
+                            if fault {
+                                assert!(matches!(&report.result, Err(ExecutionError::Evaluation(
+                                    EvaluationError::Storage(StorageError::Provider(bytes))))
+                                    if &**bytes == b"injected page failure"));
+                                assert_eq!(
+                                    provider.series[7]
+                                        .source
+                                        .counters
+                                        .opened
+                                        .load(Ordering::Relaxed),
+                                    1
+                                );
+                                assert!(provider.series[8..].iter().all(|row| {
+                                    row.source.counters.opened.load(Ordering::Relaxed) == 0
+                                }));
+                            } else {
+                                let result = report.result.as_ref().unwrap();
+                                assert!(report.annotations.is_empty());
+                                assert_eq!(result.series.len(), 1);
+                                let row = &result.series[0];
+                                assert!(row.labels.0.is_empty());
+                                assert_eq!(row.points.len(), points);
+                                for (tick, point) in row.points.iter().enumerate() {
+                                    let expected = (winners * 4) as f64 * (102.0 + tick as f64);
+                                    assert_eq!(point.time_ms, (tick as i64 + 2) * 1000);
+                                    assert_eq!(float_bits(point), expected.to_bits());
+                                }
+                                assert_eq!(report.observations.output_samples, points as u64);
+                            }
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                    }
                 }
             }
         }

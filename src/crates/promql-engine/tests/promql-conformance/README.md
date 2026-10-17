@@ -5730,6 +5730,86 @@ and derived metadata/state may grow. No language feature is added or dropped. Ea
 live-Agent cohorts retain their own identities.
 
 
+## Selection group contributors
+
+`topk`, `bottomk`, `limitk` and `limit_ratio` now demand the same existing grouped-child contributor metadata as
+`quantile`. Scans, ranking and selected-row delivery can read the requested group's members after successful full
+validation. This private performance change adds no language feature, raw-value cache, provider or public interface.
+The LIMIT operators retain their explicit upstream-test feature gate.
+
+The shared five-operator branch preserves parameter-first order, body primary role and Finish. Each child keeps its
+own invariant/boundary/source/scope clock checks and supported-leaf proof. Cold full Done precedes credit; warm
+members stay fresh; new clocks validate again; preparation clears credit before final execution. Selection inside
+a scalar parameter demands its own local body, so nested parameter results and error priority are also checked.
+Empty or nonproductive selection can request no final body; this change adds no unconditional reread.
+
+Run from the Cargo root, after creating `tests/promql-conformance/.tmp`:
+
+```sh
+cargo test --locked --features fixtures --release -- selection_grouped_inputs_ --nocapture
+```
+
+Four selection-focused units cover complete outputs before growth bounds, actual cold/warm/next-clock failures,
+parameter/body error order and nested parameter clocks. Four coupled quantile controls also pass. Unchanged
+production completes all 384 Engine outcomes before failing the final growth bound; removing only the new test
+reproduces the entire signed parent file. The recorded controls include 180 actual native fault traces and 768
+before/current growth pairs. Pages, both name modes, annotations, sample counters and cleanup are checked.
+
+`topk_cases.grouped_input_cases()` adds 6,444 originals across six datasets. Use it as `inputs` with the existing
+`cursor_calls.capture`/`qualify` APIs. It covers all eight ordinary operators, raw/rate/nested/fallback/clock paths,
+dynamic and nested parameters, empty/singleton/ordinary/raw-empty-alias/mixed/native data, both name flags and
+instant/equal/range modes. Its 512 errors are actual execution errors: 288 invalid NaN parameters, 180 overflows,
+36 NaN ratios and eight duplicate-label outcomes. Parse or construction errors do not count as language coverage.
+
+Retained panels add 11,274 cases. All 141,744 current original-or-policy outcomes qualify. Native before/current
+results match exactly in 106,308 comparisons: 32,868 authenticated accepted captures and 73,440 fresh baseline
+queries. The latter includes 23,832 completed partial captures reused after a comparison-controller correction.
+No reused query is counted as another execution. The 124,026 portable exact comparisons reuse terminal captures.
+Both native profiles pass 760 units with two unchanged ignored. Each QEMU target passes 11 focused units and
+17,718 complete page-17 outcomes; this does not measure physical ARM performance.
+
+Raw original failures remain: 360 current and 270 native before, separately from policy qualification. Each full
+cohort retains two quantile, 27 TOPK/BOTTOMK, seven LIMIT and nine fresh alias differences. Sixteen new boundaries
+expose upstream map-order-dependent timelines; 80 unchanged-Go repeats produce two outcomes in 15 of them. The
+existing deterministic label-byte policy uses independently captured child floats, orders only their complete raw
+labels, then evaluates unchanged Go outer expressions. This leaves raw captures intact and supplies no resource or
+throughput observations. Continuous original numbers retain upstream tolerance; paired and portable bits match.
+
+Actual native default C callers pass 336 cases per side across profiles, with 336 memory pairs and 192 overlapping
+exact statistic triples. New grouped TOPK/BOTTOMK controls contribute 48 success and 48 expected provider-error arms.
+Their one-source/one-inner-group shape checks construction, complete labels/times/bits, retained and streamed output,
+source wipe, query release and cleanup. Plural contributor activation belongs to Engine/inner-Machine fixtures.
+Use the existing `--owned-labels-only` caller mode. Broad fixture captures omit logical sample statistics.
+
+Among 106,308 native observations, 12,660 fetch fewer entries, 15,780 reduce Workspace allocation traffic and 1,008
+reduce Workspace peak. All 34,896 Workspace cost rows remain in the bound evidence and cost distributions: at most
+880 extra peak or 1,392 acquired bytes in this finite expression panel. The C panel retains 48 cost rows. These
+are accounted bytes, not RSS or arbitrary-cardinality bounds; raw histories remain paged across both axes.
+
+Five alternating pairs/profile run 8,320 primary queries, with 6,240 measured outcomes across 104 cases/profile.
+Representative 16-group, two-member medians with ordinary name handling are milliseconds:
+
+| Selection and body | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| TOPK(2), raw grouped SUM | 16.417 → 2.034 | 30.532 → 3.520 |
+| TOPK(2), grouped rate SUM | 10.480 → 2.528 | 20.247 → 4.382 |
+| BOTTOMK(2), raw grouped SUM | 28.390 → 3.029 | 52.920 → 5.185 |
+| LIMITK(2), raw grouped SUM | 9.280 → 1.547 | 17.020 → 2.652 |
+| LIMITK(64), raw grouped SUM | 48.076 → 4.510 | 88.870 → 7.843 |
+| LIMIT_RATIO(.5), raw grouped SUM | 17.192 → 2.161 | 32.074 → 3.776 |
+
+All 68 slower primary medians remain, including a 13.1% maximum. The ten cases at the predeclared 5% threshold
+receive the fixed 600-query follow-up, with 20 measured results per side. The largest repeat slowdown is an empty
+direct TOPK size-profile control, 28.4%, or a few microseconds; no cause is established and primary samples stay.
+The 416 separate preflight queries have a 90.7 ms maximum baseline, below the 5 s repetition guard.
+
+Format, strict default/fixture Clippy and installed MSRV compilation pass. All six linked pairs remain, including
+8,184 extra ARM64 fixture text bytes and 16 fewer native C text bytes/profile. The
+[selection-group qualification](selection-group-contributor-qualification.json) binds all timing samples, costs,
+source/binary/receipt identities, raw failures and comparison corrections. These synthetic shared-host timings
+establish no live/API/default-library/concurrent latency, device speed or RSS. Metadata and owned output can grow;
+implicit limits remain disabled.
+
 ## Quantile group contributors
 
 Aggregate `quantile()` now demands existing contributor metadata from its resolved body. Eligible ordinary grouped
