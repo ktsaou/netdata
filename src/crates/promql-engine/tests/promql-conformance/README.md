@@ -4081,6 +4081,65 @@ source/controller/binary identities, actual C statistics, resource observations 
 captures stream gzip from the start and verify raw/compressed hashes after full EOF. Portable source controls
 are committed; full comparative captures remain local.
 
+### Borrowed frozen Pair keys
+
+Frozen binary emission hashes and compares the two operand label streams directly. One digest receives all
+left fields followed by all right fields; there is no operand separator, sorting or normalization. Different
+operand splits can represent the same key. Both complete streams validate before index lookup, so a later invalid
+field still precedes a missing-key error. Canonical prefix/payload comparison requires full stored-key exhaustion.
+The existing full-hash guard, first matching ordinal, first-writer labels and terminal control remain authoritative.
+
+Mutable preparation retains its owned concatenated key and independent labels. Internal group_right key order,
+both label acquisitions, arithmetic/diagnostics, false-filter reservation, bool conversion and seen/prefix/credit
+phases are unchanged. One pure prefix helper serves owned encoding, full hashing and borrowed comparison.
+No field, index, persistent owner or raw array is added. Encoded comparison batches small accounting updates
+in one bounded stack counter. It shares the ordinary 1024-byte equality kernel, retains exact reached work on
+every exit and preserves bounded control polling. A final flush cannot return successful or missing-key output
+while cancellation is pending. Synthetic work-budget interruption prefixes can change with batching.
+
+The existing actual Step discriminator checks all 40 complete outcomes/ownership phases before comparing short
+and 4096-byte labels. It fails the intended allocation bound on unchanged production. Native frozen ADD emission
+with 4096-byte values acquires 15,509→32 Workspace bytes; the current 32 bytes are fixed metadata and remain equal
+to the short-label case. Preparation still allocates independent keys/labels. This is emission traffic, not a
+whole-query peak or process RSS measurement.
+
+Independent literal encodings cover 11 widths through 32769 bytes and every operand split. Malformed keys,
+empty/opaque fields, forced digest collisions, late oversized names/values and chunk/terminal cancellation retain
+their exact outcomes. Complete original comparisons and accepted-before pairs pass for all 13,152 comparisons:
+1,644 inputs/38 datasets, native pages 1/17/1024 and foreign page 17. Accepted92 terminal before captures are reused
+only after exact regenerated payload, binary, source and gzip authentication; no before expression-panel query rerun is claimed.
+
+Both native profiles pass 778 units with two unchanged ignored tests; each emulated ARM target passes 44 focused
+checks. Actual default-library callers pass 1,344 C pairs, 336 current C++ controls and both full current C programs.
+Every exported sample-statistic triple remains exact; missing fixture statistics are not inferred.
+
+Workspace acquisition is lower in 8,448 paired query cases and peak is lower in 400; all 8 tracked
+categories have no increase. Other serialized paging/call/backing/reference/output observations remain exact.
+Preparation and fresh selected values still read storage. Completed Pair membership does not cache raw values
+or retain readers across pair/time requests; existing single-selector scheduling excludes vector-vector joins.
+The delayed-name root discovery cost is a separate investigation.
+
+The fixed 56-case/profile timing panel retains every primary sample and slower median. Five alternating pairs
+give 25 measured samples per case/side; >=5% slower primary medians receive separate fixed follow-ups.
+
+| Execution case | Release current/before median | Release-min current/before median |
+| --- | --- | --- |
+| One series, 16-byte values, m+n | 0.966 | 1.023 |
+| 32 series, 512-byte values, m+n | 0.960 | 1.016 |
+| Same arithmetic, delayed names | 0.951 | 1.033 |
+| 32 series, filtered comparison | 0.968 | 1.012 |
+| 32 series, Set control | 0.969 | 1.025 |
+
+Release has 2 slower primary medians and release-min has 55. Each profile has one >=5% slower case;
+neither remains >=5% slower in its fixed follow-up. Primary and follow-up observations remain separate.
+The first candidate and its separate same-CPU diagnostic are retained in the report. Identical-binary controls
+varied substantially, and raw/Set controls outside frozen-Pair lookup moved too. These shared-host timings do not isolate a code-specific
+throughput effect. The refinement removes independently observed per-fragment accounting calls.
+Timing covers engine preparation/evaluation/collection and excludes parsing/compilation and serialization.
+The [qualification report](frozen-pair-key-qualification.json) retains all timing, memory and ten linked costs,
+including unchanged measured persistent layouts. It does not establish universal or concurrent throughput,
+RSS, whole-query stack, physical-device performance or a containing-Agent rebuild.
+
 ### Fresh Pair result digests
 
 Fresh kept vector pairs reuse the successful full result-label hash computed before reservation. The local

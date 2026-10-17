@@ -49,16 +49,25 @@ impl Cache {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Option<usize>, Interrupted> {
+        self.position_with(
+            hash,
+            |stored| binary_labels::equal(stored, key, control, account),
+            control,
+            account,
+        )
+    }
+    fn position_with(
+        &self,
+        hash: u64,
+        mut equal: impl FnMut(&[u8]) -> Result<bool, Interrupted>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<usize>, Interrupted> {
         self.index.find(
             hash,
             |position| {
                 Ok(self.entries[position].key.hash == hash
-                    && binary_labels::equal(
-                        &self.entries[position].key.bytes,
-                        key,
-                        control,
-                        account,
-                    )?)
+                    && equal(&self.entries[position].key.bytes)?)
             },
             control,
             account,
@@ -1649,18 +1658,24 @@ impl<'a> Step<'a> {
                             };
                             let left = self.labels(left, control, account)?;
                             let right = self.labels(right, control, account)?;
-                            let mut key = AccountedVec::new(account, MemoryKind::Workspace);
-                            binary_labels::append(&mut key, left.as_ref(), None, control, account)?;
-                            binary_labels::append(
-                                &mut key,
-                                right.as_ref(),
-                                None,
-                                control,
-                                account,
-                            )?;
                             let (ordinal, labels) = if let Some(preparation) =
                                 preparation.filter(|owner| owner.node == node)
                             {
+                                let mut key = AccountedVec::new(account, MemoryKind::Workspace);
+                                binary_labels::append(
+                                    &mut key,
+                                    left.as_ref(),
+                                    None,
+                                    control,
+                                    account,
+                                )?;
+                                binary_labels::append(
+                                    &mut key,
+                                    right.as_ref(),
+                                    None,
+                                    control,
+                                    account,
+                                )?;
                                 let mut cache = preparation.cache.borrow_mut();
                                 self.result_labels(
                                     &mut cache,
@@ -1672,7 +1687,12 @@ impl<'a> Step<'a> {
                                 )
                                 .map(|(ordinal, labels)| (ordinal, SampleLabels::Owned(labels)))?
                             } else {
-                                frozen_labels(&self.plan.cache, &key, control, account)?
+                                frozen_labels(
+                                    &self.plan.cache,
+                                    [left.as_ref(), right.as_ref()],
+                                    control,
+                                    account,
+                                )?
                             };
                             let hash = label_hash::full(&labels, control, account)?;
                             self.reserve_pair(signature, hash, control, account)?;
@@ -1740,12 +1760,17 @@ fn reservation_hash(signature: usize, hash: u64) -> u64 {
 }
 fn frozen_labels<'a>(
     cache: &'a Cache,
-    key: &[u8],
+    operands: [&OwnedLabels; 2],
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<(usize, SampleLabels<'a>), EvaluationError> {
-    let hash = label_hash::bytes(key, control, account)?;
-    if let Some(position) = cache.position(key, hash, control, account)? {
+    let hash = label_hash::full_pair(operands[0], operands[1], control, account)?;
+    if let Some(position) = cache.position_with(
+        hash,
+        |stored| binary_labels::equal_encoded(stored, operands, control, account),
+        control,
+        account,
+    )? {
         control.check()?;
         return Ok((
             position,
@@ -2102,11 +2127,14 @@ mod tests {
                                 _ => panic!("fresh input discovery precedes publication"),
                             }
                         }
-                        let before = account.snapshot().work;
+                        let before = account.snapshot();
                         let action = step
                             .advance(NodeId(0), options, preparation, None, &control, &account)
                             .unwrap();
-                        let work = account.snapshot().work - before;
+                        let after = account.snapshot();
+                        let work = after.work - before.work;
+                        let acquired = after.memory[MemoryKind::Workspace as usize].acquired
+                            - before.memory[MemoryKind::Workspace as usize].acquired;
                         match (action, expected) {
                             (Action::Sample(sample), Some(expected)) => {
                                 assert_eq!(sample.ordinal, 0);
@@ -2146,7 +2174,15 @@ mod tests {
                             }
                             _ => panic!("complete fresh binary result"),
                         }
-                        observations.push((delayed, preparing, width, operator, return_bool, work));
+                        observations.push((
+                            delayed,
+                            preparing,
+                            width,
+                            operator,
+                            return_bool,
+                            work,
+                            acquired,
+                        ));
                         drop(step);
                         drop(cache);
                         drop(plan);
@@ -2156,7 +2192,7 @@ mod tests {
             }
         }
         eprintln!("complete fresh Pair publication observations: {observations:?}");
-        for &(delayed, preparing, width, operator, return_bool, work) in &observations {
+        for &(delayed, preparing, width, operator, return_bool, work, _) in &observations {
             if operator.is_set() || operator == TokenKind::GTR && !return_bool {
                 continue;
             }
@@ -2172,6 +2208,30 @@ mod tests {
                 work <= filtered + 128,
                 "kept publication must not repeat reserved label bytes: {width}, {operator:?}, preparing={preparing}, delayed={delayed}, kept={work}, filtered={filtered}"
             );
+        }
+        for &(delayed, preparing, width, operator, return_bool, _, acquired) in &observations {
+            if width != 4096 {
+                continue;
+            }
+            let small = observations
+                .iter()
+                .find(|row| {
+                    (row.0, row.1, row.2, row.3, row.4)
+                        == (delayed, preparing, 16, operator, return_bool)
+                })
+                .unwrap()
+                .6;
+            if preparing && !operator.is_set() {
+                assert!(
+                    acquired > small,
+                    "preparation retains independent key/labels"
+                );
+            } else {
+                assert_eq!(
+                    acquired, small,
+                    "frozen emission must not allocate label-sized keys: {operator:?}, preparing={preparing}, delayed={delayed}"
+                );
+            }
         }
     }
 
@@ -4452,15 +4512,10 @@ mod tests {
         let engine = EngineAccounting::default();
         let account = engine.query();
         let control = Control::default();
+        let target_labels = labels(b"target", &account);
+        let empty_labels = OwnedLabels::new(&account, MemoryKind::Workspace);
         let mut target = AccountedVec::new(&account, MemoryKind::Workspace);
-        binary_labels::append(
-            &mut target,
-            &labels(b"target", &account),
-            None,
-            &control,
-            &account,
-        )
-        .unwrap();
+        binary_labels::append(&mut target, &target_labels, None, &control, &account).unwrap();
         let hash = label_hash::bytes(&target, &control, &account).unwrap();
         let mut cache = Cache::new(&account);
         for position in 0..128 {
@@ -4489,7 +4544,8 @@ mod tests {
                 .unwrap();
         }
         let before = account.snapshot();
-        let (position, result) = frozen_labels(&cache, &target, &control, &account).unwrap();
+        let operands = [&target_labels, &empty_labels];
+        let (position, result) = frozen_labels(&cache, operands, &control, &account).unwrap();
         let lookup_work = account.snapshot().work - before.work;
         assert_eq!(position, 63);
         assert!(
@@ -4502,7 +4558,7 @@ mod tests {
         let cancelled = Control::default();
         let result =
             crate::test_storage::interrupt_after_work(&account, &cancelled, lookup_work, || {
-                frozen_labels(&cache, &target, &cancelled, &account)
+                frozen_labels(&cache, operands, &cancelled, &account)
             });
         assert!(matches!(
             result,
@@ -4530,7 +4586,8 @@ mod tests {
             )
             .unwrap();
         let before = account.snapshot().memory;
-        let (position, result) = frozen_labels(&cache, &[], &control, &account).unwrap();
+        let (position, result) =
+            frozen_labels(&cache, [&empty_labels; 2], &control, &account).unwrap();
         assert_eq!(position, empty_position);
         assert!(
             matches!(result, SampleLabels::Borrowed(value) if std::ptr::eq(value, &cache.entries[position].labels))
@@ -4546,7 +4603,62 @@ mod tests {
             size_of::<Cache>(),
             size_of::<PositionIndex>()
         );
-        drop((cache, target));
+        drop((cache, target, target_labels, empty_labels));
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn frozen_keys_validate_both_complete_operands_before_cache_probe() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let left = labels(b"different", &account);
+        let mut cache = Cache::new(&account);
+        let stored = labels(b"stored", &account);
+        let mut key = AccountedVec::new(&account, MemoryKind::Workspace);
+        binary_labels::append(&mut key, &stored, None, &control, &account).unwrap();
+        let hash = label_hash::bytes(&key, &control, &account).unwrap();
+        cache.entries.push(CacheEntry {
+            key: Key { bytes: key, hash },
+            labels: stored,
+        });
+        cache
+            .index
+            .insert_new(hash, 0, |_| Ok(hash), &control, &account)
+            .unwrap();
+        let empty_cache = Cache::new(&account);
+        let bytes = vec![b'x'; crate::label_encoding::FIELD_BOUNDARY];
+        for oversized_name in [false, true] {
+            let invalid = OwnedLabels::copy_from(
+                &[
+                    LabelRef {
+                        name: b"first",
+                        value: b"valid",
+                    },
+                    LabelRef {
+                        name: if oversized_name { &bytes } else { b"last" },
+                        value: if oversized_name { b"v" } else { &bytes },
+                    },
+                ],
+                &account,
+                MemoryKind::Workspace,
+            );
+            for cache in [&empty_cache, &cache] {
+                let before = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+                let result = frozen_labels(cache, [&left, &invalid], &control, &account);
+                assert!(matches!(
+                    result,
+                    Err(EvaluationError::Runtime(ref message))
+                        if &**message == crate::label_encoding::TOO_LONG.as_bytes()
+                ));
+                drop(result);
+                assert_eq!(
+                    account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                    before
+                );
+            }
+        }
+        drop((cache, empty_cache, left));
         account.snapshot().assert_memory_released();
     }
 }

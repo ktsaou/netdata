@@ -1141,6 +1141,12 @@ integration, and Alertmanager remains excluded.
   name flags, hash-only duplicates and cardinality remain unchanged.
 - **Phases:** poll at the replaced Set copy and after successful frozen lookup. Missing-key errors retain their
   earlier phase. Hashing, reservation, values, diagnostics, seen tracking and successful replay credit stay intact.
+- **Frozen Pair keys:** hash both immutable operand streams in one canonical sized-field digest and compare
+  checked prefix/payload segments against the existing stored key. Validate all fields before lookup; preserve
+  split aliases, empty/opaque bytes, internal group_right order, first-writer labels and terminal control. Mutable
+  preparation owns its key. Share the pure prefix with both existing writers. Encoded equality batches exact work
+  through the ordinary checked chunk kernel and flushes every exit; no retained state or raw array.
+  [Qualification](frozen-pair-key-qualification.json) keeps actual byte/control/resource/caller and all timing costs.
 - **Fresh Pair digest:** reuse the first successful full 64-bit result hash after reservation. Labels remain
   immutable until emission; false filtering still follows the original hash/reservation. Seen/prefix/pending
   checks remain. Set hashes once, without moving any observable work or fallible phase. This is a local tuple

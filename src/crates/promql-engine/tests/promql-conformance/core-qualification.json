@@ -73049,5 +73049,130 @@
     "current_cpp_cases": 336,
     "tracked_memory_change": "none",
     "scope": "One local full u64 result digest; exact reservations/filters/late controls, complete original bits, callers and all slower/timing/linked costs retained. External C test caller repaired; no persistent state or public change."
+  },
+  "borrowed_frozen_pair_keys": {
+    "status": "qualified_private_optimization",
+    "report": "frozen-pair-key-qualification.json",
+    "report_sha256": "885b5913caf4964e325d4144dace001136eda228fb7dd4c2da3253ff88ed8651",
+    "complete_current_original_outcomes": 13152,
+    "matched_accepted_before_pairs": 13152,
+    "reused_before_captures": true,
+    "native_units_per_profile": 778,
+    "focused_foreign_units_per_target": 44,
+    "c_pairs": 1344,
+    "current_cpp_cases": 336,
+    "resources": {
+      "lower_work_rows": 8448,
+      "all_other_serialized_observations_exact": true,
+      "all_eight_categories_no_increase": true,
+      "categories": [
+        {
+          "kind_index": 0,
+          "sum_of_per_query_deltas": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          },
+          "lower_query_counts": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          }
+        },
+        {
+          "kind_index": 1,
+          "sum_of_per_query_deltas": {
+            "peak": -154118,
+            "acquired": -131882864,
+            "released": -131882864
+          },
+          "lower_query_counts": {
+            "peak": 400,
+            "acquired": 8448,
+            "released": 8448
+          }
+        },
+        {
+          "kind_index": 2,
+          "sum_of_per_query_deltas": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          },
+          "lower_query_counts": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          }
+        },
+        {
+          "kind_index": 3,
+          "sum_of_per_query_deltas": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          },
+          "lower_query_counts": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          }
+        },
+        {
+          "kind_index": 4,
+          "sum_of_per_query_deltas": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          },
+          "lower_query_counts": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          }
+        },
+        {
+          "kind_index": 5,
+          "sum_of_per_query_deltas": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          },
+          "lower_query_counts": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          }
+        },
+        {
+          "kind_index": 6,
+          "sum_of_per_query_deltas": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          },
+          "lower_query_counts": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          }
+        },
+        {
+          "kind_index": 7,
+          "sum_of_per_query_deltas": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          },
+          "lower_query_counts": {
+            "peak": 0,
+            "acquired": 0,
+            "released": 0
+          }
+        }
+      ],
+      "scope": "All complete native/foreign pairs. Memory counts describe accounted allocations, not RSS. Sums combine distinct queries/page variants, not a simultaneous device peak. Paging/calls/backing/references/output remain exact; broad fixture omits logical statistics."
+    },
+    "scope": "Complete frozen key borrowing; canonical flat stream/first-writer identity, full validation before lookup and controls. All slower timing and linked costs retained; preparation owns keys, no new retained state."
   }
 }

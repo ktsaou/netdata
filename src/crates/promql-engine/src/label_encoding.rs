@@ -12,6 +12,17 @@ pub(crate) fn fits(bytes: &[u8]) -> bool {
     bytes.len() < FIELD_BOUNDARY
 }
 
+pub(crate) fn prefix(length: usize) -> ([u8; 4], usize) {
+    if length < 255 {
+        ([length as u8, 0, 0, 0], 1)
+    } else {
+        (
+            [255, length as u8, (length >> 8) as u8, (length >> 16) as u8],
+            4,
+        )
+    }
+}
+
 pub(crate) fn field(
     bytes: &[u8],
     control: &Control,

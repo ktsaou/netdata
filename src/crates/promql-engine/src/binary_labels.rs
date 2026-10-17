@@ -66,14 +66,23 @@ pub(crate) fn equal(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<bool, Interrupted> {
+    equal_with(left, right, control, |units| account.work(units))
+}
+
+fn equal_with(
+    left: &[u8],
+    right: &[u8],
+    control: &Control,
+    mut work: impl FnMut(u64),
+) -> Result<bool, Interrupted> {
     control.check()?;
     if left.len() != right.len() {
-        account.work(1);
+        work(1);
         return Ok(false);
     }
     for (left, right) in left.chunks(1024).zip(right.chunks(1024)) {
         control.check()?;
-        account.work(left.len() as u64);
+        work(left.len() as u64);
         if left != right {
             return Ok(false);
         }
@@ -95,6 +104,61 @@ pub(crate) fn named(
     Ok(false)
 }
 
+pub(crate) fn equal_encoded(
+    stored: &[u8],
+    operands: [&OwnedLabels; 2],
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<bool, Interrupted> {
+    equal_encoded_with(stored, operands, control, |units| account.work(units))
+}
+
+fn equal_encoded_with(
+    mut stored: &[u8],
+    operands: [&OwnedLabels; 2],
+    control: &Control,
+    mut observe: impl FnMut(u64),
+) -> Result<bool, Interrupted> {
+    // Small prefixes must not each take the query observations lock.
+    let mut pending = 0;
+    let mut work = |units| {
+        pending += units;
+        if pending >= 1024 {
+            observe(std::mem::take(&mut pending));
+        }
+    };
+    let result = (|| {
+        control.check()?;
+        // The caller validates both complete streams before probing any cache entry.
+        for label in operands.into_iter().flat_map(|labels| labels.0.iter()) {
+            control.check()?;
+            work(1);
+            for field in [&*label.name, &*label.value] {
+                let (prefix, length) = crate::label_encoding::prefix(field.len());
+                for part in [&prefix[..length], field] {
+                    let Some((head, tail)) = stored.split_at_checked(part.len()) else {
+                        work(1);
+                        return Ok(false);
+                    };
+                    if !equal_with(head, part, control, &mut work)? {
+                        return Ok(false);
+                    }
+                    stored = tail;
+                }
+            }
+        }
+        control.check()?;
+        Ok(stored.is_empty())
+    })();
+    // Keep completed work even when a later poll interrupts the comparison.
+    if pending != 0 {
+        observe(pending);
+    }
+    let matched = result?;
+    control.check()?;
+    Ok(matched)
+}
+
 fn field(
     target: &mut AccountedVec<u8>,
     value: &[u8],
@@ -102,12 +166,8 @@ fn field(
     account: &QueryAccounting,
 ) -> Result<(), EvaluationError> {
     crate::label_encoding::field(value, control, account)?;
-    let n = value.len();
-    if n < 255 {
-        target.push(n as u8);
-    } else {
-        target.extend_from_slice(&[255, n as u8, (n >> 8) as u8, (n >> 16) as u8]);
-    }
+    let (prefix, length) = crate::label_encoding::prefix(value.len());
+    target.extend_from_slice(&prefix[..length]);
     append_bytes_checked(target, value, account, control)?;
     Ok(())
 }
@@ -394,6 +454,204 @@ mod projection_tests {
             labels: Some(fields),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn borrowed_keys_keep_canonical_boundaries_split_aliases_and_complete_bytes() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        for (width, prefix) in [
+            (0, &[0][..]),
+            (1, &[1][..]),
+            (31, &[31][..]),
+            (32, &[32][..]),
+            (33, &[33][..]),
+            (254, &[254][..]),
+            (255, &[255, 255, 0, 0][..]),
+            (256, &[255, 0, 1, 0][..]),
+            (32767, &[255, 255, 127, 0][..]),
+            (32768, &[255, 0, 128, 0][..]),
+            (32769, &[255, 1, 128, 0][..]),
+        ] {
+            let name = vec![b'n'; width];
+            let value = vec![255; width];
+            let fields: &[(&[u8], &[u8])] =
+                &[(b"empty", b""), (&name, &value), (b"tail", &[0, 255])];
+            let source = labels(fields, &account);
+            let mut encoded = AccountedVec::new(&account, MemoryKind::Workspace);
+            append(&mut encoded, &source, None, &control, &account).unwrap();
+            let mut expected = vec![5];
+            expected.extend_from_slice(b"empty");
+            expected.push(0);
+            expected.extend_from_slice(prefix);
+            expected.extend_from_slice(&name);
+            expected.extend_from_slice(prefix);
+            expected.extend_from_slice(&value);
+            expected.extend_from_slice(&[4, b't', b'a', b'i', b'l', 2, 0, 255]);
+            assert_eq!(&*encoded, &expected);
+            let hash = crate::label_hash::bytes(&expected, &control, &account).unwrap();
+            assert_eq!(
+                crate::label_hash::full(&source, &control, &account).unwrap(),
+                hash
+            );
+            let mut trailing = expected.clone();
+            trailing.push(0);
+            let mut noncanonical = vec![255, 5, 0, 0];
+            noncanonical.extend_from_slice(&expected[1..]);
+            for split in 0..=fields.len() {
+                let left = labels(&fields[..split], &account);
+                let right = labels(&fields[split..], &account);
+                let operands = [&left, &right];
+                let before = account.snapshot().memory;
+                assert_eq!(
+                    crate::label_hash::full_pair(&left, &right, &control, &account).unwrap(),
+                    hash
+                );
+                let start = account.snapshot().work;
+                assert!(equal_encoded(&encoded, operands, &control, &account).unwrap());
+                let work = account.snapshot().work - start;
+                assert_eq!(work, (expected.len() + fields.len()) as u64);
+                assert_eq!(account.snapshot().memory, before);
+                for malformed in [
+                    &expected[..0],
+                    &expected[..1],
+                    &expected[..expected.len() - 1],
+                    &trailing,
+                    &noncanonical,
+                ] {
+                    assert!(!equal_encoded(malformed, operands, &control, &account).unwrap());
+                }
+                for remaining in [1, work / 2, work] {
+                    let cancelled = Control::default();
+                    let result = crate::test_storage::interrupt_after_work(
+                        &account,
+                        &cancelled,
+                        remaining,
+                        || equal_encoded(&encoded, operands, &cancelled, &account),
+                    );
+                    assert!(matches!(result, Err(Interrupted::Cancelled)));
+                }
+                assert_eq!(account.snapshot().memory, before);
+            }
+        }
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn borrowed_key_accounting_batches_updates_and_keeps_partial_work_and_controls() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        for width in [0, 1, 254, 255, 1023, 1024, 1025, 32769] {
+            let value = vec![b'x'; width];
+            let left = labels(&[(b"a", &value)], &account);
+            let right = labels(&[(b"b", &value)], &account);
+            let operands = [&left, &right];
+            let mut encoded = AccountedVec::new(&account, MemoryKind::Workspace);
+            for source in operands {
+                append(&mut encoded, source, None, &control, &account).unwrap();
+            }
+            let expected_work = (encoded.len() + 2) as u64;
+            let before = account.snapshot();
+            let mut updates = Vec::new();
+            assert!(
+                equal_encoded_with(&encoded, operands, &control, |units| {
+                    updates.push(units);
+                    account.work(units);
+                })
+                .unwrap()
+            );
+            assert_eq!(updates.iter().sum::<u64>(), expected_work);
+            assert!(updates.len() as u64 <= expected_work.div_ceil(1024));
+            assert!(updates.iter().all(|units| (1..=2047).contains(units)));
+            assert_eq!(account.snapshot().work - before.work, expected_work);
+            assert_eq!(account.snapshot().memory, before.memory);
+            for threshold in [1, expected_work / 2, expected_work] {
+                let cancelled = Control::default();
+                let start = account.snapshot().work;
+                assert_eq!(
+                    crate::test_storage::interrupt_after_work(
+                        &account,
+                        &cancelled,
+                        threshold,
+                        || equal_encoded(&encoded, operands, &cancelled, &account)
+                    ),
+                    Err(Interrupted::Cancelled)
+                );
+                let reached = account.snapshot().work - start;
+                assert!((threshold..=threshold + 2046).contains(&reached));
+                assert!(reached <= expected_work);
+            }
+        }
+        {
+            let left = labels(&[(b"a", b"x")], &account);
+            let right = labels(&[(b"b", b"y")], &account);
+            let operands = [&left, &right];
+            for (stored, matched, expected_work) in [
+                (&b"\x01a\x01x\x01b\x01y"[..], true, 10),
+                (&b""[..], false, 2),
+                (&b"\x02a\x01x\x01b\x01y"[..], false, 2),
+                (&b"\x01z\x01x\x01b\x01y"[..], false, 3),
+                (&b"\x01a\x01z\x01b\x01y"[..], false, 5),
+                (&b"\x01a"[..], false, 4),
+                (&b"\x01a\x01x\x01b\x01"[..], false, 10),
+                (&b"\x01a\x01x\x01b\x01y\x00"[..], false, 10),
+            ] {
+                let start = account.snapshot().work;
+                let mut updates = Vec::new();
+                assert_eq!(
+                    equal_encoded_with(stored, operands, &control, |units| {
+                        updates.push(units);
+                        account.work(units);
+                    }),
+                    Ok(matched)
+                );
+                assert_eq!(updates, [expected_work]);
+                assert_eq!(account.snapshot().work - start, expected_work);
+                let cancelled = Control::default();
+                assert_eq!(
+                    crate::test_storage::interrupt_after_work(
+                        &account,
+                        &cancelled,
+                        expected_work,
+                        || equal_encoded(stored, operands, &cancelled, &account)
+                    ),
+                    Err(Interrupted::Cancelled)
+                );
+            }
+            for cancelled in [false, true] {
+                let expired = Control {
+                    deadline: Some(std::time::Instant::now()),
+                    ..Control::default()
+                };
+                if cancelled {
+                    expired.cancellation.cancel();
+                }
+                let before = account.snapshot().work;
+                assert_eq!(
+                    equal_encoded(b"", operands, &expired, &account),
+                    Err(if cancelled {
+                        Interrupted::Cancelled
+                    } else {
+                        Interrupted::Deadline
+                    })
+                );
+                assert_eq!(account.snapshot().work, before);
+            }
+            let empty = labels(&[], &account);
+            let before = account.snapshot().work;
+            for (stored, expected) in [(&b""[..], true), (&b"x"[..], false)] {
+                assert_eq!(
+                    equal_encoded_with(stored, [&empty, &empty], &control, |_| {
+                        panic!("empty operands do not charge byte work")
+                    }),
+                    Ok(expected)
+                );
+            }
+            assert_eq!(account.snapshot().work, before);
+        }
+        account.snapshot().assert_memory_released();
     }
 
     #[test]

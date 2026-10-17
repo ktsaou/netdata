@@ -134,12 +134,8 @@ impl Digest {
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
         crate::label_encoding::field(bytes, control, account)?;
-        let n = bytes.len();
-        if n < 255 {
-            self.write(&[n as u8]);
-        } else {
-            self.write(&[255, n as u8, (n >> 8) as u8, (n >> 16) as u8]);
-        }
+        let (prefix, length) = crate::label_encoding::prefix(bytes.len());
+        self.write(&prefix[..length]);
         self.field(bytes, control, account)?;
         Ok(())
     }
@@ -193,8 +189,23 @@ pub(crate) fn full(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<u64, EvaluationError> {
+    full_iter(labels.0.iter(), control, account)
+}
+pub(crate) fn full_pair(
+    left: &OwnedLabels,
+    right: &OwnedLabels,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<u64, EvaluationError> {
+    full_iter(left.0.iter().chain(right.0.iter()), control, account)
+}
+fn full_iter<'a>(
+    labels: impl Iterator<Item = &'a OwnedLabel>,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<u64, EvaluationError> {
     let mut digest = Digest::new();
-    for label in labels.0.iter() {
+    for label in labels {
         digest.sized_field(&label.name, control, account)?;
         digest.sized_field(&label.value, control, account)?;
     }
