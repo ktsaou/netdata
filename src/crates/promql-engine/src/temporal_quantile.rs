@@ -696,20 +696,21 @@ mod tests {
     #[test]
     fn long_rank_and_origin_replays_keep_one_page_and_constant_memory() {
         type SourceCase = (fn(usize) -> Sample, f64, [u64; 2], [u64; 2]);
-        let cases: [SourceCase; 5] = [
+        let cases: [SourceCase; 6] = [
             (
                 counter,
                 0.5,
                 [1024.5f64.to_bits(), 50_000.5f64.to_bits()],
                 [8, 9],
             ),
-            // Adjacent low-bit keys retain the complete sixteen-pass rank path.
             (
                 crate::test_storage::adjacent_counter,
                 0.5,
                 [1.0f64.to_bits(); 2],
-                [17; 2],
+                [3; 2],
             ),
+            // A value at every nibble preserves genuine sixteen-pass rank coverage.
+            (crate::test_storage::prefix_ladder, 0.0, [0; 2], [17; 2]),
             (
                 crate::test_storage::two_classes,
                 0.5,

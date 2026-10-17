@@ -39,6 +39,25 @@ def dataset(pattern, count):
     )]}
 
 
+def query_requests(family, count, *, prefix="rank"):
+    width = max(count, 1)
+    for route in ("raw", "computed"):
+        body = f"m[{width}s]" if route == "raw" else f"(m*1)[{width}s:1s]"
+        expressions = [(f"q{q}", f"quantile_over_time({q},{body})", profile)
+                       for q in (0, .5, .95, 1)
+                       for profile in ("server-default", "upstream-tests")]
+        expressions.append(("mad", f"mad_over_time({body})", "upstream-tests"))
+        for name, expression, profile in expressions:
+            for mode in ("instant", "range"):
+                ident = f"{prefix}:{family}:{route}:{name}:{profile}:{mode}"
+                yield {
+                    "id": ident, "query": expression, "profile": profile, "mode": mode,
+                    "time_ms": width * 1000, "start_ms": width * 1000,
+                    "end_ms": (width + 2) * 1000, "step_ms": 1000,
+                    "lookback_ms": 1, "subquery_step_ms": 1000,
+                }
+
+
 def cases():
     result = []
     panels = [("empty", "one", 0), ("singleton", "one", 1), ("two-tiny", "two", 2),
@@ -49,21 +68,7 @@ def cases():
               ("near-long", "near", 512), ("subnormal-offset", "subnormal-offset", 4)]
     for family, pattern, count in panels:
         data = dataset(pattern, count)
-        width = max(count, 1)
-        for route in ("raw", "computed"):
-            body = f"m[{width}s]" if route == "raw" else f"(m*1)[{width}s:1s]"
-            expressions = [(f"q{q}", f"quantile_over_time({q},{body})", profile)
-                           for q in (0, .5, .95, 1)
-                           for profile in ("server-default", "upstream-tests")]
-            expressions.append(("mad", f"mad_over_time({body})", "upstream-tests"))
-            for name, expression, profile in expressions:
-                for mode in ("instant", "range"):
-                    ident = f"rank:{family}:{route}:{name}:{profile}:{mode}"
-                    result.append({"dataset": data, "request": {
-                        "id": ident, "query": expression, "profile": profile, "mode": mode,
-                        "time_ms": width * 1000, "start_ms": width * 1000,
-                        "end_ms": (width + 2) * 1000, "step_ms": 1000,
-                        "lookback_ms": 1, "subquery_step_ms": 1000,
-                    }, "faults": {}})
+        result.extend({"dataset": data, "request": request, "faults": {}}
+                      for request in query_requests(family, count))
     assert len(result) == 540 and len({c["request"]["id"] for c in result}) == 540
     return result

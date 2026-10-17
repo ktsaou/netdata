@@ -282,9 +282,10 @@ mod tests {
                 ),
                 (
                     crate::test_storage::subnormal_counter,
-                    [33, 33],
+                    [9, 12],
                     [512, 25_000],
                 ),
+                (crate::test_storage::mad_prefix_ladder, [33, 33], [0; 2]),
                 (
                     crate::test_storage::two_classes,
                     [4, 4],
@@ -408,7 +409,7 @@ mod tests {
                         source: GeneratedSeries::new(
                             35,
                             page,
-                            crate::test_storage::subnormal_counter,
+                            crate::test_storage::mad_prefix_ladder,
                         ),
                         open,
                         cancel,
@@ -442,14 +443,15 @@ mod tests {
     #[test]
     fn original_seek_target_survives_clipped_cursor_bounds() {
         for page in [1, 17, 1024] {
-            for (sample, expected, scans) in [
-                (counter as fn(usize) -> Sample, 1.0f64, 10),
-                (crate::test_storage::subnormal_counter, 0.0, 33),
+            for (sample, count, expected, scans) in [
+                (counter as fn(usize) -> Sample, 5, 1.0f64, 8),
+                (crate::test_storage::subnormal_counter, 5, 0.0, 5),
+                (crate::test_storage::mad_prefix_ladder, 35, 0.0, 33),
             ] {
                 let engine = EngineAccounting::default();
                 let account = engine.query();
                 let source = ReplayFault {
-                    source: GeneratedSeries::new(5, page, sample),
+                    source: GeneratedSeries::new(count, page, sample),
                     open: 0,
                     cancel: false,
                     seek_ms: Some(-3000),
@@ -457,7 +459,7 @@ mod tests {
                 let input = NumericRangeInput {
                     bounds: Some(TimeBounds {
                         start_ms: 2000,
-                        end_ms: 5000,
+                        end_ms: count as i64 * 1000,
                     }),
                     seek_ms: -3000,
                     matrix: None,

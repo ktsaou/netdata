@@ -842,16 +842,25 @@ mod tests {
     #[test]
     fn scheduled_quantile_rank_uses_one_traversal_per_required_pass() {
         for page in [1, 17, 1024] {
-            for (sample, expected, passes) in [
-                (counter as fn(usize) -> crate::value::Sample, 1.5f64, 4),
-                (crate::test_storage::adjacent_counter, 1.0, 18),
+            for (sample, count, q, expected, passes) in [
+                (
+                    counter as fn(usize) -> crate::value::Sample,
+                    2,
+                    0.5,
+                    1.5f64,
+                    4,
+                ),
+                (crate::test_storage::adjacent_counter, 2, 0.5, 1.0, 4),
+                (crate::test_storage::prefix_ladder, 17, 0.0, 0.0, 18),
             ] {
                 let engine = EngineAccounting::default();
                 let account = engine.query();
                 let control = Control::default();
                 let rows = [row(&account)];
-                let source = GeneratedSeries::new(2, page, sample);
-                let mut step = Step::new(input(2), &rows, RowFilter::All, &account);
+                let source = GeneratedSeries::new(count, page, sample);
+                let mut input = input(count);
+                input.parameters[0] = q;
+                let mut step = Step::new(input, &rows, RowFilter::All, &account);
                 let mut traversals = 0;
                 loop {
                     match step.advance(&control, &account).unwrap() {
@@ -868,11 +877,11 @@ mod tests {
                             sample_units,
                             ..
                         } => {
-                            assert_eq!(sample.source_time_ms, 2000);
+                            assert_eq!(sample.source_time_ms, count as i64 * 1000);
                             assert!(
                                 matches!(sample.value, OwnedValue::Float(value) if value.to_bits() == expected.to_bits())
                             );
-                            assert_eq!(sample_units, 2);
+                            assert_eq!(sample_units, count as u64);
                             break;
                         }
                         _ => panic!("unexpected quantile continuation"),

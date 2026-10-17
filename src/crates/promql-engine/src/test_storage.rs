@@ -338,6 +338,33 @@ pub(crate) fn subnormal_counter(index: usize) -> Sample {
 }
 
 #[cfg(test)]
+pub(crate) fn prefix_ladder(index: usize) -> Sample {
+    let position = index % 17;
+    Sample {
+        value: SampleValue::Float(if position == 0 {
+            0.0
+        } else {
+            f64::from_bits(1 << (4 * (position - 1)))
+        }),
+        ..counter(index)
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn mad_prefix_ladder(index: usize) -> Sample {
+    let position = index % 35;
+    Sample {
+        // A strict zero majority makes both deviation medians retain the full ladder.
+        value: SampleValue::Float(if position < 19 {
+            0.0
+        } else {
+            f64::from_bits(1 << (4 * (position - 19)))
+        }),
+        ..counter(index)
+    }
+}
+
+#[cfg(test)]
 pub(crate) fn two_classes(index: usize) -> Sample {
     Sample {
         value: SampleValue::Float(if index.is_multiple_of(2) { 1.0 } else { 2.0 }),

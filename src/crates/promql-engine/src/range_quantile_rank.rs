@@ -64,7 +64,7 @@ pub(crate) struct Selector {
     counters: [[u64; 16]; 2],
     nibble: u8,
     seen: u8,
-    nonuniform: u8,
+    common_length: u8,
 }
 impl Selector {
     pub(crate) fn new(plan: Plan) -> Self {
@@ -74,7 +74,7 @@ impl Selector {
             counters: [[0; 16]; 2],
             nibble: 0,
             seen: 0,
-            nonuniform: 0,
+            common_length: 64,
         }
     }
 
@@ -101,8 +101,10 @@ impl Selector {
                 if self.seen & bit == 0 {
                     self.prefixes[lane] = key;
                     self.seen |= bit;
-                } else if self.prefixes[lane] != key {
-                    self.nonuniform |= bit;
+                } else {
+                    self.common_length = self
+                        .common_length
+                        .min((self.prefixes[lane] ^ key).leading_zeros() as u8);
                 }
             }
         }
@@ -134,13 +136,20 @@ impl Selector {
         }
         self.nibble += 1;
         // Both ordinary rank/control validations precede this completed-population proof.
-        if self.seen == 3 && self.nonuniform == 0 {
+        if self.seen == 3 && self.common_length == 64 {
             return Ok(Some(representatives));
         }
         if self.nibble < 16 {
+            let next = (self.common_length / 4).min(15);
+            if next > self.nibble {
+                self.nibble = next;
+                let mask = self.mask();
+                // Only a proven jump makes these representative bits common to every admitted key.
+                self.prefixes = representatives.map(|key| key & mask);
+            }
             self.counters = [[0; 16]; 2];
             self.seen = 0;
-            self.nonuniform = 0;
+            self.common_length = 64;
             return Ok(None);
         }
         Ok(Some(self.prefixes))
@@ -160,15 +169,21 @@ mod tests {
             0x3ff0_0000_0000_0000,
         ]
         .map(f64::from_bits);
+        let ladder = [0.0]
+            .into_iter()
+            .chain((0..16).map(|digit| f64::from_bits(1 << (4 * digit))))
+            .collect::<Vec<_>>();
         let cases: &[(&[f64], f64, usize)] = &[
             (&[1.0, 2.0, 1.0, 2.0], 0.5, 2),
             (&[2.0, 1.0, 2.0], 0.0, 2),
             (&[-0.0, 0.0], 0.5, 1),
             (&[f64::from_bits(0x7ff8_0000_0000_0042), f64::NAN], 0.5, 1),
-            (&[near[1], near[2], -1.0], 0.0, 16),
-            (&near, 0.0, 16),
-            (&near, 0.5, 16),
-            (&near, 1.0, 16),
+            (&[near[1], near[2], -1.0], 0.0, 3),
+            (&[1.0, f64::from_bits(0x3000_0000_0000_0000), 2.0], 1.0, 2),
+            (&near, 0.0, 2),
+            (&near, 0.5, 2),
+            (&near, 1.0, 2),
+            (&ladder, 0.0, 16),
         ];
         for &(values, q, passes) in cases {
             let engine = EngineAccounting::default();
@@ -191,6 +206,51 @@ mod tests {
             account.snapshot().assert_memory_released();
             drop(account);
             engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn common_prefix_boundaries_keep_selected_keys_and_final_nibble() {
+        for common in 0..64 {
+            let first = ordered_key(1.0);
+            let second = first ^ (1 << (63 - common));
+            let inverse = |key: u64| {
+                f64::from_bits(if key & (1 << 63) == 0 {
+                    !key
+                } else {
+                    key ^ (1 << 63)
+                })
+            };
+            for reverse in [false, true] {
+                let keys = if reverse {
+                    [second, first]
+                } else {
+                    [first, second]
+                };
+                let mut sorted = keys;
+                sorted.sort_unstable();
+                for q in [0.0, 0.5, 1.0] {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let plan = Plan::new(q, 2);
+                    let expected = plan.ordinals.map(|rank| sorted[rank as usize]);
+                    let mut selector = Selector::new(plan);
+                    let passes = if (4..60).contains(&common) { 3 } else { 2 };
+                    for pass in 1..=passes {
+                        for key in keys {
+                            selector.receive(inverse(key), &account);
+                        }
+                        assert_eq!(
+                            selector.finish_pass(&Control::default(), &account).unwrap(),
+                            (pass == passes).then_some(expected),
+                            "common{common}/reverse{reverse}/q{q}/pass{pass}"
+                        );
+                    }
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
+                }
+            }
         }
     }
 

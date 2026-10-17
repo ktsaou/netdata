@@ -99,6 +99,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Temporal rank completion MUST preserve both validated populations, source provenance and genuine final-depth
   fault controls; follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#early-completion-of-temporal-ranks`.
+- Common-prefix rank jumps MUST preserve counted-digit reconstruction without a true jump and genuine prefix-ladder
+  final-depth controls. Include no-jump timing costs; follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#common-prefix-temporal-ranks`.
 - Mapped hash/kind uniqueness MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#mapped-label-identity-lookup` for compound identity,
   terminal controls, lazy metadata ownership and the limits of total-work claims.

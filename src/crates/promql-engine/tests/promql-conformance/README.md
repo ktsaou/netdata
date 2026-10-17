@@ -4138,6 +4138,10 @@ Earlier cohorts keep their actual source and binary identities; all 52 previous 
 
 ## Early completion of temporal ranks
 
+This historical cohort introduced uniform-population completion. The later
+[common-prefix refinement](#common-prefix-temporal-ranks) changes which inputs need full-depth replays.
+Its measurements below retain their original source and binary identities.
+
 The shared temporal quantile/MAD selector stops refining a rank when a complete successful replay proves that both
 candidate populations each contain one normalized key. Repeated values can therefore finish before all sixteen
 four-bit passes. This changes physical reads and work; selected ranks, interpolation and logical sample participation
@@ -4155,8 +4159,9 @@ provider-owned sort backing still decide original provenance. Scheduled counters
 child driver and Reader succeed. A later page failure, post-visitor error or terminal cancellation still prevents
 completion. Successful completion may omit future redundant physical passes; no fixed callback roster is promised.
 
-Regression controls preserve genuine sixteen-pass temporal and thirty-three-scan MAD paths using adjacent low-bit
-keys and positive subnormals. They also cover missing ranks, cancellation between lanes, reversed inputs, asymmetric
+This cohort used adjacent low-bit keys and positive subnormals for sixteen-pass temporal and thirty-three-scan MAD
+controls. The later refinement retains these numerical cases and uses prefix ladders for genuine full depth.
+They also cover missing ranks, cancellation between lanes, reversed inputs, asymmetric
 lanes, early two-class completion and invalidation after the last scheduled visitor. The long-history sources generate
 one page at a time; fixture JSON datasets are qualification inputs, not evidence that the runtime retains raw history.
 
@@ -4234,6 +4239,96 @@ Long constant histories are semantic controls; this timing panel uses singleton/
 are shared-host engine timings at page 17, without isolated CPU, production-disk, live/concurrent throughput,
 physical-ARM throughput or process-RSS claims. Earlier containing-Agent/install/language cohorts keep their
 original identities. No new operator command or installation procedure is introduced.
+
+
+## Common-prefix temporal ranks
+
+The temporal quantile/MAD selector now skips groups of key bits that a completed replay proves constant. This
+extends uniform-population completion: distinct nearly equal values can avoid intermediate passes while retaining
+the same fixed-size state. The [qualification](rank-prefix-qualification.json) records complete results and costs
+against the previous uniform-only implementation.
+
+One byte records the minimum common leading length within both admitted populations. Each lane keeps its own
+first full normalized key and seen bit. Both ordinary rank/control validations and whole child/Reader success still
+precede completion. A jump beyond the ordinary next nibble fills proven bits from the representatives; without a
+true jump, counted-digit reconstruction remains authoritative. The first representative can belong to an unselected
+digit. The last nibble returns ordinary reconstructed full keys. NaN/zero source provenance, provider-owned exact
+backing, MAD deviation arithmetic and interpolation keep their existing owners.
+
+`rank_completion_cases.py` shares its request builder without changing any of its 540 complete objects.
+`rank_prefix_cases.py` adds 540 original-engine outcomes around nibble boundaries, unselected-first reconstruction
+and genuine full-depth inputs. Adjacent/subnormal and clipped old inputs remain acceleration/numerical controls.
+The q=0 ladder has positive zero plus one value at every nibble; the MAD ladder adds a strict zero majority, so its
+deviations repeat the full ladder. The separate clipped 35-point MAD control keeps 18 zeros and all 16 powers,
+with the original seek target. All final-depth faults remain reachable.
+
+All four rebuilt query cohorts pass 44,512 complete original comparisons. Both native profiles pass 730 units
+with two unchanged ignored measurements; each compiled ARM target runs 14 focused tests under QEMU. Native
+pages are 1/17/1024; foreign release uses page 17. Required reducer interactions retain 56,124 policy comparisons,
+their 216 strict original differences and zero numerical bit differences. Those strict differences include
+tie-driven membership and point-count changes; the separate approved ordering policy does not erase them.
+Formatting, strict default/fixture Clippy and installed Rust 1.91 compilation pass; MSRV is compile-only.
+
+Four actual default-feature GNU C callers retain existing backing/failure/four-series controls. A second native
+C caller generates 2,048/100,000 adjacent values through one-page callbacks, checks complete outputs and logical
+counts, and balances every owner. All eight category peaks and owning sample peaks stay flat as history grows
+and equal between previous/current implementations. It performs 48 before/current queries across both profiles.
+No new raw array, history cache, backing policy, API, ABI or implicit cap is introduced.
+
+For the generated 100,000-point history at page 1 (identical counts in both native profiles):
+
+| Route | Fetched entries before → after | Recorded work before → after | Workspace peak before → after |
+| --- | ---: | ---: | ---: |
+| raw | 3,400,036 → 600,008 | 33,701,395 → 5,700,607 | 11,107 → 11,107 B |
+| computed | 3,900,000 → 1,100,000 | 471,102,629 → 123,900,997 | 20,753 → 20,753 B |
+
+The existing mixed-zero history keeps all twelve observations unchanged; its earlier improvement belongs to the
+uniform-only cohort. A separate 512-point computed near-key query reduces fetched entries from 19,968 to 5,632
+at 20,734 bytes of workspace, crossing its synthetic 15N read bound. This bound is not an enabled query cap.
+
+Paired engine timing starts after owned qualification jobs close. All 54 previous case objects/outcomes remain,
+and four new 512-point majority-zero ladder controls preserve genuine no-jump quantile/MAD costs. There are 58
+cases per native profile, five alternating pairs and one warm/one measured query per case/process: all 2,320
+complete outcomes match upstream exactly. Nonelapsed counters repeat within each phase. The old family ID `full`
+denotes consecutive subnormals, now an acceleration control; `prefix-ladder` is the genuine full-depth control.
+
+| Profile | Instant case | Median before → after (ms) | Before/after ratio |
+| --- | --- | ---: | ---: |
+| release | large-near, raw, quantile | 8.810 → 1.580 | 5.576× |
+| release | large-near, computed, quantile | 328.967 → 86.350 | 3.810× |
+| release | large-near, computed, mad | 710.345 → 196.574 | 3.614× |
+| release | full, computed, mad | 150.905 → 42.263 | 3.571× |
+| release | prefix-ladder, raw, mad | 2.195 → 2.172 | 1.011× |
+| release-min | large-near, raw, quantile | 12.789 → 2.276 | 5.618× |
+| release-min | large-near, computed, quantile | 549.411 → 141.824 | 3.874× |
+| release-min | large-near, computed, mad | 1146.291 → 322.665 | 3.553× |
+| release-min | full, computed, mad | 248.503 → 69.801 | 3.560× |
+| release-min | prefix-ladder, raw, mad | 3.078 → 3.027 | 1.017× |
+
+All 116 primary candidate/before ratios span 0.178–1.253; 53 groups are slower.
+Every category's current/peak/overflow fields match. 28 groups reduce workspace allocation traffic;
+28 reduce cumulative borrowed exposure. These are separate from simultaneous RAM and process RSS.
+
+Every primary ratio at least 1.05 receives a balanced follow-up: 4 groups,
+176 complete outcomes and twenty measured samples per side/group. All primary evidence remains.
+
+| Profile | Repeated case | Primary ratio | Repeated candidate/before ratio |
+| --- | --- | ---: | ---: |
+| release | `timing:empty:computed:mad:instant` | 1.253 | 1.038 |
+| release | `timing:single:raw:quantile:instant` | 1.180 | 0.992 |
+| release | `timing:ordinary:raw:quantile:instant` | 1.068 | 0.991 |
+| release | `timing:large-backed:raw:mad:instant` | 1.077 | 1.000 |
+
+Default-feature type diagnostics preserve the 296-byte selector and all measured enclosing Step/Kernel/Median/Frame
+sizes on native/ARM32/ARM64. The actual receive symbol grows by 50/32/32 bytes on those targets; ARM32 uses two
+CLZ instruction sites inside its lane loop. These are static code sites, not executed-instruction or throughput
+counts. The report retains full default-C and fixture text/data/BSS/file costs for both native profiles and
+ARM32/ARM64 release, measured from their already-qualified executable copies.
+
+All timings are finite shared-host engine elapsed measurements at page 17. They do not establish isolated CPU,
+concurrent throughput, live/dbengine-disk or physical-ARM performance, total process RSS or a whole-function stack
+bound. Long one-class histories are not part of this timing panel. Earlier containing-Agent/install/language/SRE
+cohorts retain their actual identities; no operator command or installation flow changes.
 
 
 ## Completed direct float-map join scans

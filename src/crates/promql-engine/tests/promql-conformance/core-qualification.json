@@ -71019,5 +71019,16 @@
     "whole_query_timing_outcomes": 2160,
     "followup_timing_outcomes": 132,
     "scope": "Shared fixed-memory ranks finish only after whole-pass/both-lane validation. Original NaN/zero provenance, full-depth faults, both profiles/pages/foreign/C owners, generated history, unchanged layouts and all slower/code/memory costs retained. No raw cache or public change."
+  },
+  "common_prefix_temporal_ranks": {
+    "status": "qualified_private_optimization",
+    "qualification": "rank-prefix-qualification.json",
+    "sha256": "320ddabe1c0ae064b0c35d9108476f65a51464ebc25ba45af3778c40bb034cd6",
+    "native_units_per_profile": 730,
+    "complete_expression_comparisons": 44512,
+    "retained_reducer_interaction_comparisons": 56124,
+    "whole_query_timing_outcomes": 2320,
+    "followup_timing_outcomes": 176,
+    "scope": "Exact completed shared-prefix proof, unchanged fixed state/layouts and public contracts. Counted-digit no-jump reconstruction, full-depth ladders/late failures, complete-child/provenance/control owners, actual native/foreign/C, paged-growth and all time/memory/code costs retained."
   }
 }

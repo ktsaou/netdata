@@ -1140,27 +1140,29 @@ integration, and Alertmanager remains excluded.
 
 ## Early completion of temporal ranks
 
-- **Choice:** the shared temporal quantile/MAD radix selector may finish after a completed replay proves both
-  admitted populations uniform. Keep the fixed two-lane counter tables and ordinary sixteen-pass fallback.
-- **Representation:** reuse each prefix word for its first admitted full normalized key. Mask both sides during
-  admission. Explicit seen bits permit key zero; nonuniform bits are sticky for the whole pass. If refinement
-  continues, reconstruct `(representative & old_mask) | (selected_digit << shift)`, clearing lower bits. Never
-  assume the representative's current digit was selected.
-- **Completion:** both existing rank validations and their control polls precede the uniformity proof. Neither
-  a single uniform lane nor the last sample visitor grants completion. Scheduled counters remain provisional until
-  the entire child driver and Reader succeed; original current-pass error and cancellation phases remain.
-- **Numerics:** the proof returns normalized ordered keys. Membership, ordinal Fetch, NaN/zero source provenance,
-  provider-owned exact sort backing, MAD deviations and interpolation retain their owners and operation order.
-- **Accounting:** receive keeps its existing infallible `work(3)` boundary and caller charges. This logical work
-  unit does not count every primitive instruction. Fewer physical passes reduce actual work and reads; existing
-  logical queryable totals stay fixed. Future omitted replay callbacks are not a fixed physical roster contract.
-- **Ownership:** the two flag bytes fit existing measured padding on AMD64/ARM32/ARM64. Selector, both medians,
-  Kernel and enclosing Step/Frame sizes are unchanged. No new allocation, raw-value cache, backing policy, cap or
-  public contract is introduced. Exact general sort backing remains provider-owned.
-- **Evidence:** [rank completion qualification](rank-completion-qualification.json) retains complete original
-  comparisons, true final-depth temporal/MAD failures, provisional scheduled controls, generated page-bounded
-  histories, actual GNU C callers, type/linked-code costs and both-profile whole-query timings. Historical cohorts
-  keep their source identities; finite generated inputs do not establish live/concurrent throughput or process RSS.
+- **Choice:** a whole successful replay may finish uniform populations or skip proven constant groups of key bits.
+  Retain two fixed counter tables, both ordinary rank/control validations and the sixteen-pass final fallback.
+- **Representation:** reuse full per-lane normalized representatives, masked admission and seen bits. One byte
+  starts at 64 and records the exact minimum common leading length within the admitted lanes. A zero key is valid.
+- **Continuation:** reconstruct the selected counted digit first, clearing lower bits. Jump only when the shared
+  length proves more than the ordinary next nibble, bounded by nibble 15; only then fill bits from representatives.
+  Without a true jump, a first representative can have an unselected digit. The final nibble returns reconstructed
+  keys without asking for another pass.
+- **Completion:** both rank/control checks and whole child/Reader success precede publication. A single uniform
+  lane, partial driver or final visitor grants no completion. Preserve current-pass errors and cancellation.
+- **Numerics:** normalized keys do not supply NaN payload/zero-sign provenance. Membership, ordinal Fetch,
+  provider-owned exact sort backing, MAD deviations and interpolation retain their operation order and owners.
+- **Accounting:** receive retains infallible `work(3)` and caller control boundaries. Extra leading-zero instructions
+  are CPU cost, not new logical work units. Fewer physical passes may reduce reads/work without changing logical
+  queryable totals. Omitted future replay callbacks are not a fixed physical-roster contract.
+- **Controls:** preserve old adjacent/subnormal/clipped numerical cases as acceleration controls. Genuine `q=0` prefix
+  and majority-zero MAD ladders retain all 16 rank passes and 33 MAD scans, late faults and clipped seek targets.
+- **Ownership:** the two state bytes reuse measured padding. Selector, both medians, Kernel and enclosing Step/Frame
+  sizes stay unchanged on AMD64/ARM32/ARM64. No new allocation, raw/history cache, backing policy, cap or public
+  contract. Type sizes do not establish whole-function stack or process RSS bounds.
+- **Evidence:** [common-prefix qualification](rank-prefix-qualification.json) binds complete original/native/foreign/C
+  results, generated page-bounded growth, no-jump and accelerated timings, and every memory/linked-code cost.
+  [Uniform-only qualification](rank-completion-qualification.json) remains the historical comparison cohort.
 
 
 ## Received-page accounting
