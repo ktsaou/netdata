@@ -116,3 +116,68 @@ def cases():
         'rate(m_total[3s]) / on(host) group_left(site) n',
         'n / on(host) group_right(site) rate(m_total[3s])'))
     return output
+
+
+def ordered_parent_cases():
+    """Complete joins beneath ordinary All-consuming parent expressions."""
+    from owned_label_cases import _case
+
+    output = []
+    for original in cases():
+        supplied = original["request"]
+        delayed_options = (supplied["delayed_name_removal"],) if "delayed_name_removal" in supplied else (False, True)
+        for reducer in ("sum", "count"):
+            for delayed in delayed_options:
+                case = deepcopy(original)
+                case["request"].update(
+                    id=f'ordered-parent:{reducer}:{supplied["id"]}:d{int(delayed)}',
+                    query=f'{reducer} by(host)({supplied["query"]})',
+                    delayed_name_removal=delayed,
+                )
+                output.append(case)
+
+    expressions = (
+        "sum by(job)(m+n)",
+        "abs(sum by(job)(m+n))",
+        "avg by(job)(m/n)",
+        "count by(job)(abs(m-n))",
+        "max by(job)(m > bool on(id) n)",
+        "sum by(job)(m < on(id) n)",
+        "quantile(.5,m/n)",
+        "topk(2,m+n)",
+        'count_values("result",m+n)',
+        "scalar(sum(m+n))",
+        "sum_over_time((m+n)[2s:1s])",
+        "sum by(job)(rate(m[2s])+rate(n[2s]))",
+        "sum by(job)(m offset 1s+n)",
+        "sum by(job)(m @ 2+n)",
+        "clamp_min(m/n,scalar(vector(time())))",
+    )
+    for state in ("dense", "sparse", "long", "native", "mixed", "empty"):
+        records = []
+        if state != "empty":
+            for metric in ("m", "n"):
+                for identity in (3, 1, 0, 2):
+                    labels = {"__name__": metric, "id": str(identity), "job": "worker"}
+                    if state == "long":
+                        labels["pad"] = "x" * 512
+                    scale = 4 if metric == "n" else (2 if identity % 2 == 0 else 8)
+                    points = []
+                    for tick in range(5):
+                        value = float((tick + 1) * scale)
+                        kind = "float_histogram" if state == "native" or state == "mixed" and identity % 2 else "float"
+                        if state == "sparse" and (identity + (metric == "n")) % 3 != tick % 3:
+                            value, kind = "7ff0000000000002", "float"
+                        points.append((tick * 1000, value, kind))
+                    records.append(series(labels, points))
+        for profile in ("server-default", "upstream-tests"):
+            for delayed in (False, True):
+                for mode in ("instant", "range"):
+                    for index, expression in enumerate(expressions):
+                        case = _case(f"ordered-parent:direct:{state}:{profile}:d{int(delayed)}:{mode}:{index}",
+                                     expression, records)
+                        case["request"].update(profile=profile, delayed_name_removal=delayed, mode=mode,
+                            time_ms=4000, start_ms=2000, end_ms=4000, step_ms=1000, lookback_ms=1000)
+                        output.append(case)
+    assert len({case["request"]["id"] for case in output}) == len(output)
+    return output

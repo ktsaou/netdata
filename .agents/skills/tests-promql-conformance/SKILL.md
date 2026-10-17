@@ -167,6 +167,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#wrapped-grouped-joins` for pre-copy eligibility,
   complete input discovery, kept/suppressed pair phases, fresh requested values, suffix continuation and separate
   original/order-policy qualification.
+- Local ordered binary admission MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#ordered-binary-discovery` for pre-copy proof,
+  source/final ordinals, cold/warm/next-clock phases, fresh outer parameters and actual read/peak costs.
 - Direct pair-metadata traversal MUST also follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-pair-metadata-traversal` for exhaustive
   binding/full-hash certification, physical prefix ownership, fresh backward/full requests, hash-buffer release,

@@ -1472,6 +1472,29 @@ integration, and Alertmanager remains excluded.
 - **Evidence:** the [procedure](README.md#wrapped-grouped-joins) separates complete original outcomes, declared
   ordering-policy qualification, callback/control phases, query-owned memory and paired timing measurements.
 
+## Ordered binary discovery
+
+- **Choice:** let an eligible visited non-root ordered range Binary request the existing pair candidate before
+  input descriptors move or copy. After output/cache/clocks freeze, pending candidates receive the unchanged
+  prefix certificate. Root/wrapper replay keeps its existing route. An All-consuming parent does not imply that
+  each descendant consumes All; its ordered child can repeatedly select individual source rows.
+- **Proof:** retain operator/cardinality, original uniqueness, Float-only single-source ownership, supported leaf,
+  producer/source/scope grid, invariant/boundary, name/fill and complete pair/hash/frontier checks. Instant/equal
+  headers and unsupported ordinary grouped operands retain fallback. Failed certification discards the candidate.
+- **Progress:** preparation cannot earn final credit. Cold final discovery validates original operands and pair
+  prefixes; warm selected values remain fresh. Exact-key changes restart discovery. Existing suppressed/unknown
+  suffix, duplicate/cardinality, error, control and output-abort phases remain. Outer time-dependent pointwise
+  parameters evaluate freshly even when the inner join has reusable metadata.
+- **Coordinates:** an actual bypassed Matrix body consumes the source bindings in `sources[descriptor.sources]`.
+  OrderedRows maps the result to the final descriptor ordinal afterward. Inner failure calibration and full public
+  output checks must use their respective coordinates.
+- **Ownership and cost:** reuse existing metadata, accounting and paged cursors without a new Plan field, evaluator
+  mode, raw-value history or public contract. Extra matching metadata can raise peak bytes while reducing replay
+  reads and allocation traffic. Whole-query linear complexity, minimal peak RAM or universal speed does not follow.
+- **Evidence:** [the procedure](README.md#ordered-binary-discovery) and its finite qualification retain complete
+  causal outcomes before growth assertions, actual inner failures, fresh dynamic parameters, fallback guards,
+  original/native C/foreign checks and every memory, linked-size and paired-timing cost.
+
 ## Completed pair-metadata traversal
 
 - **Choice:** extend the existing optional pair-discovery plan with direct traversal of completed operand

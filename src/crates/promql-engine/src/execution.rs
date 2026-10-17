@@ -2393,8 +2393,18 @@ impl CompiledQuery {
                     matching,
                     set_discovery,
                     node != self.expression.root
-                        && self.binary_replay_target(header, prepared, control, account)?
-                            == Some(node),
+                        && (self.binary_replay_target(header, prepared, control, account)?
+                            == Some(node)
+                            // Ordered children select rows even when their parent consumes All.
+                            || header.start_ms != header.end_ms
+                                && self.binary_replay_children(node, header).is_some_and(
+                                    |(left, right, _)| {
+                                        [node, left, right].into_iter().all(|node| {
+                                            !prepared.flags().invariants[node.0]
+                                                && !prepared.flags().boundaries[node.0]
+                                        })
+                                    },
+                                )),
                     control,
                     account,
                 )?;
@@ -3097,7 +3107,10 @@ impl CompiledQuery {
                         ..
                     }
                 )
-                && self.binary_replay_target(header, prepared, control, account)? == Some(node)
+                && (self.binary_replay_target(header, prepared, control, account)? == Some(node)
+                    || rosters
+                        .binary(node)
+                        .is_some_and(|plan| plan.has_pair_candidate()))
             {
                 self.certify_pair_replay(
                     node,
@@ -7043,6 +7056,445 @@ mod tests {
         );
     }
 
+    fn ordered_binary_provider(page: usize, count: usize) -> FixtureProvider {
+        fn point<const SCALE: u32>(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float((index + 1) as f64 * f64::from(SCALE)),
+            }
+        }
+        let mut provider = FixtureProvider::new(3, page, count * 2);
+        provider.filter_selectors = true;
+        for (position, series) in provider.series.iter_mut().enumerate() {
+            let right = position >= count;
+            let identity = count - 1 - position % count;
+            series.labels = vec![
+                (
+                    b"__name__".to_vec(),
+                    if right { b"n" } else { b"m" }.to_vec(),
+                ),
+                (b"id".to_vec(), format!("{identity:06}").into_bytes()),
+                (b"job".to_vec(), b"worker".to_vec()),
+            ];
+            series.source.sample = if right {
+                point::<4>
+            } else if identity.is_multiple_of(2) {
+                point::<2>
+            } else {
+                point::<8>
+            };
+            series.source.counters = Default::default();
+        }
+        provider
+    }
+
+    #[test]
+    fn ordered_binary_consumers_check_complete_results_before_bounded_reads() {
+        let mut growth = Vec::new();
+        for (expression, grouped) in [
+            ("m+n", false),
+            ("abs(m+n)", false),
+            ("sum by(job)(m+n)", true),
+        ] {
+            for page in [17, 1024] {
+                for count in [2, 4, 8, 16] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let provider = ordered_binary_provider(page, count);
+                    let query = engine
+                        .compile(
+                            expression.as_bytes(),
+                            EngineOptions {
+                                delayed_name_removal: false,
+                                ..EngineOptions::default()
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    );
+                    let result = report.result.as_ref().unwrap();
+                    assert!(report.annotations.is_empty());
+                    assert_eq!(result.series.len(), if grouped { 1 } else { count });
+                    for (identity, row) in result.series.iter().enumerate() {
+                        let labels: Vec<_> = row
+                            .labels
+                            .0
+                            .iter()
+                            .map(|label| (&*label.name, &*label.value))
+                            .collect();
+                        let identity_label = format!("{identity:06}");
+                        if grouped {
+                            assert_eq!(labels, [(b"job".as_slice(), b"worker".as_slice())]);
+                        } else {
+                            assert_eq!(
+                                labels,
+                                [
+                                    (b"id".as_slice(), identity_label.as_bytes()),
+                                    (b"job".as_slice(), b"worker".as_slice()),
+                                ]
+                            );
+                        }
+                        assert_eq!(row.points.len(), 3);
+                        let slope = if grouped {
+                            (count.div_ceil(2) * 6 + count / 2 * 12) as f64
+                        } else if identity.is_multiple_of(2) {
+                            6.0
+                        } else {
+                            12.0
+                        };
+                        for (tick, point) in row.points.iter().enumerate() {
+                            assert_eq!(point.time_ms, (tick as i64 + 1) * 1000);
+                            assert_eq!(float_bits(point), (slope * (tick + 1) as f64).to_bits());
+                        }
+                    }
+                    assert_eq!(
+                        report.observations.output_samples,
+                        3 * if grouped { 1 } else { count } as u64
+                    );
+                    let fetched: usize = provider
+                        .series
+                        .iter()
+                        .map(|row| row.source.counters.samples_returned.load(Ordering::Relaxed))
+                        .sum();
+                    assert_eq!(report.observations.samples_fetched, fetched as u64);
+                    assert!(
+                        provider
+                            .series
+                            .iter()
+                            .all(|row| { row.source.counters.peak.load(Ordering::Relaxed) == 1 })
+                    );
+                    assert_eq!(
+                        report.observations.memory[MemoryKind::Workspace as usize].current,
+                        0
+                    );
+                    println!(
+                        "ordered-binary-growth expression={expression:?} rows={count} page={page} fetched={} work={}",
+                        report.observations.samples_fetched, report.observations.work
+                    );
+                    growth.push((
+                        report.observations.samples_fetched,
+                        report.observations.work,
+                    ));
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+        assert!(
+            growth
+                .chunks_exact(4)
+                .all(|rows| { rows[3].0 <= rows[1].0 * 6 && rows[3].1 <= rows[1].1 * 8 }),
+            "ordered binary consumers must avoid repeated all-row reads: {growth:?}"
+        );
+    }
+
+    #[test]
+    fn ordered_binary_preparation_preserves_local_and_fallback_boundaries() {
+        let range = QueryRequest::Range {
+            start_ms: 1000,
+            end_ms: 3000,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            for count in [0, 1, 4] {
+                for (expression, supported) in [
+                    ("sum by(job)(m+n)", true),
+                    ("sum by(job)(m @ 2+n)", false),
+                    ("sum by(job)(sum by(id)(m)+sum by(id)(n))", false),
+                ] {
+                    for (request, ranged) in [
+                        (range, true),
+                        (QueryRequest::Instant { time_ms: 2000 }, false),
+                        (
+                            QueryRequest::Range {
+                                start_ms: 2000,
+                                end_ms: 2000,
+                                step_ms: 1000,
+                            },
+                            false,
+                        ),
+                    ] {
+                        for delayed in [false, true] {
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let compiled = engine
+                                .compile(expression.as_bytes(), options(delayed), &control)
+                                .unwrap();
+                            let provider = ordered_binary_provider(page, count);
+                            let (rows, _, plans) = float_map_join_preparation_with_discovery(
+                                &compiled, &provider, request, &control,
+                            );
+                            assert_eq!(rows, usize::from(count != 0));
+                            assert_eq!(
+                                plans,
+                                usize::from(supported && ranged && count > 1 && !delayed),
+                                "{expression} {request:?} count{count} delayed{delayed}"
+                            );
+                            drop(compiled);
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                    }
+                }
+            }
+            let engine = Engine::default();
+            let control = Control::default();
+            let compiled = engine
+                .compile(b"sum by(job)(m+n)", options(false), &control)
+                .unwrap();
+            let mut provider = ordered_binary_provider(page, 4);
+            provider.series[0].source.sample = |index| crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::FloatHistogram(
+                    crate::histogram::FloatHistogram {
+                        count: 1.0,
+                        sum: 1.0,
+                        zero_count: 1.0,
+                        zero_threshold: 1.0,
+                        ..crate::histogram::FloatHistogram::default()
+                    },
+                ),
+            };
+            let (_, _, plans) =
+                float_map_join_preparation_with_discovery(&compiled, &provider, range, &control);
+            assert_eq!(plans, 0, "mixed raw operands must retain fallback");
+            drop(compiled);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn ordered_binary_inner_machines_preserve_cold_warm_and_next_clock_failures() {
+        let acquisitions = |provider: &FixtureProvider| {
+            provider
+                .series
+                .iter()
+                .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
+                .collect::<Vec<_>>()
+        };
+        for page in [1, 17, 1024] {
+            let engine = Engine::default();
+            let compiled = engine
+                .compile(b"sum by(job)(m+n)", options(false), &Control::default())
+                .unwrap();
+            let mut landmarks: Vec<Vec<usize>> = Vec::new();
+            let (mut selected, mut nonmember) = (0, 0);
+            for fault in ["none", "cold", "warm", "next", "cancel"] {
+                let control = Control::default();
+                let mut provider = ordered_binary_provider(page, 4);
+                let fault_phase = match fault {
+                    "cold" => Some(0),
+                    "warm" | "cancel" => Some(1),
+                    "next" => Some(2),
+                    _ => None,
+                };
+                if let Some(phase) = fault_phase
+                    && fault != "cancel"
+                {
+                    let target = if fault == "warm" { selected } else { nonmember };
+                    provider.series[target].source.fail_acquisition =
+                        Some(landmarks[phase][target] + 1);
+                }
+                let account = compiled.execution_accounting();
+                {
+                    let header = compiled
+                        .header(QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        })
+                        .unwrap();
+                    let prepared = Prepared::new(
+                        &compiled.expression,
+                        &compiled.preprocessing,
+                        header,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let header = prepared.evaluator_header();
+                    prepared.activate(header, &control, &account).unwrap();
+                    let initial = compiled.evaluation_options(header, 1000, &prepared);
+                    let bounds = crate::query_bounds::find(
+                        &compiled.expression,
+                        initial,
+                        &prepared,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let scope = provider.open(bounds, &control).unwrap();
+                    let catalog = Catalog::new(
+                        &scope,
+                        &compiled.expression,
+                        &prepared,
+                        initial,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let rosters = compiled
+                        .prepare_rosters(
+                            &catalog,
+                            &prepared,
+                            bounds,
+                            &control,
+                            &account,
+                            &mut Annotations::default(),
+                        )
+                        .unwrap();
+                    let joins: Vec<_> = (0..compiled.expression.arena.nodes.len())
+                        .map(NodeId)
+                        .filter(|&node| {
+                            rosters
+                                .binary(node)
+                                .is_some_and(|plan| plan.has_pair_discovery())
+                        })
+                        .collect();
+                    assert_eq!(joins.len(), 1);
+                    let join = joins[0];
+                    let plan = rosters.binary(join).unwrap();
+                    assert!(!plan.has_pair_candidate() && !plan.has_completed_pair_discovery());
+                    let (rows, sources) = rosters.ordered(join).unwrap();
+                    let ordinals = [0, 1].map(|position| {
+                        let bindings = &sources[rows[position].sources.clone()];
+                        assert_eq!(bindings.len(), 1);
+                        bindings[0]
+                    });
+                    if fault == "none" {
+                        landmarks.push(acquisitions(&provider));
+                    } else {
+                        assert_eq!(acquisitions(&provider), landmarks[0]);
+                    }
+                    for (phase, (time, step, ordinal)) in [
+                        (1000, 0, ordinals[0]),
+                        (1000, 0, ordinals[1]),
+                        (2000, 1, ordinals[1]),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        let options = compiled.evaluation_options(header, time, &prepared);
+                        let before = acquisitions(&provider);
+                        if fault == "cancel" && phase == 1 {
+                            control.cancellation.cancel();
+                        }
+                        let mut machine = Machine::new(
+                            &catalog,
+                            &compiled.expression,
+                            join,
+                            options,
+                            &control,
+                            &account,
+                            EvaluationMetadata {
+                                prepared: &prepared,
+                                rosters: &rosters,
+                                timestamp_selectors: &compiled.timestamp_selectors,
+                                data_bounds: bounds,
+                                annotations: None,
+                                binary_preparation: None,
+                                histogram_preparation: None,
+                                info_preparation: None,
+                                count_preparation: None,
+                            },
+                        );
+                        machine.restrict_one(ordinal);
+                        machine.bypass_root_order();
+                        machine.set_step_index(step);
+                        let result = machine.next();
+                        if fault_phase == Some(phase) {
+                            if fault == "cancel" {
+                                assert!(matches!(
+                                    result,
+                                    Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                                ));
+                                assert_eq!(acquisitions(&provider), before);
+                            } else {
+                                assert!(matches!(&result, Err(EvaluationError::Storage(
+                                    StorageError::Provider(bytes))) if &**bytes == b"injected page failure"));
+                            }
+                            drop(result);
+                            drop(machine);
+                            if phase != 1 {
+                                assert!(!plan.has_completed_pair_discovery());
+                            }
+                            break;
+                        }
+                        let sample = result.unwrap().unwrap();
+                        assert_eq!(sample.ordinal, ordinal);
+                        let descriptor = &rows[usize::from(phase != 0)];
+                        let labels = |labels: &crate::result::OwnedLabels| {
+                            labels
+                                .0
+                                .iter()
+                                .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                                .collect::<Vec<_>>()
+                        };
+                        assert_eq!(labels(&sample.labels), labels(&descriptor.labels));
+                        let identity = std::str::from_utf8(
+                            &descriptor
+                                .labels
+                                .0
+                                .iter()
+                                .find(|label| &*label.name == b"id")
+                                .unwrap()
+                                .value,
+                        )
+                        .unwrap()
+                        .parse::<usize>()
+                        .unwrap();
+                        let OwnedValue::Float(value) = &sample.value else {
+                            panic!("float join");
+                        };
+                        let slope = if identity.is_multiple_of(2) {
+                            6.0
+                        } else {
+                            12.0
+                        };
+                        assert_eq!(value.to_bits(), (slope * (time / 1000) as f64).to_bits());
+                        drop(sample);
+                        assert!(machine.next().unwrap().is_none());
+                        drop(machine);
+                        assert!(plan.has_completed_pair_discovery());
+                        if fault == "none" {
+                            landmarks.push(acquisitions(&provider));
+                        }
+                    }
+                }
+                provider.assert_closed();
+                account.snapshot().assert_memory_released();
+                drop(account);
+                if fault == "none" {
+                    let warm: Vec<_> = (0..provider.series.len())
+                        .filter(|&index| landmarks[2][index] > landmarks[1][index])
+                        .collect();
+                    assert_eq!(warm.len(), 2, "only the fresh selected pair is reread");
+                    selected = warm[0];
+                    nonmember = (0..provider.series.len())
+                        .find(|index| {
+                            !warm.contains(index) && landmarks[1][*index] > landmarks[0][*index]
+                        })
+                        .unwrap();
+                    assert!(landmarks[3][nonmember] > landmarks[2][nonmember]);
+                }
+            }
+            drop(compiled);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
     fn float_map_join_provider(page: usize) -> FixtureProvider {
         let mut provider = FixtureProvider::new(3, page, 8);
         provider.filter_selectors = true;
@@ -7214,7 +7666,7 @@ mod tests {
                 (
                     "clamp_min((a_total / on(instance,member) b_total),scalar(vector(time())))",
                     4,
-                    false,
+                    true,
                 ),
                 (
                     "abs(sum by(instance)(a_total @ 2) / on(instance) sum by(instance)(b_total))",
@@ -7251,6 +7703,20 @@ mod tests {
                         usize::from(admitted && !delayed),
                         "{expression} delayed{delayed}"
                     );
+                    if expression.starts_with("clamp_min(") {
+                        let report = compiled.collect_reported(&provider, request, &control);
+                        assert!(report.annotations.is_empty());
+                        let result = report.result.as_ref().unwrap();
+                        assert_eq!(result.series.len(), 4);
+                        for row in &*result.series {
+                            assert_eq!(row.points.len(), 2);
+                            for (index, point) in row.points.iter().enumerate() {
+                                assert_eq!(point.time_ms, (index as i64 + 2) * 1000);
+                                assert_eq!(float_bits(point), (index as f64 + 2.0).to_bits());
+                            }
+                        }
+                        provider.assert_closed();
+                    }
                     drop(compiled);
                     engine.accounting.snapshot().assert_memory_released();
                 }

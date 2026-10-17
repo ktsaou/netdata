@@ -71113,5 +71113,26 @@
     "primary_timing_query_executions": 18200,
     "followup_query_executions": 0,
     "limits": "Exact finite label-ownership change; all costs retained. Fixture statistics and actual C export scope differ. No new language/numerical/public/live/default-library throughput guarantee."
+  },
+  "ordered_binary_discovery": {
+    "report": "ordered-binary-discovery-qualification.json",
+    "scope": "Reuse existing completed pair discovery at eligible non-root ordered range Binary consumers. No new language, API/ABI, numerical, storage/provider/context, raw-history cache or implicit-cap policy.",
+    "fresh_original_comparisons": 14208,
+    "matched_before_original_comparisons": 10656,
+    "native_units_per_profile": 748,
+    "actual_default_C_queries": 1008,
+    "actual_C_logical_statistic_pairs": 864,
+    "memory_summary": {
+      "observed_outcomes": 10656,
+      "lower_reads": 1332,
+      "lower_workspace_traffic": 1356,
+      "lower_workspace_peak": 0,
+      "lower_reference_traffic": 1332
+    },
+    "increased_memory_rows": 2640,
+    "primary_timing_groups": 48,
+    "primary_timing_query_executions": 11160,
+    "followup_query_executions": 100,
+    "limits": "Finite private admission reuse; every cost retained. Fixture and actual C statistic scopes differ. No new language, public, live or universal throughput guarantee."
   }
 }

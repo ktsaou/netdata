@@ -6057,6 +6057,79 @@ compiler and binary identities. All 71 earlier qualification-ledger objects rema
 contexts, storage, arithmetic or dependency change is introduced. Explicit cancellation/deadlines remain active;
 implicit caps remain disabled. Earlier broader language, SRE and live-Agent evidence keeps its original attribution.
 
+## Ordered binary discovery
+
+An ordered range join can select individual rows even when its parent consumes all results. For example,
+`sum by(job)(m+n)` repeatedly enters the inner join through ordered output. Its preparation now requests the
+existing pair-discovery proof locally, before input descriptors move or copy. After output, cache and clocks
+freeze, a pending candidate receives the same complete prefix certificate used by wrapped joins.
+
+The existing root/wrapper route remains. Local admission requires an unequal range header, a supported Float
+arithmetic/comparison join, original unique input ownership, compatible producer/source/scope grids and supported
+single-source operands. Invariant/boundary clocks, delayed names, fills, native/mixed operands and unsupported
+grouped operands retain ordinary evaluation. No evaluator mode, Plan field, raw-value cache or public interface
+is added. Matching metadata and owned output can still scale with series count; raw histories remain paged.
+
+Preparation earns no final replay credit. The first final traversal validates the original inputs and successful
+pair prefixes. Later requests at the same exact replay key still read selected values freshly. A new timestamp
+starts cold again. Existing suppressed comparisons, duplicate/cardinality checks, hash/key identity, unvisited
+suffixes, reached errors, cancellation and output-abort behavior keep their existing owners. A time-dependent
+outer `clamp_min` parameter remains fresh even when its inner join can reuse completed metadata.
+
+The actual Engine growth test checks all labels, value bits, timestamps, membership and released ownership before
+its growth assertion. It runs raw, wrapped and aggregate forms at 2/4/8/16 series and pages 17/1024. Unchanged
+production passes all 24 outcomes, then fails the intended growth bound. For the aggregate, fetched entries change
+from 336/1104/3936/14784 to 264/564/1164/2364. This is finite read-growth evidence, not a universal complexity proof.
+
+Actual inner Machine controls cover cold nonmember failures, fresh warm selected failures, next-clock cold
+failures and cancellation at pages 1/17/1024. These controls use the same source bindings as production
+`OrderedRows`: `sources[descriptor.sources]` enters the bypassed Matrix body, then the outer adapter maps its
+source ordinal to the final descriptor ordinal. Passing a final ordinal directly to that body tests the wrong
+identity. Separate complete Engine checks verify the final mapping. Admission guards include empty/singleton,
+instant/equal headers, independent name modes, fixed selectors, grouped fallbacks and mixed raw histograms.
+
+`grouped_join_cases.ordered_parent_cases()` regenerates 1,776 fresh pinned Go originals across 23 datasets, including
+96 error outcomes. Both native profiles at pages 1/17/1024 and both ARM release fixtures at page 17 pass 14,208 complete
+comparisons, including exact bits. Immutable signed-before native binaries pass 10,656 matching comparisons. Each
+native full suite passes 748 tests with two ignored; each QEMU target passes 38 focused tests. Formatting, strict
+default/fixture Clippy and installed Rust 1.91 all-target fixture compilation pass. MSRV runtime, full foreign suites
+and foreign C interface execution are separate scopes.
+
+Actual default native C callers pass 1,008 cases per side: per profile 72 histogram, 360 output identity and
+72 owned-label arms. Histogram+output export 864 basic-statistic pairs. Logical queryable totals stay exact;
+Actual reads and ownership peaks may change with fewer replays. Output+owned export 864 memory pairs,
+overlapping the 720 output pairs. These are different subsets. Complete normalized callback results, errors,
+controls and cleanup are asserted by the C sources; distinguishing values are covered by the original and
+Engine panels.
+
+Across 10,656 native observations, 1,332 fetch fewer sample entries, 1,356 allocate less Workspace traffic and none
+reduce Workspace peak. The 2,640 Workspace cost rows retain at most 600 extra peak bytes or 264 extra allocation bytes
+in this original panel. Current/overflow state and lease balances remain valid. Wider timing inputs retain their
+own metadata costs separately. Accounted bytes, sample ownership counts, allocation traffic and process RSS are
+different measurements.
+
+Five alternating pairs per profile execute 11,160 queries including warmups across 48 timing groups. At 128 series
+with 16-byte padding, median milliseconds change as follows:
+
+| Expression | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| Sum parent | 731.4 → 19.0 | 1,258.5 → 34.1 |
+| Average parent | 735.6 → 19.1 | 1,255.0 → 34.4 |
+| Dynamic clamp parent | 754.3 → 20.3 | 1,247.8 → 36.2 |
+
+Across both padding widths, these 128-series cases improve by 34.5–38.5 times. Fetched entries fall from 892,416
+to 19,164. Sum/average peak Workspace rises 88 bytes; the dynamic case rises 3,600 bytes. Every slower primary
+median remains visible: the largest is 5.66% in release-min. Both cases above the declared 5% threshold receive
+100 additional queries and 20 measured samples per side; their repeated medians are 0.63% and 3.61% slower.
+Primary rows are not replaced by those repeats. These costs and benefits describe the finite fixture panel.
+
+The [ordered-binary qualification](ordered-binary-discovery-qualification.json) retains complete source/binary
+attribution, every cost, all ten linked-size pairs and bounded paired timing. Timings use ordinary raw/pair/wrapped
+controls beside sum, average and dynamic-parameter parents; every slower median and threshold repeat remains
+visible. Query captures stream gzip level 1 and verify full raw/compressed hashes. These fixture measurements do not
+establish live HTTP/dbengine, default-library latency, concurrent throughput, physical ARM speed or RSS behavior.
+Implicit limits remain disabled.
+
 ## Completed pair-metadata traversal
 
 Eligible warm joins now consume their existing completed input bitmap directly. They avoid rebuilding active-row,
