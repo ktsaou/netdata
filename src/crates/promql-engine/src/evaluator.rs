@@ -3261,10 +3261,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                 "label projection source is missing",
                             ))?;
                     let descriptor = &descriptors[position];
-                    sample.labels = descriptor
-                        .labels
-                        .copy_checked(self.account, MemoryKind::Workspace, self.control)?
-                        .into();
+                    self.control.check()?;
+                    sample.labels = SampleLabels::Borrowed(&descriptor.labels);
                     sample.drop_name = descriptor.drop_name;
                     sample.source_time_ms = self.options.time_ms;
                     sample.source_start_time_ms = 0;

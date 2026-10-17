@@ -71072,5 +71072,17 @@
     "primary_timing_groups": 64,
     "followup_outcomes": 88,
     "limits": "Finite comparison; allocation traffic distinct from peaks; all linked/layout/timing costs retained. No new public or language contract."
+  },
+  "borrowed_projection_result_labels": {
+    "report": "projection-result-labels-qualification.json",
+    "scope": "Borrow exact immutable label_join/label_replace projection descriptors at emission, with terminal control and existing checked materialization for real mutation/retention. No public/provider/storage/numerical/ordering/language/cap change. Finite complete-result/resource/linked-cost/timing evidence.",
+    "complete_current_outcomes": 10394,
+    "original_projection_comparisons": 960,
+    "native_units_per_profile": 744,
+    "actual_default_C_queries": 480,
+    "primary_timing_groups": 40,
+    "primary_timing_query_executions": 1600,
+    "followup_query_executions": 0,
+    "limits": "Finite matched-page/target comparisons. All slower timing and linked costs retained; no new public/language contract."
   }
 }

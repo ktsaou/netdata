@@ -1101,13 +1101,27 @@ integration, and Alertmanager remains excluded.
   Failed materialization retains the original borrowed owner; partial copied buffers retire normally.
 - **Retention:** existing-descriptor lookup precedes materialization. New descriptors and `count_values` own their
   labels. Conversion failure after provisional index insertion discards that complete local preparation owner.
-  Selector, mutable-cache, projection and ranking producers keep their existing owners; public collection remains
+  Selector, mutable-cache and ranking producers keep their existing owners; public collection remains
   independently owned after query/provider/internal lifetimes end.
 - **Resources:** no raw-history array, global metadata cache or shared heap owner is introduced. Checked scans and
   copies account actual work; allocation traffic, peak bytes, layouts and linked code costs are separate measures.
 - **Evidence:** [aggregate-result label qualification](aggregate-result-labels-qualification.json) binds meaningful
   ownership/interruption controls, complete expressions/reducers, actual C consumers, three-target layouts and
   matched query measurements. Historical attempts retain their own source identities and dispositions.
+
+## Borrowed projection-result labels
+
+- **Choice:** productive `State::Labels` emission borrows exact immutable prepared descriptor labels through
+  `SampleLabels`. It does not apply aggregate empty-value normalization to projection bytes.
+- **Phases:** the original binding lookup finishes before terminal control and borrowed publication. Name flags,
+  output ordinal and source clocks retain their existing meaning.
+- **Lifetime:** the frozen roster outlives Machine frames, re-entry and pending values. Actual mutation and retained
+  descriptors or public results keep their existing checked/accounted materialization and failure cleanup.
+- **Resources:** no new field, heap owner, metadata provider or raw-history array. Allocation traffic, query peaks,
+  elapsed engine time and linked code size remain separate measurements.
+- **Evidence:** [projection-result qualification](projection-result-labels-qualification.json) binds complete
+  expressions, actual native C owners, focused ARM executions and all slower/memory/code-cost rows. Compressed
+  query captures retain raw/compressed hashes; resource baselines match page, target and profile.
 
 ## Completed vector-sort publication
 

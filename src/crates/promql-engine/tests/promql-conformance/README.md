@@ -3813,8 +3813,8 @@ Samples and pending actions carry the frozen roster lifetime, independent of mut
 replay lifetimes stay short. New descriptors and count_values own their labels; failed conversion releases
 partial copies, and failed descriptor preparation discards its provisional local index. Borrowed no-op reserved-
 label removal checks the initial name and scans without copying. Real removal invokes the existing policy after
-checked materialization. Selector, mutable-cache, projection, ranking and public result owners retain their
-existing behavior.
+checked materialization. Selector, mutable-cache, ranking and public result owners retain their existing behavior.
+Frozen projection emission is covered in the following section.
 
 Both native profiles pass 744 units with two unchanged ignored tests, 1,487 complete cases at pages 1/17/1024,
 and 336 actual default-feature C query cases in total. Each ARM target passes 18 focused owner units and 288
@@ -3869,6 +3869,74 @@ The [aggregate-result label qualification](aggregate-result-labels-qualification
 source/binary identities, actual layout comparisons and every timing/resource/code-cost row. Portable focused
 tests are committed; full comparative captures remain local, with no new whole-panel replay runner. This
 introduces no new metadata provider, retained label cache, raw-history array, implicit cap or operator workflow.
+
+## Borrowed projection-result labels
+
+Productive label_join and label_replace emission now borrows exact immutable prepared descriptor labels through
+the existing SampleLabels representation. Binding lookup completes before a terminal control check. It adds no
+representation, owner, field or cache. Projection bytes are already prepared; aggregate empty-value
+normalization must not be applied here.
+
+The frozen roster outlives Machine frames and re-entry. Actual label mutation, first descriptor retention,
+count_values and independent public collection keep checked/accounted materialization. The extended real owner
+test first fails on the unchanged producer, then checks borrowed lifetime, no-copy existing retention, failed
+conversion/recovery, final-propagation interruption and output ownership after internal owners end. Both
+delayed-name modes and pages1/17 are exercised.
+
+Both optimized native profiles pass 744 units with two unchanged ignored tests, 1,599 complete cases at pages
+1/17/1024 and 240 actual default-library C cases each. Each ARM target passes 18 focused owner units and 400
+complete queries under QEMU. The 10,394 matched outcomes remain separate from 960 selected original-associated
+projection replays. Strict original disagreements and approved ordering analyses retain their historical
+attribution; broader historical reducer failures remain failures. Formatting, strict default/fixture Clippy and
+installed Rust 1.91 compile-only checks pass.
+
+| Release page17 case | Workspace acquired, before → current | Workspace peak, before → current |
+| --- | --- | --- |
+| label_join | 52,882 → 41,884 B | 14,192 → 13,360 B |
+| label_replace | 61,391 → 50,411 B | 14,192 → 13,360 B |
+| abs(label_join), actual removal | 108,250 → 108,250 B | 18,111 → 17,871 B |
+| sum-512 control | 1,783,544 → 1,783,544 B | 455,410 → 455,410 B |
+
+Across 9,978 observation-bearing cohort comparisons, 920 lower workspace allocation traffic and 616 lower
+workspace peak. None increases a recorded memory category. Actual removal can keep unchanged traffic. These
+counters measure query allocations, not process RSS; provider/statistic observations remain unchanged.
+
+The timing panel retains 40 groups across both native profiles: 1,600 full queries, five alternating pairs, one
+warmup plus three measured requests per case/arm. All complete results compare exactly. 5 primary medians are
+higher; every ratio at least 1.05 receives a separate 20-sample-per-side follow-up (0 groups, 0 queries).
+Primary and repeat samples remain visible. Engine elapsed excludes result serialization/compression; these are
+shared-host fixture timings, not default-library, concurrent or live-provider throughput.
+
+Large ordinary forms retain 4,096 series. Repeated grouped joins use 256 after the original 4,096-series grouped
+projection baseline took 108–111 seconds per query and fetched 151,080,960 entries from 12,288 fixture points.
+Its stopped capture retains 75 complete prefix results and the interrupted final row with verified byte hashes.
+It is a failed performance witness, not a passing large-group timing panel. Repeated-read remediation is a
+separate improvement.
+
+| Timing case | Release current/before median | Release-min current/before median |
+| --- | --- | --- |
+| 1-16-join | 0.850 | 0.836 |
+| 4096-512-join | 0.869 | 0.876 |
+| 4096-512-real-removal | 0.986 | 1.046 |
+| 256-512-grouped-join | 0.998 | 1.024 |
+| 4096-512-plain-control | 0.958 | 1.014 |
+
+The qualification retains all eight matched linked fixture/C executable pairs, including text/data/BSS/file
+costs. No new internal representation or layout measurement is introduced. The actual default C callers cover
+histogram/output owners and 72 owned-label cases per profile, including 24 productive projection cases; this
+does not requalify every ABI caller.
+
+From src/crates/promql-engine, run the extended source test in either optimized profile:
+
+```sh
+cargo test --locked --features fixtures --release aggregate_label_borrows_outlive_machines_and_materialize_at_descriptor_boundaries
+```
+
+The [projection-result qualification](projection-result-labels-qualification.json) records source, runtime and
+complete resource/timing identities. New query captures stream to gzip; full EOF comparison verifies raw
+hashes/counts and compressed hashes. Resource baselines match page, architecture and profile; elapsed strings
+become integers only in analysis. The source tests are committed; full comparative captures remain local. No
+public API, provider, storage, numerical, language or implicit-cap contract changes.
 
 ## Completed vector-sort publication
 
