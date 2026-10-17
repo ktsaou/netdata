@@ -1495,6 +1495,30 @@ integration, and Alertmanager remains excluded.
   causal outcomes before growth assertions, actual inner failures, fresh dynamic parameters, fallback guards,
   original/native C/foreign checks and every memory, linked-size and paired-timing cost.
 
+## Local grouped join operands
+
+- **Choice:** at an eligible non-root ordered range Binary, resolve both operands through preprocessing and OR
+  their membership with existing single-child contributor demand. Keep Task unchanged and let ordinary child
+  visits clamp their own clocks. An All-consuming ancestor can still have an ordered singleton descendant.
+- **Proof:** keep the supported operator/cardinality/name/fill and unequal-header/local clock guards. Each ordinary
+  group still needs its supported selector/window leaf. Final Pair admission retains original uniqueness, Float
+  single-source outputs and full pair/hash/frontier plus producer/source/scope grid checks. Partial group metadata
+  can survive a rejected sibling/final certificate; it does not certify a Pair or change fallback outcomes.
+- **Progress:** successful full child Done grants group credit; original successful Pair prefixes grant separate
+  credit. Preparation clears both. Selected members remain fresh and new clocks validate again. Window caches can
+  suppress physical reads, so actual inner failure calibration includes mixed directions with a raw side. Source
+  binding ordinals remain distinct from final output ordinals; outer aggregate callbacks cannot locate inner phases.
+- **Ownership and cost:** existing accounted member/group/Pair metadata only. No new persistent field, evaluator
+  mode, raw array, metadata provider, storage or public contract. Additional setup/peak bytes are real even when
+  replay work and cumulative allocation drop. Histories stay paged in both dimensions; implicit caps stay disabled.
+- **Numerics:** retain upstream tolerance for continuous values and exact discrete outcomes. Preserve all original
+  strict-bit diagnostics, exact native before/current results and exact reused cross-target/profile/page results.
+  A diagnostic continuous one-ULP original difference is not a strict-bit pass or a changed tolerance.
+- **Evidence:** [the procedure](README.md#local-grouped-join-operands) and its finite report retain the meaningful
+  unchanged growth failure, actual group/Pair controls, complete original/default C/foreign outcomes, all measured
+  memory/linked costs and both primary/slower followup timing samples. Existing shared reducer/projection algorithms
+  are unchanged; no unrelated historical reducer corpus is reattributed to this source.
+
 ## Completed pair-metadata traversal
 
 - **Choice:** extend the existing optional pair-discovery plan with direct traversal of completed operand

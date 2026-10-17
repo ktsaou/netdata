@@ -19,7 +19,10 @@ int main(void) {
         "(sum by(zone)(rate(m_total[3s])) or sum by(zone)(rate(m_total[3s]))) > bool 0",
         "sum by(zone)(m_total+m_total) > bool 0",
         "sum by(zone)(rate(m_total[3s])+rate(m_total[3s])) > bool 0",
-        "clamp_min(sum by(zone)(m_total+m_total),scalar(vector(time()))) > bool 0"
+        "clamp_min(sum by(zone)(m_total+m_total),scalar(vector(time()))) > bool 0",
+        "sum by(zone)(sum by(zone)(m_total)+on(zone)sum by(zone)(m_total)) > bool 0",
+        "sum by(zone)(sum by(zone)(rate(m_total[3s]))+on(zone)sum by(zone)(rate(m_total[3s]))) > bool 0",
+        "clamp_min(sum by(zone)(sum by(zone)(m_total)+on(zone)sum by(zone)(rate(m_total[3s]))),scalar(vector(time()))) > bool 0"
     };
     for (unsigned delayed = 0; delayed < 2; delayed++) {
         netdata_promql_engine_options_t options;

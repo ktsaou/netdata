@@ -91,6 +91,25 @@ def cases():
     return output
 
 
+def local_join_cases():
+    """Nested consumers of the complete ordinary grouped-operand panel."""
+    output = []
+    for case in cases():
+        for parent in ("sum", "count"):
+            for delayed in (False, True):
+                request = case["request"]
+                output.append({
+                    **case,
+                    "request": {
+                        **request,
+                        "id": f"local-join:{parent}:{delayed}:{request['id']}",
+                        "query": f"{parent} by(cluster)({request['query']})",
+                        "delayed_name_removal": delayed,
+                    },
+                })
+    return output
+
+
 def performance_cases():
     output = []
     for groups, members in ((4, 4), (8, 4), (16, 4), (32, 4), (8, 1), (8, 16), (8, 64)):

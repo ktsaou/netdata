@@ -71134,5 +71134,28 @@
     "primary_timing_query_executions": 11160,
     "followup_query_executions": 100,
     "limits": "Finite private admission reuse; every cost retained. Fixture and actual C statistic scopes differ. No new language, public, live or universal throughput guarantee."
+  },
+  "local_grouped_join_operands": {
+    "report": "local-grouped-join-qualification.json",
+    "scope": "Pass existing contributor demand independently to both resolved operands of eligible local ordered range joins. No new language/API/ABI/storage/provider/context/numerical/raw-history/implicit-cap policy.",
+    "fresh_original_comparisons": 23040,
+    "matched_before_original_comparisons": 17280,
+    "portable_exact_reused_result_pairs": 20160,
+    "native_units_per_profile": 750,
+    "actual_default_C_queries": 1152,
+    "actual_C_logical_statistic_pairs": 1008,
+    "memory_summary": {
+      "observed_outcomes": 17280,
+      "lower_reads": 5184,
+      "lower_workspace_traffic": 5376,
+      "lower_workspace_peak": 0,
+      "lower_reference_traffic": 5184
+    },
+    "increased_memory_rows": 5568,
+    "primary_timing_groups": 48,
+    "primary_timing_query_executions": 1920,
+    "followup_query_executions": 480,
+    "strict_current_upstream_bit_difference_fields": 48,
+    "limits": "Existing continuous tolerance, exact discrete and before/current/portable outputs. All original bit differences/costs preserved; no language/public/live/universal throughput claim."
   }
 }

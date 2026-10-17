@@ -6130,6 +6130,80 @@ visible. Query captures stream gzip level 1 and verify full raw/compressed hashe
 establish live HTTP/dbengine, default-library latency, concurrent throughput, physical ARM speed or RSS behavior.
 Implicit limits remain disabled.
 
+## Local grouped join operands
+
+A nested join can now pass existing contributor demand to both ordinary grouped operands. For example,
+`sum by(cluster)(sum by(cluster,zone)(m_total) / on(cluster,zone) sum by(cluster,zone)(n_total))`
+can reuse completed membership and evaluate only the requested groups' original members. The two child IDs are
+resolved through the same preprocessing as their visits. Existing single-child demand remains in place.
+
+This is private admission reuse. It requires a non-root supported Binary, an unequal range header and the existing
+local clock proof. Each child still clamps demand against its own invariant/boundary/source/scope grid. Ordinary
+group and supported selector/window proofs, original uniqueness, Float/single-binding output and complete Pair
+certification remain mandatory. Root/wrapper discovery and unsupported fallbacks retain their owners. The earlier
+ordered-binary guard's productive grouped case now expects admission; instant/equal/fixed/mixed raw rejection stays.
+
+Successful full child Done earns contributor credit. Pair-prefix credit has its own successful traversal. Preparation
+clears both; requested members remain fresh and a new clock starts validation again. A supported child can own group
+metadata even when its sibling or final Pair proof rejects. No Task field, evaluator mode, raw-value cache, provider,
+contexts, storage, public interface, arithmetic order or implicit-limit policy changes.
+
+The unchanged production regression checks all 32 complete outcomes before failing only its final growth bound.
+Raw/rate joins, root/sum parents, 2/4/8/16 groups, two distinct members per side/group and pages 17/1024 carry changing
+values and opposite physical orders. At 16 groups, the nested raw case fetches 247,552 entries before and 7,072 after.
+Its work falls from 8,535,293 to 335,286. Rate fetching stays 23,040 while work falls from 8,736,075 to 408,328.
+These are finite counters, not a universal complexity claim.
+
+The shared actual inner-Machine owner uses real source bindings and separately checks group and Pair credit.
+Raw and mixed window/raw directions exercise cold excluded-member failure, warm selected two-member freshness,
+next-clock excluded-member failure, cancellation and terminal output failure at pages 1/17/1024. Window-cache hits
+can hide physical acquisition, so mixed directions retain a genuinely read raw side. Outer aggregate callbacks do
+not establish those inner phases.
+
+`group_contributor_cases.local_join_cases()` regenerates 2,880 fresh originals across ten datasets. It wraps all
+720 ordinary grouped cases in sum/count parents with independent name modes and both parser profiles. Raw, rate,
+fold, mixed, nested, mapped, by/without, matching, offset/fixed and instant cases include stale, late, empty, native,
+mixed, NaN, infinity and zero states. All 23,040 current comparisons satisfy the existing numerical contract;
+17,280 matched signed-before comparisons pass. Both native profiles pass 750 units with two unchanged ignored;
+each QEMU target passes 40 focused units. Formatting, strict default/fixture Clippy and installed MSRV compilation pass.
+
+Continuous values use the declared upstream tolerance; 1,760 count/Boolean-derived cases require exact numbers.
+Six continuous one-ULP stdvar/stddev fields in three mapped-inner cases already differ from the captured original
+in the unchanged before runtime. All raw strict-bit diagnostics remain: 48 current and 36 before field instances.
+They are not a strict-bit upstream pass. Current/before native outputs remain exact, and 20,160 reused exact result
+pairs establish identical labels, timestamps, kinds, values and diagnostics across every current profile/page/target.
+These reused pairs add no query executions or original-comparison count.
+
+Actual default C callers pass 1,152 cases per side. Per native profile these are 72 histogram, 432 output-identity and
+72 owned-label cases. Histogram+output export 1,008 exact logical-statistic pairs; output+owned export 1,008 memory
+pairs, overlapping 864 output pairs. These are different subsets. The report keeps all 48 changed physical read/peak
+triples and 72 increased-memory rows. Callback results, controls, errors, independent output and cleanup stay checked.
+
+Among 17,280 native observations, 5,184 fetch fewer entries, 5,376 use less Workspace allocation traffic and 5,184
+acquire fewer cancellation references. None reduces Workspace peak. All 5,568 Workspace cost rows remain; the original
+panel adds at most 1,528 peak bytes or 2,032 acquired bytes. In the 16-group timing panel, peak rises 2,472 bytes while
+the raw sum case removes 25,313,968 bytes of cumulative Workspace allocation. Raw history remains paged on both axes.
+
+Five alternating pairs per native profile run 1,920 queries, including warmups, across 48 timing groups. For 16 groups
+with two members each, median milliseconds are:
+
+| Expression | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| Raw grouped join under sum | 95.24 → 3.55 | 166.15 → 5.92 |
+| Rate grouped join under sum | 69.03 → 5.43 | 128.74 → 9.05 |
+| Rate/raw grouped join under sum | 83.91 → 4.31 | 150.10 → 7.41 |
+| Raw/rate grouped join under sum | 82.00 → 4.28 | 146.09 → 7.56 |
+
+The 16-group nested sum/dynamic cases improve 12.7–28.1 times. All 13 slower primary medians remain; the largest is
+10.94%. All eight cases above the predefined 5% threshold receive 480 followup queries and 20 measured results per
+side. Their ratios range from 0.9924 to 1.0233. Primary measurements are not replaced. Preflight is 96 separate queries.
+
+The [local-grouped qualification](local-grouped-join-qualification.json) retains all ten linked-size pairs, including
+244–276 bytes of extra native C text in release and 464 in release-min, and all fixture/data/BSS/file-size changes.
+It preserves source/binary identities, failed development attempts, original diagnostics and every measured cost.
+These shared-host fixture timings do not establish live/API, default-library or concurrent latency, physical ARM
+speed or process RSS. No feature or numerical tolerance is dropped or widened; implicit limits remain disabled.
+
 ## Completed pair-metadata traversal
 
 Eligible warm joins now consume their existing completed input bitmap directly. They avoid rebuilding active-row,
