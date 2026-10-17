@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Query-owned completed folds and source-certified cursor progress, without raw history.
 use crate::{
-    accounting::{AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
+    accounting::{AccountedBox, AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
     annotations::AnnotationKind,
     evaluator::{EvaluationError, EvaluationOptions},
     frontend::ast::NodeId,
@@ -13,6 +13,7 @@ use crate::{
     result::OwnedValue,
     shared::Strong,
     storage::{Control, Interrupted, TimeBounds},
+    vector_matching::ReplayKey,
 };
 use std::cell::RefCell;
 
@@ -234,14 +235,60 @@ struct Record {
     identity: (usize, usize, usize),
     snapshot: Option<Strong<Snapshot>>,
 }
+struct AggregateValue {
+    key: ReplayKey,
+    value: f64,
+    drop_name: bool,
+    _samples: crate::statistics::OwnedSamples,
+}
+struct AggregateRecord {
+    node: NodeId,
+    value: Option<AggregateValue>,
+}
+struct FoldState {
+    records: AccountedVec<Record>,
+    aggregates: Option<AccountedBox<AccountedVec<AggregateRecord>>>,
+}
 pub(crate) struct Folds {
-    records: RefCell<AccountedVec<Record>>,
+    state: RefCell<FoldState>,
 }
 impl Folds {
+    #[cfg(test)]
+    pub(crate) fn completed_aggregates(&self) -> usize {
+        self.state
+            .borrow()
+            .aggregates
+            .as_ref()
+            .map_or(0, |records| {
+                records
+                    .iter()
+                    .filter(|record| record.value.is_some())
+                    .count()
+            })
+    }
+
     pub(crate) fn new(account: &QueryAccounting) -> Self {
         Self {
-            records: RefCell::new(AccountedVec::new(account, MemoryKind::Workspace)),
+            state: RefCell::new(FoldState {
+                records: AccountedVec::new(account, MemoryKind::Workspace),
+                aggregates: None,
+            }),
         }
+    }
+
+    fn clear_aggregates(
+        state: &mut FoldState,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        if let Some(records) = &mut state.aggregates {
+            while records.pop().is_some() {
+                control.check()?;
+                account.work(1);
+            }
+        }
+        state.aggregates = None;
+        Ok(())
     }
 
     pub(crate) fn clear(
@@ -249,7 +296,9 @@ impl Folds {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), Interrupted> {
-        let mut records = self.records.borrow_mut();
+        let mut state = self.state.borrow_mut();
+        Self::clear_aggregates(&mut state, control, account)?;
+        let records = &mut state.records;
         while records.pop().is_some() {
             control.check()?;
             account.work(1);
@@ -264,7 +313,9 @@ impl Folds {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), Interrupted> {
-        let mut records = self.records.borrow_mut();
+        let mut state = self.state.borrow_mut();
+        Self::clear_aggregates(&mut state, control, account)?;
+        let records = &mut state.records;
         // Preserve sorted identities without another allocation or repeated shifts.
         let mut kept = 0;
         for position in 0..records.len() {
@@ -294,9 +345,9 @@ impl Folds {
         Ok(())
     }
 
-    fn position(
-        records: &[Record],
-        identity: (usize, usize, usize),
+    fn position<T>(
+        records: &[T],
+        compare: impl Fn(&T) -> std::cmp::Ordering,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Result<usize, usize>, Interrupted> {
@@ -305,13 +356,90 @@ impl Folds {
             control.check()?;
             account.work(1);
             let middle = first + (end - first) / 2;
-            match records[middle].identity.cmp(&identity) {
+            match compare(&records[middle]) {
                 std::cmp::Ordering::Less => first = middle + 1,
                 std::cmp::Ordering::Greater => end = middle,
                 std::cmp::Ordering::Equal => return Ok(Ok(middle)),
             }
         }
         Ok(Err(first))
+    }
+
+    pub(crate) fn aggregate_value(
+        &self,
+        node: NodeId,
+        key: ReplayKey,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<(f64, bool)>, Interrupted> {
+        control.check()?;
+        let mut state = self.state.borrow_mut();
+        let Some(records) = &mut state.aggregates else {
+            return Ok(None);
+        };
+        let Ok(position) = Self::position(
+            records,
+            |record| record.node.0.cmp(&node.0),
+            control,
+            account,
+        )?
+        else {
+            return Ok(None);
+        };
+        let record = &mut records[position];
+        if record.value.as_ref().is_some_and(|value| value.key != key) {
+            record.value = None;
+        }
+        control.check()?;
+        Ok(record
+            .value
+            .as_ref()
+            .map(|value| (value.value, value.drop_name)))
+    }
+
+    pub(crate) fn remember_aggregate(
+        &self,
+        node: NodeId,
+        key: ReplayKey,
+        value: f64,
+        drop_name: bool,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        control.check()?;
+        let mut state = self.state.borrow_mut();
+        let context = AllocationContext::new(account, MemoryKind::Workspace);
+        let records = state.aggregates.get_or_insert_with(|| {
+            AccountedBox::new(AccountedVec::with_capacity_in(1, Some(&context)), &context)
+        });
+        let position = Self::position(
+            records,
+            |record| record.node.0.cmp(&node.0),
+            control,
+            account,
+        )?;
+        let position = match position {
+            Ok(position) => {
+                control.check()?;
+                position
+            }
+            Err(position) => {
+                account.work(records.len().saturating_sub(position) as u64);
+                control.check()?;
+                records.insert(position, AggregateRecord { node, value: None });
+                position
+            }
+        };
+        let value = AggregateValue {
+            key,
+            value,
+            drop_name,
+            _samples: crate::statistics::OwnedSamples::new(account, 1),
+        };
+        account.work(1);
+        control.check()?;
+        records[position].value = Some(value);
+        Ok(())
     }
 
     pub(crate) fn evaluate(
@@ -325,8 +453,14 @@ impl Folds {
         let key = Key::from(&request);
         let identity = (request.owner.0, request.selector.0, request.ordinal);
         let (cached, progress) = {
-            let mut records = self.records.borrow_mut();
-            match Self::position(&records, identity, control, account)? {
+            let mut state = self.state.borrow_mut();
+            let records = &mut state.records;
+            match Self::position(
+                records,
+                |record| record.identity.cmp(&identity),
+                control,
+                account,
+            )? {
                 Ok(index) => match &records[index].snapshot {
                     Some(snapshot) if snapshot.key == key => (Some(snapshot.clone()), None),
                     _ => {
@@ -356,8 +490,14 @@ impl Folds {
             Some(&AllocationContext::new(account, MemoryKind::Workspace)),
         );
         {
-            let mut records = self.records.borrow_mut();
-            match Self::position(&records, identity, control, account)? {
+            let mut state = self.state.borrow_mut();
+            let records = &mut state.records;
+            match Self::position(
+                records,
+                |record| record.identity.cmp(&identity),
+                control,
+                account,
+            )? {
                 Ok(index) => records[index].snapshot = Some(snapshot.clone()),
                 Err(index) => {
                     account.work(records.len().saturating_sub(index) as u64 + 1);
@@ -448,6 +588,175 @@ mod tests {
             nonempty: true,
             progress: None,
         }
+    }
+
+    fn aggregate_key(time_ms: i64) -> ReplayKey {
+        let request = request(time_ms, 0.0);
+        ReplayKey::new(
+            request.options,
+            request.position,
+            request.lookback_ns,
+            request.window.data_bounds,
+        )
+    }
+
+    #[test]
+    fn completed_single_group_values_replace_keys_and_keep_independent_leases() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let folds = Folds::new(&account);
+        let control = Control::default();
+        assert!(folds.state.borrow().aggregates.is_none());
+        let bits = [
+            0,
+            1_u64 << 63,
+            0x7ff0_0000_0000_0000,
+            0xfff0_0000_0000_0000,
+            0x7ff8_0000_0000_0042,
+        ];
+        let mut capacity = None;
+        for clock in 0..1024 {
+            let key = aggregate_key(1000 + clock * 2000);
+            for node in [NodeId(9), NodeId(2)] {
+                assert!(
+                    folds
+                        .aggregate_value(node, key, &control, &account)
+                        .unwrap()
+                        .is_none()
+                );
+                let value = f64::from_bits(bits[(clock as usize + node.0) % bits.len()]);
+                let drop_name = node.0 == 9;
+                folds
+                    .remember_aggregate(node, key, value, drop_name, &control, &account)
+                    .unwrap();
+                let actual = folds
+                    .aggregate_value(node, key, &control, &account)
+                    .unwrap()
+                    .unwrap();
+                assert_eq!((actual.0.to_bits(), actual.1), (value.to_bits(), drop_name));
+            }
+            let state = folds.state.borrow();
+            let records = state.aggregates.as_ref().unwrap();
+            assert_eq!(records.len(), 2);
+            assert_eq!(account.current_samples(), 2);
+            if let Some(capacity) = capacity {
+                assert_eq!(records.capacity(), capacity);
+            }
+            capacity = Some(records.capacity());
+        }
+        let key = aggregate_key(1000 + 1023 * 2000);
+        let (value, _) = folds
+            .aggregate_value(NodeId(2), key, &control, &account)
+            .unwrap()
+            .unwrap();
+        let deliveries = [
+            crate::statistics::ValueParts::new(OwnedValue::Float(value), &account),
+            crate::statistics::ValueParts::new(OwnedValue::Float(value), &account),
+        ];
+        assert_eq!(account.current_samples(), 4);
+        folds.clear(&control, &account).unwrap();
+        assert!(folds.state.borrow().aggregates.is_none());
+        drop(folds);
+        assert_eq!(account.current_samples(), 2);
+        for delivery in &deliveries {
+            let OwnedValue::Float(actual) = &delivery.value else {
+                unreachable!()
+            };
+            assert_eq!(actual.to_bits(), value.to_bits());
+        }
+        drop(deliveries);
+        assert_eq!(account.current_samples(), 0);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn completed_single_group_values_keep_control_and_phase_boundaries() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let folds = Folds::new(&account);
+        let control = Control::default();
+        let node = NodeId(9);
+        let key = aggregate_key(1000);
+        let cancelled = Control::default();
+        cancelled.cancellation.cancel();
+        assert!(matches!(
+            folds.remember_aggregate(node, key, 1.0, false, &cancelled, &account),
+            Err(Interrupted::Cancelled)
+        ));
+        assert!(folds.state.borrow().aggregates.is_none());
+        let publish = Control::default();
+        let result = crate::test_storage::interrupt_after_work(&account, &publish, 1, || {
+            folds.remember_aggregate(node, key, 7.0, false, &publish, &account)
+        });
+        assert!(matches!(result, Err(Interrupted::Cancelled)));
+        assert_eq!(folds.completed_aggregates(), 0);
+        assert_eq!(account.current_samples(), 0);
+        assert!(
+            folds
+                .aggregate_value(node, key, &control, &account)
+                .unwrap()
+                .is_none()
+        );
+        folds
+            .remember_aggregate(node, key, -0.0, true, &control, &account)
+            .unwrap();
+        let replace = Control::default();
+        let result = crate::test_storage::interrupt_after_work(&account, &replace, 1, || {
+            folds.remember_aggregate(node, key, 99.0, false, &replace, &account)
+        });
+        assert!(matches!(result, Err(Interrupted::Cancelled)));
+        let value = folds
+            .aggregate_value(node, key, &control, &account)
+            .unwrap()
+            .unwrap();
+        assert_eq!((value.0.to_bits(), value.1), ((-0.0_f64).to_bits(), true));
+        let hit = Control::default();
+        assert!(matches!(
+            crate::test_storage::interrupt_after_work(&account, &hit, 1, || {
+                folds.aggregate_value(node, key, &hit, &account)
+            }),
+            Err(Interrupted::Cancelled)
+        ));
+        assert_eq!(account.current_samples(), 1);
+        assert!(
+            folds
+                .aggregate_value(node, aggregate_key(3000), &control, &account)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(account.current_samples(), 0);
+        folds
+            .remember_aggregate(node, key, 1.0, false, &control, &account)
+            .unwrap();
+        drop(
+            folds
+                .evaluate(request(1000, 0.0), &control, &account, |_| {
+                    Ok(completed(Some(OwnedValue::Float(2.0))))
+                })
+                .unwrap(),
+        );
+        folds
+            .retain_numeric(NodeId(2), NodeId(0), &control, &account)
+            .unwrap();
+        assert!(folds.state.borrow().aggregates.is_none());
+        assert_eq!(folds.state.borrow().records.len(), 1);
+        assert_eq!(account.current_samples(), 1);
+        println!(
+            "single-group-layout legacy_folds={} folds={} state={} raw_record={} aggregate_record={} aggregate_owner={}",
+            size_of::<RefCell<AccountedVec<Record>>>(),
+            size_of::<Folds>(),
+            size_of::<FoldState>(),
+            size_of::<Record>(),
+            size_of::<AggregateRecord>(),
+            AccountedBox::<AccountedVec<AggregateRecord>>::allocation_bytes()
+        );
+        folds.clear(&control, &account).unwrap();
+        drop(folds);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
     }
 
     #[test]
@@ -581,7 +890,7 @@ mod tests {
                 assert_eq!(current, peak);
             }
             peak = Some(current);
-            assert_eq!(folds.records.borrow().len(), 1);
+            assert_eq!(folds.state.borrow().records.len(), 1);
         }
         drop(folds);
         account.snapshot().assert_memory_released();
@@ -659,7 +968,7 @@ mod tests {
             value.as_ref().custom_values,
             histogram.as_ref().custom_values
         );
-        assert_eq!(folds.records.borrow().len(), 1);
+        assert_eq!(folds.state.borrow().records.len(), 1);
         drop(folds);
         assert!(recovered.value.is_some());
         drop(recovered);

@@ -1438,9 +1438,11 @@ integration, and Alertmanager remains excluded.
   later requests. Clear preparation credit before final delivery. Singleton group lookup is direct; nested requests
   use sorted/deduplicated accounted ordinal unions without changing arithmetic traversal order. RefCell borrows stay
   inside each operation and nested plans own different active unions.
-- **Ownership and failures:** selected values follow ordinary acquisition, including existing completed-window-fold
-  reuse. Preserve cold nonmember failures, genuinely read warm selected failures and provisional output cleanup.
-  Exact-key changes force full traversal. No raw-history array, copied child labels or aggregate payload cache is added.
+- **Ownership and failures:** selected values follow ordinary acquisition and existing completed-window folds,
+  except the separately admitted completed singleton Float reduction described below. Preserve cold nonmember
+  failures, genuinely read warm selected failures and provisional output cleanup.
+  Exact-key changes force full traversal. Contributor membership itself owns no raw-history array, child labels
+  or aggregate payload; completed singleton Float ownership has its separate bounded owner below.
 - **Costs and evidence:** the optional roster pointer has a per-node cost even for standalone queries. Demanded plans
   add member/group metadata and temporary construction storage; lower allocation traffic does not imply a lower
   peak. The [procedure and measurements](README.md#grouped-aggregate-contributors) and
@@ -1461,13 +1463,15 @@ integration, and Alertmanager remains excluded.
 - **Pair credit:** retain static pair identities, their original result hashes, and two bits per pair for unknown,
   suppressed or kept. Grant credit only after the original operand, label, reservation, seen and control phases
   succeed. A known non-target pair may reconstruct its original reservation and kept-only seen effect without
-  reading its values again. The requested pair always follows fresh ordinary evaluation.
+  reading its values again. The requested pair follows ordinary traversal; an admitted completed singleton
+  Float operand may use the separate bounded result owner below.
 - **Completion:** a processed prefix does not prove an unvisited suffix or full Done. If a fresh target becomes
   suppressed, continue ordinary traversal and preserve later operand failures. Do not replace a prefix with direct
   singleton output; surrounding operators may reject a sample or drain additional input.
 - **Memory and limits:** reuse the existing discovery bitmap and replay wrapper. Optional boxed metadata keeps
-  the maximum replay-enum and evaluator-Step layout unchanged. No raw samples, retained values, child labels,
-  payload cache, dependency, ABI, provider, contexts or storage change is added. Metadata restoration and prefix
+  the maximum replay-enum and evaluator-Step layout unchanged. This membership mechanism owns no raw samples,
+  retained values or child labels. Completed singleton Float ownership is separate; no dependency or public change.
+  Metadata restoration and prefix
   walks can still grow quadratically with series count; no linear-runtime or optimality claim follows.
 - **Evidence:** the [procedure](README.md#wrapped-grouped-joins) separates complete original outcomes, declared
   ordering-policy qualification, callback/control phases, query-owned memory and paired timing measurements.
@@ -1482,7 +1486,8 @@ integration, and Alertmanager remains excluded.
   producer/source/scope grid, invariant/boundary, name/fill and complete pair/hash/frontier checks. Instant/equal
   headers and unsupported ordinary grouped operands retain fallback. Failed certification discards the candidate.
 - **Progress:** preparation cannot earn final credit. Cold final discovery validates original operands and pair
-  prefixes; warm selected values remain fresh. Exact-key changes restart discovery. Existing suppressed/unknown
+  prefixes; warm selected operands retain ordinary traversal, with the bounded singleton Float exception below.
+  Exact-key changes restart discovery. Existing suppressed/unknown
   suffix, duplicate/cardinality, error, control and output-abort phases remain. Outer time-dependent pointwise
   parameters evaluate freshly even when the inner join has reusable metadata.
 - **Coordinates:** an actual bypassed Matrix body consumes the source bindings in `sources[descriptor.sources]`.
@@ -1497,15 +1502,17 @@ integration, and Alertmanager remains excluded.
 
 ## Local grouped join operands
 
-- **Choice:** at an eligible non-root ordered range Binary, resolve both operands through preprocessing and OR
+- **Choice:** at an eligible non-root ordered Binary, resolve both operands through preprocessing and OR
   their membership with existing single-child contributor demand. Keep Task unchanged and let ordinary child
   visits clamp their own clocks. An All-consuming ancestor can still have an ordered singleton descendant.
-- **Proof:** keep the supported operator/cardinality/name/fill and unequal-header/local clock guards. Each ordinary
-  group still needs its supported selector/window leaf. Final Pair admission retains original uniqueness, Float
+- **Proof:** keep supported operator/cardinality/name/fill and local clock guards for contributor demand,
+  including instant/equal headers. Each ordinary group needs its supported selector/window leaf. Final Pair
+  admission retains its stronger header/name guards, original uniqueness, Float
   single-source outputs and full pair/hash/frontier plus producer/source/scope grid checks. Partial group metadata
   can survive a rejected sibling/final certificate; it does not certify a Pair or change fallback outcomes.
 - **Progress:** successful full child Done grants group credit; original successful Pair prefixes grant separate
-  credit. Preparation clears both. Selected members remain fresh and new clocks validate again. Window caches can
+  credit. Preparation clears both. Selected members retain ordinary evaluation, except the admitted completed
+  singleton Float result below; new clocks validate again. Window caches can
   suppress physical reads, so actual inner failure calibration includes mixed directions with a raw side. Source
   binding ordinals remain distinct from final output ordinals; outer aggregate callbacks cannot locate inner phases.
 - **Ownership and cost:** existing accounted member/group/Pair metadata only. No new persistent field, evaluator
@@ -1625,7 +1632,8 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
   contributor builder's final validation/control. A singleton filtering Plan always declined activation, so its
   completion/active allocation is unnecessary; its selector identity still certifies productive nested joins.
 - **Retained:** exact clocks, complete range unions, plural membership/Done credit, fresh requested values,
-  parameters/opposite inputs, diagnostics and cleanup. No additional field, traversal, value cache or public change.
+  parameters/opposite inputs, diagnostics and cleanup. This representation change added no field, traversal,
+  value cache or public change; the later bounded singleton result owner is described below.
 - **Evidence:** actual node layouts shrink by eight bytes on AMD64, ARM64 and ARM32. Inactive singleton ownership
   removes 280 bytes on 64-bit and 216 bytes on ARM32. All native paired workspace peaks/traffic decrease; raw reads
   stay unchanged. Complete results, scheduling separation, actual C statistics and target scopes are measured.
@@ -1633,3 +1641,26 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
   costs rather than infer speed from smaller structs. The earlier empty-owner cohort remains historical evidence;
   singleton representation is now inline. See the
   [procedure and finite evidence](README.md#shared-scheduling-and-group-proof-owner).
+
+## Completed singleton aggregate values
+
+- **Choice:** keep one lazy accounted boxed table in Folds. Sorted expression-node slots hold one current exact
+  ReplayKey, completed Float bits, actual name flag and independent sample lease; no metric/time value array.
+- **Admission:** require existing globally one-group provenance and exact ordinary frame/producer/source/scope
+  clocks, plus the actual pending singleton physical side of a plural `group_left`/`group_right`. Recognize only
+  typed transparent Paren and same-node OrderedRows frames. Exclude own diagnostics, materialized/invariant/
+  boundary frames, plural/native/absent outcomes and unrelated one-pass consumers. Delayed-name proof fallback stays.
+- **Publication and lifetime:** actual child Done, reducer finish and reached annotations precede insertion.
+  Reserve/shift a successful Float slot before terminal control, then publish with constant work. Lookup releases
+  its borrow before label/delivery construction. Deliveries retain independent leases. Key mismatch, preparation,
+  clear and retain_numeric discard the owner; alternating nodes do not evict each other or retain old clocks.
+- **Contributor demand:** ordinary local Binary group demand now also covers instant/equal headers with existing
+  clock/name/operator/cardinality guards. Pair-specific certification keeps its own stronger restrictions. Cold
+  inputs, many-side values and outer parameters keep their original evaluation; only admitted completed singleton
+  Float reductions have the narrow freshness exception described here.
+- **Costs:** Folds grows eight header bytes on each target. First table costs 192 bytes on AMD64/ARM64 and 168 on
+  ARM32; two slots use normal vector growth to capacity four. No raw Record, Frame or NodeRoster field is added.
+  Finite queries reduce reads/allocation traffic while some add Workspace peak; retain every cost and slower sample.
+- **Evidence:** the [procedure and qualification](README.md#completed-singleton-aggregate-values) cover actual
+  read phases, complete bits/labels/clocks, controls, sample ownership, native/ARM/C scopes and all source attempts.
+  No public/provider/contexts/storage/numerical/profile/dependency/cap change or linear/minimal-RAM claim follows.

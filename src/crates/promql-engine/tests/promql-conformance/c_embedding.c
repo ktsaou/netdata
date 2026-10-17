@@ -1125,7 +1125,8 @@ static uint32_t join_commit(void *context, const netdata_promql_query_observatio
 }
 
 static void four_series_float_query_members(netdata_promql_engine_t *engine, uint8_t query_kind,
-                                           const char *expression_override, unsigned aggregate_members) {
+                                           const char *expression_override, unsigned aggregate_members,
+                                           unsigned completed_group) {
     assert(!aggregate_members || query_kind == FOUR_SERIES_RATE);
     const uint64_t page_sizes[] = {1, 17, 1024};
     for (unsigned page = 0; page < 3; page++) {
@@ -1229,9 +1230,14 @@ static void four_series_float_query_members(netdata_promql_engine_t *engine, uin
                 assert(error.kind == NETDATA_PROMQL_ERROR_OUTPUT && error.message.len == sizeof(message));
                 assert(memcmp(error.message.data, message, sizeof(message)) == 0);
             }
-            if (query_kind == FOUR_SERIES_RATE && expression_override) {
+            if ((query_kind == FOUR_SERIES_RATE || completed_group) && expression_override) {
                 statistics_valid(&observations.statistics);
-                fputs(aggregate_members ? "{\"group_contributor_case\":\"pass\",\"expression\":" :
+                if (completed_group) {
+                    assert(observations.samples_fetched == source.source.samples_returned);
+                    assert(observations.pages == source.source.pages_returned);
+                }
+                fputs(completed_group ? "{\"completed_single_group_case\":\"pass\",\"mode\":\"stream\",\"expression\":" :
+                      aggregate_members ? "{\"group_contributor_case\":\"pass\",\"expression\":" :
                                           "{\"mapped_rate_case\":\"pass\",\"expression\":", stdout);
                 print_json_string(expression_override);
                 printf(",\"page\":%" PRIu64 ",\"arm\":%u,\"status\":%u,\"output_samples\":%" PRIu64
@@ -1272,7 +1278,93 @@ static void four_series_float_query_members(netdata_promql_engine_t *engine, uin
 }
 
 static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t query_kind, const char *expression_override) {
-    four_series_float_query_members(engine, query_kind, expression_override, 0);
+    four_series_float_query_members(engine, query_kind, expression_override, 0, 0);
+}
+
+static void completed_single_group_values(netdata_promql_engine_t *engine) {
+    const uint64_t pages[] = {1, 17, 1024};
+    const char *expressions[] = {"m/on()group_left()avg(m)", "avg(m)/on()group_right()m"};
+    for (unsigned direction = 0; direction < 2; direction++) {
+        four_series_float_query_members(engine, FOUR_SERIES_FLOAT_MAP, expressions[direction], 0, 1);
+        for (unsigned page = 0; page < 3; page++) {
+            for (unsigned kind = 0; kind < 3; kind++) {
+                netdata_promql_engine_observations_t idle;
+                assert(netdata_promql_engine_observations(engine, &idle) == NETDATA_PROMQL_OK);
+                join_fixture source;
+                memset(&source, 0, sizeof(source));
+                init_fixture(&source.source, 3, pages[page]);
+                static const uint8_t zones[] = {'0', '1', '2', '3'};
+                for (unsigned row = 0; row < 4; row++) {
+                    source.labels[row][0] = source.source.labels[0];
+                    source.labels[row][1].name = text("zone");
+                    source.labels[row][1].value = bytes(&zones[row], 1);
+                }
+                netdata_promql_provider_t input = provider(&source.source);
+                input.context = &source;
+                input.selection_next = join_selection_next;
+                input.cursor_open = join_cursor_open;
+                input.cursor_next = join_cursor_next;
+                netdata_promql_query_t *query = compile(engine, expressions[direction]);
+                netdata_promql_request_t request = instant(kind == 2 ? 1000 : 2000);
+                if (kind) {
+                    request.kind = NETDATA_PROMQL_REQUEST_RANGE;
+                    request.end_ms = 2000;
+                    request.step_ms = 1000;
+                }
+                netdata_promql_result_t *result = NULL;
+                netdata_promql_report_t *report = NULL;
+                assert(netdata_promql_collect(query, &input, &request, NULL, &result, &report) == NETDATA_PROMQL_OK);
+                assert(result && report);
+                released(&source.source);
+                netdata_promql_query_observations_t observed;
+                assert(netdata_promql_report_observations(report, &observed) == NETDATA_PROMQL_OK);
+                assert(observed.samples_fetched == source.source.samples_returned && observed.pages == source.source.pages_returned);
+                assert(observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
+                statistics_valid(&observed.statistics);
+                unsigned points = kind == 2 ? 2u : 1u;
+                assert(observed.output_samples == 4u * points);
+                assert(observed.statistics.samples.total_queryable_samples == 8u * points);
+                assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+                assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+                memset(source.labels, 0, sizeof(source.labels));
+                memset(source.source.labels, 0, sizeof(source.source.labels));
+                netdata_promql_result_info_t info;
+                assert(netdata_promql_result_info(result, &info) == NETDATA_PROMQL_OK);
+                assert(info.series_count == 4 && info.annotation_count == 0);
+                assert(info.header.value_type == (kind ? NETDATA_PROMQL_TYPE_MATRIX : NETDATA_PROMQL_TYPE_VECTOR));
+                for (uint64_t row = 0; row < 4; row++) {
+                    netdata_promql_series_info_t series;
+                    netdata_promql_label_t label;
+                    assert(netdata_promql_result_series_info(result, row, &series) == NETDATA_PROMQL_OK);
+                    assert(series.label_count == 1 && series.point_count == points);
+                    assert(netdata_promql_result_label(result, row, 0, &label) == NETDATA_PROMQL_OK);
+                    assert(label.name.len == 4 && memcmp(label.name.data, "zone", 4) == 0);
+                    assert(label.value.len == 1 && label.value.data[0] == '0' + row);
+                    for (uint64_t point = 0; point < points; point++) {
+                        netdata_promql_point_info_t actual;
+                        assert(netdata_promql_result_point(result, row, point, &actual) == NETDATA_PROMQL_OK);
+                        assert(actual.time_ms == (kind == 2 ? (int64_t)(point + 1) * 1000 : 2000));
+                        assert(actual.value_kind == NETDATA_PROMQL_VALUE_FLOAT && actual.value_bits == netdata_promql_double_bits(1.0));
+                    }
+                }
+                assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
+                fputs("{\"completed_single_group_case\":\"pass\",\"mode\":\"collect\",\"expression\":", stdout);
+                print_json_string(expressions[direction]);
+                printf(",\"page\":%" PRIu64 ",\"request_kind\":%u,\"status\":0,\"output_samples\":%" PRIu64
+                       ",\"work\":%" PRIu64 ",\"fetched\":%" PRIu64 ",\"statistics\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 "],\"memory\":[",
+                       pages[page], kind, observed.output_samples, observed.work, observed.samples_fetched,
+                       observed.statistics.samples.total_queryable_samples, observed.statistics.samples.samples_read,
+                       observed.statistics.samples.peak_samples);
+                for (unsigned memory_kind = 0; memory_kind < NETDATA_PROMQL_MEMORY_KINDS; memory_kind++) {
+                    netdata_promql_memory_observation_t memory = observed.memory[memory_kind];
+                    printf("%s[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 "]", memory_kind ? "," : "",
+                           memory.current, memory.peak, memory.acquired, memory.released);
+                }
+                puts("]}");
+                balanced(engine, &idle);
+            }
+        }
+    }
 }
 
 typedef struct {
@@ -2497,12 +2589,20 @@ int main(int argc, char **argv) {
     assert(options.lookback_ms == 300000 && options.no_step_subquery_interval_ms == 60000);
     if (argc == 2 && strcmp(argv[1], "--window-folds-only") == 0)
         options.flags |= NETDATA_PROMQL_EXPERIMENTAL_FUNCTIONS | NETDATA_PROMQL_START_TIMESTAMPS;
-    if (argc == 2 && strcmp(argv[1], "--instant-sets-delayed-only") == 0)
+    if (argc == 2 && (strcmp(argv[1], "--instant-sets-delayed-only") == 0 ||
+                      strcmp(argv[1], "--single-group-values-delayed-only") == 0))
         options.flags |= NETDATA_PROMQL_DELAYED_NAME_REMOVAL;
     netdata_promql_engine_t *engine = NULL;
     assert(netdata_promql_engine_create(&options, &engine) == NETDATA_PROMQL_OK);
     netdata_promql_engine_observations_t idle;
     assert(netdata_promql_engine_observations(engine, &idle) == NETDATA_PROMQL_OK);
+    if (argc == 2 && (strcmp(argv[1], "--single-group-values-only") == 0 ||
+                      strcmp(argv[1], "--single-group-values-delayed-only") == 0)) {
+        completed_single_group_values(engine);
+        balanced(engine, &idle);
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        return 0;
+    }
     if (argc == 2 && strcmp(argv[1], "--empty-groups-only") == 0) {
         empty_group_owner_outputs(engine);
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
@@ -2610,7 +2710,7 @@ int main(int argc, char **argv) {
                     length = snprintf(outer, sizeof(outer), wrappers[t], expression);
                     assert(length > 0 && (size_t)length < sizeof(outer));
                 }
-                four_series_float_query_members(engine, FOUR_SERIES_RATE, wrapped ? outer : expression, 1);
+                four_series_float_query_members(engine, FOUR_SERIES_RATE, wrapped ? outer : expression, 1, 0);
                 balanced(engine, &idle);
             }
         }

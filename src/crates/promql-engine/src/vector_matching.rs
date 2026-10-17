@@ -647,6 +647,43 @@ pub(crate) struct Step<'a> {
     pending: Option<AccountedBox<CompletedStep>>,
 }
 impl<'a> Step<'a> {
+    pub(crate) fn repeated_singleton_side(&self) -> Option<usize> {
+        if self.operator.is_set()
+            || self.matching.fill_left.is_some()
+            || self.matching.fill_right.is_some()
+        {
+            return None;
+        }
+        let one = match self.matching.cardinality {
+            Cardinality::OneToMany => 0,
+            Cardinality::ManyToOne => 1,
+            _ => return None,
+        };
+        if self.plan.sides[one].rows.len() != 1 || self.plan.sides[1 - one].rows.len() <= 1 {
+            return None;
+        }
+        let side = match self.phase {
+            Phase::Left => 0,
+            Phase::Right => 1,
+            Phase::WaitLeft | Phase::WaitRight => {
+                let Choice::Pair { left, right, .. } = self.choice? else {
+                    return None;
+                };
+                let operand = if matches!(self.phase, Phase::WaitLeft) {
+                    left
+                } else {
+                    right
+                };
+                if operand.fill.is_some() {
+                    return None;
+                }
+                operand.side
+            }
+            _ => return None,
+        };
+        (side == one).then_some(one)
+    }
+
     pub(crate) fn has_set_discovery(&self) -> bool {
         self.plan.has_set_discovery()
     }

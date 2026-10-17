@@ -2617,6 +2617,101 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         })
     }
 
+    fn singleton_group_key(
+        &self,
+        mut index: usize,
+    ) -> Result<Option<crate::vector_matching::ReplayKey>, Interrupted> {
+        let node = self.frames[index].node;
+        if index == 0
+            || self.rosters.group_selector(node).is_none()
+            || !self
+                .rosters
+                .groups(node)
+                .is_some_and(|groups| groups.len() == 1)
+            || node == self.diagnostic_node && self.annotations.is_some()
+        {
+            return Ok(None);
+        }
+        let key_for = |frame: &Frame| {
+            crate::vector_matching::ReplayKey::new(
+                frame.options,
+                frame.step_index,
+                self.prepared.lookback_ns(frame.options.lookback_ms),
+                self.data_bounds,
+            )
+        };
+        let ordinary_clock = |frame: &Frame| {
+            frame.boundary_time_ms.is_none()
+                && !self.prepared.flags().invariants[frame.node.0]
+                && !self.prepared.flags().boundaries[frame.node.0]
+                && self.rosters.matrix(frame.node).is_none()
+                && self.rosters.replay_grid_matches(
+                    frame.node,
+                    crate::query_scopes::Grid {
+                        start_ms: frame.options.start_ms,
+                        end_ms: frame.options.end_ms,
+                        interval_ms: frame.options.step_ms,
+                    }
+                    .header(self.prepared.header),
+                    self.prepared,
+                )
+        };
+        let key = key_for(&self.frames[index]);
+        if !ordinary_clock(&self.frames[index]) {
+            return Ok(None);
+        }
+        while index > 0 {
+            self.control.check()?;
+            self.account.work(1);
+            let child = &self.frames[index];
+            let parent = &self.frames[index - 1];
+            if !ordinary_clock(parent) || key_for(parent) != key {
+                return Ok(None);
+            }
+            match &parent.state {
+                State::OrderedRows { running: true, .. }
+                    if parent.node == child.node && child.bypass_order => {}
+                State::Pass => {
+                    let Expr::Paren(next) = self.expression.arena[parent.node].expression else {
+                        return Ok(None);
+                    };
+                    if self.prepared.preprocessing.child(
+                        self.expression,
+                        parent.node,
+                        next,
+                        self.control,
+                        self.account,
+                    )? != child.node
+                    {
+                        return Ok(None);
+                    }
+                }
+                State::Binary(step) => {
+                    let Some(side) = step.repeated_singleton_side() else {
+                        return Ok(None);
+                    };
+                    let Expr::Binary { left, right, .. } =
+                        self.expression.arena[parent.node].expression
+                    else {
+                        unreachable!("binary consumer frame")
+                    };
+                    let operand = if side == 0 { left } else { right };
+                    return Ok((self.prepared.preprocessing.child(
+                        self.expression,
+                        parent.node,
+                        operand,
+                        self.control,
+                        self.account,
+                    )? == child.node)
+                        .then_some(key));
+                }
+                _ => return Ok(None),
+            }
+            index -= 1;
+        }
+        Ok(None)
+    }
+
     fn enter(&mut self, index: usize) -> Result<Option<EvaluatedSample<'a>>, EvaluationError> {
         let node = self.frames[index].node;
         if self
@@ -2738,12 +2833,38 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 if !crate::aggregation::ordinary(*operator) {
                     return Err(EvaluationError::Unsupported("aggregation kernel"));
                 }
-                let mut groups = AccountedVec::new(self.account, MemoryKind::Workspace);
                 let descriptors = self
                     .rosters
                     .groups(node)
                     .ok_or(EvaluationError::Invalid("aggregation roster is missing"))?;
                 let filter = self.frames[index].filter;
+                if let Some(key) = self.singleton_group_key(index)?
+                    && filter.accepts(0, self.control, self.account)?
+                    && let Some((value, drop_name)) = self.prepared.range_folds.aggregate_value(
+                        node,
+                        key,
+                        self.control,
+                        self.account,
+                    )?
+                {
+                    let sample = EvaluatedSample {
+                        ordinal: 0,
+                        labels: SampleLabels::aggregate(
+                            &descriptors[0].labels,
+                            self.account,
+                            self.control,
+                        )?,
+                        value: OwnedValue::Float(value),
+                        float_samples: Some(crate::statistics::OwnedSamples::new(self.account, 1)),
+                        source_time_ms: self.options.time_ms,
+                        source_start_time_ms: 0,
+                        drop_name,
+                    };
+                    self.control.check()?;
+                    self.frames.pop();
+                    return Ok(Some(sample));
+                }
+                let mut groups = AccountedVec::new(self.account, MemoryKind::Workspace);
                 if let Some(ordinal) = filter.singleton() {
                     self.control.check()?;
                     self.account.work(1);
@@ -3598,6 +3719,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             let filter = self.frames[index].filter;
             let mode = self.frames[index].mode;
             let bypass_order = self.frames[index].bypass_order;
+            let aggregate_key = if matches!(&self.frames[index].state,
+                State::Aggregate { groups, .. } if groups.len() == 1 && groups[0].seen)
+            {
+                self.singleton_group_key(index)?
+            } else {
+                None
+            };
             match &mut self.frames[index].state {
                 State::Gather(step) => match step.advance(self.control, self.account)? {
                     crate::matrix_heads::Action::Child {
@@ -4302,6 +4430,22 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                 )?]
                                 .span,
                                 &self.expression.source,
+                                self.control,
+                                self.account,
+                            )?;
+                        }
+                        if let Some(key) = aggregate_key
+                            && let Some(EvaluatedSample {
+                                value: OwnedValue::Float(value),
+                                drop_name,
+                                ..
+                            }) = &sample
+                        {
+                            self.prepared.range_folds.remember_aggregate(
+                                node,
+                                key,
+                                *value,
+                                *drop_name,
                                 self.control,
                                 self.account,
                             )?;

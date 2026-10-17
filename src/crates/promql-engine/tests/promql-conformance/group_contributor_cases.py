@@ -407,3 +407,61 @@ def projected_cases():
                 add(f"absent:{shape}", expression, [], profile, delayed)
     assert len({case["request"]["id"] for case in output}) == len(output)
     return output
+
+
+def single_group_value_cases():
+    """Completed singleton reductions beside clock, kind and one-pass fallbacks."""
+    from base64 import b64decode, b64encode
+
+    many = "sum by(cluster,zone)(m_total)"
+    one = "sum(n_total)"
+    ratio = f"{many}/on()group_left(){one}"
+    queries = []
+    for operator in OPERATORS:
+        queries.extend((
+            f"{many}/on()group_left(){operator}(n_total)",
+            f"{operator}(n_total)/on()group_right(){many}",
+        ))
+    queries.extend((
+        f"abs(({many})/on()group_left()({one}))",
+        f"sum({ratio})",
+        f"topk(2,{ratio})",
+        f"clamp_min({ratio},time()/10000)",
+        f"({ratio})>bool 0.25",
+        f"({ratio})+on(cluster,zone)({many}/on()group_left()avg(n_total))",
+        "sum by(cluster,zone)(rate(m_total[3s]))/on()group_left()sum(rate(n_total[3s]))",
+        f"sum_over_time(({ratio})[2s:1s])",
+        f"{many}/on(cluster)group_left()sum by(cluster)(n_total)",
+        f"{many}/on()group_left()sum(n_total @ 2)",
+        f"{many}/on()group_left()sum(n_total offset 1s)",
+        "label_join(sum(n_total),\"row\",\"/\",\"cluster\")",
+    ))
+    states = ["dense", "stale", "late", "all-native", "mixed", "nan", "zero", "empty-labels"]
+    populations = [(state, groups) for state in states for groups in (0, 1, 4)]
+    populations.append(("dense", 16))
+    output = []
+    for state, groups in populations:
+        records = _records(state, groups=groups, members=2)
+        if state == "empty-labels":
+            for record in records:
+                for label in record["labels"]:
+                    if b64decode(label["name"]) == b"zone" and b64decode(label["value"]) == b"0":
+                        label["value"] = b64encode(b"").decode()
+        for index, expression in enumerate(queries):
+            for delayed in (False, True):
+                for mode in ("instant", "equal", "range"):
+                    output.append({
+                        "request": {
+                            "id": f"single-value:{state}:{groups}:{index}:{delayed}:{mode}",
+                            "query": expression, "profile": "server-default",
+                            "delayed_name_removal": delayed, "mode": "instant" if mode == "instant" else "range",
+                            "time_ms": 3000, "start_ms": 1000 if mode == "range" else 3000,
+                            "end_ms": 5000 if mode == "range" else 3000, "step_ms": 1000,
+                            "lookback_ms": 1, "subquery_step_ms": 1000,
+                        },
+                        "dataset": {"schema_version": 1, "series": records},
+                        "faults": {},
+                    })
+    if len(output) != 4200 or len({entry["request"]["id"] for entry in output}) != len(output):
+        raise ValueError("singleton value corpus identity or size changed")
+    return output

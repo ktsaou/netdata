@@ -472,6 +472,19 @@ impl Rosters {
         self.nodes[node.0].producer
     }
 
+    pub(crate) fn replay_grid_matches(
+        &self,
+        node: NodeId,
+        header: crate::result::OutputHeader,
+        prepared: &Prepared,
+    ) -> bool {
+        let grid = crate::query_scopes::Grid::from(header);
+        self.producer_clock(node)
+            .is_some_and(|clock| clock.grid == grid)
+            && crate::query_scopes::Grid::from(prepared.source_header(node, header)) == grid
+            && crate::query_scopes::Grid::from(prepared.scope_header(node, header)) == grid
+    }
+
     pub(crate) fn prepare_scalar(
         &mut self,
         node: NodeId,

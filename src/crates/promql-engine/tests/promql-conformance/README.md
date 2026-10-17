@@ -5730,6 +5730,75 @@ and derived metadata/state may grow. No language feature is added or dropped. Ea
 live-Agent cohorts retain their own identities.
 
 
+## Completed singleton aggregate values
+
+A grouped join can request its one-group operand repeatedly at the same evaluation time. The evaluator now
+retains that operand's completed Float result after successful input completion, reduction, annotations and
+terminal control. Both `group_left` and `group_right` use the actual pending physical side. The result keeps its
+exact bits, name behavior and query-owned sample lease. Each delivery owns a separate lease.
+
+The table is lazy, with at most one current value per admitted expression node. A changed replay key discards
+the previous value. Existing fold clearing also removes the table, including preparation before final delivery.
+Raw metric histories remain paged. Native histograms, absent outputs, plural groups, delayed-name fallback,
+unsupported clocks/frames and unrelated one-pass consumers retain ordinary evaluation. Many-side values and
+outer parameters remain fresh. Transparent parentheses and existing same-node ordered frames are recognized.
+Local group demand also covers instant/equal headers; Pair certification keeps its separate stronger guards.
+
+Run from the Cargo root with either optimized profile:
+
+```sh
+cargo test --locked --features fixtures --release -- completed_single_group --nocapture
+```
+
+Five new units cover complete results before read-growth assertions, actual first/new-clock/many-side errors,
+omitted same-key acquisition, cancellation before publication, independent delivery ownership, two alternating
+nodes over 1,024 clocks, exact nonfinite/signed-zero bits and one-pass/native/mixed/stale fallbacks. Four unchanged
+production witnesses each pass all 216 results before the intended growth failure. At 4/16 groups, fetched
+entries change from 144/1,344 to 112/832. This finite bound is not a linear-complexity guarantee.
+
+`group_contributor_cases.single_group_value_cases()` supplies 4,200 cases over 25 populations and 28 shapes.
+Both native profiles pass 770 units with two unchanged ignored tests and 18 focused checks. Each ARM target
+passes 21 focused checks and 24,318 page-17 outcomes under QEMU. Across pages/profiles/targets, 194,544 current
+outcomes qualify; 145,908 native before/current results match exactly. Another 140,826 retained portable pairs
+reuse terminal captures. The new cases compare with accepted-before results, not fresh Go originals. Inherited
+360 current/270 native-before strict original failures keep their unchanged ordering-policy qualifications.
+
+The C caller's `--single-group-values-only` and `--single-group-values-delayed-only` modes exercise collect and
+stream ownership, complete output, later required-read errors and logical sample totals. The same new frontend
+passes 144 before/current pairs using actual default archives, plus 144 current C++ cases. Both full current C
+programs pass. The 546 legacy C pairs and 402 exact legacy statistic triples retain their separate attribution.
+
+| Measured memory or read cost | Result |
+| --- | ---: |
+| Native paired queries with fewer fetched entries | 3,960 |
+| Native paired queries with lower Workspace allocation traffic | 4,536 |
+| Positive Workspace observation rows | 1,284 |
+| Maximum positive Workspace peak / acquired traffic per query | +2,136 / +1,264 B |
+| Folds header, AMD64/ARM64 | 56 → 64 B |
+| Folds header, ARM32 | 40 → 48 B |
+| First aggregate table, AMD64/ARM64 / ARM32 | 192 / 168 B |
+
+All eight categories and cleanup are checked. No native pair lowers Workspace peak; other categories do not
+increase. None of the actual C pairs increases tracked memory. The header comparison models the previous exact
+single-field type with the current compiler. Two-node table capacity remains four over the clock stress test.
+
+Timing uses 192 cases per native profile, five alternating serial pairs and 15,360 primary queries, including
+11,520 measured outcomes. Case suffixes are window/reverse/delayed-name/instant flags. Medians are microseconds:
+
+| Complete query case | Release before → current | Release-min before → current |
+| --- | ---: | ---: |
+| `single-value-False-False-False-True` | 2847.276 → 1922.013 | 4896.949 → 3235.383 |
+| `single-value-True-False-False-False` | 19708.745 → 13226.510 | 35775.769 → 21450.980 |
+| `single-value-True-False-True-False` | 138118.873 → 145781.568 | 258661.171 → 252072.963 |
+
+All 116 slower primary medians remain. Every primary median at least 5% slower receives the predeclared
+five-pair follow-up, totaling 1140 queries; primary samples are never replaced. Six matched linked pairs
+retain all executable costs. Fixture text grows 9,004–28,644 B; the C programs change by −4,908/+7,908 B.
+These shared-host fixtures establish neither universal speed nor live API, concurrent, physical ARM or RSS
+improvements. Delayed-name nested joins and complex subqueries still have substantial repeated work. See the
+[complete finite qualification](single-group-values-qualification.json) for every slower sample, positive memory
+row, preserved failed attempt, source/binary identity and actual C observation.
+
 ## Shared scheduling and group proof owner
 
 Scheduling and ordinary aggregate provenance now share one tagged metadata owner. Their meanings remain
@@ -6471,14 +6540,18 @@ A nested join can now pass existing contributor demand to both ordinary grouped 
 can reuse completed membership and evaluate only the requested groups' original members. The two child IDs are
 resolved through the same preprocessing as their visits. Existing single-child demand remains in place.
 
-This is private admission reuse. It requires a non-root supported Binary, an unequal range header and the existing
-local clock proof. Each child still clamps demand against its own invariant/boundary/source/scope grid. Ordinary
+This is private admission reuse. Contributor demand requires a non-root supported Binary and its existing
+local clock proof, including instant/equal headers; final Pair certification keeps its stronger header guards. Each
+child still clamps demand against its own invariant/boundary/source/scope grid. Ordinary
 group and supported selector/window proofs, original uniqueness, Float/single-binding output and complete Pair
 certification remain mandatory. Root/wrapper discovery and unsupported fallbacks retain their owners. The earlier
-ordered-binary guard's productive grouped case now expects admission; instant/equal/fixed/mixed raw rejection stays.
+ordered-binary guard's productive grouped case expects admission; its Pair-specific instant/equal/fixed/mixed
+raw rejection stays. Contributor demand and completed singleton Float admission have their separate guards.
 
 Successful full child Done earns contributor credit. Pair-prefix credit has its own successful traversal. Preparation
-clears both; requested members remain fresh and a new clock starts validation again. A supported child can own group
+clears both; requested members retain ordinary evaluation except the separately admitted
+[completed singleton Float](#completed-singleton-aggregate-values), and a new clock starts validation again.
+A supported child can own group
 metadata even when its sibling or final Pair proof rejects. No Task field, evaluator mode, raw-value cache, provider,
 contexts, storage, public interface, arithmetic order or implicit-limit policy changes.
 
