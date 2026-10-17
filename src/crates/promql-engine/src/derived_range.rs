@@ -290,6 +290,7 @@ pub(crate) enum Action<'a> {
 pub(crate) struct BackingSource {
     input: Input,
     pub(crate) ordinal: usize,
+    pub(crate) kinds: u8,
 }
 impl BackingSource {
     pub(crate) fn reader(self) -> Reader {
@@ -544,6 +545,9 @@ impl<'a> Step<'a> {
                 }
             })? {
                 derived_matrix::Action::Fetch(fetch) => {
+                    if fetch.absent_histogram(row.kinds) {
+                        continue;
+                    }
                     return Ok(Action::Child {
                         node: self.input.body,
                         ordinal: row.ordinal,
@@ -575,6 +579,7 @@ impl<'a> Step<'a> {
                                 source: BackingSource {
                                     input: self.input,
                                     ordinal: row.ordinal,
+                                    kinds: row.kinds,
                                 },
                             });
                         }
@@ -637,6 +642,184 @@ mod tests {
             sources: 0..1,
             kinds: 1,
             heads: Default::default(),
+        }
+    }
+
+    #[test]
+    fn derived_float_kind_replays_preserve_multiplicity_before_child_bound() {
+        let mut calls = [0_u64; 3];
+        for (case, kinds) in [1, 0, 3].into_iter().enumerate() {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut rows = [row(&account)];
+            rows[0].kinds = kinds;
+            let mut input = input(4);
+            input.function = RangeFunction::Fold(FoldKind::Sum);
+            input.scheduled = false;
+            let mut step = Step::new(input, &rows, RowFilter::All, &account);
+            let mut outputs = 0;
+            loop {
+                match step.advance(&control, &account).unwrap() {
+                    Action::Child {
+                        ordinal, options, ..
+                    } => {
+                        assert_eq!(ordinal, 0);
+                        calls[case] += 1;
+                        assert!(calls[case] < 100, "finite derived body requests");
+                        if options.time_ms < 4000 {
+                            for extra in [0.0, 10.0] {
+                                let sample = EvaluatedSample {
+                                    ordinal,
+                                    labels: OwnedLabels::new(&account, MemoryKind::Workspace)
+                                        .into(),
+                                    value: OwnedValue::Float(
+                                        (options.time_ms / 1000) as f64 + extra,
+                                    ),
+                                    float_samples: Some(crate::statistics::OwnedSamples::new(
+                                        &account, 1,
+                                    )),
+                                    source_time_ms: options.time_ms,
+                                    source_start_time_ms: 0,
+                                    drop_name: false,
+                                };
+                                if step.receive(sample, &control, &account).unwrap() {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    Action::Series {
+                        sample,
+                        invalid_quantile,
+                        annotations,
+                        metric,
+                        nonempty,
+                        sample_units,
+                    } => {
+                        let sample = sample.unwrap();
+                        assert_eq!(sample.ordinal, 0);
+                        assert!(sample.labels.0.is_empty());
+                        assert_eq!(sample.source_time_ms, 4000);
+                        assert_eq!(sample.source_start_time_ms, 0);
+                        assert!(sample.drop_name);
+                        let OwnedValue::Float(value) = sample.value else {
+                            panic!("complete derived float sum");
+                        };
+                        assert_eq!(value.to_bits(), 42.0_f64.to_bits());
+                        assert!(
+                            invalid_quantile.is_none() && annotations.iter().all(Option::is_none)
+                        );
+                        assert!(metric.is_empty() && nonempty);
+                        assert_eq!(sample_units, 6);
+                        outputs += 1;
+                    }
+                    Action::Done => break,
+                    _ => panic!("ordinary unscheduled Float fold"),
+                }
+            }
+            assert_eq!(outputs, 1);
+            println!(
+                "derived-kind-result mask={kinds} sum=42 units=6 children={}",
+                calls[case]
+            );
+            drop(step);
+            drop(rows);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+        println!("derived-kind-complete results=3");
+        println!(
+            "derived-kind-layout reader={} step={} backing_source={} action={}",
+            std::mem::size_of::<Reader>(),
+            std::mem::size_of::<Step<'_>>(),
+            std::mem::size_of::<BackingSource>(),
+            std::mem::size_of::<Action<'_>>()
+        );
+        assert_eq!(&calls[1..], &[28, 28]);
+        assert!(
+            calls[0] <= 20,
+            "Float-only rows must omit empty histogram body replays"
+        );
+    }
+
+    #[test]
+    fn derived_float_kind_keeps_required_requests_and_terminal_cancellation() {
+        for kinds in [1, 0, 3, 255] {
+            for cancel in [false, true] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let mut rows = [row(&account)];
+                rows[0].kinds = kinds;
+                let mut input = input(2);
+                input.function = RangeFunction::Fold(FoldKind::Sum);
+                input.scheduled = false;
+                let mut step = Step::new(input, &rows, RowFilter::All, &account);
+                // The third request must still validate the exhausted Float occurrence.
+                for occurrence in 0..3 {
+                    let Action::Child {
+                        ordinal, options, ..
+                    } = step.advance(&control, &account).unwrap()
+                    else {
+                        panic!("required Float acquisition");
+                    };
+                    assert_eq!((ordinal, options.time_ms), (0, 1000));
+                    let mut accepted = false;
+                    for value in [1.0, 11.0] {
+                        accepted = step
+                            .receive(
+                                EvaluatedSample {
+                                    ordinal,
+                                    labels: OwnedLabels::new(&account, MemoryKind::Workspace)
+                                        .into(),
+                                    value: OwnedValue::Float(value),
+                                    float_samples: Some(crate::statistics::OwnedSamples::new(
+                                        &account, 1,
+                                    )),
+                                    source_time_ms: 1000,
+                                    source_start_time_ms: 0,
+                                    drop_name: false,
+                                },
+                                &control,
+                                &account,
+                            )
+                            .unwrap();
+                        if accepted {
+                            break;
+                        }
+                    }
+                    assert_eq!(accepted, occurrence < 2);
+                }
+                if cancel {
+                    control.cancellation.cancel();
+                    assert!(matches!(
+                        step.advance(&control, &account),
+                        Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                    ));
+                } else {
+                    let Action::Child { options, .. } = step.advance(&control, &account).unwrap()
+                    else {
+                        panic!("required next body acquisition");
+                    };
+                    // Only exact Float-only metadata may omit the histogram fallback.
+                    assert_eq!(options.time_ms, if kinds == 1 { 2000 } else { 1000 });
+                    if kinds != 1 {
+                        let Action::Child { options, .. } =
+                            step.advance(&control, &account).unwrap()
+                        else {
+                            panic!("fresh next-clock Float acquisition");
+                        };
+                        assert_eq!(options.time_ms, 2000);
+                    }
+                }
+                drop(step);
+                drop(rows);
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
         }
     }
 

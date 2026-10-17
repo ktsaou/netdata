@@ -73013,5 +73013,16 @@
       "tests/promql-integration/test_performance.py": "7ee698450c58329c75be230b88c8cfcef7d1b9c2c860a6f43633d7a819b3494a"
     },
     "scope": "Lazy exact-key completed singleton Float values in repeated direct group_left/right operands.194544current/145908exact native/140826retained portable pairs;770units/profile,21focused and24318outcomes per ARM target. All memory/linked/slower costs and failed source attempts remain explicit; no language/public/storage/numerical change."
+  },
+  "known_empty_derived_histogram_probes": {
+    "status": "qualified_private_optimization",
+    "report": "derived-kind-qualification.json",
+    "report_sha256": "ce2481f70aebe2e27fd65d261acfcd055e6c36d9ce306df8273e30ba1535680c",
+    "complete_current_outcomes": 41184,
+    "new_canonical_cases": 1440,
+    "native_units_per_profile": 773,
+    "unchanged_ignored_units": 2,
+    "positive_tracked_memory_rows": 0,
+    "scope": "Both generic callers, exact frozen Float-only union, actual Float completion and backing fallback; no raw history cache, language/numerical/provider/ABI/storage/API/cap change. Final code/source/binary phases and every measured cost retain actual identities."
   }
 }

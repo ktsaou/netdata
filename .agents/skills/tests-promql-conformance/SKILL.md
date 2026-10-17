@@ -155,6 +155,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Completed singleton aggregate values MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-singleton-aggregate-values` for actual
   pending-side/clock admission, terminal publication, independent sample ownership and bounded table costs.
+- Generic derived range changes MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#known-empty-derived-histogram-probes` for actual
+  Float completion, type-union provenance, backing fallbacks and source-bound physical/error/memory scopes.
 - Shared schedule/group ownership MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#shared-scheduling-and-group-proof-owner` for distinct
   proof semantics, productive singleton provenance, terminal controls and actual per-target layout/getter costs.

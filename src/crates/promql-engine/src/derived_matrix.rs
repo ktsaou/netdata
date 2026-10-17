@@ -24,6 +24,12 @@ pub(crate) struct Fetch {
     pub(crate) kind: u8,
     pub(crate) occurrence: u64,
 }
+impl Fetch {
+    pub(crate) fn absent_histogram(self, kinds: u8) -> bool {
+        // Histogram probes follow the completed Float traversal at this timestamp.
+        self.kind == 2 && kinds == 1
+    }
+}
 
 pub(crate) enum Action {
     Fetch(Fetch),

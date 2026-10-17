@@ -5730,6 +5730,65 @@ and derived metadata/state may grow. No language feature is added or dropped. Ea
 live-Agent cohorts retain their own identities.
 
 
+## Known-empty derived histogram probes
+
+Generic subqueries previously replayed their body to search for histograms even when the frozen selected row
+contained only Floats. Both ordinary range evaluation and generic quantile backing now omit that proven-empty
+probe. The exhausted Float occurrence still reaches actual body completion first. Multiple Floats, each new
+clock, unknown/mixed/native kinds, aliases, errors and cancellation keep their required evaluation. Scheduled
+callbacks are unchanged. No raw history, value cache, metadata owner or persistent Reader/Step field is added.
+
+Run the three focused ownership, causal and actual read-error checks from the Cargo root:
+
+```sh
+cargo test --locked --features fixtures --release -- derived_float_kind_ --nocapture
+```
+
+The causal test checks complete sum 42, six logical samples, labels, clocks and cleanup before its fixed bound:
+Float-only child evaluations fall 28→20; conservative fallbacks stay 28. Four unchanged-production witnesses
+finish all three results before failing only that bound. Actual Engine controls calibrate preparation 56,
+first-output 70 and final 92 acquisitions, then inject each of the 36 required later reads. This gives 216 distinct
+read-error cases per cohort across names/pages; native full-suite repetitions do not add coverage.
+
+`temporary_quantile_cases.derived_kind_cases()` provides 1,440 cases over 16 populations and 15 expressions.
+These include changing/sparse/stale/nonfinite values, aliases, negative clocks, offsets, fixed endpoints and
+native/mixed transitions, both name modes and instant/equal/range requests. The extra mixed-backed population
+has 14 Floats and two native samples: its midpoint requires an actual 112-byte temporary store. This is separate
+from mixed cases with too few Floats to need backing. All stores are released.
+
+Both native profiles pass 773 units with two pre-existing ignored tests. Each emulated ARM target passes six
+distinct focused checks and 5,148 page-17 outcomes. Combined with 3,558 retained base and 150 retained subquery
+controls, all 41,184 current target/page outcomes match accepted-before complete results exactly. The 1,350
+earlier new inputs are preserved individually. Existing strict original differences retain their ordering-policy
+records; this change adds no Go capture or numerical tolerance.
+
+The C caller's `--derived-kind-only` and `--derived-kind-delayed-only` modes verify generic backing, full output,
+logical totals and cleanup at pages 1/17/1024. Twelve actual before/current default-C pairs pass, along with 12
+current C++ cases and both full C programs. With 16 stored points and the default 300-second C lookback, logical
+samples remain 16 and peak samples 20. Physical sample reads fall 9,920→8,240; page 17/1024 fetched entries fall
+19,040→15,680. C Workspace peak remains 43,417 B; its page 17 allocation traffic falls 1,323,654→1,026,894 B.
+
+All eight memory categories and lease balances are checked. No paired query increases tracked memory; 6,288
+target/page outcomes reduce reads and Workspace allocation traffic. None reduces Workspace peak. Reader,
+Step and Action sizes stay unchanged. The temporary BackingSource grows 128→136 B on 64-bit targets and stays
+120 B on ARM32. Raw histories remain paged, and implicit caps remain disabled.
+
+Timing uses 104 workloads per native profile, five alternating serial pairs, two warmups and five measured
+repetitions per pair: 14,560 primary queries. The fixture uses 16 stored points, 1 ms lookback and 1 s subquery
+steps. Three-tick ranges evaluate 16–18 seconds. Medians below are microseconds:
+
+| Complete query | Release before → current | Release-min before → current |
+| --- | ---: | ---: |
+| Instant sum | 1513.568 → 1234.920 | 2298.121 → 1910.774 |
+| Instant backed quantile | 4525.143 → 3571.641 | 6859.553 → 5545.384 |
+| Three-tick backed quantile | 13615.358 → 10583.183 | 20685.570 → 16172.617 |
+
+All 52 slower primary medians remain. One crosses the 5% follow-up threshold; its fixed 54-query follow-up does
+not reproduce that slowdown. Primary samples are never replaced. Six matched GNU-size comparisons retain
+all executable costs: fixture text grows 20–248 B; C text changes −12/+148 B, with 8 B extra data in release-min.
+There is no new live Agent, concurrent throughput, physical ARM or RSS claim. Full-grid selector prefixes and
+required Float exhaustion still repeat work. See the [complete finite qualification](derived-kind-qualification.json).
+
 ## Completed singleton aggregate values
 
 A grouped join can request its one-group operand repeatedly at the same evaluation time. The evaluator now

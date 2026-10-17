@@ -1209,8 +1209,8 @@ integration, and Alertmanager remains excluded.
   diagnostic drain for errors and cancellation. Mixed native notes and classic nonmonotone fallback controls
   compare full kinds, spans and occurrences through accepted results.
 - **Ownership:** add no Step field, sample retention, page cache, metadata owner or history array. Completed
-  membership bounds counters under the existing repeatable-input contract. Fetch/materialization, provider backing,
-  nonscheduled evaluation and logical sample participation keep their owners and behavior.
+  membership bounds counters under the existing repeatable-input contract. Provider backing and logical samples
+  keep their existing owners; generic histogram probes follow the type-union exclusion documented below.
 - **Evidence:** [rank traversal qualification](quantile-rank-traversal-qualification.json) retains the meaningful
   growth red, complete driver/control failures, final-source and byte-equivalence identities, both native profiles,
   compiled ARM owners/queries, real C/C++ callers, all required reducer/temporal outcomes and warm paired timings.
@@ -1664,3 +1664,26 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
 - **Evidence:** the [procedure and qualification](README.md#completed-singleton-aggregate-values) cover actual
   read phases, complete bits/labels/clocks, controls, sample ownership, native/ARM/C scopes and all source attempts.
   No public/provider/contexts/storage/numerical/profile/dependency/cap change or linear/minimal-RAM claim follows.
+
+## Known-empty derived histogram probes
+
+- **Choice:** share one private Fetch predicate between ordinary Step and generic backing materialization:
+  omit kind 2 only when the actual frozen selected Descriptor has kinds exactly 1. This is the completed
+  output-kind union, not a predicted return type, raw metric type, source ordinal or singleton-head proof.
+- **Phases:** Reader starts with Float. A histogram request follows an exhausted Float occurrence whose
+  restricted body actually reached Done. Omit only that already-requested histogram body, then use normal
+  Reader advancement with pending/current/occurrence untouched. Every Float acquisition, multiplicity and
+  next-clock request remains. Controls still precede advancement and required reads retain their errors.
+- **Backing:** copy the selected byte into the existing temporary BackingSource; use the identical predicate
+  in generic materialization. Do not change scheduled_reader_pass or infer exhaustion from its mismatched
+  samples. Actual mixed/native/unknown masks retain fallback. The case with 14 Floats and two native samples
+  proves real generic backing with union 3 rather than merely evaluating an unbacked mixed quantile.
+- **Ownership and cost:** add no Reader/Step field, heap owner, value timeline, metadata duplicate, provider,
+  ABI, storage format or cap. BackingSource adds 8 temporary bytes on 64-bit targets, with unchanged containing
+  Action/Step/Reader sizes; ARM32 stays unchanged. Actual C output/report ownership and all 8 lease balances
+  remain. Fewer physical reads and allocations do not imply a smaller simultaneous peak or process RSS.
+- **Evidence:** the [qualification](derived-kind-qualification.json) retains complete native/ARM results,
+  causal old failure, required post-preparation read failures, real generic mixed backing, C/C++ logical and
+  physical statistics, every timing sample/slower control and actual linked/layout costs. Its separate
+  source phases preserve compiler/input identities. The final Python-only input extension refreshes fixtures
+  and proves byte equality before reusing earlier code qualification; no old binary is reattributed.

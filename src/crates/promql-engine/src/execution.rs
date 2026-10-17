@@ -8184,6 +8184,108 @@ mod tests {
     }
 
     #[test]
+    fn derived_float_kind_preserves_post_preparation_read_failures() {
+        let request = QueryRequest::Range {
+            start_ms: 2000,
+            end_ms: 3000,
+            step_ms: 1000,
+        };
+        let acquisitions = |input: &FixtureProvider| {
+            input.series[0]
+                .source
+                .counters
+                .opened
+                .load(Ordering::Relaxed)
+        };
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let compiled = engine
+                    .compile(
+                        b"sum_over_time((counter_total or counter_total)[2s:1s])",
+                        options(delayed),
+                        &control,
+                    )
+                    .unwrap();
+                let calibration = FixtureProvider::new(3, page, 1);
+                let (rows, prepared) =
+                    float_map_join_preparation(&compiled, &calibration, request, &control);
+                assert_eq!(rows, 1);
+                let input = FixtureProvider::new(3, page, 1);
+                let report = compiled.collect_reported(&input, request, &control);
+                let output = report.result.as_ref().unwrap();
+                assert_eq!(output.series.len(), 1);
+                assert_eq!(
+                    output.series[0]
+                        .labels
+                        .0
+                        .iter()
+                        .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                        .collect::<Vec<_>>(),
+                    [
+                        (b"instance".to_vec(), b"0".to_vec()),
+                        (b"job".to_vec(), b"worker".to_vec())
+                    ]
+                );
+                assert_eq!(output.series[0].points.len(), 2);
+                for (point, (time, value)) in output.series[0]
+                    .points
+                    .iter()
+                    .zip([(2000, 3.0_f64), (3000, 5.0_f64)])
+                {
+                    assert_eq!(point.time_ms, time);
+                    assert_eq!(float_bits(point), value.to_bits());
+                }
+                assert!(report.annotations.is_empty());
+                let last = acquisitions(&input);
+                input.assert_closed();
+                drop(report);
+
+                let first_input = FixtureProvider::new(3, page, 1);
+                let mut first_sink = RecordingSink {
+                    fail_after: Some(1),
+                    ..RecordingSink::default()
+                };
+                let report =
+                    compiled.execute_reported(&first_input, request, &control, &mut first_sink);
+                assert!(matches!(&report.result, Err(ExecutionError::Sink(bytes))
+                    if &**bytes == b"sink failure"));
+                let first = acquisitions(&first_input);
+                assert!(prepared[0] < first && first < last);
+                first_input.assert_closed();
+                report.assert_retained_callback_error_memory();
+                drop(report);
+
+                // Fail every actually required read after the frozen roster is prepared.
+                for acquisition in prepared[0] + 1..=last {
+                    let mut input = FixtureProvider::new(3, page, 1);
+                    input.series[0].source.fail_acquisition = Some(acquisition);
+                    let mut sink = RecordingSink::default();
+                    let report = compiled.execute_reported(&input, request, &control, &mut sink);
+                    assert!(matches!(&report.result, Err(ExecutionError::Evaluation(
+                        EvaluationError::Storage(StorageError::Provider(bytes))))
+                        if &**bytes == b"injected page failure"));
+                    assert!(sink.begun && sink.aborted && !sink.committed);
+                    assert_eq!(acquisitions(&input), acquisition);
+                    assert_eq!(sink.chunks, usize::from(acquisition > first));
+                    assert_eq!(report.observations.output_samples, sink.chunks as u64);
+                    assert!(report.annotations.is_empty());
+                    report.assert_retained_callback_error_memory();
+                    input.assert_closed();
+                }
+                println!(
+                    "{{\"derived_kind_read_phase\":\"post-preparation\",\"page\":{page},\"delayed\":{delayed},\"preparation\":{},\"first\":{first},\"last\":{last},\"faults\":{}}}",
+                    prepared[0],
+                    last - prepared[0],
+                );
+                drop(compiled);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
     fn completed_single_group_join_values_preserve_actual_read_phases() {
         let acquisitions = |provider: &FixtureProvider| {
             provider

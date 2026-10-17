@@ -588,8 +588,10 @@ static void balanced(netdata_promql_engine_t *engine, const netdata_promql_engin
     assert(observed.temporary_storage.extent.acquired == observed.temporary_storage.extent.released);
     assert(observed.temporary_storage.stores.acquired == observed.temporary_storage.stores.released);
 }
-static uint64_t temporary_window(netdata_promql_engine_t *engine, uint64_t rows, uint64_t maximum, uint64_t *sample_peak) {
-    netdata_promql_query_t *query = compile(engine, "quantile_over_time(0.5,m[100000s])");
+static uint64_t temporary_window(netdata_promql_engine_t *engine, uint64_t rows, uint64_t maximum,
+                                 uint64_t *sample_peak, int derived) {
+    netdata_promql_query_t *query = compile(engine, derived ?
+        "quantile_over_time(0.5,(m or m)[16s:1s])" : "quantile_over_time(0.5,m[100000s])");
     fixture f;
     init_fixture(&f, rows, maximum);
     f.mixed_values = 1;
@@ -617,14 +619,42 @@ static uint64_t temporary_window(netdata_promql_engine_t *engine, uint64_t rows,
     assert(observed.temporary_storage.read_calls && observed.temporary_storage.written_bytes >= rows * 8);
     assert(observed.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current == 0);
     assert(observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
-    assert(observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].peak == maximum * sizeof(netdata_promql_sample_t));
+    assert(observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].peak ==
+           (derived && rows < maximum ? rows : maximum) * sizeof(netdata_promql_sample_t));
     netdata_promql_point_info_t point;
     assert(netdata_promql_result_point(result, 0, 0, &point) == NETDATA_PROMQL_OK);
     assert(point.value_kind == NETDATA_PROMQL_VALUE_FLOAT && point.value_bits == 0);
+    assert(point.time_ms == (int64_t)rows * 1000);
+    netdata_promql_result_info_t info;
+    netdata_promql_series_info_t series;
+    netdata_promql_label_t label;
+    assert(netdata_promql_result_info(result, &info) == NETDATA_PROMQL_OK);
+    assert(info.series_count == 1 && info.annotation_count == 0);
+    assert(info.header.value_type == NETDATA_PROMQL_TYPE_VECTOR);
+    assert(netdata_promql_result_series_info(result, 0, &series) == NETDATA_PROMQL_OK);
+    assert(series.label_count == 1 && series.point_count == 1);
+    assert(netdata_promql_result_label(result, 0, 0, &label) == NETDATA_PROMQL_OK);
+    assert(label.name.len == f.labels[1].name.len && label.value.len == f.labels[1].value.len);
+    assert(memcmp(label.name.data, f.labels[1].name.data, label.name.len) == 0);
+    assert(memcmp(label.value.data, f.labels[1].value.data, label.value.len) == 0);
     assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
     assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
     assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
-    printf("{\"temporary_rows\":%" PRIu64 ",\"page_size\":%" PRIu64 ",\"workspace_peak\":%" PRIu64
+    if (derived) {
+        printf("{\"derived_kind_backing\":\"pass\",\"page\":%" PRIu64 ",\"fetched\":%" PRIu64
+               ",\"pages\":%" PRIu64 ",\"work\":%" PRIu64 ",\"statistics\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64
+               "],\"extent_peak\":%" PRIu64 ",\"stores\":%" PRIu64 ",\"memory\":[",
+               maximum, observed.samples_fetched, observed.pages, observed.work,
+               observed.statistics.samples.total_queryable_samples, observed.statistics.samples.samples_read,
+               observed.statistics.samples.peak_samples, observed.temporary_storage.extent.peak,
+               observed.temporary_storage.stores.acquired);
+        for (unsigned kind = 0; kind < NETDATA_PROMQL_MEMORY_KINDS; kind++) {
+            const netdata_promql_memory_observation_t *memory = &observed.memory[kind];
+            printf("%s[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 "]", kind ? "," : "",
+                   memory->current, memory->peak, memory->acquired, memory->released);
+        }
+        puts("]}");
+    } else printf("{\"temporary_rows\":%" PRIu64 ",\"page_size\":%" PRIu64 ",\"workspace_peak\":%" PRIu64
            ",\"borrowed_peak\":%" PRIu64 ",\"extent_peak\":%" PRIu64 ",\"read_calls\":%" PRIu64 ",\"write_calls\":%" PRIu64 "}\n",
            rows, maximum, observed.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].peak,
            observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].peak, observed.temporary_storage.extent.peak,
@@ -2590,12 +2620,24 @@ int main(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "--window-folds-only") == 0)
         options.flags |= NETDATA_PROMQL_EXPERIMENTAL_FUNCTIONS | NETDATA_PROMQL_START_TIMESTAMPS;
     if (argc == 2 && (strcmp(argv[1], "--instant-sets-delayed-only") == 0 ||
-                      strcmp(argv[1], "--single-group-values-delayed-only") == 0))
+                      strcmp(argv[1], "--single-group-values-delayed-only") == 0 ||
+                      strcmp(argv[1], "--derived-kind-delayed-only") == 0))
         options.flags |= NETDATA_PROMQL_DELAYED_NAME_REMOVAL;
     netdata_promql_engine_t *engine = NULL;
     assert(netdata_promql_engine_create(&options, &engine) == NETDATA_PROMQL_OK);
     netdata_promql_engine_observations_t idle;
     assert(netdata_promql_engine_observations(engine, &idle) == NETDATA_PROMQL_OK);
+    if (argc == 2 && (strcmp(argv[1], "--derived-kind-only") == 0 ||
+                      strcmp(argv[1], "--derived-kind-delayed-only") == 0)) {
+        const uint64_t pages[] = {1, 17, 1024};
+        for (unsigned page = 0; page < 3; page++) {
+            uint64_t sample_peak;
+            temporary_window(engine, 16, pages[page], &sample_peak, 1);
+            balanced(engine, &idle);
+        }
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        return 0;
+    }
     if (argc == 2 && (strcmp(argv[1], "--single-group-values-only") == 0 ||
                       strcmp(argv[1], "--single-group-values-delayed-only") == 0)) {
         completed_single_group_values(engine);
@@ -2765,9 +2807,9 @@ int main(int argc, char **argv) {
     const uint64_t temporary_sizes[] = {1, 17, 1024};
     for (unsigned i = 0; i < 3; i++) {
         uint64_t first_samples, second_samples;
-        uint64_t first = temporary_window(engine, 2048, temporary_sizes[i], &first_samples);
+        uint64_t first = temporary_window(engine, 2048, temporary_sizes[i], &first_samples, 0);
         balanced(engine, &idle);
-        uint64_t second = temporary_window(engine, 100000, temporary_sizes[i], &second_samples);
+        uint64_t second = temporary_window(engine, 100000, temporary_sizes[i], &second_samples, 0);
         assert(first == second);
         assert(first_samples == second_samples);
         balanced(engine, &idle);

@@ -1314,6 +1314,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     Ok(())
                 })?
             {
+                if fetch.absent_histogram(source.kinds) {
+                    continue;
+                }
                 let mut child = self.replay(source.node(), source.options(fetch.time_ms), None);
                 child.restrict_one(source.ordinal);
                 while let Some(sample) = child.next()? {
