@@ -733,7 +733,6 @@
     "foreign_page": 17,
     "actual_default_C_queries": 480,
     "actual_default_C_queries_per_profile": 240,
-    "productive_projection_owned_label_cases_per_profile": 24,
     "cohorts": {
       "release": {
         "profile": "release",
@@ -1059,7 +1058,10 @@
           "scope": "Actual current default archive; source assertions and terminal status retained. No C++/sanitizer or live-provider claim."
         }
       }
-    }
+    },
+    "projection_owned_label_cases_per_profile": 24,
+    "successful_projection_owned_label_cases_per_profile": 12,
+    "provider_error_projection_owned_label_cases_per_profile": 12
   },
   "original_projection_interactions": {
     "complete_current_comparisons": 960,

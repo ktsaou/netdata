@@ -3923,8 +3923,8 @@ separate improvement.
 
 The qualification retains all eight matched linked fixture/C executable pairs, including text/data/BSS/file
 costs. No new internal representation or layout measurement is introduced. The actual default C callers cover
-histogram/output owners and 72 owned-label cases per profile, including 24 productive projection cases; this
-does not requalify every ABI caller.
+histogram/output owners and 72 owned-label cases per profile. These include 24 projection cases: 12 successful
+executions and 12 provider-error checks. This does not requalify every ABI caller.
 
 From src/crates/promql-engine, run the extended source test in either optimized profile:
 
