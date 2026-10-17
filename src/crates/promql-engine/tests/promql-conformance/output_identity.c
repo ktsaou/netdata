@@ -8,7 +8,11 @@ int main(void) {
         "-((sum by(zone)(rate(m_total[3s])) > bool 0) * -1)",
         "(-((sum by(zone)(rate(m_total[3s])) > bool 0) * -1))",
         "(sum by(zone)(rate(m_total[3s])) > 0) > bool 0",
-        "-((abs(sum by(zone)(rate(m_total[3s]))) > bool 0) * -1)"
+        "-((abs(sum by(zone)(rate(m_total[3s]))) > bool 0) * -1)",
+        "abs(label_join(sum by(zone)(m_total),\"zone\",\"\",\"zone\")) > bool 0",
+        "abs(label_replace(sum by(zone)(m_total),\"zone\",\"$1\",\"zone\",\"(.*)\")) > bool 0",
+        "abs(label_join(sum by(zone)(rate(m_total[3s])),\"zone\",\"\",\"zone\")) > bool 0",
+        "abs(label_replace(sum by(zone)(rate(m_total[3s])),\"zone\",\"$1\",\"zone\",\"(.*)\")) > bool 0"
     };
     for (unsigned delayed = 0; delayed < 2; delayed++) {
         netdata_promql_engine_options_t options;
@@ -17,7 +21,7 @@ int main(void) {
         netdata_promql_engine_t *engine = NULL;
         assert(netdata_promql_engine_create(&options, &engine) == NETDATA_PROMQL_OK);
         netdata_promql_engine_observations_t idle = engine_observations(engine);
-        for (unsigned expression = 0; expression < 4; expression++) {
+        for (unsigned expression = 0; expression < sizeof(expressions) / sizeof(expressions[0]); expression++) {
             four_series_float_query_members(engine, FOUR_SERIES_RATE, expressions[expression], 1);
             balanced(engine, &idle);
         }

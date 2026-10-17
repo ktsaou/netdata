@@ -71084,5 +71084,19 @@
     "primary_timing_query_executions": 1600,
     "followup_query_executions": 0,
     "limits": "Finite matched-page/target comparisons. All slower timing and linked costs retained; no new public/language contract."
+  },
+  "label_projection_group_contributors": {
+    "report": "projected-group-contributor-qualification.json",
+    "scope": "Reuse existing group contributor membership at ordered label_join/label_replace consumers. No language, numerical, label, public API/ABI, provider, storage, contexts or implicit-cap change.",
+    "fresh_original_comparisons": 6592,
+    "retained_original_associated_replays": 960,
+    "native_units_per_profile": 745,
+    "actual_default_C_queries": 672,
+    "large_current_complete_queries": 6,
+    "primary_timing_groups": 68,
+    "primary_timing_query_executions": 2720,
+    "first_followup_query_executions": 100,
+    "tiny_control_query_executions": 6144,
+    "limits": "Existing language/contracts preserved; all memory/slower costs retained. Historical strict differences remain disagreements. Shared-host fixture timing does not prove live or universal throughput."
   }
 }

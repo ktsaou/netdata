@@ -1410,6 +1410,12 @@ integration, and Alertmanager remains excluded.
   admission therefore belongs to each eligible map, rather than only the root. There is no additional Task field
   or persistent node context. The [procedure and costs](README.md#mapped-group-contributors) distinguish added
   membership metadata from saved repeated label work.
+- **Label projections:** ordered `label_join` and `label_replace` seed the same demand from their resolved vector
+  child, including instant/equal-header consumers. Preserve label-argument preparation and each child's existing
+  clock/ordinary-group/supported-leaf guards; label calls remain excluded from global numeric-map classification.
+  Original ordinals and merged aliases select contributors without caching aggregate values or raw history.
+  The [procedure and measured costs](README.md#label-projection-group-contributors) include complete cold/selected/
+  next-clock failure controls, singleton/merged setup costs and the retained incomplete large baseline.
 - **Completion:** a full child traversal must reach successful Done for the exact clock before membership filters
   later requests. Clear preparation credit before final delivery. Singleton group lookup is direct; nested requests
   use sorted/deduplicated accounted ordinal unions without changing arithmetic traversal order. RefCell borrows stay

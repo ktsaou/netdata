@@ -151,6 +151,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   cold completion, nested membership ownership, existing window-cache phases and measured metadata costs.
 - Histogram-consumer admission and evaluator-body failure calibration are owned by
   `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-group-contributors`.
+- Ordered label-projection contributor admission and its cold/selected/next-clock controls MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#label-projection-group-contributors`; retain instant/
+  equal-header coverage, whole-group aliases and measured setup/peak costs.
 - Ordered scalar-map contributor admission MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#mapped-group-contributors` for local map demand,
   cold/next-clock validation, source ordinals, native/mixed outcomes and metadata costs.

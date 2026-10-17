@@ -5688,6 +5688,97 @@ Timings use a synthetic engine/provider on a shared host without CPU/frequency i
 live HTTP, DBengine disk I/O, concurrent throughput, device performance or RSS. Owned output and derived metadata
 can grow; all implicit caps remain disabled. Earlier language, SRE and live-Agent panels retain their identities.
 
+## Label projection group contributors
+
+Ordered `label_join` and `label_replace` consumers now request the existing contributor plan from eligible
+ordinary aggregate children. For example, `label_join(sum by(id)(m),"row","/","id")` previously selected each
+output group but reread every input for each selection. It now reuses accounted group membership after the first
+complete traversal. This includes instant and equal-header consumers; label projection already orders these
+consumers independently of the unequal-header scalar-map rule. No language feature is added or dropped.
+
+Demand starts at the resolved vector child after the existing label argument preparation. Each child's invariant,
+boundary and source/scope clock guards still apply, as do the ordinary-group and supported-leaf proof. Label calls
+remain excluded from global numeric-map classification. Original source ordinals, merged aliases and arithmetic
+traversal order are preserved. The first full child must reach successful Done for every exact ReplayKey; failed
+or cancelled traversals grant no completion. Preparation credit clears before final delivery. Selected values use
+their existing evaluator and completed-window caches. Raw histories remain paged across both axes.
+
+The unit `projected_groups_check_complete_results_before_bounded_source_reads` validates all 576 complete result,
+label, timestamp, membership and release outcomes before checking read growth. At 2/4/8/16 groups, unchanged
+production fetches 60/168/528/1824 entries for the raw instant join; the candidate fetches 54/114/234/474. The
+corrected unchanged-runtime test fails only the intended final growth assertion. An earlier incorrect instant
+ordering assumption remains a separately retained failed attempt, not the causal witness.
+
+Run that unit and `mapped_group` under either optimized Cargo profile. The extended demand and failure owners
+check join/replace, raw/rate, nested labels/maps, instant/equal/multiple ticks, both name modes and pages1/17/1024.
+Cold and next-clock failures target actual nonmembers of the first emitted group. Warm selected failures target a
+member that actually rereads storage; the tests retain ordinary root order, failed-completion checks, cancellation
+and provisional output abort/release. Fixed-clock and unsupported scalar/leaf paths retain their fallbacks.
+
+`group_contributor_cases.projected_cases()` supplies 824 requests over 16 datasets: 792 successful outcomes and
+32 intentional errors. Use the independent-name Go probe with separate request profiles and delayed-name options,
+then `cursor_calls.checked_candidate_packets` and complete comparisons with `exact_numeric=True`, ordered range
+rows and the captured originals. This is the same probe/capture route as the plural-histogram panel. Do not infer
+whole-group aliases from per-member late/stale states: dedicated datasets cover disjoint, overlapping, mixed,
+single and empty groups. Cases also cover all eight reducers, by/without, Rate/Fold, native/mixed values,
+NaN/infinity/zero, no survivors, reserved names, collisions and fixed/offset/subquery/fallback controls.
+
+Both native profiles pass 745 units with two existing ignored tests. There are 6,592 complete fresh-original
+comparisons: 4,944 native at pages1/17/1024, plus 1,648 ARM32/ARM64 release comparisons at page17 under QEMU.
+All have zero semantic mismatches or numeric bit differences. Each foreign target also passes 11 focused units;
+this is not a full foreign-suite or physical ARM performance claim. Another 960 fresh current executions preserve
+authenticated earlier reducer/scheduled outcomes. Their 30 historical strict-disagreement instances remain
+disagreements under the existing ordering policy; no original capture or strict status is rewritten.
+
+Actual default-feature C archives pass 672 current query/failure arms and 672 matched-before arms. Per profile,
+the 192 output-identity cases contain 48 successes, 48 provider errors, 48 cancellations and 48 output errors.
+The newly added grouped-projection expressions contribute 24 of each. Another 72 histogram and 72 owned-label
+cases per profile retain their original scope. Within the latter, 24 projection cases mean 12 successes and
+12 provider errors. Boolean-normalized C assertions qualify callback/ownership phases; the independent expression
+panel separately verifies distinguishing values. Format, strict default/fixture Clippy and installed Rust1.91
+all-target fixture compilation pass; the MSRV evidence is compile-only.
+
+The matched timing panel uses the signed before runtime and 34 fixed cases per profile, five alternating pairs,
+one warmup and three measured queries per case/arm. All 2,720 complete executions and all slower medians are retained.
+Grouped controls use 256 series; unchanged 4,096-group queries are not repeated in this panel.
+
+| Matched workload, 16-byte labels | Release before → after | Release-min before → after |
+| --- | ---: | ---: |
+| grouped join, 256 groups | 436.98 → 10.08 ms | 727.77 → 16.49 ms |
+| grouped rate join, 256 groups | 263.26 → 16.57 ms | 471.60 → 27.52 ms |
+
+Thirty-five primary case/profile medians are slower. The predefined 5% threshold triggers two follow-up groups,
+100 additional complete executions in total. The release ungrouped 4,096-series join changes from a 7.28% slower
+primary median to a 0.27% faster repeat. The tiny release-min ungrouped join changes from 5.48% to 68.44% slower,
+with exactly equal nonelapsed counters. A separate longer counterbalanced control retains two executions of each
+binary in six ABBA/BAAB blocks, 64 warmups plus 64 measurements per process. Across its 6,144 complete executions,
+the tiny-query pooled medians are unchanged in release and 0.67% slower in release-min. These controls do not erase
+the earlier samples or establish their cause. No production change was made to chase the inconsistent tiny result.
+
+Six additional current large queries verify all 4,096 rows and 12,288 points. The grouped join and replacement each
+fetch 159,735 entries in 53,245 pages, versus 151,080,960 entries in 50,360,320 pages in the retained historical
+join witness. The historical runtime precedes the matched timing base; its interrupted benchmark remains failed.
+Current single release observations are 160.49 ms for join and 179.35 ms for replacement, not paired large medians
+or an isolated-change latency claim. The plain grouped control remains separate.
+
+Contributor identities and construction overlap are real memory costs. Across 4,944 native observations, 3,792
+have lower Workspace acquisition traffic, 2,628 have higher Workspace peak and 576 have higher Workspace traffic;
+none has lower Workspace peak. In the historical-large/current join comparison, Workspace acquisition falls from
+32,002,971,552 B to 52,678,823 B while peak rises from 5,438,568 B to 5,537,152 B. Singleton and all-groups-to-one
+cases can pay setup without enough reuse. Cancellation-reference traffic can fall with fewer storage walks;
+current counts, overflow flags and acquired/released balances remain checked. Tracked bytes are not RSS.
+
+Ten matched linked pairs retain all costs. Native query-fixture GNU text/data/bss sizes are unchanged; release file
+size rises 72 B. The release C files rise 264–272 B with unchanged text/data/bss; release-min files are unchanged.
+ARM32 fixture text rises 8 B and file size falls 48 B; ARM64 text falls 8,192 B and file size falls 192 B.
+GNU text includes read-only data. No new representation or node field is introduced.
+
+The [qualification](projected-group-contributor-qualification.json) binds current/before source, binaries, original
+captures and all resource/timing costs. Measurements use a serial synthetic provider on a shared host. They do not
+establish live HTTP, dbengine disk I/O, concurrent throughput, device performance or RSS. Owned output and derived
+membership can grow; all implicit caps remain disabled. Earlier language, SRE and live-Agent evidence retains its
+own identity.
+
 ## Mapped group contributors
 
 Scalar comparisons and Float maps over ordinary groups now reuse contributor membership at their own ordered

@@ -226,3 +226,97 @@ def output_identity_cases():
                     output.append(_case(f'output-identity:{state}:{profile}:{instant}:{index}',
                                         expression, records, profile, instant=instant))
     return output
+
+
+def projected_cases():
+    """Ordered label consumers over grouped values, scopes and merged aliases."""
+    output = []
+
+    def joined(body):
+        return f'label_join({body},"site","/","cluster","zone")'
+
+    def replaced(body):
+        return f'label_replace({body},"site","zone_$1","zone","(.*)")'
+
+    def add(ident, expression, records, profile, delayed, mode="range"):
+        case = _case(f"projected-groups:{profile}:{delayed}:{ident}:{mode}",
+                     expression, records, profile, instant=mode == "instant")
+        case["request"]["delayed_name_removal"] = delayed
+        if mode == "equal":
+            case["request"].update(mode="range", start_ms=3000, end_ms=3000)
+        output.append(case)
+
+    for profile in ("server-default", "upstream-tests"):
+        for delayed in (False, True):
+            dense = _records(groups=4, members=2)
+            for operator in OPERATORS:
+                grouped = f"{operator} by(cluster,zone)(m_total)"
+                rate = f"{operator} by(cluster,zone)(rate(m_total[3s]))"
+                fold = f"{operator} by(cluster,zone)(sum_over_time(m_total[3s]))"
+                expressions = {
+                    "join": joined(grouped),
+                    "replace": replaced(grouped),
+                    "without": joined(f"{operator} without(member)(m_total)"),
+                    "rate": replaced(rate),
+                    "fold": joined(fold),
+                    "mapped-input": joined(f"{operator} by(cluster,zone)(abs(m_total*2))"),
+                    "mapped-output": f"abs({joined(grouped)})",
+                    "nested-group": joined(f"{operator} by(cluster)(avg by(cluster,zone)(m_total))"),
+                    "nested-label": replaced(joined(grouped)),
+                    "filtered": joined(f"({grouped}) > 10"),
+                    "no-survivors": replaced(f"({grouped}) < -1000"),
+                    "metric-name": f'label_replace({grouped},"__name__","projected_$1","zone","(.*)")',
+                }
+                for shape, expression in expressions.items():
+                    add(f"{operator}:{shape}", expression, dense, profile, delayed)
+                for shape in ("join", "rate"):
+                    for mode in ("instant", "equal"):
+                        add(f"{operator}:{shape}", expressions[shape], dense, profile, delayed, mode)
+            grouped = "sum by(cluster,zone)(m_total)"
+            for state in ("stale", "late", "empty", "native", "mixed", "all-native", "nan", "infinity", "zero"):
+                records = _records(state, groups=4, members=2)
+                for shape, expression in enumerate((joined(grouped), replaced(grouped),
+                        joined("sum by(cluster,zone)(rate(m_total[3s]))"),
+                        replaced("avg by(cluster,zone)(sum_over_time(m_total[3s]))"))):
+                    add(f"state:{state}:{shape}", expression, records, profile, delayed)
+            fallbacks = (
+                joined("sum by(cluster,zone)(m_total @ 2)"),
+                replaced("sum by(cluster,zone)(m_total offset 1s)"),
+                joined("sum by(cluster,zone)(rate(m_total[3s] @ 2))"),
+                replaced("sum by(cluster,zone)(rate(m_total[3s] offset 1s))"),
+                joined("sum by(cluster,zone)(timestamp(m_total))"),
+                joined('sum by(cluster,zone)(m_total * scalar(n_total{zone="0",member="0"}))'),
+                joined("sum by(cluster,zone)(rate((m_total*1)[3s:1s]))"),
+                f"sum_over_time(({joined(grouped)})[2s:1s])",
+                f"topk(2,{replaced(grouped)})",
+                f"quantile(.5,{joined(grouped)})",
+            )
+            for index, expression in enumerate(fallbacks):
+                for mode in ("instant", "range"):
+                    add(f"scope:{index}", expression, dense, profile, delayed, mode)
+            for state in ("disjoint", "overlap", "mixed", "single", "empty"):
+                records = []
+                count = 1 if state == "single" else 4
+                for group in range(count):
+                    for member in range(2):
+                        points = []
+                        if state != "empty":
+                            for tick in range(6):
+                                value = float((group + 1) * (member + 1) * (tick + 1))
+                                kind = "float_histogram" if state == "mixed" and group % 2 else "float"
+                                if state == "disjoint" and group != tick % count:
+                                    value, kind = "7ff0000000000002", "float"
+                                points.append((tick * 1000, value, kind))
+                        records.append(series({"__name__": "m_total", "zone": str(group),
+                                               "member": str(member)}, points))
+                aggregate = "sum by(zone)(m_total)"
+                for shape, expression in enumerate((
+                    f'label_join({aggregate},"zone","","missing")',
+                    f'label_replace({aggregate},"zone","","zone",".*")',
+                )):
+                    for mode in ("instant", "range"):
+                        add(f"aliases:{state}:{shape}", expression, records, profile, delayed, mode)
+            for shape, expression in enumerate((joined(grouped), replaced(grouped))):
+                add(f"absent:{shape}", expression, [], profile, delayed)
+    assert len({case["request"]["id"] for case in output}) == len(output)
+    return output

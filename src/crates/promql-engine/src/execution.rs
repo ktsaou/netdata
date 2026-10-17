@@ -2014,7 +2014,8 @@ impl CompiledQuery {
                         )?,
                         header,
                         child_primary,
-                        false,
+                        // Projected rows repeatedly select groups at this consumer's clock.
+                        true,
                     ));
                     continue;
                 }
@@ -16699,6 +16700,130 @@ mod tests {
     }
 
     #[test]
+    fn projected_groups_check_complete_results_before_bounded_source_reads() {
+        let mut scaling = Vec::new();
+        let mut complete = 0;
+        for delayed in [false, true] {
+            for page in [1, 17, 1024] {
+                for window in [false, true] {
+                    let body = if window {
+                        "rate(counter_total[3s])"
+                    } else {
+                        "counter_total"
+                    };
+                    let aggregate = format!("sum by(instance)({body})");
+                    let join = format!("label_join({aggregate},\"row\",\"/\",\"instance\")");
+                    let replace =
+                        format!("label_replace({aggregate},\"row\",\"$1\",\"instance\",\"(.*)\")");
+                    let expressions = [
+                        join.clone(),
+                        replace.clone(),
+                        format!("abs({join})"),
+                        format!("label_join({replace},\"alias\",\"/\",\"instance\")"),
+                    ];
+                    for (request_index, request) in [
+                        QueryRequest::Instant { time_ms: 3000 },
+                        QueryRequest::Range {
+                            start_ms: 3000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        },
+                        QueryRequest::Range {
+                            start_ms: 3000,
+                            end_ms: 5000,
+                            step_ms: 1000,
+                        },
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        for (shape, expression) in expressions.iter().enumerate() {
+                            let mut reads = Vec::new();
+                            for groups in [2, 4, 8, 16] {
+                                let provider = mapped_group_provider(page, groups);
+                                let engine = Engine::default();
+                                let control = Control::default();
+                                let query = engine
+                                    .compile(expression.as_bytes(), options(delayed), &control)
+                                    .unwrap();
+                                let report = query.collect_reported(&provider, request, &control);
+                                let result = report.result.as_ref().unwrap();
+                                assert!(report.annotations.is_empty());
+                                assert_eq!(result.series.len(), groups);
+                                let points = if request_index == 2 { 3 } else { 1 };
+                                let mut seen = vec![false; groups];
+                                for (position, row) in result.series.iter().enumerate() {
+                                    let instance = row
+                                        .labels
+                                        .0
+                                        .iter()
+                                        .find(|label| &*label.name == b"instance")
+                                        .unwrap();
+                                    let group = std::str::from_utf8(&instance.value).unwrap()[1..]
+                                        .parse::<usize>()
+                                        .unwrap();
+                                    assert!(group < groups && !seen[group]);
+                                    seen[group] = true;
+                                    if request_index != 0 {
+                                        assert_eq!(group, position);
+                                    }
+                                    assert_eq!(row.labels.0.len(), if shape == 3 { 3 } else { 2 });
+                                    let expected = format!("g{group:04}");
+                                    for label in &*row.labels.0 {
+                                        assert!(matches!(
+                                            &*label.name,
+                                            b"instance" | b"row" | b"alias"
+                                        ));
+                                        assert_eq!(&*label.value, expected.as_bytes());
+                                    }
+                                    assert_eq!(row.points.len(), points);
+                                    for (tick, point) in row.points.iter().enumerate() {
+                                        assert_eq!(point.time_ms, (tick as i64 + 3) * 1000);
+                                        let scale = if group % 2 == 0 { 2.0 } else { 4.0 };
+                                        let expected = if window {
+                                            scale
+                                        } else {
+                                            scale * (tick + 3) as f64
+                                        };
+                                        assert_eq!(float_bits(point), expected.to_bits());
+                                    }
+                                }
+                                assert!(seen.into_iter().all(|present| present));
+                                assert_eq!(
+                                    report.observations.output_samples,
+                                    (points * groups) as u64
+                                );
+                                assert_eq!(
+                                    report.observations.memory[MemoryKind::Workspace as usize]
+                                        .current,
+                                    0
+                                );
+                                reads.push(report.observations.samples_fetched);
+                                provider.assert_closed();
+                                drop((report, query));
+                                engine.accounting.snapshot().assert_memory_released();
+                                complete += 1;
+                            }
+                            scaling.push((delayed, page, window, request_index, shape, reads));
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(complete, 576);
+        println!("complete projected-group outcomes={complete}; source reads={scaling:?}");
+        // Check growth only after every full numerical and ownership outcome has passed.
+        for (delayed, page, window, request, shape, reads) in scaling {
+            if !window {
+                assert!(
+                    reads[3] <= reads[2] * 3,
+                    "quadratic projection reads: delayed={delayed} page={page} request={request} shape={shape} reads={reads:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn mapped_groups_check_complete_results_before_linear_label_visits() {
         let mut observations = Vec::new();
         for delayed in [false, true] {
@@ -16816,6 +16941,51 @@ mod tests {
                 range,
                 0,
             ),
+            (
+                "label_join(sum by(instance)(counter_total),\"row\",\"/\",\"instance\")",
+                range,
+                1,
+            ),
+            (
+                "label_join(sum by(instance)(counter_total),\"row\",\"/\",\"instance\")",
+                instant,
+                1,
+            ),
+            (
+                "label_join(sum by(instance)(counter_total),\"row\",\"/\",\"instance\")",
+                equal,
+                1,
+            ),
+            (
+                "label_replace(sum by(instance)(rate(counter_total[3s])),\"row\",\"$1\",\"instance\",\"(.*)\")",
+                range,
+                1,
+            ),
+            (
+                "abs(label_join(sum by(instance)(counter_total),\"row\",\"/\",\"instance\"))",
+                instant,
+                1,
+            ),
+            (
+                "label_join(sum by(instance)(counter_total @ 3),\"row\",\"/\",\"instance\")",
+                range,
+                0,
+            ),
+            (
+                "label_join(sum by(instance)(counter_total offset 1s),\"row\",\"/\",\"instance\")",
+                range,
+                1,
+            ),
+            (
+                "label_join(sum by(instance)(timestamp(counter_total)),\"row\",\"/\",\"instance\")",
+                range,
+                0,
+            ),
+            (
+                "label_join(sum by(instance)(counter_total*scalar(counter_total)),\"row\",\"/\",\"instance\")",
+                range,
+                0,
+            ),
         ] {
             let provider = mapped_group_provider(17, 4);
             let engine = Engine::default();
@@ -16902,10 +17072,11 @@ mod tests {
             compiled: &CompiledQuery,
             input: &FixtureProvider,
             stop: Option<(usize, usize, bool)>,
-        ) -> Vec<Vec<Vec<usize>>> {
+        ) -> (Vec<Vec<Vec<usize>>>, Vec<Vec<usize>>) {
             let control = Control::default();
             let account = compiled.execution_accounting();
             let mut landmarks = Vec::new();
+            let mut group_order = Vec::new();
             {
                 let header = compiled
                     .header(QueryRequest::Range {
@@ -16984,6 +17155,7 @@ mod tests {
                     );
                     machine.set_step_index(instant as i64);
                     landmarks.push(vec![acquisitions(input)]);
+                    group_order.push(Vec::new());
                     let mut outputs = 0;
                     loop {
                         let stopping = stop
@@ -17006,6 +17178,12 @@ mod tests {
                                     if &**bytes == b"injected page failure")
                                 );
                             }
+                            if instant == 0 && outputs == 0 {
+                                assert!(
+                                    !plan.has_completion(),
+                                    "failed full traversal grants no credit"
+                                );
+                            }
                             drop(error);
                             break 'instants;
                         }
@@ -17016,7 +17194,16 @@ mod tests {
                             plan.has_completion(),
                             "first output requires successful full child Done"
                         );
-                        assert_eq!(sample.labels.0.len(), 1);
+                        let labels = if compiled.expression.source.starts_with(b"label_") {
+                            2
+                        } else {
+                            1
+                        };
+                        assert_eq!(sample.labels.0.len(), labels);
+                        if labels == 2 {
+                            assert_eq!(&*sample.labels.0[1].name, b"row");
+                            assert_eq!(sample.labels.0[1].value, sample.labels.0[0].value);
+                        }
                         let group = std::str::from_utf8(&sample.labels.0[0].value).unwrap()[1..]
                             .parse::<usize>()
                             .unwrap();
@@ -17025,6 +17212,7 @@ mod tests {
                         assert!(
                             matches!(sample.value, OwnedValue::Float(value) if value.to_bits() == expected.to_bits())
                         );
+                        group_order[instant].push(group);
                         drop(sample);
                         outputs += 1;
                         landmarks[instant].push(acquisitions(input));
@@ -17034,92 +17222,115 @@ mod tests {
             }
             input.assert_closed();
             account.snapshot().assert_memory_released();
-            landmarks
+            (landmarks, group_order)
         }
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
-                let engine = Engine::default();
-                let compiled = engine
-                    .compile(
-                        b"sum by(instance)(counter_total) > 0",
-                        options(delayed),
-                        &Control::default(),
-                    )
-                    .unwrap();
-                let calibration = mapped_group_provider(page, 4);
-                let landmarks = drive(&compiled, &calibration, None);
-                let (prefix, selected) = landmarks[0]
-                    .windows(2)
-                    .enumerate()
-                    .skip(1)
-                    .find_map(|(prefix, pair)| {
-                        (0..8)
-                            .find(|&index| pair[1][index] > pair[0][index])
-                            .map(|index| (prefix, index))
-                    })
-                    .expect("a later ordered row freshly reads a selected contributor");
-                for (phase, instant, after, target, acquisition) in [
-                    ("cold-nonmember", 0, 0, 0, landmarks[0][0][0] + 1),
-                    (
-                        "warm-selected",
-                        0,
-                        prefix,
-                        selected,
-                        landmarks[0][prefix][selected] + 1,
-                    ),
-                    ("next-clock-nonmember", 1, 0, 0, landmarks[1][0][0] + 1),
+                for expression in [
+                    "sum by(instance)(counter_total) > 0",
+                    "label_join(sum by(instance)(counter_total),\"row\",\"/\",\"instance\")",
+                    "label_replace(sum by(instance)(counter_total),\"row\",\"$1\",\"instance\",\"(.*)\")",
                 ] {
-                    let mut input = mapped_group_provider(page, 4);
-                    input.series[target].source.fail_acquisition = Some(acquisition);
-                    let observed = drive(&compiled, &input, Some((instant, after, false)));
-                    assert_eq!(observed.len(), instant + 1);
-                    assert_eq!(observed[instant].len(), after + 1);
-                    assert_eq!(acquisitions(&input)[target], acquisition);
-                    println!(
-                        "mapped-group phase={phase} page={page} delayed={delayed} instant={instant} outputs={after} target={target} acquisition={acquisition}"
-                    );
-                }
-                let input = mapped_group_provider(page, 4);
-                assert_eq!(
-                    drive(&compiled, &input, Some((0, prefix, true)))[0].len(),
-                    prefix + 1
-                );
-                for cancel in [false, true] {
-                    let input = mapped_group_provider(page, 4);
-                    let control = Control::default();
-                    let mut sink = RecordingSink {
-                        fail_after: (!cancel).then_some(1),
-                        cancel: cancel.then(|| control.cancellation.clone()),
-                        ..RecordingSink::default()
-                    };
-                    let report = compiled.execute_reported(
-                        &input,
-                        QueryRequest::Range {
-                            start_ms: 1000,
-                            end_ms: 2000,
-                            step_ms: 1000,
-                        },
-                        &control,
-                        &mut sink,
-                    );
-                    if cancel {
-                        assert!(matches!(
-                            &report.result,
-                            Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
-                                Interrupted::Cancelled
-                            )))
-                        ));
-                    } else {
-                        assert!(
-                            matches!(&report.result, Err(ExecutionError::Sink(bytes)) if &**bytes == b"sink failure")
+                    let engine = Engine::default();
+                    let compiled = engine
+                        .compile(expression.as_bytes(), options(delayed), &Control::default())
+                        .unwrap();
+                    let calibration = mapped_group_provider(page, 4);
+                    let (landmarks, group_order) = drive(&compiled, &calibration, None);
+                    let cold_nonmember = (0..8)
+                        .rfind(|&index| 3 - index / 2 != group_order[0][0])
+                        .unwrap();
+                    let next_nonmember = (0..8)
+                        .rfind(|&index| 3 - index / 2 != group_order[1][0])
+                        .unwrap();
+                    let (prefix, selected) = landmarks[0]
+                        .windows(2)
+                        .enumerate()
+                        .skip(1)
+                        .find_map(|(prefix, pair)| {
+                            (0..8)
+                                .find(|&index| {
+                                    3 - index / 2 == group_order[0][prefix]
+                                        && pair[1][index] > pair[0][index]
+                                })
+                                .map(|index| (prefix, index))
+                        })
+                        .expect("a later ordered row freshly reads a selected contributor");
+                    for (phase, instant, after, target, acquisition) in [
+                        (
+                            "cold-nonmember",
+                            0,
+                            0,
+                            cold_nonmember,
+                            landmarks[0][0][cold_nonmember] + 1,
+                        ),
+                        (
+                            "warm-selected",
+                            0,
+                            prefix,
+                            selected,
+                            landmarks[0][prefix][selected] + 1,
+                        ),
+                        (
+                            "next-clock-nonmember",
+                            1,
+                            0,
+                            next_nonmember,
+                            landmarks[1][0][next_nonmember] + 1,
+                        ),
+                    ] {
+                        let mut input = mapped_group_provider(page, 4);
+                        input.series[target].source.fail_acquisition = Some(acquisition);
+                        let observed = drive(&compiled, &input, Some((instant, after, false)));
+                        assert_eq!(observed.0.len(), instant + 1);
+                        assert_eq!(observed.0[instant].len(), after + 1);
+                        assert_eq!(acquisitions(&input)[target], acquisition);
+                        println!(
+                            "mapped-group expression={expression} phase={phase} page={page} delayed={delayed} instant={instant} outputs={after} target={target} acquisition={acquisition}"
                         );
-                        report.assert_retained_callback_error_memory();
                     }
-                    assert!(sink.begun && sink.aborted && !sink.committed);
-                    input.assert_closed();
+                    let input = mapped_group_provider(page, 4);
+                    assert_eq!(
+                        drive(&compiled, &input, Some((0, prefix, true))).0[0].len(),
+                        prefix + 1
+                    );
+                    for cancel in [false, true] {
+                        let input = mapped_group_provider(page, 4);
+                        let control = Control::default();
+                        let mut sink = RecordingSink {
+                            fail_after: (!cancel).then_some(1),
+                            cancel: cancel.then(|| control.cancellation.clone()),
+                            ..RecordingSink::default()
+                        };
+                        let report = compiled.execute_reported(
+                            &input,
+                            QueryRequest::Range {
+                                start_ms: 1000,
+                                end_ms: 2000,
+                                step_ms: 1000,
+                            },
+                            &control,
+                            &mut sink,
+                        );
+                        if cancel {
+                            assert!(matches!(
+                                &report.result,
+                                Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                                    Interrupted::Cancelled
+                                )))
+                            ));
+                        } else {
+                            assert!(
+                                matches!(&report.result, Err(ExecutionError::Sink(bytes)) if &**bytes == b"sink failure")
+                            );
+                            report.assert_retained_callback_error_memory();
+                        }
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        input.assert_closed();
+                    }
+                    drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
                 }
-                drop(compiled);
-                engine.accounting.snapshot().assert_memory_released();
             }
         }
     }
