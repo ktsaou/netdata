@@ -2415,7 +2415,8 @@ static void owned_label_outputs(netdata_promql_engine_t *engine, unsigned schedu
                                         "quantile by(zone)(0.5,m)",
                                         "quantile by(zone)(0.5,sum by(zone,zz00)(m))",
                                         "sum by(zone)(topk(1,sum by(zone,zz00)(m)))",
-                                        "sum by(zone)(bottomk(1,sum by(zone,zz00)(m)))"};
+                                        "sum by(zone)(bottomk(1,sum by(zone,zz00)(m)))",
+                                        "topk(1,m)", "bottomk(1,m)"};
     const char *scheduled_expressions[] = {"m+0", "0+m", "m>0", "timestamp(m)"};
     const char **expressions = scheduled ? scheduled_expressions : owned_expressions;
     unsigned expression_count = scheduled ? sizeof(scheduled_expressions) / sizeof(scheduled_expressions[0]) :
@@ -2436,12 +2437,18 @@ static void owned_label_outputs(netdata_promql_engine_t *engine, unsigned schedu
                 label_copy_output output;
                 memset(&output, 0, sizeof(output));
                 output.source = &source;
+                unsigned full_selection = !scheduled && shape >= 7;
                 output.label_count = scheduled ? source.label_count - (shape != 2) :
-                                                shape >= 2 ? 1 : source.label_count + (shape == 1);
+                                    full_selection ? source.label_count :
+                                    shape >= 2 ? 1 : source.label_count + (shape == 1);
                 if (scheduled) {
                     unsigned first = shape != 2;
                     for (uint64_t label = first; label < source.label_count; label++)
                         output.expected[label - first] = source.labels[label];
+                }
+                else if (full_selection) {
+                    for (uint64_t label = 0; label < source.label_count; label++)
+                        output.expected[label] = source.labels[label];
                 }
                 else if (shape >= 2) output.expected[0] = source.labels[1];
                 else {

@@ -19524,6 +19524,14 @@ mod tests {
 
         for (expression, expected_labels, value_factor) in [
             ("abs(sum by(instance)(counter_total))", 1, 1.0),
+            ("topk(2,sum by(instance)(counter_total))", 1, 1.0),
+            ("bottomk(2,sum by(instance)(counter_total))", 1, 1.0),
+            ("abs(topk(2,sum by(instance)(counter_total)))", 1, 1.0),
+            (
+                "label_join(topk(2,sum by(instance)(counter_total)), \"row\", \"/\", \"instance\")",
+                2,
+                1.0,
+            ),
             (
                 "label_join(abs(sum by(instance)(counter_total)), \"row\", \"/\", \"instance\")",
                 2,

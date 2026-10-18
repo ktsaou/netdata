@@ -1784,3 +1784,17 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
   physical statistics, every timing sample/slower control and actual linked/layout costs. Its separate
   source phases preserve compiler/input identities. The final Python-only input extension refreshes fixtures
   and proves byte equality before reusing earlier code qualification; no old binary is reattributed.
+
+## Borrowed ranking-result labels
+
+- **Choice:** canonical TOPK/BOTTOMK and explicit LIMIT emission borrows the exact immutable first representative
+  through the existing SampleLabels owner. Raw empty fields remain intact; fresh winner labels are not substituted.
+- **Reason:** selection already retains that owner for the sample lifetime. Repeated copying adds byte work and
+  allocation traffic without supplying independent retention at this boundary.
+- **Consequences:** retain the explicit replacement-site control check, existing kind/head/error priority,
+  canonical ordinal/flags/times, fresh winner reads and snapshot semantics. Actual mutation, first descriptor
+  retention and public collection still materialize independently. No new representation, owner or cache.
+- **Evidence:** [the ranking-result procedure](README.md#borrowed-ranking-result-labels) and
+  [finite qualification](ranking-result-labels-qualification.json) retain complete identities, controls,
+  C ownership/statistics, all resource costs and slower timings. Allocation traffic differs from tracked peak
+  and RSS; these finite shared-host observations establish no universal performance guarantee.

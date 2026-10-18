@@ -136,6 +136,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Quantile result labels MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-quantile-result-labels` for frozen descriptor
   lifetimes, raw-empty normalization, retained/mutated output, terminal checks and separate original/order-policy scope.
+- Canonical ranking-result ownership MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-ranking-result-labels` for the exact first
+  representative, raw empties, fresh values/snapshots, replacement-site controls and complete C winner labels.
 - Borrowed projection results MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-projection-result-labels` for exact frozen
   bytes, mutation/retention, terminal controls and page/target-matched compressed comparisons.

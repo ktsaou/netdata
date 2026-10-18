@@ -16,6 +16,7 @@ use crate::{
     label_hash, numerical,
     position_index::PositionIndex,
     result::OwnedValue,
+    sample_labels::SampleLabels,
     shared::Strong,
     storage::{Control, Interrupted},
 };
@@ -859,10 +860,8 @@ impl<'a> Step<'a> {
                         }
                         let representative = &self.plan.inputs[canonical.representative];
                         sample.ordinal = canonical.ordinal;
-                        sample.labels = representative
-                            .labels
-                            .copy_checked(account, MemoryKind::Workspace, control)?
-                            .into();
+                        control.check()?;
+                        sample.labels = SampleLabels::Borrowed(&representative.labels);
                         sample.drop_name = representative.drop_name;
                     }
                     sample.source_time_ms = self.options.time_ms;
@@ -886,6 +885,417 @@ impl<'a> Step<'a> {
             }
         }
         Ok(Action::Continue)
+    }
+}
+
+#[cfg(test)]
+mod emission_tests {
+    use super::*;
+    use crate::{
+        accounting::EngineAccounting, evaluator_roster::PointCounts, histogram::FloatHistogram,
+        sample_labels::SampleLabels, statistics::OwnedSamples,
+        test_storage::group_preparation as fixture, value::SampleValueRef,
+    };
+
+    struct Fixture {
+        plan: Plan,
+        canonical: AccountedVec<Descriptor>,
+    }
+
+    impl Fixture {
+        fn new(operator: TokenKind, width: Option<usize>, account: &QueryAccounting) -> Self {
+            let (name, parameter) = match operator {
+                TokenKind::TOPK => ("topk", 1.0),
+                TokenKind::BOTTOMK => ("bottomk", 1.0),
+                TokenKind::LIMITK => ("limitk", 2.0),
+                TokenKind::LIMIT_RATIO => ("limit_ratio", 1.0),
+                _ => unreachable!(),
+            };
+            let control = Control::default();
+            let expression =
+                fixture::expression(&format!("{name}({parameter},m)"), account, &control);
+            let raw = width.map_or_else(
+                || vec![vec![], vec![]],
+                |width| {
+                    let suffix = vec![
+                        (b"zzempty".to_vec(), vec![]),
+                        (b"zzpad".to_vec(), vec![b'p'; width]),
+                    ];
+                    let mut first = vec![
+                        (b"__name__".to_vec(), b"m".to_vec()),
+                        (b"a".to_vec(), b"b\xffx\xffy".to_vec()),
+                    ];
+                    first.extend(suffix.clone());
+                    if width == 13 {
+                        vec![
+                            vec![(b"a".to_vec(), b"Aaaaa\0\0\0\0\0\0\0\0".to_vec())],
+                            vec![(
+                                b"a".to_vec(),
+                                b"Bbbbb\x1d\x3c\xa5\x95\x96\x2f\x43\xdd".to_vec(),
+                            )],
+                        ]
+                    } else {
+                        vec![first.clone(), first]
+                    }
+                },
+            );
+            let rows = fixture::rows(raw, account, &control);
+            assert_eq!(rows[0].hash, rows[1].hash);
+            if width == Some(13) {
+                assert_ne!(fixture::raw(&rows[0].labels), fixture::raw(&rows[1].labels));
+                assert_eq!(rows[0].hash, 0x9c71_0b2e_3747_e3bd);
+            }
+            let mut canonical =
+                fixture::rows(vec![fixture::raw(&rows[0].labels)], account, &control);
+            canonical[0].ordinal = 0;
+            canonical[0].sources = 0..2;
+            let mut parameters = Parameters::new(true);
+            parameters.push(parameter, account);
+            let mut plan = Plan::new(operator, parameters, account);
+            plan.prepare_rows(rows, &expression, expression.root, &control, account)
+                .unwrap();
+            plan.project(&canonical, &[0, 1], &control, account)
+                .unwrap();
+            Self { plan, canonical }
+        }
+    }
+
+    fn options(time_ms: i64) -> EvaluationOptions {
+        EvaluationOptions {
+            time_ms,
+            start_ms: 0,
+            end_ms: 2000,
+            step_ms: 1000,
+            lookback_ms: 1,
+            start_timestamps: true,
+            delayed_name_removal: false,
+        }
+    }
+
+    fn value(index: usize, flip: bool) -> f64 {
+        if (index == 1) != flip { 2.0 } else { 1.0 }
+    }
+
+    fn source<'a>(
+        plan: &'a Plan,
+        index: usize,
+        histogram: bool,
+        flip: bool,
+        account: &QueryAccounting,
+    ) -> EvaluatedSample<'a> {
+        let value = if histogram {
+            let histogram = FloatHistogram {
+                count: 1.0,
+                sum: value(index, flip),
+                ..FloatHistogram::default()
+            };
+            OwnedValue::copy_from(
+                SampleValueRef::FloatHistogram(histogram.as_ref()),
+                account,
+                MemoryKind::Workspace,
+            )
+        } else {
+            OwnedValue::Float(value(index, flip))
+        };
+        EvaluatedSample {
+            ordinal: plan.inputs[index].ordinal,
+            labels: SampleLabels::Borrowed(&plan.inputs[index].labels),
+            value,
+            float_samples: (!histogram).then(|| OwnedSamples::new(account, 1)),
+            source_time_ms: -123,
+            source_start_time_ms: -456,
+            drop_name: !plan.inputs[index].drop_name,
+        }
+    }
+
+    struct Collected<'a> {
+        samples: Vec<EvaluatedSample<'a>>,
+        acquired: u64,
+        exact_borrows: bool,
+        requests: usize,
+    }
+
+    fn collect<'a>(
+        fixture: &'a Fixture,
+        project: bool,
+        vector: bool,
+        histogram: bool,
+        clock: i64,
+        flip: bool,
+        account: &QueryAccounting,
+    ) -> Collected<'a> {
+        let control = Control::default();
+        let plan = &fixture.plan;
+        let mut step = Step::new(
+            plan,
+            options(clock),
+            clock / 1000,
+            project,
+            vector,
+            Some(&fixture.canonical),
+            account,
+        );
+        let mut collected = Collected {
+            samples: vec![],
+            acquired: 0,
+            exact_borrows: true,
+            requests: 0,
+        };
+        loop {
+            let input = step.expected;
+            let before = account.snapshot();
+            match step.advance(&control, account).unwrap() {
+                Action::Continue => (),
+                Action::Child { parameter, ordinal } => {
+                    assert!(!parameter);
+                    let index = plan
+                        .inputs
+                        .iter()
+                        .position(|row| Some(&row.ordinal) == ordinal)
+                        .unwrap();
+                    collected.requests += 1;
+                    step.receive(
+                        source(plan, index, histogram, flip, account),
+                        &control,
+                        account,
+                    )
+                    .unwrap();
+                }
+                Action::Sample(sample) => {
+                    let index = input.expect("fresh selected input");
+                    let representative = &plan.inputs[if project { 0 } else { index }];
+                    assert_eq!(
+                        fixture::raw(&sample.labels),
+                        fixture::raw(&representative.labels)
+                    );
+                    assert_eq!(sample.ordinal, if project { 0 } else { index });
+                    assert_eq!(
+                        sample.drop_name,
+                        if project {
+                            representative.drop_name
+                        } else {
+                            !representative.drop_name
+                        }
+                    );
+                    assert_eq!(
+                        (sample.source_time_ms, sample.source_start_time_ms),
+                        (clock, 0)
+                    );
+                    assert_eq!(sample.float_samples.is_some(), !histogram);
+                    match &sample.value {
+                        OwnedValue::Float(actual) => {
+                            assert_eq!(actual.to_bits(), value(index, flip).to_bits())
+                        }
+                        OwnedValue::Histogram(actual) => {
+                            assert_eq!(actual.as_ref().sum.to_bits(), value(index, flip).to_bits());
+                            assert_eq!(actual.as_ref().count, 1.0);
+                        }
+                    }
+                    collected.acquired += account
+                        .snapshot()
+                        .memory
+                        .iter()
+                        .zip(before.memory)
+                        .map(|(new, old)| new.acquired - old.acquired)
+                        .sum::<u64>();
+                    collected.exact_borrows &= matches!(sample.labels,
+                        SampleLabels::Borrowed(owner) if std::ptr::eq(owner, &representative.labels));
+                    collected.samples.push(sample);
+                }
+                Action::Done(ignored) => {
+                    assert!(ignored.is_none());
+                    break;
+                }
+            }
+        }
+        collected
+    }
+
+    #[test]
+    fn selection_emission_preserves_canonical_metadata_before_copy_guard() {
+        let mut costs = vec![];
+        for operator in [
+            TokenKind::TOPK,
+            TokenKind::BOTTOMK,
+            TokenKind::LIMITK,
+            TokenKind::LIMIT_RATIO,
+        ] {
+            for width in [None, Some(0), Some(13), Some(16), Some(4096)] {
+                for project in [false, true] {
+                    for vector in [false, true] {
+                        for histogram in [false, true] {
+                            if histogram && matches!(operator, TokenKind::TOPK | TokenKind::BOTTOMK)
+                            {
+                                continue;
+                            }
+                            let account = EngineAccounting::default().query();
+                            let fixture = Fixture::new(operator, width, &account);
+                            let output =
+                                collect(&fixture, project, vector, histogram, 0, false, &account);
+                            let count = if matches!(operator, TokenKind::TOPK | TokenKind::BOTTOMK)
+                                || project && vector
+                            {
+                                1
+                            } else {
+                                2
+                            };
+                            assert_eq!(output.samples.len(), count);
+                            assert!(output.requests > output.samples.len());
+                            costs.push((
+                                operator,
+                                width,
+                                project,
+                                vector,
+                                histogram,
+                                output.acquired,
+                                output.exact_borrows,
+                            ));
+                            drop(output);
+                            drop(fixture);
+                            account.snapshot().assert_memory_released();
+                        }
+                    }
+                }
+            }
+        }
+        println!(
+            "complete selection emission scenarios={} {costs:?}",
+            costs.len()
+        );
+        assert_eq!(costs.len(), 120);
+        assert!(
+            costs.iter().all(|case| case.5 == 0 && case.6),
+            "canonical emission must borrow exact raw owners without allocation"
+        );
+    }
+
+    #[test]
+    fn selection_emission_keeps_snapshots_fresh_values_and_independent_mutation() {
+        let account = EngineAccounting::default().query();
+        let fixture = Fixture::new(TokenKind::TOPK, Some(4096), &account);
+        let original = fixture::raw(&fixture.plan.inputs[0].labels);
+        let mut cold = collect(&fixture, true, true, false, 0, false, &account);
+        let cached = collect(&fixture, true, true, false, 0, true, &account);
+        let next = collect(&fixture, true, true, false, 1000, true, &account);
+        assert_eq!(
+            (cold.samples.len(), cached.samples.len(), next.samples.len()),
+            (1, 1, 1)
+        );
+        assert!(cold.requests > cached.requests && next.requests > cached.requests);
+        let bits = |output: &Collected<'_>| match output.samples[0].value {
+            OwnedValue::Float(value) => value.to_bits(),
+            _ => unreachable!(),
+        };
+        assert_eq!(
+            (bits(&cold), bits(&cached), bits(&next)),
+            (2.0f64.to_bits(), 1.0f64.to_bits(), 2.0f64.to_bits())
+        );
+        assert_eq!(fixture::raw(&cold.samples[0].labels), original);
+        cold.samples[0]
+            .labels
+            .make_owned(&account, &Control::default())
+            .unwrap()
+            .set(
+                b"a",
+                b"changed",
+                &account,
+                MemoryKind::Workspace,
+                &Control::default(),
+            )
+            .unwrap();
+        assert_eq!(fixture::raw(&fixture.plan.inputs[0].labels), original);
+        assert_eq!(fixture::raw(&cached.samples[0].labels), original);
+        assert_eq!(fixture::raw(&next.samples[0].labels), original);
+        drop((cold, cached, next));
+        drop(fixture);
+        account.snapshot().assert_memory_released();
+    }
+
+    fn ready_emit<'a>(fixture: &'a Fixture, account: &QueryAccounting) -> Step<'a> {
+        let plan = &fixture.plan;
+        let control = Control::default();
+        let mut step = Step::new(
+            plan,
+            options(0),
+            0,
+            true,
+            true,
+            Some(&fixture.canonical),
+            account,
+        );
+        loop {
+            match step.advance(&control, account).unwrap() {
+                Action::Continue => (),
+                Action::Child { parameter, ordinal } => {
+                    assert!(!parameter);
+                    let index = plan
+                        .inputs
+                        .iter()
+                        .position(|row| Some(&row.ordinal) == ordinal)
+                        .unwrap();
+                    step.receive(
+                        source(plan, index, false, false, account),
+                        &control,
+                        account,
+                    )
+                    .unwrap();
+                    if matches!(step.stage, Stage::Emit) {
+                        return step;
+                    }
+                }
+                _ => panic!("selection must request its fresh winner before emission"),
+            }
+        }
+    }
+
+    #[test]
+    fn selection_emission_checks_the_replacement_boundary_after_head_and_replay_errors() {
+        for scenario in 0..4 {
+            let account = EngineAccounting::default().query();
+            let mut fixture = Fixture::new(TokenKind::TOPK, Some(4096), &account);
+            if scenario == 3 {
+                let mut counts = PointCounts::default();
+                counts.push(1);
+                counts.push(1);
+                fixture.canonical[0].heads.note(counts, -1);
+            }
+            let mut step = ready_emit(&fixture, &account);
+            if scenario == 1 {
+                step.emitted = None;
+            } else if scenario == 2 {
+                step.emitted.as_mut().unwrap().value =
+                    source(&fixture.plan, 1, true, false, &account).value;
+                step.emitted.as_mut().unwrap().float_samples = None;
+            }
+            let control = Control::default();
+            let before = account.snapshot();
+            let result = crate::test_storage::interrupt_after_work(&account, &control, 1, || {
+                step.advance(&control, &account)
+            });
+            assert_eq!(account.snapshot().work - before.work, 1);
+            match (scenario, result) {
+                (0, Err(EvaluationError::Interrupted(Interrupted::Cancelled))) => (),
+                (
+                    1 | 2,
+                    Err(EvaluationError::Invalid("selection winner changed during replay")),
+                ) => (),
+                (3, Ok(Action::Continue)) => (),
+                _ => {
+                    panic!("replacement boundary changed replay/head/error precedence: {scenario}")
+                }
+            }
+            assert!(
+                account
+                    .snapshot()
+                    .memory
+                    .iter()
+                    .zip(before.memory)
+                    .all(|(new, old)| new.acquired == old.acquired)
+            );
+            drop(step);
+            drop(fixture);
+            account.snapshot().assert_memory_released();
+        }
     }
 }
 

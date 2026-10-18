@@ -4240,6 +4240,89 @@ original/policy identities, every resource/timing/linked cost and failed attempt
 local; committed controls exercise the current owners. MSRV evidence is compilation only; foreign execution is
 emulated release. Broad fixture results omit logical sample statistics; the actual C triples above are separate.
 
+## Borrowed ranking-result labels
+
+Canonical TOPK, BOTTOMK and explicitly enabled LIMIT emission borrows the exact first representative's full
+labels from its immutable plan. It preserves raw empty fields and full-hash aliases. The fresh selected sample
+keeps its value and sample lease; canonical ordinal, flags and timestamps follow the existing projection.
+An explicit control check stays at the replaced copy boundary, after existing missing/type/head decisions.
+
+The plan outlives each Machine and snapshot. Actual label mutation and first descriptor/public result retention
+still materialize independently. Cached selection still requests fresh values. No label owner, cache, persistent
+field, arithmetic, default, provider, storage or public interface is added.
+
+The old producer completes 120 label/value/lease scenarios before the intended no-copy/borrow failure. Current
+Debug and all four optimized runtime cohorts pass them. Distinct full-label bytes share the proven hash
+0x9c710b2e3747e3bd; the winner differs from the first representative. Controls cover empty/zero labels, raw output,
+native LIMIT histograms, vector heads, same-key reuse, next-clock winners, retained earlier output, mutation,
+missing/type errors and cancellation triggered after the entry poll at the real replacement boundary.
+
+Both native profiles pass 805 units with two unchanged ignored tests. Each emulated ARM target passes 13 focused
+checks. The 100 new complete cases produce 800 architecture/profile/page-matched before/current comparisons:
+native pages 1/17/1024 and foreign page17, both name modes and four operators. All 56,124 fresh reducer outcomes
+match the complete retained canonical analysis inputs; the 216 historical strict-original differences remain
+failures, with their original source/runtime and separately declared ordering analyses.
+
+Actual default libraries pass 1,872 C pairs and 1,872 current C++ controls across both native profiles, plus both
+full C programs. This includes 192 direct ranking cases checking all 9/17 labels through collected/streamed
+output, provider failure, source-view clearing and query release. Existing grouped and histogram cases remain.
+Exported sample-statistic triples and physical-read fields match; broad fixture observations do not expose those
+logical statistic triples.
+
+Six singleton abs shapes add 30 accounted work units each, across all three native page sizes: 18 observations
+per profile. They use the existing borrowed-label mutation path, which checks labels before materialization.
+Their allocation traffic is unchanged and their tracked peak decreases. These work costs are retained separately
+from elapsed measurements; no CPU-time cause is inferred from the accounting units.
+
+At the emission call, a 4,096-byte padded projected float costs 4,507 acquired bytes before and zero now;
+two native LIMIT outputs cost 9,014 before and zero now. Other preparation and retained-result copies remain.
+The following complete-query observations use 32 series, 4,096-byte padding, page17 and default name removal.
+They measure Workspace allocation traffic and tracked capacity, not process RSS.
+
+| TOPK consumer | Acquired, before → current | Peak, before → current |
+| --- | --- | --- |
+| raw | 3,798,360 → 3,582,072 B | 276,368 → 272,630 B |
+| abs | 15,304,396 → 10,762,348 B | 382,166 → 377,788 B |
+| join | 15,427,268 → 10,452,644 B | 392,854 → 389,116 B |
+
+The fixed timing panel has 50 cases per native profile: four operators, 1/32 series, 16/4,096-byte padding,
+raw/abs/label_join consumers and selector/ordinary controls. Three alternating blocks yield nine measured queries
+per side after warmups. Every primary ratio at least 1.05 receives exactly one fixed 20-sample-per-side follow-up.
+All samples and slower cases remain in the report.
+
+| TOPK consumer | Release before → current, µs | Release-min before → current, µs |
+| --- | --- | --- |
+| raw | 2,176.971 → 2,161.382 | 3,740.089 → 3,671.370 |
+| abs | 6,944.132 → 5,955.689 | 11,903.950 → 10,392.653 |
+| join | 6,870.452 → 6,031.219 | 11,882.210 → 10,207.024 |
+
+| Profile | Slower primary medians | Threshold follow-ups | Persistent threshold costs |
+| --- | ---: | ---: | ---: |
+| release | 3 | 0 | 0 |
+| release-min | 5 | 0 | 0 |
+
+All six matched fixture/default-C linked costs remain visible, including increases. Formatting, strict
+default/fixture Clippy and installed Rust 1.91 compile-only checks pass. ARM execution is emulated release;
+foreign full-suite/C, physical-device timing, stack high-water, RSS and live/concurrent Agent requalification
+are outside this panel. Shared-host engine time excludes compilation, parsing and result serialization.
+
+Initial test-only compile/fixture mistakes and outer verifier failures remain separately recorded. The earlier
+parameterized-preparation costs and compiler-inlining lead are not attributed to this change or claimed remedied.
+
+From src/crates/promql-engine, run the committed ownership checks and inspect C-caller options with:
+
+```sh
+cargo test --locked --features fixtures --release topk::emission_tests::
+cargo test --locked --features fixtures --profile release-min \
+  aggregate_label_borrows_outlive_machines_and_materialize_at_descriptor_boundaries
+python tests/promql-conformance/c_embedding.py --help
+```
+
+The [ranking-result qualification](ranking-result-labels-qualification.json) binds actual source/runtime,
+complete outcomes, resource/timing/linked costs and failed attempts. Full comparative captures stay local and
+compressed; their hashes, lengths and decoded EOF are verified. Finite evidence establishes no universal
+compatibility, throughput or memory bound.
+
 ## Borrowed projection-result labels
 
 Productive label_join and label_replace emission now borrows exact immutable prepared descriptor labels through
