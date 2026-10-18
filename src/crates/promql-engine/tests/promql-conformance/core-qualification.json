@@ -73259,5 +73259,13 @@
     "report_sha256": "0ed319c2b3ebb1e3630cf2a16d2dbcc8f7d0e3ab0d3bbbadd78b1f6a5ce29a9c",
     "source_manifest_sha256": "2c0b5f6477463cbe8043867a20a5a94c3b1e2e478ce539b7521832645c161017",
     "scope": "Exact first-match borrowed detection, unchanged full owned cleanup and controls.807native units/profile,12focused/foreign,1152complete affected target pairs,1872C/1872C++ comparisons;all memory/nonwork observations exact. Fixed paired timings preserve every slower/work/linked cost. No new language/API/policy or broad historical requalification claim."
+  },
+  "group_key_inlining_experiment": {
+    "status": "rejected_private_candidate",
+    "report": "group-key-inlining-experiment.json",
+    "report_sha256": "118dc7ec88b0a85c02b17e24fec2aa21c757a3d9e310b4667e074effcd1e248f",
+    "accepted_source_manifest_sha256": "2c0b5f6477463cbe8043867a20a5a94c3b1e2e478ce539b7521832645c161017",
+    "candidate_source_manifest_sha256": "1ad819dc32398807ff2a59246491cb3831a5f8c85d6dfd6c0ef7b8c299c9be35",
+    "scope": "Exactly two optional hints removed after4actual compiled admission pairs and5432complete native screening pairs with identical nonelapsed observations. Fixed208cases/profile retain all56/102slower primary medians, follow-ups, code/frame/file costs and original/corrected inspection. No retained engine change, full candidate conformance or general throughput/query-memory gain."
   }
 }

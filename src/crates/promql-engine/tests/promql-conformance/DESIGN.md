@@ -1807,3 +1807,11 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
 - The frozen source remains independent through interrupted copies and partially changed owned cleanup.
 - The conformance README records complete ownership/cancellation, real Engine/C, unchanged-memory and paired
   early/last/no-op measurements. Original campaigns retain their actual historical attribution.
+
+## Grouping helper inlining experiment
+
+- Two precise inline(always) hints removed actual prepared-key calls in native fixture/default-C binaries.
+- The fixed positive/negative panel showed small mixed timings with identical query-memory/work observations.
+- Text and local caller-frame costs did not establish a useful overall throughput or query-memory gain.
+- Reject the measured candidate and retain the original source plus compiler discretion; no algorithm changes.
+- The conformance README/report preserve all slower results, compiled costs and the corrected call-target check.

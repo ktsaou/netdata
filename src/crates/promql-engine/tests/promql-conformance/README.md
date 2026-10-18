@@ -7912,3 +7912,57 @@ the inspection does not measure mapped residency, whole-query stack or RSS.
 
 See [the complete qualification](reserved-detection-qualification.json). Historical upstream/reducer cohorts retain
 their earlier source and runtime identities; they were not rerun or credited as fresh Go captures in this step.
+
+## Grouping helper inlining experiment
+
+An experiment added `#[inline(always)]` to only `PreparedGroupKey::new` and `into_owned`. It left copied
+construction, grouping algorithms, callers, profiles and tests unchanged. Actual compiled inspection confirms
+the targeted calls disappear in both native fixtures and both linked default-C callers. This established a
+real compiler change; missing helper symbols alone were not used as proof.
+
+The experiment was rejected and both attributes were removed. All 360 accepted engine inputs remain identical
+to signed `422919e067913557fa873931234831509d396e33`. This entry records an unsuccessful optimization attempt,
+not a new engine behavior, compatibility exception or language feature.
+
+The fixed 208-case/32-dataset panel covers projected SUM and plural quantile, ordinary raw SUM and direct
+ranking controls, singleton/plural inputs, repeated/unique groups, narrow/wide bytes and both sides of the
+64-field boundary. Both profiles use three alternating blocks, one warmup plus three measured queries per
+process, giving nine measured samples per side. Each primary median at least 5% slower receives exactly one
+identical fixed follow-up. Engine timing excludes compilation, parsing and serialization.
+
+All 5,432 complete before/candidate result pairs match. Every serialized nonelapsed observation also matches,
+including work, all eight memory categories, reads, statistics and reference traffic. No query-memory gain
+was established. The following are medians of the individual case ratios, candidate/before; they are neither
+a ratio of pooled times nor a general throughput prediction:
+
+| Case family | Cases per profile | Release ratio | Release-min ratio |
+|---|---:|---:|---:|
+| ranking-control | 96 | 0.986865 | 1.000221 |
+| singleton-quantile | 48 | 0.973215 | 1.002889 |
+| plural-quantile | 48 | 0.998440 | 0.991819 |
+| raw-sum | 8 | 0.986908 | 1.007855 |
+| projected-sum | 8 | 0.978958 | 1.003686 |
+
+All 56 release and 102 release-min slower primary medians remain in the report. Release has no threshold
+follow-up; the two release-min follow-ups retain ratios 1.020852 and 0.993555. Neither profile retains a
+follow-up ratio at or above 1.05. Unchanged controls also move; the small mixed gains do not justify forcing
+these helpers inline. No repeat was run to select a winning result.
+
+Text grows by 428/924 bytes in the release/release-min fixture and 900/684 bytes in the corresponding default-C
+callers. File sizes and all reported text/data/BSS costs remain in the report. Initial caller stack reservations
+change in both directions; these local instructions exclude saved registers and deeper calls. Neither BSS
+padding changes nor removed calls establish lower whole-query stack use, mapped residency or RSS.
+
+The first immutable inspection incorrectly classified helper names embedded in closure types as calls and
+omitted the actual delegated quantile constructor in the release C caller. The corrected inspection matches
+direct destination addresses to sized symbols and follows the called delegate. Both inspections remain;
+this correction changed no engine source, build or timing capture.
+
+Candidate formatting, builds, default-C linking, compiled inspection and bounded native query screening ran.
+Because screening rejected the candidate, its full unit suites, strict Clippy/MSRV checks, foreign execution,
+full C/C++ execution and broad upstream/reducer campaigns were not run or claimed. Earlier qualifications keep
+their actual source/runtime identities. The accepted engine source is unchanged. No universal, causal general,
+live, concurrent or physical-device improvement, or remedy for earlier Stage98 timing costs, follows.
+
+See [the complete rejected experiment](group-key-inlining-experiment.json), including every sample, observation,
+compiled cost, source/runtime binding and inspection correction. The continuous optimization work remains open.
