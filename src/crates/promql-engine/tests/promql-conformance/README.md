@@ -7859,3 +7859,56 @@ native profiles have identical nonelapsed observations at each page size. The co
 text and 120 B of data, with unchanged BSS. Lower traffic does not establish lower process RSS. Frozen binding and
 seen-hash searches remain; no global linear-work, live speedup, concurrency/saturation, cold-disk or physical-ARM
 throughput claim follows from this finite panel. Raw paging, provider-owned backing and disabled implicit caps remain.
+
+## Borrowed reserved-label detection
+
+`SampleLabels::drop_reserved` stops its detection pass at the first removable field. The first-name error check,
+terminal control checks, checked ownership conversion and complete owned removal remain. No-match detection
+still visits every field. Raw order, duplicate or opaque names, later empty names and both removal modes retain
+their existing behavior; this is not a sorted-label shortcut or normalization change.
+
+The unchanged producer completes 46 full semantic cases and six early/last result-and-memory pairs before the
+intended excess-scan assertion fails. Its interruption control passes. Identical current tests verify the saved
+detection work and exercise every charged interruption point, partial copying, owned mutation and full release.
+
+Fresh qualification compares 1,152 complete affected outcomes with the accepted parent: 144 queries through both
+native profiles at pages 1/17/1024 and focused ARM32/ARM64 execution at page 17. It covers early/last/no-op cleanup,
+both name modes, native histograms, raw empty/opaque values and real mutation consumers. All eight tracked memory
+categories and serialized nonwork/read/provider fields are exact; every work difference is retained. Both native
+suites pass 807 tests with two unchanged ignored tests; each emulated target passes 12 focused tests. Both strict
+variants, formatting and installed Rust 1.91 compilation pass. The latter is compile-only evidence.
+
+Actual default-library C comparisons comprise 1,872 before/current pairs and 1,872 current C++ controls, plus both
+full C programs. Existing callback, output ownership, source-clearing, provider-error and statistic assertions
+remain; serialized memory/read/statistic fields are exact. Query captures are compressed from the start.
+
+The fixed 38-case timing panel includes early/last/no-op cleanup, 9/65 fields, 1/32 series, abs/unary/scalar consumers
+and selector/ordinary controls. Three alternating blocks give nine measured samples per side. Each primary ratio
+of at least 1.05 receives one fixed 20-sample follow-up. Engine timing excludes compilation, parsing and serialization.
+
+Selected early-match, 32-series/65-field medians are microseconds; ratios are current/before:
+
+| Profile | Consumer | Before us | Current us | Ratio |
+|---|---|---:|---:|---:|
+| release | abs | 70710.500 | 75168.250 | 1.0630 |
+| release | unary | 20669.682 | 21548.332 | 1.0425 |
+| release | scalar | 77186.338 | 77207.837 | 1.0003 |
+| release-min | abs | 130840.473 | 124531.644 | 0.9518 |
+| release-min | unary | 38847.987 | 36545.892 | 0.9407 |
+| release-min | scalar | 137722.583 | 133035.755 | 0.9660 |
+
+All 21 release and 0 release-min slower primary
+medians remain in the report. Fixed follow-ups leave 0 and
+0 ratios at or above 1.05, respectively. All linked text/data/BSS/file costs
+are retained. Work counts do not establish elapsed causes. No universal speedup, live/concurrent/RSS, physical-ARM
+performance or full foreign-suite claim follows. Earlier inlining/timing leads receive no remedy credit.
+
+All release-min primary medians improve, including both unchanged controls; those timing gains cannot all be
+attributed to this detection change. Release results are mixed, and the actual query-memory counters are unchanged.
+Independent linked-cost inspection attributes the native fixture's extra 3,632 B of reported BSS to reserved
+linker padding and ARM64's extra 20,400 B of text to five additional zero-filled stub-island gaps. ARM64 file size
+also grows 66,024 B, including a 64-KiB segment-offset change. These layout costs remain real deployment costs;
+the inspection does not measure mapped residency, whole-query stack or RSS.
+
+See [the complete qualification](reserved-detection-qualification.json). Historical upstream/reducer cohorts retain
+their earlier source and runtime identities; they were not rerun or credited as fresh Go captures in this step.

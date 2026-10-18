@@ -1798,3 +1798,12 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
   [finite qualification](ranking-result-labels-qualification.json) retain complete identities, controls,
   C ownership/statistics, all resource costs and slower timings. Allocation traffic differs from tracked peak
   and RSS; these finite shared-host observations establish no universal performance guarantee.
+
+## Borrowed reserved-label detection
+
+- Detection stops after its first exact reserved-name match; the existing owned removal still visits every field.
+- Keep first-position empty-name errors, initial/terminal control checks and transactional conversion before mutation.
+- No-match scans remain exhaustive. Raw order, duplicate/opaque/later-empty names and both removal modes stay valid.
+- The frozen source remains independent through interrupted copies and partially changed owned cleanup.
+- The conformance README records complete ownership/cancellation, real Engine/C, unchanged-memory and paired
+  early/last/no-op measurements. Original campaigns retain their actual historical attribution.

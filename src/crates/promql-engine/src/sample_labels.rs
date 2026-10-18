@@ -94,11 +94,15 @@ impl<'a> SampleLabels<'a> {
         for label in &*labels.0 {
             control.check()?;
             account.work(1);
-            removes |= if name_only {
+            let removes_label = if name_only {
                 &*label.name == b"__name__"
             } else {
                 metadata(&label.name)
             };
+            if removes_label {
+                removes = true;
+                break;
+            }
         }
         control.check()?;
         if removes {
@@ -138,6 +142,297 @@ mod tests {
             .map(|(name, value)| LabelRef { name, value })
             .collect();
         OwnedLabels::copy_from(&refs, account, MemoryKind::Workspace)
+    }
+
+    fn label_bytes(labels: &OwnedLabels) -> Vec<(Vec<u8>, Vec<u8>)> {
+        labels
+            .0
+            .iter()
+            .map(|label| (label.name.to_vec(), label.value.to_vec()))
+            .collect()
+    }
+
+    #[test]
+    fn borrowed_removal_matches_owned_cleanup_before_short_scan_guard() {
+        let mut cases: Vec<Vec<(&[u8], &[u8])>> = vec![
+            vec![],
+            vec![(b"id", b"v")],
+            vec![(b"__name__", b"m")],
+            vec![(b"__type__", b"gauge")],
+            vec![(b"__unit__", b"KiB")],
+            vec![(b"id", b""), (b"z", b"\xff\0")],
+            vec![
+                (b"__name___", b"v"),
+                (b"__type", b"v"),
+                (b"__unit__suffix", b"v"),
+            ],
+            vec![
+                (b"z", b"v"),
+                (b"__name__", b""),
+                (b"__type__", b"gauge"),
+                (b"__name__", b"second"),
+                (b"__unit__", b"KiB"),
+                (b"a", b""),
+            ],
+            vec![
+                (b"\xff\0", b"v"),
+                (b"", b"later"),
+                (b"__unit__", b""),
+                (b"id", b"v"),
+            ],
+        ];
+        for reserved in [
+            (b"__name__".as_slice(), b"m".as_slice()),
+            (b"__type__".as_slice(), b"gauge".as_slice()),
+            (b"__unit__".as_slice(), b"KiB".as_slice()),
+        ] {
+            for position in 0..=3 {
+                let mut case = vec![
+                    (b"alpha".as_slice(), b"".as_slice()),
+                    (b"beta".as_slice(), b"\xff\0".as_slice()),
+                    (b"gamma".as_slice(), b"v".as_slice()),
+                ];
+                case.insert(position, reserved);
+                cases.push(case);
+            }
+        }
+        let mut complete = 0;
+        for name_only in [false, true] {
+            for case in &cases {
+                let account = EngineAccounting::default().query();
+                let source = labels(&account, case);
+                let frozen = label_bytes(&source);
+                let mut expected = source
+                    .copy_checked(&account, MemoryKind::Workspace, &Control::default())
+                    .unwrap();
+                drop_reserved(&mut expected, name_only, &account, &Control::default()).unwrap();
+                let mut value = SampleLabels::Borrowed(&source);
+                let before = account.snapshot().memory;
+                value
+                    .drop_reserved(name_only, &account, &Control::default())
+                    .unwrap();
+                assert_eq!(label_bytes(&value), label_bytes(&expected));
+                assert_eq!(label_bytes(&source), frozen);
+                let removes = case.iter().any(|(name, _)| {
+                    if name_only {
+                        *name == b"__name__"
+                    } else {
+                        metadata(name)
+                    }
+                });
+                if removes {
+                    assert!(matches!(value, SampleLabels::Owned(_)));
+                } else {
+                    assert!(
+                        matches!(value, SampleLabels::Borrowed(owner) if std::ptr::eq(owner, &source))
+                    );
+                    assert_eq!(account.snapshot().memory, before);
+                }
+                drop((value, expected));
+                drop(source);
+                account.snapshot().assert_memory_released();
+                complete += 1;
+            }
+            for case in [
+                vec![(b"".as_slice(), b"v".as_slice())],
+                vec![(b"".as_slice(), b"v".as_slice()), (b"__name__", b"m")],
+            ] {
+                let account = EngineAccounting::default().query();
+                let source = labels(&account, &case);
+                let frozen = label_bytes(&source);
+                let mut expected = source
+                    .copy_checked(&account, MemoryKind::Workspace, &Control::default())
+                    .unwrap();
+                let expected_error =
+                    drop_reserved(&mut expected, name_only, &account, &Control::default())
+                        .unwrap_err();
+                let mut value = SampleLabels::Borrowed(&source);
+                let error = value
+                    .drop_reserved(name_only, &account, &Control::default())
+                    .unwrap_err();
+                let (
+                    EvaluationError::WrappedRuntime(actual),
+                    EvaluationError::WrappedRuntime(expected_message),
+                ) = (&error, &expected_error)
+                else {
+                    panic!("first empty name must retain its runtime error");
+                };
+                assert_eq!(&**actual, &**expected_message);
+                assert!(
+                    matches!(value, SampleLabels::Borrowed(owner) if std::ptr::eq(owner, &source))
+                );
+                assert_eq!(label_bytes(&source), frozen);
+                drop((value, error, expected_error, expected));
+                drop(source);
+                account.snapshot().assert_memory_released();
+                complete += 1;
+            }
+        }
+
+        let mut causal = Vec::new();
+        for name_only in [false, true] {
+            for count in [1, 9, 65] {
+                let run = |first| {
+                    let account = EngineAccounting::default().query();
+                    let mut pairs = (0..count - 1)
+                        .map(|index| (format!("label_{index:03}").into_bytes(), b"v".to_vec()))
+                        .collect::<Vec<_>>();
+                    pairs.insert(
+                        if first { 0 } else { pairs.len() },
+                        (b"__name__".to_vec(), b"m".to_vec()),
+                    );
+                    let views = pairs
+                        .iter()
+                        .map(|(name, value)| (name.as_slice(), value.as_slice()))
+                        .collect::<Vec<_>>();
+                    let source = labels(&account, &views);
+                    let mut value = SampleLabels::Borrowed(&source);
+                    let before = account.snapshot().work;
+                    value
+                        .drop_reserved(name_only, &account, &Control::default())
+                        .unwrap();
+                    assert!(matches!(value, SampleLabels::Owned(_)));
+                    let bytes = label_bytes(&value);
+                    let observed = account.snapshot();
+                    drop(value);
+                    drop(source);
+                    account.snapshot().assert_memory_released();
+                    (bytes, observed.work - before, observed.memory)
+                };
+                let (early, early_work, early_memory) = run(true);
+                let (last, last_work, last_memory) = run(false);
+                assert_eq!(early, last);
+                assert_eq!(early_memory, last_memory);
+                causal.push((count, name_only, early_work, last_work));
+            }
+        }
+        eprintln!(
+            "complete borrowed removal scenarios={complete}; canonical early/last pairs={}",
+            causal.len()
+        );
+        for (count, name_only, early_work, last_work) in causal {
+            assert_eq!(
+                last_work - early_work,
+                (count - 1) as u64,
+                "detection should stop once removal is known: count{count} name_only{name_only}"
+            );
+        }
+    }
+
+    #[test]
+    fn borrowed_removal_cancellation_preserves_each_ownership_phase() {
+        let account = EngineAccounting::default().query();
+        let source = labels(
+            &account,
+            &[
+                (b"__name__", b"m"),
+                (b"__type__", b"gauge"),
+                (b"__unit__", b"KiB"),
+                (b"id", b"v"),
+            ],
+        );
+        let frozen = label_bytes(&source);
+        for name_only in [false, true] {
+            let mut value = SampleLabels::Borrowed(&source);
+            let before = account.snapshot().work;
+            value
+                .drop_reserved(name_only, &account, &Control::default())
+                .unwrap();
+            let work = account.snapshot().work - before;
+            drop(value);
+            let mut phases = [false; 3];
+            for budget in 1..=work {
+                let before = account.snapshot().memory;
+                let mut value = SampleLabels::Borrowed(&source);
+                let control = Control::default();
+                let outcome =
+                    crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                        value.drop_reserved(name_only, &account, &control)
+                    });
+                assert!(
+                    matches!(
+                        outcome,
+                        Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                    ),
+                    "name_only{name_only} budget{budget}/{work}"
+                );
+                assert_eq!(label_bytes(&source), frozen);
+                match &value {
+                    SampleLabels::Borrowed(owner) => {
+                        assert!(std::ptr::eq(*owner, &source));
+                        if account.snapshot().memory[MemoryKind::Workspace as usize].acquired
+                            == before[MemoryKind::Workspace as usize].acquired
+                        {
+                            phases[0] = true;
+                        } else {
+                            phases[1] = true;
+                        }
+                    }
+                    SampleLabels::Owned(_) => {
+                        phases[2] |= label_bytes(&value) != frozen;
+                    }
+                }
+                drop(value);
+                assert!(
+                    account
+                        .snapshot()
+                        .memory
+                        .iter()
+                        .zip(before)
+                        .all(|(new, old)| new.current == old.current)
+                );
+            }
+            assert_eq!(
+                phases, [true; 3],
+                "actual detection/copy/owned-mutation phases"
+            );
+            let cancelled = Control::default();
+            cancelled.cancellation.cancel();
+            let mut value = SampleLabels::Borrowed(&source);
+            let before = account.snapshot();
+            assert!(matches!(
+                value.drop_reserved(name_only, &account, &cancelled),
+                Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+            ));
+            assert!(matches!(value, SampleLabels::Borrowed(_)));
+            assert_eq!(account.snapshot().memory, before.memory);
+            assert_eq!(account.snapshot().work, before.work);
+            drop(value);
+        }
+        drop(source);
+
+        let source = labels(
+            &account,
+            &[(b"__name__", b"m"), (b"payload", &vec![b'x'; 65_536])],
+        );
+        let frozen = label_bytes(&source);
+        let mut value = SampleLabels::Borrowed(&source);
+        let control = Control::default();
+        let before = account.snapshot().memory;
+        let outcome = crate::test_storage::interrupt_after_work(&account, &control, 1026, || {
+            value.drop_reserved(false, &account, &control)
+        });
+        assert!(matches!(
+            outcome,
+            Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+        ));
+        assert!(matches!(value, SampleLabels::Borrowed(owner) if std::ptr::eq(owner, &source)));
+        assert!(
+            account.snapshot().memory[MemoryKind::Workspace as usize].acquired
+                > before[MemoryKind::Workspace as usize].acquired
+        );
+        assert!(
+            account
+                .snapshot()
+                .memory
+                .iter()
+                .zip(before)
+                .all(|(new, old)| new.current == old.current)
+        );
+        assert_eq!(label_bytes(&source), frozen);
+        drop(value);
+        drop(source);
+        account.snapshot().assert_memory_released();
     }
 
     #[test]

@@ -266,6 +266,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   complete histogram/read regression and both name-removal modes; instant collectors store scalar results in
   `scalar`, while range requests of scalar expressions produce matrix rows. See the same guide's
   `#instant-set-discovery` section for finite original, caller and live qualification.
+- Borrowed reserved-name detection MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-reserved-label-detection` for both modes,
+  raw names, first-error/copy/mutation controls and early/last/no-op costs.
 
 ## Evidence
 
