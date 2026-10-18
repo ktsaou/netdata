@@ -1277,13 +1277,9 @@ impl Rosters {
             for descriptor in self.nodes[child.0].output.as_deref().unwrap_or(&[]) {
                 control.check()?;
                 account.work(1);
-                let labels =
-                    copy_group_key(&descriptor.labels, grouping, without, control, account)?;
-                let hash = if !without && grouping.is_none_or(|names| names.is_empty()) {
-                    0
-                } else {
-                    label_hash::grouping(&labels, control, account)?
-                };
+                let key =
+                    PreparedGroupKey::new(&descriptor.labels, grouping, without, control, account)?;
+                let hash = key.hash;
                 let position = if let Some(position) = index.find(
                     hash,
                     |position| Ok(groups[position].hash == hash),
@@ -1295,7 +1291,7 @@ impl Rosters {
                     let position = groups.len();
                     groups.push(GroupDescriptor {
                         hash,
-                        labels,
+                        labels: key.into_owned(control, account)?,
                         whole_drop_name: None,
                     });
                     index.insert_new(
@@ -1428,12 +1424,95 @@ pub(crate) fn group_hash(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<u64, Interrupted> {
+    group_hash_with(labels, grouping, without, control, account, |_| {})
+}
+
+struct PreparedGroupKey<'a> {
+    hash: u64,
+    labels: PreparedGroupLabels<'a>,
+}
+
+enum PreparedGroupLabels<'a> {
+    Selected { source: &'a OwnedLabels, bits: u64 },
+    Copied(OwnedLabels),
+}
+
+impl<'a> PreparedGroupKey<'a> {
+    fn new(
+        source: &'a OwnedLabels,
+        grouping: Option<&[AccountedVec<u8>]>,
+        without: bool,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Self, Interrupted> {
+        if source.0.len() > u64::BITS as usize {
+            // Keep the original walk rather than retaining an unbounded selection map.
+            let labels = copy_group_key(source, grouping, without, control, account)?;
+            let hash = if !without && grouping.is_none_or(|names| names.is_empty()) {
+                0
+            } else {
+                label_hash::grouping(&labels, control, account)?
+            };
+            return Ok(Self {
+                hash,
+                labels: PreparedGroupLabels::Copied(labels),
+            });
+        }
+        let (mut bits, mut bit) = (0u64, 1u64);
+        let hash = group_hash_with(source, grouping, without, control, account, |keep| {
+            if keep {
+                bits |= bit;
+            }
+            bit <<= 1;
+        })?;
+        Ok(Self {
+            hash,
+            labels: PreparedGroupLabels::Selected { source, bits },
+        })
+    }
+
+    fn into_owned(
+        self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<OwnedLabels, Interrupted> {
+        match self.labels {
+            PreparedGroupLabels::Copied(labels) => Ok(labels),
+            PreparedGroupLabels::Selected { source, mut bits } => {
+                let labels = source.copy_filtered_checked(
+                    account,
+                    MemoryKind::Workspace,
+                    control,
+                    |_| {
+                        let keep = bits & 1 != 0;
+                        bits >>= 1;
+                        Ok(keep)
+                    },
+                )?;
+                control.check()?;
+                Ok(labels)
+            }
+        }
+    }
+}
+
+fn group_hash_with(
+    labels: &OwnedLabels,
+    grouping: Option<&[AccountedVec<u8>]>,
+    without: bool,
+    control: &Control,
+    account: &QueryAccounting,
+    mut selected: impl FnMut(bool),
+) -> Result<u64, Interrupted> {
     control.check()?;
     if !without && grouping.is_none_or(|names| names.is_empty()) {
         return Ok(0);
     }
     label_hash::grouping_filtered(labels, control, account, |label| {
-        crate::binary_labels::keep_name(&label.name, grouping, without, control, account)
+        let keep =
+            crate::binary_labels::keep_name(&label.name, grouping, without, control, account)?;
+        selected(keep);
+        Ok(keep)
     })
 }
 
@@ -1581,6 +1660,764 @@ mod tests {
     use super::*;
     use crate::accounting::EngineAccounting;
     use std::collections::VecDeque;
+
+    fn group_preparation_input(
+        count: usize,
+        width: usize,
+        ignored: usize,
+        unique: bool,
+        retained: bool,
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> Rosters {
+        let mut rosters = Rosters::new(account, 2, control).unwrap();
+        let mut rows = AccountedVec::new(account, MemoryKind::Workspace);
+        for index in 0..count {
+            let mut labels = OwnedLabels::new(account, MemoryKind::Workspace);
+            labels.push(b"__name__", b"m", account, MemoryKind::Workspace);
+            labels.push(
+                b"id",
+                index.to_string().as_bytes(),
+                account,
+                MemoryKind::Workspace,
+            );
+            labels.push(
+                b"job",
+                format!(
+                    "{}:{:06}",
+                    "x".repeat(width),
+                    if unique { index } else { 0 }
+                )
+                .as_bytes(),
+                account,
+                MemoryKind::Workspace,
+            );
+            for field in 0..ignored {
+                labels.push(
+                    format!("tag{field:03}").as_bytes(),
+                    &[b'z'; 64],
+                    account,
+                    MemoryKind::Workspace,
+                );
+            }
+            let hash = label_hash::full(&labels, control, account).unwrap();
+            rows.push(Descriptor {
+                labels,
+                ordinal: 100 + 3 * (count - 1 - index),
+                hash,
+                drop_name: false,
+                first_order: index,
+                sources: 0..0,
+                kinds: 1,
+                heads: HeadSummary::default(),
+            });
+        }
+        if retained {
+            rosters
+                .projection_output(NodeId(0), rows, control, account)
+                .unwrap();
+            assert!(rosters.nodes[0].sources.is_some());
+            assert!(
+                rosters.nodes[0]
+                    .sources
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .all(|ordinal| *ordinal >= 100)
+            );
+        } else {
+            rosters.output(NodeId(0), rows, control, account).unwrap();
+            assert!(rosters.nodes[0].sources.is_none());
+        }
+        rosters
+    }
+
+    fn group_preparation_replay_key() -> crate::vector_matching::ReplayKey {
+        crate::vector_matching::ReplayKey::new(
+            crate::evaluator::EvaluationOptions {
+                time_ms: 1000,
+                start_ms: 1000,
+                end_ms: 3000,
+                step_ms: 1000,
+                lookback_ms: 300000,
+                start_timestamps: false,
+                delayed_name_removal: false,
+            },
+            0,
+            300000000000,
+            crate::storage::TimeBounds {
+                start_ms: 0,
+                end_ms: 3000,
+            },
+        )
+    }
+
+    #[test]
+    fn group_preparation_selection_word_preserves_raw_boundaries_and_original_fallback() {
+        let mut controls = 0;
+        let mut last_field = None;
+        for count in [0, 1, 63, 64, 65, 128] {
+            for shape in 0..7 {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let mut source = OwnedLabels::new(&account, MemoryKind::Workspace);
+                for field in 0..count {
+                    let name = format!("f{field:03}");
+                    let value: &[u8] = if field % 3 == 0 { b"" } else { b"x\xffy" };
+                    source.push(name.as_bytes(), value, &account, MemoryKind::Workspace);
+                }
+                let chosen: Vec<_> = match shape {
+                    0 | 1 => vec![],
+                    2 => vec![b"missing".to_vec()],
+                    3 | 4 => (0..count)
+                        .filter(|field| field % 2 == 0)
+                        .map(|field| format!("f{field:03}").into_bytes())
+                        .collect(),
+                    5 => vec![b"f063".to_vec()],
+                    _ => (0..count)
+                        .filter(|field| *field != 63)
+                        .map(|field| format!("f{field:03}").into_bytes())
+                        .collect(),
+                };
+                let names: Vec<_> = chosen
+                    .iter()
+                    .map(|bytes| {
+                        let mut name = AccountedVec::new(&account, MemoryKind::Workspace);
+                        name.extend_from_slice(bytes);
+                        name
+                    })
+                    .collect();
+                let grouping = (shape != 0).then_some(names.as_slice());
+                let without = matches!(shape, 4 | 6);
+                let expected: Vec<_> = (0..count)
+                    .filter(|field| match shape {
+                        0..=2 => false,
+                        3 => field % 2 == 0,
+                        4 => field % 2 != 0,
+                        _ => *field == 63,
+                    })
+                    .map(|field| {
+                        (
+                            format!("f{field:03}").into_bytes(),
+                            if field % 3 == 0 {
+                                vec![]
+                            } else {
+                                b"x\xffy".to_vec()
+                            },
+                        )
+                    })
+                    .collect();
+                let before_original = account.snapshot();
+                let original =
+                    copy_group_key(&source, grouping, without, &control, &account).unwrap();
+                let hash = if !without && grouping.is_none_or(|names| names.is_empty()) {
+                    0
+                } else {
+                    label_hash::grouping(&original, &control, &account).unwrap()
+                };
+                let after_original = account.snapshot();
+                let raw = |labels: &OwnedLabels| {
+                    labels
+                        .0
+                        .iter()
+                        .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                        .collect::<Vec<_>>()
+                };
+                assert_eq!(raw(&original), expected, "{count}/{shape}");
+                drop(original);
+                let before = account.snapshot();
+                let key =
+                    PreparedGroupKey::new(&source, grouping, without, &control, &account).unwrap();
+                assert_eq!(key.hash, hash, "{count}/{shape}");
+                if count <= 64 {
+                    let PreparedGroupLabels::Selected {
+                        source: borrowed,
+                        bits,
+                    } = &key.labels
+                    else {
+                        panic!("bounded input must use the selection word");
+                    };
+                    assert!(std::ptr::eq(*borrowed, &source));
+                    assert_eq!(account.snapshot().memory, before.memory);
+                    if count == 64 && shape == 5 {
+                        assert_eq!(*bits, 1u64 << 63);
+                    }
+                } else {
+                    assert!(matches!(&key.labels, PreparedGroupLabels::Copied(_)));
+                }
+                let copied = key.into_owned(&control, &account).unwrap();
+                let after = account.snapshot();
+                assert_eq!(raw(&copied), expected, "{count}/{shape}");
+                assert_eq!(source.0.len(), count);
+                for (old, new) in after_original.memory.iter().zip(&after.memory) {
+                    assert!(!old.overflowed && !new.overflowed);
+                }
+                let workspace = MemoryKind::Workspace as usize;
+                assert_eq!(
+                    after.memory[workspace].acquired - before.memory[workspace].acquired,
+                    after_original.memory[workspace].acquired
+                        - before_original.memory[workspace].acquired,
+                    "miss acquisition must preserve the raw-count hint: {count}/{shape}"
+                );
+                if count > 64 {
+                    assert_eq!(
+                        after.work - before.work,
+                        after_original.work - before_original.work,
+                        "large-field fallback work must remain original: {count}/{shape}"
+                    );
+                }
+                if count >= 64 && shape == 5 {
+                    assert_eq!(expected, vec![(b"f063".to_vec(), vec![])]);
+                    if let Some(prior) = last_field {
+                        assert_eq!(hash, prior);
+                    }
+                    last_field = Some(hash);
+                }
+                drop((copied, source, names));
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+                controls += 1;
+            }
+        }
+        for retained in [false, true] {
+            for fields in [63, 64, 65, 128] {
+                for unique in [false, true] {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let mut rosters = group_preparation_input(
+                        8,
+                        16,
+                        fields - 3,
+                        unique,
+                        retained,
+                        &account,
+                        &control,
+                    );
+                    let mut name = AccountedVec::new(&account, MemoryKind::Workspace);
+                    name.extend_from_slice(b"job");
+                    let expected: Vec<_> = rosters
+                        .descriptors(NodeId(0))
+                        .iter()
+                        .map(|descriptor| {
+                            (descriptor.labels.0[2].value.to_vec(), descriptor.ordinal)
+                        })
+                        .collect();
+                    rosters
+                        .prepare_groups(
+                            NodeId(1),
+                            NodeId(0),
+                            Some(std::slice::from_ref(&name)),
+                            false,
+                            Some(NodeId(0)),
+                            &account,
+                            &control,
+                        )
+                        .unwrap();
+                    let groups = rosters.groups(NodeId(1)).unwrap();
+                    assert_eq!(groups.len(), if unique { 8 } else { 1 });
+                    for (position, group) in groups.iter().enumerate() {
+                        assert_eq!(group.labels.0.len(), 1);
+                        assert_eq!(&*group.labels.0[0].name, b"job");
+                        assert_eq!(group.labels.0[0].value.to_vec(), expected[position].0);
+                    }
+                    assert_eq!(rosters.nodes[0].output.is_some(), retained);
+                    assert_eq!(rosters.group_selector(NodeId(1)), Some(NodeId(0)));
+                    if unique {
+                        let plan = rosters.group_replay(NodeId(1)).unwrap();
+                        let key = group_preparation_replay_key();
+                        plan.complete(key, &control, &account).unwrap();
+                        for (position, (_, member)) in expected.iter().enumerate() {
+                            assert!(
+                                plan.activate(
+                                    crate::evaluator::RowFilter::One(position),
+                                    key,
+                                    &control,
+                                    &account
+                                )
+                                .unwrap()
+                            );
+                            let mut actual = Vec::new();
+                            plan.visit_members(&control, &account, |ordinal| {
+                                actual.push(ordinal);
+                                Ok(())
+                            })
+                            .unwrap();
+                            assert_eq!(actual, vec![*member]);
+                        }
+                    }
+                    drop((rosters, name));
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
+                    controls += 1;
+                }
+            }
+        }
+        assert_eq!(controls, 58);
+        eprintln!(
+            "group-preparation-word controls={controls} key-size={} key-align={} labels-size={} labels-align={}",
+            std::mem::size_of::<PreparedGroupKey<'static>>(),
+            std::mem::align_of::<PreparedGroupKey<'static>>(),
+            std::mem::size_of::<PreparedGroupLabels<'static>>(),
+            std::mem::align_of::<PreparedGroupLabels<'static>>()
+        );
+    }
+
+    #[test]
+    fn group_preparation_copies_only_first_keys_after_complete_constructor_controls() {
+        let mut costs = Vec::new();
+        for retained in [false, true] {
+            for count in [1, 32] {
+                for unique in [false, true] {
+                    for width in [16, 4096] {
+                        for ignored in [0, 32] {
+                            for replay in [false, true] {
+                                let engine = EngineAccounting::default();
+                                let account = engine.query();
+                                let control = Control::default();
+                                let mut rosters = group_preparation_input(
+                                    count, width, ignored, unique, retained, &account, &control,
+                                );
+                                let mut name = AccountedVec::new(&account, MemoryKind::Workspace);
+                                name.extend_from_slice(b"job");
+                                let mut expected = Vec::<(u64, Vec<u8>, Vec<usize>)>::new();
+                                for descriptor in rosters.descriptors(NodeId(0)) {
+                                    let job = descriptor
+                                        .labels
+                                        .0
+                                        .iter()
+                                        .find(|label| &*label.name == b"job")
+                                        .unwrap();
+                                    let mut encoded = b"job\xff".to_vec();
+                                    encoded.extend_from_slice(&job.value);
+                                    encoded.push(255);
+                                    let hash =
+                                        label_hash::bytes(&encoded, &control, &account).unwrap();
+                                    if let Some(group) =
+                                        expected.iter_mut().find(|group| group.0 == hash)
+                                    {
+                                        group.2.push(descriptor.ordinal);
+                                    } else {
+                                        expected.push((
+                                            hash,
+                                            job.value.to_vec(),
+                                            vec![descriptor.ordinal],
+                                        ));
+                                    }
+                                }
+                                assert_eq!(expected.len(), if unique { count } else { 1 });
+                                let before = account.snapshot();
+                                rosters
+                                    .prepare_groups(
+                                        NodeId(1),
+                                        NodeId(0),
+                                        Some(std::slice::from_ref(&name)),
+                                        false,
+                                        replay.then_some(NodeId(0)),
+                                        &account,
+                                        &control,
+                                    )
+                                    .unwrap();
+                                let after = account.snapshot();
+                                let acquired = after.memory[MemoryKind::Workspace as usize]
+                                    .acquired
+                                    - before.memory[MemoryKind::Workspace as usize].acquired;
+                                let work = after.work - before.work;
+                                let groups = rosters.groups(NodeId(1)).unwrap();
+                                assert_eq!(groups.len(), expected.len());
+                                for (actual, (hash, value, _)) in groups.iter().zip(&expected) {
+                                    assert_eq!(actual.hash, *hash);
+                                    assert_eq!(actual.labels.0.len(), 1);
+                                    assert_eq!(&*actual.labels.0[0].name, b"job");
+                                    assert_eq!(&*actual.labels.0[0].value, value);
+                                    assert!(actual.whole_drop_name.is_none());
+                                }
+                                assert_eq!(rosters.nodes[0].output.is_some(), retained);
+                                if retained {
+                                    assert_eq!(rosters.descriptors(NodeId(0)).len(), count);
+                                    assert!(rosters.descriptors(NodeId(0)).iter().all(
+                                        |descriptor| { descriptor.labels.0.len() == ignored + 3 }
+                                    ));
+                                }
+                                assert_eq!(
+                                    rosters.group_selector(NodeId(1)),
+                                    replay.then_some(NodeId(0))
+                                );
+                                if replay && expected.len() > 1 {
+                                    let plan = rosters.group_replay(NodeId(1)).unwrap();
+                                    let key = group_preparation_replay_key();
+                                    plan.complete(key, &control, &account).unwrap();
+                                    for (position, (_, _, members)) in
+                                        expected.iter_mut().enumerate()
+                                    {
+                                        members.sort_unstable();
+                                        members.dedup();
+                                        assert!(
+                                            plan.activate(
+                                                crate::evaluator::RowFilter::One(position),
+                                                key,
+                                                &control,
+                                                &account,
+                                            )
+                                            .unwrap()
+                                        );
+                                        let mut actual = Vec::new();
+                                        plan.visit_members(&control, &account, |ordinal| {
+                                            actual.push(ordinal);
+                                            Ok(())
+                                        })
+                                        .unwrap();
+                                        assert_eq!(&actual, members);
+                                    }
+                                } else {
+                                    assert!(rosters.group_replay(NodeId(1)).is_none());
+                                }
+                                costs.push((
+                                    retained, count, unique, width, ignored, replay, acquired,
+                                ));
+                                eprintln!(
+                                    "group-preparation retained={retained} count={count} unique={unique} width={width} ignored={ignored} replay={replay} acquired={acquired} work={work}"
+                                );
+                                drop((rosters, name));
+                                account.snapshot().assert_memory_released();
+                                drop(account);
+                                engine.snapshot().assert_memory_released();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(costs.len(), 64);
+        eprintln!("complete group-preparation constructor controls:64");
+        for retained in [false, true] {
+            for ignored in [0, 32] {
+                for replay in [false, true] {
+                    let growth = |count, width| {
+                        costs
+                            .iter()
+                            .find(|row| {
+                                (row.0, row.1, row.2, row.3, row.4, row.5)
+                                    == (retained, count, false, width, ignored, replay)
+                            })
+                            .unwrap()
+                            .6
+                    };
+                    assert_eq!(
+                        growth(32, 4096) - growth(32, 16),
+                        growth(1, 4096) - growth(1, 16),
+                        "preparation acquisition must copy selected width only for first keys: retained={retained} ignored={ignored} replay={replay}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn group_preparation_preserves_first_raw_keys_and_plural_hit_contributors() {
+        let mut complete = 0;
+        let mut plural_hits = 0;
+        for retained in [false, true] {
+            for reversed in [false, true] {
+                for case in 0..8 {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let mut rosters = Rosters::new(&account, 2, &control).unwrap();
+                    let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+                    for position in 0..7 {
+                        let index = if reversed { 6 - position } else { position };
+                        let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+                        labels.push(b"__name__", b"m", &account, MemoryKind::Workspace);
+                        let fields: &[(&[u8], &[u8])] = match index {
+                            0 | 2 => &[(b"a", b"b\xffc\xffd")],
+                            1 | 6 => &[(b"a", b"b"), (b"c", b"d")],
+                            3 => &[(b"c", b"d"), (b"a", b"b")],
+                            4 => &[(b"a", b"")],
+                            _ => &[],
+                        };
+                        for &(name, value) in fields {
+                            labels.push(name, value, &account, MemoryKind::Workspace);
+                        }
+                        for (name, value) in [
+                            (b"empty".as_slice(), b"".as_slice()),
+                            (b"__type__", b"counter"),
+                            (b"__unit__", b"bytes"),
+                        ] {
+                            labels.push(name, value, &account, MemoryKind::Workspace);
+                        }
+                        labels.push(
+                            b"id",
+                            index.to_string().as_bytes(),
+                            &account,
+                            MemoryKind::Workspace,
+                        );
+                        let hash = label_hash::full(&labels, &control, &account).unwrap();
+                        rows.push(Descriptor {
+                            labels,
+                            ordinal: 100 + 3 * index,
+                            hash,
+                            drop_name: false,
+                            first_order: position,
+                            sources: 0..0,
+                            kinds: 1,
+                            heads: HeadSummary::default(),
+                        });
+                    }
+                    if retained {
+                        rosters
+                            .projection_output(NodeId(0), rows, &control, &account)
+                            .unwrap();
+                    } else {
+                        // Preserve the physical encounter order in this transfer control.
+                        rosters.nodes[0].output = Some(rows);
+                    }
+                    assert_eq!(rosters.nodes[0].sources.is_some(), retained);
+                    let selected: &[&[u8]] = match case {
+                        2 => &[b"missing"],
+                        3 => &[b"a", b"c", b"a"],
+                        4 => &[b"empty", b"__unit__", b"__name__", b"__type__"],
+                        5 => &[b"id", b"empty", b"__type__", b"__unit__"],
+                        _ => &[],
+                    };
+                    let names: Vec<_> = selected
+                        .iter()
+                        .map(|name| {
+                            let mut value = AccountedVec::new(&account, MemoryKind::Workspace);
+                            value.extend_from_slice(name);
+                            value
+                        })
+                        .collect();
+                    let grouping = (case != 0 && case != 6).then_some(names.as_slice());
+                    let without = case >= 5;
+                    struct Expected {
+                        hash: u64,
+                        labels: Vec<(Vec<u8>, Vec<u8>)>,
+                        members: Vec<usize>,
+                    }
+                    let mut expected = Vec::<Expected>::new();
+                    for descriptor in rosters.descriptors(NodeId(0)) {
+                        let labels: Vec<_> = descriptor
+                            .labels
+                            .0
+                            .iter()
+                            .filter(|label| {
+                                let found = selected.contains(&label.name.as_ref());
+                                if without {
+                                    &*label.name != b"__name__" && !found
+                                } else {
+                                    found
+                                }
+                            })
+                            .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                            .collect();
+                        let hash = if !without && selected.is_empty() {
+                            0
+                        } else {
+                            let mut encoded = Vec::new();
+                            for (name, value) in &labels {
+                                encoded.extend_from_slice(name);
+                                encoded.push(255);
+                                encoded.extend_from_slice(value);
+                                encoded.push(255);
+                            }
+                            label_hash::bytes(&encoded, &control, &account).unwrap()
+                        };
+                        if let Some(group) = expected.iter_mut().find(|group| group.hash == hash) {
+                            group.members.push(descriptor.ordinal);
+                        } else {
+                            expected.push(Expected {
+                                hash,
+                                labels,
+                                members: vec![descriptor.ordinal],
+                            });
+                        }
+                    }
+                    if case == 2 {
+                        assert_eq!(expected[0].hash, 0xef46_db37_51d8_e999);
+                    }
+                    if case == 3 {
+                        assert_eq!(expected.len(), 4);
+                        assert!(expected.iter().any(|group| group.members.len() == 4));
+                    }
+                    rosters
+                        .prepare_groups(
+                            NodeId(1),
+                            NodeId(0),
+                            grouping,
+                            without,
+                            Some(NodeId(0)),
+                            &account,
+                            &control,
+                        )
+                        .unwrap();
+                    let actual = rosters.groups(NodeId(1)).unwrap();
+                    assert_eq!(actual.len(), expected.len());
+                    for (actual, expected) in actual.iter().zip(&expected) {
+                        assert_eq!(actual.hash, expected.hash);
+                        let labels: Vec<_> = actual
+                            .labels
+                            .0
+                            .iter()
+                            .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                            .collect();
+                        assert_eq!(labels, expected.labels);
+                    }
+                    assert_eq!(rosters.nodes[0].output.is_some(), retained);
+                    assert_eq!(rosters.group_selector(NodeId(1)), Some(NodeId(0)));
+                    if expected.len() > 1 {
+                        let plan = rosters.group_replay(NodeId(1)).unwrap();
+                        let key = group_preparation_replay_key();
+                        plan.complete(key, &control, &account).unwrap();
+                        for (position, expected) in expected.iter_mut().enumerate() {
+                            expected.members.sort_unstable();
+                            expected.members.dedup();
+                            assert!(
+                                plan.activate(
+                                    crate::evaluator::RowFilter::One(position),
+                                    key,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap()
+                            );
+                            let mut actual = Vec::new();
+                            plan.visit_members(&control, &account, |ordinal| {
+                                actual.push(ordinal);
+                                Ok(())
+                            })
+                            .unwrap();
+                            assert_eq!(actual, expected.members);
+                            if expected.members.len() > 1 {
+                                plural_hits += 1;
+                            }
+                        }
+                    } else {
+                        assert!(rosters.group_replay(NodeId(1)).is_none());
+                    }
+                    drop((rosters, names));
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
+                    complete += 1;
+                }
+            }
+        }
+        assert_eq!(complete, 32);
+        assert!(plural_hits >= 4);
+        eprintln!("group-preparation raw-controls={complete} plural-hit-groups={plural_hits}");
+    }
+
+    #[test]
+    fn group_preparation_interruptions_release_hash_copy_and_terminal_state() {
+        let mut terminal_work = 0;
+        for boundary in 0..5 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut rosters =
+                group_preparation_input(8, 65_536, 32, false, true, &account, &control);
+            let mut name = AccountedVec::new(&account, MemoryKind::Workspace);
+            name.extend_from_slice(b"job");
+            let start = account.snapshot().work;
+            group_hash(
+                &rosters.descriptors(NodeId(0))[0].labels,
+                Some(std::slice::from_ref(&name)),
+                false,
+                &control,
+                &account,
+            )
+            .unwrap();
+            let hash_work = account.snapshot().work - start;
+            let before = account.snapshot();
+            let mut operation = || {
+                rosters.prepare_groups(
+                    NodeId(1),
+                    NodeId(0),
+                    Some(std::slice::from_ref(&name)),
+                    false,
+                    Some(NodeId(0)),
+                    &account,
+                    &control,
+                )
+            };
+            let result = if boundary == 0 {
+                operation()
+            } else {
+                let budget = match boundary {
+                    1 => 1,
+                    2 => 8192,
+                    3 => 1 + hash_work + 8192,
+                    _ => terminal_work,
+                };
+                crate::test_storage::interrupt_after_work(&account, &control, budget, operation)
+            };
+            let after = account.snapshot();
+            if boundary == 0 {
+                result.unwrap();
+                terminal_work = after.work - before.work;
+                assert!(terminal_work > hash_work + 8193);
+                assert_eq!(rosters.groups(NodeId(1)).unwrap().len(), 1);
+            } else {
+                assert_eq!(result, Err(Interrupted::Cancelled));
+                assert!(rosters.groups(NodeId(1)).is_none());
+                assert!(rosters.group_selector(NodeId(1)).is_none());
+                assert_eq!(
+                    after.memory[MemoryKind::Workspace as usize].current,
+                    before.memory[MemoryKind::Workspace as usize].current
+                );
+                if boundary == 3 {
+                    assert!(
+                        after.memory[MemoryKind::Workspace as usize].acquired
+                            > before.memory[MemoryKind::Workspace as usize].acquired
+                    );
+                }
+                if boundary == 4 {
+                    assert_eq!(after.work - before.work, terminal_work);
+                }
+            }
+            assert_eq!(rosters.descriptors(NodeId(0)).len(), 8);
+            assert!(
+                rosters
+                    .descriptors(NodeId(0))
+                    .iter()
+                    .all(|row| row.labels.0.len() == 35 && row.labels.0[2].value.len() == 65_543)
+            );
+            drop((rosters, name));
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+            eprintln!("group-preparation interruption={boundary} terminal-work={terminal_work}");
+        }
+        for retained in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut rosters =
+                group_preparation_input(0, 16, 0, false, retained, &account, &control);
+            control.cancellation.cancel();
+            assert_eq!(
+                rosters.prepare_groups(
+                    NodeId(1),
+                    NodeId(0),
+                    None,
+                    false,
+                    Some(NodeId(0)),
+                    &account,
+                    &control,
+                ),
+                Err(Interrupted::Cancelled)
+            );
+            assert!(rosters.groups(NodeId(1)).is_none());
+            drop(rosters);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
 
     #[test]
     fn shared_proof_owner_keeps_singleton_results_without_a_filter_box() {

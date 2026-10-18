@@ -3807,6 +3807,133 @@ All 18 C/C++ callers, 72 distinct ARM target/profile grouping checks, 672 storag
 checks pass. The cohort preserves all 46 preceding ledger objects and their source/binary identities. Caller
 sanitizers exclude Rust instrumentation; ARM checks execute the library and callers, not a complete foreign Agent.
 
+## Prepared grouping key ownership
+
+Grouping preparation avoids discarded label copies when an immutable child retains its source bindings.
+For up to 64 raw label fields, it hashes the existing grouping selection while recording those decisions in
+one `u64`. A missing group reuses the decisions with checked copying. An existing group retains its first
+owned labels. The word advances for every raw field, including omitted fields; raw empty values and field
+order stay intact. No selection array or persistent roster field is added.
+
+Above 64 raw fields, preparation keeps the original copy, hash and lookup path. This is an optimization
+boundary, not a query limit. It avoids a variable-length selection map and repeated name comparisons.
+The separate branch that consumes and filters owned input descriptors stays byte-identical. The shared
+ordinary grouping hash uses the same checked predicate/digest through a static no-op observer.
+
+Identity remains the source-order name/255/value/255 hash, including delimiter aliases and first raw labels.
+No grouping and empty by() use literal zero; a nonempty grouping selecting nothing uses the empty digest.
+Contributor recording includes every lookup hit and uses canonical child ordinals. Source-binding ordinals,
+zero/singleton/plural replay proofs, numerical operations, raw paging and disabled implicit caps stay distinct.
+No borrowed key escapes construction. Checked miss copying keeps its raw-count capacity hint and final poll;
+interrupted construction releases local groups, lookup and replay ownership before publishing a result.
+
+The actual unchanged constructor completes all 64 result/order/provenance/ownership/cleanup scenarios before
+failing the intended allocation-width guard. Current construction passes them on every compiled cohort.
+An additional 32 raw-identity scenarios contain eight plural groups with repeated contributors. The 58 new
+boundary controls cover 0/1/63/64/65/128 raw fields, only bit63 selected, interleaved selection, equivalent
+64/65-field keys and exact original fallback acquisition/work. Calibrated controls cover hashing, allocated
+miss copying, replay-enabled terminal completion and empty retained/transferred inputs.
+
+For 32 inputs in one group, native constructor acquisition is:
+
+| Selected job padding, bytes | Before acquired, bytes | Current acquired, bytes |
+| --- | ---: | ---: |
+| 16 | 10,304 | 570 |
+| 4,096 | 140,864 | 4,650 |
+
+Acquisition starts after input/projection construction and expected-result calculation. It is neither isolated
+peak memory nor process RSS. In the complete 32-input projected-sum case with 4,096-byte padding and 32 ignored
+fields, workspace acquisition changes 5,039,010→4,899,820 bytes;
+peak changes 443,768→443,768 bytes. With 32 distinct groups,
+acquisition changes 5,227,688→5,227,688 bytes and peak
+722,516→722,516 bytes. All work and eight memory categories
+are retained, including costs. For projected inputs above 64 fields, the boundary panel requires exact original
+work and memory as well as complete results.
+
+Both native optimized profiles pass 794 units plus two unchanged ignored tests. Each installed ARM target
+executes 30 focused checks under QEMU. Complete qualification contains 5,760 ordinary original/before pairs at
+native pages1/17/1024 and foreign page17, plus 1,920 literal pairs including 768 boundary pairs. All 56,124 fresh
+current reducer outcomes equal their retained analysis inputs; the 216 strict-original differences remain
+failures, including membership and point counts, with unchanged ordering-policy analyses attributed separately.
+Actual default libraries pass 1,008 C before/current pairs, 1,008 current C++ controls and both full C programs;
+sample-statistic/read fields are exact. Formatting, strict default/fixture Clippy and installed Rust1.91
+compile-only checks pass. Reused baseline captures keep their actual source, binary, target, profile and page.
+
+The first candidate passed its finite correctness checks but was not accepted. It repeated name selection on
+each miss; a fixed release follow-up for 32 distinct groups, 16-byte padding and 32 excluded labels slowed from
+4,823.047 to 5,093.865 microseconds (5.615%). Its immutable source, binaries, captures and measurements remain
+separate. The selection-word refinement addresses that repeated selection; it does not erase the earlier result.
+A separate new-test reference error for empty by() is also retained with its failed source/executable/capture;
+only the assertion was corrected before the qualified source was frozen.
+
+The refined fixed timing panel has 128 cases per profile: the original 64 plus 64 boundary controls. It compares
+one/32 inputs, repeated/unique groups, narrow/wide selected bytes, many ignored fields, projected by/without
+expressions and ordinary raw/projection controls. Three alternating blocks retain nine measured samples per
+side. Each primary median at least5% slower gets one identical fixed follow-up. No third same-source rerun is
+used to select a winning result. Primary ratios below divide current engine time by before time; smaller is faster.
+These 32-input cases use 4,096-byte padding and 32 ignored fields:
+
+| Groups | Grouping | Release ratio | Release-min ratio |
+| --- | --- | ---: | ---: |
+| repeated | by | 0.987 | 0.960 |
+| repeated | without | 0.969 | 0.930 |
+| unique | by | 1.003 | 0.976 |
+| unique | without | 1.019 | 0.947 |
+
+Release retains 69 slower primary medians and 15 threshold follow-ups;
+release-min retains 8 and 0, respectively.
+Fixed follow-ups retain 1/0 cases at least5% slower.
+Every sample and slower row remains in the report.
+
+Fixed follow-ups still at least5% slower:
+
+| Profile | Case | Before, microseconds | Current, microseconds | Change |
+| --- | --- | ---: | ---: | ---: |
+| release | `group-preparation:1:unique:16:32:0:0` | 130.319 | 137.909 | 5.824% |
+
+The existing repeated/unique singleton controls have identical complete engine inputs and differ only in fixture
+identifiers. Their release primary ratios are 0.971/1.079;
+variation is visible, but no causal explanation is proved and no slower observation is discarded. Shared-host
+fixture timing excludes parsing, compilation and serialization. It establishes no universal, concurrent, live API
+or physical-device speedup.
+
+The transient local owner has these compiled layouts:
+
+| Cohort | Key bytes | Label-owner bytes | Key alignment |
+| --- | ---: | ---: | ---: |
+| release | 56 | 48 | 8 |
+| release-min | 56 | 48 | 8 |
+| arm32 | 40 | 32 | 8 |
+| arm64 | 56 | 48 | 8 |
+
+These are type layouts, not measured stack high-water. No persistent type field changes. Actual optimized native
+fixture/default C grouping symbols and bodies are inspected beside ordinary query controls; no-op source syntax
+alone is not a zero-cost claim. Matched linked section changes are:
+
+| Binary | Cohort | Text bytes | Data bytes | BSS bytes |
+| --- | --- | ---: | ---: | ---: |
+| fixture | release | +1,148 | -72 | -1,048 |
+| grouped-output-C | release | -22,148 | +32 | +0 |
+| fixture | release-min | +1,576 | +0 | -1,568 |
+| grouped-output-C | release-min | +1,608 | +8 | +0 |
+| fixture | arm32 | +5,820 | -80 | +0 |
+| fixture | arm64 | -452 | +0 | +0 |
+
+Archive/file sizes and all resource costs remain in the report. No whole-Agent rebuild, physical ARM performance,
+foreign C/full-suite, MSRV execution, actual peak stack or RSS claim follows.
+
+From the independent Cargo root, run the focused controls with:
+
+```sh
+cargo test --locked --features fixtures --release group_preparation_
+cargo test --locked --features fixtures --profile release-min group_preparation_
+```
+
+The [prepared grouping qualification](group-preparation-qualification.json) binds exact sources, actual runtimes,
+complete results and all measured costs. Historical lossless compressed captures are verified through EOF with
+both compressed/raw digests and retain original attribution; new query captures are compressed from the start.
+No metadata provider, raw-history container, dependency, public interface, language feature or implicit cap is added.
+
 ## Borrowed aggregate lookup labels
 
 Ordinary aggregate lookup now hashes the selected fields of the existing immutable sample labels. It no longer

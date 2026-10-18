@@ -27,6 +27,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 
 - Compare complete outputs, labels, timestamps, warnings/errors and exact expression membership.
 - Reuse verified source captures through explicit paths; provide an existing Go module cache for new captures.
+- Read compressed historical evidence through EOF, verifying compressed and original raw digests before reuse.
+  Keep historical attribution and compress new query captures without restoring duplicate raw files.
 - Exercise pages 1, 17 and 1024 when changing cursor/replay ownership or temporal evaluation.
 - Record compiler profile, binary hash, source hashes and comparison policy for each new cohort.
 - Bind the comparison runner and imported helper bytes before and after each new cohort.
@@ -115,6 +117,11 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Copied grouping keys MUST preserve raw empty values, source order and the shared by/without predicate;
   preserve ownership-transfer paths and full ranking labels. Measure retained capacity separately from inputs,
   and check omitted/retained byte walks plus terminal cancellation; see the same guide's copied grouping-label section.
+- Prepared grouping ownership MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#prepared-grouping-key-ownership` for retained/transfer paths,
+  repeated canonical contributors, raw/hash-only identity, selection-word boundaries and original larger-label fallback.
+  Verify only-bit63/raw-order selection, checked copy/terminal cleanup, actual transient layouts/shared ordinary code,
+  and constructor-versus-query acquisition. Preserve unsuccessful candidate measurements and every slower control.
 - Borrowed aggregate lookup MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-aggregate-lookup-labels` for selected-byte
   identity, zero/empty digests, reached diagnostic borrowing, ownership, controls and complete operator comparisons.

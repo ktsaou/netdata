@@ -1086,6 +1086,27 @@ integration, and Alertmanager remains excluded.
 - **Evidence:** [copied grouping qualification](grouped-label-qualification.json) binds the actual capacity red,
   final sources/executables, complete query measurements, interruption controls and containing-Agent checks.
 
+## Prepared grouping key ownership
+
+- **Choice:** retained-source preparation hashes <=64raw label fields while recording the existing named-first
+  selection in one transient u64. A miss consumes those raw-position bits in checked copying; a hit keeps the
+  first owned key. Above64fields retain original copy/hash/probe and hit cleanup, with no query cap or variable
+  selection array. The consumed-input transfer branch stays byte-identical.
+- **Identity/provenance:** retain raw empties, source order, delimiter aliases, literal-zero versus empty digest,
+  hash-only first labels and encounter order. Record every canonical child ordinal, including hits; source
+  binding ordinals are different. Zero/singleton/plural contributor proof semantics stay unchanged.
+- **Control/ownership:** share checked predicate/digest with ordinary group_hash through a static no-op observer.
+  Hash/copy/index/replay/final publication remain checked. Miss copy keeps raw-count capacity hint and final
+  poll. Its borrowed source cannot outlive local preparation; no permanent field or metadata owner is added.
+- **Measured trade-off:** first candidate's repeated unique-miss selection caused a retained5.615percent fixed
+  follow-up slowdown; it was not accepted. Refined selection-word path reuses those decisions, while >64fallback
+  keeps exact original work/memory. Record constant transient layout, shared ordinary compiled code, every
+  slower row and linked size cost. Constructor acquisition, query peak and RSS are different quantities.
+- **Evidence:** [prepared grouping qualification](group-preparation-qualification.json) retains the causal old
+  constructor failure, complete raw/contributor/0–128-field/control checks, native/installed foreign/C/original/
+  reducer-policy/literal outcomes and fixed timings. Original strict differences and failed test reference
+  remain separate. No public language/ABI/storage/provider/math/dependency/default or implicit cap change.
+
 ## Borrowed aggregate lookup labels
 
 - **Choice:** ordinary aggregate receive hashes selected immutable sample labels directly. The existing prepared

@@ -73228,5 +73228,13 @@
     "actual_native_C_pairs": 240,
     "current_Cpp_controls": 240,
     "scope": "Construction-local selected-label views replace transient encoded signature buffers; shared raw-name predicate, full validation/collision/ID/control/ownership semantics preserved. Exact finite outcomes and every resource/timing/linked cost retained; whole-query peak unchanged in binary panel. No public language/storage/ABI/default/math/cap change."
+  },
+  "prepared_grouping_key_ownership": {
+    "status": "qualified_finite_private_owner",
+    "report": "group-preparation-qualification.json",
+    "report_sha256": "2957bfca54bd55ecd9904555ff792c4fb53de6ff23efc8f72f7cabb6cf3d5534",
+    "comparison_base": "101c3b4b51ea44eadf9542dff587f561013f9be3",
+    "source_phase": "immutable checked/qualified source",
+    "scope": "Bounded transient raw-selection word and miss-only retained-source grouping copy; original >64fallback, unchanged input transfer.794units/profile,30focused/ARM,5760ordinary/1920literal pairs/56124current reducer outcomes,1008actual C pairs/1008C++controls. Initial5.615percent candidate and corrected test reference preserved separately; all strict differences and allocation/peak/work/timing/linked costs retained. No universal/live/RSS claim."
   }
 }
