@@ -3963,6 +3963,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         RowFilter::Ordinals([ordinal]) => Some(*ordinal),
                         _ => None,
                     },
+                    match filter {
+                        RowFilter::Ordinals([_]) => {
+                            self.rosters.ordered(node).map(|(_, sources)| sources)
+                        }
+                        _ => None,
+                    },
                     self.control,
                     self.account,
                 )? {

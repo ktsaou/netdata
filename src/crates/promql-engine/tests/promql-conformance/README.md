@@ -8177,6 +8177,8 @@ cargo test --locked --features fixtures --profile release-min ranking_winner_sub
 ```
 
 Use the [completed-delivery C instructions](#completed-ranking-delivery) for the expanded `ranking_delivery.c`.
+
+The later metadata-routing optimization is qualified in [direct completed ranking-group lookup](#direct-completed-ranking-group-lookup).
 The [subset qualification report](ranking-winner-subsets-qualification.json) binds exact source/runtime cohorts,
 complete results, resource changes, timings, costs and retained failed attempts. The initial source-flag and
 public-ID test assumptions were corrected without changing production behavior; both earlier failures remain
@@ -8185,3 +8187,88 @@ attributed to their actual source. New query captures are gzip-compressed and ve
 Timing is shared-host Engine time, excluding parse/serialization. This finite panel makes no physical-device,
 RSS, stack high-water, live/concurrent API, Cloud or whole-Agent requalification claim. Raw storage stays paged
 on both axes; implicit limits remain disabled and provider, contexts, accounting and ABI4 contracts are unchanged.
+
+
+## Direct completed ranking-group lookup
+
+Warm certified singleton `topk`/`bottomk` delivery resolves the frozen canonical descriptor's single
+source input and visits only that input's `Binding.group` heap. It still checks current membership
+inside that heap and fetches the selected value afresh. This builds on [completed ranking delivery](#completed-ranking-delivery)
+and [proper winner subsets](#proper-ranking-winner-subsets); their earlier measurements retain their
+original runtime attribution. The new comparison baseline is accepted103, `c62d19225a8ecceafa8f314d51dd6f1c43fc8b17`.
+
+The Machine passes the same node's immutable source slice transiently. There is no new persistent
+Plan/Snapshot/Step/Frame/roster field, array or value cache. Lookup remains inside the existing
+certified/projected/vector/held-snapshot full-Done gate. Target zero, forward row changes, heap
+exhaustion, backward/absent targets and unavailable mapping retain their result semantics. Keep the
+canonical target separate from mapping availability. Preserve the position within an already visited
+heap; do not restart its scan. Pending reply processing, exact errors, full Done, preparation clearing,
+clock keys and cold winning-binding validation remain unchanged. Each actual mapping attempt costs
+one accounted work unit.
+
+The new owner uses two winners among three inputs per group, sparse catalog IDs and reversed canonical
+sources. For both operators, complete cold/warm values, borrowed labels, flags, clocks, fresh requests
+and released allocations precede the work-growth assertion. At 2/4/8/16 groups, warm work changes
+132/314/830/2444 to 124/250/510/1036; fresh requests remain 4/8/16/32. The first unchanged-producer
+run passed an insensitive 3x guard. Tightening only that test bound to 2.5 before changing production
+code produces the intended failure after all complete semantics. Both attempts remain retained.
+
+A second owner pauses at a pending first winner, completes that same snapshot through another Step,
+replaces the Plan cache at the next clock, and resumes the held snapshot with its fresh reply intact.
+It also checks first/middle/last/absent/out-of-domain/backward targets and None-source fallback.
+This proves pending-reply/held-snapshot behavior, not a nonzero same-heap continuation. Missing or
+non-Float replies already fail immediately; certified single Float heads cannot reject delivery.
+An initial planning premise suggesting a retry loop was disproven before implementation.
+
+From the crate root, run `cargo test --locked --release --features fixtures grouped_ranking_ -- --nocapture --test-threads=1`.
+Retain the existing completed-delivery Machine/failure/C procedures too: they cover cold preparation,
+zero-output Done, warm selected and next-clock failures, output/cancellation, logical statistics and
+retention. The C driver remains unchanged at 168 cases per program/profile. Both native suites pass
+820 tests with two unchanged ignored checks; installed QEMU ARM32/ARM64 each pass 21 focused checks.
+All 7,680 matched complete target outcomes pass. Physical reads/pages/provider calls, temporary/output
+fields and all eight memory observations equal103; every work difference remains in the receipts.
+The 56,124 fresh reducer results preserve 216 strict historical original failures and their separate
+ordering-policy attribution; 456 sort-original comparisons pass. No fresh Go capture is claimed.
+
+The fixed timing panel has 128 cases/profile: many small groups, one/two winners, one-group top/bottom5,
+empty/singleton fallbacks, short/wide labels, both name modes and bare/ABS/scalar/unary consumers.
+Three alternating blocks provide nine measured samples/side. Each primary ratio at least 1.05 receives
+exactly one identical nine-sample follow-up. Below, each value is the median of the complete case ratios;
+all individual samples, slower cases, follow-ups, work and code costs remain in the report.
+
+| Family | release ratio | release-min ratio |
+| --- | ---: | ---: |
+| group:k1:bare | 0.97635 | 1.00898 |
+| group:k1:abs | 0.97856 | 1.00835 |
+| group:k1:scalar | 0.97885 | 1.01113 |
+| group:k1:unary | 0.97853 | 1.01479 |
+| group:k2:bare | 0.97176 | 1.01151 |
+| group:k2:abs | 0.97231 | 1.00746 |
+| group:k2:scalar | 0.96548 | 1.01184 |
+| group:k2:unary | 0.94350 | 1.00958 |
+| global:k5:bare | 0.92598 | 1.00969 |
+| global:k5:abs | 0.90406 | 1.01482 |
+| global:k5:scalar | 0.90092 | 1.01287 |
+| global:k5:unary | 0.90725 | 1.00947 |
+| empty:bare | 0.97552 | 1.00659 |
+| empty:abs | 1.00521 | 0.97708 |
+| empty:scalar | 0.99175 | 0.98934 |
+| empty:unary | 0.98405 | 0.97614 |
+| singleton:bare | 0.96190 | 0.98598 |
+| singleton:abs | 0.96119 | 1.00667 |
+| singleton:scalar | 0.94954 | 1.00784 |
+| singleton:unary | 0.96252 | 0.99550 |
+
+Netdata's default RelWithDebInfo configuration selects Rust release; MinSizeRel selects release-min.
+The private retention decision accepts the measured release benefit and lower metadata growth together
+with the systematic size-profile ranking cost. It does not treat absence of a persistent 5% slowdown
+as proof of zero overhead.
+
+Slower primaries/threshold follow-ups/persistent threshold cases: release [11, 0, 0],
+release-min [100, 1, 0]. All four actual Plan/Snapshot/Step and requested-allocation layouts
+equal103. Six matched fixture/default-C linked costs are retained. Native entry-stack byte deltas
+(advance/caller, not runtime high-water) are release/fixture:advance +32,Machine +0; release/default-ranking-C:advance +32,Machine +0; release-min/fixture:advance +16,Machine -16; release-min/default-ranking-C:advance +16,Machine +16. The report retains foreign entry instructions
+without claiming a cross-ISA stack total. No lower peak-memory, RSS, physical-device throughput,
+live/concurrent API, whole-Agent or Cloud requalification follows from this panel. Cold preparation,
+within-heap scanning and larger winner heaps remain; this is not linear total-query work or a universal
+speedup. See the [routing qualification report](ranking-heap-routing-qualification.json).

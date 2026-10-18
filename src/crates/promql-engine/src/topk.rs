@@ -674,6 +674,7 @@ impl<'a> Step<'a> {
     fn next_winner(
         &mut self,
         target: Option<usize>,
+        sources: Option<&[usize]>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Option<usize>, Interrupted> {
@@ -694,9 +695,30 @@ impl<'a> Step<'a> {
             self.emit_group = 0;
             self.emit_position = 0;
         }
+        let target_group = if target == Some(self.emit_row) {
+            sources.and_then(|sources| {
+                account.work(1);
+                self.canonical_rows
+                    .and_then(|rows| rows.get(self.emit_row))
+                    .and_then(|row| sources.get(row.sources.start))
+                    .and_then(|&input| self.plan.bindings.get(input))
+                    .map(|binding| binding.group)
+            })
+        } else {
+            None
+        };
+        if let Some(group) = target_group
+            && self.emit_group < group
+        {
+            self.emit_group = group;
+            self.emit_position = 0;
+        }
         loop {
             control.check()?;
             account.work(1);
+            if target_group.is_some_and(|group| self.emit_group > group) {
+                return Ok(None);
+            }
             if target.is_some_and(|target| self.emit_row > target) {
                 return Ok(None);
             }
@@ -735,6 +757,7 @@ impl<'a> Step<'a> {
     pub(crate) fn advance(
         &mut self,
         target: Option<usize>,
+        sources: Option<&[usize]>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Action<'a>, EvaluationError> {
@@ -978,7 +1001,7 @@ impl<'a> Step<'a> {
                     sample.source_start_time_ms = 0;
                     return Ok(Action::Sample(sample));
                 }
-                let Some(input) = self.next_winner(target, control, account)? else {
+                let Some(input) = self.next_winner(target, sources, control, account)? else {
                     self.stage = Stage::Done;
                     return Ok(Action::Continue);
                 };
@@ -1017,6 +1040,7 @@ mod emission_tests {
     struct Fixture {
         plan: Plan,
         canonical: AccountedVec<Descriptor>,
+        sources: Vec<usize>,
     }
 
     #[test]
@@ -1081,7 +1105,11 @@ mod emission_tests {
             plan.certify_emit(&canonical, &sources, 8, &control, account)
                 .unwrap();
             assert_eq!(plan.emission_state(), (true, false));
-            Self { plan, canonical }
+            Self {
+                plan,
+                canonical,
+                sources: sources.to_vec(),
+            }
         }
 
         fn new(operator: TokenKind, width: Option<usize>, account: &QueryAccounting) -> Self {
@@ -1137,7 +1165,11 @@ mod emission_tests {
                 .unwrap();
             plan.project(&canonical, &[0, 1], &control, account)
                 .unwrap();
-            Self { plan, canonical }
+            Self {
+                plan,
+                canonical,
+                sources: vec![0, 1],
+            }
         }
     }
 
@@ -1201,7 +1233,10 @@ mod emission_tests {
             account,
         );
         while step.snapshot.is_none() {
-            match step.advance(Some(1), &control, account).unwrap() {
+            match step
+                .advance(Some(1), Some(&fixture.sources), &control, account)
+                .unwrap()
+            {
                 Action::Continue => (),
                 Action::Child { parameter, ordinal } => {
                     assert!(!parameter);
@@ -1235,7 +1270,10 @@ mod emission_tests {
         let mut output = Vec::new();
         let mut requests = Vec::new();
         loop {
-            match step.advance(target, control, account).unwrap() {
+            match step
+                .advance(target, Some(&[2, 0, 1]), control, account)
+                .unwrap()
+            {
                 Action::Continue => (),
                 Action::Child { parameter, ordinal } => {
                     assert!(!parameter);
@@ -1338,7 +1376,7 @@ mod emission_tests {
         assert_eq!(fixture.plan.emission_state(), (true, false));
         replacement.stage = Stage::Done;
         let result = crate::test_storage::interrupt_after_work(&account, &control, 1, || {
-            replacement.advance(Some(1), &control, &account)
+            replacement.advance(Some(1), Some(&fixture.sources), &control, &account)
         });
         assert!(matches!(
             result,
@@ -1365,7 +1403,7 @@ mod emission_tests {
                 let fault = if warm { 0 } else { 1 };
                 let mut delivered = 0;
                 loop {
-                    match step.advance(Some(1), &control, &account) {
+                    match step.advance(Some(1), Some(&fixture.sources), &control, &account) {
                         Ok(Action::Continue) => (),
                         Ok(Action::Child { parameter, ordinal }) => {
                             assert!(!parameter);
@@ -1511,7 +1549,14 @@ mod emission_tests {
             .unwrap();
         plan.certify_emit(&canonical, &sources, 3 * count, &control, account)
             .unwrap();
-        (Fixture { plan, canonical }, sources)
+        (
+            Fixture {
+                plan,
+                canonical,
+                sources: sources.clone(),
+            },
+            sources,
+        )
     }
 
     fn deliver_subset(
@@ -1542,7 +1587,10 @@ mod emission_tests {
         let mut output = Vec::new();
         let mut requested = 0;
         loop {
-            match step.advance(target, &control, account).unwrap() {
+            match step
+                .advance(target, Some(&fixture.sources), &control, account)
+                .unwrap()
+            {
                 Action::Continue => (),
                 Action::Child { parameter, ordinal } => {
                     assert!(!parameter);
@@ -1689,6 +1737,286 @@ mod emission_tests {
         }
     }
 
+    fn grouped_fixture(operator: TokenKind, groups: usize, account: &QueryAccounting) -> Fixture {
+        let control = Control::default();
+        let name = if operator == TokenKind::TOPK {
+            "topk"
+        } else {
+            "bottomk"
+        };
+        let expression = fixture::expression(&format!("{name} by(region)(2,m)"), account, &control);
+        let labels = |input: usize| {
+            vec![
+                (b"__name__".to_vec(), b"m".to_vec()),
+                (b"id".to_vec(), input.to_string().into_bytes()),
+                (
+                    b"region".to_vec(),
+                    (input % groups).to_string().into_bytes(),
+                ),
+            ]
+        };
+        let count = 3 * groups;
+        let mut rows = fixture::rows((0..count).map(labels).collect(), account, &control);
+        for (input, row) in rows.iter_mut().enumerate() {
+            row.ordinal = 1 + 3 * input;
+            row.kinds = 1;
+        }
+        let sources: Vec<_> = (0..count).rev().collect();
+        let mut canonical = fixture::rows(
+            sources.iter().copied().map(labels).collect(),
+            account,
+            &control,
+        );
+        for (ordinal, row) in canonical.iter_mut().enumerate() {
+            row.ordinal = ordinal;
+            row.kinds = 1;
+            row.sources = ordinal..ordinal + 1;
+        }
+        let mut parameters = Parameters::new(true);
+        parameters.push(2.0, account);
+        let mut plan = Plan::new(operator, parameters, account);
+        plan.prepare_rows(rows, &expression, expression.root, &control, account)
+            .unwrap();
+        plan.project(&canonical, &sources, &control, account)
+            .unwrap();
+        plan.certify_emit(&canonical, &sources, 3 * count, &control, account)
+            .unwrap();
+        assert_eq!(plan.emission_state(), (true, false));
+        Fixture {
+            plan,
+            canonical,
+            sources,
+        }
+    }
+
+    fn grouped_value(plan: &Plan, input: usize) -> f64 {
+        let value = (input + 1) as f64;
+        if plan.operator == TokenKind::TOPK {
+            value
+        } else {
+            -value
+        }
+    }
+
+    fn grouped_step<'a>(fixture: &'a Fixture, clock: i64, account: &QueryAccounting) -> Step<'a> {
+        Step::new(
+            &fixture.plan,
+            options(clock),
+            clock / 1000,
+            true,
+            true,
+            Some(&fixture.canonical),
+            account,
+        )
+    }
+
+    fn grouped_delivery(
+        fixture: &Fixture,
+        step: &mut Step<'_>,
+        target: Option<usize>,
+        mapped: bool,
+        offset: f64,
+        account: &QueryAccounting,
+    ) -> (Vec<usize>, Vec<usize>) {
+        let control = Control::default();
+        let mut output = Vec::new();
+        let mut requests = Vec::new();
+        for _ in 0..100_000 {
+            match step
+                .advance(
+                    target,
+                    mapped.then_some(fixture.sources.as_slice()),
+                    &control,
+                    account,
+                )
+                .unwrap()
+            {
+                Action::Continue => (),
+                Action::Child { parameter, ordinal } => {
+                    assert!(!parameter);
+                    let input = step
+                        .plan
+                        .inputs
+                        .iter()
+                        .position(|row| Some(&row.ordinal) == ordinal)
+                        .unwrap();
+                    let fresh = step.snapshot.is_some();
+                    if fresh {
+                        requests.push(input);
+                    }
+                    let mut sample = source(step.plan, input, false, false, account);
+                    sample.value = OwnedValue::Float(
+                        grouped_value(step.plan, input) + if fresh { offset } else { 0.0 },
+                    );
+                    step.receive(sample, &control, account).unwrap();
+                }
+                Action::Sample(sample) => {
+                    let input = fixture.sources[sample.ordinal];
+                    assert_eq!(
+                        fixture::raw(&sample.labels),
+                        fixture::raw(&fixture.plan.inputs[input].labels)
+                    );
+                    assert!(matches!(sample.labels, SampleLabels::Borrowed(owner)
+                        if std::ptr::eq(owner, &fixture.plan.inputs[input].labels)));
+                    assert_eq!(sample.drop_name, fixture.plan.inputs[input].drop_name);
+                    assert_eq!(sample.source_time_ms, step.options.time_ms);
+                    assert_eq!(sample.source_start_time_ms, 0);
+                    let OwnedValue::Float(value) = sample.value else {
+                        panic!("float winner")
+                    };
+                    assert_eq!(
+                        value.to_bits(),
+                        (grouped_value(step.plan, input) + offset).to_bits()
+                    );
+                    assert!(sample.float_samples.is_some());
+                    output.push(sample.ordinal);
+                }
+                Action::Done(annotation) => {
+                    assert!(annotation.is_none());
+                    return (output, requests);
+                }
+            }
+        }
+        panic!("grouped ranking delivery exceeded finite progress guard");
+    }
+
+    #[test]
+    fn grouped_ranking_winner_lookup_avoids_unrelated_heaps() {
+        let mut all_work = Vec::new();
+        for operator in [TokenKind::TOPK, TokenKind::BOTTOMK] {
+            let mut work = Vec::new();
+            for groups in [2, 4, 8, 16] {
+                let account = EngineAccounting::default().query();
+                let fixture = grouped_fixture(operator, groups, &account);
+                let mut cold = grouped_step(&fixture, 0, &account);
+                let (output, requests) =
+                    grouped_delivery(&fixture, &mut cold, Some(1), true, 10.0, &account);
+                let expected: Vec<_> = (0..2 * groups).collect();
+                let inputs: Vec<_> = fixture.sources[..2 * groups].to_vec();
+                assert_eq!(output, expected);
+                assert_eq!(requests, inputs);
+                assert_eq!(fixture.plan.emission_state(), (true, true));
+                let before = account.snapshot().work;
+                let mut total_requests = 0;
+                for target in 0..3 * groups {
+                    let mut warm = grouped_step(&fixture, 0, &account);
+                    let (output, requests) = grouped_delivery(
+                        &fixture,
+                        &mut warm,
+                        Some(target),
+                        true,
+                        100.0 + target as f64,
+                        &account,
+                    );
+                    if target < 2 * groups {
+                        assert_eq!(output, [target]);
+                        assert_eq!(requests, [fixture.sources[target]]);
+                    } else {
+                        assert!(output.is_empty() && requests.is_empty());
+                    }
+                    total_requests += requests.len();
+                }
+                assert_eq!(total_requests, 2 * groups);
+                let measured = account.snapshot().work - before;
+                println!(
+                    "{{\"ranking_groups\":\"{operator:?}\",\"groups\":{groups},\"warm_work\":{measured},\"fresh_requests\":{total_requests}}}"
+                );
+                work.push(measured);
+                drop(cold);
+                drop(fixture);
+                account.snapshot().assert_memory_released();
+            }
+            all_work.push(work);
+        }
+        // Check growth only after every complete result, fresh request and release assertion.
+        assert!(
+            all_work.iter().all(|work| 2 * work[3] <= 5 * work[2]),
+            "grouped ranking lookup must avoid unrelated heaps: {all_work:?}"
+        );
+    }
+
+    #[test]
+    fn grouped_ranking_routes_keep_partial_snapshots_and_fallback_targets() {
+        for operator in [TokenKind::TOPK, TokenKind::BOTTOMK] {
+            let account = EngineAccounting::default().query();
+            let fixture = grouped_fixture(operator, 4, &account);
+            let control = Control::default();
+            let mut partial = grouped_step(&fixture, 0, &account);
+            let first = loop {
+                match partial
+                    .advance(Some(0), Some(&fixture.sources), &control, &account)
+                    .unwrap()
+                {
+                    Action::Continue => (),
+                    Action::Child { parameter, ordinal } => {
+                        assert!(!parameter);
+                        let input = fixture
+                            .plan
+                            .inputs
+                            .iter()
+                            .position(|row| Some(&row.ordinal) == ordinal)
+                            .unwrap();
+                        let fresh = partial.snapshot.is_some();
+                        let mut sample = source(&fixture.plan, input, false, false, &account);
+                        sample.value = OwnedValue::Float(
+                            grouped_value(&fixture.plan, input) + if fresh { 10.0 } else { 0.0 },
+                        );
+                        partial.receive(sample, &control, &account).unwrap();
+                        if fresh {
+                            break input;
+                        }
+                    }
+                    _ => panic!("pause at the first pending fresh winner"),
+                }
+            };
+            assert_eq!(first, fixture.sources[0]);
+            let held = partial.snapshot.as_ref().unwrap().clone();
+            assert!(!held.emitted.load(Ordering::Relaxed));
+            let mut finisher = grouped_step(&fixture, 0, &account);
+            assert!(std::ptr::eq::<Snapshot>(
+                &**finisher.snapshot.as_ref().unwrap(),
+                &*held
+            ));
+            assert_eq!(
+                grouped_delivery(&fixture, &mut finisher, None, true, 20.0, &account).0,
+                (0..8).collect::<Vec<_>>()
+            );
+            assert!(held.emitted.load(Ordering::Relaxed));
+            let mut next_clock = grouped_step(&fixture, 1000, &account);
+            grouped_delivery(&fixture, &mut next_clock, None, true, 30.0, &account);
+            assert!(!std::ptr::eq::<Snapshot>(
+                &**next_clock.snapshot.as_ref().unwrap(),
+                &*held
+            ));
+            let resumed = grouped_delivery(&fixture, &mut partial, Some(0), true, 10.0, &account);
+            assert_eq!(resumed, (vec![0], vec![]));
+            for target in [0, 4, 7, 8, 11, 12, usize::MAX] {
+                let mut mapped = grouped_step(&fixture, 1000, &account);
+                let actual =
+                    grouped_delivery(&fixture, &mut mapped, Some(target), true, 40.0, &account);
+                let mut ordinary = grouped_step(&fixture, 1000, &account);
+                assert_eq!(
+                    actual,
+                    grouped_delivery(&fixture, &mut ordinary, Some(target), false, 40.0, &account)
+                );
+                if target < 8 {
+                    assert_eq!(actual, (vec![target], vec![fixture.sources[target]]));
+                } else {
+                    assert_eq!(actual, (vec![], vec![]));
+                }
+            }
+            let mut backward = grouped_step(&fixture, 1000, &account);
+            backward.emit_row = 6;
+            assert_eq!(
+                grouped_delivery(&fixture, &mut backward, Some(0), true, 50.0, &account),
+                (vec![], vec![])
+            );
+            drop((partial, finisher, next_clock, backward, held));
+            drop(fixture);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
     struct Collected<'a> {
         samples: Vec<EvaluatedSample<'a>>,
         acquired: u64,
@@ -1725,7 +2053,10 @@ mod emission_tests {
         loop {
             let input = step.expected;
             let before = account.snapshot();
-            match step.advance(None, &control, account).unwrap() {
+            match step
+                .advance(None, Some(&fixture.sources), &control, account)
+                .unwrap()
+            {
                 Action::Continue => (),
                 Action::Child { parameter, ordinal } => {
                     assert!(!parameter);
@@ -1905,7 +2236,10 @@ mod emission_tests {
             account,
         );
         loop {
-            match step.advance(None, &control, account).unwrap() {
+            match step
+                .advance(None, Some(&fixture.sources), &control, account)
+                .unwrap()
+            {
                 Action::Continue => (),
                 Action::Child { parameter, ordinal } => {
                     assert!(!parameter);
@@ -1951,7 +2285,7 @@ mod emission_tests {
             let control = Control::default();
             let before = account.snapshot();
             let result = crate::test_storage::interrupt_after_work(&account, &control, 1, || {
-                step.advance(None, &control, &account)
+                step.advance(None, Some(&fixture.sources), &control, &account)
             });
             assert_eq!(account.snapshot().work - before.work, 1);
             match (scenario, result) {

@@ -1849,3 +1849,14 @@ array is added. All four measured target layouts equal accepted102. The subset p
 ratios 0.96919/0.94395 for release/release-min, with mixed global/control results and all costs retained; no
 universal speedup is claimed. See [proper ranking winner subsets](README.md#proper-ranking-winner-subsets)
 and its separate exact source/runtime report. The earlier full-input measurements retain102 attribution.
+
+
+Completed ranking delivery now borrows the frozen node source table transiently at its singleton
+Machine call. Inside the existing warm certificate, resolve canonical descriptor -> sole original
+input -> Binding.group, then check membership in only that heap. Preserve forward-only row/group/
+position progress, target zero, pending replies and held-snapshot completion. Missing mapping retains
+the canonical target and ordinary scan. Cold selection/validation, full Done, exact keys, reset and
+fresh selected values are unchanged. No persistent field/array/cache is added; charge the actual
+mapping attempt. Static argument/entry/code costs and all slower timing controls are separate from
+tracked allocation layouts. See [direct completed ranking-group lookup](README.md#direct-completed-ranking-group-lookup)
+and its separate accepted103/current report. The earlier102/103measurements keep their original scope.

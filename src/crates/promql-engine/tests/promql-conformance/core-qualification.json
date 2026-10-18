@@ -73308,5 +73308,27 @@
     "cpp_controls": 336,
     "linked_pairs": 6,
     "scope": "Existing direct unchanged Float completion only. Full result/control/ownership qualification; historical216strict failures and separate ordering policy retained. No runtime field,array,value cache or public contract change; no universal compatibility/speed/peak/live/whole-Agent claim."
+  },
+  "ranking_heap_routing": {
+    "status": "finite source-bound qualification",
+    "report": "ranking-heap-routing-qualification.json",
+    "report_sha256": "7c5bc3e147ebb01b1ef7e85691e4f3a689717cd30918a1b25fcf06886bff31ae",
+    "source_inputs": 361,
+    "source_manifest_sha256": "e928a2edb4182c903d2e74fd75acfc526cd0b1b5c0a5b072236609922265130a",
+    "comparison_base": "c62d19225a8ecceafa8f314d51dd6f1c43fc8b17",
+    "baseline_runtime_revision": "c62d19225a8ecceafa8f314d51dd6f1c43fc8b17",
+    "decision": "accept",
+    "full_native_passes_per_profile": 820,
+    "native_ignored_per_profile": 2,
+    "foreign_focused_passes_per_target": 21,
+    "new_target_pairs": 3840,
+    "prior_target_pairs": 3840,
+    "complete_reducer_comparisons": 56124,
+    "strict_original_failures_retained": 216,
+    "complete_sort_original_comparisons": 456,
+    "default_c_pairs": 336,
+    "cpp_controls": 336,
+    "linked_pairs": 6,
+    "scope": "Existing completed Float singleton delivery only; source-to-group metadata routing without new persistent ownership. All physical/memory fields equal actual103. Full controls and all mixed/slower compiled/timing costs retained; historical216strict original failures preserved. No public contract, universal compatibility/speed, lower peak/RSS or live/whole-Agent claim."
   }
 }
