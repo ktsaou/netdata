@@ -1875,3 +1875,26 @@ No Reader/Frame/history/value/completion cache is added. Input's small private s
 BackingSource's proof have explicit per-target layout costs; no new metadata provider is introduced.
 The [owning procedure](README.md#certified-derived-float-completion) distinguishes real Writer flush,
 simulated Reader tail, calibrated Machine faults, actual full outcomes and every weaker/slower cost.
+
+## Generated-label lookup indexes
+
+COUNT_VALUES retains its original linear lookup and copy/push/polling through eight unique entries.
+At the ninth, locally build the existing compact PositionIndex, polling/accounting prior-key visits and
+rehash. Collection identity remains the grouping hash only; binding identity remains exact ordered raw
+labels within that digest. First labels, wrapping counts, delimiter aliases and literal-zero hash behavior
+are unchanged. Lookup metadata never orders results. Reserve the owner vector before index publication,
+then immediately append before any fallible terminal poll. Failed construction retires local allocations;
+post-append cancellation leaves consistent keys. Allocation capacity need not roll back.
+
+Cache owns its binding vector and optional tracked index together. Plan.finish moves the whole owner;
+Plan.project changes only existing canonical fields, preserving indexed raw keys. Step drops collection
+lookup before sorting. Reset/format/overwrite/full modified-label validation/filter still precede every hit;
+canonical label substitution remains after raw binding resolution. No sample/history array, per-binding
+cached hash, shared index API or external metadata provider is added. All implicit caps remain disabled.
+
+The first measured candidate allocated on its second entry and added insertion polls. The retained
+refinement restores tiny work/polling, with measured512-series direct ratios0.37465/0.35953 and nested
+0.27099/0.27189. Native private owners grow8bytes; lookup Workspace grows up to14608bytes in the panel.
+Tiny/ordinary timing and linked costs remain explicit, including a5.18%slower projection follow-up.
+The [owning procedure](README.md#generated-label-lookup-indexes) records both candidates, actual allocated
+interruption/cleanup, distinct C activation scopes and the finite original/target/profile attribution.

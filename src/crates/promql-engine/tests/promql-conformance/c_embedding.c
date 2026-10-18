@@ -2618,6 +2618,87 @@ static void empty_group_owner_outputs(netdata_promql_engine_t *engine) {
     }
 }
 
+static void count_values_lookup_outputs(netdata_promql_engine_t *engine) {
+    const char *expressions[] = {
+        "count_values by(zone)(\"v\",m)",
+        "count_values by(zone)(\"out\",count_values by(zone)(\"v\",m))",
+    };
+    const uint64_t pages[] = {1, 17, 1024};
+    static const uint8_t zones[] = {'0', '1', '2', '3'};
+    netdata_promql_engine_observations_t idle = engine_observations(engine);
+    for (unsigned page = 0; page < 3; page++) for (unsigned nested = 0; nested < 2; nested++) {
+        for (unsigned range = 0; range < 2; range++) {
+            join_fixture source;
+            memset(&source, 0, sizeof(source));
+            init_fixture(&source.source, 3, pages[page]);
+            for (unsigned row = 0; row < 4; row++) {
+                source.labels[row][0] = source.source.labels[0];
+                source.labels[row][1].name = text("zone");
+                source.labels[row][1].value = bytes(&zones[row], 1);
+            }
+            netdata_promql_provider_t input = provider(&source.source);
+            input.context = &source;
+            input.selection_next = join_selection_next;
+            input.cursor_open = join_cursor_open;
+            input.cursor_next = join_cursor_next;
+            netdata_promql_query_t *query = compile(engine, expressions[nested]);
+            netdata_promql_request_t request = instant(range ? 1000 : 3000);
+            if (range) {
+                request.kind = NETDATA_PROMQL_REQUEST_RANGE;
+                request.end_ms = 3000;
+                request.step_ms = 1000;
+            }
+            netdata_promql_result_t *result = NULL;
+            netdata_promql_report_t *report = NULL;
+            assert(netdata_promql_collect(query, &input, &request, NULL, &result, &report) == NETDATA_PROMQL_OK);
+            released(&source.source);
+            netdata_promql_result_info_t info;
+            assert(netdata_promql_result_info(result, &info) == NETDATA_PROMQL_OK);
+            assert(info.annotation_count == 0 && info.series_count == (range && !nested ? 12 : 4));
+            assert(info.header.value_type == (range ? NETDATA_PROMQL_TYPE_MATRIX : NETDATA_PROMQL_TYPE_VECTOR));
+            assert(info.header.start_ms == (range ? 1000 : 3000) && info.header.end_ms == 3000);
+            assert(info.header.step_ms == (range ? 1000 : 0));
+            for (uint64_t row = 0; row < info.series_count; row++) {
+                netdata_promql_series_info_t series;
+                assert(netdata_promql_result_series_info(result, row, &series) == NETDATA_PROMQL_OK);
+                assert(series.label_count == 2 && series.point_count == (range && nested ? 3 : 1));
+                netdata_promql_label_t label;
+                assert(netdata_promql_result_label(result, row, 0, &label) == NETDATA_PROMQL_OK);
+                const char *name = nested ? "out" : "v";
+                assert(label.name.len == strlen(name) && memcmp(label.name.data, name, label.name.len) == 0);
+                uint8_t value = nested ? '1' : range ? (uint8_t)('1' + row / 4) : '3';
+                assert(label.value.len == 1 && label.value.data[0] == value);
+                assert(netdata_promql_result_label(result, row, 1, &label) == NETDATA_PROMQL_OK);
+                assert(label.name.len == 4 && memcmp(label.name.data, "zone", 4) == 0);
+                assert(label.value.len == 1 && label.value.data[0] == zones[row % 4]);
+                for (uint64_t point = 0; point < series.point_count; point++) {
+                    netdata_promql_point_info_t value_point;
+                    assert(netdata_promql_result_point(result, row, point, &value_point) == NETDATA_PROMQL_OK);
+                    int64_t expected = range ? (int64_t)(nested ? point + 1 : row / 4 + 1) * 1000 : 3000;
+                    assert(value_point.time_ms == expected && value_point.value_kind == NETDATA_PROMQL_VALUE_FLOAT);
+                    assert(value_point.value_bits == netdata_promql_double_bits(1));
+                }
+            }
+            netdata_promql_query_observations_t observed;
+            assert(netdata_promql_report_observations(report, &observed) == NETDATA_PROMQL_OK);
+            statistics_valid(&observed.statistics);
+            assert(observed.statistics.samples.total_queryable_samples == (range ? 12 : 4));
+            assert(observed.output_samples == (range ? 12 : 4));
+            assert(observed.samples_fetched == source.source.samples_returned && observed.pages == source.source.pages_returned);
+            assert(observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
+            printf("{\"count_values_lookup\":\"pass\",\"page\":%" PRIu64 ",\"nested\":%u,\"range\":%u,\"work\":%" PRIu64
+                   ",\"fetched\":%" PRIu64 ",\"statistics\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 "],\"workspace_peak\":%" PRIu64 "}\n",
+                   pages[page], nested, range, observed.work, observed.samples_fetched,
+                   observed.statistics.samples.total_queryable_samples, observed.statistics.samples.samples_read,
+                   observed.statistics.samples.peak_samples, observed.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].peak);
+            assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
+            assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+            assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+            balanced(engine, &idle);
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     assert(netdata_promql_abi_version() == NETDATA_PROMQL_ABI_VERSION);
     netdata_promql_engine_options_t options;
@@ -2628,12 +2709,20 @@ int main(int argc, char **argv) {
         options.flags |= NETDATA_PROMQL_EXPERIMENTAL_FUNCTIONS | NETDATA_PROMQL_START_TIMESTAMPS;
     if (argc == 2 && (strcmp(argv[1], "--instant-sets-delayed-only") == 0 ||
                       strcmp(argv[1], "--single-group-values-delayed-only") == 0 ||
-                      strcmp(argv[1], "--derived-kind-delayed-only") == 0))
+                      strcmp(argv[1], "--derived-kind-delayed-only") == 0 ||
+                      strcmp(argv[1], "--count-values-delayed-only") == 0))
         options.flags |= NETDATA_PROMQL_DELAYED_NAME_REMOVAL;
     netdata_promql_engine_t *engine = NULL;
     assert(netdata_promql_engine_create(&options, &engine) == NETDATA_PROMQL_OK);
     netdata_promql_engine_observations_t idle;
     assert(netdata_promql_engine_observations(engine, &idle) == NETDATA_PROMQL_OK);
+    if (argc == 2 && (strcmp(argv[1], "--count-values-only") == 0 ||
+                      strcmp(argv[1], "--count-values-delayed-only") == 0)) {
+        count_values_lookup_outputs(engine);
+        balanced(engine, &idle);
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        return 0;
+    }
     if (argc == 2 && (strcmp(argv[1], "--derived-kind-only") == 0 ||
                       strcmp(argv[1], "--derived-kind-delayed-only") == 0)) {
         const uint64_t pages[] = {1, 17, 1024};

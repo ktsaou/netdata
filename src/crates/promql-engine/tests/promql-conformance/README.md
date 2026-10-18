@@ -1806,6 +1806,9 @@ Discovery retains exact generated label identities across the logical scope; pro
 source full-hash aliases and first-label ownership. Default and delayed name removal retain their distinct
 instant and multistep duplicate checks.
 
+The [generated-label lookup procedure](#generated-label-lookup-indexes) adds compact indexes to these
+metadata owners while preserving their distinct identity rules and existing value/label phases.
+
 Float labels use Go's shortest fixed-decimal text, including negative zero and subnormal padding. Histogram
 labels follow `FloatHistogram.String`, including productive malformed prefixes and known source runtime errors.
 Negative buckets are reversed using constant traversal state; no bucket vector or raw history is retained.
@@ -8356,3 +8359,85 @@ units did not print it. Default C text changes−4236/+2296bytes for release/rel
 Machine entry reservation changes0bytes except release-min fixture−16; this is not runtime stack peak.
 No lower-peak, RSS, physical-device, concurrent/live API, C-provider timing, whole-Agent or Cloud claim
 follows. See the [complete finite report](derived-float-completion-qualification.json).
+
+## Generated-label lookup indexes
+
+`count_values()` indexes two metadata owners: the groups collected during one activation and the exact
+generated label bindings retained across the query scope. Both previously searched a growing vector.
+Reuse the compact `PositionIndex`, keeping the original scan/copy/push and polling through eight entries.
+The ninth unique entry builds a local index for all existing positions before publication. This threshold
+chooses an algorithm; it imposes no query limit. Groups still merge by full grouping hash, keep the first
+labels and wrap their integer count. Bindings use that same digest for lookup but compare exact raw labels,
+so grouping-hash aliases remain separate bindings when generated in different activations.
+
+Neither index determines traversal. Reserve the owning vector before insertion and follow index publication
+immediately with its reserved push, before another fallible check. Interrupted growth preserves consistent
+keys; cancellation after append may retain the consistent new entry until query cleanup. Move the complete
+preparation cache into the frozen Plan; canonical projection changes only its existing binding fields.
+Release collection lookup metadata before the existing full-hash and label sorting. Reset, value formatting,
+destination overwrite, full modified-label validation and grouping still precede every lookup, including hits.
+Discarded oversized fields and malformed histogram text must continue to fail at their original boundaries.
+
+From the crate root, run
+`cargo test --locked --release --features fixtures count_values -- --nocapture --test-threads=1`,
+and repeat with `--profile release-min` instead of `--release`. Nine focused checks include:
+
+- 84 complete Engine outcomes: populations0/1/2/16/64/128/256, direct/repeated/nested groups, both name modes,
+  instant and three-tick ranges. Labels, values, clocks, row order, annotations, statistics and owner release
+  precede the work guard. The unchanged producer completes all84 then fails that guard.
+- Seventeen hash groups/twenty exact bindings, raw empties, first-label collisions, whole-cache transfer
+  without reallocation and canonical projection with every key still usable.
+- Every small insertion work budget at prior8 and prior10, including cancellation after actual temporary
+  allocation during lazy creation and the first allocated-table rebuild; consistent post-append errors.
+- Long-key copying and rehashing with their actual1024/32768-byte control landmarks; nine-group indexed
+  hits still expose raw malformed native formatting and removed16MiBfield errors.
+
+The unchanged796 pinned-Go queries and336 additional `count_values_cases.lookup_cases()` controls give
+9,056 complete baseline/current pairs: pages1/17/1024 in both native profiles, page17 on both QEMU ARM targets.
+The same current executions supply6,368 original comparisons: exact numerics, ordered ranges and the original
+unordered instant policy. Baseline/current results also preserve exact instant row order. The new panel has
+176vector/110matrix/50error outcomes; these are controls, not336new original captures or productive feature claims.
+Both native suites pass830tests with two unchanged ignored checks; each ARM target passes9focused checks.
+Strict default/fixture Clippy, formatting and installed Rust1.91compile-only checks pass.
+
+Actual default C archives pass48paired cases,48C++controls and both complete C suites. The focused C binary
+options are `--count-values-only` and `--count-values-delayed-only`: direct/nested expressions, instant/range,
+all three page sizes, complete labels/counts/clocks/order, logical/output/physical statistics and release.
+Its four groups per tick stay linear; twelve distinct range bindings activate binding indexing. Engine/ARM
+owners also exercise collection indexing. C's ordinary lookback differs from the fixture; their counts are
+separately attributed. No new C fault-injection coverage is claimed.
+
+At256ordinary instant groups, work falls546225→180035 directly and1302888→381899 when nested. Physical reads,
+page counts, logical samples and owned sample peaks remain equal. Tiny0/1/2work is exactly unchanged.
+Workspace grows2144/4280bytes in those examples. Across the full comparisons its maximum increase is14608bytes
+on native/ARM64 and14520on ARM32; all seven other tracked peaks remain equal. These are lookup metadata costs,
+with raw samples still paged. Native Plan/Cache/Step grow8bytes each versus the actual old debug print;
+current ARM32sizes are112/40/48bytes. Old foreign/optimized type sizes were not printed and are not invented.
+
+The fixed timing panel contains84target cases/profile frozen before producer edits and16ordinary-query
+controls added before any timing. Each uses three alternating blocks, one warmup plus three measured runs,
+nine measured samples/side, and exactly one identical follow-up per primary ratio>=1.05. The first candidate
+and all its measurements remain retained; a refinement delays index allocation and restores tiny polling.
+The table gives median ratios, current/accepted105, across instant/range and both name modes; each cell lists
+release/release-min. Repeated input series collapse into one group. These are not traffic-weighted averages.
+
+| Input series | Direct | Repeated group | Nested |
+| ---: | ---: | ---: | ---: |
+| 0 | 1.13402 / 0.97456 | 1.07987 / 1.00187 | 1.11513 / 1.03094 |
+| 1 | 1.03800 / 1.00760 | 0.99976 / 1.03060 | 1.02837 / 1.02401 |
+| 2 | 0.98599 / 1.01990 | 0.98052 / 1.00722 | 0.98583 / 1.02122 |
+| 16 | 1.00520 / 1.01287 | 0.95177 / 1.02323 | 0.95764 / 1.00065 |
+| 64 | 0.84162 / 0.82720 | 1.00719 / 1.04438 | 0.79874 / 0.77405 |
+| 256 | 0.53686 / 0.53142 | 1.00661 / 1.05132 | 0.44325 / 0.44608 |
+| 512 | 0.37465 / 0.35953 | 1.01610 / 1.03006 | 0.27099 / 0.27189 |
+
+The private retention decision accepts those larger-query gains with all costs explicit. Slower target
+primaries are38/84 and49/84. Four release empty controls remain slower on follow-up, by900/1880/940/979ns
+(ratios1.10033/1.21860/1.09864/1.10516); one release-min empty control remains1.07250,+801ns. Ordinary-query
+primary medians are1.00845/1.03261; their slower primaries are11/16 and14/16, with one persistent release-min
+projection case1.05184,+9960ns. Default-C linked text grows43312/9340bytes; data grows344/360bytes.
+All six linked costs, actual types, compiled entry observations and every slower sample remain in the
+[finite qualification report](count-values-lookup-qualification.json). The report retains the first candidate
+and distinguishes authenticated old functional captures from fresh alternating timing arms. Removing these
+two linear searches does not bound arbitrary replay, sorting or label construction, or prove universal speed,
+lower peak/RSS, physical-ARM, concurrent/live API, C-provider, whole-Agent or Cloud performance.

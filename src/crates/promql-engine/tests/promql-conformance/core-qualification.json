@@ -73354,5 +73354,17 @@
     "full_current_c_suites": 2,
     "linked_pairs": 6,
     "scope": "Shared certified first-window Float visit/current-child completion without a history/value cache. Complete results/errors and explicit numerical/caller/resource controls pass. All slower empty/scheduled,ARM32layout/peak and linked costs retained. No universal speed/lower-peak, linear replay,live,whole-Agent,Cloud or new default-language feature claim."
+  },
+  "count_values_lookup_indexes": {
+    "status": "finite_source_bound_qualification",
+    "report": "src/crates/promql-engine/tests/promql-conformance/count-values-lookup-qualification.json",
+    "report_sha256": "4393ee9ad7708e5124b4ca43f694dc05ecad2f8f01b6d7d75c1053e6d70cec4d",
+    "source_manifest_sha256": "d2ba5ec55aee039473fa4f5c5afb7f35c622a11f7466d6f055b8d8f028746d80",
+    "comparison_base": "b759c89b5e25eaaf5e79b6493334ad8a2c5d48fb",
+    "source_inputs": 361,
+    "complete_target_pairs": 9056,
+    "retained_go_original_comparisons": 6368,
+    "mechanism": "Private COUNT_VALUES hash-only collection and exact-label binding indexes; original linear/polling path through8entries,local ninth-entry creation,whole-cache transfer.",
+    "scope": "Both native profiles830tests+2unchangedignored and pages1/17/1024; both emulated ARM9focused and page17;48actual C pairs/48C++controls,two fullC,strict/fmt/MSRVcompile-only. All100case/profile fresh timings,first-candidate captures,slower controls,Workspace/layout and six compiled costs retained. No new language/data/API/ABI4,universal speed/lower RAM, live/concurrent/provider/whole-Agent/physical-ARM claim; caps remain disabled."
   }
 }

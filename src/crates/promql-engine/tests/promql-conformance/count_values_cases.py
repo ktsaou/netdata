@@ -152,3 +152,61 @@ def cases():
     if len({row["request"]["id"] for row in inputs}) != len(inputs):
         raise ValueError("duplicate independently declared count_values identity")
     return inputs
+
+
+def lookup_cases():
+    """Plural lookup, changing bindings and collided keys with allocated-table controls."""
+    inputs = []
+
+    def add(ident, records, queries, windows=WINDOWS[:1]):
+        for delayed in (False, True):
+            for qi, expression in enumerate(queries):
+                for wi, (mode, time, start, end, step) in enumerate(windows):
+                    inputs.append({"request": {
+                        "id": f"count-values-lookup:{ident}:{int(delayed)}:{qi}:{wi}",
+                        "query": expression, "profile": "server-default",
+                        "delayed_name_removal": delayed, "mode": mode, "time_ms": time,
+                        "start_ms": start, "end_ms": end, "step_ms": step,
+                        "lookback_ms": 1, "subquery_step_ms": 1000},
+                        "dataset": {"schema_version": 1, "series": deepcopy(records)}, "faults": {}})
+
+    ordinary_windows = (("instant", 1000, 0, 0, 0), ("range", 0, 0, 2000, 1000))
+    for count in (0, 1, 2, 16, 64, 128, 256, 512):
+        records = [series({"__name__": "m", "id": str(index)},
+            [(0, 7, "float"), (1000, 8, "float"), (2000, 7, "float")]) for index in range(count)]
+        add("plural-" + str(count), records, (
+            'count_values by(id)("value",m)', 'count_values("value",m)',
+            'count_values by(id)("outer",count_values by(id)("value",m))'), ordinary_windows)
+
+    for collision in ("grouping", "full"):
+        for fillers in (0, 2, 16):
+            for overlap in (False, True):
+                if collision == "grouping":
+                    labels = [{"__name__": "m", "a": b"b\xffx\xffy", "id": "first"},
+                              {"__name__": "m", "a": b"b", "x": "y", "id": "second"}]
+                else:
+                    labels = [{"__name__": "m", "a": FIRST, "id": "first"},
+                              {"__name__": "m", "a": SECOND, "id": "second"}]
+                records = [series(labels[0], [(0, 7, "float"), (1000, 7 if overlap else STALE, "float")]),
+                           series(labels[1], [(0, 7 if overlap else STALE, "float"), (1000, 7, "float")])]
+                records += [series({"__name__": "m", "a": "filler" + str(index), "id": str(index)},
+                    [(0, 7, "float"), (1000, 7, "float")]) for index in range(fillers)]
+                body = 'count_values without(id,v)("v",m)'
+                add(f"{collision}-{fillers}-{overlap}", records,
+                    (body, "sum(" + body + ")", 'count_values("outer",' + body + ")"),
+                    (("instant", 0, 0, 0, 0), ("instant", 1000, 0, 0, 0), ("range", 0, 0, 1000, 1000)))
+
+    records = [series({"__name__": "m", "a": "", "id": str(index)},
+                      [(0, index % 2, "float"), (1000, 1 - index % 2, "float")]) for index in range(16)]
+    add("raw-empty", records, ('count_values by(a,id)("v",m)', 'count_values without(id)("v",m)',
+        'count_values by(id)("__name__",m)', 'count_values without(v)("v",m)'),
+        (("instant", 0, 0, 0, 0), ("range", 0, 0, 1000, 1000)))
+    for ident, payload in (("custom-zero", native(schema=-53, zero_count=bits(1))),
+                           ("custom-negative", native(schema=-53,
+                            negative_spans=[span(1, 1)], negative_buckets=[bits(0)]))):
+        records = [series({"__name__": "m", "id": str(index)}, [(0, 7, "float")]) for index in range(16)]
+        records.append(native_series(payload, labels={"__name__": "m", "id": "native"}))
+        add("late-format-" + ident, records, ('count_values without(v,id)("v",m)',
+            'count_values by(id)("v",m)'))
+    assert len(inputs) == len({row["request"]["id"] for row in inputs})
+    return inputs

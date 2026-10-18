@@ -14960,6 +14960,192 @@ mod tests {
     }
 
     #[test]
+    fn count_values_plural_results_precede_lookup_work_bound() {
+        use crate::value::{Sample, SampleValue};
+        use std::collections::BTreeMap;
+        fn sample(index: usize) -> Sample {
+            Sample {
+                time_ms: index as i64 * 1000,
+                start_time_ms: 0,
+                value: SampleValue::Float(if index == 1 { 8.0 } else { 7.0 }),
+            }
+        }
+        let mut growth = Vec::new();
+        let mut complete = 0;
+        println!(
+            "count-values-layout plan={} cache={} step={} index={} boxed_index={} optional_index={}",
+            size_of::<crate::count_values::Plan>(),
+            size_of::<crate::count_values::Cache>(),
+            size_of::<crate::count_values::Step<'_>>(),
+            size_of::<crate::position_index::PositionIndex>(),
+            AccountedBox::<crate::position_index::PositionIndex>::allocation_bytes(),
+            size_of::<Option<AccountedBox<crate::position_index::PositionIndex>>>(),
+        );
+        for count in [0, 1, 2, 16, 64, 128, 256] {
+            for delayed in [false, true] {
+                for range in [false, true] {
+                    for (family, expression) in [
+                        ("plural", "count_values by(id)(\"value\",m)"),
+                        ("repeat", "count_values(\"value\",m)"),
+                        (
+                            "nested",
+                            "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+                        ),
+                    ] {
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let mut provider = FixtureProvider::new(3, 17, count);
+                        for (index, series) in provider.series.iter_mut().enumerate() {
+                            series.labels = vec![
+                                (b"__name__".to_vec(), b"m".to_vec()),
+                                (b"id".to_vec(), index.to_string().into_bytes()),
+                            ];
+                            series.source.sample = sample;
+                        }
+                        let query = engine
+                            .compile(
+                                expression.as_bytes(),
+                                EngineOptions {
+                                    lookback_ms: 1,
+                                    delayed_name_removal: delayed,
+                                    ..EngineOptions::default()
+                                },
+                                &control,
+                            )
+                            .unwrap();
+                        let request = if range {
+                            QueryRequest::Range {
+                                start_ms: 0,
+                                end_ms: 2000,
+                                step_ms: 1000,
+                            }
+                        } else {
+                            QueryRequest::Instant { time_ms: 1000 }
+                        };
+                        let (result, observed) =
+                            query.collect(&provider, request, &control).unwrap();
+                        let mut expected =
+                            BTreeMap::<Vec<(Vec<u8>, Vec<u8>)>, Vec<(i64, u64)>>::new();
+                        for time in if range {
+                            vec![0, 1000, 2000]
+                        } else {
+                            vec![1000]
+                        } {
+                            for index in 0..if family == "repeat" {
+                                usize::from(count != 0)
+                            } else {
+                                count
+                            } {
+                                let value = if family == "nested" {
+                                    b"1".to_vec()
+                                } else if time == 1000 {
+                                    b"8".to_vec()
+                                } else {
+                                    b"7".to_vec()
+                                };
+                                let labels = if family == "repeat" {
+                                    vec![(b"value".to_vec(), value)]
+                                } else {
+                                    vec![
+                                        (b"id".to_vec(), index.to_string().into_bytes()),
+                                        (
+                                            if family == "nested" {
+                                                b"outer".to_vec()
+                                            } else {
+                                                b"value".to_vec()
+                                            },
+                                            value,
+                                        ),
+                                    ]
+                                };
+                                expected.entry(labels).or_default().push((
+                                    time,
+                                    (if family == "repeat" {
+                                        count as f64
+                                    } else {
+                                        1.0
+                                    })
+                                    .to_bits(),
+                                ));
+                            }
+                        }
+                        let actual: Vec<_> = result
+                            .series
+                            .iter()
+                            .map(|row| {
+                                let labels: Vec<_> = row
+                                    .labels
+                                    .0
+                                    .iter()
+                                    .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                                    .collect();
+                                let points: Vec<_> = row
+                                    .points
+                                    .iter()
+                                    .map(|point| {
+                                        let OwnedValue::Float(value) = point.value else {
+                                            panic!("float count")
+                                        };
+                                        (point.time_ms, value.to_bits())
+                                    })
+                                    .collect();
+                                (labels, points)
+                            })
+                            .collect();
+                        assert_eq!(
+                            actual,
+                            expected.into_iter().collect::<Vec<_>>(),
+                            "count={count} delayed={delayed} range={range} family={family}"
+                        );
+                        assert!(result.annotations.is_empty());
+                        let points: usize = result.series.iter().map(|row| row.points.len()).sum();
+                        assert_eq!(observed.output_samples, points as u64);
+                        assert_eq!(
+                            observed.statistics.samples.total_queryable_samples,
+                            (count * if range { 3 } else { 1 }) as u64
+                        );
+                        assert!(!observed.counter_overflowed);
+                        provider.assert_closed();
+                        if count != 0 {
+                            assert_eq!(
+                                provider.series[0]
+                                    .source
+                                    .counters
+                                    .peak
+                                    .load(Ordering::SeqCst),
+                                1
+                            );
+                        }
+                        println!(
+                            "{{\"count_values_lookup\":\"result\",\"count\":{count},\"delayed\":{delayed},\"range\":{range},\"family\":\"{family}\",\"work\":{},\"fetched\":{},\"pages\":{},\"logical\":{},\"owned_peak\":{},\"workspace_peak\":{}}}",
+                            observed.work,
+                            observed.samples_fetched,
+                            observed.pages,
+                            observed.statistics.samples.total_queryable_samples,
+                            observed.statistics.samples.peak_samples,
+                            observed.memory[MemoryKind::Workspace as usize].peak,
+                        );
+                        if count == 256 && !range && family != "repeat" {
+                            growth.push((family, observed.work));
+                        }
+                        drop((result, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                        complete += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(complete, 84);
+        println!("count-values complete-results-and-release={complete}");
+        for (family, work) in growth {
+            assert!(
+                work <= if family == "plural" { 300_000 } else { 700_000 },
+                "plural count_values lookup must avoid repeated metadata walks: family={family}, work={work}"
+            );
+        }
+    }
+
+    #[test]
     fn nested_count_values_reads_each_child_once_per_activation() {
         let engine = Engine::default();
         let control = Control::default();

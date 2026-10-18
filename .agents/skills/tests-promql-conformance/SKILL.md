@@ -242,6 +242,10 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Histogram constructor lookup MUST preserve encoded-key identity, separate passes and tiny-set cost; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-constructor-key-lookup` for collision,
   ordering and terminal interruption controls.
+- COUNT_VALUES lookup changes MUST preserve hash-only groups, exact-label bindings, whole-cache transfer and
+  formatting/full-label validation before hits. Exercise the linear/indexed cutover, allocated interruption
+  and distinct C binding/collection scopes; follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#generated-label-lookup-indexes`.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
 - Active histogram distribution MUST retain group identity, skipped ranges and pre-sort bound/ordinal order; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-active-group-distribution` for sparse/native,
