@@ -73174,5 +73174,23 @@
       "scope": "All complete native/foreign pairs. Memory counts describe accounted allocations, not RSS. Sums combine distinct queries/page variants, not a simultaneous device peak. Paging/calls/backing/references/output remain exact; broad fixture omits logical statistics."
     },
     "scope": "Complete frozen key borrowing; canonical flat stream/first-writer identity, full validation before lookup and controls. All slower timing and linked costs retained; preparation owns keys, no new retained state."
+  },
+  "root_delayed_name_joins": {
+    "status": "qualified_finite_root_delayed_name_replay",
+    "report": "root-delayed-name-qualification.json",
+    "report_sha256": "bf9fea052cf1bfb99088787a729989a170d135e8bc6f8ee6cc0b22e6796cb1fb",
+    "comparison_base": "bc938499fc8696dc6944917b8d4a1f6a183a51e4",
+    "complete_original_and_accepted_before_pairs": 13152,
+    "actual_old_causal_controls_before_failure": 80,
+    "native_units_each_profile": 780,
+    "native_ignored_each_profile": 2,
+    "focused_each_emulated_arm": 37,
+    "c_pairs": 240,
+    "current_cpp_controls": 240,
+    "full_current_c_programs": 2,
+    "c_logical_total_and_peak_equal_pairs": 240,
+    "c_lower_useful_read_pairs": 48,
+    "source_attribution": "Optimized qualified source; final production-source equivalence after sole identity test-cast cleanup; final strict compiler/Debug Matrix checks. No final-source optimized rerun claimed.",
+    "scope": "Final-root Matrix binary evaluation may use existing completed Pairs proof with deferred names; all earlier/nested/prefix/group-demand gates remain. No language/provider/ABI/storage/cap/dependency or persistent layout change."
   }
 }

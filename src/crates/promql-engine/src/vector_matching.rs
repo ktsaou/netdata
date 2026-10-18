@@ -379,6 +379,17 @@ impl Plan {
                 .as_ref()
                 .is_some_and(|replay| replay.completed.borrow().is_some())
     }
+    #[cfg(test)]
+    pub(crate) fn has_completed_pair_replay(&self, key: &ReplayKey) -> bool {
+        self.replay.as_ref().is_some_and(|replay| {
+            matches!(replay.rows, ReplayRows::Pairs(_))
+                && replay
+                    .completed
+                    .borrow()
+                    .as_ref()
+                    .is_some_and(|step| step.key == *key)
+        })
+    }
     pub(crate) fn certify_set_discovery(
         &mut self,
         control: &Control,

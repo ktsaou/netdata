@@ -2586,7 +2586,8 @@ directories; the focused units above are self-contained source checks.
 Final evaluation can reuse a completed operand scan for a bare root one-to-one join between two raw float
 selectors. It requires unambiguous signatures, hashes, output bindings and supported ordinary clocks. Eligible
 grouped ranges use the [grouped extension](#completed-grouped-float-join-scans). Native operand values, filled,
-unproven nested, delayed-name and other ambiguous shapes keep ordinary pair replay.
+unproven nested and other ambiguous shapes keep ordinary pair replay. Eligible delayed-name final roots
+use the [separate final-root admission](#completed-delayed-name-root-joins).
 
 The first row completes the original full scan and pair evaluation, including comparison filtering, reservations
 and duplicate checks. Its emitted cache ordinals become reusable only after successful completion and diagnostics.
@@ -2620,6 +2621,74 @@ remain separate costs.
 The [join qualification](binary-replay-qualification.json) binds the exact engine sources, both optimized
 profiles, original expression panels, actual C callers and separately rebuilt DBengine/API checks. It preserves
 the earlier qualification cohorts and their original source identities.
+
+### Completed delayed-name root joins
+
+When `delayed_name_removal` is enabled, eligible final-root joins reuse the existing completed Pair proof.
+This includes the supported raw/rate/earned-map operands and range `group_left`/`group_right` shapes. The option's
+default stays disabled. Shared target discovery, contributor demand, nested PairCandidate and prefix paths retain
+their delayed-name gate. Native/mixed operands, fills, ambiguity, unsupported clocks and unproven shapes keep fallback.
+
+Only final-root non-prefix certification calls the shared structural predicate directly. Full unique Float operand
+and result checks, complete frozen-key bindings and existing clock proofs remain. The actual root OrderedRows body
+uses Matrix children: its cold pass drains discovery, every fresh pair, reservations/diagnostics and successful Done
+before publishing membership. The first returned row alone earns no credit. Later selected values remain fresh;
+changed clocks rediscover inputs. Final deferred-name cleanup, duplicate errors and first-productive output IDs stay
+with their existing owners. No raw history, value table, retained reader, persistent field or public interface is added.
+
+The existing regression owner now finishes 80 complete result/label/time/bit/resource/release checks before its growth
+guard. It covers arithmetic, real filtering, bool, both names, reversed physical identities, 2/4/8/16 series and
+pages 17/1024; wrapped/grouped delayed-name fallback outcomes remain checked without the new growth expectation.
+The unchanged production body passes every outcome check, then fails that guard. At 16 series/page 17:
+
+| Expression, deferred names enabled | Fetched entries before → after | Work before → after |
+| --- | ---: | ---: |
+| `m+n` | 9,888 → 1,518 | 450,458 → 88,551 |
+| `m>n` | 5,280 → 1,374 | 247,538 → 79,354 |
+| `m>bool n` | 9,888 → 1,518 | 465,007 → 95,590 |
+
+The actual root Matrix fault owner calibrates cold nonselected discovery, an unvisited cold pair suffix, warm
+selected reads and next-clock discovery. Ascending physical identities supply a genuine suffix; reversed identities
+alone would exhaust it before the first canonical output. Exact-key completion is false after the first output,
+true after successful Done, absent after cold/new-clock failures, and retained after a later selected-read error.
+Cancellation, sink failure/panic and simultaneous/disjoint post-name-cleanup aliases retain complete cleanup.
+
+Both optimized profiles pass 780 units with two unchanged ignored tests at their actual qualified source. Each
+emulated ARM target passes 37 focused checks. All 13,152 complete current outcomes match the retained 1,644-case originals
+under their declared ordering contracts and accepted Stage93 results: native pages 1/17/1024 and foreign 17, with no exclusions.
+The final source removes only an identity i64 cast inside the new test; production prefix/all other 359 inputs are
+exact. Original optimized artifacts keep their actual source identity and an explicit production-source-equivalence
+binding. Final format, strict default/fixture Clippy, installed Rust 1.91 compile-only and actual Debug Matrix checks pass.
+
+Actual default-library C/C++ callbacks cover raw ratio/bool, both scalar-mapped grouped directions and raw/mapped
+rate roots, both names/pages 1/17/1024. Across 240 before/current C pairs and 240 current C++ controls, all callback value,
+clock, status, provider/output priority and cleanup assertions pass; both full current C programs pass. All 240 logical
+sample totals and sample peaks remain equal; 48 useful-read counters decrease. Those counters describe actual reads,
+so statistic parity is not claimed. All eight memory categories and every physical/reference cost remain recorded.
+
+Across 13,152 exported resource pairs, work decreases in 1,680 and increases in 528; the largest increase is 39 units.
+Workspace peak rises in 552 pairs, by at most 312 B in this finite panel. These proof costs are retained alongside
+lower read/allocation traffic. All compiled persistent layouts remain unchanged; linked text/data/BSS and archive
+sizes are recorded separately.
+
+The predeclared 56-case/profile serial panel uses three alternating pairs, one warmup and three measured queries
+per batch: nine measured samples per case/side. Every >=5% slower primary median receives one fixed follow-up;
+all primary samples and slower medians remain. For 32 series with 512-byte label values, current/before median ratios:
+
+| Expression, deferred names enabled | Release | Release-min |
+| --- | ---: | ---: |
+| `m+n` | 0.103 | 0.101 |
+| `m>n` | 0.174 | 0.166 |
+| `m>bool n` | 0.103 | 0.100 |
+
+Release/release-min retain 41/4 slower primary medians and 1/0 persistent threshold follow-ups. These are synthetic
+shared-host engine measurements. Elapsed includes preparation/evaluation/collection, excluding
+parse/compile/JSON/compression. No universal/concurrent/live/API throughput, physical ARM, RSS/stack, foreign C, full
+foreign suite, new Go capture, MSRV execution or containing-Agent rebuild claim follows. Implicit caps remain
+disabled.
+
+The [finite qualification](root-delayed-name-qualification.json) retains actual source/binary identities, complete
+outcomes, all costs and every timing sample. Earlier cohorts retain their original attribution.
 
 ## Completed grouped float join scans
 
@@ -2725,7 +2794,8 @@ The initial cohort below qualifies bare-root one-to-one float joins when an oper
 `rate(raw_selector[range])`. Raw-selector eligibility stays the same. The rate producer/source/scope grids must
 match the effective evaluator, and the range/offset arithmetic must produce nonwrapping window endpoints.
 Grouped and wrapped operands were outside that initial cohort; their later qualifications are recorded separately.
-Filled, delayed-name, invariant, extended and unproven computed shapes retain ordinary replay.
+At that checkpoint, filled, delayed-name, invariant, extended and unproven computed shapes retained ordinary
+replay. Eligible delayed-name final roots now have the [later admission](#completed-delayed-name-root-joins).
 
 The existing physical-ordinal bindings and accounted one-step membership bitmap are reused after the complete
 first final pass succeeds. No new value array, raw history or backing requirement is introduced. Native values
@@ -4117,7 +4187,7 @@ Workspace acquisition is lower in 8,448 paired query cases and peak is lower in 
 categories have no increase. Other serialized paging/call/backing/reference/output observations remain exact.
 Preparation and fresh selected values still read storage. Completed Pair membership does not cache raw values
 or retain readers across pair/time requests; existing single-selector scheduling excludes vector-vector joins.
-The delayed-name root discovery cost is a separate investigation.
+The later [delayed-name root qualification](#completed-delayed-name-root-joins) addresses its distinct discovery cost.
 
 The fixed 56-case/profile timing panel retains every primary sample and slower median. Five alternating pairs
 give 25 measured samples per case/side; >=5% slower primary medians receive separate fixed follow-ups.
@@ -5178,8 +5248,9 @@ for its prepared vector path, pure scalar side arguments and projected-label uni
 actual raw Selector with matching outer/leaf producer, source and scope grids. The outer typed-Float syntax gate
 is removed; raw Selector and separate actual-arity-one rate paths retain their behavior.
 
-All root, no-fill, one-to-one matching, delayed-name, invariant/boundary, actual unique Float operand/output,
-exact-key and successful-completion gates remain. Native-preserving results, source-reading scalar parameters,
+That cohort retains root, no-fill, one-to-one matching, delayed-name, invariant/boundary, actual unique Float
+operand/output, exact-key and successful-completion gates. Eligible final roots now have the
+[separate delayed-name admission](#completed-delayed-name-root-joins). Native-preserving results, source-reading scalar parameters,
 histogram stdvar/stddev, group/sort/subquery and missing clock proofs keep ordinary evaluation. Direct timestamp
 can lack its leaf producer; timestamp of a computed vector can qualify. No feature is dropped.
 

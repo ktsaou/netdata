@@ -685,13 +685,22 @@ integration, and Alertmanager remains excluded.
   identifies all effective clock/options, step index, exact lookback and data bounds. Replacement releases the prior
   snapshot first; errors and partial replays never publish one. No raw values or timeline are retained.
 - **Compatibility:** exact frozen keys and first-writer labels remain authoritative. Native operand values, filled,
-  ambiguous, delayed-name, invariant and unsupported clock shapes retain ordinary replay. Initial validation and
+  ambiguous, nested delayed-name, invariant and unsupported clock shapes retain ordinary replay. Initial validation and
   error priority remain complete; errors tied to omitted physical operations follow the existing provider policy.
 - **Grouped ranges:** existing direct/rate/earned Float operand proofs can admit `group_left`/`group_right`.
   Keep unique full float rows on both sides and unique matching signatures on the one side. Enumerate every
   many-side row; reject ambiguous histories, missing output bindings and conflicting cache ordinals. Pair positions
   remain in original left/right order while frozen keys use many/one label order. Existing cold validation,
   successful Done, exact-clock membership and fresh selected reads remain the same owners; no state field is added.
+- **Deferred-name final roots:** use the structural predicate only for final-root non-prefix certification.
+  Keep the delayed-name wrapper for target discovery, grouped demand, nested PairCandidate and prefix paths.
+  Reuse the same complete unique-Float, cache-binding and clock proof. Actual root Matrix children drain through
+  Done before sharing membership; fresh selected values, next-clock discovery and final name/duplicate/identity
+  owners remain. The option stays disabled by default. No persistent layout, raw value/history or reader is added.
+- **Root proof and costs:** [finite qualification](root-delayed-name-qualification.json) retains 80 result-first causal
+  controls, actual root cold/suffix/selected/new-clock errors, name aliases, 13,152 exact outcomes, portable/C ownership,
+  all memory/statistic/read costs and serial timing samples. Optimized artifacts retain their actual pre-test-cleanup
+  source; final checks explicitly prove production-source equivalence after one identity cast is removed in cfg(test).
 - **Grouped evidence:** [qualification](grouped-pair-replay-qualification.json) records all comparisons and costs.
   Large-case reads/allocation traffic decrease with unchanged peaks; one mapped case adds 81 B peak and rejected
   native/mixed/history proofs add up to 39 work units and 112 cumulative bytes. Timings retain slower tiny controls.
