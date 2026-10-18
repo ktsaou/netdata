@@ -4159,7 +4159,8 @@ operand splits can represent the same key. Both complete streams validate before
 field still precedes a missing-key error. Canonical prefix/payload comparison requires full stored-key exhaustion.
 The existing full-hash guard, first matching ordinal, first-writer labels and terminal control remain authoritative.
 
-Mutable preparation retains its owned concatenated key and independent labels. Internal group_right key order,
+At that frozen-key-only checkpoint, mutable preparation retained its owned concatenated key and independent
+labels. The current [compact key owner](#compact-operand-cache-keys) replaces those ordinary byte copies. Internal group_right key order,
 both label acquisitions, arithmetic/diagnostics, false-filter reservation, bool conversion and seen/prefix/credit
 phases are unchanged. One pure prefix helper serves owned encoding, full hashing and borrowed comparison.
 No field, index, persistent owner or raw array is added. Encoded comparison batches small accounting updates
@@ -4170,7 +4171,7 @@ while cancellation is pending. Synthetic work-budget interruption prefixes can c
 The existing actual Step discriminator checks all 40 complete outcomes/ownership phases before comparing short
 and 4096-byte labels. It fails the intended allocation bound on unchanged production. Native frozen ADD emission
 with 4096-byte values acquires 15,509→32 Workspace bytes; the current 32 bytes are fixed metadata and remain equal
-to the short-label case. Preparation still allocates independent keys/labels. This is emission traffic, not a
+to the short-label case. At that checkpoint, preparation still allocated independent keys/labels. This is emission traffic, not a
 whole-query peak or process RSS measurement.
 
 Independent literal encodings cover 11 widths through 32769 bytes and every operand split. Malformed keys,
@@ -4209,6 +4210,96 @@ Timing covers engine preparation/evaluation/collection and excludes parsing/comp
 The [qualification report](frozen-pair-key-qualification.json) retains all timing, memory and ten linked costs,
 including unchanged measured persistent layouts. It does not establish universal or concurrent throughput,
 RSS, whole-query stack, physical-device performance or a containing-Agent rebuild.
+
+### Compact operand-cache keys
+
+Ordinary preparation and frozen Pair lookup reuse the original operand row identities already owned by one
+immutable Plan. A cache entry retains two original-side positions, its full hash and independently owned
+first-writer output labels. It retains no duplicate encoded operand bytes. Preparation hits probe borrowed
+labels and copy only the existing independently owned output labels. Transient matching-signature construction
+has a separate lifetime and retains its existing Key implementation.
+
+One lookup owner validates and hashes both complete operand streams before probing, including empty caches and
+same-row hits. The exact original pair can then prove equality inside its owning Plan. Different pairs compare
+the flattened sequence of label names/values across the operand split. Hashes alone, per-side equality, label
+normalization and source-order guesses cannot replace that comparison. Internal many/one order, empty and opaque
+bytes, first false writers, ordinals, name modes and complete collision checks remain authoritative.
+
+Synthetic filled operands use the exact owned encoded fallback: matched labels can differ from the immutable
+descriptor. A miss constructs its accounted boxed vector before projection, independent output copying, entry
+insertion and index insertion. Hits use the shared borrowed lookup; frozen output borrows independent cached
+labels. Cache handoff stays within the same lexical node and Plan; changed clocks do not reorder its rows.
+
+The actual preparation regression completes 24 scenarios and 324 literal label/value/ordinal outputs over three
+passes before its resource guards: 1/8 rows, three cardinalities, both physical orders and both name modes. The
+unchanged body completes all results, then fails retained-key growth. Its 216 hit emissions were observed, but
+the old byte-cost array was not printed before that failure; no numeric old hit cost is claimed.
+Current native retained Workspace is 13,266→4,818 B for one pair and 103,696→36,688 B for eight.
+
+All 216 current hit allocation observations fit owned result labels plus the fixed metadata guard. This measures
+actual preparation costs after descriptors exist, not total query memory or RSS. Fill/ordinary aliases in either
+insertion order, both fill directions, raw-empty reset behavior, mutable/frozen handoff, rebuilt full-hash
+collisions, late invalid fields and partial-construction interruption have separate complete controls.
+
+Actual CacheEntry layouts shrink 104→80 B on AMD64/ARM64 and 72→56 B on ARM32. The Encoded fallback adds one accounted
+72/48 B allocation: net 48/32 B per filled entry before buffer capacities. Plan, Step, Cache, Side and index headers
+remain unchanged. This trade-off is retained in all measured peaks, acquisition traffic, timing and linked costs.
+
+Both optimized native profiles pass 784 units with two unchanged ignored tests. Each emulated ARM target passes
+48 focused checks. All 13,152 complete results match retained originals and accepted94 outcomes at native pages
+1/17/1024 and foreign page 17, with exact numeric bits. Another 384 comparisons reproduce all 96 literal cases on each cohort.
+Actual native default-library callers pass 240 C before/current pairs,240 current C++ controls and both full C programs;
+every exported sample-statistic triple remains exact. Both strict Clippy variants, format and installed 1.91
+all-target fixture compile-only checks pass. Historical artifacts retain actual source and explicit production
+equivalence; original captures and before original-expression panels are reused. Matched C/timing baselines
+execute freshly against their authenticated historical archives and fixtures.
+
+Across the 13,152 original-panel resource pairs, Workspace peak falls in 8,766 and acquisition traffic falls in
+8,784; neither rises. Work falls in 8,784 pairs, with no increases. Fetched samples, pages and provider calls remain
+exact in every pair. Fill timing controls have the separate costs below; those are not hidden by this panel.
+
+Literal memory baselines match the target and profile directly or through actual complete resource equivalence.
+An additional 96 historical release-min and 96 ARM64 queries reproduce every complete output and nonelapsed
+observation of the release baseline; current captures are reused through that exact equivalence. ARM32 uses its
+own historical baseline after the initial observer rejected expected architecture-sized result headers. These
+additional historical resource checks run after timing, with no concurrent root workload during timing.
+
+For ordinary m+n with 4096-byte job labels, deferred names disabled, tracked Workspace bytes are:
+
+| Current cohort | Series pairs | Peak before → after | Acquired before → after |
+| --- | ---: | ---: | ---: |
+| release | 1 | 48,529 → 31,818 | 225,526 → 177,844 |
+| release | 4 | 126,435 → 84,452 | 981,368 → 727,480 |
+| release | 16 | 448,299 → 304,940 | 3,970,952 → 2,955,112 |
+| release-min | 1 | 48,529 → 31,818 | 225,526 → 177,844 |
+| release-min | 4 | 126,435 → 84,452 | 981,368 → 727,480 |
+| release-min | 16 | 448,299 → 304,940 | 3,970,952 → 2,955,112 |
+
+The predeclared 80-case/profile serial panel includes three explicit upstream-test fill expressions and default
+ordinary/control expressions. Three alternating blocks with one warmup and three measured requests yield nine
+samples per case/side. Every >=5% slower primary median receives one fixed follow-up; all samples and slower
+medians remain in the report. For 32 pairs with 512-byte values, deferred names disabled, current/before ratios are:
+
+| Expression | Release | Release-min |
+| --- | ---: | ---: |
+| `m+n` | 1.002 | 0.918 |
+| `m>n` | 1.024 | 0.920 |
+| `missing + fill_left(0) m` | 1.008 | 1.065 |
+| `m + fill_right(0) missing` | 1.003 | 1.119 |
+| `m` | 0.982 | 0.980 |
+
+Release retains 21 slower primary medians and no persistent threshold follow-up. Release-min retains 44 slower
+primary medians and one persistent threshold follow-up. For `m + fill_right(0) missing` with 32 pairs and 512-byte
+values, that follow-up rises from 40.213 to 42.728 ms, a 6.25% increase. Its tracked peak Workspace rises from
+148,816 to 150,128 B, while acquisition traffic falls from 10,737,096 to 10,623,080 B. Cause is not isolated.
+
+These are finite shared-host preparation/evaluation/collection timings; parsing, compilation and serialization
+are excluded. No universal/concurrent/live API throughput, physical ARM timing, foreign C/full suite, MSRV
+execution, RSS/stack or containing-Agent rebuild is established. Raw history stays paged and implicit caps stay disabled.
+
+The [finite qualification](operand-key-qualification.json) records complete outputs and all costs. The earlier
+frozen-key-only measurements above retain their original attribution.
+
 
 ### Fresh Pair result digests
 

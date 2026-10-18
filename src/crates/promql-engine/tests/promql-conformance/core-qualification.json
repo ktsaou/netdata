@@ -73192,5 +73192,26 @@
     "c_lower_useful_read_pairs": 48,
     "source_attribution": "Optimized qualified source; final production-source equivalence after sole identity test-cast cleanup; final strict compiler/Debug Matrix checks. No final-source optimized rerun claimed.",
     "scope": "Final-root Matrix binary evaluation may use existing completed Pairs proof with deferred names; all earlier/nested/prefix/group-demand gates remain. No language/provider/ABI/storage/cap/dependency or persistent layout change."
+  },
+  "compact_operand_cache_keys": {
+    "status": "qualified_finite_compact_operand_keys",
+    "report": "operand-key-qualification.json",
+    "report_sha256": "f168d78bb045153678244b80ceac5e38931d5aa4e4aaf568413eaca55d54d0b9",
+    "comparison_base": "739c3d4247515d572d02adce6d893ed64b92f444",
+    "complete_original_and_accepted_before_pairs": 13152,
+    "complete_literal_pairs": 384,
+    "actual_old_scenarios_before_retention_failure": 24,
+    "actual_old_complete_outputs": 324,
+    "native_units_each_profile": 784,
+    "native_ignored_each_profile": 2,
+    "focused_each_emulated_arm": 48,
+    "c_pairs": 240,
+    "current_cpp_controls": 240,
+    "full_current_c_programs": 2,
+    "current_source_phase": "qualified",
+    "source_inputs": 360,
+    "filled_entry_tradeoff": "Actual CacheEntry shrinks104to80B native/ARM64 and72to56B ARM32. Encoded fill fallback owns one extra72/48B accounted box allocation: net48/32B per filled entry before buffer capacities. Full measured query peaks/traffic/latencies remain below, including all increases.",
+    "scope": "Private ordinary operand keys retain original immutable Plan row positions; synthetic-fill misses retain precise boxed encoded keys. Full borrowed validation/hash precedes every lookup; flat aliases, first-writer outputs, ordinals and control/cleanup owners remain.",
+    "literal_resource_baselines": "Matching target/profile direct baselines or192actual complete nonelapsed-equivalence checks; no current re-execution."
   }
 }

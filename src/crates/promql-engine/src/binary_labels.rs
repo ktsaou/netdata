@@ -8,7 +8,7 @@ use crate::{
         quote,
         token::TokenKind,
     },
-    result::{OwnedLabels, append_bytes_checked},
+    result::{OwnedLabel, OwnedLabels, append_bytes_checked},
     storage::{Control, Interrupted},
 };
 use std::fmt::{self, Write};
@@ -50,14 +50,45 @@ pub(crate) fn same(
     if left.0.len() != right.0.len() {
         return Ok(false);
     }
-    for (left, right) in left.0.iter().zip(right.0.iter()) {
-        if !equal(&left.name, &right.name, control, account)?
-            || !equal(&left.value, &right.value, control, account)?
-        {
-            return Ok(false);
+    same_iter(left.0.iter(), right.0.iter(), control, account)
+}
+
+pub(crate) fn same_pair(
+    left: [&OwnedLabels; 2],
+    right: [&OwnedLabels; 2],
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<bool, Interrupted> {
+    control.check()?;
+    let result = same_iter(
+        left.into_iter().flat_map(|labels| labels.0.iter()),
+        right.into_iter().flat_map(|labels| labels.0.iter()),
+        control,
+        account,
+    )?;
+    control.check()?;
+    Ok(result)
+}
+
+fn same_iter<'a, 'b>(
+    mut left: impl Iterator<Item = &'a OwnedLabel>,
+    mut right: impl Iterator<Item = &'b OwnedLabel>,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<bool, Interrupted> {
+    loop {
+        match (left.next(), right.next()) {
+            (Some(left), Some(right)) => {
+                if !equal(&left.name, &right.name, control, account)?
+                    || !equal(&left.value, &right.value, control, account)?
+                {
+                    return Ok(false);
+                }
+            }
+            (None, None) => return Ok(true),
+            _ => return Ok(false),
         }
     }
-    Ok(true)
 }
 
 pub(crate) fn equal(
@@ -461,6 +492,7 @@ mod projection_tests {
         let engine = EngineAccounting::default();
         let account = engine.query();
         let control = Control::default();
+        let empty = OwnedLabels::new(&account, MemoryKind::Workspace);
         for (width, prefix) in [
             (0, &[0][..]),
             (1, &[1][..]),
@@ -513,6 +545,9 @@ mod projection_tests {
                 let work = account.snapshot().work - start;
                 assert_eq!(work, (expected.len() + fields.len()) as u64);
                 assert_eq!(account.snapshot().memory, before);
+                assert!(same_pair(operands, [&source, &empty], &control, &account).unwrap());
+                assert!(same_pair([&empty, &source], operands, &control, &account).unwrap());
+                assert!(!same_pair(operands, [&source; 2], &control, &account).unwrap());
                 for malformed in [
                     &expected[..0],
                     &expected[..1],
@@ -535,6 +570,40 @@ mod projection_tests {
                 assert_eq!(account.snapshot().memory, before);
             }
         }
+        drop(empty);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn shared_label_equality_keeps_empty_phases_and_pair_terminal_controls() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let empty = OwnedLabels::new(&account, MemoryKind::Workspace);
+        let value = vec![255; 4097];
+        let source = labels(&[(b"empty", b""), (b"value", &value)], &account);
+        let cancelled = Control::default();
+        cancelled.cancellation.cancel();
+        assert!(same(&empty, &empty, &cancelled, &account).unwrap());
+        assert!(!same(&empty, &source, &cancelled, &account).unwrap());
+        assert!(matches!(
+            same_pair([&empty; 2], [&empty; 2], &cancelled, &account),
+            Err(Interrupted::Cancelled)
+        ));
+        let control = Control::default();
+        let before = account.snapshot();
+        assert!(same_pair([&source, &empty], [&empty, &source], &control, &account).unwrap());
+        let work = account.snapshot().work - before.work;
+        assert!(work > 0);
+        assert_eq!(account.snapshot().memory, before.memory);
+        for budget in [1, work / 2, work] {
+            let control = Control::default();
+            let result =
+                crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                    same_pair([&source, &empty], [&empty, &source], &control, &account)
+                });
+            assert!(matches!(result, Err(Interrupted::Cancelled)));
+        }
+        drop((empty, source));
         account.snapshot().assert_memory_released();
     }
 

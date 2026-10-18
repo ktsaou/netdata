@@ -1150,12 +1150,20 @@ integration, and Alertmanager remains excluded.
   name flags, hash-only duplicates and cardinality remain unchanged.
 - **Phases:** poll at the replaced Set copy and after successful frozen lookup. Missing-key errors retain their
   earlier phase. Hashing, reservation, values, diagnostics, seen tracking and successful replay credit stay intact.
-- **Frozen Pair keys:** hash both immutable operand streams in one canonical sized-field digest and compare
-  checked prefix/payload segments against the existing stored key. Validate all fields before lookup; preserve
-  split aliases, empty/opaque bytes, internal group_right order, first-writer labels and terminal control. Mutable
-  preparation owns its key. Share the pure prefix with both existing writers. Encoded equality batches exact work
-  through the ordinary checked chunk kernel and flushes every exit; no retained state or raw array.
-  [Qualification](frozen-pair-key-qualification.json) keeps actual byte/control/resource/caller and all timing costs.
+- **Pair cache keys:** one lookup owner validates/hashes both complete borrowed operand streams before probing.
+  Ordinary entries retain original-side row positions in one immutable Plan; same positions prove identity only
+  after validation/hash. Different positions compare flattened fields across splits. Exact Encoded fallbacks
+  compare canonical prefix/payload bytes to exhaustion. Preserve raw empty/opaque fields, many/one order,
+  collisions, first false/true writers and terminal controls. Transient matching-signature Key remains separate.
+- **Filled ownership:** matched synthetic operands retain an accounted boxed encoded vector, constructed before
+  projection/output copy/insertion. Ordinary entries retain no operand-byte copy; preparation hits materialize
+  only independent output labels. Mutable-to-frozen handoff stays with the same Plan/node. No metadata provider,
+  raw history, source-label validation assumption or public interface is added.
+- **Costs and proof:** [compact operand-key qualification](operand-key-qualification.json) retains actual
+  preparation retention/hit controls, complete fill aliases and partial cleanup, 13,152 original/before outcomes,
+  actual native callers, portable layouts and every measured memory/latency/linked cost. Compact ordinary entries
+  trade 24/16 B header savings for one extra 72/48 B allocation on filled entries: net 48/32 B before capacities.
+  The [earlier frozen-key checkpoint](frozen-pair-key-qualification.json) retains its historical attribution.
 - **Fresh Pair digest:** reuse the first successful full 64-bit result hash after reservation. Labels remain
   immutable until emission; false filtering still follows the original hash/reservation. Seen/prefix/pending
   checks remain. Set hashes once, without moving any observable work or fallible phase. This is a local tuple
