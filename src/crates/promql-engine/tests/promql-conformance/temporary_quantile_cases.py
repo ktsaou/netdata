@@ -269,3 +269,148 @@ def plain_lookup_cases():
                             "faults": deepcopy(faults),
                         })
     return output
+
+
+def derived_completion_cases():
+    """Certified Float continuations and ordinary window/kind/source fallbacks."""
+    output = []
+    labels = {"__name__": "m", "job": "one"}
+
+    def points(count=16, cycle=True):
+        return [(i * 1000, (-1.0, -0.0, 0.0, 1.0)[(i - 1) % 4] if cycle else 1.0,
+                 "float") for i in range(1, count + 1)]
+
+    def add(name, records, expression, *, count=16, time=None, contexts=None,
+            timing=False, family=None, profile="server-default", faults=None):
+        time = count * 1000 if time is None else time
+        contexts = contexts or (("instant", time, time, 1000),
+                                ("equal", time, time, 1000),
+                                ("range", time, time + 2000, 1000))
+        for delayed in (False, True):
+            for mode, start, end, step in contexts:
+                output.append({
+                    "request": {
+                        "id": f"derived-completion:{name}:{mode}:{int(delayed)}",
+                        "query": expression, "profile": profile,
+                        "delayed_name_removal": delayed,
+                        "mode": "instant" if mode == "instant" else "range",
+                        "time_ms": start, "start_ms": start, "end_ms": end,
+                        "step_ms": step, "lookback_ms": 1, "subquery_step_ms": 1000,
+                    },
+                    "dataset": {"schema_version": 1, "series": deepcopy(records)},
+                    "faults": deepcopy(faults or {}),
+                    "family": family or name, "timing": timing,
+                })
+
+    for count in (16, 32):
+        contexts = (("instant", count * 1000, count * 1000, 1000),
+                    ("range", count * 1000, count * 1000 + 2000, 1000))
+        for population in ("ones", "cycle"):
+            records = [series(labels, points(count, population == "cycle"))]
+            for name, expression in (
+                ("sum", f"sum_over_time((m or m)[{count}s:1s])"),
+                ("quantile", f"quantile_over_time(0.5,(m or m)[{count}s:1s])"),
+                ("nested", f"sum_over_time((sum_over_time((m or m)[2s:1s]))[{count}s:1s])"),
+            ):
+                add(f"timed:{population}:{count}:{name}", records, expression, count=count,
+                    contexts=contexts, timing=True, family=f"generic:{population}:{name}")
+
+    dense = points()
+    ordinary = [series(labels, dense)]
+    timed_contexts = (("instant", 16000, 16000, 1000), ("range", 16000, 18000, 1000))
+    for name, expression in (("sum", "sum_over_time((m*1)[16s:1s])"),
+                              ("quantile", "quantile_over_time(0.5,(m*1)[16s:1s])")):
+        add("timed:scheduled:" + name, ordinary, expression, contexts=timed_contexts,
+            timing=True, family="scheduled:" + name)
+    native = [series(labels, [(time, value, "float_histogram") for time, value, _ in dense])]
+    aliases = [series(labels, dense), series(labels | {"__name__": "n"}, dense)]
+    for name, records, expression in (
+        ("native-sum", native, "sum_over_time((m or m)[16s:1s])"),
+        ("native-count", native, "count_over_time((m or m)[16s:1s])"),
+        ("aliases", aliases, "sum_over_time(((m or n)*1)[16s:1s])"),
+        ("empty", [], "sum_over_time((m or m)[16s:1s])"),
+    ):
+        add("timed:fallback:" + name, records, expression, contexts=timed_contexts,
+            timing=True, family="fallback:" + name)
+    for name, expression, context in (
+        ("endpoint", "sum_over_time((m or m)[500ms:1s])",
+         (("instant", 16000, 16000, 1000),)),
+        ("disjoint", "sum_over_time((m or m)[500ms:1s])",
+         (("range", 1000, 3000, 2000),)),
+        ("fixed-sum", "sum_over_time((m or m)[16s:1s] @16)",
+         (("instant", 16000, 16000, 1000),)),
+        ("fixed-quantile", "quantile_over_time(0.5,(m or m)[16s:1s] @16)",
+         (("instant", 16000, 16000, 1000),)),
+    ):
+        add("timed:window:" + name, ordinary, expression, contexts=context,
+            timing=True, family="window:" + name)
+
+    functions = (
+        "sum_over_time", "count_over_time", "avg_over_time", "min_over_time",
+        "max_over_time", "first_over_time", "last_over_time", "present_over_time",
+        "absent_over_time", "stddev_over_time", "stdvar_over_time",
+        "ts_of_first_over_time", "ts_of_last_over_time", "ts_of_min_over_time",
+        "ts_of_max_over_time", "rate", "increase", "delta", "irate", "idelta",
+        "deriv", "changes", "resets",
+    )
+    expressions = [f"{function}((m or m)[16s:1s])" for function in functions] + [
+        "predict_linear((m or m)[16s:1s],2)",
+        "double_exponential_smoothing((m or m)[16s:1s],0.5,0.5)",
+        "mad_over_time((m or m)[16s:1s])",
+        "quantile_over_time(0,(m or m)[16s:1s])",
+        "quantile_over_time(0.5,(m or m)[16s:1s])",
+        "quantile_over_time(1,(m or m)[16s:1s])",
+    ]
+    for index, expression in enumerate(expressions):
+        add(f"kernel:{index}", ordinary, expression, profile="upstream-tests")
+
+    populations = {
+        "sparse": [series(labels, dense[::2])],
+        "stale": [series(labels, [(time, STALE if time == 8000 else value, kind)
+                                  for time, value, kind in dense])],
+        "nonfinite": [series(labels, [(time, value, kind) for (time, _, kind), value in zip(
+            dense, [bits(float("inf")), bits(float("-inf")), "7ff8000000012345", bits(-0.0)] * 4)])],
+        "integer-native": [series(labels, [(time, value, "histogram")
+                                            for time, value, _ in dense])],
+        "float-native": native,
+        "mixed": [series(labels, [(time, value, "float_histogram" if index in (7, 8) else "float")
+                                   for index, (time, value, _) in enumerate(dense)])],
+        "plural-aliases": aliases,
+        "alternating-aliases": [series(labels | {"__name__": name}, [
+            (time, value if index % 2 == side else STALE, kind)
+            for index, (time, value, kind) in enumerate(dense)])
+            for side, name in enumerate(("m", "n"))],
+        "negative-clock": [series(labels, [(time - 20000, value, kind)
+                                            for time, value, kind in dense])],
+    }
+    fallback_expressions = (
+        "sum_over_time((m or m)[16s:1s])",
+        "count_over_time((m or m)[16s:1s])",
+        "avg_over_time((m or m)[16s:1s])",
+        "quantile_over_time(0.5,(m or m)[16s:1s])",
+        "rate((m or m)[16s:1s])",
+        "sum_over_time(((m or n)*1)[16s:1s])",
+    )
+    for population, records in populations.items():
+        for index, expression in enumerate(fallback_expressions):
+            add(f"fallback:{population}:{index}", records, expression,
+                time=-4000 if population == "negative-clock" else 16000)
+    for index, expression in enumerate((
+        "sum_over_time((m or m)[16s:1s] offset 1s)",
+        "sum_over_time((m or m)[16s:1s] offset -1s)",
+        "sum_over_time((m @1 or m @1)[16s:1s])",
+        "sum_over_time((m or m)[16s:1s] @start())",
+        "sum_over_time((m or m)[16s:1s] @end())",
+        "sum_over_time((m or m)[0.5ms:1s])",
+        "sum_over_time((timestamp(m) or timestamp(m))[16s:1s])",
+        "sum_over_time((m or m)[16s:1500ms])",
+    )):
+        add(f"scope:{index}", ordinary, expression, profile="upstream-tests")
+    for fault_name, fault in (
+        ("initial", {"next_times": [1000], "message": "derived continuation initial read"}),
+        ("later", {"next_times": [9000], "message": "derived continuation later read"}),
+        ("eof", {"next_eof": True, "message": "derived continuation required completion"}),
+    ):
+        for index, expression in enumerate((fallback_expressions[0], fallback_expressions[3])):
+            add(f"fault:{fault_name}:{index}", ordinary, expression, faults={"m": fault})
+    return output

@@ -110,6 +110,50 @@ impl Reader {
     pub(crate) fn receive(&mut self, sample: EvaluatedSample<'_>) -> bool {
         self.receive_value(sample.into_parts())
     }
+
+    pub(crate) fn receive_continued(
+        &mut self,
+        sample: EvaluatedSample<'_>,
+        single_float: bool,
+        control: &Control,
+        account: &QueryAccounting,
+        visit: impl FnMut(SampleRef<'_>) -> Result<(), EvaluationError>,
+    ) -> Result<bool, EvaluationError> {
+        let fetch = self.cursor;
+        let window = self.window;
+        let complete = single_float
+            && self.pending
+            && fetch.kind == 1
+            && fetch.occurrence == 0
+            && self.end_ms == window.first_end_ms
+            && window.range_ms > 0
+            && window.first_end_ms <= window.end_ms
+            && (window.first_end_ms == window.end_ms || window.step_ms > 0)
+            && self.grid.forward_without_wrap()
+            && self.grid.start_ms <= self.grid.end_ms
+            && window.end_ms.checked_sub(window.range_ms).is_some()
+            && window
+                .first_end_ms
+                .checked_sub(window.range_ms)
+                .is_some_and(|lower| lower <= fetch.time_ms && fetch.time_ms < window.first_end_ms);
+        let accepted = self.receive(sample);
+        if !accepted || !complete {
+            return Ok(accepted);
+        }
+        // Visit before completing the child, preserving visitor-versus-tail failure priority.
+        match self.advance(control, account, visit)? {
+            Action::Fetch(next)
+                if next.time_ms == fetch.time_ms && next.kind == 1 && next.occurrence == 1 =>
+            {
+                // Actual child Done acknowledges this proven-empty pending occurrence.
+                Ok(false)
+            }
+            _ => Err(EvaluationError::Invalid(
+                "derived Float completion did not reach its next occurrence",
+            )),
+        }
+    }
+
     pub(crate) fn receive_value(&mut self, parts: crate::statistics::ValueParts) -> bool {
         let crate::statistics::ValueParts {
             mut value,
@@ -347,5 +391,241 @@ impl Reader {
                 return Ok(Action::Fetch(self.cursor));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        accounting::{EngineAccounting, MemoryKind},
+        result::OwnedLabels,
+        statistics::OwnedSamples,
+        storage::Interrupted,
+    };
+
+    fn sample(account: &QueryAccounting, time_ms: i64) -> EvaluatedSample<'static> {
+        EvaluatedSample {
+            ordinal: 0,
+            labels: OwnedLabels::new(account, MemoryKind::Workspace).into(),
+            value: OwnedValue::Float(time_ms as f64 / 1000.0),
+            float_samples: Some(OwnedSamples::new(account, 1)),
+            source_time_ms: time_ms,
+            source_start_time_ms: 0,
+            drop_name: false,
+        }
+    }
+
+    #[test]
+    fn derived_float_completion_preserves_visit_tail_and_cancellation_priority() {
+        for phase in 0..5 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut reader = Reader::new(
+                Grid {
+                    start_ms: 1000,
+                    end_ms: 2000,
+                    interval_ms: 1000,
+                },
+                Window {
+                    first_end_ms: 2000,
+                    end_ms: 2000,
+                    range_ms: 2000,
+                    step_ms: 0,
+                },
+            );
+            let mut visits = 0;
+            let mut tails = 0;
+            let result = (|| -> Result<(), EvaluationError> {
+                let Action::Fetch(fetch) =
+                    reader.advance(&control, &account, |_| unreachable!())?
+                else {
+                    panic!("initial Float request");
+                };
+                assert_eq!((fetch.time_ms, fetch.kind, fetch.occurrence), (1000, 1, 0));
+                let truncate = reader.receive_continued(
+                    sample(&account, 1000),
+                    true,
+                    &control,
+                    &account,
+                    |value| {
+                        visits += 1;
+                        assert_eq!(value.time_ms, 1000);
+                        assert!(account.current_samples() >= 1);
+                        if phase == 0 {
+                            return Err(EvaluationError::Invalid("injected derived visit failure"));
+                        }
+                        if phase == 2 {
+                            control.cancellation.cancel();
+                        }
+                        control.check()?;
+                        Ok(())
+                    },
+                )?;
+                assert!(!truncate, "eligible child must finish itself");
+                // The driver is still inside the same child's completion path.
+                tails += 1;
+                if phase == 3 {
+                    control.cancellation.cancel();
+                }
+                control.check()?;
+                if phase == 1 {
+                    return Err(EvaluationError::Invalid("injected derived tail failure"));
+                }
+                let Action::Fetch(next) = reader.advance(&control, &account, |_| unreachable!())?
+                else {
+                    panic!("completed Float proceeds to its histogram lane");
+                };
+                assert_eq!((next.time_ms, next.kind, next.occurrence), (1000, 2, 0));
+                Ok(())
+            })();
+            assert_eq!(visits, 1);
+            assert_eq!(tails, usize::from(matches!(phase, 1 | 3 | 4)));
+            assert_eq!(
+                result,
+                match phase {
+                    0 => Err(EvaluationError::Invalid("injected derived visit failure")),
+                    1 => Err(EvaluationError::Invalid("injected derived tail failure")),
+                    2 | 3 => Err(EvaluationError::Interrupted(Interrupted::Cancelled)),
+                    _ => Ok(()),
+                }
+            );
+            drop((result, reader));
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn derived_float_completion_keeps_endpoint_disjoint_and_unproved_requests() {
+        let ordinary = Window {
+            first_end_ms: 2000,
+            end_ms: 2000,
+            range_ms: 2000,
+            step_ms: 0,
+        };
+        for (first, interval, window, single) in [
+            (1000, 1000, ordinary, false),
+            (2000, 1000, ordinary, true),
+            (
+                0,
+                1000,
+                Window {
+                    range_ms: 1000,
+                    ..ordinary
+                },
+                true,
+            ),
+            (1000, 0, ordinary, true),
+            (
+                1000,
+                1000,
+                Window {
+                    end_ms: 3000,
+                    step_ms: 0,
+                    ..ordinary
+                },
+                true,
+            ),
+            (
+                i64::MIN + 50,
+                10,
+                Window {
+                    first_end_ms: i64::MIN + 100,
+                    end_ms: i64::MIN + 100,
+                    range_ms: 200,
+                    step_ms: 0,
+                },
+                true,
+            ),
+        ] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut reader = Reader::new(
+                Grid {
+                    start_ms: first,
+                    end_ms: window.first_end_ms,
+                    interval_ms: interval,
+                },
+                window,
+            );
+            let mut visits = 0;
+            assert!(matches!(
+                reader
+                    .advance(&control, &account, |_| unreachable!())
+                    .unwrap(),
+                Action::Fetch(_)
+            ));
+            assert!(
+                reader
+                    .receive_continued(sample(&account, first), single, &control, &account, |_| {
+                        visits += 1;
+                        Ok(())
+                    })
+                    .unwrap()
+            );
+            assert_eq!(
+                visits, 0,
+                "ordinary truncation must precede any later visitation"
+            );
+            drop(reader);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut reader = Reader::new(
+            Grid {
+                start_ms: 1000,
+                end_ms: 3000,
+                interval_ms: 1000,
+            },
+            Window {
+                first_end_ms: 1000,
+                end_ms: 3000,
+                range_ms: 500,
+                step_ms: 2000,
+            },
+        );
+        let mut requests = Vec::new();
+        let mut values = Vec::new();
+        loop {
+            let mut visit = |value: SampleRef<'_>| {
+                let crate::value::SampleValueRef::Float(number) = value.value else {
+                    unreachable!()
+                };
+                values.push((value.time_ms, number.to_bits()));
+                Ok(())
+            };
+            match reader.advance(&control, &account, &mut visit).unwrap() {
+                Action::Fetch(fetch) => {
+                    requests.push((fetch.time_ms, fetch.kind, fetch.occurrence));
+                    assert_eq!((fetch.kind, fetch.occurrence), (1, 0));
+                    assert!(
+                        reader
+                            .receive_continued(
+                                sample(&account, fetch.time_ms),
+                                true,
+                                &control,
+                                &account,
+                                &mut visit
+                            )
+                            .unwrap()
+                    );
+                }
+                Action::Done => break,
+            }
+        }
+        assert_eq!(requests, [(1000, 1, 0), (3000, 1, 0)]);
+        assert_eq!(values, [(3000, 3.0_f64.to_bits())]);
+        drop(reader);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
     }
 }

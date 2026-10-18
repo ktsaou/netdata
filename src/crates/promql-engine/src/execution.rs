@@ -4153,6 +4153,106 @@ mod tests {
     use std::sync::atomic::Ordering;
 
     #[test]
+    fn derived_float_completion_avoids_nested_restarts_after_complete_results() {
+        fn one(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            sample.value = crate::value::SampleValue::Float(1.0);
+            sample
+        }
+        let mut measured = Vec::new();
+        for delayed in [false, true] {
+            for count in [16_usize, 64] {
+                for depth in [1, 2] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut provider = FixtureProvider::new(count, 17, 1);
+                    provider.series[0].source.sample = one;
+                    let source = if depth == 1 {
+                        format!("sum_over_time((counter_total or counter_total)[{count}s:1s])")
+                    } else {
+                        format!(
+                            "sum_over_time((sum_over_time((counter_total or counter_total)[2s:1s]))[{count}s:1s])"
+                        )
+                    };
+                    let query = engine
+                        .compile(
+                            source.as_bytes(),
+                            EngineOptions {
+                                lookback_ms: 1,
+                                ..options(delayed)
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let time_ms = count as i64 * 1000;
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms },
+                        &control,
+                    );
+                    let result = report.result.as_ref().unwrap();
+                    assert!(result.scalar.is_none() && report.annotations.is_empty());
+                    assert_eq!(result.series.len(), 1);
+                    let row = &result.series[0];
+                    assert_eq!(
+                        row.labels
+                            .0
+                            .iter()
+                            .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                            .collect::<Vec<_>>(),
+                        [
+                            (b"instance".to_vec(), b"0".to_vec()),
+                            (b"job".to_vec(), b"worker".to_vec())
+                        ]
+                    );
+                    assert_eq!(row.points.len(), 1);
+                    assert_eq!(row.points[0].time_ms, time_ms);
+                    let expected = if depth == 1 { count } else { 2 * count - 1 } as f64;
+                    assert_eq!(float_bits(&row.points[0]), expected.to_bits());
+                    assert_eq!(report.observations.output_samples, 1);
+                    let fetched = report.observations.samples_fetched;
+                    assert_eq!(
+                        fetched,
+                        provider.series[0]
+                            .source
+                            .counters
+                            .samples_returned
+                            .load(Ordering::Relaxed) as u64
+                    );
+                    assert_eq!(
+                        report.observations.memory[MemoryKind::ProviderHeld as usize].current,
+                        0
+                    );
+                    println!(
+                        "{{\"derived_float_completion\":\"result\",\"count\":{count},\"depth\":{depth},\"delayed\":{delayed},\"value\":{expected},\"fetched\":{fetched},\"work\":{},\"logical\":{},\"read\":{},\"peak_samples\":{}}}",
+                        report.observations.work,
+                        report
+                            .observations
+                            .statistics
+                            .samples
+                            .total_queryable_samples,
+                        report.observations.statistics.samples.samples_read,
+                        report.observations.statistics.samples.peak_samples
+                    );
+                    measured.push((delayed, count, depth, fetched));
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+        assert_eq!(measured.len(), 8);
+        println!("derived-float-completion complete-results-and-release=8");
+        // A completed first child should replace its redundant occurrence-only restart.
+        for row in measured.iter().filter(|row| row.1 == 64 && row.2 == 2) {
+            assert!(
+                row.3 <= 3_000_000,
+                "certified derived Float occurrences must avoid redundant body restarts: {measured:?}"
+            );
+        }
+    }
+
+    #[test]
     fn plain_selector_later_clocks_keep_results_before_work_growth() {
         let mut measured = Vec::new();
         for delayed in [false, true] {

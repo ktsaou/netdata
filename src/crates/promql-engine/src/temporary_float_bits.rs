@@ -380,6 +380,125 @@ mod tests {
     }
 
     #[test]
+    fn derived_float_completion_flush_failure_precedes_armed_child_tail() {
+        use crate::{
+            derived_matrix::{Action, Reader, Window},
+            evaluator::{EvaluatedSample, EvaluationError},
+            query_scopes::Grid,
+            result::{OwnedLabels, OwnedValue},
+        };
+
+        for (fail, cancel) in [(0, false), (3, false), (3, true)] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let query = Query {
+                fail,
+                cancel,
+                ..Query::default()
+            };
+            let observed = ObservedQuery::new(&query, &account);
+            let tail = Cell::new(false);
+            let result: Result<f64, EvaluationError> = quantile(
+                &observed,
+                PAGE_VALUES as u64,
+                Plan::new(0.5, PAGE_VALUES as u64),
+                &control,
+                &account,
+                |writer| {
+                    for _ in 0..PAGE_VALUES - 1 {
+                        writer.push(0.0_f64.to_bits())?;
+                    }
+                    let mut reader = Reader::new(
+                        Grid {
+                            start_ms: 1000,
+                            end_ms: 2000,
+                            interval_ms: 1000,
+                        },
+                        Window {
+                            first_end_ms: 2000,
+                            end_ms: 2000,
+                            range_ms: 2000,
+                            step_ms: 0,
+                        },
+                    );
+                    assert!(matches!(
+                        reader.advance(&control, &account, |_| unreachable!())?,
+                        Action::Fetch(_)
+                    ));
+                    let truncate = reader.receive_continued(
+                        EvaluatedSample {
+                            ordinal: 0,
+                            labels: OwnedLabels::new(&account, MemoryKind::Workspace).into(),
+                            value: OwnedValue::Float(1.0),
+                            float_samples: Some(OwnedSamples::new(&account, 1)),
+                            source_time_ms: 1000,
+                            source_start_time_ms: 0,
+                            drop_name: false,
+                        },
+                        true,
+                        &control,
+                        &account,
+                        |sample| {
+                            let crate::value::SampleValueRef::Float(value) = sample.value else {
+                                unreachable!()
+                            };
+                            writer.push(value.to_bits())?;
+                            Ok(())
+                        },
+                    )?;
+                    assert!(!truncate);
+                    tail.set(true);
+                    Err(EvaluationError::Invalid(
+                        "injected derived child tail failure",
+                    ))
+                },
+            );
+            assert_eq!(
+                query.writes.get(),
+                1,
+                "the handoff must actually flush a full Writer page"
+            );
+            assert_eq!(tail.get(), fail == 0);
+            if fail == 3 {
+                assert!(
+                    matches!(&result, Err(EvaluationError::Storage(StorageError::Provider(bytes)))
+                    if &**bytes == b"injected temporary I/O failure")
+                );
+            } else {
+                assert_eq!(
+                    result,
+                    Err(EvaluationError::Invalid(
+                        "injected derived child tail failure"
+                    ))
+                );
+            }
+            let snapshot = account.snapshot();
+            assert_eq!((query.opened.get(), query.closed.get()), (1, 1));
+            assert_eq!(snapshot.temporary_storage.extent.current, 0);
+            assert_eq!(snapshot.temporary_storage.stores.current, 0);
+            assert_eq!(snapshot.temporary_storage.write_calls, 1);
+            assert_eq!(
+                snapshot.temporary_storage.written_bytes,
+                if fail == 0 { PAGE_VALUES as u64 * 8 } else { 0 }
+            );
+            assert_eq!(account.current_samples(), 0);
+            drop(observed);
+            if let Err(EvaluationError::Storage(StorageError::Provider(bytes))) = &result {
+                account
+                    .snapshot()
+                    .assert_retained_error_memory(bytes.capacity() as u64);
+            } else {
+                account.snapshot().assert_memory_released();
+            }
+            drop(result);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
     fn unavailable_backing_and_extent_overflow_do_not_materialize() {
         let engine = EngineAccounting::default();
         let account = engine.query();

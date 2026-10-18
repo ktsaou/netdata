@@ -1860,3 +1860,18 @@ fresh selected values are unchanged. No persistent field/array/cache is added; c
 mapping attempt. Static argument/entry/code costs and all slower timing controls are separate from
 tracked allocation layouts. See [direct completed ranking-group lookup](README.md#direct-completed-ranking-group-lookup)
 and its separate accepted103/current report. The earlier102/103measurements keep their original scope.
+
+
+## Certified derived Float completion
+
+Generic derived Step and backed materialization share a visit-first Reader handoff. Ordinary matching
+producer/source/scope grids, unique direct ordinals or single-source canonical rows, Float-only kinds,
+nonmultiple heads and checked first-window interior geometry certify that Float1 will be empty.
+Consume Float0 through the real visitor before continuing that same child through Done; leave the
+expected empty occurrence pending. Unexpected post-mutation Action is an internal error. Preserve
+required visit/write-before-tail failure priority, child options and sample credit. Endpoint/discarded,
+later/disjoint, fixed/unchecked, native/mixed/multiple and scheduled paths retain their algorithms.
+No Reader/Frame/history/value/completion cache is added. Input's small private source-mode enum and
+BackingSource's proof have explicit per-target layout costs; no new metadata provider is introduced.
+The [owning procedure](README.md#certified-derived-float-completion) distinguishes real Writer flush,
+simulated Reader tail, calibrated Machine faults, actual full outcomes and every weaker/slower cost.

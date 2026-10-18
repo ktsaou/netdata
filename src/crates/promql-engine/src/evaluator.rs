@@ -1286,6 +1286,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         writer: &mut crate::temporary_float_bits::Writer<'_>,
     ) -> Result<(), EvaluationError> {
         let mut reader = source.reader();
+        let mut append = |sample: SampleRef<'_>| {
+            if let SampleValueRef::Float(value) = sample.value
+                && !sample.value.is_stale()
+            {
+                writer.push(value.to_bits())?;
+            }
+            Ok(())
+        };
         if source.scheduled() {
             let grid = source.grid();
             let child = self.replay(source.node(), source.options(grid.end_ms), None);
@@ -1293,26 +1301,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 &mut reader,
                 self.control,
                 self.account,
-                |sample| {
-                    if let SampleValueRef::Float(value) = sample.value
-                        && !sample.value.is_stale()
-                    {
-                        writer.push(value.to_bits())?;
-                    }
-                    Ok(())
-                },
+                &mut append,
                 |visit| child.visit_scheduled(source.node(), source.ordinal, grid, visit),
             )?;
         } else {
             while let crate::derived_matrix::Action::Fetch(fetch) =
-                reader.advance(self.control, self.account, |sample| {
-                    if let SampleValueRef::Float(value) = sample.value
-                        && !sample.value.is_stale()
-                    {
-                        writer.push(value.to_bits())?;
-                    }
-                    Ok(())
-                })?
+                reader.advance(self.control, self.account, &mut append)?
             {
                 if fetch.absent_histogram(source.kinds) {
                     continue;
@@ -1320,7 +1314,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 let mut child = self.replay(source.node(), source.options(fetch.time_ms), None);
                 child.restrict_one(source.ordinal);
                 while let Some(sample) = child.next()? {
-                    if reader.receive(sample) {
+                    if reader.receive_continued(
+                        sample,
+                        source.single_float,
+                        self.control,
+                        self.account,
+                        &mut append,
+                    )? {
                         break;
                     }
                 }
@@ -1653,6 +1653,24 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                 .rosters
                                 .scheduled_selector(body)
                                 .is_some_and(|selector| self.supports_schedule(selector, grid)),
+                        float_clock: if !self.invariants[body.0]
+                            && !self.prepared.flags().boundaries[body.0]
+                            && self.rosters.matrix(body).is_none()
+                            && grid.forward_without_wrap()
+                            && grid.start_ms <= grid.end_ms
+                            && self.rosters.replay_grid_matches(
+                                body,
+                                grid.header(self.prepared.header),
+                                self.prepared,
+                            ) {
+                            if self.rosters.ordered(body).is_some() {
+                                crate::derived_range::FloatClock::Ordered
+                            } else {
+                                crate::derived_range::FloatClock::Direct
+                            }
+                        } else {
+                            crate::derived_range::FloatClock::Unproved
+                        },
                     },
                     self.rosters.descriptors(body),
                     filter,

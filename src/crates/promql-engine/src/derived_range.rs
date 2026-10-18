@@ -14,10 +14,17 @@ use crate::{
     range_rates,
     range_reduce::{FoldError, FoldKind, FoldStep, RangeFunction},
     result::OwnedValue,
-    storage::{Control, Interrupted},
+    storage::Control,
     temporal_quantile,
     value::SampleRef,
 };
+
+#[derive(Clone, Copy)]
+pub(crate) enum FloatClock {
+    Unproved,
+    Direct,
+    Ordered,
+}
 
 #[derive(Clone, Copy)]
 pub(crate) struct Input {
@@ -30,8 +37,29 @@ pub(crate) struct Input {
     pub(crate) offset_ns: i64,
     pub(crate) fixed: bool,
     pub(crate) scheduled: bool,
+    pub(crate) float_clock: FloatClock,
 }
 impl Input {
+    fn single_float(self, rows: &[Descriptor], position: usize) -> bool {
+        let Some(row) = rows.get(position) else {
+            return false;
+        };
+        let sourced = match self.float_clock {
+            FloatClock::Unproved => return false,
+            FloatClock::Direct => true,
+            FloatClock::Ordered => row.sources.len() == 1,
+        };
+        sourced
+            && !self.fixed
+            && self.options.start_ms.checked_sub(self.offset_ns / 1_000_000).is_some()
+            && self.options.time_ms.checked_sub(self.offset_ns / 1_000_000).is_some()
+            && row.kinds == 1
+            && !row.heads.multiple()
+            // Both publication forms are ordinal-sorted; sourced output need not be dense.
+            && (position == 0 || rows[position - 1].ordinal != row.ordinal)
+            && rows.get(position + 1).is_none_or(|next| next.ordinal != row.ordinal)
+    }
+
     fn window(self) -> Window {
         let first_end_ms = self
             .options
@@ -119,6 +147,24 @@ impl Kernel {
             ))),
         }
     }
+    fn visit(
+        &mut self,
+        sample: SampleRef<'_>,
+        dry: bool,
+        counting: bool,
+        units: &mut u64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        if dry {
+            return Ok(());
+        }
+        if counting {
+            crate::statistics::add_units(units, crate::statistics::weight(sample.value), account);
+        }
+        self.receive(sample, control, account)
+    }
+
     fn receive(
         &mut self,
         sample: SampleRef<'_>,
@@ -291,6 +337,7 @@ pub(crate) struct BackingSource {
     input: Input,
     pub(crate) ordinal: usize,
     pub(crate) kinds: u8,
+    pub(crate) single_float: bool,
 }
 impl BackingSource {
     pub(crate) fn reader(self) -> Reader {
@@ -376,10 +423,18 @@ impl<'a> Step<'a> {
         sample: EvaluatedSample<'_>,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<bool, Interrupted> {
+    ) -> Result<bool, EvaluationError> {
         control.check()?;
         account.work(1);
-        Ok(self.reader.receive(sample))
+        let single_float = self.input.single_float(self.rows, self.position);
+        let dry = self.dry;
+        let counting = self.count_window;
+        let kernel = &mut self.kernel;
+        let units = &mut self.sample_units;
+        self.reader
+            .receive_continued(sample, single_float, control, account, |sample| {
+                kernel.visit(sample, dry, counting, units, control, account)
+            })
     }
 
     pub(crate) fn scheduled_pass(
@@ -403,23 +458,14 @@ impl<'a> Step<'a> {
             control,
             account,
             |sample| {
-                if dry {
-                    if fuse_rank {
-                        let Kernel::Quantile(step) = kernel else {
-                            unreachable!("active quantile rank pass")
-                        };
-                        step.receive_rank(sample, account);
-                    }
+                if dry && fuse_rank {
+                    let Kernel::Quantile(step) = kernel else {
+                        unreachable!("active quantile rank pass")
+                    };
+                    step.receive_rank(sample, account);
                     Ok(())
                 } else {
-                    if counting {
-                        crate::statistics::add_units(
-                            units,
-                            crate::statistics::weight(sample.value),
-                            account,
-                        );
-                    }
-                    kernel.receive(sample, control, account)
+                    kernel.visit(sample, dry, counting, units, control, account)
                 }
             },
             drive,
@@ -531,18 +577,7 @@ impl<'a> Step<'a> {
             let units = &mut self.sample_units;
             let counting = self.count_window;
             match self.reader.advance(control, account, |sample| {
-                if dry {
-                    Ok(())
-                } else {
-                    if counting {
-                        crate::statistics::add_units(
-                            units,
-                            crate::statistics::weight(sample.value),
-                            account,
-                        );
-                    }
-                    kernel.receive(sample, control, account)
-                }
+                kernel.visit(sample, dry, counting, units, control, account)
             })? {
                 derived_matrix::Action::Fetch(fetch) => {
                     if fetch.absent_histogram(row.kinds) {
@@ -580,6 +615,7 @@ impl<'a> Step<'a> {
                                     input: self.input,
                                     ordinal: row.ordinal,
                                     kinds: row.kinds,
+                                    single_float: self.input.single_float(self.rows, self.position),
                                 },
                             });
                         }
@@ -597,7 +633,7 @@ mod tests {
     use crate::{
         accounting::EngineAccounting,
         result::OwnedLabels,
-        storage::{StorageError, TimeBounds},
+        storage::{Interrupted, StorageError, TimeBounds},
         test_storage::{GeneratedSeries, counter},
     };
     use std::sync::atomic::Ordering;
@@ -629,6 +665,7 @@ mod tests {
             offset_ns: 0,
             fixed: false,
             scheduled: true,
+            float_clock: FloatClock::Unproved,
         }
     }
 
@@ -643,6 +680,140 @@ mod tests {
             kinds: 1,
             heads: Default::default(),
         }
+    }
+
+    #[test]
+    fn derived_float_completion_keeps_canonical_and_direct_multiplicity_fallbacks() {
+        let mut calls = Vec::new();
+        for case in 0..8 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut rows = vec![row(&account)];
+            if case >= 5 {
+                rows.push(row(&account));
+            }
+            if case == 7 {
+                rows.push(row(&account));
+            }
+            for (index, row) in rows.iter_mut().enumerate() {
+                row.labels.push(
+                    b"id",
+                    &[b'a' + index as u8],
+                    &account,
+                    MemoryKind::Workspace,
+                );
+                row.hash = index as u64;
+            }
+            if case == 2 {
+                rows[0].sources = 0..2;
+            }
+            if case == 3 || case == 7 {
+                let mut counts = crate::evaluator_roster::PointCounts::default();
+                counts.push(1);
+                counts.push(1);
+                rows[if case == 7 { 2 } else { 0 }].heads.note(counts, 1000);
+            }
+            if case == 6 {
+                rows[1].ordinal = 7;
+            }
+            if case == 7 {
+                rows[2].ordinal = 7;
+            }
+            let mut input = input(4);
+            input.function = RangeFunction::Fold(FoldKind::Sum);
+            input.scheduled = false;
+            input.float_clock = match case {
+                0 | 5 | 6 => FloatClock::Direct,
+                1 | 2 | 3 | 7 => FloatClock::Ordered,
+                _ => FloatClock::Unproved,
+            };
+            let mut step = Step::new(input, &rows, RowFilter::All, &account);
+            let mut children = 0;
+            let mut outputs = 0;
+            loop {
+                match step.advance(&control, &account).unwrap() {
+                    Action::Child {
+                        ordinal, options, ..
+                    } => {
+                        children += 1;
+                        assert!(children < 100, "finite derived occurrence driver");
+                        if options.time_ms < 4000 {
+                            for extra in if case == 5 || case == 7 && ordinal == 0 {
+                                &[0.0, 10.0][..]
+                            } else {
+                                &[0.0][..]
+                            } {
+                                let value = EvaluatedSample {
+                                    ordinal,
+                                    labels: OwnedLabels::new(&account, MemoryKind::Workspace)
+                                        .into(),
+                                    value: OwnedValue::Float(
+                                        options.time_ms as f64 / 1000.0 + extra,
+                                    ),
+                                    float_samples: Some(crate::statistics::OwnedSamples::new(
+                                        &account, 1,
+                                    )),
+                                    source_time_ms: options.time_ms,
+                                    source_start_time_ms: 0,
+                                    drop_name: false,
+                                };
+                                if step.receive(value, &control, &account).unwrap() {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    Action::Series {
+                        sample,
+                        invalid_quantile,
+                        annotations,
+                        nonempty,
+                        sample_units,
+                        ..
+                    } => {
+                        let sample = sample.unwrap();
+                        assert_eq!(sample.ordinal, rows[outputs].ordinal);
+                        assert_eq!(sample.labels.0.len(), 1);
+                        assert_eq!(&*sample.labels.0[0].name, b"id");
+                        assert_eq!(&*sample.labels.0[0].value, &[b'a' + outputs as u8]);
+                        assert_eq!(sample.source_time_ms, 4000);
+                        assert_eq!(sample.source_start_time_ms, 0);
+                        assert!(sample.drop_name && nonempty && invalid_quantile.is_none());
+                        assert!(annotations.iter().all(Option::is_none));
+                        let OwnedValue::Float(value) = sample.value else {
+                            panic!("complete Float sum")
+                        };
+                        let plural = case == 5 || case == 7 && sample.ordinal == 0;
+                        assert_eq!(
+                            value.to_bits(),
+                            if plural { 42.0_f64 } else { 6.0 }.to_bits()
+                        );
+                        assert_eq!(sample_units, if plural { 6 } else { 3 });
+                        outputs += 1;
+                    }
+                    Action::Done => break,
+                    _ => panic!("ordinary derived sum"),
+                }
+            }
+            assert_eq!(outputs, rows.len());
+            calls.push(children);
+            drop(step);
+            drop(rows);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+        assert_eq!(calls, [8, 8, 14, 14, 14, 40, 16, 54]);
+        println!("derived-float-completion rows=8 children={calls:?}");
+        println!(
+            "derived-float-completion layouts input={} reader={} step={} backing={} action={}",
+            size_of::<Input>(),
+            size_of::<Reader>(),
+            size_of::<Step<'_>>(),
+            size_of::<BackingSource>(),
+            size_of::<Action<'_>>()
+        );
     }
 
     #[test]

@@ -6437,7 +6437,7 @@ All 52 slower primary medians remain. One crosses the 5% follow-up threshold; it
 not reproduce that slowdown. Primary samples are never replaced. Six matched GNU-size comparisons retain
 all executable costs: fixture text grows 20–248 B; C text changes −12/+148 B, with 8 B extra data in release-min.
 There is no new live Agent, concurrent throughput, physical ARM or RSS claim. These measurements precede the
-[single-clock selector change](#single-clock-plain-selectors); required Float exhaustion still remains. See the
+[single-clock selector change](#single-clock-plain-selectors); required Float exhaustion still remains. Later [certified derived Float completion](#certified-derived-float-completion) can finish an eligible current child without restarting it. See the
 [complete finite qualification](derived-kind-qualification.json).
 
 ## Single-clock Plain selectors
@@ -8273,3 +8273,86 @@ without claiming a cross-ISA stack total. No lower peak-memory, RSS, physical-de
 live/concurrent API, whole-Agent or Cloud requalification follows from this panel. Cold preparation,
 within-heap scanning and larger winner heaps remain; this is not linear total-query work or a universal
 speedup. See the [routing qualification report](ranking-heap-routing-qualification.json).
+
+
+## Certified derived Float completion
+
+Ordinary derived folds and generic backed quantiles can finish the child that produced their first
+Float. Previously, accepting that value discarded the child; a later request restarted it just to
+prove that no second Float existed. The new handoff uses the Reader's existing pending cursor.
+It adds no history array, value cache, completion table or Reader/Frame field.
+
+Admission requires an ordinary forward grid matching the actual producer, source and scope clocks,
+a unique physical ordinal, Float-only metadata and nonmultiple heads. Direct descriptors need no
+source table; sourced descriptors require exactly one source. Check both neighboring ordinals even
+with a source table: an unrelated multiple-head row can supply sources without renumbering other rows.
+Fixed or unchecked clocks, endpoint/discarded values and disjoint later windows keep ordinary probes.
+Native/mixed/multiple/plural-source rows and scheduled delivery retain their own algorithms; an eligible
+inner expression can still benefit inside a conservative outer path.
+
+The Reader accepts Float0, performs the real dry/counting/kernel or Writer visit, then suppresses only
+its expected same-time Float1 request. Keep that current child alive through actual successful Done.
+Do not drain every first child, move completion before visitation, invent EOF credit or discard an
+unexpected Action after mutation. A visit/write failure must win over a later child failure; successful
+visitation must still expose a required tail failure. Both ordinary Step and generic backing use the
+same handoff and actual visitor.
+
+Run `cargo test --locked --release --features fixtures derived_float_completion_ -- --nocapture --test-threads=1`
+from the crate root. The complete Engine owner checks eight 16/64-point, one/two-level cases in both
+name modes, including full labels, values, clocks, annotations, statistics and release before its
+unchanged read bound. The old producer completes all eight then fails; the current optimized cohorts
+pass. At 64 points/two levels, fetched entries fall 4,260,642 to 2,594,362 and useful reads 163,592 to
+99,584; logical samples remain 64 and owned sample peak remains two. This is not linear total replay work.
+
+The other four new owners cover Reader visit/tail/cancellation priority, endpoint/disjoint/overflow
+fallbacks, eight direct/sourced multiplicity cases, and the real 1024th Writer push. That push flushes
+1023 buffered values plus the accepted value, so its write-versus-tail check reaches an actual write.
+Reader child-tail failures are simulated; the retained calibrated Machine/provider acquisition owner
+continues to qualify actual propagation. Declared fixture faults can occur during preparation.
+
+`temporary_quantile_cases.derived_completion_cases()` supplies 662 complete outcomes, including errors
+and empty controls. All 29 configured fold/rate kernels use their explicit profile; this is not a new
+default-language coverage claim. The frozen panel also retains 3,468 temporary/kind/plain-lookup cases.
+All 33,040 matched native/ARM outcomes pass at pages 1/17/1024 natively and page17 under QEMU. The six
+construction errors per new panel have no runtime counters; none are fabricated. Both native suites
+pass 825 tests with two unchanged ignored checks; both ARM targets pass 13 focused checks. The 2,196
+unchanged pinned-Go subquery/derived/temporary comparisons pass exact numeric and ordering policy.
+Both default C libraries pass their complete suite and the C/C++ generic-backed quantile checks in
+both modes/all pages. The C query's 300-second lookback differs from the fixture's 1ms; its logical
+total16/sample peak20 remain, and fetched entries fall about20–21%. It is a 16-value backing check,
+not the full-buffer write-priority witness.
+
+The fixed timing panel actually includes both name modes: 80 cases/profile, three alternating blocks,
+one warmup plus three measured runs/block, nine measured samples/side. Each primary ratio >=1.05 gets
+exactly one identical follow-up. Values below are medians of complete case ratios, current/baseline.
+The baseline is accepted104engine `ebb9af58290e3c79b4c43fc8f4593152fea2ccc6`; its later final child changed
+documentation only. All samples, slower cases, physical/work/memory and code costs remain in the report.
+
+| Family | release ratio | release-min ratio |
+| --- | ---: | ---: |
+| generic:ones:sum | 0.75533 | 0.76113 |
+| generic:ones:quantile | 0.75624 | 0.74786 |
+| generic:ones:nested | 0.59618 | 0.60397 |
+| generic:cycle:sum | 0.75997 | 0.76108 |
+| generic:cycle:quantile | 0.74222 | 0.73715 |
+| generic:cycle:nested | 0.59893 | 0.60560 |
+| scheduled:sum | 1.02347 | 1.00707 |
+| scheduled:quantile | 1.02913 | 1.01377 |
+| fallback:native-sum | 1.00268 | 1.00050 |
+| fallback:native-count | 0.98674 | 0.98421 |
+| fallback:aliases | 0.77764 | 0.78062 |
+| fallback:empty | 1.03164 | 1.04658 |
+| window:endpoint | 1.02586 | 1.00250 |
+| window:disjoint | 0.98409 | 0.99853 |
+| window:fixed-sum | 0.97914 | 1.00146 |
+| window:fixed-quantile | 0.97695 | 0.99347 |
+
+The private retention decision accepts these generic gains alongside all measured costs. Slower
+primaries are17/80 and19/80; one empty control/profile remains slower on follow-up: release1.07692
+(+1920ns), release-min1.09149(+3679ns). Scheduled controls have small costs too. Native/ARM64Reader,
+Step/BackingSource/Action layouts and all eight tracked peaks match104. ARM32Step and BackingSource
+each grow8bytes; measured workspace peak grows at most16bytes. Current Input is120bytes; old retained
+units did not print it. Default C text changes−4236/+2296bytes for release/release-min. Native compiled
+Machine entry reservation changes0bytes except release-min fixture−16; this is not runtime stack peak.
+No lower-peak, RSS, physical-device, concurrent/live API, C-provider timing, whole-Agent or Cloud claim
+follows. See the [complete finite report](derived-float-completion-qualification.json).

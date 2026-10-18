@@ -73330,5 +73330,29 @@
     "cpp_controls": 336,
     "linked_pairs": 6,
     "scope": "Existing completed Float singleton delivery only; source-to-group metadata routing without new persistent ownership. All physical/memory fields equal actual103. Full controls and all mixed/slower compiled/timing costs retained; historical216strict original failures preserved. No public contract, universal compatibility/speed, lower peak/RSS or live/whole-Agent claim."
+  },
+  "certified_derived_float_completion": {
+    "status": "finite source-bound qualification",
+    "report": "derived-float-completion-qualification.json",
+    "report_sha256": "08465c8e7892dc9c8f71a5d97fcc419b5c3914b36b5cf8adb6579d04fb7f0463",
+    "source_inputs": 361,
+    "source_manifest_sha256": "e14a9a01f85049ca59415ec3e699c05ee5d67e12af70642e8b330eee6c73f401",
+    "comparison_base": "5b32607b5a27b6090836105a329d8ccdd71ddda5",
+    "baseline_runtime_revision": "ebb9af58290e3c79b4c43fc8f4593152fea2ccc6",
+    "decision": "accept",
+    "full_native_passes_per_profile": 825,
+    "native_ignored_per_profile": 2,
+    "foreign_focused_passes_per_target": 13,
+    "new_cases": 662,
+    "retained_temporal_cases": 3468,
+    "complete_target_pairs": 33040,
+    "new_target_pairs": 5296,
+    "retained_temporal_pairs": 27744,
+    "retained_go_original_comparisons": 2196,
+    "default_c_pairs": 12,
+    "cpp_controls": 12,
+    "full_current_c_suites": 2,
+    "linked_pairs": 6,
+    "scope": "Shared certified first-window Float visit/current-child completion without a history/value cache. Complete results/errors and explicit numerical/caller/resource controls pass. All slower empty/scheduled,ARM32layout/peak and linked costs retained. No universal speed/lower-peak, linear replay,live,whole-Agent,Cloud or new default-language feature claim."
   }
 }
