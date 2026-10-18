@@ -1937,3 +1937,13 @@ Allocation traffic improved, while tracked query peaks stayed equal. The existin
 collection contracts remain. The conformance guide's
 [rejected investigation](README.md#rejected-count_values-hit-ownership) owns the
 candidate mechanisms, measured costs, validation limits and historical evidence.
+
+## Histogram result label ownership
+
+Frozen histogram emission still copies the selected binding labels into independent query-owned memory.
+A private experiment with exact borrowed views preserved complete outcomes and ownership, and reduced
+allocation acquisition, but did not improve the fixed target timing median in both native profiles.
+All experimental code and tests were reversed; tracked whole-query peaks were unchanged. Mutable
+preparation, downstream materialization, lookup/duplicate/control phases and accepted qualification remain.
+The conformance guide's [rejected investigation](README.md#rejected-frozen-histogram-label-borrowing)
+owns the measured trade-off, complete failed/slower evidence and candidate-specific scope.

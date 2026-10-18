@@ -8584,3 +8584,62 @@ Those corrections preserve their failed attempts and actual subsequent scope.
 
 The accepted borrowed-input path still copies the retained key before lookup. This rejected investigation
 does not supersede its prior qualification or provide current commands for the removed experimental modes.
+
+## Rejected frozen histogram label borrowing
+
+One private candidate replaced the deep copy of a frozen histogram binding with an exact borrowed label
+view. Mutable preparation kept its independent copy. The candidate passed its semantic and ownership
+checks but failed the predeclared throughput condition, so all three experimental source/test changes
+were reversed. The engine still uses the accepted label-copying path. The complete negative record is
+[histogram-label-borrow-investigation.json](histogram-label-borrow-investigation.json).
+
+The candidate reused the existing label-view enum, with no normalization, new persistent field or provider
+change. Its explicit post-lookup control replaced the removed copy boundary. Lookup, first binding,
+full-hash duplicate handling, phase publication, sample leases and clocks stayed with their existing owners.
+Actual tests covered raw empty labels, signed zero and NaN bits, retained samples across Step/Machine
+destruction, independent mutation/materialization, mutable preparation and complete release.
+
+Two isolated emissions with 32 KiB retained label payloads acquired 66,154 → 0 Workspace bytes on the
+certified route, and 66,186 → 32 bytes on the uncertified route. Complete result/source/ownership/release
+assertions preceded the allocation guard. Long-label full queries also reduced allocation acquisition;
+unchanged fallback cases remain in the report. All eight tracked peak categories stayed equal in every
+target/page comparison. Lower acquisition traffic did not establish a lower peak or process RSS.
+
+The fixed timing panel contained 112 queries per native profile: 96 histogram cases plus 16 ordinary
+controls. Three alternating serial blocks supplied nine measured samples per arm. Each primary ratio
+at least 1.05 received exactly one identical follow-up. Retention required the median of the twelve
+64-group/4 KiB quantile, fraction and dynamic-parameter cases to improve in both profiles. It did not.
+Ratios below 1 favor the candidate; the grouped ratio is not a traffic-weighted speedup.
+
+| Profile | Selected histogram ratio | Ordinary-control ratio | Slower primary medians | Follow-ups | Still at least 1.05 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| release | 1.044564 | 1.042284 | 91/112 | 19 | 1 |
+| release-min | 0.999266 | 1.004966 | 29/112 | 2 | 0 |
+
+The persistent release selector-control difference had identical complete results and every nonelapsed
+observation. This experiment does not identify its cause or establish a universal slowdown. All primary
+and follow-up samples remain. No guard was relaxed and no extra panel was sampled to obtain acceptance.
+
+The rejected candidate passed 836 native units per profile, with two unchanged ignored checks, and 14
+focused checks on each emulated ARM target. There were 7,328 exact complete before/current pairs,
+including 5,792 comparisons of those same current executions to retained Go originals. The 192 new
+label-heavy cases are baseline/current controls, separate from the 724 original queries per cohort.
+Native pages were 1/17/1024; emulated ARM used page 17. Both name modes and stable/explicit test profiles
+remain distinct. All nonelapsed observations except work and accounted memory matched.
+
+Actual default C callers passed 144 histogram pairs, 216 streaming/failure pairs, 360 C++ query controls
+and both full C suites. Strict default/fixture Clippy, formatting, installed 1.91 compile-only checks and
+four-target C/C++/Rust layouts passed. The layout roster had 58 structures and 108 layout/callback/constant
+records per target. Search-root input bytes are retained separately from mutable shared build caches;
+the inventory is not a claim that every entry was linked.
+
+All six matched linked section/file costs are retained. The ARM64 fixture text grew by 4,128 bytes;
+native default-C text changed by +240/-64 bytes in release/release-min. Standalone emission entry stack
+reservations declined by 32/16 bytes, which does not establish runtime stack high-water. Native work
+totals increased in 246 of 2,748 cases per profile despite allocation reductions elsewhere.
+
+The report preserves a corrected raw-empty-label test expectation, an initial new-test compile failure,
+the actual uncertified hash polling boundary and a read-only analysis assertion that incorrectly required
+every fallback case to reduce allocations. None is hidden by the later passing checks. Candidate
+qualification is not transferred to the restored engine or its historical binaries. This trial adds no
+language feature or query limit, and provides no live, concurrent, physical-device or Cloud performance claim.

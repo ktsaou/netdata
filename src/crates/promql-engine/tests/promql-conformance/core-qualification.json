@@ -73451,5 +73451,19 @@
     "new_default_language_features": 0,
     "features_dropped": [],
     "scope": "Negative conditional-retention investigation;three private candidates rejected. Actual trial validation/timing/binary/source scopes remain separate. Accepted runtime and all prior qualification objects unchanged;no new runtime qualification transferred."
+  },
+  "histogram_label_borrow_investigation": {
+    "status": "rejected_investigation_no_runtime_change",
+    "report": "histogram-label-borrow-investigation.json",
+    "report_sha256": "e81c635bdfa730748ac4e0b337501ae07dd3648eb3556f0e961eb69b061300c8",
+    "decision": "reject_runtime_candidate",
+    "comparison_base": "bcfb651062c65b9493b92aca3bf27bf001968a91",
+    "baseline_runtime_revision": "7b8fe91683ca0109887bf15999881c0f1456ef4f",
+    "restored_source_inputs": 364,
+    "all_prior_source_inputs_restored_exactly": true,
+    "retained_runtime_candidates": 0,
+    "new_default_language_features": 0,
+    "features_dropped": [],
+    "scope": "Negative conditional frozen histogram label-ownership experiment;no runtime change. Complete actual candidate validation/timing/cost/failure/source/binary identities retained;no qualification transferred to restored engine."
   }
 }

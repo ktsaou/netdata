@@ -202,6 +202,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Ordered histogram adapters MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#ordered-histogram-streaming` for frozen-child ownership,
   literal/identity/filter admission, sparse alignment, child continuation and measured lifetime costs.
+  The rejected frozen-label ownership trial and its historical scope are recorded in
+  `src/crates/promql-engine/tests/promql-conformance/README.md#rejected-frozen-histogram-label-borrowing`.
 - Wrapped-join changes MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#wrapped-grouped-joins` for pre-copy eligibility,
   complete input discovery, kept/suppressed pair phases, fresh requested values, suffix continuation and separate
