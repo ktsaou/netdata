@@ -6812,6 +6812,347 @@ mod tests {
         }
     }
 
+    fn ranking_winner_subset_provider(bottom: bool, page: usize) -> FixtureProvider {
+        fn sample<const ROW: usize, const BOTTOM: bool>(index: usize) -> crate::value::Sample {
+            let winner = match index {
+                0 => ROW == 2 || ROW == 5,
+                1 => ROW == 1 || ROW == 5,
+                _ => ROW == 1 || ROW == 3,
+            };
+            let magnitude = if winner {
+                (10 * (ROW + 1) + index) as f64
+            } else {
+                0.0
+            };
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(if BOTTOM {
+                    -magnitude
+                } else {
+                    magnitude
+                }),
+            }
+        }
+        fn provider<const BOTTOM: bool>(page: usize) -> FixtureProvider {
+            let mut result = FixtureProvider::new(3, page, 6);
+            let samples: [fn(usize) -> crate::value::Sample; 6] = [
+                sample::<0, BOTTOM>,
+                sample::<1, BOTTOM>,
+                sample::<2, BOTTOM>,
+                sample::<3, BOTTOM>,
+                sample::<4, BOTTOM>,
+                sample::<5, BOTTOM>,
+            ];
+            for (row, sample) in result.series.iter_mut().zip(samples) {
+                row.source.counters = Default::default();
+                row.source.sample = sample;
+            }
+            result.series.reverse();
+            result
+        }
+        if bottom {
+            provider::<true>(page)
+        } else {
+            provider::<false>(page)
+        }
+    }
+
+    struct RankingSubsetSink<'a> {
+        output: RecordingSink,
+        provider: &'a FixtureProvider,
+        marks: Vec<Vec<usize>>,
+        identities: Vec<(u8, usize)>,
+        cancel_after_first: bool,
+        control: &'a Control,
+    }
+
+    impl OutputSink for RankingSubsetSink<'_> {
+        fn begin(&mut self, header: OutputHeader) -> Result<(), AccountedVec<u8>> {
+            assert_eq!(header.value_type, ValueType::Matrix);
+            assert_eq!(
+                (header.start_ms, header.end_ms, header.step_ms),
+                (1000, 3000, 1000)
+            );
+            self.output.begin(header)
+        }
+        fn chunk(&mut self, chunk: OutputChunk<'_>) -> Result<(), AccountedVec<u8>> {
+            let OutputChunk::Series {
+                series_id,
+                labels,
+                points,
+            } = &chunk
+            else {
+                panic!("subset series")
+            };
+            let expected = [
+                (2, 1000, 30.0_f64),
+                (5, 1000, 60.0),
+                (1, 2000, 21.0),
+                (5, 2000, 61.0),
+                (1, 3000, 22.0),
+                (3, 3000, 42.0),
+            ];
+            let (identity, time, value) = expected[self.output.chunks];
+            if let Some((_, prior)) = self.identities.iter().find(|(label, _)| *label == identity) {
+                assert_eq!(*series_id, *prior);
+            } else {
+                assert!(
+                    self.identities
+                        .iter()
+                        .all(|(_, prior)| *prior != *series_id)
+                );
+                self.identities.push((identity, *series_id));
+            }
+            assert_eq!(labels.len(), 2);
+            assert_eq!(labels[0].name, b"instance");
+            assert_eq!(labels[0].value, [b'0' + identity]);
+            assert_eq!(labels[1].name, b"job");
+            assert_eq!(labels[1].value, b"worker");
+            assert_eq!(points.len(), 1);
+            assert_eq!(points[0].time_ms, time);
+            assert_eq!(points[0].start_time_ms, 0);
+            let crate::value::SampleValueRef::Float(actual) = points[0].value else {
+                panic!("float subset point")
+            };
+            assert_eq!(actual.to_bits(), value.to_bits());
+            self.output.chunk(chunk)?;
+            self.marks.push(
+                self.provider
+                    .series
+                    .iter()
+                    .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
+                    .collect(),
+            );
+            if self.cancel_after_first && self.output.chunks == 1 {
+                self.control.cancellation.cancel();
+            }
+            Ok(())
+        }
+        fn commit(&mut self, observations: &QueryObservations) -> Result<(), AccountedVec<u8>> {
+            assert_eq!(observations.output_samples, 6);
+            assert_eq!(observations.statistics.samples.total_queryable_samples, 18);
+            self.output.commit(observations)
+        }
+        fn abort(&mut self) {
+            self.output.abort();
+        }
+    }
+
+    #[test]
+    fn ranking_winner_subset_keeps_empty_cold_delivery_and_actual_failure_phases() {
+        let request = QueryRequest::Range {
+            start_ms: 1000,
+            end_ms: 3000,
+            step_ms: 1000,
+        };
+        for bottom in [false, true] {
+            for delayed in [false, true] {
+                for page in [1, 17, 1024] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let operator = if bottom { "bottomk" } else { "topk" };
+                    let compiled = engine
+                        .compile(
+                            format!("abs({operator}(2,counter_total))").as_bytes(),
+                            options(delayed),
+                            &control,
+                        )
+                        .unwrap();
+                    let inspect = ranking_winner_subset_provider(bottom, page);
+                    let account = compiled.execution_accounting();
+                    {
+                        let header = compiled.header(request).unwrap();
+                        let prepared = Prepared::new(
+                            &compiled.expression,
+                            &compiled.preprocessing,
+                            header,
+                            compiled.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let options = compiled.evaluation_options(header, 1000, &prepared);
+                        let bounds = crate::query_bounds::find(
+                            &compiled.expression,
+                            options,
+                            &prepared,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let query = inspect.open(bounds, &control).unwrap();
+                        let catalog = Catalog::new(
+                            &query,
+                            &compiled.expression,
+                            &prepared,
+                            options,
+                            compiled.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let rosters = compiled
+                            .prepare_rosters(
+                                &catalog,
+                                &prepared,
+                                bounds,
+                                &control,
+                                &account,
+                                &mut Annotations::default(),
+                            )
+                            .unwrap();
+                        let root = compiled.expression.root;
+                        let Expr::Call { arguments, .. } =
+                            &compiled.expression.arena[root].expression
+                        else {
+                            unreachable!()
+                        };
+                        let ranking = arguments[0];
+                        assert_eq!(rosters.ordered(ranking).unwrap().0.len(), 4);
+                        let plan = rosters.selection(ranking).unwrap();
+                        assert_eq!(plan.emission_state(), (true, false));
+                        let mut machine = Machine::new(
+                            &catalog,
+                            &compiled.expression,
+                            root,
+                            options,
+                            &control,
+                            &account,
+                            EvaluationMetadata {
+                                prepared: &prepared,
+                                rosters: &rosters,
+                                timestamp_selectors: &compiled.timestamp_selectors,
+                                data_bounds: bounds,
+                                annotations: None,
+                                binary_preparation: None,
+                                histogram_preparation: None,
+                                info_preparation: None,
+                                count_preparation: None,
+                            },
+                        );
+                        for (ordinal, value) in [(1, 30.0_f64), (3, 60.0)] {
+                            let sample = machine.next().unwrap().unwrap();
+                            assert_eq!(sample.ordinal, ordinal);
+                            let OwnedValue::Float(actual) = sample.value else {
+                                panic!("float winner")
+                            };
+                            assert_eq!(actual.to_bits(), value.to_bits());
+                            // The absent first union row drains cold delivery before any public sample.
+                            assert_eq!(plan.emission_state(), (true, true));
+                        }
+                        assert!(machine.next().unwrap().is_none());
+                        drop(machine);
+                        rosters.clear_replay_progress(&control, &account).unwrap();
+                        assert_eq!(plan.emission_state(), (true, false));
+                    }
+                    inspect.assert_closed();
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    let healthy = ranking_winner_subset_provider(bottom, page);
+                    let mut sink = RankingSubsetSink {
+                        output: RecordingSink::default(),
+                        provider: &healthy,
+                        marks: Vec::new(),
+                        identities: Vec::new(),
+                        cancel_after_first: false,
+                        control: &control,
+                    };
+                    let report = compiled.execute_reported(&healthy, request, &control, &mut sink);
+                    report.result.as_ref().unwrap();
+                    assert!(report.annotations.is_empty());
+                    assert!(sink.output.committed && !sink.output.aborted);
+                    assert_eq!(sink.marks.len(), 6);
+                    let marks = std::mem::take(&mut sink.marks);
+                    let position = |identity: u8| {
+                        healthy
+                            .series
+                            .iter()
+                            .position(|row| {
+                                row.labels.iter().any(|(name, value)| {
+                                    name == b"instance" && value.as_slice() == [b'0' + identity]
+                                })
+                            })
+                            .unwrap()
+                    };
+                    let loser = position(0);
+                    let suffix = position(5);
+                    let selected = position(2);
+                    healthy.assert_closed();
+                    drop((report, sink));
+                    for (phase, target, acquisition, outputs) in [
+                        ("cold-loser", loser, marks[0][loser], 0),
+                        ("cold-suffix", suffix, marks[0][suffix], 0),
+                        ("warm-selected", selected, marks[0][selected], 0),
+                        ("new-clock-loser", loser, marks[1][loser] + 1, 2),
+                        ("output", loser, 0, 1),
+                        ("cancel", loser, 0, 1),
+                    ] {
+                        let mut input = ranking_winner_subset_provider(bottom, page);
+                        if acquisition != 0 {
+                            input.series[target].source.fail_acquisition = Some(acquisition);
+                        }
+                        let control = Control::default();
+                        let account = compiled.execution_accounting();
+                        let mut sink = RankingSubsetSink {
+                            output: RecordingSink {
+                                fail_after: (phase == "output").then_some(1),
+                                ..RecordingSink::default()
+                            },
+                            provider: &input,
+                            marks: Vec::new(),
+                            identities: Vec::new(),
+                            cancel_after_first: phase == "cancel",
+                            control: &control,
+                        };
+                        let report = compiled
+                            .execute_reported_in(&input, request, &control, &mut sink, &account);
+                        match (phase, &report.result) {
+                            ("output", Err(ExecutionError::Sink(_))) => (),
+                            (
+                                "cancel",
+                                Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                                    Interrupted::Cancelled,
+                                ))),
+                            ) => (),
+                            (
+                                _,
+                                Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                                    StorageError::Provider(bytes),
+                                ))),
+                            ) if &**bytes == b"injected page failure" => (),
+                            _ => panic!("unexpected subset failure {phase}: {:?}", report.result),
+                        }
+                        assert!(sink.output.begun && sink.output.aborted && !sink.output.committed);
+                        assert_eq!(sink.output.chunks, outputs, "{phase}");
+                        assert_eq!(
+                            report.observations.output_samples,
+                            (outputs - usize::from(phase == "output")) as u64
+                        );
+                        if acquisition != 0 {
+                            assert_eq!(
+                                input.series[target]
+                                    .source
+                                    .counters
+                                    .opened
+                                    .load(Ordering::Relaxed),
+                                acquisition
+                            );
+                        }
+                        println!(
+                            "{{\"subset_failure\":\"{phase}\",\"bottom\":{bottom},\"delayed\":{delayed},\"page\":{page},\"outputs\":{outputs},\"acquisition\":{acquisition}}}"
+                        );
+                        input.assert_closed();
+                        drop((report, sink));
+                        account.snapshot().assert_memory_released();
+                    }
+                    drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
     #[test]
     fn mapped_ranking_range_avoids_repeated_completed_winner_reads() {
         let mut observations = Vec::new();

@@ -73286,5 +73286,27 @@
     "default_c_pairs": 168,
     "cpp_controls": 168,
     "scope": "Certified direct Float TOPK/BOTTOMK only; exact complete outcomes and lifecycle/failure/resource controls. All slower timings and costs retained; ordinary fallback and historical attribution unchanged. No universal speed/memory/compatibility or live/whole-Agent requalification claim."
+  },
+  "ranking_winner_subsets": {
+    "status": "finite source-bound qualification",
+    "report": "ranking-winner-subsets-qualification.json",
+    "report_sha256": "4962f1127df64d2b3811a545f4f7403f14add67185f52f093b6ea62532782621",
+    "source_inputs": 361,
+    "source_manifest_sha256": "862e10bdbab1660e6650e687ec76e444c688e3e62a7c631967bf7c535ab044fe",
+    "comparison_base": "452759076805d5c20ef17227c98cd1fdf834e8f5",
+    "baseline_runtime_revision": "452759076805d5c20ef17227c98cd1fdf834e8f5",
+    "decision": "retain checked proper-subset delivery with useful grouped gains and all mixed/slower costs visible",
+    "full_native_passes_per_profile": 818,
+    "native_ignored_per_profile": 2,
+    "foreign_focused_passes_per_target": 19,
+    "new_target_pairs": 1920,
+    "prior_target_pairs": 1920,
+    "complete_reducer_comparisons": 56124,
+    "strict_original_failures_retained": 216,
+    "complete_sort_original_comparisons": 456,
+    "default_c_pairs": 336,
+    "cpp_controls": 336,
+    "linked_pairs": 6,
+    "scope": "Existing direct unchanged Float completion only. Full result/control/ownership qualification; historical216strict failures and separate ordering policy retained. No runtime field,array,value cache or public contract change; no universal compatibility/speed/peak/live/whole-Agent claim."
   }
 }

@@ -336,13 +336,14 @@ impl Plan {
         if !matches!(self.operator, TokenKind::TOPK | TokenKind::BOTTOMK)
             || self.inputs.len() < 2
             || self.bindings.len() != self.inputs.len()
-            || descriptors.len() != self.inputs.len()
+            || descriptors.len() < 2
+            || descriptors.len() > self.inputs.len()
             || self.projected_rows != Some(descriptors.len())
         {
             return Ok(());
         }
         let mut prior = None;
-        for row in &*self.inputs {
+        for (input, row) in self.inputs.iter().enumerate() {
             control.check()?;
             account.work(1);
             if row.kinds != 1
@@ -353,6 +354,16 @@ impl Plan {
                 return Ok(());
             }
             prior = Some(row.ordinal);
+            if let Some(canonical) = self.bindings[input].canonical {
+                let Some(descriptor) = descriptors.get(canonical.ordinal) else {
+                    return Ok(());
+                };
+                if descriptor.sources.len() != 1
+                    || sources.get(descriptor.sources.start) != Some(&input)
+                {
+                    return Ok(());
+                }
+            }
         }
         for (position, descriptor) in descriptors.iter().enumerate() {
             control.check()?;
@@ -1453,6 +1464,228 @@ mod emission_tests {
             );
             drop(fixture);
             account.snapshot().assert_memory_released();
+        }
+    }
+
+    fn subset_fixture(
+        operator: TokenKind,
+        keep: usize,
+        account: &QueryAccounting,
+    ) -> (Fixture, Vec<usize>) {
+        let control = Control::default();
+        let name = if operator == TokenKind::TOPK {
+            "topk"
+        } else {
+            "bottomk"
+        };
+        let expression = fixture::expression(&format!("{name}({keep},m)"), account, &control);
+        let labels = |i: usize| {
+            vec![
+                (b"__name__".to_vec(), b"m".to_vec()),
+                (b"id".to_vec(), format!("{i:02}").into_bytes()),
+            ]
+        };
+        let count = 2 * keep;
+        let mut rows = fixture::rows((0..count).map(labels).collect(), account, &control);
+        for (i, row) in rows.iter_mut().enumerate() {
+            row.ordinal = 1 + 3 * i;
+            row.kinds = 1;
+        }
+        let sources: Vec<_> = (keep..count).rev().collect();
+        let mut canonical = fixture::rows(
+            sources.iter().copied().map(labels).collect(),
+            account,
+            &control,
+        );
+        for (i, row) in canonical.iter_mut().enumerate() {
+            row.ordinal = i;
+            row.kinds = 1;
+            row.sources = i..i + 1;
+        }
+        let mut parameters = Parameters::new(true);
+        parameters.push(keep as f64, account);
+        let mut plan = Plan::new(operator, parameters, account);
+        plan.prepare_rows(rows, &expression, expression.root, &control, account)
+            .unwrap();
+        plan.project(&canonical, &sources, &control, account)
+            .unwrap();
+        plan.certify_emit(&canonical, &sources, 3 * count, &control, account)
+            .unwrap();
+        (Fixture { plan, canonical }, sources)
+    }
+
+    fn deliver_subset(
+        fixture: &Fixture,
+        sources: &[usize],
+        target: Option<usize>,
+        offset: f64,
+        account: &QueryAccounting,
+    ) -> (Vec<(usize, u64)>, usize) {
+        let control = Control::default();
+        let mut step = Step::new(
+            &fixture.plan,
+            options(0),
+            0,
+            true,
+            true,
+            Some(&fixture.canonical),
+            account,
+        );
+        let value = |input: usize| {
+            let magnitude = (input + 1) as f64;
+            if fixture.plan.operator == TokenKind::TOPK {
+                magnitude
+            } else {
+                -magnitude
+            }
+        };
+        let mut output = Vec::new();
+        let mut requested = 0;
+        loop {
+            match step.advance(target, &control, account).unwrap() {
+                Action::Continue => (),
+                Action::Child { parameter, ordinal } => {
+                    assert!(!parameter);
+                    let input = fixture
+                        .plan
+                        .inputs
+                        .iter()
+                        .position(|row| Some(&row.ordinal) == ordinal)
+                        .unwrap();
+                    let mut sample = source(&fixture.plan, input, false, false, account);
+                    sample.value = OwnedValue::Float(
+                        value(input) + if step.snapshot.is_some() { offset } else { 0.0 },
+                    );
+                    requested += 1;
+                    step.receive(sample, &control, account).unwrap();
+                }
+                Action::Sample(sample) => {
+                    let input = sources[sample.ordinal];
+                    assert_eq!(
+                        fixture::raw(&sample.labels),
+                        fixture::raw(&fixture.plan.inputs[input].labels)
+                    );
+                    assert_eq!(sample.drop_name, input % 2 == 1);
+                    assert_eq!(sample.source_time_ms, 0);
+                    assert_eq!(sample.source_start_time_ms, 0);
+                    let OwnedValue::Float(actual) = sample.value else {
+                        panic!("float winner")
+                    };
+                    assert_eq!(actual.to_bits(), (value(input) + offset).to_bits());
+                    if target.is_none_or(|target| target == sample.ordinal) {
+                        output.push((sample.ordinal, actual.to_bits()));
+                    }
+                }
+                Action::Done(annotation) => {
+                    assert!(annotation.is_none());
+                    return (output, requested);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn proper_ranking_subsets_avoid_repeated_completed_winner_requests() {
+        let mut observations = Vec::new();
+        for operator in [TokenKind::TOPK, TokenKind::BOTTOMK] {
+            let mut requests = Vec::new();
+            for keep in [2, 4, 8, 16] {
+                let account = EngineAccounting::default().query();
+                let (fixture, sources) = subset_fixture(operator, keep, &account);
+                let cold = deliver_subset(&fixture, &sources, None, 10.0, &account);
+                assert_eq!(
+                    cold.0.iter().map(|row| row.0).collect::<Vec<_>>(),
+                    (0..keep).collect::<Vec<_>>()
+                );
+                assert!(
+                    fixture.plan.bindings[..keep]
+                        .iter()
+                        .all(|row| row.canonical.is_none())
+                );
+                let mut fetched = 0;
+                for target in 0..keep {
+                    let offset = 100.0 + target as f64;
+                    let (output, count) =
+                        deliver_subset(&fixture, &sources, Some(target), offset, &account);
+                    let value = (sources[target] + 1) as f64;
+                    let expected = if operator == TokenKind::TOPK {
+                        value
+                    } else {
+                        -value
+                    };
+                    assert_eq!(output, [(target, (expected + offset).to_bits())]);
+                    fetched += count;
+                }
+                println!(
+                    "{{\"ranking_subset\":\"{operator:?}\",\"kept\":{keep},\"warm_requests\":{fetched}}}"
+                );
+                requests.push(fetched);
+                drop(fixture);
+                account.snapshot().assert_memory_released();
+            }
+            observations.push(requests);
+        }
+        // Validate every complete cold/warm value and owner before checking repeated work.
+        assert!(
+            observations.iter().all(|reads| reads[3] <= 3 * reads[2]),
+            "proper ranking subsets must avoid repeated completed winner requests: {observations:?}"
+        );
+    }
+
+    #[test]
+    fn ranking_subset_certificate_checks_inverse_bindings_and_small_unions() {
+        for operator in [TokenKind::TOPK, TokenKind::BOTTOMK] {
+            for keep in [0, 1] {
+                let account = EngineAccounting::default().query();
+                let (fixture, _) = subset_fixture(operator, keep, &account);
+                assert_eq!(fixture.plan.emission_state(), (false, false));
+                drop(fixture);
+                account.snapshot().assert_memory_released();
+            }
+            for scenario in 0..13 {
+                let account = EngineAccounting::default().query();
+                let (mut fixture, mut sources) = subset_fixture(operator, 2, &account);
+                assert_eq!(fixture.plan.emission_state(), (true, false));
+                fixture.plan.emit_certified = false;
+                let mut catalog_len = 12;
+                match scenario {
+                    0 | 1 | 11 => {
+                        fixture.plan.bindings[0].canonical = Some(Canonical {
+                            ordinal: if scenario == 1 { usize::MAX } else { 0 },
+                            representative: if scenario == 11 { 3 } else { 0 },
+                        });
+                    }
+                    2 => fixture.plan.bindings[3].canonical = None,
+                    3 => sources[1] = sources[0],
+                    4 => sources[0] = usize::MAX,
+                    5 => catalog_len = 10,
+                    6 => fixture.canonical[0].sources = 0..2,
+                    7 => fixture.canonical[0].hash ^= 1,
+                    8 => fixture.plan.inputs[0].kinds = 3,
+                    9 => fixture.plan.projected_rows = None,
+                    10 => fixture.canonical[0].ordinal = 1,
+                    _ => {
+                        fixture.plan.bindings.pop();
+                    }
+                }
+                fixture
+                    .plan
+                    .certify_emit(
+                        &fixture.canonical,
+                        &sources,
+                        catalog_len,
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
+                assert_eq!(
+                    fixture.plan.emission_state(),
+                    (false, false),
+                    "scenario={scenario}"
+                );
+                drop(fixture);
+                account.snapshot().assert_memory_released();
+            }
         }
     }
 

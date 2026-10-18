@@ -1819,8 +1819,11 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
 
 ## Completed ranking delivery
 
-TOPK/BOTTOMK shares the existing sort unchanged-selector/same-grid proof, then verifies a Float single-head
-canonical/input/catalog bijection with at least two inputs. One Plan eligibility flag and one snapshot-owned
+TOPK/BOTTOMK shares the existing sort unchanged-selector/same-grid proof, then verifies Float single-head
+inputs and a unique canonical-output-to-input mapping with at least two outputs. Every Some input binding
+must agree with its descriptor/source; never-winning None inputs remain part of selection. Input kinds,
+heads, catalog order, source, canonical ordinal, representative and hash retain their checks. One Plan
+eligibility flag and one snapshot-owned
 AtomicBool admit only warm canonical singleton delivery after checked full Done. Preparation clears completion,
 new exact keys start false, and an old Step credits only its own held snapshot. Machine supplies a transient
 target only for `RowFilter::Ordinals([canonical])`; existing cursor bounds skip completed nonselected delivery.
@@ -1831,9 +1834,18 @@ types and accounted requests stay unchanged; actual target layouts, linked costs
 recorded. Cold suffix and next-clock validation, aliases/native/derived/shifted/plural routes and scalar prefix
 truncation retain ordinary behavior. Heap metadata scanning remains, so fewer raw reads do not prove linear work.
 
-The finite panel finds median ABS time ratios 0.43250/0.43762 for release/release-min and lower allocation traffic
+The original full-input102 panel finds median ABS time ratios 0.43250/0.43762 for release/release-min and lower allocation traffic
 with unchanged tracked peak in the 32-series wide TOPK example. A scalar fallback remains 6.5% slower in its fixed
 release-min follow-up; every slower primary/follow-up and linked cost remains visible. Qualification preserves
 the 216 existing strict upstream failures and their separate ordering-policy attribution. See
 [completed ranking delivery](README.md#completed-ranking-delivery) for the mechanism, controls, measurements,
 commands and exact source/runtime report. These finite results do not establish universal compatibility or speed.
+
+
+The proper-subset extension retains all these completion rules. A changing union can reach cold full Done
+without public output when its first canonical row is absent; its first public result may therefore be warm.
+New actual Machine/C controls distinguish that phase from before-Done cancellation. No runtime field or value
+array is added. All four measured target layouts equal accepted102. The subset panel finds grouped ABS median
+ratios 0.96919/0.94395 for release/release-min, with mixed global/control results and all costs retained; no
+universal speedup is claimed. See [proper ranking winner subsets](README.md#proper-ranking-winner-subsets)
+and its separate exact source/runtime report. The earlier full-input measurements retain102 attribution.

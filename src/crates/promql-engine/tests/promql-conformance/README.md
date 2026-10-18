@@ -7985,12 +7985,15 @@ published after checked full Done. Preparation clears credit; a new exact key st
 never cached by this optimization. Prefix-truncated scalar, alias, native/mixed, derived, shifted and plural
 requests retain ordinary traversal. Heap metadata scans remain; raw-read growth does not prove linear total work.
 
-The meaningful regression checks 96 complete Engine executions before its growth assertion: both operators,
+The current proper-subset extension is qualified in [proper ranking winner subsets](#proper-ranking-winner-subsets).
+The measurements and counts below retain their original full-input102 cohort attribution.
+
+The original full-input regression checks 96 complete Engine executions before its growth assertion: both operators,
 bare/ABS/scalar/unary consumers, 2/4/8/16 series, three clocks, reversed catalog and pages 1/17/1024. The initial
 guard incorrectly required scalar growth too. Its complete failures remain recorded; the corrected ABS-only
 guard fails against actual unchanged production before passing the candidate. Scalar remains a negative control.
 
-Actual Machine checks establish cold preparation and first output, then checked suffix completion before warm
+The original full-input Machine checks establish cold preparation and first output, then checked suffix completion before warm
 selected delivery. Calibrated failures cover the cold suffix, warm selected row and a nonmember before next-clock
 output, both name modes/operators/pages. Additional owners cover canonical permutation, sparse catalog IDs,
 missing/wrong-kind fresh values, absent targets, cancellation at terminal work and old-held-snapshot replacement.
@@ -8077,3 +8080,108 @@ Repeat for C11 and C++17 and both native profiles; the source includes the share
 The [qualification report](completed-ranking-delivery-qualification.json) binds the exact candidate, historical
 baseline, complete outcomes, every changed resource field, fixed timings, linked costs and actual failed attempts.
 Full new query captures stay gzip-compressed and are checked through EOF with raw and compressed hashes.
+
+
+## Proper ranking winner subsets
+
+Completed delivery also applies when the range winner union is a proper subset of direct unchanged Float
+inputs. Examples include `abs(topk(2,m))` and `abs(topk by(region)(2,m))`. At least two canonical output rows
+are required; empty and singleton unions retain ordinary evaluation.
+
+The certificate checks an output-to-input injection. Every retained output has one source and the existing
+canonical ordinal, representative, hash, kind, head and catalog checks. Every input with a `Some` binding must
+point back through that descriptor. Never-winning `None` inputs remain valid and still participate in selection.
+No runtime field, array or value cache is added. Full-Done, exact-key, held-snapshot, preparation-reset and fresh
+requested-value rules are unchanged. Derived/native/alias/shifted/plural and scalar-prefix paths keep fallback.
+
+A changing union has an additional lifecycle case: its first canonical row can be absent initially. The cold
+scan can then reach full Done with no public output; the first public result can already use completion credit.
+The new actual Machine check covers this case, fresh selected values, reset and new-clock losing-input failures.
+Its first-output cancellation follows zero-output Done; retained full-union and new stable C controls separately
+cover cancellation before Done. Public series IDs are distinct/stable within a query; delayed-name root merging
+can assign different numbers from internal canonical ordinals.
+
+The meaningful old producer completes all eight TOPK/BOTTOMK scenarios with 2/4/8/16 winners, sparse/permuted
+identities and fresh value/label/flag/clock/release checks before failing the growth assertion. Warm requests
+change from 4/16/64/256 to 2/4/8/16. Inverse-binding and small-union exclusions remain checked. This establishes
+selected acquisition growth; heap metadata scans and initial preparation remain.
+
+Both native profiles pass 818 units with two unchanged ignored tests; ARM32 and ARM64 each pass 19 focused
+checks under QEMU. All 1,920 new and 1,920 retained complete target comparisons match the actual accepted102
+builds. The 56,124 fresh reducer results equal the retained canonical analysis inputs, and 456 sort originals
+pass. The 216 historical strict upstream differences remain failures with separate ordering-policy attribution.
+Strict default/fixture Clippy, formatting and installed Rust 1.91 compile-only checks pass.
+
+Actual default libraries pass 336 matched C comparisons and 336 C++ controls across both native profiles.
+Each program/profile runs 84 retained full-union cases plus 84 new proper-subset cases, both operators/name
+modes and pages 1/17/1024. New C cases distinguish four source rows/eight logical points from two result rows/
+four outputs. They exercise cold suffix, fresh selected and next-clock losing-input errors, output failure,
+cancellation and independent retained output. Both full C runners and coupled sort C/C++ routes also pass.
+Actual Engine/C checks own logical sample statistics; fixture observations omit those counters.
+
+The fixed panel has 56 cases per profile: seven families, two operators, 8/32 inputs, 16/4,096-byte padding,
+three clocks and page17. Three alternating blocks give nine measured queries per side after warmups. Each
+primary ratio at least 1.05 receives exactly one identical follow-up. All samples and costs remain recorded.
+
+| Family | Release median of case ratios | Release-min median of case ratios |
+| --- | ---: | ---: |
+| global:bare | 1.02734 | 0.99971 |
+| global:abs | 1.01730 | 0.97667 |
+| global:scalar | 1.02999 | 0.99476 |
+| global:unary | 1.03655 | 0.99027 |
+| region:bare | 1.01359 | 0.99845 |
+| region:abs | 0.96919 | 0.94395 |
+| all-input:abs | 1.01882 | 0.99507 |
+
+| Profile | Slower primary medians | Threshold follow-ups | Persistent threshold costs |
+| --- | ---: | ---: | ---: |
+| release | 44 | 5 | 0 |
+| release-min | 15 | 0 | 0 |
+
+The result is modest and mixed. Grouped ABS improves by median 3.1%/5.6%; seven of eight release cases and all
+eight release-min cases improve. Global ABS is 1.7% slower in release and 2.3% faster in release-min by median
+case ratio. Release bare/scalar/unary controls also show costs. No prescribed follow-up remains at least 5%
+slower. The private change is retained for useful grouped queries and lower acquisition traffic; these results
+do not establish a universal speedup or an elapsed-time cause for slower controls.
+
+For eight inputs with 4,096-byte padding, three clocks, page17 and grouped TOPK under ABS:
+
+| Observation | Accepted102 | Current |
+| --- | ---: | ---: |
+| Samples fetched | 780 | 699 |
+| Pages | 260 | 233 |
+| Provider calls | 532 | 478 |
+| Workspace acquired B | 1,454,604 | 1,327,785 |
+| Workspace tracked peak B | 91,557 | 91,557 |
+| release engine time µs | 789.652 | 737.273 |
+| release-min engine time µs | 1,358.096 | 1,242.537 |
+
+Acquired bytes measure allocation traffic, not resident memory. Actual Plan/Snapshot/Step type and requested
+allocation layouts equal accepted102 on all four targets. Tracked peak is unchanged in this example.
+All linked costs, including increases, are retained:
+
+| Cohort | Text delta B | Data delta B | BSS delta B | File delta B |
+| --- | ---: | ---: | ---: | ---: |
+| release fixture | +164 | +24 | -152 | +112 |
+| release default-ranking-C | -13592 | -88 | +0 | -19632 |
+| release-min fixture | +184 | +24 | -184 | +184 |
+| release-min default-ranking-C | +344 | +24 | +0 | +136 |
+| arm32 fixture | +384 | +16 | +0 | +440 |
+| arm64 fixture | -6600 | -8 | +0 | -232 |
+
+From `src/crates/promql-engine`, run the committed causal owners with:
+
+```sh
+cargo test --locked --features fixtures --release topk::emission_tests::
+cargo test --locked --features fixtures --profile release-min ranking_winner_subset_keeps_empty_cold_delivery
+```
+
+Use the [completed-delivery C instructions](#completed-ranking-delivery) for the expanded `ranking_delivery.c`.
+The [subset qualification report](ranking-winner-subsets-qualification.json) binds exact source/runtime cohorts,
+complete results, resource changes, timings, costs and retained failed attempts. The initial source-flag and
+public-ID test assumptions were corrected without changing production behavior; both earlier failures remain
+attributed to their actual source. New query captures are gzip-compressed and verified through EOF.
+
+Timing is shared-host Engine time, excluding parse/serialization. This finite panel makes no physical-device,
+RSS, stack high-water, live/concurrent API, Cloud or whole-Agent requalification claim. Raw storage stays paged
+on both axes; implicit limits remain disabled and provider, contexts, accounting and ABI4 contracts are unchanged.
