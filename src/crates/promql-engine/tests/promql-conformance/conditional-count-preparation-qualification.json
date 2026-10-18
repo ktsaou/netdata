@@ -1,0 +1,3458 @@
+{
+  "schema_version": 1,
+  "status": "finite_source_bound_qualification",
+  "comparison_base": "da1d7f2deeb81e3033f10fa11ea3316b00081ae7",
+  "baseline_runtime_revision": "da1d7f2deeb81e3033f10fa11ea3316b00081ae7",
+  "baseline_attribution": "Exact accepted106runtime. Functional before outcomes are authenticated retained106current captures; current107executed fresh. Timings execute both arms fresh serially. Original Go captures remain original,not recaptured or reattributed.",
+  "source_inputs": 361,
+  "source_manifest_sha256": "7677f7629d07869343d5e790b17de67319469581c13a5649a716bc5af4fff505",
+  "changed_source_hashes": {
+    "src/crates/promql-engine/src/execution.rs": "87169ab61b62aa57d72fb084e3302d030545a61f39338a62578f059bb1998908"
+  },
+  "current_builds": {
+    "release": {
+      "profile": "release",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "fixture": {
+        "path": ".tmp/conditional-count-l9g_piyb/current-release/promql-query-fixture",
+        "sha256": "545edcc1e11e79e48d4e2ebe33660a97e24d1e6f012e624b06ed3acc59b0461f"
+      },
+      "unit": {
+        "path": ".tmp/conditional-count-l9g_piyb/current-release/unit",
+        "sha256": "6d1289af5b097adf4c125489ebabedd015e30af7ffb13e7b6e6587b299d2ddfd"
+      },
+      "archive": {
+        "path": ".tmp/conditional-count-l9g_piyb/current-release/libnetdata_promql_engine.a",
+        "sha256": "72ec01b5ef1465f4b20f360562b58bf009d2a39d28d9e65634bbb0e256bd4897"
+      }
+    },
+    "release-min": {
+      "profile": "release-min",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "fixture": {
+        "path": ".tmp/conditional-count-l9g_piyb/current-release-min/promql-query-fixture",
+        "sha256": "369393022ced8dfe28c8df3e669cd823be81cf1eabf428526a301c85bc802d9e"
+      },
+      "unit": {
+        "path": ".tmp/conditional-count-l9g_piyb/current-release-min/unit",
+        "sha256": "2eff5ff2da0c8dd5342d0a330e2aacf35c85a2d3e69c12de11ca6d8b8a2dcaa1"
+      },
+      "archive": {
+        "path": ".tmp/conditional-count-l9g_piyb/current-release-min/libnetdata_promql_engine.a",
+        "sha256": "c79699e0ef9c431d86e4b4446961deb2714e0e5d1e75a390b7a7f3f75cc73920"
+      }
+    },
+    "arm32": {
+      "profile": "release",
+      "target": "armv7-unknown-linux-gnueabihf",
+      "runner": [
+        "qemu-arm",
+        "-L",
+        "/usr/arm-linux-gnueabihf"
+      ],
+      "fixture": {
+        "path": ".tmp/conditional-count-l9g_piyb/current-arm32/promql-query-fixture",
+        "sha256": "c576a1693a9b9fb9d1079f8c2afab9469856cc62c989fcc2e11e8d5d18771a73"
+      },
+      "unit": {
+        "path": ".tmp/conditional-count-l9g_piyb/current-arm32/unit",
+        "sha256": "e7451a4e99d5ca7e1dbdcd63ab84a00b8b0554e6eecc12e184a2efc95b4d4bb3"
+      },
+      "archive": null
+    },
+    "arm64": {
+      "profile": "release",
+      "target": "aarch64-unknown-linux-gnu",
+      "runner": [
+        "qemu-aarch64",
+        "-L",
+        "/usr/aarch64-linux-gnu"
+      ],
+      "fixture": {
+        "path": ".tmp/conditional-count-l9g_piyb/current-arm64/promql-query-fixture",
+        "sha256": "be86ee8861c1523bc8fdaa7e7feb45b22d989372ef53a21990b2db1dd0e5dcf2"
+      },
+      "unit": {
+        "path": ".tmp/conditional-count-l9g_piyb/current-arm64/unit",
+        "sha256": "8c2a8a4813a8b10f977ff4611f2c3e9451343590342abad7d27eacb97f9ef1f2"
+      },
+      "archive": null
+    }
+  },
+  "mechanism": "Construct local COUNT_VALUES preparation Cache only when the unchanged exact is_count predicate matches. Option<RefCell<Cache>> retains actual empty/nested owners; Preparation borrows through as_ref().map with the exact node. After unchanged drop(base), move the whole Some cache into existing Plan. No retained field,AST pass or callback change.",
+  "compiled_mechanism": [
+    {
+      "profile": "release",
+      "binary": {
+        "path": ".tmp/conditional-count-l9g_piyb/current-callers-release/embedding-current",
+        "sha256": "0cd61dc297d0e1dc1c1a95decd850d93db055871f5677e3f1fa400b97c46c0e0"
+      },
+      "before_fact": "Inlined owner atomic acquisition at ad321 and resize(0) at ad352 precede aggregate-tag/COUNT_VALUES checks at ad3ab/ad3b1; ordinary flow executes setup.",
+      "current_fact": "Aggregate/token tests at ad2f2/ad2f8 feed jne ad311\u2192ad3c1; ordinary nodes skip atomic owner acquisition ad336,resize(0)ad367 and stores through ad3b0. Matching COUNT_VALUES falls through and sets Some at ad3bc."
+    },
+    {
+      "profile": "release-min",
+      "binary": {
+        "path": ".tmp/conditional-count-l9g_piyb/current-callers-release-min/embedding-current",
+        "sha256": "0d0ea490227558df14d254c281cf28ce25a1504b2cd6449e610f65650aa79277"
+      },
+      "before_fact": "Call at bb25e through GOT542bc0 resolves to Cache::new1e43b3; aggregate-tag/COUNT_VALUES checks at bb2a9/bb2af occur afterward.",
+      "current_fact": "Aggregate check bb254,branch bb257\u2192bb2ca and COUNT_VALUES check bb259, branch bb26d\u2192bb2d4 both bypass constructor bb27f/GOT542c00\u2192Cache::new1e4114. Matching COUNT_VALUES constructs and sets Some at bb2c5\u2013bb2c7."
+    }
+  ],
+  "qualification": {
+    "full_native_passes_per_profile": 830,
+    "native_ignored_per_profile": 2,
+    "foreign_focused_passes_per_target": 9,
+    "reused_target_cases": 336,
+    "retained_original_cases": 796,
+    "complete_target_pairs": 9056,
+    "retained_go_original_comparisons": 6368,
+    "all_nonelapsed_observations_equal": true,
+    "default_c_pairs": 48,
+    "cpp_controls": 48,
+    "full_current_c_suites": 2,
+    "strict_clippy_variants": 2,
+    "format_check": true,
+    "msrv_compile_only": "1.91.0",
+    "native_pages": [
+      1,
+      17,
+      1024
+    ],
+    "emulated_arm_pages": [
+      17
+    ],
+    "new_tests_or_language_cases": 0
+  },
+  "costs": {
+    "linked_pairs": [
+      {
+        "kind": "fixture",
+        "label": "release",
+        "target": "x86_64-unknown-linux-gnu",
+        "before": {
+          "path": ".tmp/count-values-index-ida3a85g/tuned-release/promql-query-fixture",
+          "sha256": "9b605790e8028c4520d780ea8f4d7ac47b5c4c64f840025127f4a88bb4fa1dab"
+        },
+        "current": {
+          "path": ".tmp/conditional-count-l9g_piyb/current-release/promql-query-fixture",
+          "sha256": "545edcc1e11e79e48d4e2ebe33660a97e24d1e6f012e624b06ed3acc59b0461f"
+        },
+        "before_sections": {
+          "text": 4414754,
+          "data": 259648,
+          "bss": 1244
+        },
+        "before_file_bytes": 5691200,
+        "current_sections": {
+          "text": 4425062,
+          "data": 259648,
+          "bss": 3212
+        },
+        "current_file_bytes": 5701360,
+        "section_deltas": {
+          "text": 10308,
+          "data": 0,
+          "bss": 1968
+        },
+        "file_delta": 10160
+      },
+      {
+        "kind": "default-embedding-C",
+        "label": "release",
+        "target": "x86_64-unknown-linux-gnu",
+        "before": {
+          "path": ".tmp/conditional-count-l9g_piyb/current-callers-release/embedding-before",
+          "sha256": "c414ac3f9875381edf0c006361985b1887f6a77c5752a8afb213cb49d51f6f2f"
+        },
+        "current": {
+          "path": ".tmp/conditional-count-l9g_piyb/current-callers-release/embedding-current",
+          "sha256": "0cd61dc297d0e1dc1c1a95decd850d93db055871f5677e3f1fa400b97c46c0e0"
+        },
+        "before_sections": {
+          "text": 7508694,
+          "data": 506496,
+          "bss": 400
+        },
+        "before_file_bytes": 13868584,
+        "before_roster": {
+          "symbol": "<netdata_promql_engine::execution::CompiledQuery>::prepare_rosters::<netdata_promql_engine::storage_observed::ObservedQuery<netdata_promql_engine::c_abi::provider::Query>>",
+          "address": "0xac770",
+          "text_bytes": 50305,
+          "entry_instructions": [
+            "   ac770:\tpush   %rbp",
+            "   ac771:\tpush   %r15",
+            "   ac773:\tpush   %r14",
+            "   ac775:\tpush   %r13",
+            "   ac777:\tpush   %r12",
+            "   ac779:\tpush   %rbx",
+            "   ac77a:\tsub    $0x1000,%rsp",
+            "   ac781:\tmovq   $0x0,(%rsp)",
+            "   ac789:\tsub    $0x328,%rsp",
+            "   ac790:\tmov    %rcx,0x48(%rsp)",
+            "   ac795:\tmov    %rdx,%rbx",
+            "   ac798:\tmov    %rsi,%r15",
+            "   ac79b:\tmov    %rdi,0x30(%rsp)",
+            "   ac7a0:\tmov    0x1368(%rsp),%r14",
+            "   ac7a8:\tmov    0x1360(%rsp),%r12",
+            "   ac7b0:\tmov    %r8,0x610(%rsp)",
+            "   ac7b8:\tmov    %r9,0x618(%rsp)",
+            "   ac7c0:\tmov    $0x3,%esi",
+            "   ac7c5:\tmov    %r14,%rdi",
+            "   ac7c8:\tcall   *0x6f7082(%rip)        # 7a3850 <_GLOBAL_OFFSET_TABLE_+0x178>",
+            "   ac7ce:\tmov    %rax,0x670(%rsp)",
+            "   ac7d6:\tmov    %rdx,0x678(%rsp)",
+            "   ac7de:\tmov    0x50(%r15),%rax",
+            "   ac7e2:\tmov    %rax,0x388(%rsp)",
+            "   ac7ea:\tmov    %r15,0x60(%rsp)",
+            "   ac7ef:\tmov    0x58(%r15),%r15",
+            "   ac7f3:\tlea    0x110(%rsp),%rdi",
+            "   ac7fb:\tmov    %r14,%rsi",
+            "   ac7fe:\tmov    %r15,%rdx",
+            "   ac801:\tmov    %r12,%rcx",
+            "   ac804:\tcall   *0x6f77ce(%rip)        # 7a3fd8 <_GLOBAL_OFFSET_TABLE_+0x900>",
+            "   ac80a:\tlea    0x678(%rsp),%r14"
+          ],
+          "entry_rsp_subtractions": [
+            4096,
+            808
+          ],
+          "entry_saved_register_bytes": 48,
+          "entry_total_rsp_decrement_bytes": 4952
+        },
+        "current_sections": {
+          "text": 7508102,
+          "data": 506496,
+          "bss": 400
+        },
+        "current_file_bytes": 13868416,
+        "current_roster": {
+          "symbol": "<netdata_promql_engine::execution::CompiledQuery>::prepare_rosters::<netdata_promql_engine::storage_observed::ObservedQuery<netdata_promql_engine::c_abi::provider::Query>>",
+          "address": "0xac770",
+          "text_bytes": 49773,
+          "entry_instructions": [
+            "   ac770:\tpush   %rbp",
+            "   ac771:\tpush   %r15",
+            "   ac773:\tpush   %r14",
+            "   ac775:\tpush   %r13",
+            "   ac777:\tpush   %r12",
+            "   ac779:\tpush   %rbx",
+            "   ac77a:\tsub    $0x1000,%rsp",
+            "   ac781:\tmovq   $0x0,(%rsp)",
+            "   ac789:\tsub    $0x2b8,%rsp",
+            "   ac790:\tmov    %rcx,0x40(%rsp)",
+            "   ac795:\tmov    %rdx,%r14",
+            "   ac798:\tmov    %rsi,%r15",
+            "   ac79b:\tmov    %rdi,0x28(%rsp)",
+            "   ac7a0:\tmov    0x12f8(%rsp),%rbx",
+            "   ac7a8:\tmov    0x12f0(%rsp),%r13",
+            "   ac7b0:\tmov    %r8,0x600(%rsp)",
+            "   ac7b8:\tmov    %r9,0x608(%rsp)",
+            "   ac7c0:\tmov    $0x3,%esi",
+            "   ac7c5:\tmov    %rbx,%rdi",
+            "   ac7c8:\tcall   *0x6f7082(%rip)        # 7a3850 <_GLOBAL_OFFSET_TABLE_+0x178>",
+            "   ac7ce:\tmov    %rax,0x650(%rsp)",
+            "   ac7d6:\tmov    %rdx,0x658(%rsp)",
+            "   ac7de:\tmov    0x50(%r15),%rax",
+            "   ac7e2:\tmov    %rax,0x370(%rsp)",
+            "   ac7ea:\tmov    %r15,0x58(%rsp)",
+            "   ac7ef:\tmov    0x58(%r15),%rdx",
+            "   ac7f3:\tlea    0x100(%rsp),%rdi",
+            "   ac7fb:\tmov    %rbx,%rsi",
+            "   ac7fe:\tmov    %rdx,0xa0(%rsp)",
+            "   ac806:\tmov    %r13,%rcx",
+            "   ac809:\tcall   *0x6f77c9(%rip)        # 7a3fd8 <_GLOBAL_OFFSET_TABLE_+0x900>",
+            "   ac80f:\tlea    0x658(%rsp),%rbx"
+          ],
+          "entry_rsp_subtractions": [
+            4096,
+            696
+          ],
+          "entry_saved_register_bytes": 48,
+          "entry_total_rsp_decrement_bytes": 4840
+        },
+        "section_deltas": {
+          "text": -592,
+          "data": 0,
+          "bss": 0
+        },
+        "file_delta": -168
+      },
+      {
+        "kind": "fixture",
+        "label": "release-min",
+        "target": "x86_64-unknown-linux-gnu",
+        "before": {
+          "path": ".tmp/count-values-index-ida3a85g/tuned-release-min/promql-query-fixture",
+          "sha256": "a8392b1d41093e0a616eab9534430eaec8f6b9d39ba78ea73e6003d27cb7046d"
+        },
+        "current": {
+          "path": ".tmp/conditional-count-l9g_piyb/current-release-min/promql-query-fixture",
+          "sha256": "369393022ced8dfe28c8df3e669cd823be81cf1eabf428526a301c85bc802d9e"
+        },
+        "before_sections": {
+          "text": 2786141,
+          "data": 246024,
+          "bss": 868
+        },
+        "before_file_bytes": 3599272,
+        "current_sections": {
+          "text": 2785601,
+          "data": 246024,
+          "bss": 1412
+        },
+        "current_file_bytes": 3598728,
+        "section_deltas": {
+          "text": -540,
+          "data": 0,
+          "bss": 544
+        },
+        "file_delta": -544
+      },
+      {
+        "kind": "default-embedding-C",
+        "label": "release-min",
+        "target": "x86_64-unknown-linux-gnu",
+        "before": {
+          "path": ".tmp/conditional-count-l9g_piyb/current-callers-release-min/embedding-before",
+          "sha256": "39720d7af3ccaf260431328872fd663114445c7e9f0f0c6a3f66c59f6e75492b"
+        },
+        "current": {
+          "path": ".tmp/conditional-count-l9g_piyb/current-callers-release-min/embedding-current",
+          "sha256": "0d0ea490227558df14d254c281cf28ce25a1504b2cd6449e610f65650aa79277"
+        },
+        "before_sections": {
+          "text": 5057311,
+          "data": 461608,
+          "bss": 400
+        },
+        "before_file_bytes": 11562904,
+        "before_roster": {
+          "symbol": "<netdata_promql_engine::execution::CompiledQuery>::prepare_rosters::<netdata_promql_engine::storage_observed::ObservedQuery<netdata_promql_engine::c_abi::provider::Query>>",
+          "address": "0xbaa4a",
+          "text_bytes": 33739,
+          "entry_instructions": [
+            "   baa4a:\tpush   %rbp",
+            "   baa4b:\tpush   %r15",
+            "   baa4d:\tpush   %r14",
+            "   baa4f:\tpush   %r13",
+            "   baa51:\tpush   %r12",
+            "   baa53:\tpush   %rbx",
+            "   baa54:\tsub    $0x1000,%rsp",
+            "   baa5b:\tmovq   $0x0,(%rsp)",
+            "   baa63:\tsub    $0x48,%rsp",
+            "   baa67:\tmov    %rcx,0x40(%rsp)",
+            "   baa6c:\tmov    %rdx,0xc0(%rsp)",
+            "   baa74:\tmov    %rsi,%r14",
+            "   baa77:\tmov    %rdi,0x30(%rsp)",
+            "   baa7c:\tmov    0x1088(%rsp),%rbx",
+            "   baa84:\tmov    0x1080(%rsp),%r15",
+            "   baa8c:\tmov    %r8,0x4b0(%rsp)",
+            "   baa94:\tmov    %r9,0x4b8(%rsp)",
+            "   baa9c:\tpush   $0x3",
+            "   baa9e:\tpop    %rsi",
+            "   baa9f:\tmov    %rbx,%rdi",
+            "   baaa2:\tcall   *0x489888(%rip)        # 544330 <_GLOBAL_OFFSET_TABLE_+0x7790>",
+            "   baaa8:\tmov    %rax,0x8e0(%rsp)",
+            "   baab0:\tmov    %rdx,0x8e8(%rsp)",
+            "   baab8:\tmov    %r14,0x48(%rsp)",
+            "   baabd:\tmov    0x58(%r14),%rdx",
+            "   baac1:\tlea    0xf0(%rsp),%rdi",
+            "   baac9:\tmov    %rbx,%rsi",
+            "   baacc:\tmov    %r15,%rcx",
+            "   baacf:\tcall   *0x486f33(%rip)        # 541a08 <_GLOBAL_OFFSET_TABLE_+0x4e68>",
+            "   baad5:\tcmpl   $0x2,0xf0(%rsp)",
+            "   baadd:\tjne    bab02 <_RINvMs4_NtCs6ClwAL6ClPZ_21netdata_promql_engine9executionNtB6_13CompiledQuery15prepare_rostersINtNtB8_16storage_observed13ObservedQueryNtNtNtB8_5c_abi8provider5QueryEEB8_+0xb8>",
+            "   baadf:\tmov    0xf8(%rsp),%al"
+          ],
+          "entry_rsp_subtractions": [
+            4096,
+            72
+          ],
+          "entry_saved_register_bytes": 48,
+          "entry_total_rsp_decrement_bytes": 4216
+        },
+        "current_sections": {
+          "text": 5056619,
+          "data": 461608,
+          "bss": 400
+        },
+        "current_file_bytes": 11562904,
+        "current_roster": {
+          "symbol": "<netdata_promql_engine::execution::CompiledQuery>::prepare_rosters::<netdata_promql_engine::storage_observed::ObservedQuery<netdata_promql_engine::c_abi::provider::Query>>",
+          "address": "0xbaa4a",
+          "text_bytes": 33068,
+          "entry_instructions": [
+            "   baa4a:\tpush   %rbp",
+            "   baa4b:\tpush   %r15",
+            "   baa4d:\tpush   %r14",
+            "   baa4f:\tpush   %r13",
+            "   baa51:\tpush   %r12",
+            "   baa53:\tpush   %rbx",
+            "   baa54:\tsub    $0x1000,%rsp",
+            "   baa5b:\tmovq   $0x0,(%rsp)",
+            "   baa63:\tsub    $0x38,%rsp",
+            "   baa67:\tmov    %rcx,0x40(%rsp)",
+            "   baa6c:\tmov    %rdx,0xb8(%rsp)",
+            "   baa74:\tmov    %rsi,%r14",
+            "   baa77:\tmov    %rdi,0x30(%rsp)",
+            "   baa7c:\tmov    0x1078(%rsp),%rbx",
+            "   baa84:\tmov    0x1070(%rsp),%r15",
+            "   baa8c:\tmov    %r8,0x4a0(%rsp)",
+            "   baa94:\tmov    %r9,0x4a8(%rsp)",
+            "   baa9c:\tpush   $0x3",
+            "   baa9e:\tpop    %rsi",
+            "   baa9f:\tmov    %rbx,%rdi",
+            "   baaa2:\tcall   *0x489880(%rip)        # 544328 <_GLOBAL_OFFSET_TABLE_+0x7788>",
+            "   baaa8:\tmov    %rax,0x8d0(%rsp)",
+            "   baab0:\tmov    %rdx,0x8d8(%rsp)",
+            "   baab8:\tmov    %r14,0x48(%rsp)",
+            "   baabd:\tmov    0x58(%r14),%rdx",
+            "   baac1:\tmov    %r15,%r14",
+            "   baac4:\tlea    0xf0(%rsp),%rdi",
+            "   baacc:\tmov    %rbx,%rsi",
+            "   baacf:\tmov    %r15,%rcx",
+            "   baad2:\tcall   *0x486f48(%rip)        # 541a20 <_GLOBAL_OFFSET_TABLE_+0x4e80>",
+            "   baad8:\tcmpl   $0x2,0xf0(%rsp)",
+            "   baae0:\tjne    bab05 <_RINvMs4_NtCs6ClwAL6ClPZ_21netdata_promql_engine9executionNtB6_13CompiledQuery15prepare_rostersINtNtB8_16storage_observed13ObservedQueryNtNtNtB8_5c_abi8provider5QueryEEB8_+0xbb>"
+          ],
+          "entry_rsp_subtractions": [
+            4096,
+            56
+          ],
+          "entry_saved_register_bytes": 48,
+          "entry_total_rsp_decrement_bytes": 4200
+        },
+        "section_deltas": {
+          "text": -692,
+          "data": 0,
+          "bss": 0
+        },
+        "file_delta": 0
+      },
+      {
+        "kind": "fixture",
+        "label": "arm32",
+        "target": "armv7-unknown-linux-gnueabihf",
+        "before": {
+          "path": ".tmp/count-values-index-ida3a85g/tuned-arm32/promql-query-fixture",
+          "sha256": "b42af62b7c67e219aa87df66c744e7761c815e91db76a52f0ea14bf5007a1485"
+        },
+        "current": {
+          "path": ".tmp/conditional-count-l9g_piyb/current-arm32/promql-query-fixture",
+          "sha256": "c576a1693a9b9fb9d1079f8c2afab9469856cc62c989fcc2e11e8d5d18771a73"
+        },
+        "before_sections": {
+          "text": 3744802,
+          "data": 164608,
+          "bss": 212
+        },
+        "before_file_bytes": 5023752,
+        "current_sections": {
+          "text": 3744270,
+          "data": 164608,
+          "bss": 212
+        },
+        "current_file_bytes": 5023644,
+        "section_deltas": {
+          "text": -532,
+          "data": 0,
+          "bss": 0
+        },
+        "file_delta": -108
+      },
+      {
+        "kind": "fixture",
+        "label": "arm64",
+        "target": "aarch64-unknown-linux-gnu",
+        "before": {
+          "path": ".tmp/count-values-index-ida3a85g/tuned-arm64/promql-query-fixture",
+          "sha256": "76d798f1fed01231d3d7fd790b113359e7467018eba1eec82320db278e341eff"
+        },
+        "current": {
+          "path": ".tmp/conditional-count-l9g_piyb/current-arm64/promql-query-fixture",
+          "sha256": "be86ee8861c1523bc8fdaa7e7feb45b22d989372ef53a21990b2db1dd0e5dcf2"
+        },
+        "before_sections": {
+          "text": 3663127,
+          "data": 253176,
+          "bss": 328
+        },
+        "before_file_bytes": 5089176,
+        "current_sections": {
+          "text": 3650787,
+          "data": 253192,
+          "bss": 328
+        },
+        "current_file_bytes": 5088784,
+        "section_deltas": {
+          "text": -12340,
+          "data": 16,
+          "bss": 0
+        },
+        "file_delta": -392
+      }
+    ],
+    "retained_layouts": {
+      "release": {
+        "before": {
+          "plan": 160,
+          "cache": 56,
+          "step": 80,
+          "index": 56,
+          "boxed_index": 80,
+          "optional_index": 8
+        },
+        "current": {
+          "plan": 160,
+          "cache": 56,
+          "step": 80,
+          "index": 56,
+          "boxed_index": 80,
+          "optional_index": 8
+        }
+      },
+      "release-min": {
+        "before": {
+          "plan": 160,
+          "cache": 56,
+          "step": 80,
+          "index": 56,
+          "boxed_index": 80,
+          "optional_index": 8
+        },
+        "current": {
+          "plan": 160,
+          "cache": 56,
+          "step": 80,
+          "index": 56,
+          "boxed_index": 80,
+          "optional_index": 8
+        }
+      },
+      "arm32": {
+        "before": {
+          "plan": 112,
+          "cache": 40,
+          "step": 48,
+          "index": 40,
+          "boxed_index": 56,
+          "optional_index": 4
+        },
+        "current": {
+          "plan": 112,
+          "cache": 40,
+          "step": 48,
+          "index": 40,
+          "boxed_index": 56,
+          "optional_index": 4
+        }
+      },
+      "arm64": {
+        "before": {
+          "plan": 160,
+          "cache": 56,
+          "step": 80,
+          "index": 56,
+          "boxed_index": 80,
+          "optional_index": 8
+        },
+        "current": {
+          "plan": 160,
+          "cache": 56,
+          "step": 80,
+          "index": 56,
+          "boxed_index": 80,
+          "optional_index": 8
+        }
+      }
+    },
+    "tracked_memory": "All eight current/peak categories and every other nonelapsed fixture field equal in9056pairs; actual C rows/statistics/work/Workspace peaks equal too. Empty unused cache had no heap payload; removing it does not demonstrate lower tracked heap.",
+    "compiled_entry_scope": "Actual optimized C-provider preparation entry RSP decrements; not runtime stack high-water,whole-query stack,process RSS or allocator retained bytes."
+  },
+  "timing_policy": {
+    "cases": 40,
+    "batches": 3,
+    "warmups": 1,
+    "measured": 3,
+    "followup_ratio": 1.05,
+    "followup": {
+      "batches": 3,
+      "warmups": 1,
+      "measured": 3
+    },
+    "payloads": {
+      "preflight": ".tmp/conditional-count-l9g_piyb/timing-preflight.jsonl",
+      "primary": ".tmp/conditional-count-l9g_piyb/timing-primary.jsonl"
+    },
+    "preflight_maximum_elapsed_ns": 2000000000,
+    "scope": "Source-driven fixed40complete queries/profile before producer edits:16ordinary selector/aggregate/ranking/projection plus24direct/repeated/nested count controls at0/16inputs; both names and instant/range. Three serial alternating blocks,one warmup and three measured per arm; exactly one identical follow-up for each primary ratio>=1.05. All slower samples kept. Native fixture only; no C/live/concurrent/whole-Agent or physical-device throughput claim."
+  },
+  "timings": {
+    "release": {
+      "complete_paired_results": 592,
+      "slower_primary_medians": 24,
+      "threshold_primary_medians": 6,
+      "persistent_threshold_medians": 0,
+      "median_case_ratio": 1.0073472787458893,
+      "ordinary_median_case_ratio": 1.0073472787458893,
+      "primary": [
+        {
+          "id": "count-values-common:selector:0:0:0",
+          "before_ns": [
+            92439,
+            87849,
+            88209,
+            91899,
+            85929,
+            85969,
+            90299,
+            97380,
+            85290
+          ],
+          "current_ns": [
+            90169,
+            85449,
+            85379,
+            93389,
+            86520,
+            84989,
+            89889,
+            86689,
+            86049
+          ],
+          "before_median_ns": 88209,
+          "current_median_ns": 86520,
+          "current_before_ratio": 0.9808522939836071,
+          "query": "m",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:aggregate:0:0:0",
+          "before_ns": [
+            140939,
+            140579,
+            136499,
+            139019,
+            135569,
+            135469,
+            134998,
+            149068,
+            136899
+          ],
+          "current_ns": [
+            154758,
+            136069,
+            134039,
+            154018,
+            135208,
+            148979,
+            144138,
+            134819,
+            135169
+          ],
+          "before_median_ns": 136899,
+          "current_median_ns": 136069,
+          "current_before_ratio": 0.99393713613686,
+          "query": "sum by(id)(m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:ranking:0:0:0",
+          "before_ns": [
+            117339,
+            115119,
+            119189,
+            129519,
+            115499,
+            114679,
+            116699,
+            113400,
+            113829
+          ],
+          "current_ns": [
+            115729,
+            113168,
+            113109,
+            117819,
+            114728,
+            115839,
+            115259,
+            124979,
+            113429
+          ],
+          "before_median_ns": 115499,
+          "current_median_ns": 115259,
+          "current_before_ratio": 0.9979220599312548,
+          "query": "topk(1,m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:projection:0:0:0",
+          "before_ns": [
+            113049,
+            113219,
+            114179,
+            112499,
+            115439,
+            111609,
+            112899,
+            110249,
+            110149
+          ],
+          "current_ns": [
+            146199,
+            116819,
+            112019,
+            134559,
+            134550,
+            137149,
+            112289,
+            111059,
+            112959
+          ],
+          "before_median_ns": 112899,
+          "current_median_ns": 116819,
+          "current_before_ratio": 1.034721299568641,
+          "query": "label_join(m,\"copy\",\"/\",\"id\")",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:selector:0:0:1",
+          "before_ns": [
+            111549,
+            110288,
+            112889,
+            111069,
+            110259,
+            107969,
+            107519,
+            106979,
+            106299
+          ],
+          "current_ns": [
+            110869,
+            107759,
+            108639,
+            118899,
+            111769,
+            108639,
+            111099,
+            118529,
+            111939
+          ],
+          "before_median_ns": 110259,
+          "current_median_ns": 111099,
+          "current_before_ratio": 1.007618425706745,
+          "query": "m",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:aggregate:0:0:1",
+          "before_ns": [
+            313168,
+            300437,
+            298517,
+            313038,
+            295188,
+            304577,
+            290328,
+            356017,
+            296248
+          ],
+          "current_ns": [
+            294137,
+            290787,
+            464826,
+            292757,
+            310107,
+            296747,
+            300368,
+            287687,
+            285858
+          ],
+          "before_median_ns": 300437,
+          "current_median_ns": 294137,
+          "current_before_ratio": 0.9790305455053805,
+          "query": "sum by(id)(m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:ranking:0:0:1",
+          "before_ns": [
+            408906,
+            426547,
+            410877,
+            419767,
+            404287,
+            415857,
+            404056,
+            417076,
+            405046
+          ],
+          "current_ns": [
+            672054,
+            611385,
+            450346,
+            416186,
+            568056,
+            521776,
+            412527,
+            412977,
+            410486
+          ],
+          "before_median_ns": 410877,
+          "current_median_ns": 450346,
+          "current_before_ratio": 1.096060378166702,
+          "query": "topk(1,m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:projection:0:0:1",
+          "before_ns": [
+            194038,
+            187138,
+            192529,
+            189068,
+            196678,
+            184729,
+            189369,
+            180258,
+            190028
+          ],
+          "current_ns": [
+            210069,
+            185469,
+            185768,
+            195478,
+            186378,
+            190709,
+            190718,
+            185558,
+            191039
+          ],
+          "before_median_ns": 189369,
+          "current_median_ns": 190709,
+          "current_before_ratio": 1.0070761317850334,
+          "query": "label_join(m,\"copy\",\"/\",\"id\")",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:selector:1:0:0",
+          "before_ns": [
+            99799,
+            115619,
+            99370,
+            98139,
+            97279,
+            97229,
+            98179,
+            94679,
+            96379
+          ],
+          "current_ns": [
+            121190,
+            99719,
+            99590,
+            111409,
+            132059,
+            131479,
+            100139,
+            105689,
+            99330
+          ],
+          "before_median_ns": 98139,
+          "current_median_ns": 105689,
+          "current_before_ratio": 1.0769316989168425,
+          "query": "m",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:aggregate:1:0:0",
+          "before_ns": [
+            150169,
+            164729,
+            147539,
+            147779,
+            147799,
+            144969,
+            147429,
+            142919,
+            144559
+          ],
+          "current_ns": [
+            163469,
+            149879,
+            146088,
+            198098,
+            151449,
+            147929,
+            149199,
+            159769,
+            143929
+          ],
+          "before_median_ns": 147539,
+          "current_median_ns": 149879,
+          "current_before_ratio": 1.0158602132317556,
+          "query": "sum by(id)(m)",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:ranking:1:0:0",
+          "before_ns": [
+            122010,
+            119839,
+            131379,
+            116409,
+            116429,
+            118839,
+            115279,
+            116189,
+            113819
+          ],
+          "current_ns": [
+            115899,
+            116599,
+            114059,
+            135339,
+            116909,
+            113809,
+            112799,
+            114119,
+            111589
+          ],
+          "before_median_ns": 116429,
+          "current_median_ns": 114119,
+          "current_before_ratio": 0.9801595822346666,
+          "query": "topk(1,m)",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:projection:1:0:0",
+          "before_ns": [
+            130619,
+            129919,
+            144199,
+            126249,
+            127219,
+            130609,
+            142449,
+            127369,
+            125269
+          ],
+          "current_ns": [
+            144868,
+            131439,
+            128629,
+            131649,
+            138209,
+            133229,
+            130639,
+            129949,
+            130630
+          ],
+          "before_median_ns": 129919,
+          "current_median_ns": 131439,
+          "current_before_ratio": 1.0116995974414829,
+          "query": "label_join(m,\"copy\",\"/\",\"id\")",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:selector:1:0:1",
+          "before_ns": [
+            140179,
+            138329,
+            143239,
+            135989,
+            134499,
+            138239,
+            135069,
+            131959,
+            134319
+          ],
+          "current_ns": [
+            141379,
+            137449,
+            138259,
+            155899,
+            140709,
+            140829,
+            137528,
+            137179,
+            149139
+          ],
+          "before_median_ns": 135989,
+          "current_median_ns": 140709,
+          "current_before_ratio": 1.0347086896734294,
+          "query": "m",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:aggregate:1:0:1",
+          "before_ns": [
+            324098,
+            303958,
+            316158,
+            323657,
+            301627,
+            309747,
+            306527,
+            308687,
+            299208
+          ],
+          "current_ns": [
+            307147,
+            313357,
+            301478,
+            319717,
+            310418,
+            309438,
+            313757,
+            296777,
+            300737
+          ],
+          "before_median_ns": 308687,
+          "current_median_ns": 309438,
+          "current_before_ratio": 1.002432885090723,
+          "query": "sum by(id)(m)",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:ranking:1:0:1",
+          "before_ns": [
+            435246,
+            417297,
+            433647,
+            422866,
+            408527,
+            402007,
+            409026,
+            407476,
+            404116
+          ],
+          "current_ns": [
+            411146,
+            422586,
+            404686,
+            421627,
+            422726,
+            405837,
+            410817,
+            418897,
+            404247
+          ],
+          "before_median_ns": 409026,
+          "current_median_ns": 411146,
+          "current_before_ratio": 1.0051830445986318,
+          "query": "topk(1,m)",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:projection:1:0:1",
+          "before_ns": [
+            247028,
+            247828,
+            241768,
+            245668,
+            261727,
+            240558,
+            252498,
+            238428,
+            263448
+          ],
+          "current_ns": [
+            250448,
+            246067,
+            273618,
+            256308,
+            266578,
+            250578,
+            250888,
+            286168,
+            250197
+          ],
+          "before_median_ns": 247028,
+          "current_median_ns": 250888,
+          "current_before_ratio": 1.0156257590232687,
+          "query": "label_join(m,\"copy\",\"/\",\"id\")",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:0:0",
+          "before_ns": [
+            12900,
+            9950,
+            10170,
+            10791,
+            9320,
+            9540,
+            10580,
+            8970,
+            9360
+          ],
+          "current_ns": [
+            16310,
+            12230,
+            9839,
+            11040,
+            9210,
+            9570,
+            11010,
+            9300,
+            9600
+          ],
+          "before_median_ns": 9950,
+          "current_median_ns": 9839,
+          "current_before_ratio": 0.9888442211055276,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:0:1",
+          "before_ns": [
+            10359,
+            10160,
+            10160,
+            12010,
+            10099,
+            9820,
+            9530,
+            9480,
+            9590
+          ],
+          "current_ns": [
+            10040,
+            9780,
+            9510,
+            9990,
+            9960,
+            9760,
+            9889,
+            9820,
+            11700
+          ],
+          "before_median_ns": 10099,
+          "current_median_ns": 9889,
+          "current_before_ratio": 0.9792058619665314,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:1:0",
+          "before_ns": [
+            9810,
+            9090,
+            8389,
+            9240,
+            8460,
+            8240,
+            9010,
+            8070,
+            8050
+          ],
+          "current_ns": [
+            9130,
+            8320,
+            8330,
+            9520,
+            14230,
+            17940,
+            9510,
+            8250,
+            8180
+          ],
+          "before_median_ns": 8460,
+          "current_median_ns": 9130,
+          "current_before_ratio": 1.07919621749409,
+          "query": "count_values(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:1:1",
+          "before_ns": [
+            9780,
+            9790,
+            10470,
+            9610,
+            9330,
+            10119,
+            9220,
+            9230,
+            9910
+          ],
+          "current_ns": [
+            9200,
+            22500,
+            10620,
+            16520,
+            18040,
+            15430,
+            9380,
+            9531,
+            10260
+          ],
+          "before_median_ns": 9780,
+          "current_median_ns": 10620,
+          "current_before_ratio": 1.0858895705521472,
+          "query": "count_values(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:2:0",
+          "before_ns": [
+            9579,
+            10090,
+            9420,
+            9100,
+            9150,
+            8680,
+            9179,
+            11050,
+            8850
+          ],
+          "current_ns": [
+            9399,
+            9350,
+            8980,
+            14230,
+            13649,
+            12950,
+            9360,
+            9590,
+            8740
+          ],
+          "before_median_ns": 9179,
+          "current_median_ns": 9399,
+          "current_before_ratio": 1.0239677524784836,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:2:1",
+          "before_ns": [
+            12510,
+            11340,
+            11630,
+            12080,
+            10980,
+            10889,
+            11720,
+            10860,
+            10830
+          ],
+          "current_ns": [
+            12430,
+            11250,
+            11110,
+            22450,
+            14370,
+            13811,
+            12610,
+            11200,
+            10910
+          ],
+          "before_median_ns": 11340,
+          "current_median_ns": 12430,
+          "current_before_ratio": 1.0961199294532629,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:1:0:0",
+          "before_ns": [
+            9140,
+            9080,
+            9090,
+            8660,
+            8619,
+            8560,
+            8000,
+            7990,
+            8090
+          ],
+          "current_ns": [
+            8440,
+            8350,
+            8410,
+            8190,
+            8500,
+            8390,
+            8250,
+            8850,
+            8851
+          ],
+          "before_median_ns": 8619,
+          "current_median_ns": 8410,
+          "current_before_ratio": 0.9757512472444599,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:1:0:1",
+          "before_ns": [
+            10559,
+            10390,
+            10240,
+            11370,
+            9580,
+            9820,
+            9520,
+            9320,
+            9320
+          ],
+          "current_ns": [
+            9740,
+            9600,
+            9580,
+            9480,
+            9260,
+            9280,
+            9960,
+            19829,
+            10270
+          ],
+          "before_median_ns": 9820,
+          "current_median_ns": 9600,
+          "current_before_ratio": 0.9775967413441955,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:1:1:0",
+          "before_ns": [
+            8770,
+            9630,
+            8871,
+            8540,
+            9039,
+            8410,
+            8060,
+            8580,
+            7940
+          ],
+          "current_ns": [
+            8110,
+            8710,
+            8100,
+            8060,
+            8720,
+            8211,
+            8139,
+            8750,
+            8290
+          ],
+          "before_median_ns": 8580,
+          "current_median_ns": 8211,
+          "current_before_ratio": 0.956993006993007,
+          "query": "count_values(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:1:1:1",
+          "before_ns": [
+            9910,
+            9800,
+            9830,
+            9440,
+            9560,
+            9620,
+            9120,
+            9170,
+            9320
+          ],
+          "current_ns": [
+            9400,
+            10680,
+            9040,
+            18180,
+            11090,
+            9350,
+            9190,
+            9130,
+            9060
+          ],
+          "before_median_ns": 9560,
+          "current_median_ns": 9350,
+          "current_before_ratio": 0.9780334728033473,
+          "query": "count_values(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:1:2:0",
+          "before_ns": [
+            9660,
+            9160,
+            9020,
+            8970,
+            9030,
+            9049,
+            8940,
+            95710,
+            9480
+          ],
+          "current_ns": [
+            8990,
+            8750,
+            8630,
+            9040,
+            8580,
+            8490,
+            8770,
+            8570,
+            8320
+          ],
+          "before_median_ns": 9049,
+          "current_median_ns": 8630,
+          "current_before_ratio": 0.9536965410542602,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:1:2:1",
+          "before_ns": [
+            11700,
+            12680,
+            13250,
+            11500,
+            12100,
+            10840,
+            10900,
+            11590,
+            10890
+          ],
+          "current_ns": [
+            11060,
+            12060,
+            11010,
+            21830,
+            13130,
+            10930,
+            13450,
+            11739,
+            10640
+          ],
+          "before_median_ns": 11590,
+          "current_median_ns": 11739,
+          "current_before_ratio": 1.012855910267472,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:0:0",
+          "before_ns": [
+            189889,
+            184539,
+            185958,
+            187068,
+            179968,
+            247628,
+            215508,
+            180069,
+            175908
+          ],
+          "current_ns": [
+            198558,
+            181908,
+            179279,
+            188628,
+            199918,
+            184539,
+            187579,
+            179009,
+            181108
+          ],
+          "before_median_ns": 185958,
+          "current_median_ns": 184539,
+          "current_before_ratio": 0.9923692446681509,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:0:1",
+          "before_ns": [
+            447007,
+            458456,
+            482076,
+            454136,
+            457956,
+            432756,
+            433646,
+            435396,
+            441816
+          ],
+          "current_ns": [
+            459446,
+            441396,
+            441506,
+            441716,
+            462436,
+            460405,
+            459226,
+            446136,
+            439217
+          ],
+          "before_median_ns": 447007,
+          "current_median_ns": 446136,
+          "current_before_ratio": 0.9980514846523656,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:1:0",
+          "before_ns": [
+            124669,
+            124228,
+            139419,
+            119259,
+            117699,
+            118349,
+            118719,
+            137629,
+            119129
+          ],
+          "current_ns": [
+            144318,
+            125549,
+            119590,
+            122229,
+            119869,
+            137249,
+            119479,
+            118169,
+            119589
+          ],
+          "before_median_ns": 119259,
+          "current_median_ns": 119869,
+          "current_before_ratio": 1.005114917951685,
+          "query": "count_values(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:1:1",
+          "before_ns": [
+            271408,
+            269438,
+            273638,
+            263618,
+            260088,
+            259098,
+            258848,
+            281918,
+            260858
+          ],
+          "current_ns": [
+            279157,
+            265008,
+            296337,
+            457136,
+            444667,
+            363647,
+            270398,
+            260437,
+            253448
+          ],
+          "before_median_ns": 263618,
+          "current_median_ns": 279157,
+          "current_before_ratio": 1.0589451403166703,
+          "query": "count_values(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:2:0",
+          "before_ns": [
+            299757,
+            285168,
+            278798,
+            276207,
+            293518,
+            271688,
+            293868,
+            444666,
+            285568
+          ],
+          "current_ns": [
+            285098,
+            282018,
+            293947,
+            286548,
+            297487,
+            278848,
+            275907,
+            274588,
+            274797
+          ],
+          "before_median_ns": 285568,
+          "current_median_ns": 282018,
+          "current_before_ratio": 0.9875686351411923,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:2:1",
+          "before_ns": [
+            726974,
+            732954,
+            741003,
+            709904,
+            713944,
+            717943,
+            687175,
+            694094,
+            705694
+          ],
+          "current_ns": [
+            747314,
+            806413,
+            738364,
+            761774,
+            752363,
+            740684,
+            697414,
+            700704,
+            705394
+          ],
+          "before_median_ns": 713944,
+          "current_median_ns": 740684,
+          "current_before_ratio": 1.0374539179543494,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:1:0:0",
+          "before_ns": [
+            191118,
+            184938,
+            186308,
+            182419,
+            178458,
+            181359,
+            183369,
+            177598,
+            178099
+          ],
+          "current_ns": [
+            216678,
+            201848,
+            184458,
+            198858,
+            187949,
+            184768,
+            181718,
+            172538,
+            185659
+          ],
+          "before_median_ns": 182419,
+          "current_median_ns": 185659,
+          "current_before_ratio": 1.017761307758512,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:1:0:1",
+          "before_ns": [
+            485296,
+            477886,
+            471725,
+            457586,
+            467316,
+            471716,
+            462845,
+            450726,
+            451336
+          ],
+          "current_ns": [
+            468266,
+            481546,
+            484176,
+            489176,
+            487056,
+            553375,
+            467646,
+            474236,
+            451345
+          ],
+          "before_median_ns": 467316,
+          "current_median_ns": 481546,
+          "current_before_ratio": 1.030450487464585,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:1:1:0",
+          "before_ns": [
+            128579,
+            125389,
+            125079,
+            120999,
+            119479,
+            136339,
+            121509,
+            123419,
+            117549
+          ],
+          "current_ns": [
+            121789,
+            122749,
+            120299,
+            210398,
+            204299,
+            211728,
+            117449,
+            113809,
+            116089
+          ],
+          "before_median_ns": 123419,
+          "current_median_ns": 121789,
+          "current_before_ratio": 0.986792957324237,
+          "query": "count_values(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:1:1:1",
+          "before_ns": [
+            276288,
+            274458,
+            293637,
+            262117,
+            263248,
+            281818,
+            269598,
+            279218,
+            312337
+          ],
+          "current_ns": [
+            291938,
+            292168,
+            281698,
+            272167,
+            365147,
+            271938,
+            262458,
+            262848,
+            298447
+          ],
+          "before_median_ns": 276288,
+          "current_median_ns": 281698,
+          "current_before_ratio": 1.0195810169098911,
+          "query": "count_values(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:1:2:0",
+          "before_ns": [
+            283388,
+            294607,
+            278998,
+            289867,
+            276788,
+            274127,
+            274728,
+            285928,
+            275327
+          ],
+          "current_ns": [
+            288908,
+            282007,
+            314407,
+            297217,
+            283348,
+            296807,
+            278097,
+            286988,
+            267637
+          ],
+          "before_median_ns": 278998,
+          "current_median_ns": 286988,
+          "current_before_ratio": 1.028638198123284,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:1:2:1",
+          "before_ns": [
+            766684,
+            755913,
+            745523,
+            728773,
+            736373,
+            732974,
+            721983,
+            729194,
+            718414
+          ],
+          "current_ns": [
+            751634,
+            754213,
+            783094,
+            740014,
+            731344,
+            754894,
+            733203,
+            732643,
+            718644
+          ],
+          "before_median_ns": 732974,
+          "current_median_ns": 740014,
+          "current_before_ratio": 1.00960470630609,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        }
+      ],
+      "followup": [
+        {
+          "id": "count-values-common:ranking:0:0:1",
+          "before_ns": [
+            396207,
+            412407,
+            393217,
+            406597,
+            417206,
+            404136,
+            420206,
+            411346,
+            423506
+          ],
+          "current_ns": [
+            412417,
+            391927,
+            398216,
+            394447,
+            396937,
+            385586,
+            401587,
+            402117,
+            395236
+          ],
+          "before_median_ns": 411346,
+          "current_median_ns": 396937,
+          "current_before_ratio": 0.9649710948933501,
+          "query": "topk(1,m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:selector:1:0:0",
+          "before_ns": [
+            95219,
+            98909,
+            93629,
+            125509,
+            96689,
+            96319,
+            98109,
+            98109,
+            98779
+          ],
+          "current_ns": [
+            98119,
+            94449,
+            93999,
+            106160,
+            106819,
+            94839,
+            96869,
+            98429,
+            97609
+          ],
+          "before_median_ns": 98109,
+          "current_median_ns": 97609,
+          "current_before_ratio": 0.9949036275978759,
+          "query": "m",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:1:0",
+          "before_ns": [
+            9289,
+            8950,
+            9360,
+            9710,
+            8780,
+            9430,
+            10470,
+            9510,
+            10030
+          ],
+          "current_ns": [
+            9939,
+            8630,
+            9290,
+            9630,
+            8850,
+            9410,
+            9270,
+            8810,
+            9480
+          ],
+          "before_median_ns": 9430,
+          "current_median_ns": 9290,
+          "current_before_ratio": 0.985153764581124,
+          "query": "count_values(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:1:1",
+          "before_ns": [
+            10610,
+            9140,
+            9171,
+            9110,
+            8880,
+            9100,
+            9960,
+            9740,
+            9649
+          ],
+          "current_ns": [
+            9140,
+            9100,
+            9290,
+            9450,
+            9300,
+            9270,
+            9280,
+            9360,
+            9369
+          ],
+          "before_median_ns": 9171,
+          "current_median_ns": 9290,
+          "current_before_ratio": 1.0129756842220041,
+          "query": "count_values(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:2:1",
+          "before_ns": [
+            11629,
+            11140,
+            10770,
+            12170,
+            11200,
+            11000,
+            12900,
+            11940,
+            11420
+          ],
+          "current_ns": [
+            11800,
+            16620,
+            11020,
+            11910,
+            12960,
+            11300,
+            12530,
+            11310,
+            10770
+          ],
+          "before_median_ns": 11420,
+          "current_median_ns": 11800,
+          "current_before_ratio": 1.0332749562171628,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:1:1",
+          "before_ns": [
+            257048,
+            256158,
+            252648,
+            261047,
+            271398,
+            259958,
+            282338,
+            264528,
+            265278
+          ],
+          "current_ns": [
+            254308,
+            252438,
+            248758,
+            252178,
+            266278,
+            254888,
+            260468,
+            261477,
+            271458
+          ],
+          "before_median_ns": 261047,
+          "current_median_ns": 254888,
+          "current_before_ratio": 0.9764065474799557,
+          "query": "count_values(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        }
+      ]
+    },
+    "release-min": {
+      "complete_paired_results": 520,
+      "slower_primary_medians": 0,
+      "threshold_primary_medians": 0,
+      "persistent_threshold_medians": 0,
+      "median_case_ratio": 0.9737428222616338,
+      "ordinary_median_case_ratio": 0.9727012105666297,
+      "primary": [
+        {
+          "id": "count-values-common:selector:0:0:0",
+          "before_ns": [
+            138789,
+            133179,
+            152408,
+            140529,
+            135119,
+            154098,
+            141038,
+            142659,
+            143988
+          ],
+          "current_ns": [
+            139539,
+            132868,
+            133489,
+            137148,
+            135519,
+            134649,
+            139719,
+            132229,
+            135979
+          ],
+          "before_median_ns": 141038,
+          "current_median_ns": 135519,
+          "current_before_ratio": 0.9608687020519293,
+          "query": "m",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:aggregate:0:0:0",
+          "before_ns": [
+            215198,
+            213218,
+            223829,
+            219848,
+            234928,
+            214748,
+            229188,
+            218307,
+            226687
+          ],
+          "current_ns": [
+            210318,
+            209978,
+            211899,
+            210908,
+            211558,
+            211018,
+            211928,
+            223968,
+            214648
+          ],
+          "before_median_ns": 219848,
+          "current_median_ns": 211558,
+          "current_before_ratio": 0.9622921291073833,
+          "query": "sum by(id)(m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:ranking:0:0:0",
+          "before_ns": [
+            188309,
+            182828,
+            185319,
+            197429,
+            189519,
+            192029,
+            194149,
+            184609,
+            186419
+          ],
+          "current_ns": [
+            183059,
+            180809,
+            186589,
+            182469,
+            205209,
+            183679,
+            184669,
+            195829,
+            184279
+          ],
+          "before_median_ns": 188309,
+          "current_median_ns": 184279,
+          "current_before_ratio": 0.9785990048271723,
+          "query": "topk(1,m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:projection:0:0:0",
+          "before_ns": [
+            187579,
+            194918,
+            186658,
+            194299,
+            189969,
+            190859,
+            192678,
+            188768,
+            197819
+          ],
+          "current_ns": [
+            185419,
+            185038,
+            182988,
+            206978,
+            187169,
+            186049,
+            187078,
+            186638,
+            188268
+          ],
+          "before_median_ns": 190859,
+          "current_median_ns": 186638,
+          "current_before_ratio": 0.9778841972346077,
+          "query": "label_join(m,\"copy\",\"/\",\"id\")",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:selector:0:0:1",
+          "before_ns": [
+            170328,
+            173659,
+            167639,
+            182908,
+            181118,
+            178458,
+            171708,
+            181238,
+            172428
+          ],
+          "current_ns": [
+            168049,
+            164209,
+            166038,
+            170659,
+            170109,
+            163419,
+            169108,
+            167568,
+            178948
+          ],
+          "before_median_ns": 173659,
+          "current_median_ns": 168049,
+          "current_before_ratio": 0.9676953109254344,
+          "query": "m",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:aggregate:0:0:1",
+          "before_ns": [
+            462876,
+            454956,
+            463896,
+            473365,
+            481246,
+            475116,
+            468236,
+            476676,
+            465027
+          ],
+          "current_ns": [
+            481436,
+            451536,
+            455786,
+            469606,
+            452916,
+            501306,
+            469796,
+            455406,
+            453346
+          ],
+          "before_median_ns": 468236,
+          "current_median_ns": 455786,
+          "current_before_ratio": 0.9734108441042552,
+          "query": "sum by(id)(m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:ranking:0:0:1",
+          "before_ns": [
+            657754,
+            674444,
+            684794,
+            699644,
+            687474,
+            716814,
+            678404,
+            679545,
+            699074
+          ],
+          "current_ns": [
+            665614,
+            659045,
+            668844,
+            653345,
+            670935,
+            667274,
+            668435,
+            654095,
+            665535
+          ],
+          "before_median_ns": 684794,
+          "current_median_ns": 665614,
+          "current_before_ratio": 0.9719915770290043,
+          "query": "topk(1,m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:projection:0:0:1",
+          "before_ns": [
+            318527,
+            310267,
+            311717,
+            342007,
+            319517,
+            371226,
+            319777,
+            312257,
+            320207
+          ],
+          "current_ns": [
+            309068,
+            312887,
+            302377,
+            323607,
+            308408,
+            315627,
+            311757,
+            313767,
+            308717
+          ],
+          "before_median_ns": 319517,
+          "current_median_ns": 311757,
+          "current_before_ratio": 0.9757133423260734,
+          "query": "label_join(m,\"copy\",\"/\",\"id\")",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:selector:1:0:0",
+          "before_ns": [
+            174678,
+            155178,
+            156149,
+            162539,
+            169878,
+            163299,
+            157068,
+            172659,
+            159148
+          ],
+          "current_ns": [
+            159519,
+            152888,
+            156369,
+            157669,
+            164749,
+            156688,
+            160599,
+            159088,
+            168579
+          ],
+          "before_median_ns": 162539,
+          "current_median_ns": 159088,
+          "current_before_ratio": 0.9787681725616622,
+          "query": "m",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:aggregate:1:0:0",
+          "before_ns": [
+            232498,
+            230008,
+            247148,
+            249338,
+            236978,
+            235908,
+            243428,
+            228138,
+            226738
+          ],
+          "current_ns": [
+            228747,
+            224838,
+            236148,
+            240318,
+            225518,
+            225589,
+            229538,
+            224958,
+            229018
+          ],
+          "before_median_ns": 235908,
+          "current_median_ns": 228747,
+          "current_before_ratio": 0.969644946335012,
+          "query": "sum by(id)(m)",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:ranking:1:0:0",
+          "before_ns": [
+            187048,
+            189018,
+            199628,
+            188389,
+            189668,
+            190998,
+            187819,
+            192209,
+            187649
+          ],
+          "current_ns": [
+            184378,
+            184018,
+            190648,
+            185488,
+            183478,
+            182158,
+            183778,
+            196708,
+            186549
+          ],
+          "before_median_ns": 189018,
+          "current_median_ns": 184378,
+          "current_before_ratio": 0.9754520733475118,
+          "query": "topk(1,m)",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:projection:1:0:0",
+          "before_ns": [
+            224268,
+            232788,
+            215108,
+            225018,
+            224908,
+            237038,
+            222918,
+            232678,
+            227848
+          ],
+          "current_ns": [
+            216919,
+            225598,
+            217358,
+            215778,
+            214798,
+            221229,
+            218088,
+            217358,
+            214068
+          ],
+          "before_median_ns": 225018,
+          "current_median_ns": 217358,
+          "current_before_ratio": 0.9659582788932441,
+          "query": "label_join(m,\"copy\",\"/\",\"id\")",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:selector:1:0:1",
+          "before_ns": [
+            214998,
+            212298,
+            230848,
+            234758,
+            221678,
+            227488,
+            215659,
+            243448,
+            217778
+          ],
+          "current_ns": [
+            211068,
+            210568,
+            219168,
+            228828,
+            211589,
+            211658,
+            213398,
+            212198,
+            212238
+          ],
+          "before_median_ns": 221678,
+          "current_median_ns": 212198,
+          "current_before_ratio": 0.9572352691742076,
+          "query": "m",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:aggregate:1:0:1",
+          "before_ns": [
+            507016,
+            486455,
+            475886,
+            510386,
+            488446,
+            495095,
+            504665,
+            500766,
+            491916
+          ],
+          "current_ns": [
+            488526,
+            478486,
+            471246,
+            488306,
+            471776,
+            480825,
+            476376,
+            475386,
+            469486
+          ],
+          "before_median_ns": 495095,
+          "current_median_ns": 476376,
+          "current_before_ratio": 0.9621910946384027,
+          "query": "sum by(id)(m)",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:ranking:1:0:1",
+          "before_ns": [
+            693074,
+            677914,
+            659704,
+            701454,
+            679924,
+            696934,
+            662865,
+            679424,
+            673914
+          ],
+          "current_ns": [
+            684003,
+            672354,
+            664744,
+            667054,
+            672785,
+            667165,
+            670764,
+            668615,
+            657705
+          ],
+          "before_median_ns": 679424,
+          "current_median_ns": 668615,
+          "current_before_ratio": 0.9840909358515448,
+          "query": "topk(1,m)",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-common:projection:1:0:1",
+          "before_ns": [
+            415556,
+            414807,
+            443276,
+            428197,
+            418126,
+            429347,
+            411617,
+            419116,
+            406857
+          ],
+          "current_ns": [
+            407757,
+            400386,
+            408757,
+            410207,
+            422186,
+            402117,
+            406396,
+            403377,
+            407286
+          ],
+          "before_median_ns": 418126,
+          "current_median_ns": 407286,
+          "current_before_ratio": 0.9740748004190124,
+          "query": "label_join(m,\"copy\",\"/\",\"id\")",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:0:0",
+          "before_ns": [
+            12540,
+            11620,
+            11840,
+            12980,
+            11320,
+            11370,
+            13540,
+            11080,
+            12430
+          ],
+          "current_ns": [
+            12410,
+            10930,
+            11349,
+            13280,
+            11380,
+            11620,
+            12540,
+            11200,
+            11340
+          ],
+          "before_median_ns": 11840,
+          "current_median_ns": 11380,
+          "current_before_ratio": 0.9611486486486487,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:0:1",
+          "before_ns": [
+            12560,
+            12551,
+            12180,
+            12920,
+            12280,
+            12330,
+            12440,
+            12200,
+            12080
+          ],
+          "current_ns": [
+            12189,
+            15160,
+            12980,
+            12020,
+            12200,
+            11800,
+            12030,
+            12110,
+            12020
+          ],
+          "before_median_ns": 12330,
+          "current_median_ns": 12110,
+          "current_before_ratio": 0.9821573398215734,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:1:0",
+          "before_ns": [
+            11360,
+            10150,
+            10371,
+            11370,
+            10450,
+            10450,
+            11100,
+            10189,
+            10050
+          ],
+          "current_ns": [
+            10910,
+            10319,
+            10310,
+            10740,
+            10050,
+            9790,
+            10831,
+            10150,
+            10020
+          ],
+          "before_median_ns": 10450,
+          "current_median_ns": 10310,
+          "current_before_ratio": 0.9866028708133971,
+          "query": "count_values(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:1:1",
+          "before_ns": [
+            12000,
+            11800,
+            12350,
+            12610,
+            12059,
+            12480,
+            11610,
+            11650,
+            12340
+          ],
+          "current_ns": [
+            12320,
+            11850,
+            12190,
+            11270,
+            11390,
+            12099,
+            11500,
+            11590,
+            12200
+          ],
+          "before_median_ns": 12059,
+          "current_median_ns": 11850,
+          "current_before_ratio": 0.9826685463139564,
+          "query": "count_values(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:2:0",
+          "before_ns": [
+            12410,
+            12860,
+            12200,
+            12380,
+            13491,
+            12520,
+            12691,
+            12790,
+            12949
+          ],
+          "current_ns": [
+            13080,
+            12540,
+            11930,
+            12200,
+            12650,
+            12040,
+            12180,
+            12569,
+            11800
+          ],
+          "before_median_ns": 12691,
+          "current_median_ns": 12200,
+          "current_before_ratio": 0.961311165392798,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:0:2:1",
+          "before_ns": [
+            16660,
+            15140,
+            15299,
+            16220,
+            15709,
+            15270,
+            17020,
+            15370,
+            15380
+          ],
+          "current_ns": [
+            16100,
+            15080,
+            14960,
+            16200,
+            15050,
+            15010,
+            15900,
+            15209,
+            14710
+          ],
+          "before_median_ns": 15380,
+          "current_median_ns": 15080,
+          "current_before_ratio": 0.9804941482444733,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:1:0:0",
+          "before_ns": [
+            10500,
+            10570,
+            10670,
+            10790,
+            10650,
+            10890,
+            10550,
+            10420,
+            10750
+          ],
+          "current_ns": [
+            10400,
+            10320,
+            10249,
+            10230,
+            10190,
+            10450,
+            10450,
+            10580,
+            10500
+          ],
+          "before_median_ns": 10650,
+          "current_median_ns": 10400,
+          "current_before_ratio": 0.9765258215962441,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:1:0:1",
+          "before_ns": [
+            12530,
+            12260,
+            13640,
+            12530,
+            12110,
+            13370,
+            12340,
+            12120,
+            12140
+          ],
+          "current_ns": [
+            12110,
+            12660,
+            13530,
+            11840,
+            11879,
+            11810,
+            11980,
+            11790,
+            13339
+          ],
+          "before_median_ns": 12340,
+          "current_median_ns": 11980,
+          "current_before_ratio": 0.9708265802269044,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:1:1:0",
+          "before_ns": [
+            10570,
+            10910,
+            10330,
+            10579,
+            10660,
+            10290,
+            10270,
+            10670,
+            10140
+          ],
+          "current_ns": [
+            10060,
+            10370,
+            10060,
+            9910,
+            10380,
+            9740,
+            10330,
+            10540,
+            10160
+          ],
+          "before_median_ns": 10570,
+          "current_median_ns": 10160,
+          "current_before_ratio": 0.9612109744560076,
+          "query": "count_values(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:1:1:1",
+          "before_ns": [
+            11880,
+            11900,
+            11700,
+            11600,
+            11660,
+            11550,
+            12359,
+            11880,
+            12010
+          ],
+          "current_ns": [
+            11790,
+            11700,
+            11560,
+            11620,
+            12920,
+            12020,
+            11270,
+            11490,
+            11390
+          ],
+          "before_median_ns": 11880,
+          "current_median_ns": 11620,
+          "current_before_ratio": 0.9781144781144782,
+          "query": "count_values(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:1:2:0",
+          "before_ns": [
+            12330,
+            12140,
+            11930,
+            12160,
+            11940,
+            12180,
+            12569,
+            12270,
+            12009
+          ],
+          "current_ns": [
+            11870,
+            12250,
+            11780,
+            12100,
+            11869,
+            11750,
+            11919,
+            11840,
+            11719
+          ],
+          "before_median_ns": 12160,
+          "current_median_ns": 11869,
+          "current_before_ratio": 0.9760690789473684,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-0:1:2:1",
+          "before_ns": [
+            15460,
+            16379,
+            17300,
+            15580,
+            16059,
+            15270,
+            15189,
+            16350,
+            15260
+          ],
+          "current_ns": [
+            15140,
+            15490,
+            14759,
+            15260,
+            15869,
+            15320,
+            14980,
+            15730,
+            14740
+          ],
+          "before_median_ns": 15580,
+          "current_median_ns": 15260,
+          "current_before_ratio": 0.9794608472400513,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 0
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:0:0",
+          "before_ns": [
+            302927,
+            309368,
+            295238,
+            305767,
+            316827,
+            300568,
+            307538,
+            298507,
+            306197
+          ],
+          "current_ns": [
+            301527,
+            305357,
+            294038,
+            300508,
+            294188,
+            306287,
+            303348,
+            308007,
+            295637
+          ],
+          "before_median_ns": 305767,
+          "current_median_ns": 301527,
+          "current_before_ratio": 0.9861332321669768,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:0:1",
+          "before_ns": [
+            770714,
+            773313,
+            758753,
+            796523,
+            788944,
+            780723,
+            777593,
+            785294,
+            774584
+          ],
+          "current_ns": [
+            756934,
+            756264,
+            760023,
+            761964,
+            760634,
+            757314,
+            763473,
+            763313,
+            762724
+          ],
+          "before_median_ns": 777593,
+          "current_median_ns": 760634,
+          "current_before_ratio": 0.9781903900883882,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:1:0",
+          "before_ns": [
+            194419,
+            196729,
+            208179,
+            199959,
+            199508,
+            211718,
+            205458,
+            194148,
+            192858
+          ],
+          "current_ns": [
+            192658,
+            199328,
+            192708,
+            203378,
+            193908,
+            192418,
+            192718,
+            191768,
+            196878
+          ],
+          "before_median_ns": 199508,
+          "current_median_ns": 192718,
+          "current_before_ratio": 0.9659662770415222,
+          "query": "count_values(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:1:1",
+          "before_ns": [
+            452056,
+            442086,
+            450957,
+            463285,
+            449526,
+            452266,
+            438797,
+            451517,
+            434966
+          ],
+          "current_ns": [
+            433317,
+            476176,
+            575905,
+            430237,
+            430986,
+            431377,
+            429076,
+            433567,
+            428297
+          ],
+          "before_median_ns": 450957,
+          "current_median_ns": 431377,
+          "current_before_ratio": 0.9565812261479476,
+          "query": "count_values(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:2:0",
+          "before_ns": [
+            550176,
+            505506,
+            491896,
+            515106,
+            519096,
+            497736,
+            499576,
+            507345,
+            499715
+          ],
+          "current_ns": [
+            503566,
+            487416,
+            483356,
+            489896,
+            495445,
+            480586,
+            510266,
+            486145,
+            494476
+          ],
+          "before_median_ns": 505506,
+          "current_median_ns": 489896,
+          "current_before_ratio": 0.9691200500092976,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "instant",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:0:2:1",
+          "before_ns": [
+            1391388,
+            1987313,
+            1329848,
+            1323519,
+            1348859,
+            1355438,
+            1338589,
+            1322969,
+            1329318
+          ],
+          "current_ns": [
+            1284049,
+            1322499,
+            1301579,
+            1285189,
+            1286359,
+            1292168,
+            1284579,
+            1284119,
+            1326139
+          ],
+          "before_median_ns": 1338589,
+          "current_median_ns": 1286359,
+          "current_before_ratio": 0.9609813019530267,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "range",
+          "delayed_name_removal": false,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:1:0:0",
+          "before_ns": [
+            311687,
+            308007,
+            314227,
+            315478,
+            318948,
+            316998,
+            324507,
+            307337,
+            316618
+          ],
+          "current_ns": [
+            307358,
+            301497,
+            303327,
+            304637,
+            311057,
+            302297,
+            335207,
+            305198,
+            305848
+          ],
+          "before_median_ns": 315478,
+          "current_median_ns": 305198,
+          "current_before_ratio": 0.9674145265279988,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:1:0:1",
+          "before_ns": [
+            823483,
+            825303,
+            1216020,
+            841033,
+            835353,
+            841363,
+            821373,
+            820583,
+            822963
+          ],
+          "current_ns": [
+            835253,
+            804044,
+            802133,
+            805653,
+            800853,
+            807533,
+            809583,
+            802463,
+            803443
+          ],
+          "before_median_ns": 825303,
+          "current_median_ns": 804044,
+          "current_before_ratio": 0.9742409757386075,
+          "query": "count_values by(id)(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:1:1:0",
+          "before_ns": [
+            251218,
+            277358,
+            306208,
+            198789,
+            197568,
+            198548,
+            208029,
+            193908,
+            193818
+          ],
+          "current_ns": [
+            193809,
+            191958,
+            201618,
+            194988,
+            213299,
+            195228,
+            195248,
+            193898,
+            193438
+          ],
+          "before_median_ns": 198789,
+          "current_median_ns": 194988,
+          "current_before_ratio": 0.9808792236995004,
+          "query": "count_values(\"value\",m)",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:1:1:1",
+          "before_ns": [
+            675604,
+            560846,
+            466546,
+            442726,
+            458956,
+            475886,
+            441177,
+            454356,
+            439066
+          ],
+          "current_ns": [
+            451976,
+            440977,
+            445806,
+            444536,
+            433716,
+            442746,
+            439477,
+            448126,
+            433616
+          ],
+          "before_median_ns": 458956,
+          "current_median_ns": 442746,
+          "current_before_ratio": 0.9646807101334333,
+          "query": "count_values(\"value\",m)",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:1:2:0",
+          "before_ns": [
+            496836,
+            507456,
+            489405,
+            504926,
+            516975,
+            513486,
+            493696,
+            507415,
+            499746
+          ],
+          "current_ns": [
+            492506,
+            478925,
+            579585,
+            494785,
+            493246,
+            481726,
+            538995,
+            483626,
+            493635
+          ],
+          "before_median_ns": 504926,
+          "current_median_ns": 493246,
+          "current_before_ratio": 0.9768678974740853,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "instant",
+          "delayed_name_removal": true,
+          "input_series": 16
+        },
+        {
+          "id": "count-values-lookup:plural-16:1:2:1",
+          "before_ns": [
+            1368208,
+            1510467,
+            1556317,
+            1370828,
+            1392058,
+            1409047,
+            1388188,
+            1356759,
+            1368518
+          ],
+          "current_ns": [
+            1310889,
+            1319298,
+            1319168,
+            1324719,
+            1345329,
+            1341828,
+            1326608,
+            1325948,
+            1328009
+          ],
+          "before_median_ns": 1388188,
+          "current_median_ns": 1325948,
+          "current_before_ratio": 0.9551645742507499,
+          "query": "count_values by(id)(\"outer\",count_values by(id)(\"value\",m))",
+          "mode": "range",
+          "delayed_name_removal": true,
+          "input_series": 16
+        }
+      ],
+      "followup": []
+    }
+  },
+  "complete_timing_outcomes": 2224,
+  "decision": "accept",
+  "decision_rationale": "Eliminate actual unnecessary zero-byte query-owner traffic with smaller default-C code and preparation entry costs. Release timing median case ratio1.007347 and release-min0.973743 are mixed modest results; all24slower release primaries,six follow-ups and every fixture/foreign linked cost remain explicit. No universal elapsed gain or lower heap claim.",
+  "failed_attempts": [
+    "compiled_before.py exits1before any child: demangled prepare_rosters spelling. Failed inline correction writes nothing; missing replacement invocation exits2. Fresh v2passes both callers.",
+    "Generated timing helper refers to absent old timing-inputs receipt; caught before execution. Fresh v2uses ready.json. Fresh v3adds exact ordinary nonelapsed guards before any timing; fixed40inputs/sampling and producer unchanged.",
+    "Initial unformatted candidate source manifest was never executed. Direct formatter terminal0 confirmed before any workload; final source and retained snapshot match. All recorded owned child commands have actual terminal0; no failed helper is relabeled passing."
+  ],
+  "receipts": {
+    "grounding.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/grounding.json",
+      "sha256": "47b0f62fb4bed17272c33eafc0755aba78f00cc9827ba8eb3bf1ebaee79ba0bc"
+    },
+    "ready.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/ready.json",
+      "sha256": "bc2be8ee0266854d3ae7e9b29aefa6070b17610dae5226283fa7336f4ed2bdde"
+    },
+    "compiled-before.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/compiled-before.json",
+      "sha256": "0d1951860018dfdcca7924b42ff8597204f3891541bf4dd8f7a76a7c58f408dc"
+    },
+    "current-static.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-static.json",
+      "sha256": "892a8d7520feb2fdbeb31a5aaf55f1266df0a471f847486e41856041f3be7c29"
+    },
+    "current-costs.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-costs.json",
+      "sha256": "d54dcaa42e6ba5cbaa8fbc99a2966209f6115557dfa25c26db46366a5684b4fa"
+    },
+    "compiled-analysis.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/compiled-analysis.json",
+      "sha256": "f07b745d63c9544436e7c3ba25f30f3eaf05db908a0248cc14a91cea4a415954"
+    },
+    "implementation-assessment.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/implementation-assessment.json",
+      "sha256": "119e8ba8019e9cde2e34ba1b927a683f6ef711bfb28a0a81180a31ec0dbbbee6"
+    },
+    "current-release-build.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-release-build.json",
+      "sha256": "75e00ce8c17f69a4c1616f6331b20424f3fcff6c814f2d72ffdc1aa1135013f2"
+    },
+    "current-release-min-build.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-release-min-build.json",
+      "sha256": "0a2a619363ff5320ae391476d37ebe8276ad18dd622d5f32d70ddbf7e353a8d2"
+    },
+    "current-arm32-build.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-arm32-build.json",
+      "sha256": "de3c30f5815817c1ceeca36f4e6ab90df861ac7ab6c4b40609a25f6c2a59c2ce"
+    },
+    "current-arm64-build.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-arm64-build.json",
+      "sha256": "b790e24ff346605d0cd2b2abfe78e6c0a396ea979916e1c0729e9e843d9b953f"
+    },
+    "current-comparison-release.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-comparison-release.json",
+      "sha256": "2dc9a2a6e1d99fe8d853383b3f3f4d4f00c6f4ade0a752dfb7b6ea1b6da91eb7"
+    },
+    "current-comparison-release-min.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-comparison-release-min.json",
+      "sha256": "dba7251592f32b4b5172c069d7cea5a97d0f250c4f1c47b6893aad07485cd3a6"
+    },
+    "current-comparison-arm32.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-comparison-arm32.json",
+      "sha256": "662b63cf1bc323b59c651ae388678a980d389e3a38c7490705f44287356d199d"
+    },
+    "current-comparison-arm64.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-comparison-arm64.json",
+      "sha256": "82f845cf07476d528fcccb10c72260b9f0ede91c809d89a3ab5468dd6b2a82f1"
+    },
+    "current-callers-release.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-callers-release.json",
+      "sha256": "e7d8c7ebd7da948307d646991680e008cb4ed4d36d5ba031f87a1b57d8c894e4"
+    },
+    "current-callers-release-min.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-callers-release-min.json",
+      "sha256": "43452d1c1a1194fa30699490197bd843dd268f3932d4313052520150c2b7ae63"
+    },
+    "current-timing-release.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-timing-release.json",
+      "sha256": "211f75e303be607c9e7aa5ff43a299430b3949d1d55a4250249217649c9e5635"
+    },
+    "current-timing-release-min.json": {
+      "path": ".tmp/conditional-count-l9g_piyb/current-timing-release-min.json",
+      "sha256": "284d0d2f320ae40971440ca2334350f8078f81637c1914d7f4669269b323ae6c"
+    }
+  },
+  "scope": "Private preparation ownership only. Existing exact-node filtering,error phases,paging, numerical/ordering policy,provider/ABI4 and disabled implicit caps unchanged. No new default language feature,whole-language rerun,live/concurrent/provider latency,whole-Agent throughput, physical-ARM performance,RSS,runtime stack high-water or universal speed/lower-memory claim."
+}

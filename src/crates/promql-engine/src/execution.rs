@@ -2319,13 +2319,11 @@ impl CompiledQuery {
             }
             let histogram_cache =
                 std::cell::RefCell::new(crate::histogram_call::Cache::new(account));
-            let count_cache = std::cell::RefCell::new(crate::count_values::Cache::new(account));
-            let count_preparation = crate::count_values::is_count(expression).then_some(
-                crate::count_values::Preparation {
-                    node,
-                    cache: &count_cache,
-                },
-            );
+            let count_cache = crate::count_values::is_count(expression)
+                .then(|| std::cell::RefCell::new(crate::count_values::Cache::new(account)));
+            let count_preparation = count_cache
+                .as_ref()
+                .map(|cache| crate::count_values::Preparation { node, cache });
             let histogram_preparation = if let Expr::Call {
                 function: Some(function),
                 arguments,
@@ -2968,7 +2966,7 @@ impl CompiledQuery {
             if info_preparation.is_some() {
                 rosters.finish_info_cache(node, info_cache.into_inner());
             }
-            if count_preparation.is_some() {
+            if let Some(count_cache) = count_cache {
                 rosters.finish_count_cache(node, count_cache.into_inner());
             }
             if absent_range {

@@ -8441,3 +8441,26 @@ All six linked costs, actual types, compiled entry observations and every slower
 and distinguishes authenticated old functional captures from fresh alternating timing arms. Removing these
 two linear searches does not bound arbitrary replay, sorting or label construction, or prove universal speed,
 lower peak/RSS, physical-ARM, concurrent/live API, C-provider, whole-Agent or Cloud performance.
+
+## Conditional COUNT_VALUES preparation
+
+Ordinary node preparation previously constructed a local COUNT_VALUES cache before checking its operator.
+That empty cache allocated no payload, but acquired and released a query-accounting reference.
+The cache is now constructed lazily for the same exact COUNT_VALUES nodes. Its borrowed preparation survives
+the replay Machines; after their base drops, the complete owner moves into the existing Plan. Empty and nested
+COUNT_VALUES nodes retain their caches. Other cache families and public interfaces are unchanged.
+
+The [source-bound report](conditional-count-preparation-qualification.json) compares accepted106 with this change:
+9,056 complete result/nonelapsed pairs, including 6,368 comparisons against retained Go originals, both native
+profiles, focused emulated ARM checks and actual C/C++ callers. Existing [COUNT_VALUES controls](#generated-label-lookup-indexes)
+remain the canonical semantic/ownership panel. No additional language case or implementation-mirroring test was added.
+Actual optimized C-provider branches demonstrate the skipped constructor; unchanged heap/work counters alone do not.
+
+Both default-C executables shrink: code by 592/692 bytes and preparation-function entry stack decrements by
+112/16 bytes for release/release-min. These entry measurements are not runtime stack high-water. Tracked memory
+and retained private type sizes are unchanged; all fixture/foreign linked costs remain in the report.
+
+The fixed 40-query timing panel yields median case ratios 1.007347/0.973743. Release has 24 slower primary medians;
+six exceed 1.05 and receive one prescribed follow-up each, with none still at that threshold. Release-min has no
+slower primary median. All samples remain, including smaller follow-up slowdowns. The change removes needless
+ownership work and reduces product code; it does not establish universally faster queries or lower heap usage.

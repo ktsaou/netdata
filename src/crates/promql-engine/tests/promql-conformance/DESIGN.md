@@ -1898,3 +1898,16 @@ refinement restores tiny work/polling, with measured512-series direct ratios0.37
 Tiny/ordinary timing and linked costs remain explicit, including a5.18%slower projection follow-up.
 The [owning procedure](README.md#generated-label-lookup-indexes) records both candidates, actual allocated
 interruption/cleanup, distinct C activation scopes and the finite original/target/profile attribution.
+
+## Conditional COUNT_VALUES preparation
+
+- **Choice:** construct the local preparation `Option<RefCell<Cache>>` lazily using the existing exact-node
+  COUNT_VALUES predicate. Borrow `Preparation` through the option; move the complete cache into its Plan only
+  after the replay base drops. Keep actual empty/nested caches and exact-node filtering.
+- **Reason:** ordinary nodes cannot use that local cache. Its empty vector owns a zero-byte accounting lease,
+  so unconditional setup performs query-reference operations without retained payload.
+- **Consequence:** no new persistent state, AST pass, polling, provider or ABI change. Error phases, full caches
+  and all nonelapsed observations remain unchanged. Compiled C-provider paths prove the bypass; mixed timing
+  and linked costs are explicit. Smaller entry frames do not prove runtime stack high-water or lower heap.
+- **Evidence:** [finite qualification](conditional-count-preparation-qualification.json) and
+  [procedure and costs](README.md#conditional-count_values-preparation).
