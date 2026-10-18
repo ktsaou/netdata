@@ -73267,5 +73267,24 @@
     "accepted_source_manifest_sha256": "2c0b5f6477463cbe8043867a20a5a94c3b1e2e478ce539b7521832645c161017",
     "candidate_source_manifest_sha256": "1ad819dc32398807ff2a59246491cb3831a5f8c85d6dfd6c0ef7b8c299c9be35",
     "scope": "Exactly two optional hints removed after4actual compiled admission pairs and5432complete native screening pairs with identical nonelapsed observations. Fixed208cases/profile retain all56/102slower primary medians, follow-ups, code/frame/file costs and original/corrected inspection. No retained engine change, full candidate conformance or general throughput/query-memory gain."
+  },
+  "completed_ranking_delivery": {
+    "status": "finite source-bound qualification",
+    "report": "completed-ranking-delivery-qualification.json",
+    "report_sha256": "9015afa40c81eaf25ff3f81eb7ee0b106a1999c63df501c17fc1364766e910b4",
+    "source_inputs": 361,
+    "source_manifest_sha256": "d231721cd0bc553f16df3f2cfe244be75158bda53fce70824983b2163dd7eb16",
+    "comparison_base": "c73f5a17f46c0b62c71fc0ff0283d9486ff19889",
+    "baseline_runtime_revision": "422919e067913557fa873931234831509d396e33",
+    "decision": "retain the private full-Done optimization with measured fallback and linked costs",
+    "native_passed_per_profile": 815,
+    "foreign_focused_passed_per_target": 16,
+    "complete_target_pairs": 1920,
+    "complete_reducer_comparisons": 56124,
+    "strict_original_failures_retained": 216,
+    "sort_original_comparisons": 456,
+    "default_c_pairs": 168,
+    "cpp_controls": 168,
+    "scope": "Certified direct Float TOPK/BOTTOMK only; exact complete outcomes and lifecycle/failure/resource controls. All slower timings and costs retained; ordinary fallback and historical attribution unchanged. No universal speed/memory/compatibility or live/whole-Agent requalification claim."
   }
 }

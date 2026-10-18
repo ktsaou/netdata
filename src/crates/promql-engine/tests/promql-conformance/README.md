@@ -4323,6 +4323,9 @@ complete outcomes, resource/timing/linked costs and failed attempts. Full compar
 compressed; their hashes, lengths and decoded EOF are verified. Finite evidence establishes no universal
 compatibility, throughput or memory bound.
 
+For complete-delivery reuse and its additional lifecycle/error controls, follow
+[completed ranking delivery](#completed-ranking-delivery).
+
 ## Borrowed projection-result labels
 
 Productive label_join and label_replace emission now borrows exact immutable prepared descriptor labels through
@@ -7966,3 +7969,111 @@ live, concurrent or physical-device improvement, or remedy for earlier Stage98 t
 
 See [the complete rejected experiment](group-key-inlining-experiment.json), including every sample, observation,
 compiled cost, source/runtime binding and inspection correction. The continuous optimization work remains open.
+
+
+## Completed ranking delivery
+
+Direct, unchanged Float-selector TOPK/BOTTOMK range plans can reuse a successful complete delivery at the same
+exact evaluation key. A later canonical singleton request visits only its requested output row and acquires
+that winner freshly. This removes repeated nonselected value reads in mapped expressions such as
+`abs(topk by(id)(1,m))`; selection, arithmetic, label identity and cold validation keep their existing behavior.
+
+Admission shares sort's unchanged-selector/same-grid proof. Ranking additionally verifies at least two Float
+single-head inputs, one unique source per canonical output, and the exact canonical/input/catalog mapping.
+Only `RowFilter::Ordinals([canonical])` supplies a target. Completion belongs to the Step's held snapshot and is
+published after checked full Done. Preparation clears credit; a new exact key starts cold. Selected values are
+never cached by this optimization. Prefix-truncated scalar, alias, native/mixed, derived, shifted and plural
+requests retain ordinary traversal. Heap metadata scans remain; raw-read growth does not prove linear total work.
+
+The meaningful regression checks 96 complete Engine executions before its growth assertion: both operators,
+bare/ABS/scalar/unary consumers, 2/4/8/16 series, three clocks, reversed catalog and pages 1/17/1024. The initial
+guard incorrectly required scalar growth too. Its complete failures remain recorded; the corrected ABS-only
+guard fails against actual unchanged production before passing the candidate. Scalar remains a negative control.
+
+Actual Machine checks establish cold preparation and first output, then checked suffix completion before warm
+selected delivery. Calibrated failures cover the cold suffix, warm selected row and a nonmember before next-clock
+output, both name modes/operators/pages. Additional owners cover canonical permutation, sparse catalog IDs,
+missing/wrong-kind fresh values, absent targets, cancellation at terminal work and old-held-snapshot replacement.
+Output callback attempts remain distinct from successfully credited output samples; a corrected test-only
+expectation and its earlier failure are retained.
+
+Both native profiles pass 815 units with two unchanged ignored tests; each emulated ARM target passes 16 focused
+checks. There are 768 new complete matched pairs plus 1,152 previous ranking/label pairs. All 56,124 fresh reducer
+outcomes equal the retained canonical analysis inputs, and 456 sort originals pass. The 216 historical strict
+upstream differences remain failures under their original attribution, with separate ordering-policy analyses.
+
+Actual default libraries pass 168 matched C pairs and 168 current C++ controls: 84 cases per native profile and
+language in `ranking_delivery.c`. These include both operators/name modes, pages 1/17/1024, streamed/independently
+retained collected output, three provider-failure phases, output failure and cancellation. Both complete general
+C runners and the coupled sort C/C++ routes pass. Complete labels/value bits/times/statuses and release balances
+are checked. Logical sample statistics are checked by Engine/C tests; fixture observations omit those statistics.
+
+For 32 series with 4,096-byte padding, three clocks and page17, TOPK under ABS changes:
+
+| Observation | Before | Current |
+| --- | ---: | ---: |
+| Samples fetched | 10,752 | 2,103 |
+| Pages | 3,584 | 701 |
+| Provider calls | 7,204 | 1,438 |
+| Workspace acquired | 17,951,088 B | 4,706,586 B |
+| Workspace tracked peak | 462,098 B | 462,098 B |
+| Release engine time | 10,014.079 µs | 2,503.757 µs |
+| Release-min engine time | 15,927.016 µs | 4,558.748 µs |
+
+These are synthetic complete-query observations. Acquired bytes measure allocation traffic, not resident memory.
+Native Plan/Snapshot/Step sizes remain 192/128/4,808 B; accounted requests remain 216/160/4,832 B. Current ARM64
+sizes match native. Current ARM32 types are 144/104/4,160 B and requests 160/136/4,176 B; predecessor foreign
+layouts were not measured. The two flags fit native padding; no new array or Step/Frame/NodeRoster field is added.
+
+The fixed timing panel has 32 cases per profile: two operators, four consumers, 8/32 series and 16/4,096-byte
+padding. Three alternating blocks give nine measured queries per side after warmups. Each primary ratio at least
+1.05 receives exactly one identical nine-sample follow-up. All samples and slower cases remain in the report.
+
+| Consumer | Release median of case ratios | Release-min median of case ratios |
+| --- | ---: | ---: |
+| bare | 1.00275 | 1.02360 |
+| abs | 0.43250 | 0.43762 |
+| scalar | 0.99838 | 1.02369 |
+| unary | 1.01330 | 1.01452 |
+
+| Profile | Slower primary medians | Threshold follow-ups | Persistent threshold costs |
+| --- | ---: | ---: | ---: |
+| release | 17 | 1 | 0 |
+| release-min | 22 | 2 | 1 |
+
+All 16 ABS cases improve. The release-min scalar BOTTOMK case with 32 wide series remains slower in its fixed
+follow-up: 17,559.240 → 18,703.190 µs, ratio 1.06515. Ordinary 32-input controls add 64 accounted work units;
+that count does not identify an elapsed-time cause. The private change is retained for the measured mapped-query
+gain and reduced allocation traffic; no general speedup or remedy for scalar replay is claimed.
+
+All actual linked costs are retained, including increases:
+
+| Cohort | Text delta B | Data delta B | BSS delta B | File delta B |
+| --- | ---: | ---: | ---: | ---: |
+| release fixture | +2544 | +24 | -2568 | +3696 |
+| release default-ranking-C | +30068 | +72 | +0 | +38440 |
+| release-min fixture | +1756 | +24 | -1816 | +1824 |
+| release-min default-ranking-C | +1444 | +56 | +0 | +4416 |
+| arm32 fixture | +2496 | +64 | +0 | +6888 |
+| arm64 fixture | -13780 | +24 | +0 | -65616 |
+
+Formatting, strict default/fixture Clippy and installed Rust 1.91 compile-only checks pass. Timing is shared-host
+Engine time, excluding compilation, parsing and serialization. This panel does not measure physical-device
+throughput, process RSS, stack high-water, live/concurrent API or whole-Agent/Cloud behavior. Implicit limits stay
+disabled; paging, accounting, provider and ABI4 contracts are unchanged.
+
+From `src/crates/promql-engine`, run the committed owners with:
+
+```sh
+cargo test --locked --features fixtures --release topk::emission_tests::
+cargo test --locked --features fixtures --release mapped_ranking_range_avoids_repeated_completed_winner_reads
+cargo test --locked --features fixtures --profile release-min ranking_completion_actual_machine
+cargo test --locked --features fixtures --profile release-min completed_ranking_machine_preserves_provider_failures
+```
+
+`ranking_delivery.c` is a standalone caller of the default static library. Compile it with the same header,
+platform flags and native libraries used by `c_embedding.py`, replacing that runner's `c_embedding.c` source.
+Repeat for C11 and C++17 and both native profiles; the source includes the shared fixture implementation itself.
+The [qualification report](completed-ranking-delivery-qualification.json) binds the exact candidate, historical
+baseline, complete outcomes, every changed resource field, fixed timings, linked costs and actual failed attempts.
+Full new query captures stay gzip-compressed and are checked through EOF with raw and compressed hashes.

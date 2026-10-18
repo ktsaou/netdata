@@ -1815,3 +1815,25 @@ introduced; no arbitrary-input, live, concurrent, RSS, physical-device or MSRV-e
 - Text and local caller-frame costs did not establish a useful overall throughput or query-memory gain.
 - Reject the measured candidate and retain the original source plus compiler discretion; no algorithm changes.
 - The conformance README/report preserve all slower results, compiled costs and the corrected call-target check.
+
+
+## Completed ranking delivery
+
+TOPK/BOTTOMK shares the existing sort unchanged-selector/same-grid proof, then verifies a Float single-head
+canonical/input/catalog bijection with at least two inputs. One Plan eligibility flag and one snapshot-owned
+AtomicBool admit only warm canonical singleton delivery after checked full Done. Preparation clears completion,
+new exact keys start false, and an old Step credits only its own held snapshot. Machine supplies a transient
+target only for `RowFilter::Ordinals([canonical])`; existing cursor bounds skip completed nonselected delivery.
+The requested winner still follows fresh acquisition and existing head/type/label/replacement checks.
+
+There is no additional value array, cache expansion or Step/Frame/NodeRoster field. Native Plan/Snapshot/Step
+types and accounted requests stay unchanged; actual target layouts, linked costs and all resource changes are
+recorded. Cold suffix and next-clock validation, aliases/native/derived/shifted/plural routes and scalar prefix
+truncation retain ordinary behavior. Heap metadata scanning remains, so fewer raw reads do not prove linear work.
+
+The finite panel finds median ABS time ratios 0.43250/0.43762 for release/release-min and lower allocation traffic
+with unchanged tracked peak in the 32-series wide TOPK example. A scalar fallback remains 6.5% slower in its fixed
+release-min follow-up; every slower primary/follow-up and linked cost remains visible. Qualification preserves
+the 216 existing strict upstream failures and their separate ordering-policy attribution. See
+[completed ranking delivery](README.md#completed-ranking-delivery) for the mechanism, controls, measurements,
+commands and exact source/runtime report. These finite results do not establish universal compatibility or speed.

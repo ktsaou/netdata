@@ -20,7 +20,10 @@ use crate::{
     shared::Strong,
     storage::{Control, Interrupted},
 };
-use std::cell::RefCell;
+use std::{
+    cell::RefCell,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 fn sample_offset(hash: u64) -> f64 {
     (hash as f64) / (u64::MAX as f64)
@@ -190,6 +193,7 @@ pub(crate) struct Plan {
     bindings: AccountedVec<Binding>,
     groups: usize,
     projected_rows: Option<usize>,
+    emit_certified: bool,
     cache: RefCell<Option<Strong<Snapshot>>>,
 }
 impl Plan {
@@ -206,6 +210,7 @@ impl Plan {
             bindings: AccountedVec::new(account, MemoryKind::Workspace),
             groups: 0,
             projected_rows: None,
+            emit_certified: false,
             cache: RefCell::new(None),
         }
     }
@@ -315,6 +320,80 @@ impl Plan {
         self.projected_rows = Some(descriptors.len());
         Ok(())
     }
+    pub(crate) fn clear_emission(&self) {
+        if let Some(snapshot) = &*self.cache.borrow() {
+            snapshot.emitted.store(false, Ordering::Relaxed);
+        }
+    }
+    pub(crate) fn certify_emit(
+        &mut self,
+        descriptors: &[Descriptor],
+        sources: &[usize],
+        catalog_len: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        if !matches!(self.operator, TokenKind::TOPK | TokenKind::BOTTOMK)
+            || self.inputs.len() < 2
+            || self.bindings.len() != self.inputs.len()
+            || descriptors.len() != self.inputs.len()
+            || self.projected_rows != Some(descriptors.len())
+        {
+            return Ok(());
+        }
+        let mut prior = None;
+        for row in &*self.inputs {
+            control.check()?;
+            account.work(1);
+            if row.kinds != 1
+                || row.heads.multiple()
+                || row.ordinal >= catalog_len
+                || prior.is_some_and(|ordinal| row.ordinal <= ordinal)
+            {
+                return Ok(());
+            }
+            prior = Some(row.ordinal);
+        }
+        for (position, descriptor) in descriptors.iter().enumerate() {
+            control.check()?;
+            account.work(1);
+            if descriptor.kinds != 1
+                || descriptor.heads.multiple()
+                || descriptor.sources.len() != 1
+                || descriptor.ordinal != position
+            {
+                return Ok(());
+            }
+            let Some(&input) = sources.get(descriptor.sources.start) else {
+                return Ok(());
+            };
+            let Some(row) = self.inputs.get(input) else {
+                return Ok(());
+            };
+            let Some(canonical) = self.bindings[input].canonical else {
+                return Ok(());
+            };
+            if canonical.ordinal != descriptor.ordinal
+                || canonical.representative != input
+                || row.hash != descriptor.hash
+            {
+                return Ok(());
+            }
+        }
+        control.check()?;
+        self.emit_certified = true;
+        Ok(())
+    }
+    #[cfg(test)]
+    pub(crate) fn emission_state(&self) -> (bool, bool) {
+        (
+            self.emit_certified,
+            self.cache
+                .borrow()
+                .as_ref()
+                .is_some_and(|snapshot| snapshot.emitted.load(Ordering::Relaxed)),
+        )
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -346,6 +425,7 @@ struct Snapshot {
     parameter: f64,
     heaps: AccountedVec<Heap>,
     ignored: bool,
+    emitted: AtomicBool,
 }
 #[derive(Clone, Copy)]
 enum Stage {
@@ -571,6 +651,7 @@ impl<'a> Step<'a> {
                 parameter: self.parameter,
                 heaps,
                 ignored: self.ignored,
+                emitted: AtomicBool::new(false),
             },
             Some(&AllocationContext::new(account, MemoryKind::Workspace)),
         );
@@ -581,6 +662,7 @@ impl<'a> Step<'a> {
     }
     fn next_winner(
         &mut self,
+        target: Option<usize>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Option<usize>, Interrupted> {
@@ -588,9 +670,25 @@ impl<'a> Step<'a> {
             .snapshot
             .as_ref()
             .expect("completed selection snapshot");
+        let target = target.filter(|_| {
+            self.plan.emit_certified
+                && self.project
+                && self.vector
+                && snapshot.emitted.load(Ordering::Relaxed)
+        });
+        if let Some(target) = target
+            && self.emit_row < target
+        {
+            self.emit_row = target;
+            self.emit_group = 0;
+            self.emit_position = 0;
+        }
         loop {
             control.check()?;
             account.work(1);
+            if target.is_some_and(|target| self.emit_row > target) {
+                return Ok(None);
+            }
             if self.project
                 && let Some(rows) = self.plan.projected_rows
                 && self.emit_row >= rows
@@ -625,6 +723,7 @@ impl<'a> Step<'a> {
     }
     pub(crate) fn advance(
         &mut self,
+        target: Option<usize>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Action<'a>, EvaluationError> {
@@ -868,13 +967,20 @@ impl<'a> Step<'a> {
                     sample.source_start_time_ms = 0;
                     return Ok(Action::Sample(sample));
                 }
-                let Some(input) = self.next_winner(control, account)? else {
+                let Some(input) = self.next_winner(target, control, account)? else {
                     self.stage = Stage::Done;
                     return Ok(Action::Continue);
                 };
                 return Ok(self.request(input));
             }
             Stage::Done => {
+                if self.plan.emit_certified && self.project && self.vector {
+                    control.check()?;
+                    if let Some(snapshot) = &self.snapshot {
+                        // A cached selection alone does not validate its full delivery.
+                        snapshot.emitted.store(true, Ordering::Relaxed);
+                    }
+                }
                 let ignored = self
                     .snapshot
                     .as_ref()
@@ -902,7 +1008,71 @@ mod emission_tests {
         canonical: AccountedVec<Descriptor>,
     }
 
+    #[test]
+    fn ranking_snapshot_traits_and_accounted_layouts_remain_explicit() {
+        fn send<T: Send>() {}
+        fn shared<T: Send + Sync>() {}
+        send::<Plan>();
+        shared::<Snapshot>();
+        shared::<Strong<Snapshot>>();
+        println!(
+            "{{\"ranking_plan\":{},\"ranking_plan_allocation\":{},\"ranking_snapshot\":{},\"ranking_snapshot_allocation\":{},\"ranking_step\":{},\"ranking_step_allocation\":{}}}",
+            size_of::<Plan>(),
+            crate::accounting::AccountedBox::<Plan>::allocation_bytes(),
+            size_of::<Snapshot>(),
+            Strong::<Snapshot>::allocation_bytes(),
+            size_of::<Step<'static>>(),
+            crate::accounting::AccountedBox::<Step<'static>>::allocation_bytes()
+        );
+    }
+
     impl Fixture {
+        fn unique(operator: TokenKind, account: &QueryAccounting) -> Self {
+            let control = Control::default();
+            let expression = fixture::expression(
+                if operator == TokenKind::TOPK {
+                    "topk by(id)(1,m)"
+                } else {
+                    "bottomk by(id)(1,m)"
+                },
+                account,
+                &control,
+            );
+            let labels = |index: usize| {
+                vec![
+                    (b"__name__".to_vec(), b"m".to_vec()),
+                    (b"id".to_vec(), index.to_string().into_bytes()),
+                ]
+            };
+            let mut rows = fixture::rows((0..3).map(labels).collect(), account, &control);
+            for (position, row) in rows.iter_mut().enumerate() {
+                row.ordinal = 1 + 3 * position;
+                row.kinds = 1;
+            }
+            let sources = [2, 0, 1];
+            let mut canonical = fixture::rows(
+                sources.iter().map(|&input| labels(input)).collect(),
+                account,
+                &control,
+            );
+            for (position, row) in canonical.iter_mut().enumerate() {
+                row.ordinal = position;
+                row.kinds = 1;
+                row.sources = position..position + 1;
+            }
+            let mut parameters = Parameters::new(true);
+            parameters.push(1.0, account);
+            let mut plan = Plan::new(operator, parameters, account);
+            plan.prepare_rows(rows, &expression, expression.root, &control, account)
+                .unwrap();
+            plan.project(&canonical, &sources, &control, account)
+                .unwrap();
+            plan.certify_emit(&canonical, &sources, 8, &control, account)
+                .unwrap();
+            assert_eq!(plan.emission_state(), (true, false));
+            Self { plan, canonical }
+        }
+
         fn new(operator: TokenKind, width: Option<usize>, account: &QueryAccounting) -> Self {
             let (name, parameter) = match operator {
                 TokenKind::TOPK => ("topk", 1.0),
@@ -1008,6 +1178,284 @@ mod emission_tests {
         }
     }
 
+    fn prime<'a>(fixture: &'a Fixture, clock: i64, account: &QueryAccounting) -> Step<'a> {
+        let control = Control::default();
+        let mut step = Step::new(
+            &fixture.plan,
+            options(clock),
+            clock / 1000,
+            true,
+            true,
+            Some(&fixture.canonical),
+            account,
+        );
+        while step.snapshot.is_none() {
+            match step.advance(Some(1), &control, account).unwrap() {
+                Action::Continue => (),
+                Action::Child { parameter, ordinal } => {
+                    assert!(!parameter);
+                    let input = fixture
+                        .plan
+                        .inputs
+                        .iter()
+                        .position(|row| Some(&row.ordinal) == ordinal)
+                        .unwrap();
+                    step.receive(
+                        source(&fixture.plan, input, false, false, account),
+                        &control,
+                        account,
+                    )
+                    .unwrap();
+                }
+                _ => panic!("selection must publish before delivery"),
+            }
+        }
+        assert!(matches!(step.stage, Stage::Emit));
+        step
+    }
+
+    fn deliver(
+        step: &mut Step<'_>,
+        target: Option<usize>,
+        offset: f64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> (Vec<(usize, u64)>, Vec<usize>) {
+        let mut output = Vec::new();
+        let mut requests = Vec::new();
+        loop {
+            match step.advance(target, control, account).unwrap() {
+                Action::Continue => (),
+                Action::Child { parameter, ordinal } => {
+                    assert!(!parameter);
+                    let input = step
+                        .plan
+                        .inputs
+                        .iter()
+                        .position(|row| Some(&row.ordinal) == ordinal)
+                        .unwrap();
+                    requests.push(input);
+                    let mut sample = source(step.plan, input, false, false, account);
+                    sample.value = OwnedValue::Float(offset + input as f64);
+                    step.receive(sample, control, account).unwrap();
+                }
+                Action::Sample(sample) => {
+                    let OwnedValue::Float(value) = sample.value else {
+                        panic!("float winner")
+                    };
+                    let input = [2, 0, 1][sample.ordinal];
+                    assert_eq!(
+                        fixture::raw(&sample.labels),
+                        fixture::raw(&step.plan.inputs[input].labels)
+                    );
+                    assert_eq!(value.to_bits(), (offset + input as f64).to_bits());
+                    output.push((sample.ordinal, value.to_bits()));
+                }
+                Action::Done(annotation) => {
+                    assert!(annotation.is_none());
+                    return (output, requests);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn completed_ranking_delivery_uses_canonical_targets_and_fresh_selected_values() {
+        for operator in [TokenKind::TOPK, TokenKind::BOTTOMK] {
+            let account = EngineAccounting::default().query();
+            let fixture = Fixture::unique(operator, &account);
+            let control = Control::default();
+            let mut cold = prime(&fixture, 0, &account);
+            assert_eq!(fixture.plan.emission_state(), (true, false));
+            let (output, requests) = deliver(&mut cold, Some(1), 10.0, &control, &account);
+            assert_eq!(
+                output.iter().map(|&(id, _)| id).collect::<Vec<_>>(),
+                [0, 1, 2]
+            );
+            assert_eq!(requests, [2, 0, 1]);
+            assert_eq!(fixture.plan.emission_state(), (true, true));
+            for target in 0..4 {
+                let mut warm = prime(&fixture, 0, &account);
+                let (output, requests) =
+                    deliver(&mut warm, Some(target), 100.0, &control, &account);
+                if target < 3 {
+                    assert_eq!(requests, [[2], [0], [1]][target]);
+                    assert_eq!(output, [(target, (100.0 + requests[0] as f64).to_bits())]);
+                } else {
+                    assert!(output.is_empty() && requests.is_empty());
+                }
+            }
+            let mut ordinary = prime(&fixture, 0, &account);
+            assert_eq!(
+                deliver(&mut ordinary, None, 20.0, &control, &account).1,
+                [2, 0, 1]
+            );
+            fixture.plan.clear_emission();
+            assert_eq!(fixture.plan.emission_state(), (true, false));
+            let mut reset = prime(&fixture, 0, &account);
+            assert_eq!(
+                deliver(&mut reset, Some(1), 30.0, &control, &account).1,
+                [2, 0, 1]
+            );
+            let mut next = prime(&fixture, 1000, &account);
+            assert_eq!(fixture.plan.emission_state(), (true, false));
+            assert_eq!(
+                deliver(&mut next, Some(1), 40.0, &control, &account).1,
+                [2, 0, 1]
+            );
+            drop((cold, ordinary, reset, next));
+            drop(fixture);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn ranking_completion_belongs_to_the_held_snapshot_and_checks_terminal_control() {
+        let account = EngineAccounting::default().query();
+        let fixture = Fixture::unique(TokenKind::TOPK, &account);
+        let control = Control::default();
+        let mut old = prime(&fixture, 0, &account);
+        let mut replacement = prime(&fixture, 1000, &account);
+        deliver(&mut old, Some(1), 10.0, &control, &account);
+        assert!(
+            old.snapshot
+                .as_ref()
+                .unwrap()
+                .emitted
+                .load(Ordering::Relaxed)
+        );
+        assert_eq!(fixture.plan.emission_state(), (true, false));
+        replacement.stage = Stage::Done;
+        let result = crate::test_storage::interrupt_after_work(&account, &control, 1, || {
+            replacement.advance(Some(1), &control, &account)
+        });
+        assert!(matches!(
+            result,
+            Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+        ));
+        assert_eq!(fixture.plan.emission_state(), (true, false));
+        drop((old, replacement));
+        drop(fixture);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn completed_ranking_delivery_keeps_cold_suffix_and_warm_selected_errors() {
+        for warm in [false, true] {
+            for wrong_kind in [false, true] {
+                let account = EngineAccounting::default().query();
+                let fixture = Fixture::unique(TokenKind::TOPK, &account);
+                let control = Control::default();
+                let mut seed = prime(&fixture, 0, &account);
+                if warm {
+                    deliver(&mut seed, Some(1), 10.0, &control, &account);
+                }
+                let mut step = prime(&fixture, 0, &account);
+                let fault = if warm { 0 } else { 1 };
+                let mut delivered = 0;
+                loop {
+                    match step.advance(Some(1), &control, &account) {
+                        Ok(Action::Continue) => (),
+                        Ok(Action::Child { parameter, ordinal }) => {
+                            assert!(!parameter);
+                            let input = fixture
+                                .plan
+                                .inputs
+                                .iter()
+                                .position(|row| Some(&row.ordinal) == ordinal)
+                                .unwrap();
+                            if input != fault || wrong_kind {
+                                step.receive(
+                                    source(&fixture.plan, input, input == fault, false, &account),
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                            }
+                        }
+                        Ok(Action::Sample(_)) => {
+                            delivered += 1;
+                            assert!(!warm);
+                            assert_eq!(fixture.plan.emission_state(), (true, false));
+                        }
+                        Err(EvaluationError::Invalid("selection winner changed during replay")) => {
+                            break;
+                        }
+                        _ => panic!("fresh replay failure must remain visible"),
+                    }
+                }
+                assert_eq!(delivered, if warm { 0 } else { 2 });
+                assert_eq!(fixture.plan.emission_state(), (true, warm));
+                drop((seed, step));
+                drop(fixture);
+                account.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn ranking_certificate_rejects_aliases_kinds_noncanonical_and_catalog_mismatches() {
+        for scenario in 0..17 {
+            let account = EngineAccounting::default().query();
+            let mut fixture = Fixture::unique(TokenKind::TOPK, &account);
+            fixture.plan.emit_certified = false;
+            let mut sources = [2, 0, 1];
+            let mut catalog_len = 8;
+            match scenario {
+                0 => fixture.plan.operator = TokenKind::LIMITK,
+                1 => fixture.plan.inputs[0].kinds = 3,
+                2 => fixture.canonical[0].kinds = 2,
+                3 => fixture.plan.inputs[1].ordinal = fixture.plan.inputs[0].ordinal,
+                4 => catalog_len = 7,
+                5 => fixture.canonical[0].sources = 0..2,
+                6 => fixture.canonical[0].ordinal = 1,
+                7 => sources[0] = 0,
+                8 => {
+                    fixture.plan.bindings[2]
+                        .canonical
+                        .as_mut()
+                        .unwrap()
+                        .representative = 0
+                }
+                9 => fixture.canonical[0].hash ^= 1,
+                10 => fixture.plan.projected_rows = None,
+                11 => fixture.plan.bindings[2].canonical = None,
+                12 => sources[0] = usize::MAX,
+                13 => {
+                    fixture.plan.bindings.pop();
+                }
+                14 | 15 => {
+                    let mut counts = PointCounts::default();
+                    counts.push(1);
+                    counts.push(1);
+                    if scenario == 14 {
+                        fixture.plan.inputs[0].heads.note(counts, 0);
+                    } else {
+                        fixture.canonical[0].heads.note(counts, 0);
+                    }
+                }
+                _ => fixture.plan.projected_rows = Some(2),
+            }
+            fixture
+                .plan
+                .certify_emit(
+                    &fixture.canonical,
+                    &sources,
+                    catalog_len,
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
+            assert_eq!(
+                fixture.plan.emission_state(),
+                (false, false),
+                "scenario={scenario}"
+            );
+            drop(fixture);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
     struct Collected<'a> {
         samples: Vec<EvaluatedSample<'a>>,
         acquired: u64,
@@ -1044,7 +1492,7 @@ mod emission_tests {
         loop {
             let input = step.expected;
             let before = account.snapshot();
-            match step.advance(&control, account).unwrap() {
+            match step.advance(None, &control, account).unwrap() {
                 Action::Continue => (),
                 Action::Child { parameter, ordinal } => {
                     assert!(!parameter);
@@ -1224,7 +1672,7 @@ mod emission_tests {
             account,
         );
         loop {
-            match step.advance(&control, account).unwrap() {
+            match step.advance(None, &control, account).unwrap() {
                 Action::Continue => (),
                 Action::Child { parameter, ordinal } => {
                     assert!(!parameter);
@@ -1270,7 +1718,7 @@ mod emission_tests {
             let control = Control::default();
             let before = account.snapshot();
             let result = crate::test_storage::interrupt_after_work(&account, &control, 1, || {
-                step.advance(&control, &account)
+                step.advance(None, &control, &account)
             });
             assert_eq!(account.snapshot().work - before.work, 1);
             match (scenario, result) {

@@ -3958,7 +3958,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.frames.pop();
                     }
                 },
-                State::TopK(step) => match step.advance(self.control, self.account)? {
+                State::TopK(step) => match step.advance(
+                    match filter {
+                        RowFilter::Ordinals([ordinal]) => Some(*ordinal),
+                        _ => None,
+                    },
+                    self.control,
+                    self.account,
+                )? {
                     crate::topk::Action::Continue => (),
                     crate::topk::Action::Child { parameter, ordinal } => {
                         let Expr::Aggregate {

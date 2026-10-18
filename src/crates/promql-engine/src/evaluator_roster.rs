@@ -839,6 +839,9 @@ impl Rosters {
             if let Some(plan) = &roster.sorting {
                 plan.clear_emission();
             }
+            if let Some(plan) = &roster.selection {
+                plan.clear_emission();
+            }
             if let Some(plan) = roster.proof.group_replay() {
                 plan.clear();
             }
@@ -897,7 +900,7 @@ impl Rosters {
         }
     }
 
-    pub(crate) fn certify_sort_emit(
+    pub(crate) fn certify_ordered_emit(
         &mut self,
         node: NodeId,
         selector: NodeId,
@@ -911,6 +914,10 @@ impl Rosters {
         let roster = &mut self.nodes[node.0];
         if let (Some(rows), Some(sources), Some(plan)) =
             (&roster.output, &roster.sources, &mut roster.sorting)
+        {
+            plan.certify_emit(rows, sources, catalog_len, control, account)?;
+        } else if let (Some(rows), Some(sources), Some(plan)) =
+            (&roster.output, &roster.sources, &mut roster.selection)
         {
             plan.certify_emit(rows, sources, catalog_len, control, account)?;
         }

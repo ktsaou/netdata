@@ -1669,7 +1669,7 @@ impl CompiledQuery {
         })
     }
 
-    fn certify_sort_emission<Q: QueryProvider>(
+    fn certify_ordered_emission<Q: QueryProvider>(
         &self,
         node: NodeId,
         catalog: &Catalog<'_, Q>,
@@ -1686,10 +1686,14 @@ impl CompiledQuery {
         {
             return Ok(());
         }
-        let Expr::Call { arguments, .. } = &self.expression.arena[node].expression else {
-            unreachable!("typed sorting call")
+        let selector = match &self.expression.arena[node].expression {
+            Expr::Call { arguments, .. } => arguments[0],
+            Expr::Aggregate {
+                expression: Some(child),
+                ..
+            } => *child,
+            _ => unreachable!("typed ordered operation"),
         };
-        let selector = arguments[0];
         let same_header = |other: OutputHeader| {
             other.value_type == evaluator_header.value_type
                 && other.start_ms == evaluator_header.start_ms
@@ -1727,7 +1731,13 @@ impl CompiledQuery {
                 evaluator_header.into(),
             )
         {
-            rosters.certify_sort_emit(node, selector, catalog.len(selector), control, account)?;
+            rosters.certify_ordered_emit(
+                node,
+                selector,
+                catalog.len(selector),
+                control,
+                account,
+            )?;
         }
         Ok(())
     }
@@ -3148,8 +3158,16 @@ impl CompiledQuery {
                     account,
                 )?;
             }
-            if crate::vector_sort::is_sort(expression) {
-                self.certify_sort_emission(
+            if crate::vector_sort::is_sort(expression)
+                || matches!(
+                    expression,
+                    Expr::Aggregate {
+                        operator: tokens::TokenKind::TOPK | tokens::TokenKind::BOTTOMK,
+                        ..
+                    }
+                )
+            {
+                self.certify_ordered_emission(
                     node,
                     catalog,
                     prepared,
@@ -6790,6 +6808,399 @@ mod tests {
                 provider.assert_closed();
                 drop((output, query));
                 engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn mapped_ranking_range_avoids_repeated_completed_winner_reads() {
+        let mut observations = Vec::new();
+        for operator in ["topk", "bottomk"] {
+            for wrapper in 0..4 {
+                let ranking = format!("{operator} by(instance)(1,counter_total)");
+                let expression = match wrapper {
+                    0 => ranking,
+                    1 => format!("abs({ranking})"),
+                    2 => format!("({ranking})*2"),
+                    _ => format!("-({ranking})"),
+                };
+                for page in [1, 17, 1024] {
+                    let mut reads = Vec::new();
+                    for count in [2, 4, 8, 16] {
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let mut input = FixtureProvider::new(3, page, count);
+                        for series in &mut input.series {
+                            series.source.counters = Default::default();
+                            series.source.sample = |index| crate::value::Sample {
+                                time_ms: (index as i64 + 1) * 1000,
+                                start_time_ms: 0,
+                                value: crate::value::SampleValue::Float(1.0),
+                            };
+                        }
+                        input.series.reverse();
+                        let query = engine
+                            .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                            .unwrap();
+                        let report = query.collect_reported(
+                            &input,
+                            QueryRequest::Range {
+                                start_ms: 1000,
+                                end_ms: 3000,
+                                step_ms: 1000,
+                            },
+                            &control,
+                        );
+                        let output = report.result.as_ref().unwrap();
+                        assert_eq!(output.series.len(), count);
+                        assert!(report.annotations.is_empty());
+                        let mut identities: Vec<_> = (0..count).map(|i| i.to_string()).collect();
+                        identities.sort();
+                        for (row, identity) in output.series.iter().zip(&identities) {
+                            let labels: Vec<_> = row
+                                .labels
+                                .0
+                                .iter()
+                                .map(|label| (&*label.name, &*label.value))
+                                .collect();
+                            let mut expected = vec![
+                                (b"instance".as_slice(), identity.as_bytes()),
+                                (b"job".as_slice(), b"worker".as_slice()),
+                            ];
+                            if wrapper == 0 {
+                                expected.insert(0, (b"__name__", b"counter_total"));
+                            }
+                            assert_eq!(labels, expected, "{expression}, page={page}");
+                            assert_eq!(row.points.len(), 3);
+                            let value: f64 = match wrapper {
+                                2 => 2.0,
+                                3 => -1.0,
+                                _ => 1.0,
+                            };
+                            for (position, point) in row.points.iter().enumerate() {
+                                assert_eq!(point.time_ms, (position as i64 + 1) * 1000);
+                                assert_eq!(float_bits(point), value.to_bits());
+                            }
+                        }
+                        assert_eq!(report.observations.output_samples, 3 * count as u64);
+                        assert_eq!(
+                            report
+                                .observations
+                                .statistics
+                                .samples
+                                .total_queryable_samples,
+                            3 * count as u64
+                        );
+                        let fetched: usize = input
+                            .series
+                            .iter()
+                            .map(|row| row.source.counters.samples_returned.load(Ordering::Relaxed))
+                            .sum();
+                        assert_eq!(report.observations.samples_fetched, fetched as u64);
+                        assert!(
+                            input.series.iter().all(|row| {
+                                row.source.counters.peak.load(Ordering::Relaxed) == 1
+                            })
+                        );
+                        println!(
+                            "{{\"ranking_growth\":{expression:?},\"rows\":{count},\"page_size\":{page},\"fetched\":{},\"work\":{}}}",
+                            report.observations.samples_fetched, report.observations.work
+                        );
+                        reads.push(report.observations.samples_fetched);
+                        input.assert_closed();
+                        drop((report, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                    observations.push((expression.clone(), page, reads));
+                }
+            }
+        }
+        // Check growth only after every complete result and owner has been checked.
+        assert!(
+            observations
+                .iter()
+                .filter(|(expression, _, _)| expression.starts_with("abs("))
+                .all(|(_, _, reads)| reads[3] <= 3 * reads[2]),
+            "mapped rankings must avoid repeated completed winner reads: {observations:?}"
+        );
+    }
+
+    #[test]
+    fn ranking_completion_actual_machine_keeps_preparation_and_first_output_cold() {
+        for operator in ["topk", "bottomk"] {
+            for page in [1, 17, 1024] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut provider = FixtureProvider::new(1, page, 3);
+                for row in &mut provider.series {
+                    row.source.counters = Default::default();
+                }
+                provider.series.reverse();
+                let compiled = engine
+                    .compile(
+                        format!("abs({operator} by(instance)(1,counter_total))").as_bytes(),
+                        EngineOptions::default(),
+                        &control,
+                    )
+                    .unwrap();
+                let account = compiled.execution_accounting();
+                {
+                    let header = compiled
+                        .header(QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 1001,
+                            step_ms: 1000,
+                        })
+                        .unwrap();
+                    let prepared = Prepared::new(
+                        &compiled.expression,
+                        &compiled.preprocessing,
+                        header,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let options = compiled.evaluation_options(header, header.start_ms, &prepared);
+                    let bounds = crate::query_bounds::find(
+                        &compiled.expression,
+                        options,
+                        &prepared,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let query = provider.open(bounds, &control).unwrap();
+                    let catalog = Catalog::new(
+                        &query,
+                        &compiled.expression,
+                        &prepared,
+                        options,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let rosters = compiled
+                        .prepare_rosters(
+                            &catalog,
+                            &prepared,
+                            bounds,
+                            &control,
+                            &account,
+                            &mut Annotations::default(),
+                        )
+                        .unwrap();
+                    let root = compiled.expression.root;
+                    let Expr::Call { arguments, .. } = &compiled.expression.arena[root].expression
+                    else {
+                        unreachable!()
+                    };
+                    let ranking = arguments[0];
+                    let plan = rosters.selection(ranking).unwrap();
+                    assert_eq!(plan.emission_state(), (true, false));
+                    let counts = || {
+                        provider
+                            .series
+                            .iter()
+                            .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
+                            .collect::<Vec<_>>()
+                    };
+                    let before = counts();
+                    let mut machine = Machine::new(
+                        &catalog,
+                        &compiled.expression,
+                        root,
+                        options,
+                        &control,
+                        &account,
+                        EvaluationMetadata {
+                            prepared: &prepared,
+                            rosters: &rosters,
+                            timestamp_selectors: &compiled.timestamp_selectors,
+                            data_bounds: bounds,
+                            annotations: None,
+                            binary_preparation: None,
+                            histogram_preparation: None,
+                            info_preparation: None,
+                            count_preparation: None,
+                        },
+                    );
+                    for position in 0..3 {
+                        let sample = machine.next().unwrap().unwrap();
+                        assert_eq!(sample.ordinal, position);
+                        let OwnedValue::Float(value) = sample.value else {
+                            panic!("float winner")
+                        };
+                        assert_eq!(value.to_bits(), 1.0f64.to_bits());
+                        assert_eq!(plan.emission_state(), (true, position != 0));
+                    }
+                    assert!(machine.next().unwrap().is_none());
+                    drop(machine);
+                    assert_eq!(
+                        counts()
+                            .iter()
+                            .zip(before)
+                            .map(|(a, b)| a - b)
+                            .collect::<Vec<_>>(),
+                        [2, 2, 1],
+                        "cold suffix must finish, then each selected row is acquired freshly",
+                    );
+                    assert_eq!(plan.emission_state(), (true, true));
+                    rosters.clear_replay_progress(&control, &account).unwrap();
+                    assert_eq!(plan.emission_state(), (true, false));
+                }
+                provider.assert_closed();
+                account.snapshot().assert_memory_released();
+                drop((compiled, account));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn completed_ranking_machine_preserves_provider_failures_at_actual_delivery_phases() {
+        struct Sink<'a> {
+            output: RecordingSink,
+            provider: &'a FixtureProvider,
+            marks: Vec<Vec<usize>>,
+            cancel_after: Option<usize>,
+            control: &'a Control,
+        }
+        impl OutputSink for Sink<'_> {
+            fn begin(&mut self, header: OutputHeader) -> Result<(), AccountedVec<u8>> {
+                self.output.begin(header)
+            }
+            fn chunk(&mut self, chunk: OutputChunk<'_>) -> Result<(), AccountedVec<u8>> {
+                assert!(matches!(chunk, OutputChunk::Series { .. }));
+                self.output.chunk(chunk)?;
+                self.marks.push(
+                    self.provider
+                        .series
+                        .iter()
+                        .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
+                        .collect(),
+                );
+                if self.cancel_after == Some(self.output.chunks) {
+                    self.control.cancellation.cancel();
+                }
+                Ok(())
+            }
+            fn commit(&mut self, observations: &QueryObservations) -> Result<(), AccountedVec<u8>> {
+                self.output.commit(observations)
+            }
+            fn abort(&mut self) {
+                self.output.abort();
+            }
+        }
+        let provider = |page| {
+            let mut input = FixtureProvider::new(2, page, 3);
+            for row in &mut input.series {
+                row.source.counters = Default::default();
+            }
+            input.series.reverse();
+            input
+        };
+        let request = QueryRequest::Range {
+            start_ms: 1000,
+            end_ms: 2000,
+            step_ms: 1000,
+        };
+        for operator in ["topk", "bottomk"] {
+            for delayed in [false, true] {
+                for page in [1, 17, 1024] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let compiled = engine
+                        .compile(
+                            format!("abs({operator} by(instance)(1,counter_total))").as_bytes(),
+                            options(delayed),
+                            &control,
+                        )
+                        .unwrap();
+                    let calibration = provider(page);
+                    let mut sink = Sink {
+                        output: RecordingSink::default(),
+                        provider: &calibration,
+                        marks: Vec::new(),
+                        cancel_after: None,
+                        control: &control,
+                    };
+                    let report =
+                        compiled.execute_reported(&calibration, request, &control, &mut sink);
+                    report.result.as_ref().unwrap();
+                    assert!(sink.output.committed && !sink.output.aborted);
+                    assert_eq!(sink.marks.len(), 6);
+                    let marks = std::mem::take(&mut sink.marks);
+                    calibration.assert_closed();
+                    drop((report, sink));
+                    for (phase, target, acquisition, outputs) in [
+                        ("cold-suffix", 0, marks[0][0] + 1, 1),
+                        ("warm-selected", 1, marks[0][1] + 2, 1),
+                        ("next-clock", 0, marks[2][0] + 1, 3),
+                        ("output", 0, 0, 1),
+                        ("cancel", 0, 0, 1),
+                    ] {
+                        let mut input = provider(page);
+                        if acquisition != 0 {
+                            input.series[target].source.fail_acquisition = Some(acquisition);
+                        }
+                        let control = Control::default();
+                        let account = compiled.execution_accounting();
+                        let mut sink = Sink {
+                            output: RecordingSink {
+                                fail_after: (phase == "output").then_some(1),
+                                ..RecordingSink::default()
+                            },
+                            provider: &input,
+                            marks: Vec::new(),
+                            cancel_after: (phase == "cancel").then_some(1),
+                            control: &control,
+                        };
+                        let report = compiled
+                            .execute_reported_in(&input, request, &control, &mut sink, &account);
+                        match (phase, &report.result) {
+                            ("output", Err(ExecutionError::Sink(_))) => (),
+                            (
+                                "cancel",
+                                Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                                    Interrupted::Cancelled,
+                                ))),
+                            ) => (),
+                            (
+                                _,
+                                Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                                    StorageError::Provider(bytes),
+                                ))),
+                            ) if &**bytes == b"injected page failure" => (),
+                            _ => panic!("unexpected failure phase {phase}: {:?}", report.result),
+                        }
+                        assert!(sink.output.begun && sink.output.aborted && !sink.output.committed);
+                        assert_eq!(sink.output.chunks, outputs, "{phase}, page={page}");
+                        assert_eq!(
+                            report.observations.output_samples,
+                            (outputs - usize::from(phase == "output")) as u64
+                        );
+                        if acquisition != 0 {
+                            assert_eq!(
+                                input.series[target]
+                                    .source
+                                    .counters
+                                    .opened
+                                    .load(Ordering::Relaxed),
+                                acquisition
+                            );
+                        }
+                        println!(
+                            "{{\"ranking_failure\":\"{phase}\",\"operator\":\"{operator}\",\"delayed\":{delayed},\"page\":{page},\"outputs\":{outputs},\"acquisition\":{acquisition}}}"
+                        );
+                        input.assert_closed();
+                        drop((report, sink));
+                        account.snapshot().assert_memory_released();
+                    }
+                    drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
             }
         }
     }
