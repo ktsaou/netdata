@@ -19,6 +19,275 @@ pub(crate) const FULL_LABEL_HASH_COLLISION_VALUES: [&[u8]; 2] = [
     b"Bbbbb\x1d\x3c\xa5\x95\x96\x2f\x43\xdd",
 ];
 
+#[cfg(test)]
+pub(crate) mod group_preparation {
+    use super::*;
+    use crate::{
+        evaluator_roster::{Descriptor, HeadSummary},
+        frontend::{
+            ast::{ParsedExpression, ParserOptions},
+            parser,
+            regex::Selector,
+        },
+        label_hash,
+        result::OwnedLabels,
+    };
+
+    pub(crate) type RawLabels = Vec<(Vec<u8>, Vec<u8>)>;
+    pub(crate) type RawCase = (
+        AccountedVec<Descriptor>,
+        Vec<(u64, RawLabels)>,
+        Vec<usize>,
+        String,
+    );
+
+    #[derive(Debug, PartialEq)]
+    pub(crate) struct Identity {
+        labels: RawLabels,
+        buffers: Vec<(usize, usize)>,
+        ordinal: usize,
+        hash: u64,
+        drop_name: bool,
+        first_order: usize,
+        sources: std::ops::Range<usize>,
+        kinds: u8,
+    }
+
+    pub(crate) fn raw(labels: &OwnedLabels) -> RawLabels {
+        labels
+            .0
+            .iter()
+            .map(|label| (label.name.to_vec(), label.value.to_vec()))
+            .collect()
+    }
+
+    pub(crate) fn identities(rows: &[Descriptor]) -> Vec<Identity> {
+        rows.iter()
+            .map(|row| Identity {
+                labels: raw(&row.labels),
+                buffers: row
+                    .labels
+                    .0
+                    .iter()
+                    .map(|label| (label.name.as_ptr() as usize, label.value.as_ptr() as usize))
+                    .collect(),
+                ordinal: row.ordinal,
+                hash: row.hash,
+                drop_name: row.drop_name,
+                first_order: row.first_order,
+                sources: row.sources.clone(),
+                kinds: row.kinds,
+            })
+            .collect()
+    }
+
+    pub(crate) fn expression(
+        source: &str,
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> ParsedExpression {
+        let context = AllocationContext::new(account, MemoryKind::Compiled);
+        let parsed = parser::parse_in(
+            source.as_bytes(),
+            ParserOptions {
+                experimental_functions: true,
+                ..ParserOptions::default()
+            },
+            |pattern| Selector::compile_checked(pattern, Some(&context), Some(control)),
+            Some(account),
+            Some(control),
+        )
+        .unwrap();
+        assert!(parsed.errors.is_empty(), "{source}: {:?}", parsed.errors);
+        let mut owned = AccountedVec::new(account, MemoryKind::Compiled);
+        owned.extend_from_slice(source.as_bytes());
+        ParsedExpression {
+            source: owned,
+            arena: parsed.arena,
+            root: parsed.root.unwrap(),
+        }
+    }
+
+    pub(crate) fn rows(
+        raw: Vec<RawLabels>,
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> AccountedVec<Descriptor> {
+        let count = raw.len();
+        let mut result = AccountedVec::new(account, MemoryKind::Workspace);
+        for (position, fields) in raw.into_iter().enumerate() {
+            let mut labels = OwnedLabels::new(account, MemoryKind::Workspace);
+            for (name, value) in fields {
+                labels.push(&name, &value, account, MemoryKind::Workspace);
+            }
+            let hash = label_hash::full(&labels, control, account).unwrap();
+            result.push(Descriptor {
+                labels,
+                ordinal: 100 + 3 * (count - position),
+                hash,
+                drop_name: position % 2 == 1,
+                first_order: position + 11,
+                sources: 2 * position..2 * position + 2,
+                kinds: (position % 3 + 1) as u8,
+                heads: HeadSummary::default(),
+            });
+        }
+        result
+    }
+
+    pub(crate) fn population(
+        count: usize,
+        width: usize,
+        fields: usize,
+        unique: bool,
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> AccountedVec<Descriptor> {
+        assert!(fields >= 4);
+        rows(
+            (0..count)
+                .rev()
+                .map(|index| {
+                    let mut labels = vec![
+                        (b"__name__".to_vec(), b"m".to_vec()),
+                        (b"id".to_vec(), index.to_string().into_bytes()),
+                        (
+                            b"job".to_vec(),
+                            format!(
+                                "{}:{:06}",
+                                "x".repeat(width),
+                                if unique { index } else { 0 }
+                            )
+                            .into_bytes(),
+                        ),
+                        (b"pad".to_vec(), vec![b'p'; 16]),
+                    ];
+                    labels.extend(
+                        (4..fields)
+                            .map(|field| (format!("tag{field:03}").into_bytes(), vec![b'z'; 64])),
+                    );
+                    labels
+                })
+                .collect(),
+            account,
+            control,
+        )
+    }
+
+    pub(crate) fn query(operator: &str, fields: usize, without: bool) -> String {
+        let grouping = if without {
+            format!(
+                "without(id,pad{})",
+                (4..fields)
+                    .map(|field| format!(",tag{field:03}"))
+                    .collect::<String>()
+            )
+        } else {
+            "by(job)".into()
+        };
+        format!(
+            "{operator} {grouping}({},m)",
+            if operator == "quantile" { "0.5" } else { "2" }
+        )
+    }
+
+    pub(crate) fn raw_case(
+        case: usize,
+        reverse: bool,
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> RawCase {
+        let fields: &[&[(&[u8], &[u8])]] = &[
+            &[(b"a", b"b\xffc\xffd")],
+            &[(b"a", b"b"), (b"c", b"d")],
+            &[(b"a", b"b\xffc\xffd")],
+            &[(b"c", b"d"), (b"a", b"b")],
+            &[(b"a", b"")],
+            &[],
+        ];
+        let (grouping, selected, without): (&str, &[&[u8]], bool) = match case {
+            0 => ("", &[], false),
+            1 => ("by()", &[], false),
+            2 => ("by(missing)", &[b"missing"], false),
+            3 => ("by(a,c,a)", &[b"a", b"c"], false),
+            4 => (
+                "by(empty,__type__,__unit__,__name__)",
+                &[b"empty", b"__type__", b"__unit__", b"__name__"],
+                false,
+            ),
+            _ => (
+                "without(id,empty,__type__,__unit__)",
+                &[b"id", b"empty", b"__type__", b"__unit__"],
+                true,
+            ),
+        };
+        let mut input = Vec::new();
+        for position in 0..6 {
+            let index = if reverse { 5 - position } else { position };
+            let mut labels = vec![(b"__name__".to_vec(), b"m".to_vec())];
+            labels.extend(
+                fields[index]
+                    .iter()
+                    .map(|(name, value)| (name.to_vec(), value.to_vec())),
+            );
+            labels.extend([
+                (b"empty".to_vec(), vec![]),
+                (b"__type__".to_vec(), b"counter".to_vec()),
+                (b"__unit__".to_vec(), b"bytes".to_vec()),
+                (b"id".to_vec(), index.to_string().into_bytes()),
+            ]);
+            input.push(labels);
+        }
+        let mut expected = Vec::<(u64, RawLabels)>::new();
+        let mut bindings = Vec::new();
+        for labels in &input {
+            let kept: RawLabels = labels
+                .iter()
+                .filter(|(name, _)| {
+                    if without {
+                        name != b"__name__" && !selected.contains(&name.as_slice())
+                    } else {
+                        selected.contains(&name.as_slice())
+                    }
+                })
+                .cloned()
+                .collect();
+            let hash = if case <= 1 {
+                0
+            } else {
+                let mut bytes = Vec::new();
+                for (name, value) in &kept {
+                    bytes.extend_from_slice(name);
+                    bytes.push(255);
+                    bytes.extend_from_slice(value);
+                    bytes.push(255);
+                }
+                label_hash::bytes(&bytes, control, account).unwrap()
+            };
+            let position = expected
+                .iter()
+                .position(|(prior, _)| *prior == hash)
+                .unwrap_or_else(|| {
+                    expected.push((hash, kept));
+                    expected.len() - 1
+                });
+            bindings.push(position);
+        }
+        if case == 2 {
+            assert_eq!(expected[0].0, 0xef46_db37_51d8_e999);
+        }
+        if matches!(case, 3 | 5) {
+            assert_eq!(expected.len(), 4);
+        }
+        (
+            rows(input, account, control),
+            expected,
+            bindings,
+            grouping.into(),
+        )
+    }
+}
+
 struct WorkInterruption {
     query: usize,
     remaining: u64,

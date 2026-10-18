@@ -122,6 +122,11 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   repeated canonical contributors, raw/hash-only identity, selection-word boundaries and original larger-label fallback.
   Verify only-bit63/raw-order selection, checked copy/terminal cleanup, actual transient layouts/shared ordinary code,
   and constructor-versus-query acquisition. Preserve unsuccessful candidate measurements and every slower control.
+- Parameterized preparation MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#parameterized-aggregate-preparation` for hash-only
+  ranking, first-key copied quantile and later selection-word ownership. Preserve all input metadata/raw
+  identity/parameter phases; exercise second-key masked/hash/copy controls and bit63 after a completed first
+  group. Require exact original singleton/fallback work/memory; preserve rejected candidates and slower timings.
 - Borrowed aggregate lookup MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-aggregate-lookup-labels` for selected-byte
   identity, zero/empty digests, reached diagnostic borrowing, ownership, controls and complete operator comparisons.

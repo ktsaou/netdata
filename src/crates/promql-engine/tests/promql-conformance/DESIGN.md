@@ -1086,6 +1086,27 @@ integration, and Alertmanager remains excluded.
 - **Evidence:** [copied grouping qualification](grouped-label-qualification.json) binds the actual capacity red,
   final sources/executables, complete query measurements, interruption controls and containing-Agent checks.
 
+## Parameterized aggregate preparation
+
+- **Ranking:** prepare_rows computes the existing checked borrowed grouping hash at every raw field count.
+  Its index stores hashes/positions; full input owners remain for selection, sampling and result labels.
+- **Quantile:** the first key must miss and be retained, so it takes the original copied constructor. Later
+  <=64-field keys reuse the existing raw-position mask and copy only misses. Above 64 fields preserve original
+  copy/hash/lookup/drop-or-retain. Share copied construction with that fallback; no variable mask or retained field.
+- **Contracts:** preserve raw empties/order/delimiter aliases, first labels, literal0 versus empty digest,
+  hash-only identity, input buffers/ordinals/flags/kinds/sources, grouping-before-parameter validation and final
+  publication. Failures consume inputs and release local groups/bindings/partial keys.
+- **Controls:** retain 400 original causal scenarios/four exact regression bodies and 24 raw cases. Calibrate
+  first-prefix work/acquisition before actual second-key hash/terminal/masked-copy and copied-fallback controls;
+  second 64-field keys exercise raw bit63 with an empty value. Require complete-query original work/eight memory
+  observations for all literal singleton quantiles and larger-field fallback cases.
+- **Measured scope:** constructor acquisition, complete-query acquisition/peak, work, fixed timing, shared
+  compiled helper code, linked size and transient layout are distinct. Preserve the initial fully qualified
+  but unaccepted candidate and all slower controls; five extra work units do not explain an 11.360-microsecond elapsed cost.
+- **Evidence:** [parameterized preparation qualification](parameterized-preparation-qualification.json) binds
+  current native/foreign/original/reducer/literal/default C/C++ outcomes and exact historical attribution.
+  No public language/ABI/provider/contexts/storage/math/dependency/default/cap change or universal throughput claim.
+
 ## Prepared grouping key ownership
 
 - **Choice:** retained-source preparation hashes <=64raw label fields while recording the existing named-first

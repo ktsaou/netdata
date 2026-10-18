@@ -1427,7 +1427,7 @@ pub(crate) fn group_hash(
     group_hash_with(labels, grouping, without, control, account, |_| {})
 }
 
-struct PreparedGroupKey<'a> {
+pub(crate) struct PreparedGroupKey<'a> {
     hash: u64,
     labels: PreparedGroupLabels<'a>,
 }
@@ -1438,7 +1438,7 @@ enum PreparedGroupLabels<'a> {
 }
 
 impl<'a> PreparedGroupKey<'a> {
-    fn new(
+    pub(crate) fn new(
         source: &'a OwnedLabels,
         grouping: Option<&[AccountedVec<u8>]>,
         without: bool,
@@ -1447,16 +1447,7 @@ impl<'a> PreparedGroupKey<'a> {
     ) -> Result<Self, Interrupted> {
         if source.0.len() > u64::BITS as usize {
             // Keep the original walk rather than retaining an unbounded selection map.
-            let labels = copy_group_key(source, grouping, without, control, account)?;
-            let hash = if !without && grouping.is_none_or(|names| names.is_empty()) {
-                0
-            } else {
-                label_hash::grouping(&labels, control, account)?
-            };
-            return Ok(Self {
-                hash,
-                labels: PreparedGroupLabels::Copied(labels),
-            });
+            return Self::copied(source, grouping, without, control, account);
         }
         let (mut bits, mut bit) = (0u64, 1u64);
         let hash = group_hash_with(source, grouping, without, control, account, |keep| {
@@ -1471,7 +1462,30 @@ impl<'a> PreparedGroupKey<'a> {
         })
     }
 
-    fn into_owned(
+    pub(crate) fn copied(
+        source: &'a OwnedLabels,
+        grouping: Option<&[AccountedVec<u8>]>,
+        without: bool,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Self, Interrupted> {
+        let labels = copy_group_key(source, grouping, without, control, account)?;
+        let hash = if !without && grouping.is_none_or(|names| names.is_empty()) {
+            0
+        } else {
+            label_hash::grouping(&labels, control, account)?
+        };
+        Ok(Self {
+            hash,
+            labels: PreparedGroupLabels::Copied(labels),
+        })
+    }
+
+    pub(crate) fn hash(&self) -> u64 {
+        self.hash
+    }
+
+    pub(crate) fn into_owned(
         self,
         control: &Control,
         account: &QueryAccounting,

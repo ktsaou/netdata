@@ -5,10 +5,9 @@ use crate::{
     annotations::AnnotationKind,
     binary_labels,
     evaluator::{EvaluatedSample, EvaluationError, EvaluationOptions},
-    evaluator_roster::{Descriptor, GroupDescriptor, copy_group_key},
+    evaluator_roster::{Descriptor, GroupDescriptor, PreparedGroupKey},
     frontend::ast::{Expr, NodeId, ParsedExpression},
     go_sort_program::{Operation, Program, physical_index},
-    label_hash,
     numerical::{floor, source_add, source_mul},
     position_index::PositionIndex,
     result::OwnedValue,
@@ -55,13 +54,19 @@ impl Plan {
         for row in &*rows {
             control.check()?;
             account.work(1);
-            let labels =
-                copy_group_key(&row.labels, grouping.as_deref(), *without, control, account)?;
-            let hash = if !without && grouping.as_ref().is_none_or(|names| names.is_empty()) {
-                0
+            // The empty index cannot contain a hit, so its first key must be retained.
+            let key = if groups.is_empty() {
+                PreparedGroupKey::copied(
+                    &row.labels,
+                    grouping.as_deref(),
+                    *without,
+                    control,
+                    account,
+                )
             } else {
-                label_hash::grouping(&labels, control, account)?
-            };
+                PreparedGroupKey::new(&row.labels, grouping.as_deref(), *without, control, account)
+            }?;
+            let hash = key.hash();
             let position = if let Some(position) = index.find(
                 hash,
                 |position| Ok(groups[position].hash == hash),
@@ -73,7 +78,7 @@ impl Plan {
                 let position = groups.len();
                 groups.push(GroupDescriptor {
                     hash,
-                    labels,
+                    labels: key.into_owned(control, account)?,
                     whole_drop_name: None,
                 });
                 index.insert_new(
@@ -518,10 +523,351 @@ impl<'a> Step<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_storage::group_preparation as fixture;
     use crate::{
-        accounting::EngineAccounting, result::OwnedLabels, sample_labels::SampleLabels,
+        accounting::EngineAccounting, label_hash, result::OwnedLabels, sample_labels::SampleLabels,
         storage::LabelRef,
     };
+
+    #[test]
+    fn preparation_preserves_full_groups_before_first_key_allocation_guard() {
+        let mut costs = Vec::new();
+        for count in [1, 32] {
+            for unique in [false, true] {
+                for fields in [4, 63, 64, 65, 128] {
+                    for without in [false, true] {
+                        for width in [16, 4096] {
+                            let engine = EngineAccounting::default();
+                            let account = engine.query();
+                            let control = Control::default();
+                            let expression = fixture::expression(
+                                &fixture::query("quantile", fields, without),
+                                &account,
+                                &control,
+                            );
+                            let rows = fixture::population(
+                                count, width, fields, unique, &account, &control,
+                            );
+                            let expected = fixture::identities(&rows);
+                            let expected_labels: Vec<_> = rows
+                                .iter()
+                                .map(|row| vec![(b"job".to_vec(), row.labels.0[2].value.to_vec())])
+                                .collect();
+                            let mut parameters = Parameters::new(true);
+                            parameters.push(0.5, &account);
+                            let mut plan = Plan::new(parameters, &account);
+                            let before = account.snapshot();
+                            let groups = plan
+                                .prepare_rows(
+                                    rows,
+                                    &expression,
+                                    expression.root,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                            let after = account.snapshot();
+                            assert_eq!(fixture::identities(&plan.inputs), expected);
+                            assert_eq!(groups.len(), if unique { count } else { 1 });
+                            assert_eq!(
+                                &*plan.bindings,
+                                (0..count)
+                                    .map(|position| if unique { position } else { 0 })
+                                    .collect::<Vec<_>>()
+                            );
+                            for (position, group) in groups.iter().enumerate() {
+                                assert_eq!(fixture::raw(&group.labels), expected_labels[position]);
+                                assert_eq!(
+                                    group.hash,
+                                    label_hash::grouping(&group.labels, &control, &account)
+                                        .unwrap()
+                                );
+                                assert_eq!(group.whole_drop_name, None);
+                            }
+                            assert!(plan.cache.borrow().is_none());
+                            let acquired = after.memory[MemoryKind::Workspace as usize].acquired
+                                - before.memory[MemoryKind::Workspace as usize].acquired;
+                            assert!(after.memory.iter().all(|memory| !memory.overflowed));
+                            costs.push((count, unique, fields, without, width, acquired));
+                            eprintln!(
+                                "quantile-preparation count={count} unique={unique} fields={fields} without={without} width={width} acquired={acquired}"
+                            );
+                            drop((groups, plan, expression));
+                            account.snapshot().assert_memory_released();
+                            drop(account);
+                            engine.snapshot().assert_memory_released();
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(costs.len(), 80);
+        eprintln!("complete quantile-preparation constructor controls:80");
+        for pair in costs.chunks_exact(2) {
+            let (count, unique, fields, _, _, _) = pair[0];
+            let copied = if unique || fields > 64 { count } else { 1 };
+            assert_eq!(
+                pair[1].5 - pair[0].5,
+                (copied * (4096 - 16)) as u64,
+                "selected-value acquisition must follow surviving first keys or original large-field fallback: {:?}",
+                pair
+            );
+        }
+    }
+
+    #[test]
+    fn preparation_preserves_first_raw_keys_and_position_bindings() {
+        for case in 0..6 {
+            for reverse in [false, true] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let (rows, expected_groups, bindings, grouping) =
+                    fixture::raw_case(case, reverse, &account, &control);
+                let expected = fixture::identities(&rows);
+                let expression =
+                    fixture::expression(&format!("quantile {grouping}(0.5,m)"), &account, &control);
+                let mut plan = Plan::new(Parameters::new(true), &account);
+                let groups = plan
+                    .prepare_rows(rows, &expression, expression.root, &control, &account)
+                    .unwrap();
+                assert_eq!(fixture::identities(&plan.inputs), expected);
+                assert_eq!(&*plan.bindings, bindings);
+                assert_eq!(groups.len(), expected_groups.len());
+                for (group, (hash, labels)) in groups.iter().zip(expected_groups) {
+                    assert_eq!(group.hash, hash);
+                    assert_eq!(fixture::raw(&group.labels), labels);
+                    assert_eq!(group.whole_drop_name, None);
+                }
+                drop((groups, plan, expression));
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn preparation_interruptions_release_consumed_rows_and_partial_first_keys() {
+        for fields in [4, 65] {
+            for boundary in 0..4 {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let expression = fixture::expression(
+                    &fixture::query("quantile", fields, false),
+                    &account,
+                    &control,
+                );
+                let mut plan = Plan::new(Parameters::new(true), &account);
+                let inputless = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+                let mut raw: Vec<_> = {
+                    let rows = fixture::population(2, 65_536, fields, true, &account, &control);
+                    rows.iter().map(|row| fixture::raw(&row.labels)).collect()
+                };
+                raw[0]
+                    .iter_mut()
+                    .find(|(name, _)| name == b"job")
+                    .unwrap()
+                    .1 = b"first".to_vec();
+                let prefix_rows = fixture::rows(vec![raw[0].clone()], &account, &control);
+                let mut prefix = Plan::new(Parameters::new(true), &account);
+                let start = account.snapshot();
+                let prefix_groups = prefix
+                    .prepare_rows(
+                        prefix_rows,
+                        &expression,
+                        expression.root,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                let prefix_work = account.snapshot().work - start.work;
+                let prefix_acquired = account.snapshot().memory[MemoryKind::Workspace as usize]
+                    .acquired
+                    - start.memory[MemoryKind::Workspace as usize].acquired;
+                drop((prefix_groups, prefix));
+                assert_eq!(
+                    account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                    inputless
+                );
+                let rows = fixture::rows(raw, &account, &control);
+                let Expr::Aggregate {
+                    grouping, without, ..
+                } = &expression.arena[expression.root].expression
+                else {
+                    unreachable!()
+                };
+                let start = account.snapshot().work;
+                crate::evaluator_roster::group_hash(
+                    &rows[1].labels,
+                    grouping.as_deref(),
+                    *without,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let hash_work = account.snapshot().work - start;
+                let copy_work = if fields > 64 {
+                    let start = account.snapshot().work;
+                    let copied = crate::evaluator_roster::copy_group_key(
+                        &rows[1].labels,
+                        grouping.as_deref(),
+                        *without,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let work = account.snapshot().work - start;
+                    drop(copied);
+                    work
+                } else {
+                    0
+                };
+                let before = account.snapshot();
+                let budget = match boundary {
+                    0 => 1,
+                    1 => prefix_work + 1 + 8192,
+                    2 if fields <= 64 => prefix_work + 1 + hash_work,
+                    2 => prefix_work + 1 + copy_work,
+                    _ if fields <= 64 => prefix_work + 1 + hash_work + 1 + 8192,
+                    _ => prefix_work + 1 + 16384,
+                };
+                let result =
+                    crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                        plan.prepare_rows(rows, &expression, expression.root, &control, &account)
+                    });
+                assert!(matches!(
+                    result,
+                    Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                ));
+                assert!(
+                    plan.inputs.is_empty()
+                        && plan.bindings.is_empty()
+                        && plan.cache.borrow().is_none()
+                );
+                assert_eq!(
+                    account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                    inputless
+                );
+                if fields <= 64 && boundary <= 2 {
+                    assert_eq!(
+                        account.snapshot().memory[MemoryKind::Workspace as usize].acquired
+                            - before.memory[MemoryKind::Workspace as usize].acquired,
+                        if boundary == 0 { 0 } else { prefix_acquired }
+                    );
+                } else if boundary != 0 {
+                    assert!(
+                        account.snapshot().memory[MemoryKind::Workspace as usize].acquired
+                            - before.memory[MemoryKind::Workspace as usize].acquired
+                            > prefix_acquired
+                    );
+                } else {
+                    assert_eq!(
+                        account.snapshot().memory[MemoryKind::Workspace as usize].acquired,
+                        before.memory[MemoryKind::Workspace as usize].acquired
+                    );
+                }
+                drop((plan, expression));
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn preparation_preserves_empty_and_only_bit63_keys_across_fallback() {
+        for count in [0, 1, 2] {
+            for fields in [0, 1, 63, 64, 65, 128] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let expression = fixture::expression("quantile by(job)(NaN,m)", &account, &control);
+                let raw: fixture::RawLabels = (0..fields)
+                    .map(|position| {
+                        if position == 63 {
+                            (b"job".to_vec(), vec![])
+                        } else {
+                            (format!("f{position:03}").into_bytes(), vec![b'x'])
+                        }
+                    })
+                    .collect();
+                let mut raw = vec![raw; count];
+                if count == 2 && fields >= 64 {
+                    raw[0][63].1 = b"first".to_vec();
+                }
+                let rows = fixture::rows(raw, &account, &control);
+                let expected = fixture::identities(&rows);
+                let mut parameters = Parameters::new(true);
+                parameters.push(f64::NAN, &account);
+                let mut plan = Plan::new(parameters, &account);
+                let groups = plan
+                    .prepare_rows(rows, &expression, expression.root, &control, &account)
+                    .unwrap();
+                assert_eq!(fixture::identities(&plan.inputs), expected);
+                assert_eq!(plan.bindings.len(), count);
+                let distinct = count == 2 && fields >= 64;
+                assert_eq!(
+                    groups.len(),
+                    usize::from(count != 0) + usize::from(distinct)
+                );
+                if count != 0 {
+                    assert_eq!(plan.bindings[0], 0);
+                    if count == 2 {
+                        assert_eq!(plan.bindings[1], usize::from(distinct));
+                    }
+                    assert_eq!(
+                        fixture::raw(&groups[0].labels),
+                        if fields >= 64 {
+                            vec![(
+                                b"job".to_vec(),
+                                if distinct { b"first".to_vec() } else { vec![] },
+                            )]
+                        } else {
+                            vec![]
+                        }
+                    );
+                    if distinct {
+                        assert_eq!(
+                            fixture::raw(&groups[1].labels),
+                            vec![(b"job".to_vec(), vec![])]
+                        );
+                    }
+                }
+                for group in &*groups {
+                    assert_eq!(
+                        group.hash,
+                        label_hash::grouping(&group.labels, &control, &account).unwrap()
+                    );
+                }
+                drop((groups, plan, expression));
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
+        }
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let expression = fixture::expression("quantile by()(NaN,m)", &account, &control);
+        let mut plan = Plan::new(Parameters::new(true), &account);
+        control.cancellation.cancel();
+        let groups = plan
+            .prepare_rows(
+                AccountedVec::new(&account, MemoryKind::Workspace),
+                &expression,
+                expression.root,
+                &control,
+                &account,
+            )
+            .unwrap();
+        assert!(groups.is_empty() && plan.inputs.is_empty() && plan.bindings.is_empty());
+        drop((groups, plan, expression));
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
 
     fn published<'a>(
         plan: &'a Plan,

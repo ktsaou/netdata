@@ -73236,5 +73236,13 @@
     "comparison_base": "101c3b4b51ea44eadf9542dff587f561013f9be3",
     "source_phase": "immutable checked/qualified source",
     "scope": "Bounded transient raw-selection word and miss-only retained-source grouping copy; original >64fallback, unchanged input transfer.794units/profile,30focused/ARM,5760ordinary/1920literal pairs/56124current reducer outcomes,1008actual C pairs/1008C++controls. Initial5.615percent candidate and corrected test reference preserved separately; all strict differences and allocation/peak/work/timing/linked costs retained. No universal/live/RSS claim."
+  },
+  "parameterized_aggregate_preparation": {
+    "status": "qualified_finite_private_owner",
+    "report": "parameterized-preparation-qualification.json",
+    "report_sha256": "746b815d4d3d3459929bf000cb46036844ca388ecea176376f97f4c7f811e777",
+    "comparison_base": "ecd6455ee7ffc66d3c12ef0c8ed35490df2a477d",
+    "source_phase": "immutable checked/qualified refinement",
+    "scope": "Borrowed ranking grouping hashes at all widths; shared original copied quantile first key, later <=64 selection-word/miss copy, original >64 fallback.802native units/profile,40focused/ARM, 5760ordinary/2304literal pairs/56124fresh reducer outcomes,1008C pairs/1008C++controls/full C. Exact singleton/fallback work/eight memory observations; initial unaccepted source/costs/timings preserved. All strict differences and slower/resource/linked costs retained; no universal/live/RSS claim."
   }
 }

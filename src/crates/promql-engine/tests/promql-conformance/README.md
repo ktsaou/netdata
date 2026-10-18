@@ -3807,6 +3807,120 @@ All 18 C/C++ callers, 72 distinct ARM target/profile grouping checks, 672 storag
 checks pass. The cohort preserves all 46 preceding ledger objects and their source/binary identities. Caller
 sanitizers exclude Rust instrumentation; ARM checks execute the library and callers, not a complete foreign Agent.
 
+## Parameterized aggregate preparation
+
+Ranking preparation (`topk`, `bottomk`, `limitk`, `limit_ratio`) now hashes the existing input labels directly.
+Its lookup stores only hashes and positions, so it needs no temporary copied grouping labels at any field count.
+Full input labels remain owned for selection, sampling and final output.
+
+Quantile preparation retains one owned raw key per hash group. The first key always misses the empty index,
+so it uses the original checked copy-and-hash path directly. Later keys with at most 64 raw fields use the
+existing transient selection word: hits avoid a copy; misses copy the same selected raw positions. Above 64
+fields use the original copy/hash/lookup/drop-or-retain path. The copied constructor is shared with that fallback.
+The 64-field boundary is an optimization choice and imposes no query limit.
+
+Raw empty values, source order, delimiter aliases, first labels, literal-zero versus empty digest and hash-only
+identity remain meaningful. Input buffers, ordinals, flags, kinds and source bindings retain their owners.
+Grouping still precedes global parameter validation. Local groups/bindings publish only after successful
+construction; cancellation releases consumed inputs and partial keys. No persistent field is added.
+
+The unchanged constructors complete 320 ranking and 80 quantile result/ownership/cleanup scenarios before their
+intended allocation failures. Those four causal regression function bodies stay unchanged. Another 24 raw-identity
+cases exercise empty/delimiter/named selections and encounter order. Coupled controls calibrate one completed
+first group before interrupting a distinct second key during borrowed hashing, terminal checking or partial
+masked copying. The original 65-field copied fallback has separate partial/terminal controls. Zero/one/two-input
+cases cover 0/1/63/64/65/128 raw fields; a second 64-field miss selects only bit63 and retains its empty value.
+
+For 32 repeated inputs, matched Debug constructor workspace acquisition is:
+
+| Owner | Selected job padding, bytes | Before acquired, bytes | Current acquired, bytes |
+| --- | ---: | ---: | ---: |
+| ranking | 16 | 15,072 | 1,952 |
+| ranking | 4,096 | 145,632 | 1,952 |
+| quantile | 16 | 13,856 | 1,146 |
+| quantile | 4,096 | 144,416 | 5,226 |
+
+Acquisition starts after input, parameter and expected-result construction. It is allocation traffic rather
+than retained peak or process RSS. These complete 32-input queries use 4,096-byte job padding and 32 ignored fields;
+ratios divide current engine time by before time, so smaller is faster:
+
+| Query | Workspace acquired before → current, bytes | Workspace peak before → current, bytes | Release ratio | Release-min ratio |
+| --- | ---: | ---: | ---: | ---: |
+| projected topk | 9,973,120 → 9,829,440 | 783,916 → 783,916 | 0.997 | 1.007 |
+| projected quantile | 34,091,026 → 33,951,836 | 772,040 → 772,040 | 1.014 | 1.004 |
+| raw topk | 9,223,364 → 9,079,684 | 376,838 → 376,838 | 0.994 | 1.031 |
+| raw quantile | 33,373,314 → 33,234,124 | 359,432 → 359,432 | 0.992 | 0.993 |
+
+All eight memory categories, work and read observations remain in the report, including costs. The literal
+panel requires exact original work and memory for 480 singleton quantiles
+and 360 larger-field fallback comparisons; these sets overlap.
+
+Both optimized native profiles pass 802 units plus two unchanged ignored tests. Each installed ARM target runs
+40 focused checks under QEMU. Fresh complete outcomes include 5,760 ordinary original/before pairs, 2,304 literal
+pairs and 56,124 reducer results. All 216 strict-original differences remain failures, including membership and
+point-count differences; unchanged ordering-policy analyses retain their actual historical attribution.
+Default libraries pass 1,008 C before/current pairs, 1,008 current C++ controls and both full C programs, including
+direct quantile output/cancellation/owned/streamed checks. Aggregate-parent ranking C cases do not independently
+prove full emitted winner labels. Sample-statistic/read fields are exact. Formatting, two strict Clippy variants
+and installed Rust 1.91 all-target fixture compile-only checks pass.
+
+The initial candidate is preserved but was not accepted. Its fixed follow-up retained a release singleton
+quantile slowdown 105.559→116.919 microseconds and a release-min ordinary slowdown 251.457→264.197 microseconds.
+The first-key mask repeated five raw-field visits in the singleton case, but this does not establish the cause
+of its 11.360-microsecond elapsed cost. The refinement removes independently proven redundant traversal, without
+discarding any initial source, binary, capture, memory, linked-size or timing result.
+
+The refined timing panel uses the exact same 208 fixed cases per profile, three alternating blocks and nine
+measured samples per side. Every primary median at least 5% slower gets one identical fixed follow-up. There
+is no third same-source rerun to select a winner.
+release retains 45 slower primary medians, 0 fixed follow-ups
+and 0 follow-ups still at least 5% slower.
+release-min retains 180 slower primary medians, 43 fixed follow-ups
+and 9 follow-ups still at least 5% slower.
+Every slower row and sample is retained.
+
+| Profile | Case | Before, microseconds | Current, microseconds | Change |
+| --- | --- | ---: | ---: | ---: |
+| release-min | `parameterized-preparation:1:unique:4096:0:0:3` | 187.308 | 196.808 | 5.072% |
+| release-min | `parameterized-preparation:32:repeated:16:124:0:0` | 38540.378 | 40995.925 | 6.371% |
+| release-min | `parameterized-preparation:32:repeated:16:32:0:0` | 12538.519 | 13419.571 | 7.027% |
+| release-min | `parameterized-preparation:32:repeated:16:32:0:1` | 21970.638 | 23381.724 | 6.423% |
+| release-min | `parameterized-preparation:32:repeated:16:32:0:2` | 44243.783 | 46789.628 | 5.754% |
+| release-min | `parameterized-preparation:32:repeated:16:32:0:5` | 32151.620 | 34310.019 | 6.713% |
+| release-min | `parameterized-preparation:32:repeated:4096:0:0:1` | 6181.281 | 6585.896 | 6.546% |
+| release-min | `parameterized-ordinary:1:unique:4096:32:0:1` | 249.057 | 262.577 | 5.428% |
+| release-min | `parameterized-ordinary:32:repeated:16:32:0:1` | 6117.231 | 6459.557 | 5.596% |
+
+The transient key remains 56 bytes on native/ARM64 and 40 bytes on ARM32; its label owner is 48/32 bytes,
+with 8-byte alignment. These are observed layouts rather than measured stack high-water. Actual optimized
+ordinary/shared helper code is inspected alongside ordinary controls. Matched linked section changes are:
+
+| Binary | Cohort | Text bytes | Data bytes | BSS bytes |
+| --- | --- | ---: | ---: | ---: |
+| fixture | release | +76 | +0 | -96 |
+| grouped-output-C | release | -1,600 | +24 | +0 |
+| fixture | release-min | -184 | +0 | +176 |
+| grouped-output-C | release-min | +32 | -8 | +0 |
+| fixture | arm32 | -1,012 | -16 | +0 |
+| fixture | arm64 | +228 | +0 | +0 |
+
+Archive/file lengths and all resource costs are retained. Shared-host timing covers the engine phase and
+excludes parsing, compilation and serialization. These finite checks establish no arbitrary-input proof,
+universal speedup, whole-Agent/live/concurrent behavior, physical ARM throughput, foreign full suite/C,
+MSRV execution, actual stack peak or RSS result.
+
+From the independent Cargo root, run the focused controls with:
+
+```sh
+cargo test --locked --features fixtures --release preparation_
+cargo test --locked --features fixtures --profile release-min preparation_
+```
+
+The [parameterized preparation qualification](parameterized-preparation-qualification.json) binds exact
+current and comparison sources, binaries, complete results and costs. Compressed historical captures retain
+their actual attribution and are verified through EOF with raw/compressed digests; new captures are compressed
+from the start. Public language, ABI, provider, contexts, storage, arithmetic, defaults and disabled caps are unchanged.
+
 ## Prepared grouping key ownership
 
 Grouping preparation avoids discarded label copies when an immutable child retains its source bindings.

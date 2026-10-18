@@ -5,7 +5,7 @@ use crate::{
     annotations::{AnnotationBuilder, AnnotationKind},
     binary_labels,
     evaluator::{EvaluatedSample, EvaluationError, EvaluationOptions},
-    evaluator_roster::{Descriptor, copy_group_key},
+    evaluator_roster::{Descriptor, group_hash},
     float_text::{FloatTextStyle, float_text},
     frontend::{
         Span,
@@ -228,14 +228,7 @@ impl Plan {
         for row in &*rows {
             control.check()?;
             account.work(1);
-            let labels =
-                copy_group_key(&row.labels, grouping.as_deref(), *without, control, account)?;
-            let hash = if !without && grouping.as_ref().is_none_or(|names| names.is_empty()) {
-                0
-            } else {
-                label_hash::grouping(&labels, control, account)?
-            };
-            drop(labels);
+            let hash = group_hash(&row.labels, grouping.as_deref(), *without, control, account)?;
             let group = if let Some(group) = index.find(
                 hash,
                 |position| Ok(hashes[position] == hash),
@@ -893,5 +886,271 @@ impl<'a> Step<'a> {
             }
         }
         Ok(Action::Continue)
+    }
+}
+
+#[cfg(test)]
+mod preparation_tests {
+    use super::*;
+    use crate::{accounting::EngineAccounting, test_storage::group_preparation as fixture};
+
+    #[test]
+    fn preparation_preserves_full_inputs_before_discarded_key_allocation_guard() {
+        let mut costs = Vec::new();
+        for (operator, name) in [
+            (TokenKind::TOPK, "topk"),
+            (TokenKind::BOTTOMK, "bottomk"),
+            (TokenKind::LIMITK, "limitk"),
+            (TokenKind::LIMIT_RATIO, "limit_ratio"),
+        ] {
+            for count in [1, 32] {
+                for unique in [false, true] {
+                    for fields in [4, 63, 64, 65, 128] {
+                        for without in [false, true] {
+                            for width in [16, 4096] {
+                                let engine = EngineAccounting::default();
+                                let account = engine.query();
+                                let control = Control::default();
+                                let expression = fixture::expression(
+                                    &fixture::query(name, fields, without),
+                                    &account,
+                                    &control,
+                                );
+                                let rows = fixture::population(
+                                    count, width, fields, unique, &account, &control,
+                                );
+                                let expected = fixture::identities(&rows);
+                                let mut parameters = Parameters::new(true);
+                                parameters.push(2.0, &account);
+                                let mut plan = Plan::new(operator, parameters, &account);
+                                let before = account.snapshot();
+                                plan.prepare_rows(
+                                    rows,
+                                    &expression,
+                                    expression.root,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                                let after = account.snapshot();
+                                assert_eq!(fixture::identities(&plan.inputs), expected);
+                                assert_eq!(plan.groups, if unique { count } else { 1 });
+                                assert_eq!(
+                                    plan.bindings
+                                        .iter()
+                                        .map(|binding| binding.group)
+                                        .collect::<Vec<_>>(),
+                                    (0..count)
+                                        .map(|position| if unique { position } else { 0 })
+                                        .collect::<Vec<_>>()
+                                );
+                                assert!(
+                                    plan.bindings
+                                        .iter()
+                                        .all(|binding| binding.canonical.is_none())
+                                );
+                                assert!(
+                                    plan.productive
+                                        && plan.projected_rows.is_none()
+                                        && plan.cache.borrow().is_none()
+                                );
+                                let acquired = after.memory[MemoryKind::Workspace as usize]
+                                    .acquired
+                                    - before.memory[MemoryKind::Workspace as usize].acquired;
+                                assert!(after.memory.iter().all(|memory| !memory.overflowed));
+                                costs.push((name, count, unique, fields, without, width, acquired));
+                                eprintln!(
+                                    "ranking-preparation operator={name} count={count} unique={unique} fields={fields} without={without} width={width} acquired={acquired}"
+                                );
+                                drop((plan, expression));
+                                account.snapshot().assert_memory_released();
+                                drop(account);
+                                engine.snapshot().assert_memory_released();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(costs.len(), 320);
+        eprintln!("complete ranking-preparation constructor controls:320");
+        for pair in costs.chunks_exact(2) {
+            assert_eq!(
+                pair[0].6, pair[1].6,
+                "discarded ranking keys must not acquire selected-value width: {:?}",
+                pair
+            );
+        }
+    }
+
+    #[test]
+    fn preparation_preserves_raw_hash_groups_and_position_bindings() {
+        for case in 0..6 {
+            for reverse in [false, true] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let (rows, groups, bindings, grouping) =
+                    fixture::raw_case(case, reverse, &account, &control);
+                let expected = fixture::identities(&rows);
+                let expression =
+                    fixture::expression(&format!("topk {grouping}(2,m)"), &account, &control);
+                let mut parameters = Parameters::new(true);
+                parameters.push(2.0, &account);
+                let mut plan = Plan::new(TokenKind::TOPK, parameters, &account);
+                plan.prepare_rows(rows, &expression, expression.root, &control, &account)
+                    .unwrap();
+                assert_eq!(fixture::identities(&plan.inputs), expected);
+                assert_eq!(plan.groups, groups.len());
+                assert_eq!(
+                    plan.bindings
+                        .iter()
+                        .map(|binding| binding.group)
+                        .collect::<Vec<_>>(),
+                    bindings
+                );
+                assert!(
+                    plan.bindings
+                        .iter()
+                        .all(|binding| binding.canonical.is_none())
+                );
+                drop((plan, expression));
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
+        }
+    }
+    #[test]
+    fn preparation_checks_hash_before_parameter_errors_and_releases_consumed_rows() {
+        for parameter in [0.0, f64::NAN, f64::INFINITY] {
+            for boundary in 0..4 {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let expression = fixture::expression("topk by(job)(2,m)", &account, &control);
+                let mut parameters = Parameters::new(true);
+                parameters.push(parameter, &account);
+                let mut plan = Plan::new(TokenKind::TOPK, parameters, &account);
+                let inputless = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+                let rows = fixture::population(8, 65_536, 4, false, &account, &control);
+                let Expr::Aggregate {
+                    grouping, without, ..
+                } = &expression.arena[expression.root].expression
+                else {
+                    unreachable!()
+                };
+                let start = account.snapshot().work;
+                group_hash(
+                    &rows[0].labels,
+                    grouping.as_deref(),
+                    *without,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let hash_work = account.snapshot().work - start;
+                let before = account.snapshot();
+                let operation =
+                    || plan.prepare_rows(rows, &expression, expression.root, &control, &account);
+                let result = match boundary {
+                    0 => operation(),
+                    1 => {
+                        crate::test_storage::interrupt_after_work(&account, &control, 1, operation)
+                    }
+                    2 => crate::test_storage::interrupt_after_work(
+                        &account, &control, 8192, operation,
+                    ),
+                    _ => crate::test_storage::interrupt_after_work(
+                        &account,
+                        &control,
+                        1 + hash_work,
+                        operation,
+                    ),
+                };
+                if boundary != 0 {
+                    assert_eq!(
+                        result,
+                        Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                    );
+                    assert!(plan.inputs.is_empty() && plan.bindings.is_empty() && plan.groups == 0);
+                    assert_eq!(
+                        account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                        inputless
+                    );
+                    assert_eq!(
+                        account.snapshot().memory[MemoryKind::Workspace as usize].acquired,
+                        before.memory[MemoryKind::Workspace as usize].acquired
+                    );
+                } else if parameter == 0.0 {
+                    result.unwrap();
+                    assert!(!plan.productive);
+                    assert_eq!(plan.inputs.len(), 8);
+                    assert_eq!(plan.bindings.len(), 8);
+                    assert_eq!(plan.groups, 1);
+                    assert!(account.snapshot().work - before.work >= 8 * hash_work);
+                } else {
+                    let Err(EvaluationError::Runtime(message)) = &result else {
+                        panic!("parameter error after grouping: {result:?}")
+                    };
+                    assert_eq!(
+                        &**message,
+                        if parameter.is_nan() {
+                            b"Parameter value is NaN".as_slice()
+                        } else {
+                            b"Scalar value +Inf overflows int64".as_slice()
+                        }
+                    );
+                    assert!(account.snapshot().work - before.work >= 8 * hash_work);
+                    assert!(plan.inputs.is_empty() && plan.bindings.is_empty() && plan.groups == 0);
+                    drop(result);
+                    assert_eq!(
+                        account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                        inputless
+                    );
+                }
+                drop((plan, expression));
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn preparation_distinguishes_empty_rows_from_empty_labelsets() {
+        for count in [0, 1] {
+            for cancelled in [false, true] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let expression = fixture::expression("topk by(missing)(2,m)", &account, &control);
+                let rows = fixture::rows(vec![vec![]; count], &account, &control);
+                let mut parameters = Parameters::new(true);
+                parameters.push(2.0, &account);
+                let mut plan = Plan::new(TokenKind::TOPK, parameters, &account);
+                if cancelled {
+                    control.cancellation.cancel();
+                }
+                let result =
+                    plan.prepare_rows(rows, &expression, expression.root, &control, &account);
+                if cancelled && count != 0 {
+                    assert_eq!(
+                        result,
+                        Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                    );
+                    assert!(plan.inputs.is_empty() && plan.bindings.is_empty());
+                } else {
+                    result.unwrap();
+                    assert_eq!(plan.groups, count);
+                    assert_eq!(plan.inputs.len(), count);
+                    assert_eq!(plan.bindings.len(), count);
+                }
+                drop((plan, expression));
+                account.snapshot().assert_memory_released();
+                drop(account);
+                engine.snapshot().assert_memory_released();
+            }
+        }
     }
 }
