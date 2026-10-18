@@ -8231,7 +8231,8 @@ The 56,124 fresh reducer results preserve 216 strict historical original failure
 ordering-policy attribution; 456 sort-original comparisons pass. No fresh Go capture is claimed.
 
 The fixed timing panel has 128 cases/profile: many small groups, one/two winners, one-group top/bottom5,
-empty/singleton fallbacks, short/wide labels, both name modes and bare/ABS/scalar/unary consumers.
+empty/singleton fallbacks, short/wide labels and bare/ABS/scalar/unary consumers. Timing uses
+immediate metric-name removal; functional controls cover both modes.
 Three alternating blocks provide nine measured samples/side. Each primary ratio at least 1.05 receives
 exactly one identical nine-sample follow-up. Below, each value is the median of the complete case ratios;
 all individual samples, slower cases, follow-ups, work and code costs remain in the report.
