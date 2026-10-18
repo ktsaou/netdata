@@ -2618,10 +2618,16 @@ static void empty_group_owner_outputs(netdata_promql_engine_t *engine) {
     }
 }
 
-static void count_values_lookup_outputs(netdata_promql_engine_t *engine) {
-    const char *expressions[] = {
-        "count_values by(zone)(\"v\",m)",
-        "count_values by(zone)(\"out\",count_values by(zone)(\"v\",m))",
+static void count_values_lookup_outputs(netdata_promql_engine_t *engine, unsigned borrowed) {
+    const char *expressions[][2] = {
+        {
+            "count_values by(zone)(\"v\",m)",
+            "count_values by(zone)(\"out\",count_values by(zone)(\"v\",m))",
+        },
+        {
+            "count_values by(zone)(\"v\",label_join(m,\"copy\",\"/\",\"zone\"))",
+            "count_values by(zone)(\"out\",count_values by(zone)(\"v\",label_join(m,\"copy\",\"/\",\"zone\")))",
+        },
     };
     const uint64_t pages[] = {1, 17, 1024};
     static const uint8_t zones[] = {'0', '1', '2', '3'};
@@ -2641,7 +2647,7 @@ static void count_values_lookup_outputs(netdata_promql_engine_t *engine) {
             input.selection_next = join_selection_next;
             input.cursor_open = join_cursor_open;
             input.cursor_next = join_cursor_next;
-            netdata_promql_query_t *query = compile(engine, expressions[nested]);
+            netdata_promql_query_t *query = compile(engine, expressions[borrowed][nested]);
             netdata_promql_request_t request = instant(range ? 1000 : 3000);
             if (range) {
                 request.kind = NETDATA_PROMQL_REQUEST_RANGE;
@@ -2686,9 +2692,9 @@ static void count_values_lookup_outputs(netdata_promql_engine_t *engine) {
             assert(observed.output_samples == (range ? 12 : 4));
             assert(observed.samples_fetched == source.source.samples_returned && observed.pages == source.source.pages_returned);
             assert(observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
-            printf("{\"count_values_lookup\":\"pass\",\"page\":%" PRIu64 ",\"nested\":%u,\"range\":%u,\"work\":%" PRIu64
+            printf("{\"count_values_lookup\":\"pass\",\"page\":%" PRIu64 ",\"nested\":%u,\"range\":%u,\"borrowed\":%u,\"work\":%" PRIu64
                    ",\"fetched\":%" PRIu64 ",\"statistics\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 "],\"workspace_peak\":%" PRIu64 "}\n",
-                   pages[page], nested, range, observed.work, observed.samples_fetched,
+                   pages[page], nested, range, borrowed, observed.work, observed.samples_fetched,
                    observed.statistics.samples.total_queryable_samples, observed.statistics.samples.samples_read,
                    observed.statistics.samples.peak_samples, observed.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].peak);
             assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
@@ -2710,6 +2716,7 @@ int main(int argc, char **argv) {
     if (argc == 2 && (strcmp(argv[1], "--instant-sets-delayed-only") == 0 ||
                       strcmp(argv[1], "--single-group-values-delayed-only") == 0 ||
                       strcmp(argv[1], "--derived-kind-delayed-only") == 0 ||
+                      strcmp(argv[1], "--count-values-borrowed-delayed-only") == 0 ||
                       strcmp(argv[1], "--count-values-delayed-only") == 0))
         options.flags |= NETDATA_PROMQL_DELAYED_NAME_REMOVAL;
     netdata_promql_engine_t *engine = NULL;
@@ -2717,8 +2724,12 @@ int main(int argc, char **argv) {
     netdata_promql_engine_observations_t idle;
     assert(netdata_promql_engine_observations(engine, &idle) == NETDATA_PROMQL_OK);
     if (argc == 2 && (strcmp(argv[1], "--count-values-only") == 0 ||
+                      strcmp(argv[1], "--count-values-borrowed-only") == 0 ||
+                      strcmp(argv[1], "--count-values-borrowed-delayed-only") == 0 ||
                       strcmp(argv[1], "--count-values-delayed-only") == 0)) {
-        count_values_lookup_outputs(engine);
+        unsigned borrowed = strcmp(argv[1], "--count-values-borrowed-only") == 0 ||
+                            strcmp(argv[1], "--count-values-borrowed-delayed-only") == 0;
+        count_values_lookup_outputs(engine, borrowed);
         balanced(engine, &idle);
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
         return 0;

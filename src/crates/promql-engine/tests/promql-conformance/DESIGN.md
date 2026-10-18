@@ -1911,3 +1911,19 @@ interruption/cleanup, distinct C activation scopes and the finite original/targe
   and linked costs are explicit. Smaller entry frames do not prove runtime stack high-water or lower heap.
 - **Evidence:** [finite qualification](conditional-count-preparation-qualification.json) and
   [procedure and costs](README.md#conditional-count_values-preparation).
+
+
+## Borrowed COUNT_VALUES input labels
+
+- **Choice:** use the existing local SampleLabels ownership state. Strictly ordered reset-surviving borrowed
+  names admit virtual destination replacement/full validation,then checked copying of retained originals and
+  setting the retained generated value. Owned or unordered/duplicate input follows its original transfer path.
+- **Reason:** copying a borrowed field before grouping discards it spends allocation and byte work without
+  contributing to the result. Validate the full effective modified label set to preserve error behavior.
+- **Consequence:** old overwritten values and reset-empty fields are absent from validation;discarded effective
+  fields still validate. Formatting precedes encoding. Poll after final destination membership even if it is
+  discarded;an empty key has no later hashing poll. Result keys remain independently owned before unchanged
+  collection/binding logic. There is no persistent layout,ABI/provider,metadata or raw-history change.
+- **Evidence:** [procedure and finite measured scope](README.md#borrowed-count_values-input-labels) and
+  [qualification](count-values-borrowed-inputs-qualification.json). All small/retained-label and compiled costs
+  remain explicit;the local acquisition guard is distinct from whole-query peak memory.

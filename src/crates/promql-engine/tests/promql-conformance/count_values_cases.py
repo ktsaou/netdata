@@ -210,3 +210,35 @@ def lookup_cases():
             'count_values by(id)("v",m)'))
     assert len(inputs) == len({row["request"]["id"] for row in inputs})
     return inputs
+
+
+def borrowed_input_cases():
+    """Owned controls and frozen-label producers with omitted and retained payloads."""
+    inputs = []
+    expressions = (
+        ('owned-filtered', 'count_values by(id)("value",m)'),
+        ('borrowed-filtered', 'count_values by(id)("value",label_join(m,"copy","/","id"))'),
+        ('borrowed-retained', 'count_values without(nothing)("value",label_join(m,"copy","/","id"))'),
+        ('aggregate', 'count_values by(id)("value",sum by(id,padding)(m))'),
+        ('quantile', 'count_values by(id)("value",quantile by(id,padding)(0.5,m))'),
+        ('ranking', 'count_values by(id)("value",topk(64,m))'),
+        ('map', 'count_values by(id)("value",abs(m))'),
+        ('set', 'count_values by(id)("value",(m or m))'),
+        ('binary', 'count_values by(id)("value",(m+on(id)m))'),
+    )
+    windows = (("instant", 1000, 0, 0, 0), ("range", 0, 0, 2000, 1000))
+    for count in (0, 1, 16, 64):
+        for padding in (0, 4096):
+            records = [series({"__name__": "m", "id": str(index), "padding": b'p' * padding},
+                [(0, 7, "float"), (1000, 8, "float"), (2000, 7, "float")]) for index in range(count)]
+            for family, expression in expressions:
+                for delayed in (False, True):
+                    for mode, time, start, end, step in windows:
+                        inputs.append({"request": {
+                            "id": f"count-values-borrowed:{count}:{padding}:{family}:{int(delayed)}:{mode}",
+                            "query": expression, "profile": "server-default", "delayed_name_removal": delayed,
+                            "mode": mode, "time_ms": time, "start_ms": start, "end_ms": end, "step_ms": step,
+                            "lookback_ms": 1, "subquery_step_ms": 1000},
+                            "dataset": {"schema_version": 1, "series": deepcopy(records)}, "faults": {}})
+    assert len(inputs) == len({row["request"]["id"] for row in inputs}) == 288
+    return inputs

@@ -73400,5 +73400,43 @@
     ],
     "new_tests_or_language_cases": 0,
     "scope": "Private lazy local COUNT_VALUES owner only; all complete/nonelapsed outcomes equal106. Actual default-C constructor bypass and smaller code/entry frames; tracked heap and retained types equal. Mixed40-case timings/all slower and linked fixture costs retained. No new language or public contract,universal gain,lower-heap,RSS,live/concurrent/whole-Agent claim."
+  },
+  "borrowed_count_values_inputs": {
+    "status": "finite_source_bound_qualification",
+    "report": "count-values-borrowed-inputs-qualification.json",
+    "report_sha256": "0f92110a8ce8b357c361620bd11cd4b70f2b834bd48d3d93b1f68ec78dccd2eb",
+    "source_inputs": 362,
+    "source_manifest_sha256": "48df4889a056b609a6d5101d0f63ac468a33a171ca8e2ae3857b883a05db857a",
+    "comparison_base": "5e9332dc30a7a831bf2b4c0932a32a40e305bbc2",
+    "baseline_runtime_revision": "5e9332dc30a7a831bf2b4c0932a32a40e305bbc2",
+    "decision": "accept",
+    "full_native_passes_per_profile": 834,
+    "native_ignored_per_profile": 2,
+    "foreign_focused_passes_per_target": 13,
+    "reused_target_cases": 336,
+    "retained_original_cases": 796,
+    "new_borrowed_wrapper_controls": 288,
+    "complete_target_pairs": 11360,
+    "retained_go_original_comparisons": 6368,
+    "exact_complete_results_and_order": true,
+    "physical_read_fields_equal": true,
+    "work_and_memory_deltas_retained": true,
+    "default_c_pairs": 96,
+    "cpp_controls": 96,
+    "full_current_c_suites": 2,
+    "strict_clippy_variants": 2,
+    "format_check": true,
+    "msrv_compile_only": "1.91.0",
+    "native_pages": [
+      1,
+      17,
+      1024
+    ],
+    "emulated_arm_pages": [
+      17
+    ],
+    "new_module_tests": 4,
+    "new_default_language_features": 0,
+    "scope": "Private borrowed COUNT_VALUES retained-label copying;complete exact results/physical reads and source/error/control/ownership contracts preserved. Actual allocation/work/peak/throughput gains and all tiny,retained,ordinary,linked costs recorded. No new default language feature,uniform borrowed-branch coverage or universal/RSS/live/Cloud claim."
   }
 }

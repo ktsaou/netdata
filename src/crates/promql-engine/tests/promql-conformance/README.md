@@ -8464,3 +8464,75 @@ The fixed 40-query timing panel yields median case ratios 1.007347/0.973743. Rel
 six exceed 1.05 and receive one prescribed follow-up each, with none still at that threshold. Release-min has no
 slower primary median. All samples remain, including smaller follow-up slowdowns. The change removes needless
 ownership work and reduces product code; it does not establish universally faster queries or lower heap usage.
+
+
+## Borrowed COUNT_VALUES input labels
+
+COUNT_VALUES now keeps frozen input labels borrowed until it can copy only fields retained by grouping.
+Already-owned labels retain their transfer/reset/overwrite/filter path. Borrowed inputs whose nonempty
+reset-surviving names are not strictly increasing use that same path, preserving private duplicate and
+binary-search ordering behavior. Admission includes the original destination name.
+
+Value formatting still occurs once before full effective-label validation. A transient virtual replacement
+inserts the generated destination at its byte-order position,skips its overwritten old value and reset-empty
+fields,and validates every effective name/value before grouping,including fields that grouping drops.
+Existing checked copying and membership helpers then construct an independently owned retained key.
+The final membership check has a terminal control poll before the key can reach collection publication.
+Group hashes,exact binding equality,index thresholds,first representatives,sorting and canonical projection
+remain unchanged. No persistent owner or raw-history array is added;implicit caps remain disabled.
+
+From the crate root,run the focused count_values unit command in the preceding lookup section with either
+optimized profile. Thirteen focused checks include four new owners:complete repeated borrowed count2/output/
+source-mutation isolation/release before an allocation guard;indexed owned-versus-borrowed raw/native and
+binding equivalence;all new-helper work boundaries plus long comparison/allocated-copy/replacement controls
+and the actual empty-label receiver publication boundary;and full validation/overwrite error precedence.
+The unchanged producer completes semantic/release assertions then fails the16KiB-discarded-copy guard.
+
+The C embedding fixture adds `--count-values-borrowed-only` and
+`--count-values-borrowed-delayed-only` beside its original modes. They query direct/nested COUNT_VALUES over
+label_join,checking complete output and statistics through the actual C interface. The new
+`count_values_cases.borrowed_input_cases()` panel contains288controlled queries from nine input-producer
+families across0/1/16/64series,0/4KiB padding,both name modes,and instant/range. These extend the retained796Go
+originals and336lookup controls;their source attribution remains separate.
+
+The isolated native owner acquires34,402→1,610Workspace bytes after two borrowed samples,with complete
+count2/output/source-immutability/release assertions before its allocation guard. This is95%less acquisition
+traffic in that owner. A full64-series query with4KiB discarded labels acquires1,734,366→1,108,978
+Workspace bytes,peaks at451,912→402,389,and counts2,948,518→2,422,458work units. Reads/pages are equal.
+These whole-query changes are distinct from the isolated acquisition reduction.
+
+Both native profiles pass834tests with two unchanged ignored checks;each emulated ARM target passes13focused
+checks. The complete panel has11,360baseline/current pairs,including6,368retained-Go comparisons on the same
+current executions. Exact complete results and order,physical reads and other non-work/non-memory fields
+match. All changed work/eight-category memory observations remain recorded. Actual default C passes96paired
+cases,96C++controls and both full C suites. Strict default/fixture Clippy,format and installed1.91compile-only
+checks pass. Raw history remains paged;all measured private owner sizes match the baseline.
+
+The fixed112-query/profile panel uses three alternating blocks,one warmup plus three measured executions
+per arm,nine measured samples each,and one identical follow-up for every primary ratio>=1.05. Median case
+ratios for64series with4KiB labels follow;these combine instant/range and both name modes,not traffic weights.
+
+| Query shape | release | release-min |
+| --- | ---: | ---: |
+| Direct selector control | 0.983730 | 1.000430 |
+| Projection with discarded fields | 0.898359 | 0.933967 |
+| Projection retaining fields | 0.958040 | 0.970245 |
+
+release has42/112slower primary medians;10receive
+prescribed follow-ups,and3remain at>=1.05. Ordinary-control median ratio is
+0.986553. Every slower primary/follow-up sample remains in the report.
+release-min has49/112slower primary medians;3receive
+prescribed follow-ups,and0remain at>=1.05. Ordinary-control median ratio is
+1.005845. Every slower primary/follow-up sample remains in the report.
+
+Persistent releasefollow-ups: 1.626807(+4770ns), 1.186559(+1599ns), 1.146416(+3820ns).
+
+Receiver entry stack decrements grow 272/48bytes in release/release-min.
+
+Matched linked code costs for release/release-min are default-embedding-C:-17556/+2868bytes; fixture:-4980/+2508bytes;
+all data/BSS,file,foreign and receiver-entry costs are retained separately. Entry stack reservation is
+not runtime stack high-water. The [finite report](count-values-borrowed-inputs-qualification.json) records
+the private retention trade-off,all small/all-retained costs and failed intermediate controls. The corpus
+mixes owned/borrowed/empty/error routes;the C wrapper does not establish the isolated16KiB result. These
+measurements do not establish universal throughput,lower process RSS,physical-ARM,live/concurrent,whole-Agent
+or Cloud performance.
