@@ -249,6 +249,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   Borrowed input copying also follows
   `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-count_values-input-labels` for
   virtual replacement/full validation,raw-order fallback and terminal discarded-destination cancellation.
+  The rejected hit-copy investigation and its historical scope are recorded in
+  `src/crates/promql-engine/tests/promql-conformance/README.md#rejected-count_values-hit-ownership`.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
 - Active histogram distribution MUST retain group identity, skipped ranges and pre-sort bound/ordinal order; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-active-group-distribution` for sparse/native,

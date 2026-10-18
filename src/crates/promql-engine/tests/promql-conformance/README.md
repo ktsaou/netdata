@@ -8536,3 +8536,51 @@ the private retention trade-off,all small/all-retained costs and failed intermed
 mixes owned/borrowed/empty/error routes;the C wrapper does not establish the isolated16KiB result. These
 measurements do not establish universal throughput,lower process RSS,physical-ARM,live/concurrent,whole-Agent
 or Cloud performance.
+
+## Rejected COUNT_VALUES hit ownership
+
+Three candidates attempted to avoid copying retained labels before an existing COUNT_VALUES group lookup.
+All were rejected by the unchanged retention condition. The engine source remains exactly the accepted
+baseline; this investigation adds no language feature or query limit. The complete record is
+[count-values-hit-investigation.json](count-values-hit-investigation.json).
+
+The candidates shared complete virtual modified-label validation before hashing or probing:
+
+- Candidate1 streamed a borrowed grouping key, retained the first owned key on hits, and copied only misses.
+- Candidate2 replaced the filter adapter with a checked selected-field loop.
+- Candidate3 recorded original-position selection bits and a separate generated-destination flag, avoiding
+  repeated selection predicates when copying a miss. Wider inputs used the owning route.
+
+The fixed panel contained176queries per native profile, three alternating blocks, one warmup and three
+measured executions per arm per block. Every primary ratio>=1.05 received exactly one identical follow-up.
+Retention required both profiles'64-series/4KiB one-group and nine-group primary median ratios below1.
+All three failed. Ratios below1 favor the candidate; grouped values combine both name modes and instant/range.
+
+| Candidate | release one group | release nine groups | release-min one group | release-min nine groups |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 0.883781 | 0.941363 | 0.956449 | 1.008616 |
+| 2 | 1.407795 | 1.524118 | 0.974707 | 0.961257 |
+| 3 | 0.962266 | 0.991314 | 0.985984 | 1.008265 |
+
+The allocation saving was real: an isolated second receive with a16KiB retained key acquired16,779→4
+Workspace bytes after priming. Complete count/labels/clocks/ordinal, source mutation/drop and full release
+preceded that guard. First-key and later binding ownership were excluded. All eight tracked peak categories
+stayed equal in every primary and follow-up of the six timing panels. Lower acquisition traffic alone did
+not justify retaining the added receiver, hashing and bitmap complexity on these measured results.
+
+Candidate1 passed838native units per profile, two unchanged ignored checks, the focused ARM owners,
+12,640exact complete result/order pairs and6,368retained-Go checks on those same executions. It also passed
+144C pairs,144C++controls, both full C suites, static checks and matched layout/linked-cost checks.
+Candidate2 passed its own838native units per profile and optimized fixture pilots; it received no new
+foreign/original/C qualification. Candidate3 passed18focused debug COUNT_VALUES owners and the shared hash
+check, including original-position/replacement/indexed/width controls through128, then both fixture pilots.
+Its full optimized/foreign/C qualification and proposed wide whole-query panel were not executed.
+
+An identical-binary A/A diagnostic produced14of176median ratios outside5percent. This demonstrates timing
+variability in the measured setup without identifying its cause. The original candidate results, slower
+follow-ups, static costs and actual binary/source identities remain; no candidate was accepted by resampling.
+The report also records a corrected string-timestamp analysis and a corrected preparation-cache test setup.
+Those corrections preserve their failed attempts and actual subsequent scope.
+
+The accepted borrowed-input path still copies the retained key before lookup. This rejected investigation
+does not supersede its prior qualification or provide current commands for the removed experimental modes.

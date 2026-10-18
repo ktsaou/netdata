@@ -73438,5 +73438,18 @@
     "new_module_tests": 4,
     "new_default_language_features": 0,
     "scope": "Private borrowed COUNT_VALUES retained-label copying;complete exact results/physical reads and source/error/control/ownership contracts preserved. Actual allocation/work/peak/throughput gains and all tiny,retained,ordinary,linked costs recorded. No new default language feature,uniform borrowed-branch coverage or universal/RSS/live/Cloud claim."
+  },
+  "count_values_hit_investigation": {
+    "status": "rejected_investigation_no_runtime_change",
+    "report": "count-values-hit-investigation.json",
+    "report_sha256": "9e48c74def04cca1af8e88dc058c544599c0081b247cfbdf0e1621d3c85d559b",
+    "decision": "reject_all_runtime_candidates",
+    "comparison_base": "7b8fe91683ca0109887bf15999881c0f1456ef4f",
+    "restored_source_inputs": 363,
+    "all_prior_source_inputs_restored_exactly": true,
+    "retained_runtime_candidates": 0,
+    "new_default_language_features": 0,
+    "features_dropped": [],
+    "scope": "Negative conditional-retention investigation;three private candidates rejected. Actual trial validation/timing/binary/source scopes remain separate. Accepted runtime and all prior qualification objects unchanged;no new runtime qualification transferred."
   }
 }

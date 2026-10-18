@@ -1927,3 +1927,13 @@ interruption/cleanup, distinct C activation scopes and the finite original/targe
 - **Evidence:** [procedure and finite measured scope](README.md#borrowed-count_values-input-labels) and
   [qualification](count-values-borrowed-inputs-qualification.json). All small/retained-label and compiled costs
   remain explicit;the local acquisition guard is distinct from whole-query peak memory.
+
+## COUNT_VALUES retained-key copying
+
+The accepted borrowed-input path filters discarded fields while constructing its retained owned key before
+collection lookup. A later investigation of deferred ownership, checked borrowed hashing and transient
+selection bits did not meet its throughput retention condition; none of those variants is retained.
+Allocation traffic improved, while tracked query peaks stayed equal. The existing copying, binding and
+collection contracts remain. The conformance guide's
+[rejected investigation](README.md#rejected-count_values-hit-ownership) owns the
+candidate mechanisms, measured costs, validation limits and historical evidence.
