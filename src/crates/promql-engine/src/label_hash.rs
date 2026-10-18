@@ -199,6 +199,24 @@ pub(crate) fn full_pair(
 ) -> Result<u64, EvaluationError> {
     full_iter(left.0.iter().chain(right.0.iter()), control, account)
 }
+pub(crate) fn full_filtered(
+    labels: &OwnedLabels,
+    control: &Control,
+    account: &QueryAccounting,
+    mut keep: impl FnMut(&OwnedLabel) -> Result<bool, Interrupted>,
+) -> Result<u64, EvaluationError> {
+    let mut digest = Digest::new();
+    for label in &*labels.0 {
+        control.check()?;
+        account.work(1);
+        if keep(label)? {
+            digest.sized_field(&label.name, control, account)?;
+            digest.sized_field(&label.value, control, account)?;
+        }
+    }
+    control.check()?;
+    Ok(digest.finish())
+}
 fn full_iter<'a>(
     labels: impl Iterator<Item = &'a OwnedLabel>,
     control: &Control,

@@ -73213,5 +73213,20 @@
     "filled_entry_tradeoff": "Actual CacheEntry shrinks104to80B native/ARM64 and72to56B ARM32. Encoded fill fallback owns one extra72/48B accounted box allocation: net48/32B per filled entry before buffer capacities. Full measured query peaks/traffic/latencies remain below, including all increases.",
     "scope": "Private ordinary operand keys retain original immutable Plan row positions; synthetic-fill misses retain precise boxed encoded keys. Full borrowed validation/hash precedes every lookup; flat aliases, first-writer outputs, ordinals and control/cleanup owners remain.",
     "literal_resource_baselines": "Matching target/profile direct baselines or192actual complete nonelapsed-equivalence checks; no current re-execution."
+  },
+  "borrowed_matching_signatures": {
+    "status": "qualified_finite_borrowed_matching_signatures",
+    "report": "matching-signature-qualification.json",
+    "report_sha256": "4b27de992130d49c29f2e60a2e14d95c2799cdbbc52570b95524bc8a2901256b",
+    "comparison_base": "3e4cbfcf1a64b8532b89f62fa1348829d7f23922",
+    "native_units_per_profile": 790,
+    "unchanged_ignored_per_profile": 2,
+    "foreign_focused_units_per_target": 70,
+    "complete_binary_original_and_before_pairs": 13152,
+    "complete_grouping_original_and_before_pairs": 320,
+    "complete_literal_pairs": 480,
+    "actual_native_C_pairs": 240,
+    "current_Cpp_controls": 240,
+    "scope": "Construction-local selected-label views replace transient encoded signature buffers; shared raw-name predicate, full validation/collision/ID/control/ownership semantics preserved. Exact finite outcomes and every resource/timing/linked cost retained; whole-query peak unchanged in binary panel. No public language/storage/ABI/default/math/cap change."
   }
 }

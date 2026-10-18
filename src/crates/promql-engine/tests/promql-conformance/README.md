@@ -4217,7 +4217,7 @@ Ordinary preparation and frozen Pair lookup reuse the original operand row ident
 immutable Plan. A cache entry retains two original-side positions, its full hash and independently owned
 first-writer output labels. It retains no duplicate encoded operand bytes. Preparation hits probe borrowed
 labels and copy only the existing independently owned output labels. Transient matching-signature construction
-has a separate lifetime and retains its existing Key implementation.
+has a separate lifetime and now uses the [borrowed signature owner](#borrowed-matching-signatures) below.
 
 One lookup owner validates and hashes both complete operand streams before probing, including empty caches and
 same-row hits. The exact original pair can then prove equality inside its owning Plan. Different pairs compare
@@ -4300,6 +4300,57 @@ execution, RSS/stack or containing-Agent rebuild is established. Raw history sta
 The [finite qualification](operand-key-qualification.json) records complete outputs and all costs. The earlier
 frozen-key-only measurements above retain their original attribution.
 
+
+### Borrowed matching signatures
+
+Plan construction borrows selected label fields from immutable side descriptors. A temporary accounted vector
+keeps one view and canonical hash per distinct matching signature. It releases these views and its index before
+moving the sides into the Plan. This removes the encoded byte buffer formerly built for every input, including hits.
+Persistent operand-cache keys, output labels and raw sample paging keep their separate owners.
+
+The complete incoming scan applies the shared named-first `on`/`ignoring` predicate and validates only selected
+fields before probing. The digest receives the same sized-field prefixes and raw payloads as the canonical encoder.
+Empty/opaque values, raw field order and full collision equality remain exact. A selected contiguous span can be
+borrowed directly, including an empty span. Interior omissions require independent fallible filtered cursors;
+raw slice lengths and sorted-name assumptions cannot prove equality. Grouping shares only the raw-name predicate:
+its delimiter digest, zero fast path, normalization and caller control/work phases remain distinct.
+
+`matching_signatures_borrow_bytes_after_complete_constructor_controls` checks 72 actual constructor scenarios
+before its allocation guard: empty/one/eight rows, default/on/ignoring, unique/collapsed keys and physical order.
+The unchanged constructor completes all identity and cleanup checks, then fails the selected-byte-width guard.
+Current constructor acquisition stays flat as values grow from 16 to 4,096 bytes. Native acquired bytes are:
+
+| Eight rows per side | Value width | Before → after |
+| --- | ---: | ---: |
+| Default matching | 16 B | 2,328 → 856 B |
+| Default matching | 4,096 B | 118,392 → 856 B |
+| Collapsed `on(job)` | 16 B | 1,112 → 488 B |
+| Collapsed `on(job)` | 4,096 B | 116,360 → 488 B |
+
+These deltas start after inputs exist. Printed high-water values include input construction. Actual temporary
+key headers shrink 56→32 B on AMD64/ARM64 and 40→24 B on ARM32. Persistent Plan/Step/Side/cache/index layouts stay
+unchanged. The `matching_views` and constructor phase tests cover canonical prefixes, interleaved/trimmed aliases,
+empty/unsorted/opaque fields, late invalid selected fields, omitted oversized fields and partial/terminal cancellation.
+
+Both optimized native profiles pass 790 units with two unchanged ignored tests. Each emulated ARM target passes
+70 focused tests. All 13,152 complete binary-original/accepted95 pairs, 320 grouping-original/accepted95 pairs
+and 480 literal pairs pass with exact numeric bits. All 240 actual C pairs, 240 current C++ controls and both full
+C programs pass; their sample-statistic triples remain exact. Strict default/fixture Clippy, format and installed
+Rust 1.91 all-target fixture compilation pass. Original captures and actual historical source identities remain intact.
+
+Across the binary panel, allocation traffic falls in 11,952 pairs and counted work falls in 11,888; neither rises.
+All tracked whole-query peaks, fetched entries, pages and provider calls stay equal. The 80 grouping-only cases have
+equal nonelapsed observations on every target/profile. One 32-series long-label arithmetic case reduces Workspace
+acquisition 22,770,768→21,758,512 B while peak stays 1,103,854 B. Temporary allocation savings are not a global peak-RAM win.
+
+The fixed 80-case/profile timings retain 21 release and
+46 size-profile slower primary medians. Their respective
+3/5
+>=5% follow-ups leave zero persistent threshold medians. Each side has nine measured samples per case; no winner
+reruns replace slower samples. Raw controls vary too, so these shared-host observations do not isolate every cause.
+Default C caller text grows 28,960 B in release and 424 B in release-min; all six linked fixture/C pairs and data/BSS
+costs remain in the [finite report](matching-signature-qualification.json). No universal/live/concurrent throughput,
+physical-ARM timing, foreign C/full suite, containing-Agent rebuild, MSRV execution, RSS or stack claim follows.
 
 ### Fresh Pair result digests
 

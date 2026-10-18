@@ -23,8 +23,8 @@ pub(crate) struct Side {
     signatures: AccountedVec<usize>,
     ordinal_positions: Option<AccountedBox<AccountedVec<usize>>>,
 }
-struct Key {
-    bytes: AccountedVec<u8>,
+struct Key<'a> {
+    labels: binary_labels::MatchingLabels<'a>,
     hash: u64,
 }
 enum CacheKey {
@@ -202,47 +202,63 @@ impl Plan {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Self, EvaluationError> {
-        let mut keys = AccountedVec::<Key>::new(account, MemoryKind::Workspace);
-        let mut index = PositionIndex::new(account);
         let mut sides = [
             Side::new(left, control, account)?,
             Side::new(right, control, account)?,
         ];
-        for side in &mut sides {
-            for row in &*side.rows {
-                let mut key = AccountedVec::new(account, MemoryKind::Workspace);
-                binary_labels::append(&mut key, &row.labels, Some(matching), control, account)?;
-                let hash = label_hash::bytes(&key, control, account)?;
-                let found = index.find(
-                    hash,
-                    |position| {
-                        Ok(keys[position].hash == hash
-                            && binary_labels::equal(&key, &keys[position].bytes, control, account)?)
-                    },
-                    control,
-                    account,
-                )?;
-                let signature = if let Some(position) = found {
-                    position
-                } else {
-                    let position = keys.len();
-                    keys.push(Key { bytes: key, hash });
-                    index.insert_new(
-                        hash,
-                        position,
-                        |prior| Ok(keys[prior].hash),
+        let signature_count = {
+            let mut keys = AccountedVec::<Key<'_>>::new(account, MemoryKind::Workspace);
+            let mut index = PositionIndex::new(account);
+            let [left, right] = &mut sides;
+            for (rows, signatures) in [
+                (&left.rows, &mut left.signatures),
+                (&right.rows, &mut right.signatures),
+            ] {
+                for row in &**rows {
+                    let (labels, hash) = binary_labels::MatchingLabels::new(
+                        &row.labels,
+                        matching,
                         control,
                         account,
                     )?;
-                    position
-                };
-                side.signatures.push(signature);
+                    let found = index.find(
+                        hash,
+                        |position| {
+                            Ok(keys[position].hash == hash
+                                && labels.same(
+                                    keys[position].labels,
+                                    matching,
+                                    control,
+                                    account,
+                                )?)
+                        },
+                        control,
+                        account,
+                    )?;
+                    let signature = if let Some(position) = found {
+                        position
+                    } else {
+                        let position = keys.len();
+                        keys.push(Key { labels, hash });
+                        index.insert_new(
+                            hash,
+                            position,
+                            |prior| Ok(keys[prior].hash),
+                            control,
+                            account,
+                        )?;
+                        position
+                    };
+                    signatures.push(signature);
+                }
             }
-        }
+            control.check()?;
+            keys.len()
+        };
         Ok(Self {
             sides,
             cache: Cache::new(account),
-            signature_count: keys.len(),
+            signature_count,
             replay: None,
         })
     }
@@ -1841,6 +1857,265 @@ mod tests {
             )
             .unwrap()
         })
+    }
+
+    #[test]
+    fn matching_signatures_borrow_bytes_after_complete_constructor_controls() {
+        let mut costs = Vec::new();
+        for count in [0, 1, 8] {
+            for mode in 0..3 {
+                for collapsed in [false, true] {
+                    for reverse in [false, true] {
+                        for width in [16, 4096] {
+                            let engine = EngineAccounting::default();
+                            let account = engine.query();
+                            let control = Control::default();
+                            let mut matching = VectorMatching::default();
+                            if mode != 0 {
+                                let mut names = AccountedVec::new(&account, MemoryKind::Workspace);
+                                let mut name = AccountedVec::new(&account, MemoryKind::Workspace);
+                                name.extend_from_slice(if mode == 1 { b"job" } else { b"id" });
+                                names.push(name);
+                                matching.labels = Some(names);
+                                matching.on = mode == 1;
+                            }
+                            let sides = std::array::from_fn(|side| {
+                                let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+                                for physical in 0..count {
+                                    let position = if (side == 1) != reverse {
+                                        count - physical - 1
+                                    } else {
+                                        physical
+                                    };
+                                    let identity = format!("{position:06}");
+                                    let mut value = vec![b'x'; width];
+                                    if !collapsed {
+                                        value[0] = b'a' + position as u8;
+                                    }
+                                    let labels = OwnedLabels::copy_from(
+                                        &[
+                                            LabelRef {
+                                                name: b"__name__",
+                                                value: if side == 0 { b"m" } else { b"n" },
+                                            },
+                                            LabelRef {
+                                                name: b"id",
+                                                value: identity.as_bytes(),
+                                            },
+                                            LabelRef {
+                                                name: b"job",
+                                                value: &value,
+                                            },
+                                        ],
+                                        &account,
+                                        MemoryKind::Workspace,
+                                    );
+                                    let hash =
+                                        label_hash::full(&labels, &control, &account).unwrap();
+                                    rows.push(Descriptor {
+                                        labels,
+                                        hash,
+                                        ordinal: position * 2 + 42,
+                                        drop_name: false,
+                                        first_order: physical,
+                                        sources: 0..0,
+                                        kinds: 1,
+                                        heads: Default::default(),
+                                    });
+                                }
+                                rows
+                            });
+                            let before = account.snapshot().memory[MemoryKind::Workspace as usize];
+                            let [left, right] = sides;
+                            let plan =
+                                Plan::new(left, right, &matching, &control, &account).unwrap();
+                            let after = account.snapshot().memory[MemoryKind::Workspace as usize];
+                            let unique = mode == 0 || !collapsed;
+                            assert_eq!(
+                                plan.signature_count,
+                                if unique {
+                                    count
+                                } else {
+                                    usize::from(count != 0)
+                                }
+                            );
+                            for (side, rows) in plan.sides.iter().enumerate() {
+                                let expected = (0..count)
+                                    .map(|physical| {
+                                        if !unique {
+                                            0
+                                        } else if side == 0 {
+                                            physical
+                                        } else {
+                                            count - physical - 1
+                                        }
+                                    })
+                                    .collect::<Vec<_>>();
+                                assert_eq!(&*rows.signatures, &expected);
+                                for (physical, row) in rows.rows.iter().enumerate() {
+                                    let position = if (side == 1) != reverse {
+                                        count - physical - 1
+                                    } else {
+                                        physical
+                                    };
+                                    assert_eq!(row.ordinal, position * 2 + 42);
+                                    assert_eq!(row.first_order, physical);
+                                    assert_eq!(row.labels.0[2].value.len(), width);
+                                }
+                            }
+                            let acquired = after.acquired - before.acquired;
+                            costs.push((count, mode, collapsed, reverse, width, acquired));
+                            eprintln!(
+                                "matching-constructor count={count} mode={mode} collapsed={collapsed} reverse={reverse} width={width} acquired={acquired} retained={} prior_peak={} final_peak={}",
+                                after.current - before.current,
+                                before.peak,
+                                after.peak
+                            );
+                            drop((plan, matching));
+                            account.snapshot().assert_memory_released();
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(costs.len(), 72);
+        eprintln!("complete matching-constructor controls:72");
+        assert!(
+            costs.chunks_exact(2).all(|pair| pair[1].5 <= pair[0].5),
+            "constructor acquisition must not copy selected byte width: {costs:?}"
+        );
+    }
+
+    #[test]
+    fn matching_signature_construction_cancels_and_releases_partial_owners() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let matching = VectorMatching::default();
+        let inputs = || {
+            std::array::from_fn(|_| {
+                let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+                for position in 0..9 {
+                    rows.push(Descriptor {
+                        labels: labels(format!("{position:06}").as_bytes(), &account),
+                        hash: 0,
+                        ordinal: 9 - position,
+                        drop_name: false,
+                        first_order: position,
+                        sources: 0..0,
+                        kinds: 1,
+                        heads: Default::default(),
+                    });
+                }
+                rows
+            })
+        };
+        let [left, right] = inputs();
+        let before = account.snapshot().work;
+        let plan = Plan::new(left, right, &matching, &Control::default(), &account).unwrap();
+        let work = account.snapshot().work - before;
+        assert_eq!(plan.signature_count, 9);
+        drop(plan);
+        assert!(work > 2);
+        for remaining in [1, work / 2, work] {
+            let [left, right] = inputs();
+            let cancelled = Control::default();
+            let result =
+                crate::test_storage::interrupt_after_work(&account, &cancelled, remaining, || {
+                    Plan::new(left, right, &matching, &cancelled, &account)
+                });
+            assert!(matches!(
+                result,
+                Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+            ));
+            drop(result);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn matching_signature_ids_keep_mixed_views_and_reject_late_selected_fields() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut names = AccountedVec::new(&account, MemoryKind::Workspace);
+        for name in [b"a", b"c"] {
+            let mut field = AccountedVec::new(&account, MemoryKind::Workspace);
+            field.extend_from_slice(name);
+            names.push(field);
+        }
+        let matching = VectorMatching {
+            on: true,
+            labels: Some(names),
+            ..Default::default()
+        };
+        let rows = |sources: &[&[LabelRef<'_>]]| {
+            let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+            for (position, fields) in sources.iter().enumerate() {
+                rows.push(Descriptor {
+                    labels: OwnedLabels::copy_from(fields, &account, MemoryKind::Workspace),
+                    hash: 0,
+                    ordinal: position,
+                    drop_name: false,
+                    first_order: position,
+                    sources: 0..0,
+                    kinds: 1,
+                    heads: Default::default(),
+                });
+            }
+            rows
+        };
+        let base = [
+            LabelRef {
+                name: b"a",
+                value: b"",
+            },
+            LabelRef {
+                name: b"c",
+                value: b"x",
+            },
+        ];
+        let interleaved = [
+            base[0],
+            LabelRef {
+                name: b"b",
+                value: b"ignored",
+            },
+            base[1],
+        ];
+        let reversed = [base[1], base[0]];
+        let changed = [
+            base[0],
+            LabelRef {
+                name: b"c",
+                value: b"y",
+            },
+        ];
+        let left = rows(&[&interleaved, &base, &reversed]);
+        let right = rows(&[&base, &changed, &interleaved]);
+        let plan = Plan::new(left, right, &matching, &control, &account).unwrap();
+        assert_eq!(plan.signature_count, 3);
+        assert_eq!(&*plan.sides[0].signatures, &[0, 0, 1]);
+        assert_eq!(&*plan.sides[1].signatures, &[0, 2, 0]);
+        drop(plan);
+        let bytes = vec![b'x'; crate::label_encoding::FIELD_BOUNDARY];
+        let invalid = [
+            base[0],
+            LabelRef {
+                name: b"c",
+                value: &bytes,
+            },
+        ];
+        let result = Plan::new(
+            rows(&[&base]),
+            rows(&[&base, &invalid]),
+            &matching,
+            &control,
+            &account,
+        );
+        assert!(matches!(result, Err(EvaluationError::Runtime(ref message))
+            if &**message == crate::label_encoding::TOO_LONG.as_bytes()));
+        drop((result, matching));
+        account.snapshot().assert_memory_released();
     }
 
     fn discovery_options() -> EvaluationOptions {

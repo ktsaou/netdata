@@ -50,7 +50,12 @@ pub(crate) fn same(
     if left.0.len() != right.0.len() {
         return Ok(false);
     }
-    same_iter(left.0.iter(), right.0.iter(), control, account)
+    same_iter(
+        left.0.iter().map(Ok),
+        right.0.iter().map(Ok),
+        control,
+        account,
+    )
 }
 
 pub(crate) fn same_pair(
@@ -61,8 +66,8 @@ pub(crate) fn same_pair(
 ) -> Result<bool, Interrupted> {
     control.check()?;
     let result = same_iter(
-        left.into_iter().flat_map(|labels| labels.0.iter()),
-        right.into_iter().flat_map(|labels| labels.0.iter()),
+        left.into_iter().flat_map(|labels| labels.0.iter()).map(Ok),
+        right.into_iter().flat_map(|labels| labels.0.iter()).map(Ok),
         control,
         account,
     )?;
@@ -71,13 +76,13 @@ pub(crate) fn same_pair(
 }
 
 fn same_iter<'a, 'b>(
-    mut left: impl Iterator<Item = &'a OwnedLabel>,
-    mut right: impl Iterator<Item = &'b OwnedLabel>,
+    mut left: impl Iterator<Item = Result<&'a OwnedLabel, Interrupted>>,
+    mut right: impl Iterator<Item = Result<&'b OwnedLabel, Interrupted>>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<bool, Interrupted> {
     loop {
-        match (left.next(), right.next()) {
+        match (left.next().transpose()?, right.next().transpose()?) {
             (Some(left), Some(right)) => {
                 if !equal(&left.name, &right.name, control, account)?
                     || !equal(&left.value, &right.value, control, account)?
@@ -133,6 +138,105 @@ pub(crate) fn named(
         }
     }
     Ok(false)
+}
+
+pub(crate) fn keep_name(
+    name: &[u8],
+    names: Option<&[AccountedVec<u8>]>,
+    without: bool,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<bool, Interrupted> {
+    let found = named(name, names.unwrap_or(&[]), control, account)?;
+    Ok(if without {
+        name != b"__name__" && !found
+    } else {
+        found
+    })
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct MatchingLabels<'a> {
+    labels: &'a [OwnedLabel],
+    filtered: bool,
+}
+impl<'a> MatchingLabels<'a> {
+    pub(crate) fn new(
+        labels: &'a OwnedLabels,
+        matching: &VectorMatching,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(Self, u64), EvaluationError> {
+        let (mut position, mut first, mut end, mut count) = (0, 0, 0, 0);
+        let hash = crate::label_hash::full_filtered(labels, control, account, |label| {
+            let keep = keep_name(
+                &label.name,
+                matching.labels.as_deref(),
+                !matching.on,
+                control,
+                account,
+            )?;
+            if keep {
+                if count == 0 {
+                    first = position;
+                }
+                end = position + 1;
+                count += 1;
+            }
+            position += 1;
+            Ok(keep)
+        })?;
+        let filtered = count != end - first;
+        // Interior omissions require filtering; ignored prefixes/suffixes can be trimmed.
+        let labels = if filtered {
+            &*labels.0
+        } else {
+            &labels.0[first..end]
+        };
+        Ok((Self { labels, filtered }, hash))
+    }
+    fn next_checked(
+        &mut self,
+        matching: &VectorMatching,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<&'a OwnedLabel>, Interrupted> {
+        while let Some((label, tail)) = self.labels.split_first() {
+            self.labels = tail;
+            control.check()?;
+            account.work(1);
+            if !self.filtered
+                || keep_name(
+                    &label.name,
+                    matching.labels.as_deref(),
+                    !matching.on,
+                    control,
+                    account,
+                )?
+            {
+                return Ok(Some(label));
+            }
+        }
+        control.check()?;
+        Ok(None)
+    }
+    pub(crate) fn same(
+        mut self,
+        mut right: Self,
+        matching: &VectorMatching,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        control.check()?;
+        let matched = same_iter(
+            std::iter::from_fn(|| self.next_checked(matching, control, account).transpose()),
+            std::iter::from_fn(|| right.next_checked(matching, control, account).transpose()),
+            control,
+            account,
+        )?;
+        control.check()?;
+        Ok(matched)
+    }
 }
 
 pub(crate) fn equal_encoded(
@@ -237,20 +341,16 @@ fn append_selected(
         if excluded.is_some_and(|excluded| &*label.name == excluded) {
             continue;
         }
-        if let Some(matching) = matching {
-            let selected = named(
+        if let Some(matching) = matching
+            && !keep_name(
                 &label.name,
-                matching.labels.as_deref().unwrap_or(&[]),
+                matching.labels.as_deref(),
+                !matching.on,
                 control,
                 account,
-            )?;
-            if if matching.on {
-                !selected
-            } else {
-                selected || &*label.name == b"__name__"
-            } {
-                continue;
-            }
+            )?
+        {
+            continue;
         }
         field(target, &label.name, control, account)?;
         field(target, &label.value, control, account)?;
@@ -267,17 +367,13 @@ pub(crate) fn matched(
     let mut result = labels.copy_checked(account, MemoryKind::Workspace, control)?;
     result.reset_checked(account, control)?;
     result.retain_labels_checked(account, control, |label| {
-        let selected = named(
+        keep_name(
             &label.name,
-            matching.labels.as_deref().unwrap_or(&[]),
+            matching.labels.as_deref(),
+            !matching.on,
             control,
             account,
-        )?;
-        Ok(if matching.on {
-            selected
-        } else {
-            !selected && &*label.name != b"__name__"
-        })
+        )
     })?;
     Ok(result)
 }
@@ -485,6 +581,205 @@ mod projection_tests {
             labels: Some(fields),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn matching_views_keep_canonical_identity_raw_order_and_interleaved_omissions() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let inputs: &[&[(&[u8], &[u8])]] = &[
+            &[],
+            &[(b"__name__", b"m")],
+            &[(b"a", b""), (b"c", b"\0\xff")],
+            &[
+                (b"b", b"ignored"),
+                (b"a", b""),
+                (b"c", b"\0\xff"),
+                (b"z", b"tail"),
+            ],
+            &[(b"a", b""), (b"b", b"ignored"), (b"c", b"\0\xff")],
+            &[(b"c", b"\0\xff"), (b"a", b"")],
+            &[(b"a", b""), (b"__name__", b"m"), (b"c", b"\0\xff")],
+            &[(b"a", b""), (b"c", b"\0\xfe")],
+            &[(b"", b"")],
+            &[(b"ab", b"c")],
+            &[(b"a", b"bc")],
+            &[(b"\xff\0", b"\0\xff")],
+        ];
+        let sources = inputs
+            .iter()
+            .map(|fields| labels(fields, &account))
+            .collect::<Vec<_>>();
+        let configurations: &[(&[&[u8]], bool)] = &[
+            (&[], true),
+            (&[], false),
+            (&[b"a", b"c"], true),
+            (&[b"b"], false),
+            (&[b"__name__"], true),
+            (&[b"__name__"], false),
+        ];
+        let mut comparisons = 0;
+        for (names, on) in configurations {
+            let mut fields = AccountedVec::new(&account, MemoryKind::Workspace);
+            for name in *names {
+                let mut field = AccountedVec::new(&account, MemoryKind::Workspace);
+                field.extend_from_slice(name);
+                fields.push(field);
+            }
+            let matching = VectorMatching {
+                on: *on,
+                labels: Some(fields),
+                ..Default::default()
+            };
+            let encoded = sources
+                .iter()
+                .map(|source| {
+                    let mut key = AccountedVec::new(&account, MemoryKind::Workspace);
+                    append(&mut key, source, Some(&matching), &control, &account).unwrap();
+                    key
+                })
+                .collect::<Vec<_>>();
+            let before = account.snapshot().memory;
+            let views = sources
+                .iter()
+                .zip(&encoded)
+                .map(|(source, key)| {
+                    let (view, hash) =
+                        MatchingLabels::new(source, &matching, &control, &account).unwrap();
+                    assert_eq!(
+                        hash,
+                        crate::label_hash::bytes(key, &control, &account).unwrap()
+                    );
+                    view
+                })
+                .collect::<Vec<_>>();
+            if *on && *names == [b"a".as_slice(), b"c".as_slice()] {
+                assert_eq!(
+                    views.iter().map(|view| view.filtered).collect::<Vec<_>>(),
+                    [
+                        false, false, false, false, true, false, true, false, false, false, false,
+                        false
+                    ]
+                );
+            }
+            for (left, a) in views.iter().enumerate() {
+                for (right, b) in views.iter().enumerate() {
+                    assert_eq!(
+                        a.same(*b, &matching, &control, &account).unwrap(),
+                        encoded[left] == encoded[right]
+                    );
+                    comparisons += 1;
+                }
+            }
+            assert_eq!(account.snapshot().memory, before);
+        }
+        assert_eq!(comparisons, 864);
+        drop(sources);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn matching_views_observe_long_selected_bytes_and_terminal_filtered_tails() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut matching = matching(b"a", &account);
+        let mut name = AccountedVec::new(&account, MemoryKind::Workspace);
+        name.extend_from_slice(b"c");
+        matching.labels.as_mut().unwrap().push(name);
+        for width in [0, 1, 254, 255, 1023, 1024, 32769] {
+            let value = vec![255; width];
+            let interleaved = labels(
+                &[
+                    (b"a", &value),
+                    (b"b", &value),
+                    (b"c", b"tail"),
+                    (b"z", &value),
+                ],
+                &account,
+            );
+            let contiguous = labels(&[(b"a", &value), (b"c", b"tail")], &account);
+            let before = account.snapshot();
+            let (left, hash) =
+                MatchingLabels::new(&interleaved, &matching, &control, &account).unwrap();
+            let hash_work = account.snapshot().work - before.work;
+            let (right, other_hash) =
+                MatchingLabels::new(&contiguous, &matching, &control, &account).unwrap();
+            assert_eq!(hash, other_hash);
+            assert!(left.filtered && !right.filtered);
+            let start = account.snapshot().work;
+            assert!(left.same(right, &matching, &control, &account).unwrap());
+            let equality_work = account.snapshot().work - start;
+            for (hashing, work) in [(true, hash_work), (false, equality_work)] {
+                assert!(work > 2);
+                for remaining in [1, work / 2, work] {
+                    let cancelled = Control::default();
+                    let result = crate::test_storage::interrupt_after_work(
+                        &account,
+                        &cancelled,
+                        remaining,
+                        || {
+                            if hashing {
+                                MatchingLabels::new(&interleaved, &matching, &cancelled, &account)
+                                    .map(|_| true)
+                            } else {
+                                left.same(right, &matching, &cancelled, &account)
+                                    .map_err(Into::into)
+                            }
+                        },
+                    );
+                    assert!(matches!(
+                        result,
+                        Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                    ));
+                }
+            }
+            assert_eq!(account.snapshot().memory, before.memory);
+        }
+        drop(matching);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn matching_views_validate_selected_fields_and_leave_omitted_fields_unencoded() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let matching = matching(b"keep", &account);
+        let base = labels(&[(b"keep", b"value")], &account);
+        let (expected, hash) = MatchingLabels::new(&base, &matching, &control, &account).unwrap();
+        let bytes = vec![b'x'; crate::label_encoding::FIELD_BOUNDARY];
+        for oversized_name in [false, true] {
+            let source = labels(
+                &[
+                    (b"keep", b"value"),
+                    (
+                        if oversized_name { &bytes } else { b"omitted" },
+                        if oversized_name { b"v" } else { &bytes },
+                    ),
+                ],
+                &account,
+            );
+            let before = account.snapshot().memory;
+            let (view, actual) =
+                MatchingLabels::new(&source, &matching, &control, &account).unwrap();
+            assert_eq!(actual, hash);
+            assert!(!view.filtered);
+            assert!(view.same(expected, &matching, &control, &account).unwrap());
+            assert_eq!(account.snapshot().memory, before);
+            let result =
+                MatchingLabels::new(&source, &VectorMatching::default(), &control, &account);
+            assert!(matches!(result, Err(EvaluationError::Runtime(ref message))
+                if &**message == crate::label_encoding::TOO_LONG.as_bytes()));
+            drop(result);
+            assert_eq!(
+                account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                before[MemoryKind::Workspace as usize].current
+            );
+        }
+        drop((base, matching));
+        account.snapshot().assert_memory_released();
     }
 
     #[test]

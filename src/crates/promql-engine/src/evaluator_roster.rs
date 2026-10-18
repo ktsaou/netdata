@@ -1402,7 +1402,7 @@ pub(crate) fn group_key(
     account: &QueryAccounting,
 ) -> Result<(), Interrupted> {
     labels.retain_labels_checked(account, control, |label| {
-        keep_group_label(&label.name, grouping, without, control, account)
+        crate::binary_labels::keep_name(&label.name, grouping, without, control, account)
     })
 }
 
@@ -1415,7 +1415,7 @@ pub(crate) fn copy_group_key(
 ) -> Result<OwnedLabels, Interrupted> {
     let result =
         labels.copy_filtered_checked(account, MemoryKind::Workspace, control, |label| {
-            keep_group_label(&label.name, grouping, without, control, account)
+            crate::binary_labels::keep_name(&label.name, grouping, without, control, account)
         })?;
     control.check()?;
     Ok(result)
@@ -1433,22 +1433,7 @@ pub(crate) fn group_hash(
         return Ok(0);
     }
     label_hash::grouping_filtered(labels, control, account, |label| {
-        keep_group_label(&label.name, grouping, without, control, account)
-    })
-}
-
-fn keep_group_label(
-    name: &[u8],
-    grouping: Option<&[AccountedVec<u8>]>,
-    without: bool,
-    control: &Control,
-    account: &QueryAccounting,
-) -> Result<bool, Interrupted> {
-    let found = crate::binary_labels::named(name, grouping.unwrap_or(&[]), control, account)?;
-    Ok(if without {
-        name != b"__name__" && !found
-    } else {
-        found
+        crate::binary_labels::keep_name(&label.name, grouping, without, control, account)
     })
 }
 

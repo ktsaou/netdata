@@ -256,7 +256,7 @@ Sparse data can require an additional physical Seek; its actual error remains ob
 ### Compact group and join lookups
 
 - **Choice:** accounted indexes store positions into the existing metadata arrays. Group identity remains hash-only;
-  binary signatures and result-cache keys check cached hashes followed by complete encoded bytes. Arrays keep their
+  binary signatures and result-cache keys check cached hashes followed by complete canonical field identity. Arrays keep their
   original discovery/reduction order and first matching identity. Nonmonotonic ordinal rosters sort positions only.
 - **Memory:** empty/singleton indexes allocate no slots. Sparse tables start at four slots, double at two-thirds
   load, and charge old/new capacity during replacement. Active join signatures switch to dense positions only when
@@ -1154,7 +1154,7 @@ integration, and Alertmanager remains excluded.
   Ordinary entries retain original-side row positions in one immutable Plan; same positions prove identity only
   after validation/hash. Different positions compare flattened fields across splits. Exact Encoded fallbacks
   compare canonical prefix/payload bytes to exhaustion. Preserve raw empty/opaque fields, many/one order,
-  collisions, first false/true writers and terminal controls. Transient matching-signature Key remains separate.
+  collisions, first false/true writers and terminal controls. Transient matching signatures use the separate borrowed owner below.
 - **Filled ownership:** matched synthetic operands retain an accounted boxed encoded vector, constructed before
   projection/output copy/insertion. Ordinary entries retain no operand-byte copy; preparation hits materialize
   only independent output labels. Mutable-to-frozen handoff stays with the same Plan/node. No metadata provider,
@@ -1175,6 +1175,26 @@ integration, and Alertmanager remains excluded.
   bind causal ownership failure, complete original outcomes, terminal controls, actual native C statistics and
   matched memory/timing/linked costs. Fixture statistics, foreign focused execution, query allocations and actual
   default-library/live throughput retain their distinct scopes.
+
+## Borrowed matching-signature labels
+
+- **Choice:** temporary signature keys borrow immutable Side label fields during Plan construction. A complete
+  filtered sized-field digest validates selected incoming fields before probing. Contiguous selected spans avoid
+  repeated predicates; interior omissions use independent fallible cursors. Do not normalize raw empty/opaque
+  fields, reorder fields or substitute grouping's delimiter hash.
+- **Reuse:** one named-first raw-name predicate serves matching encoding/views, matched-label filtering and the
+  three grouping callers. Keep append exclusion/None branches, matched reset, grouping's literal-zero hash and
+  caller control/work phases in place. Projection uses different semantics and retains its own predicate.
+- **Ownership:** disjoint row/signature field borrows allow the sides to keep their label owners while signature
+  arrays grow. Drop temporary views/index before sides move. Preserve first physical IDs, complete collision
+  checks, index-before-signature publication and partial/terminal control cleanup. No view escapes construction.
+- **Costs:** actual key headers become32/24 B native64/ARM32, replacing56/40 B and per-key byte buffers. All72
+  constructor controls pass with width-independent acquisition. Whole-query peaks remain unchanged in the13,152
+  binary pairs;11952reduce allocation traffic. Default C text grows28960/424 B release/size. These are explicit
+  traffic/code trade-offs, not a universal reduction of resident memory or proof of throughput.
+- **Evidence:** [the procedure](README.md#borrowed-matching-signatures) and
+  [finite qualification](matching-signature-qualification.json) retain original/before/literal outcomes, native C
+  statistics, portable controls, layouts and every timing/resource/linked cost. Existing caps remain disabled.
 
 ## Completed vector-sort publication
 
