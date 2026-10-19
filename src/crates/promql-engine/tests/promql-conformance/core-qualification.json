@@ -73693,5 +73693,22 @@
     "retained_upstream_outcomes": 4,
     "complete_exact_comparisons": 24,
     "scope": "Public direct default-hour evidence; all134prior ledger objects and historical catalog preserved. Accepted actual372-input fixture identities retained; no new runtime or performance claim."
+  },
+  "set_aside_inherited_ranking_completion": {
+    "status": "set_aside_failed_recorded_traffic_criterion",
+    "report": "ranking-parent-completion-set-aside-qualification.json",
+    "report_sha256": "2baf6a4b23485dd26ebb0c2462f6c68e30ff4d60e6f0f1b32ecf3034784bf403",
+    "comparison_base": "7271c12d76b8d023190be61305f968ac955ebf9a",
+    "accepted_runtime_changed": false,
+    "user_decision64": "unanswered",
+    "candidate_preserved": true,
+    "restored_accepted_inputs": 377,
+    "selected_timing_median_ratios": {
+      "release": 0.3980424501189305,
+      "release-min": 0.40493456109338055
+    },
+    "observed_error_path_acquired_released_cost_bytes": 4434,
+    "retained_or_peak_memory_increases": false,
+    "scope": "Finite complete candidate qualification records a real traffic-criterion failure. Restore accepted runtime under original rule;preserve open exception without inferring an answer. All135prior ledger objects/prose remain;no shipped runtime gain claimed."
   }
 }

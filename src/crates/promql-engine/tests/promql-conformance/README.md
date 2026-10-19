@@ -9032,3 +9032,26 @@ warnings and errors, including exact floating-point bits. A successful check rep
 native release/release-min and emulated ARM32/ARM64 fixtures. The real checker rejects a result changed from 22 to
 21. The historical catalog and its private nested witness retain their original identities. This is a public
 evidence supplement, with no new language support, runtime change, speed claim or full-corpus qualification.
+
+## Set-aside inherited ranking completion
+
+[`ranking-parent-completion-set-aside-qualification.json`](ranking-parent-completion-set-aside-qualification.json)
+records a completed experiment that is **absent from the accepted runtime**. All 377 prior inputs were restored
+exactly. The complete candidate and its measurements remain saved; a requested policy exception is unanswered.
+
+The candidate recognized a logical Vector consumer above certified ranking Matrix delivery and reused the original
+full-completion flag. It added no partial credit or Snapshot/Step allocation growth. Selected scalar-map timing
+medians were 0.3980/0.4049 of the baseline in release/release-min. Bare/ABS control-family gates and all six compiled
+size gates passed. These are finite synthetic measurements, not a shipped improvement or live API claim.
+
+The recorded allocation-traffic criterion failed. Twelve injected read-error scenarios per native profile allocated
+and freed 4,434 additional Workspace bytes after two outputs. Retained and peak bytes, status and complete outputs
+were unchanged; fetched entries decreased. This observed cost is not a universal error-path bound. A separate
+size-filtered trace observed one additional 4,832-byte allocation, but cannot identify its type or decompose the net
+Workspace difference. Unchanged peak memory does not override a nonincreasing allocation-traffic requirement.
+
+Candidate checks completed 2,208 fresh-original comparisons and 2,208 old/current pairs, 56,124 retained reducer
+comparisons, 456 sort-original comparisons, 672 C pairs and 672 C++ controls. Both native unit suites, focused QEMU
+checks and static checks passed. The 216 historical strict original differences remain failures. Every slower timing
+case and failed trial remains recorded. The failed criterion was preserved, all owned changes were reversed, and
+the continuous improvement work proceeds from the accepted engine without assuming a policy decision.

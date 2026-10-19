@@ -2113,3 +2113,15 @@ A rejected fallback-sharing experiment is recorded under
   The new evidence does not change calendar evaluation or establish additional language, speed or memory coverage.
 - **Evidence:** [public hour qualification](public-hour-qualification.json) binds the actual original and current
   executions, zero sample/page reads, public replay inputs and deliberately incorrect result control.
+
+## Set-aside inherited ranking completion experiment
+
+- **Trial:** prove certified singleton logical Vector demand through transparent same-key frames while preserving
+  physical Matrix modes and the original full Done completion flag. No partial credit, new cache or Step growth.
+- **Measured benefit:** selected scalar-map timing ratios 0.3980/0.4049; control-family and six linked-cost gates pass.
+- **Failed criterion:** 12 tested read-error scenarios per profile acquire and release 4,434 extra Workspace bytes,
+  with unchanged retained/peak values and complete outcomes. The frozen traffic policy does not permit that cost.
+- **Retained state:** all 377 accepted inputs restored exactly; candidate sources and evidence preserved. The policy
+  exception remains unanswered. Continuing from the accepted engine does not imply a user vote or an accepted gain.
+- **Report:** [complete set-aside qualification](ranking-parent-completion-set-aside-qualification.json). A diagnostic
+  allocation sequence alone does not establish typed ownership, a universal memory bound or a no-cost repair.
