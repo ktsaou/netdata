@@ -3309,6 +3309,9 @@ foreign whole-Agent execution, total RSS or production disk throughput.
 
 ## Validated float rate acquisition reuse
 
+This section records the earlier acquisition-only qualification. Current completed no-reset behavior
+is documented under [completed no-reset float windows](#completed-no-reset-float-windows).
+
 Ordinary float `rate`, `increase` and `delta` collect first/last/count/start fields during the initial validation
 traversal. Their shared `FloatStep::scan` reuses a successfully completed pure-float acquisition and credits logical
 reads only after full reached-page validation and terminal control. Last-minus-first remains before chronological
@@ -8643,3 +8646,61 @@ the actual uncertified hash polling boundary and a read-only analysis assertion 
 every fallback case to reduce allocations. None is hidden by the later passing checks. Candidate
 qualification is not transferred to the restored engine or its historical binaries. This trial adds no
 language feature or query limit, and provides no live, concurrent, physical-device or Cloud performance claim.
+
+## Completed no-reset float windows
+
+Ordinary float `rate` and `increase` now avoid the chronological reset replay when their completed initial
+acquisition proves that no consecutive admitted float decreases. Only a pristine first pass, disabled start
+timestamps and the existing eligible matrix window can earn this proof. Compare against the previous `last`
+before replacing it; keep reset-pass `previous` untouched. Publish the proof only after full reached-page
+validation, cursor closure and terminal control succeed, with at least two floats and no histogram allocation.
+Ordinary NaN keeps upstream's adjacent-comparison behavior; stale NaN does not replace the previous float.
+
+Last-minus-first still precedes all reset additions. An interior decrease keeps replay even when endpoints
+increase. Start-enabled, raw/no-matrix, derived receive, histogram/stale allocation, statistics, buffered and
+uncertified geometry paths retain their existing behavior. `delta` remains a control. The new boolean adds no
+raw-value cache or owned sample. Endpoint/page ownership stays bounded independently of history length.
+
+The unchanged producer completes234numeric-bit/annotation/progress/lease/release cases before failing54
+one-walk guards. Current owners pass those guards: eligible windows use3→1walks and2N→Nuseful reads.
+Tests also cover126existing acquisition cases,455actual reached-operation failures,24uncertified controls,
+unused malformed tails, close-triggered cancellation and2,048/100,000-point histories. Fault counts describe
+actual reachable operations after replay removal. C same-query report/result statistics remain exactly equal.
+
+Both native profiles pass837tests with two existing ignored checks; emulated ARM32/ARM64each pass21focused
+owners. Native pages1/17/1024and ARM page17give6,968complete before/current pairs, including3,704checks against
+retained Prometheus originals. Another912optimized pilot pairs pass. All eight query-memory peaks are equal
+in these query comparisons. Lower physical/useful reads and cancellation-reference acquisitions are recorded
+honestly; references balance, current counts release and peaks do not increase. Actual C callers pass2,112paired
+rate/window lifecycle arms,2,112matching C++controls and both full C suites. Strict default/fixture Clippy,
+format and installed Rust1.91compile-only checks pass.
+
+`rate_acquisition_cases.no_reset_cases()` reproduces360new controls; `no_reset_performance_cases()` reproduces
+80rate/reset/delta timing cases. They are separate from463retained Go originals and48explicit empty/stale cases.
+The fixed96query/profile timing panel adds16ordinary controls. Three alternating blocks provide nine measured
+samples per arm, with one identical follow-up for each primary ratio>=1.05. The36selected rate/increase/sum-rate
+cases at8/16/64series have median current/before ratios0.429948release and0.417176release-min, about57–58%less
+query time. These case medians are not traffic-weighted production measurements.
+
+| Query family | release ratio | release-min ratio |
+| --- | ---: | ---: |
+| Rate | 0.449048 | 0.442620 |
+| Increase | 0.450496 | 0.441640 |
+| Grouped rate | 0.431092 | 0.423873 |
+| Reset-present rate | 1.022966 | 1.013293 |
+| Delta | 1.045879 | 1.017772 |
+| Ordinary controls | 1.003298 | 0.987577 |
+
+Release has40slower primary medians and11prescribed follow-ups; release-min has25and0. No follow-up remains
+at>=1.05. Every slower primary and all timing samples remain in the
+[finite qualification](completed-no-reset-rate-qualification.json). Native default-C text grows2,880/8,052B
+in release/release-min; fixture text grows3,488/1,756B and ARM32/ARM64text grows1,692/12,580B. All data/BSS/file
+and actual standalone function/prologue costs are retained. Actual native debug before/current private sizes
+remain208B FloatStep and424B RateStep; current optimized sizes are208/424native and ARM64,208/416ARM32.
+Foreign baseline private sizes were not measured. Public58structure/108record Rust/C/C++layouts equal on all
+four cohorts. Entry stack reservations do not establish runtime stack high-water.
+
+The complete source/binary/evidence hashes survived the user-reported reboot; completed builds were reused.
+This qualification adds no language feature and makes no claim of lower peak RAM, process RSS, universal or
+live/concurrent throughput, physical-ARM, whole-Agent or Cloud performance. Raw histories remain paged and
+implicit limits remain disabled.

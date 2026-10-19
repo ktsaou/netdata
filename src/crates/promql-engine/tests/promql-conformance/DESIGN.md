@@ -880,6 +880,9 @@ integration, and Alertmanager remains excluded.
 
 ## Validated float rate acquisition reuse
 
+This section records the earlier acquisition-only qualification. Current completed no-reset behavior
+is documented under [completed no-reset float windows](#completed-no-reset-float-windows).
+
 - **Choice:** the initial ordinary `rate`, `increase` and `delta` float pass collects its existing endpoints/count
   during acquisition. After complete validation and terminal control, a pure-float acquisition can omit its
   separate consuming traversal. One private `FloatStep::scan` serves both float-rate callers; Avg and rates share
@@ -1947,3 +1950,22 @@ All experimental code and tests were reversed; tracked whole-query peaks were un
 preparation, downstream materialization, lookup/duplicate/control phases and accepted qualification remain.
 The conformance guide's [rejected investigation](README.md#rejected-frozen-histogram-label-borrowing)
 owns the measured trade-off, complete failed/slower evidence and candidate-specific scope.
+
+## Completed no-reset float windows
+
+- **Choice:** one private boolean certifies absence of a strict decrease between admitted consecutive floats
+  during the existing eligible initial matrix probe. Require pristine Rate/Increase state and disabled start
+  timestamps. Compare old `last` before `receive`; do not populate reset-pass `previous` or retain extra samples.
+- **Completion:** clear credit on scan entry and publish only after successful reached-page validation,
+  closure and terminal control, at least two floats and no histogram allocation. Populated histogram/stale
+  allocation still discards tentative float state and consumes normally. No partial probe earns reuse.
+- **Arithmetic:** preserve source subtraction before any chronological reset addition. Only the completed
+  no-reset proof omits replay. Interior decreases, start/reset/overlap, raw/derived, statistics/buffer and
+  uncertified bounds preserve their original path. Ordinary NaN and stale NaN keep distinct adjacency behavior.
+- **Accounting:** actual skipped walks reduce useful/physical reads and cancellation-reference traffic.
+  Keep logical participation, same-query C statistics, balanced references, terminal release and honest peaks.
+  No raw history array, new provider/metadata/API contract or implicit cap is introduced.
+- **Trade-off:** selected native timing medians improve by about57–58%; all measured query peaks stay equal.
+  The private boolean fits the measured native debug layout; current optimized target sizes are reported
+  separately from unmeasured foreign baselines. Small linked code growth and slower fallback/control medians
+  remain explicit in the [finite report](completed-no-reset-rate-qualification.json), with all original guards.

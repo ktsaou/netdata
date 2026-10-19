@@ -206,6 +206,7 @@ pub(crate) struct FloatStep {
     count: u64,
     histograms: bool,
     reset_pass: bool,
+    no_reset_acquisition: bool,
     previous: Option<Point>,
     result: f64,
     overlap: bool,
@@ -218,6 +219,7 @@ impl FloatStep {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Option<Progress>, StorageError> {
+        self.no_reset_acquisition = false;
         let bounds = self.input.bounds();
         let Some(window) =
             matrix.filter(|window| !self.reset_pass && window.can_reuse_acquisition(bounds))
@@ -226,8 +228,21 @@ impl FloatStep {
                 self.receive(sample, control, account)
             });
         };
+        let mut no_reset = self.kind != RateKind::Delta
+            && !self.input.window.start_timestamps
+            && self.count == 0
+            && self.first.is_none()
+            && self.last.is_none()
+            && !self.histograms;
         let acquisition =
             crate::matrix_reader::probe(series, bounds, window, control, account, |sample| {
+                if no_reset
+                    && let (Some(previous), SampleValueRef::Float(value)) =
+                        (self.last, sample.value)
+                    && value < previous.value
+                {
+                    no_reset = false;
+                }
                 self.receive(sample, control, account)
             })?;
         let progress = if acquisition.populated && acquisition.histograms_allocated {
@@ -243,6 +258,9 @@ impl FloatStep {
             )?
             .progress
         } else {
+            // Only completed validation can eliminate the chronological reset replay.
+            self.no_reset_acquisition =
+                no_reset && self.count > 1 && !self.histograms && !acquisition.histograms_allocated;
             account.samples_read(acquisition.progress.sample_units);
             acquisition.progress
         };
@@ -262,6 +280,7 @@ impl FloatStep {
             count: 0,
             histograms: false,
             reset_pass: false,
+            no_reset_acquisition: false,
             previous: None,
             result: 0.0,
             overlap: false,
@@ -335,7 +354,7 @@ impl FloatStep {
             };
             // Source subtraction precedes every chronological reset addition.
             self.result = source_sub(last.value, first.value);
-            if self.kind != RateKind::Delta && self.count > 1 {
+            if self.kind != RateKind::Delta && self.count > 1 && !self.no_reset_acquisition {
                 self.reset_pass = true;
                 return None;
             }

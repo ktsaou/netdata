@@ -73465,5 +73465,45 @@
     "new_default_language_features": 0,
     "features_dropped": [],
     "scope": "Negative conditional frozen histogram label-ownership experiment;no runtime change. Complete actual candidate validation/timing/cost/failure/source/binary identities retained;no qualification transferred to restored engine."
+  },
+  "completed_no_reset_float_windows": {
+    "status": "finite_source_bound_qualification",
+    "report": "completed-no-reset-rate-qualification.json",
+    "report_sha256": "f72f6919d170a2d3f0005f7c7619f2db2610b29a315d971eedf8eea93aa98209",
+    "comparison_base": "baae9c15f901ecf01fb3a94c44a40576d2dcd50d",
+    "baseline_runtime_revision": "7b8fe91683ca0109887bf15999881c0f1456ef4f",
+    "source_inputs": 365,
+    "source_manifest_sha256": "dac851489e9bc5a36aaf55e3d4b91bd8f439da6a0e68b302a61b2d8261f9cc9a",
+    "decision": "accept",
+    "full_native_passes_per_profile": 837,
+    "native_ignored_per_profile": 2,
+    "foreign_focused_passes_per_target": 21,
+    "new_tests": 3,
+    "retained_original_cases": 463,
+    "new_control_cases": 360,
+    "explicit_empty_cases": 48,
+    "complete_full_before_current_pairs": 6968,
+    "same_current_original_comparisons": 3704,
+    "additional_optimized_pilot_pairs": 912,
+    "complete_results_order_and_bits_equal": true,
+    "native_pages": [
+      1,
+      17,
+      1024
+    ],
+    "foreign_pages": [
+      17
+    ],
+    "default_c_pairs": 2112,
+    "cpp_controls": 2112,
+    "full_current_c_suites": 2,
+    "strict_clippy_variants": 2,
+    "format_check": true,
+    "msrv_compile_only": "1.91.0",
+    "memory_categories": 8,
+    "no_increased_measured_query_peak": true,
+    "new_language_features": 0,
+    "public_contract_changes": 0,
+    "scope": "Completed pristine ordinary float-rate acquisition omits only proven-absent reset replay. Exact original outcomes and paged/control/accounting contracts preserved. Actual work/read/time gains,unchanged query peaks and all code/fallback costs retained;no new feature,foreign-baseline private layout or universal/live/RSS claim."
   }
 }

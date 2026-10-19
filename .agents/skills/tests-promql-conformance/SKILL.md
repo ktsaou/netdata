@@ -241,6 +241,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   can truthfully own earlier endpoint sample units. Check all three kinds, shared Avg eligibility, actual operation
   failures, empty/stale histories and page-bounded memory; the finite procedure and costs are in
   `src/crates/promql-engine/tests/promql-conformance/README.md#validated-float-rate-acquisition-reuse`.
+  Completed no-reset windows also follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#completed-no-reset-float-windows` for strict
+  adjacency, completed validation and honest read/reference reductions.
 - Histogram constructor lookup MUST preserve encoded-key identity, separate passes and tiny-set cost; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-constructor-key-lookup` for collision,
   ordering and terminal interruption controls.
