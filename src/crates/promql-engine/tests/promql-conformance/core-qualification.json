@@ -73505,5 +73505,45 @@
     "new_language_features": 0,
     "public_contract_changes": 0,
     "scope": "Completed pristine ordinary float-rate acquisition omits only proven-absent reset replay. Exact original outcomes and paged/control/accounting contracts preserved. Actual work/read/time gains,unchanged query peaks and all code/fallback costs retained;no new feature,foreign-baseline private layout or universal/live/RSS claim."
+  },
+  "completed_instant_rate_float_windows": {
+    "status": "finite_source_bound_qualification",
+    "report": "instant-rate-acquisition-qualification.json",
+    "report_sha256": "2767f9adac0656796601c44f57ede97c8727f77547d80162e1f4ea0d8bb60d39",
+    "comparison_base": "79608b9ad01e6615212537e3f8d5130323cc1616",
+    "baseline_runtime_revision": "79608b9ad01e6615212537e3f8d5130323cc1616",
+    "source_inputs": 366,
+    "source_manifest_sha256": "d1013c7d07d15d1898e0bcab16fbad86c5536b42bd6800fbb57b78528d957c26",
+    "decision": "accept",
+    "full_native_passes_per_profile": 839,
+    "native_ignored_per_profile": 2,
+    "foreign_focused_passes_per_target": 23,
+    "new_tests": 2,
+    "retained_original_cases": 310,
+    "new_control_cases": 240,
+    "explicit_empty_cases": 32,
+    "complete_full_before_current_pairs": 4656,
+    "same_current_original_comparisons": 2480,
+    "additional_optimized_pilot_pairs": 768,
+    "complete_results_order_and_bits_equal": true,
+    "native_pages": [
+      1,
+      17,
+      1024
+    ],
+    "foreign_pages": [
+      17
+    ],
+    "default_c_pairs": 480,
+    "cpp_controls": 480,
+    "full_current_c_suites": 2,
+    "strict_clippy_variants": 2,
+    "format_check": true,
+    "msrv_compile_only": "1.91.0",
+    "memory_categories": 8,
+    "no_increased_measured_query_peak": true,
+    "new_language_features": 0,
+    "public_contract_changes": 0,
+    "scope": "Completed pristine pure-float irate/idelta acquisition omits a consuming walk. Exact retained outcomes and paged/control/accounting contracts pass. All work/read/time gains,native/mixed costs and linked growth remain explicit;no new feature,foreign-baseline private layout or uniform/live/RSS claim."
   }
 }

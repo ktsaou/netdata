@@ -12,7 +12,7 @@ use crate::{
         start_time_overlap, start_timestamp_reset, uses_first_start,
     },
     result::{OwnedHistogram, OwnedValue},
-    storage::{Control, Series, StorageError},
+    storage::{Control, Series, StorageError, TimeBounds},
     value::{SampleRef, SampleValueRef},
 };
 
@@ -83,6 +83,7 @@ pub(crate) fn evaluate<S: Series>(
     loop {
         let progress = match &mut step {
             Step::Float { step, .. } => step.scan(series, matrix, control, account),
+            Step::Instant(step) => step.scan(series, input.bounds(), matrix, control, account),
             other => scan_matrix::<_, StorageError>(
                 series,
                 input.bounds(),
@@ -648,6 +649,50 @@ pub(crate) struct InstantStep {
     histograms: [Option<InstantPoint>; 2],
 }
 impl InstantStep {
+    fn scan<S: Series>(
+        &mut self,
+        series: &S,
+        bounds: Option<TimeBounds>,
+        matrix: Option<MatrixWindow>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<Progress>, StorageError> {
+        let Some(window) = matrix.filter(|window| {
+            window.can_reuse_acquisition(bounds)
+                && self.floats.iter().all(Option::is_none)
+                && self.histograms.iter().all(Option::is_none)
+        }) else {
+            return scan_matrix(series, bounds, matrix, control, account, |sample| {
+                self.receive(sample, control, account)
+            });
+        };
+        let acquisition =
+            crate::matrix_reader::probe(series, bounds, window, control, account, |sample| {
+                if matches!(sample.value, SampleValueRef::Float(_)) {
+                    self.receive(sample, control, account)
+                } else {
+                    Ok(())
+                }
+            })?;
+        let progress = if acquisition.populated && acquisition.histograms_allocated {
+            // Native copies keep their original consuming phase, including stale history.
+            self.floats = [None, None];
+            crate::matrix_reader::consume(
+                series,
+                bounds,
+                window.with_progress(Some(acquisition.progress)),
+                control,
+                account,
+                |sample| self.receive(sample, control, account),
+            )?
+            .progress
+        } else {
+            account.samples_read(acquisition.progress.sample_units);
+            acquisition.progress
+        };
+        Ok(Some(progress))
+    }
+
     fn receive(
         &mut self,
         sample: SampleRef<'_>,
@@ -894,16 +939,16 @@ mod tests {
         }
     }
 
-    #[test]
-    fn completed_no_reset_windows_preserve_results_before_replay_guard() {
+    type FloatCase = (&'static str, fn(usize) -> Sample, bool);
+
+    fn acquisition_float_cases() -> [FloatCase; 13] {
         fn values(index: usize, points: [f64; 4]) -> Sample {
             Sample {
                 value: SampleValue::Float(points[index]),
                 ..crate::test_storage::counter(index)
             }
         }
-        type FloatCase = (&'static str, fn(usize) -> Sample, bool);
-        let shapes: [FloatCase; 13] = [
+        [
             ("monotone", crate::test_storage::counter, true),
             ("constant", |i| values(i, [7.0; 4]), true),
             ("negative", |i| values(i, [-4.0, -3.0, -2.0, -1.0]), true),
@@ -946,7 +991,12 @@ mod tests {
                 },
                 true,
             ),
-        ];
+        ]
+    }
+
+    #[test]
+    fn completed_no_reset_windows_preserve_results_before_replay_guard() {
+        let shapes = acquisition_float_cases();
         let mut guarded = Vec::new();
         let mut completed = 0;
         for page in [1, 17, 1024] {
@@ -1270,7 +1320,13 @@ mod tests {
     fn rate_acquisition_faults_and_histogram_fallback_keep_their_phases() {
         let mut failures = 0;
         for page in [1, 17, 1024] {
-            for kind in [RateKind::Rate, RateKind::Increase, RateKind::Delta] {
+            for function in [
+                RateFunction::Extrapolated(RateKind::Rate),
+                RateFunction::Extrapolated(RateKind::Increase),
+                RateFunction::Extrapolated(RateKind::Delta),
+                RateFunction::Instant { counter: true },
+                RateFunction::Instant { counter: false },
+            ] {
                 for (index, sample) in [
                     crate::test_storage::counter as fn(usize) -> Sample,
                     stale_histogram_acquisition,
@@ -1292,7 +1348,7 @@ mod tests {
                     let output = evaluate(
                         &normal,
                         window(2),
-                        RateFunction::Extrapolated(kind),
+                        function,
                         Some(acquisition_window(2000)),
                         &control,
                         &account,
@@ -1306,7 +1362,7 @@ mod tests {
                     assert_eq!(
                         output.value.is_none(),
                         matches!(index, 1..=2),
-                        "kind={kind:?}, input={index}, page={page}"
+                        "kind={function:?}, input={index}, page={page}"
                     );
                     if index == 0 {
                         assert_eq!(normal.source.counters.opened.load(Ordering::Relaxed), 1);
@@ -1337,7 +1393,7 @@ mod tests {
                         let result = evaluate(
                             &source,
                             window(2),
-                            RateFunction::Extrapolated(kind),
+                            function,
                             Some(acquisition_window(2000)),
                             &control,
                             &account,
@@ -1368,42 +1424,48 @@ mod tests {
 
     #[test]
     fn rate_acquisition_terminal_cancellation_discards_credit_and_endpoints() {
-        for page in [1, 17, 1024] {
-            for sample in [
-                crate::test_storage::counter as fn(usize) -> Sample,
-                stale_histogram_acquisition,
-                native,
-            ] {
-                for cancel_at in [
-                    AcquisitionOperation::Open(1),
-                    AcquisitionOperation::Next(1, 0),
-                    AcquisitionOperation::Close(1),
+        for function in [
+            RateFunction::Extrapolated(RateKind::Rate),
+            RateFunction::Instant { counter: true },
+            RateFunction::Instant { counter: false },
+        ] {
+            for page in [1, 17, 1024] {
+                for sample in [
+                    crate::test_storage::counter as fn(usize) -> Sample,
+                    stale_histogram_acquisition,
+                    native,
                 ] {
-                    let control = Control::default();
-                    let source = AcquisitionSeries {
-                        source: GeneratedSeries::new(2, page, sample),
-                        failure: None,
-                        cancel_at: Some(cancel_at),
-                        cancellation: control.cancellation.clone(),
-                        operations: RefCell::new(Vec::new()),
-                    };
-                    let account = EngineAccounting::default().query();
-                    let result = evaluate(
-                        &source,
-                        window(2),
-                        RateFunction::Extrapolated(RateKind::Rate),
-                        Some(acquisition_window(2000)),
-                        &control,
-                        &account,
-                    );
-                    assert!(
-                        matches!(result, Err(StorageError::Interrupted(_))),
-                        "{cancel_at:?}"
-                    );
-                    assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
-                    assert!(account.snapshot().statistics.samples.peak_samples <= 2);
-                    drop(result);
-                    source.assert_closed(&account);
+                    for cancel_at in [
+                        AcquisitionOperation::Open(1),
+                        AcquisitionOperation::Next(1, 0),
+                        AcquisitionOperation::Close(1),
+                    ] {
+                        let control = Control::default();
+                        let source = AcquisitionSeries {
+                            source: GeneratedSeries::new(2, page, sample),
+                            failure: None,
+                            cancel_at: Some(cancel_at),
+                            cancellation: control.cancellation.clone(),
+                            operations: RefCell::new(Vec::new()),
+                        };
+                        let account = EngineAccounting::default().query();
+                        let result = evaluate(
+                            &source,
+                            window(2),
+                            function,
+                            Some(acquisition_window(2000)),
+                            &control,
+                            &account,
+                        );
+                        assert!(
+                            matches!(result, Err(StorageError::Interrupted(_))),
+                            "{cancel_at:?}"
+                        );
+                        assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+                        assert!(account.snapshot().statistics.samples.peak_samples <= 2);
+                        drop(result);
+                        source.assert_closed(&account);
+                    }
                 }
             }
         }
@@ -1418,61 +1480,67 @@ mod tests {
 
     #[test]
     fn rate_acquisition_retains_uncertified_paths_and_validates_unused_tails() {
-        for page in [1, 17, 1024] {
-            for mode in 0..4 {
-                let source = GeneratedSeries::new(2, page, crate::test_storage::counter);
-                let mut matrix = acquisition_window(2000);
-                let mut input = RateInput::from(window(2));
-                match mode {
-                    0 => matrix.statistics = true,
-                    1 => matrix.buffer_ms = Some(2000),
-                    2 => matrix.reduce_delta = false,
-                    3 => input.window.start_ms = -1,
-                    _ => unreachable!(),
+        for function in [
+            RateFunction::Extrapolated(RateKind::Delta),
+            RateFunction::Instant { counter: true },
+            RateFunction::Instant { counter: false },
+        ] {
+            for page in [1, 17, 1024] {
+                for mode in 0..4 {
+                    let source = GeneratedSeries::new(2, page, crate::test_storage::counter);
+                    let mut matrix = acquisition_window(2000);
+                    let mut input = RateInput::from(window(2));
+                    match mode {
+                        0 => matrix.statistics = true,
+                        1 => matrix.buffer_ms = Some(2000),
+                        2 => matrix.reduce_delta = false,
+                        3 => input.window.start_ms = -1,
+                        _ => unreachable!(),
+                    }
+                    assert!(!matrix.can_reuse_acquisition(input.bounds()));
+                    let account = EngineAccounting::default().query();
+                    let output = evaluate(
+                        &source,
+                        input,
+                        function,
+                        Some(matrix),
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
+                    assert!(matches!(output.value, Some(OwnedValue::Float(_))));
+                    assert_eq!(source.counters.opened.load(Ordering::Relaxed), 2);
+                    drop(output);
+                    account.snapshot().assert_memory_released();
                 }
-                assert!(!matrix.can_reuse_acquisition(input.bounds()));
+                let source = GeneratedSeries::new(2, page, malformed_unused_tail);
+                let matrix = MatrixWindow {
+                    data_bounds: TimeBounds {
+                        start_ms: 1,
+                        end_ms: 2000,
+                    },
+                    ..acquisition_window(1000)
+                };
                 let account = EngineAccounting::default().query();
-                let output = evaluate(
+                let result = evaluate(
                     &source,
-                    input,
-                    RateFunction::Extrapolated(RateKind::Delta),
+                    window(1),
+                    function,
                     Some(matrix),
                     &Control::default(),
                     &account,
-                )
-                .unwrap();
-                assert!(matches!(output.value, Some(OwnedValue::Float(_))));
-                assert_eq!(source.counters.opened.load(Ordering::Relaxed), 2);
-                drop(output);
+                );
+                if page == 1 {
+                    assert!(result.is_ok());
+                    assert_eq!(account.snapshot().statistics.samples.samples_read, 1);
+                } else {
+                    assert!(matches!(result, Err(StorageError::Invalid(_))));
+                    assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+                }
+                drop(result);
+                assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
                 account.snapshot().assert_memory_released();
             }
-            let source = GeneratedSeries::new(2, page, malformed_unused_tail);
-            let matrix = MatrixWindow {
-                data_bounds: TimeBounds {
-                    start_ms: 1,
-                    end_ms: 2000,
-                },
-                ..acquisition_window(1000)
-            };
-            let account = EngineAccounting::default().query();
-            let result = evaluate(
-                &source,
-                window(1),
-                RateFunction::Extrapolated(RateKind::Delta),
-                Some(matrix),
-                &Control::default(),
-                &account,
-            );
-            if page == 1 {
-                assert!(result.is_ok());
-                assert_eq!(account.snapshot().statistics.samples.samples_read, 1);
-            } else {
-                assert!(matches!(result, Err(StorageError::Invalid(_))));
-                assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
-            }
-            drop(result);
-            assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
-            account.snapshot().assert_memory_released();
         }
     }
 
@@ -1582,47 +1650,365 @@ mod tests {
 
     #[test]
     fn rate_acquisition_keeps_long_histories_page_bounded() {
-        for page in [17, 1024] {
-            let mut prior = None;
-            for count in [2048, 100000] {
-                let source = GeneratedSeries::new(count, page, crate::test_storage::counter);
-                let account = EngineAccounting::default().query();
-                let input = window(count);
-                let output = evaluate(
-                    &source,
-                    input,
-                    RateFunction::Extrapolated(RateKind::Rate),
-                    Some(acquisition_window(input.end_ms)),
-                    &Control::default(),
-                    &account,
-                )
-                .unwrap();
-                let Some(OwnedValue::Float(value)) = output.value else {
-                    panic!("complete long rate output")
-                };
-                assert_eq!(value.to_bits(), 1.0f64.to_bits());
-                assert_eq!(
-                    account.snapshot().statistics.samples.samples_read,
-                    count as u64
-                );
-                assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
-                assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
-                assert!(
-                    source.counters.samples_returned.load(Ordering::Relaxed) <= 2 * (count + page)
-                );
-                let peaks: Vec<_> = account
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .map(|kind| kind.peak)
-                    .collect();
-                if let Some(prior) = &prior {
-                    assert_eq!(&peaks, prior);
+        for function in [
+            RateFunction::Extrapolated(RateKind::Rate),
+            RateFunction::Instant { counter: true },
+            RateFunction::Instant { counter: false },
+        ] {
+            for page in [17, 1024] {
+                let mut prior = None;
+                for count in [2048, 100000] {
+                    let source = GeneratedSeries::new(count, page, crate::test_storage::counter);
+                    let account = EngineAccounting::default().query();
+                    let input = window(count);
+                    let output = evaluate(
+                        &source,
+                        input,
+                        function,
+                        Some(acquisition_window(input.end_ms)),
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
+                    let Some(OwnedValue::Float(value)) = output.value else {
+                        panic!("complete long rate output")
+                    };
+                    assert_eq!(value.to_bits(), 1.0f64.to_bits());
+                    assert_eq!(
+                        account.snapshot().statistics.samples.samples_read,
+                        count as u64
+                    );
+                    assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+                    assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+                    assert!(
+                        source.counters.samples_returned.load(Ordering::Relaxed)
+                            <= 2 * (count + page)
+                    );
+                    let peaks: Vec<_> = account
+                        .snapshot()
+                        .memory
+                        .iter()
+                        .map(|kind| kind.peak)
+                        .collect();
+                    if let Some(prior) = &prior {
+                        assert_eq!(&peaks, prior);
+                    }
+                    prior = Some(peaks);
+                    drop(output);
+                    account.snapshot().assert_memory_released();
                 }
-                prior = Some(peaks);
-                drop(output);
-                account.snapshot().assert_memory_released();
             }
+        }
+    }
+
+    fn generic_instant_reference<S: Series>(
+        series: &S,
+        input: RateInput,
+        function: RateFunction,
+        matrix: MatrixWindow,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<RateOutput, StorageError> {
+        let mut step = Step::new(input, function);
+        let progress = scan_matrix::<_, StorageError>(
+            series,
+            input.bounds(),
+            Some(matrix),
+            control,
+            account,
+            |sample| step.receive(sample, control, account),
+        )?;
+        let mut output = step
+            .finish_pass(control, account)?
+            .expect("instant finishes once");
+        output.progress = progress;
+        Ok(output)
+    }
+
+    fn assert_instant_outputs_equal(left: &RateOutput, right: &RateOutput) {
+        match (&left.value, &right.value) {
+            (None, None) => {}
+            (Some(OwnedValue::Float(left)), Some(OwnedValue::Float(right))) => {
+                assert_eq!(left.to_bits(), right.to_bits());
+            }
+            (Some(OwnedValue::Histogram(left)), Some(OwnedValue::Histogram(right))) => {
+                let left = left.as_ref();
+                let right = right.as_ref();
+                assert_eq!(
+                    (
+                        left.reset_hint,
+                        left.schema,
+                        left.zero_threshold.to_bits(),
+                        left.zero_count.to_bits(),
+                        left.count.to_bits(),
+                        left.sum.to_bits()
+                    ),
+                    (
+                        right.reset_hint,
+                        right.schema,
+                        right.zero_threshold.to_bits(),
+                        right.zero_count.to_bits(),
+                        right.count.to_bits(),
+                        right.sum.to_bits()
+                    )
+                );
+                assert_eq!(left.positive_spans, right.positive_spans);
+                assert_eq!(left.negative_spans, right.negative_spans);
+                for (left, right) in [
+                    (left.positive_buckets, right.positive_buckets),
+                    (left.negative_buckets, right.negative_buckets),
+                    (left.custom_values, right.custom_values),
+                ] {
+                    let bits = |values: Option<&[f64]>| {
+                        values.map(|values| {
+                            values
+                                .iter()
+                                .map(|value| value.to_bits())
+                                .collect::<Vec<_>>()
+                        })
+                    };
+                    assert_eq!(bits(left), bits(right));
+                }
+            }
+            _ => panic!("complete instant output kinds differ"),
+        }
+        assert_eq!(left.annotations, right.annotations);
+        assert_eq!(left.nonempty, right.nonempty);
+        assert_eq!(left.progress, right.progress);
+    }
+
+    fn interior_native_acquisition(index: usize) -> Sample {
+        if index == 0 {
+            native(index)
+        } else {
+            crate::test_storage::counter(index)
+        }
+    }
+    fn interior_stale_native_acquisition(index: usize) -> Sample {
+        let mut sample = interior_native_acquisition(index);
+        if let SampleValue::FloatHistogram(histogram) = &mut sample.value {
+            histogram.sum = f64::from_bits(crate::value::STALE_NAN_BITS);
+        }
+        sample
+    }
+    fn all_stale_native_acquisition(index: usize) -> Sample {
+        let mut sample = native(index);
+        let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+            unreachable!()
+        };
+        histogram.sum = f64::from_bits(crate::value::STALE_NAN_BITS);
+        sample
+    }
+
+    #[test]
+    fn instant_acquisition_native_and_uncertified_windows_keep_complete_behavior() {
+        let mut completed = 0;
+        for page in [1, 17, 1024] {
+            for counter in [false, true] {
+                for start_timestamps in [false, true] {
+                    for (shape, sample) in [
+                        crate::test_storage::counter as fn(usize) -> Sample,
+                        native,
+                        mixed_acquisition,
+                        stale_histogram_acquisition,
+                        interior_native_acquisition,
+                        interior_stale_native_acquisition,
+                        all_stale_native_acquisition,
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        for mode in 0..5 {
+                            let source = GeneratedSeries::new(4, page, sample);
+                            let original = GeneratedSeries::new(4, page, sample);
+                            let account = EngineAccounting::default().query();
+                            let original_account = EngineAccounting::default().query();
+                            let control = Control::default();
+                            let mut input = RateInput::from(window(4));
+                            input.window.start_timestamps = start_timestamps;
+                            let mut matrix = acquisition_window(4000);
+                            match mode {
+                                0 => {}
+                                1 => matrix.statistics = true,
+                                2 => matrix.buffer_ms = Some(2000),
+                                3 => matrix.reduce_delta = false,
+                                4 => input.window.start_ms = -1,
+                                _ => unreachable!(),
+                            }
+                            assert_eq!(matrix.can_reuse_acquisition(input.bounds()), mode == 0);
+                            let function = RateFunction::Instant { counter };
+                            let expected = generic_instant_reference(
+                                &original,
+                                input,
+                                function,
+                                matrix,
+                                &control,
+                                &original_account,
+                            )
+                            .unwrap();
+                            let output = evaluate(
+                                &source,
+                                input,
+                                function,
+                                Some(matrix),
+                                &control,
+                                &account,
+                            )
+                            .unwrap();
+                            assert_instant_outputs_equal(&output, &expected);
+                            let before = original_account.snapshot();
+                            let current = account.snapshot();
+                            assert_eq!(
+                                current.statistics.samples.total_queryable_samples,
+                                before.statistics.samples.total_queryable_samples
+                            );
+                            assert_eq!(
+                                current.statistics.samples.samples_read,
+                                before.statistics.samples.samples_read
+                            );
+                            assert!(
+                                current.statistics.samples.peak_samples
+                                    <= before.statistics.samples.peak_samples
+                            );
+                            for (left, right) in before.memory.iter().zip(&current.memory) {
+                                assert!(
+                                    right.peak <= left.peak,
+                                    "shape={shape}, mode={mode}, page={page}"
+                                );
+                            }
+                            let expected_walks = original.counters.opened.load(Ordering::Relaxed);
+                            assert_eq!(
+                                source.counters.opened.load(Ordering::Relaxed),
+                                if shape == 0 && mode == 0 {
+                                    1
+                                } else {
+                                    expected_walks
+                                }
+                            );
+                            assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+                            assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                            drop(output);
+                            drop(expected);
+                            account.snapshot().assert_memory_released();
+                            original_account.snapshot().assert_memory_released();
+                            assert_eq!(original.counters.active.load(Ordering::Relaxed), 0);
+                            completed += 1;
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(completed, 420);
+        println!(
+            "instant complete420-native-uncertified-results-progress-statistics-memory-release"
+        );
+    }
+
+    #[test]
+    fn completed_instant_float_acquisition_preserves_results_before_walk_guard() {
+        type ExtraCase = (&'static str, usize, fn(usize) -> Sample);
+        let extra: [ExtraCase; 3] = [
+            ("empty", 0, crate::test_storage::counter),
+            ("singleton", 1, crate::test_storage::counter),
+            ("nan-tail", 4, |index| Sample {
+                value: SampleValue::Float(if index == 3 {
+                    f64::from_bits(0x7ff8_0000_0000_0042)
+                } else {
+                    index as f64
+                }),
+                ..crate::test_storage::counter(index)
+            }),
+        ];
+        let mut guarded = Vec::new();
+        let mut completed = 0;
+        for page in [1, 17, 1024] {
+            for counter in [false, true] {
+                for start_timestamps in [false, true] {
+                    let shapes = acquisition_float_cases()
+                        .map(|(name, sample, _)| (name, 4, sample))
+                        .into_iter()
+                        .chain(extra);
+                    for (name, count, sample) in shapes {
+                        let source = GeneratedSeries::new(count, page, sample);
+                        let original = GeneratedSeries::new(count, page, sample);
+                        let account = EngineAccounting::default().query();
+                        let original_account = EngineAccounting::default().query();
+                        let control = Control::default();
+                        let mut input = window(count.max(1));
+                        input.start_timestamps = start_timestamps;
+                        let matrix = acquisition_window(input.end_ms);
+                        let function = RateFunction::Instant { counter };
+                        let expected = generic_instant_reference(
+                            &original,
+                            input.into(),
+                            function,
+                            matrix,
+                            &control,
+                            &original_account,
+                        )
+                        .unwrap();
+                        let output =
+                            evaluate(&source, input, function, Some(matrix), &control, &account)
+                                .unwrap();
+                        let bits = |value: &RateOutput| match value.value.as_ref() {
+                            None => None,
+                            Some(OwnedValue::Float(value)) => Some(value.to_bits()),
+                            Some(_) => panic!("float-only instant fixture"),
+                        };
+                        assert_eq!(bits(&output), bits(&expected), "{name}, counter={counter}");
+                        assert_eq!(output.annotations, expected.annotations);
+                        assert_eq!(output.nonempty, count != 0);
+                        assert_eq!(output.nonempty, expected.nonempty);
+                        assert_eq!(output.progress, expected.progress);
+                        let live = (0..count)
+                            .filter(|&index| !sample(index).as_ref().value.is_stale())
+                            .count() as u64;
+                        assert_eq!(output.progress.unwrap().sample_units, live);
+                        assert_eq!(account.snapshot().statistics.samples.samples_read, live);
+                        assert_eq!(
+                            account.snapshot().statistics.samples,
+                            original_account.snapshot().statistics.samples
+                        );
+                        assert_eq!(account.current_samples(), u64::from(output.value.is_some()));
+                        assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                        assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+                        let walks = source.counters.opened.load(Ordering::Relaxed);
+                        if count != 0 {
+                            guarded.push((name, page, counter, start_timestamps, walks, live));
+                        } else {
+                            assert_eq!(walks, 1);
+                        }
+                        drop(output);
+                        drop(expected);
+                        account.snapshot().assert_memory_released();
+                        original_account.snapshot().assert_memory_released();
+                        assert_eq!(original.counters.active.load(Ordering::Relaxed), 0);
+                        assert_eq!(
+                            original.counters.opened.load(Ordering::Relaxed),
+                            if count == 0 { 1 } else { 2 }
+                        );
+                        completed += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(completed, 192);
+        assert_eq!(guarded.len(), 180);
+        println!(
+            "instant complete192-values-annotations-progress-statistics-leases-release guarded180 instant_step_bytes={} rate_step_bytes={}",
+            std::mem::size_of::<InstantStep>(),
+            std::mem::size_of::<Step>()
+        );
+        for &(name, page, counter, start, walks, reads) in &guarded {
+            println!(
+                "instant acquisition name={name} page={page} counter={counter} start={start} walks={walks} reads={reads}"
+            );
+        }
+        for (name, page, counter, start, walks, _) in guarded {
+            assert_eq!(
+                walks, 1,
+                "completed instant acquisition replayed: {name}, page={page}, counter={counter}, start={start}"
+            );
         }
     }
 

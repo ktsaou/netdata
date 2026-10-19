@@ -3309,6 +3309,9 @@ foreign whole-Agent execution, total RSS or production disk throughput.
 
 ## Validated float rate acquisition reuse
 
+Current instant-rate acquisition is documented under
+[completed instant rate float windows](#completed-instant-rate-float-windows).
+
 This section records the earlier acquisition-only qualification. Current completed no-reset behavior
 is documented under [completed no-reset float windows](#completed-no-reset-float-windows).
 
@@ -8704,3 +8707,75 @@ The complete source/binary/evidence hashes survived the user-reported reboot; co
 This qualification adds no language feature and makes no claim of lower peak RAM, process RSS, universal or
 live/concurrent throughput, physical-ARM, whole-Agent or Cloud performance. Raw histories remain paged and
 implicit limits remain disabled.
+
+## Completed instant rate float windows
+
+Ordinary float `irate` and `idelta` now collect their existing last two endpoints during initial matrix
+validation. A completed pure-float acquisition uses one cursor walk instead of two, with the same N useful
+reads. Both start-timestamp modes and counter resets retain the existing numeric finish. No persistent field,
+additional endpoint, raw history array or provider interface is introduced.
+
+Reuse requires the existing eligible matrix geometry and pristine float/histogram tails. Full reached-page
+validation, cursor closure and terminal control must succeed before useful-read credit. Never copy native
+histograms provisionally. A populated acquisition with any histogram allocation, including stale/interior
+history, discards tentative floats before original consumption. Empty/stale-only, raw, derived, projected,
+buffered and uncertified windows preserve their required paths. Failed probes can truthfully own earlier
+float endpoints while useful-read credit remains zero.
+
+The unchanged producer passes all 192 complete outcome, progress, statistics and release comparisons before
+failing the first of 180 one-walk guards. The current producer passes those guards and 420 native/unproven
+comparisons, including every histogram field and array bit pattern. Calibrated controls cover 637 actual
+operation failures, terminal cancellation, malformed unused tails and histories through 100,000 points.
+Existing no-reset tests retain their original 13 shapes and 234 complete comparisons after helper extraction.
+
+Both native profiles pass 839 tests, with two pre-existing ignored checks. Emulated ARM32/ARM64 each pass
+23 focused rate/float owners. Native pages 1/17/1024 and foreign page 17 give 4,656 complete before/current
+pairs, including 2,480 checks against retained Prometheus originals. Another 768 optimized pilot pairs pass.
+All eight tracked query-memory peaks do not increase. Actual work, reads, cancellation-reference traffic and
+release remain observable. C callers pass 480 paired lifecycle arms, 480 matching C++ controls and both full
+C suites, including same-query report/result statistics. Strict Clippy, formatting and installed Rust 1.91
+compile-only checks pass. Public header/types are unchanged; prior public layouts keep historical attribution.
+
+`rate_acquisition_cases.instant_cases()` reproduces 240 new controls; `instant_empty_cases()` adds 32 explicit
+empty/stale outcomes. These are separate from 310 retained Go originals. `instant_performance_cases()`
+reproduces 96 float/reset/delta/native/mixed timing cases; 16 ordinary controls complete the fixed panel.
+Three alternating blocks provide nine measured samples per arm and one identical follow-up per primary
+ratio >=1.05. The 48 selected irate/idelta/grouped/reset cases at 8/16/64 series have median current/before
+ratios 0.670682 in release and 0.655219 in release-min: about 33–34% less query time in this fixture panel.
+
+| Query family | release ratio | release-min ratio |
+| --- | ---: | ---: |
+| Irate | 0.676279 | 0.666425 |
+| Idelta | 0.681141 | 0.666282 |
+| Grouped irate | 0.665977 | 0.655219 |
+| Reset-present irate | 0.681645 | 0.669169 |
+| Delta | 0.992688 | 0.974855 |
+| Native histogram irate | 1.045428 | 1.008513 |
+| Native histogram idelta | 1.053539 | 1.009422 |
+| Mixed irate | 1.249429 | 1.168258 |
+| Mixed idelta | 1.245748 | 1.166734 |
+| Ordinary controls | 1.002948 | 0.999553 |
+
+Histogram fallback costs remain visible. Release has 28 slower primary medians and 12 prescribed follow-ups;
+release-min has 26 and 8. Eight mixed cases per profile remain >=1.05 after their single follow-up. The
+primary mixed-family medians are about 17–25% slower. These cases also perform provisional float copies
+that fallback discards; their share of the measured timing penalty has not been isolated.
+The selected float-query benefit motivates this private tradeoff; native/mixed semantics remain supported.
+Every sample, slower control and actual work/resource delta is retained in the
+[finite qualification](instant-rate-acquisition-qualification.json).
+
+| Linked binary | Cohort | Text-byte change |
+| --- | --- | ---: |
+| fixture | release | +49,548 |
+| default-embedding-C | release | +86,172 |
+| fixture | release-min | +34,300 |
+| default-embedding-C | release-min | +30,184 |
+| fixture | arm32 | +33,456 |
+| fixture | arm64 | +13,584 |
+
+All data/BSS/file and emitted function/prologue costs are in the report. Actual native debug before/current
+sizes remain 200 B for InstantStep and 424 B for RateStep. Current optimized target sizes are reported
+separately; foreign baseline private sizes were not measured. Entry stack reservations do not establish
+runtime stack high-water. Results are finite fixture evidence, not traffic-weighted, live, concurrent,
+physical-device, whole-Agent, RSS or Cloud measurements. This change adds no language feature or query limit;
+raw histories remain paged and implicit limits remain disabled.

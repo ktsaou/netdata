@@ -1,4 +1,5 @@
 """Fixed rate-acquisition scaling, fallback and empty-input controls."""
+from copy import deepcopy
 import re
 
 from fold_join_cases import cases as window_cases
@@ -123,3 +124,70 @@ def no_reset_performance_cases():
                     timing.append({'family': family, 'count': count, 'points': points,
                         'dataset': {'schema_version': 1, 'series': records}, 'request': request})
     return timing
+
+
+def instant_cases():
+    output = []
+    names = {'rate': 'irate', 'increase': 'idelta'}
+    for source in no_reset_cases():
+        if source['function'] not in names:
+            continue
+        case = deepcopy(source)
+        old, new = case['function'], names[case['function']]
+        case['function'] = new
+        request = case['request']
+        request['id'] = request['id'].replace('no-reset:', 'instant-acquisition:', 1).replace(':' + old + ':', ':' + new + ':', 1)
+        request['query'] = request['query'].replace(old + '(', new + '(')
+        output.append(case)
+    assert len(output) == 240
+    return output
+
+
+def instant_empty_cases():
+    output = []
+    for source in empty_cases():
+        old = next((name for name in ('rate', 'increase') if name + '(' in source['request']['query']), None)
+        if old is None:
+            continue
+        new = {'rate': 'irate', 'increase': 'idelta'}[old]
+        case = deepcopy(source)
+        request = case['request']
+        request['id'] = request['id'].replace('rate-acquisition-', 'instant-empty-', 1).replace('-' + old + '-', '-' + new + '-', 1)
+        request['query'] = request['query'].replace(old + '(', new + '(')
+        output.append(case)
+    assert len(output) == 32
+    return output
+
+
+def instant_performance_cases():
+    output = []
+    families = {'rate': 'irate', 'increase': 'idelta', 'sum-rate': 'sum-irate',
+                'reset-rate': 'reset-irate', 'delta': 'delta'}
+    for source in no_reset_performance_cases():
+        case = deepcopy(source)
+        old, new = case['family'], families[case['family']]
+        case['family'] = new
+        request = case['request']
+        request['id'] = request['id'].replace('no-reset-timing:', 'instant-timing:', 1).replace(':' + old + ':', ':' + new + ':', 1)
+        request['query'] = request['query'].replace('rate(', 'irate(').replace('increase(', 'idelta(')
+        output.append(case)
+    assert len(output) == 80
+    for state in ('native', 'mixed'):
+        for function in ('irate', 'idelta'):
+            count, points = 8, 128
+            records = [series({'__name__': 'm_total', 'id': str(index), 'job': 'worker'},
+                [((tick + 1) * 1000, tick + 1,
+                  'float_histogram' if state == 'native' or tick == 1 else 'float')
+                 for tick in range(points + 2)]) for index in range(count)]
+            for delayed in (False, True):
+                for mode in ('instant', 'range'):
+                    family = state + '-' + function
+                    request = {'id': f'instant-timing:{family}:n{count}:w{points}:d{int(delayed)}:{mode}',
+                        'query': f'{function}(m_total[{points}s])', 'profile': 'server-default',
+                        'delayed_name_removal': delayed, 'mode': mode, 'time_ms': points * 1000,
+                        'start_ms': points * 1000, 'end_ms': (points + 2) * 1000, 'step_ms': 1000,
+                        'lookback_ms': 300000, 'subquery_step_ms': 1000}
+                    output.append({'family': family, 'count': count, 'points': points,
+                        'dataset': {'schema_version': 1, 'series': records}, 'request': request})
+    assert len(output) == 96
+    return output

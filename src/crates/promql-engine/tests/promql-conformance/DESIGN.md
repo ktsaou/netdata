@@ -880,6 +880,9 @@ integration, and Alertmanager remains excluded.
 
 ## Validated float rate acquisition reuse
 
+Current instant-rate acquisition is documented under
+[completed instant rate float windows](#completed-instant-rate-float-windows).
+
 This section records the earlier acquisition-only qualification. Current completed no-reset behavior
 is documented under [completed no-reset float windows](#completed-no-reset-float-windows).
 
@@ -1969,3 +1972,22 @@ owns the measured trade-off, complete failed/slower evidence and candidate-speci
   The private boolean fits the measured native debug layout; current optimized target sizes are reported
   separately from unmeasured foreign baselines. Small linked code growth and slower fallback/control medians
   remain explicit in the [finite report](completed-no-reset-rate-qualification.json), with all original guards.
+
+## Completed instant rate float windows
+
+- **Choice:** a local InstantStep scan collects its existing Float tails during the existing eligible initial
+  matrix probe. Require pristine tails and preserve start fields; constructors, receive, finish, derived
+  receive-driven evaluation and persistent layout remain unchanged.
+- **Completion:** full reached-page validation, closure and terminal control precede useful-read credit.
+  Pure-float input omits one consuming walk with the same N useful reads. Failed probes may own earlier
+  provisional endpoints honestly without earning useful-read credit.
+- **Histograms:** never copy native values provisionally. Any populated histogram allocation, including
+  stale/interior history, clears tentative floats before original consumption with completed progress.
+  Final tail kinds cannot establish Float-only history. Raw, derived and uncertified windows stay generic.
+- **Accounting:** charge every provisional Float copy. Preserve logical participation, same-query C statistics,
+  actual work/physical reads, balanced references and terminal release. No raw array, extra owned endpoint,
+  provider/metadata/API change or implicit cap is introduced.
+- **Tradeoff:** selected native float queries use about 33–34% less time, with no increased measured query
+  peak. Native/mixed fallback costs, eight persistent mixed follow-ups per profile, all slower controls and
+  linked code growth remain explicit in the [finite report](instant-rate-acquisition-qualification.json).
+  This qualification establishes neither uniform speed nor lower process RSS.
