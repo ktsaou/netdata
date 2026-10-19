@@ -73737,5 +73737,12 @@
     "status": "rejected_under_original_frozen_criteria",
     "accepted_runtime_unchanged": true,
     "scope": "Rejected136fixture/408delivery/8cancellation and292case/profile first-item experiment. Original timing gates failed;all three owned paths restored. No new language qualification."
+  },
+  "histogram_constructor_borrowing_set_aside": {
+    "report": "histogram-constructor-borrowing-set-aside-qualification.json",
+    "report_sha256": "8d7abd17eb71baeb4a947917679d9caea9ec7bb59cacfa6b55ea24425311c5d5",
+    "status": "rejected_under_original_frozen_criteria",
+    "accepted_runtime_unchanged": true,
+    "scope": "Rejected48constructor/336pilot/168case-profile histogram key ownership experiment. Temporary allocation traffic/work improve;whole-query peaks unchanged;original throughput gates fail. All three owned paths restored;no language expansion or broad current qualification."
   }
 }

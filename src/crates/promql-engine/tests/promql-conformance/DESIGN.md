@@ -2183,3 +2183,17 @@ See [the finite report](ranking-buffer-capacity-qualification.json) and
 - See [the measured record](ranking-first-item-set-aside-qualification.json) and
   [its scope](README.md#set-aside-first-ranking-item-controller). Follow-ups do not replace failed primary gates;
   no new field, raw array, cap, public contract, data format or metadata owner is retained.
+
+
+## Set-aside histogram constructor key borrowing
+
+- A private experiment replaced temporary encoded keys with row positions and cached canonical hashes.
+  It retained raw selected-field identity, complete validation, direct lookup through two groups, promotion
+  order and separate classic/native passes. Construction-only metadata retired before plan publication.
+- Complete outcomes, reads and ownership agree. Constructor and whole-query allocation traffic decrease;
+  every measured whole-query memory peak stays equal.
+- Original complete-query throughput gates fail. Runtime, shared helper, tests and factory are restored
+  exactly; borrowing is not retained. Fewer temporary copies do not establish faster complete queries.
+- See [the measured record](histogram-constructor-borrowing-set-aside-qualification.json) and
+  [its scope](README.md#set-aside-histogram-constructor-key-borrowing). No new owner, field, raw array,
+  public/data contract or cap is retained; follow-ups do not replace primary gates.

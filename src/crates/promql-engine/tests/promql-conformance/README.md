@@ -9177,3 +9177,31 @@ reducer, sort, C-runtime and static qualification did not run after rejection. T
 do not establish runtime statistic equality. The old test wrapper also had a stale filename after its children
 finished; its failure is preserved separately from the intended red guard. Existing qualification keeps its actual
 source/binary attribution. No new language coverage, lower raw-data memory or universal-throughput claim follows.
+
+
+## Set-aside histogram constructor key borrowing
+
+[The measured report](histogram-constructor-borrowing-set-aside-qualification.json) records a rejected private ownership experiment. Construction-local
+keys referenced labels already owned by input rows instead of encoding duplicate buffers. It preserved complete
+selected-field validation, raw identity, separate classic/native passes, tiny-set lookup and first group order.
+No persistent field, metadata provider, raw sample array, public interface or limit was added.
+
+Identical old/current tests complete 48 constructors, four raw-order/native plans and 18 field/control calls.
+The accepted implementation fails only the final duplicate-bucket allocation-width guard; the candidate passes.
+All 336 complete-query pairs preserve outcomes and storage reads. Every one of the 288 nonempty cases reduces
+temporary allocation traffic and work, with balanced releases; all eight whole-query memory peaks stay equal.
+For 64 classic groups, ten buckets and wide labels, one bare quantile query allocates 4,750,848 fewer Workspace
+bytes over its lifetime. Its peak remains 4,033,353 bytes. Allocation traffic is not peak live memory.
+
+The frozen panel has 168 cases and 42 families per profile, with nine measured samples per arm. Primary
+current/before whole-panel time ratios are 1.003728 for release and
+1.053138 for release-min. Both fail the 1.05 every-family ceiling;
+release-min also fails the 1.05 panel ceiling. All 5,676 complete timing pairs, slower primary cases and prescribed
+follow-ups remain recorded. Follow-ups never replace primary acceptance.
+
+Four linked text+data+BSS deltas are fixture/default-C -16/-6,068 bytes for release and +12/+1,540 for release-min.
+The candidate is not retained: runtime, shared helper, tests and factory are restored exactly to accepted122.
+Broader original, reducer, native-unit, foreign, layout, C-runtime and static qualification did not run after
+rejection. The report preserves two distinct helper-reader failures and their recoveries. Current debug layouts
+do not establish old/current optimized or foreign layout equality. Historical qualifications retain their actual
+identities. These finite shared-host measurements establish no new language coverage, RSS or universal speed claim.
