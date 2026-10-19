@@ -2033,3 +2033,24 @@ A rejected fallback-sharing experiment is recorded under
 - **Limits:** fewer handle constructions are not fewer heap allocations or lower query memory. No language,
   API, metadata, dbengine, profile, ownership policy or query-limit change follows. Existing acquisition
   tradeoffs remain; finite timing does not establish device, concurrent, live or whole-Agent behavior.
+
+## Reused Last Float ownership
+
+- **Choice:** reuse the existing selected Float sample owner when its query state matches the incoming account.
+  The private one-unit invariant follows from construction, successful replacement and output transfer. No field,
+  raw-history array, buffer, provider interface, numerical rule or implicit cap is added.
+- **Failure and overlap:** keep the checked copy before selection mutation. On success, charge one→two, replace the
+  old Float, then charge two→one at the former lease-release boundary. This preserves both initialized values,
+  separate global +1/−1 transitions, saturation, lock-visible phases and post-copy control behavior. Native,
+  initial and different-query values retain ordinary construction; First/Last output transfers its existing lease.
+- **Evidence:** actual old-producer semantic completion precedes the two owner-count failures. Four new tests,
+  120 exact old/current observation records, complete original/paged comparisons, native/ARM units and actual C/C++
+  consumers preserve the affected behavior. A bulk native failure's partial allocation is source-traced; its general
+  peak assertion is not an independent phase discriminator.
+- **Measured trade-off:** selected fixed-query median time is about 7–8% lower in both native profiles, with unchanged
+  query memory/work/reads/statistics. Five chosen linked artifacts shrink; the size-optimized default-C link grows
+  200 bytes. Every slower control and all six linked costs remain explicit. These are finite fixture costs and
+  timings, not universal throughput, RSS or physical-device guarantees.
+- **Evidence record:** [Last owner qualification](last-owner-reuse-qualification.json), with its actual 369-input
+  candidate and 368-input accepted baseline. The prior report-only addition and all historical identities remain
+  explicit. Other predecessor owners have separate semantics and remain independent future opportunities.

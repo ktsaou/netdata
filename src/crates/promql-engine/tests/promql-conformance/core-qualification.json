@@ -73609,5 +73609,23 @@
     "new_language_features": 0,
     "public_contract_changes": 0,
     "scope": "Same-query expired Float endpoint handle reuse,with exact failed-copy ownership and independent output. Actual old/green construction evidence;about4percent selected fixture query-time gain. Eight query-memory categories unchanged;all six linked costs/slower controls retained. No language/public/layout/live/RSS claim."
+  },
+  "reused_last_float_sample_owners": {
+    "status": "qualified_finite_same_query_selected_float_owner_reuse",
+    "report": "last-owner-reuse-qualification.json",
+    "report_sha256": "480911432b962b772cf9fe8d0228156f6332d2022ae8fed3befc4be92e66c138",
+    "comparison_base": "f643992a3324984fe2691bc05eb057f0f1f5cca3",
+    "runtime_source_manifest_sha256": "aea939c9149bec39b85d35781627ead7a8bafcdf6fb0f619cbd403353015401c",
+    "changed_source_hashes": {
+      "src/crates/promql-engine/src/range_reduce.rs": "33d22bbeb936fe915e2a22fce1f3a7d9ee004a801e0ff86b721f64bd2ddd6fd1"
+    },
+    "complete_pairs": 6720,
+    "original_comparisons": 4544,
+    "selected_query_time_median_ratios": {
+      "release": 0.9208287728561149,
+      "release-min": 0.9266313163364676
+    },
+    "query_memory": "unchanged",
+    "scope": "Selected same-query Float reference reuse after successful checked copy;preserved1to2to1overlap and output transfer. Finite native/ARM/C/C++and frozen timing/6link gates. No public or universal claim;all prior129objects retain original identities."
   }
 }

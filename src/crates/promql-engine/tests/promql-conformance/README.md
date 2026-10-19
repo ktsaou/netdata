@@ -8885,3 +8885,42 @@ coverage. The clone control checks attribution, without a separate clone-wrapper
 Existing mixed-histogram acquisition costs and provisional Float copies remain. This finite panel does
 not establish traffic-weighted, concurrent, live, physical-device, whole-Agent or Cloud performance.
 Raw histories remain paged across both axes and implicit limits stay disabled.
+
+## Reused Last Float ownership
+
+[`last-owner-reuse-qualification.json`](last-owner-reuse-qualification.json) records the finite qualification of
+selected Float ownership in `last_over_time`. The reducer reuses its existing same-query sample lease instead of
+constructing one for every replacement. First/Last output still transfers the selected value and lease; query
+consumers keep their existing independently accounted copies.
+
+The checked copy runs before changing the previous selection. After success, the reused lease grows from one to
+two units while both values exist, then returns to one when the old selection is replaced. A failed copy retains
+the old value, timestamp and credit. Initial values, native histograms and different query accounts keep ordinary
+construction. Selection, tied timestamps, stale handling, numerical behavior and raw/derived traversal are unchanged.
+
+Four new unit tests establish complete behavior before the acquisition guards. The actual old receiver completes
+120 result/annotation/progress/observation/release checks before failing: two Last samples construct two owners
+instead of one. A separate clone test completes attribution, output retention and release before detecting one
+construction instead of zero. Candidate tests pass, with exact old/current observations and the same 312-byte
+native debug `FoldStep`. Copy failure, post-Float-work cancellation, special values and saturation retain their phases.
+
+Qualification includes 6,720 complete before/current pairs, 4,544 retained-original comparisons, 768 pilot pairs,
+846 passing units plus two existing ignored tests per native profile, and 24 focused checks per emulated ARM target.
+All serialized nonelapsed observations are exact, including every memory category, work, physical reads and sample
+statistics. Actual C and C++ programs each exercise 1,632 matching lifecycle arms across the native profiles; their
+Float-only window-fold mode enables experimental/start options. Both full C suites and static/MSRV checks pass.
+
+The fixed 48-query Last/grouped/reset panel takes about 7–8% less fixture query time: median ratios
+0.920829 / 0.926631 in release / release-min. All slower primary samples and the one prescribed release follow-up
+remain recorded. Ordinary controls vary; this is not a universal throughput factor. Query memory is unchanged:
+the saving is reference operations, not heap allocation or raw-data bytes.
+
+All six linked cost gates pass. Combined text/data/BSS deltas are −12,304 / −148 bytes for release fixture / C,
+−12 / +200 for release-min, −8 for ARM32 and −1,180 for ARM64. Static symbol inventories distinguish exact methods
+from related specializations and do not establish runtime stack high-water or RSS. Partial native-copy allocation
+at work budget 8,192 is source-derived from reserve/chunk order; the test's general peak assertion alone does not
+identify that phase. No live-service, concurrent, whole-Agent, physical-device or new foreign-C claim is made.
+
+The existing fixture unit and C embedding commands above cover these owners. Installation, API usage, dependency
+requirements, public interfaces and disabled implicit caps are unchanged. Historical qualification keeps its
+actual source identities; this finite result does not complete the continuous improvement goal.
