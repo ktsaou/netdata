@@ -1,0 +1,401 @@
+{
+  "schema_version": 1,
+  "status": "rejected_finite_float_predecessor_owner_reuse",
+  "decision": "reject",
+  "comparison_base": "c59911bc74a250c6d9e39f0045b1f120c0c7c21f",
+  "accepted_runtime_changed": false,
+  "accepted_source_manifest": ".tmp/previous-owners-mjf03338/restored-source.json",
+  "accepted_source_manifest_sha256": "5d56e27d0291fc19abf503277a392f633ff5ac72ea7a2eca5adc204fe40e820b",
+  "accepted_inputs": 370,
+  "actual_compiled_baseline_inputs": 369,
+  "candidate_inputs": 370,
+  "candidate_source_manifest": ".tmp/previous-owners-mjf03338/runtime-source.json",
+  "candidate_source_manifest_sha256": "adf7e378479cf9e18c373127643ce34529f769233422257d6a978fb31000e1fc",
+  "candidate_source_hashes": {
+    "src/crates/promql-engine/src/range_reduce.rs": "d21b4398cdab062aacd5956d90ab6bb14b625aa441f36288c1520b329be55a5a"
+  },
+  "candidate": "Private Changes/Resets predecessor reuse only after successful original checked acquisition. Same-query one-unit Float/Float lease1to2through infallible comparison/commit,then2to1after old value drop. Native/different/missing/non-one-unit fallback and independently owned output preserved. No new field,raw array,public contract,dependency or implicit cap.",
+  "frozen_policy": {
+    "maximum_linked_section_growth_bytes": 8192,
+    "selected_float_median_maximum": 0.98,
+    "effective_family_median_maximum": 1.05,
+    "effective_rule": "prescribed followup for primary>=1.05,primary otherwise",
+    "contracts": "complete outcomes and every serialized nonelapsed observation exactly equal",
+    "owner_acquisition": "one Float predecessor owner per uninterrupted same-query run plus independent output",
+    "operator_layout": "unchanged"
+  },
+  "failed_gate": {
+    "label": "arm64",
+    "kind": "fixture",
+    "combined_section_delta": 24076,
+    "maximum_growth_bytes": 8192
+  },
+  "compiled_costs": [
+    {
+      "kind": "fixture",
+      "label": "release",
+      "before": {
+        "path": ".tmp/last-owners-7fappohc/pilot-release/promql-query-fixture",
+        "sha256": "36bb8e02fdc84c49ccb2b28f3877325133c1e4ca0e29034d41fb7608b49e8dc8"
+      },
+      "before_sections": {
+        "text": 4463346,
+        "data": 259512,
+        "bss": 1940
+      },
+      "before_file_bytes": 5742096,
+      "current": {
+        "path": ".tmp/previous-owners-mjf03338/pilot-release/promql-query-fixture",
+        "sha256": "1a2fec795ac871aa160833c44944b293c0bca2d118ac565a0a462ffe1c23018e"
+      },
+      "current_sections": {
+        "text": 4464454,
+        "data": 259512,
+        "bss": 852
+      },
+      "current_file_bytes": 5743720,
+      "section_deltas": {
+        "text": 1108,
+        "data": 0,
+        "bss": -1088
+      },
+      "file_delta": 1624,
+      "combined_section_delta": 20
+    },
+    {
+      "kind": "default-embedding-C",
+      "label": "release",
+      "before": {
+        "path": ".tmp/last-owners-7fappohc/pilot-release/embedding-current",
+        "sha256": "e5444832312b7790082e701a7cace37d5ade159e07679f56dd07d6a654e60752"
+      },
+      "before_sections": {
+        "text": 7580518,
+        "data": 506520,
+        "bss": 400
+      },
+      "before_file_bytes": 13943536,
+      "current": {
+        "path": ".tmp/previous-owners-mjf03338/pilot-release/embedding-current",
+        "sha256": "6eceabf3c26bae1e0a684f7322910171d7323bc2471751526bfafff8e4d991e2"
+      },
+      "current_sections": {
+        "text": 7581166,
+        "data": 506488,
+        "bss": 400
+      },
+      "current_file_bytes": 13940552,
+      "section_deltas": {
+        "text": 648,
+        "data": -32,
+        "bss": 0
+      },
+      "file_delta": -2984,
+      "combined_section_delta": 616
+    },
+    {
+      "kind": "fixture",
+      "label": "arm32",
+      "before": {
+        "path": ".tmp/last-owners-7fappohc/pilot-arm32/promql-query-fixture",
+        "sha256": "bcf019df93a1bdf5ad7a0c810d5b25e65e0f0bd678338142e31f07121c3c088a"
+      },
+      "before_sections": {
+        "text": 3777838,
+        "data": 164568,
+        "bss": 212
+      },
+      "before_file_bytes": 5062648,
+      "current": {
+        "path": ".tmp/previous-owners-mjf03338/pilot-arm32/promql-query-fixture",
+        "sha256": "2909aea1ba847711656eb44d3a7f289620b00c43619ba1bec740e9b1d327f4e4"
+      },
+      "current_sections": {
+        "text": 3778610,
+        "data": 164568,
+        "bss": 212
+      },
+      "current_file_bytes": 5063012,
+      "section_deltas": {
+        "text": 772,
+        "data": 0,
+        "bss": 0
+      },
+      "file_delta": 364,
+      "combined_section_delta": 772
+    },
+    {
+      "kind": "fixture",
+      "label": "arm64",
+      "before": {
+        "path": ".tmp/last-owners-7fappohc/pilot-arm64/promql-query-fixture",
+        "sha256": "451431087650c967ebfe38fd6d1e6c11b0810d0fffd3e930f9df08f14f824e00"
+      },
+      "before_sections": {
+        "text": 3675499,
+        "data": 253040,
+        "bss": 328
+      },
+      "before_file_bytes": 5092920,
+      "current": {
+        "path": ".tmp/previous-owners-mjf03338/pilot-arm64/promql-query-fixture",
+        "sha256": "3aca54b28ed5504096cdc8767d56ed5621186b0f7332e9fac7e0b6276733b1ee"
+      },
+      "current_sections": {
+        "text": 3699543,
+        "data": 253072,
+        "bss": 328
+      },
+      "current_file_bytes": 5158600,
+      "section_deltas": {
+        "text": 24044,
+        "data": 32,
+        "bss": 0
+      },
+      "file_delta": 65680,
+      "combined_section_delta": 24076
+    }
+  ],
+  "arm64_diagnostic_body_growth": [
+    {
+      "symbol": "netdata_promql_engine::frontend::number::duration_in",
+      "before": {
+        "address": "0x0000000000232260",
+        "text_bytes": 1228
+      },
+      "current": {
+        "address": "0x000000000021ea2c",
+        "text_bytes": 3196
+      },
+      "delta": 1968
+    },
+    {
+      "symbol": "netdata_promql_engine::frontend::number::number_in",
+      "before": {
+        "address": "0x0000000000232768",
+        "text_bytes": 1120
+      },
+      "current": {
+        "address": "0x000000000021f6e4",
+        "text_bytes": 1740
+      },
+      "delta": 620
+    },
+    {
+      "symbol": "<netdata_promql_engine::float_text::Decimal>::new",
+      "before": {
+        "address": "0x0000000000172a60",
+        "text_bytes": 448
+      },
+      "current": {
+        "address": "0x0000000000257dfc",
+        "text_bytes": 1032
+      },
+      "delta": 584
+    },
+    {
+      "symbol": "<netdata_promql_engine::execution::CompiledQuery>::request_timing",
+      "before": {
+        "address": "0x0000000000236098",
+        "text_bytes": 708
+      },
+      "current": {
+        "address": "0x00000000001be608",
+        "text_bytes": 1044
+      },
+      "delta": 336
+    },
+    {
+      "symbol": "netdata_promql_engine::calendar::write_rfc3339::<netdata_promql_engine::binary_labels::Writer>",
+      "before": {
+        "address": "0x00000000001f4730",
+        "text_bytes": 576
+      },
+      "current": {
+        "address": "0x000000000020c2b4",
+        "text_bytes": 904
+      },
+      "delta": 328
+    },
+    {
+      "symbol": "<netdata_promql_engine::frontend::regex::GoRegex>::expand_work",
+      "before": {
+        "address": "0x0000000000196128",
+        "text_bytes": 3300
+      },
+      "current": {
+        "address": "0x00000000002102d8",
+        "text_bytes": 3580
+      },
+      "delta": 280
+    },
+    {
+      "symbol": "<netdata_promql_engine::range_reduce::FoldStep>::receive",
+      "before": {
+        "address": "0x0000000000273e78",
+        "text_bytes": 4328
+      },
+      "current": {
+        "address": "0x000000000025cdfc",
+        "text_bytes": 4556
+      },
+      "delta": 228
+    },
+    {
+      "symbol": "netdata_promql_engine::frontend::regex::runes::folded",
+      "before": {
+        "address": "0x00000000001a9b5c",
+        "text_bytes": 2536
+      },
+      "current": {
+        "address": "0x0000000000225f30",
+        "text_bytes": 2700
+      },
+      "delta": 164
+    },
+    {
+      "symbol": "<netdata_promql_engine::temporary_float_bits::Writer>::push",
+      "before": {
+        "address": "0x0000000000269048",
+        "text_bytes": 636
+      },
+      "current": {
+        "address": "0x000000000019c04c",
+        "text_bytes": 792
+      },
+      "delta": 156
+    },
+    {
+      "symbol": "netdata_promql_engine::histogram_text::append",
+      "before": {
+        "address": "0x000000000023bb80",
+        "text_bytes": 2344
+      },
+      "current": {
+        "address": "0x000000000025fd6c",
+        "text_bytes": 2480
+      },
+      "delta": 136
+    },
+    {
+      "symbol": "<netdata_promql_engine::temporary_float_bits::Cache>::page",
+      "before": {
+        "address": "0x0000000000275a84",
+        "text_bytes": 1084
+      },
+      "current": {
+        "address": "0x00000000001b6180",
+        "text_bytes": 1108
+      },
+      "delta": 24
+    }
+  ],
+  "regression_evidence": {
+    "new_tests": 4,
+    "complete_old_current_debug_observations": 120,
+    "dimensions": "pages1/17/1024 x Changes/Resets x start off/on x raw/matrix x counts0/1/2/64/4096",
+    "actual_old_producer": "All120values/annotations/progress/credits/cursors/release checks complete before intendedN2Changes constructor3versus2failure. Both-kind affinity/output/release checks finish before intendedclone constructor1versus0failure. Copy-phase/special/saturation tests pass unchanged.",
+    "candidate_debug": "19Fold+6derived+3execution tests pass. Complete120old/current observations and nativeDebug312B FoldStep layout exact. Output stays independently owned while accumulator continues;live overlap peaks3. Native-copy failure retains old predecessor and releases arrays. At8192work,Workspace peak specifically discriminates at least16384f64bucket bytes;partial-copy position also follows unchanged source chunk/control ordering.",
+    "source_snapshots": {
+      "before-range_reduce.rs": "33d22bbeb936fe915e2a22fce1f3a7d9ee004a801e0ff86b721f64bd2ddd6fd1",
+      "tests-range_reduce.rs": "6f2bd6f7387dcf3e56fe9680970b16b657e654a0ff78bf55509c7c5b8d50f4a0",
+      "tests-fixed-range_reduce.rs": "50d65e0ac4f0b4bf48aa3067e2ed50f84e9c4eea38dddc3c44b2286e1e902ffc",
+      "candidate-range_reduce.rs": "d21b4398cdab062aacd5956d90ab6bb14b625aa441f36288c1520b329be55a5a"
+    },
+    "test_migration": "All4new tests unchanged between corrected actual old producer and candidate. Only existing direct cancelled-construction test adds its planned None argument.",
+    "initial_test_compile_failure": [
+      {
+        "helper": "old_producer.py",
+        "outer_exit": 1,
+        "child": "old-unit-build",
+        "child_exit": 101,
+        "phase": "Initial test-only compile",
+        "cause": "Singleu64assertion against existingi64field;2Rust diagnostics. Corrected only that conversion.",
+        "source_snapshot": "tests-range_reduce.rs",
+        "source_sha256": "6f2bd6f7387dcf3e56fe9680970b16b657e654a0ff78bf55509c7c5b8d50f4a0",
+        "retained_artifacts": {
+          "old-unit-build.stdout": "c31f38f81d7a9f400f9086b347a2ea6d348a4c3ac9fc225f352d79ac953b2feb",
+          "old-unit-build.stderr": "49490eac725e4a2917170d565b75a2a65330fb6e8319b084a0c325c17b81796d",
+          "old-unit-build-process.json": "71acf730a9d4d88046750ef267a17cc3a1e1a1cd123c22e9b27888a550da0b33",
+          "old-unit-build-status.json": "720b6c557d4ac5336803185c20788e370bd1042b4e23ac21d4688d1098366e0b",
+          "tests-source.json": "2a29d61af36fec3c4c91e803eed713a68c1a2a75644644da6d04d42c63a818a6",
+          "test-type-repair.json": "0425c21b0ab5375e1f73bac61027824c22f25ed078acf5fdba74d33256ff3fb8"
+        },
+        "disposition": "Actual failure preserved;corrected old producer subsequently passes all semantic/phase controls before two intended constructor failures. Not a claimed compatibility success."
+      }
+    ],
+    "scope": "Debug finite ownership evidence only. It does not qualify rejected optimized query behavior or throughput."
+  },
+  "baseline_preflight": {
+    "functional_cases_per_native_profile": 272,
+    "timing_cases_per_native_profile": 112,
+    "selected_timing_cases": 64,
+    "focused_originals_per_native_profile": 575,
+    "full_original_and_new_cases_per_native_profile": 847,
+    "scope": "Actual accepted115binaries retain369compiled inputs;current signed370adds only their Last-owner report. Full matching original source rosters authenticated before subset selection. Baseline original results exact;272new derivatives are not upstream captures."
+  },
+  "not_run": [
+    "release-min fixture/default-C builds",
+    "optimized pilot query comparisons",
+    "timing",
+    "broad optimized units",
+    "new paged/original candidate cohorts",
+    "new C/C++ execution",
+    "static/MSRV"
+  ],
+  "receipts": {
+    "green.json": {
+      "path": ".tmp/previous-owners-mjf03338/green.json",
+      "sha256": "b50f66d7efaec324701186e6eea25c3f97b66a3416f687732bcda51bdcce1c0a"
+    },
+    "old-producer.json": {
+      "path": ".tmp/previous-owners-mjf03338/old-producer.json",
+      "sha256": "f8d22f6c91a91e4150b4fda79c770f15a501f64270cae14bd67e3e4b76edbfa4"
+    },
+    "originals-prepared.json": {
+      "path": ".tmp/previous-owners-mjf03338/originals-prepared.json",
+      "sha256": "b4c48d064acaf31ee3d87d033bd5e2dae236dec74bcac9059daf04b3aee3ef37"
+    },
+    "pilot-arm32-build.json": {
+      "path": ".tmp/previous-owners-mjf03338/pilot-arm32-build.json",
+      "sha256": "484e9da12295cf253c3e34d75b2e021444d51d1f6364d05f22ef37abd3442d1d"
+    },
+    "pilot-arm64-build.json": {
+      "path": ".tmp/previous-owners-mjf03338/pilot-arm64-build.json",
+      "sha256": "da74a5e602a82c5b97a664aaae4c593c3df746a98b3116f149ad56e3405ac0df"
+    },
+    "pilot-rejection.json": {
+      "path": ".tmp/previous-owners-mjf03338/pilot-rejection.json",
+      "sha256": "9f14ac42b4926c9b45eb8d5c2d8e19bdd670ff2b5b893adf9168401e62cf9166"
+    },
+    "pilot-release-build.json": {
+      "path": ".tmp/previous-owners-mjf03338/pilot-release-build.json",
+      "sha256": "0a4133110602c6f4c536e0bdbfe96e4bbe588ad92f4551b330636b6af55592c2"
+    },
+    "planning.json": {
+      "path": ".tmp/previous-owners-mjf03338/planning.json",
+      "sha256": "056fa617712ed5f74aca4bac2593e477bbf01018863feaa0859bed999a37cc6e"
+    },
+    "ready.json": {
+      "path": ".tmp/previous-owners-mjf03338/ready.json",
+      "sha256": "5daf1ff7b1053145653b1458e07318d8b754987abbfbd46d6a94bdfc4a01f11e"
+    },
+    "rejected-candidate-terminal.json": {
+      "path": ".tmp/previous-owners-mjf03338/rejected-candidate-terminal.json",
+      "sha256": "8cf45d276988e7cf76cf93125f8367f3031696b1c4731f3cc1c59656859e0a39"
+    },
+    "restoration.json": {
+      "path": ".tmp/previous-owners-mjf03338/restoration.json",
+      "sha256": "b6fd5202f8849590871b81eb13964ea0dfd6b3e1411d98aebe4468a601184e6a"
+    }
+  },
+  "restoration": "All370accepted source inputs restored byte-for-byte after every owned writer finished. Only the exact owned one-file trial was inverted;no checkout/reset/delete/signal. Candidate/intermediate/binary/failed-build identities remain in source-bound evidence.",
+  "limitations": [
+    "ARM64fixture combined text/data/BSS growth24076Bexceeds frozen8192Ballowance. Rejected before timing or broader qualification;no speed improvement or optimized whole-query memory claim.",
+    "Four chosen links measured:release fixture+20B,release defaultC+616B,ARM32fixture+772B,ARM64fixture+24076B. Both release-min links were not built;no passing all-six gate claim.",
+    "The ARM64fixture is not a foreign productionC link. Diagnostic symbol growth is spread beyond the edited module;these rows do not isolate compiler causality or sum unique instruction/RSS bytes.",
+    "One test-only primitive type error caused an initial failed build. Actual source/diagnostics/status are preserved;only that conversion was corrected before successful old-producer execution.",
+    "Accepted language/numerical/storage/contexts/ABI4/ownership/accounting contracts and disabled caps unchanged. No production operation,installation,signal or deletion occurred.",
+    "Continuous goal remains active;this experiment changes no accepted runtime."
+  ]
+}

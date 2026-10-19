@@ -2056,3 +2056,16 @@ A rejected fallback-sharing experiment is recorded under
 - **Evidence record:** [Last owner qualification](last-owner-reuse-qualification.json), with its actual 369-input
   candidate and 368-input accepted baseline. The prior report-only addition and all historical identities remain
   explicit. Other predecessor owners have separate semantics and remain independent future opportunities.
+
+## Rejected Changes/Resets predecessor reuse
+
+- **Trial:** after original checked acquisition, transfer only an existing same-query one-unit Float predecessor
+  lease, hold two units through infallible Float comparison and commit, then release the overlap. Keep native
+  fallible comparisons and independently owned output unchanged. No persistent field or raw-history cache.
+- **Outcome:** rejected at the predeclared ARM64 fixture-size gate: +24,076 combined section bytes versus an
+  8,192-byte allowance. Four links were measured; the two size-optimized native links and timing were not run.
+  Successful focused debug ownership checks establish no production throughput gain.
+- **Retained state:** restore the exact accepted source and preserve the actual failed/successful test attempts,
+  snapshots and compiled artifacts separately. No public contract, query-memory rule or implicit cap changes.
+- **Evidence:** [rejected predecessor qualification](previous-owner-reuse-rejected-qualification.json). The
+  diagnostic function-size changes extend outside the edited module; compiler causality remains unisolated.

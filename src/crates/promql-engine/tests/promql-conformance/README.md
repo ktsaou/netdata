@@ -8927,3 +8927,21 @@ identify that phase. No live-service, concurrent, whole-Agent, physical-device o
 The existing fixture unit and C embedding commands above cover these owners. Installation, API usage, dependency
 requirements, public interfaces and disabled implicit caps are unchanged. Historical qualification keeps its
 actual source identities; this finite result does not complete the continuous improvement goal.
+
+## Rejected Float predecessor ownership reuse
+
+[`previous-owner-reuse-rejected-qualification.json`](previous-owner-reuse-rejected-qualification.json) records a
+private `changes`/`resets` experiment that was rejected. The accepted engine remains byte-for-byte unchanged.
+
+The trial reused a same-query Float predecessor lease after successful checked copying, preserving the two-value
+overlap through comparison and replacement. Output retained its independent lease. Actual old-production tests
+completed 120 result/accounting/release checks before the intended three-versus-two constructor failure; a separate
+clone guard failed after both operators completed their ownership checks. The candidate passed 28 focused debug
+checks with exact old/current observations. An initial test-only integer-type error and its correction are retained.
+
+The ARM64 fixture grew by 24,076 combined text/data/BSS bytes, exceeding the allowance of 8,192 bytes fixed before
+edits. Other measured deltas were +20 bytes for the release fixture, +616 for release default C, and +772 for ARM32.
+The remaining two links, timing and broader optimized qualification were skipped after this conclusive failure.
+No throughput improvement or passing all-six cost gate is claimed. All trial/intermediate/binary evidence remains
+separate from accepted-source qualification. Installation, API usage, language coverage and memory contracts are
+unchanged; the continuous improvement goal remains active.

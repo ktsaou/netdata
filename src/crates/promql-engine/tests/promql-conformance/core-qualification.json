@@ -73627,5 +73627,16 @@
     },
     "query_memory": "unchanged",
     "scope": "Selected same-query Float reference reuse after successful checked copy;preserved1to2to1overlap and output transfer. Finite native/ARM/C/C++and frozen timing/6link gates. No public or universal claim;all prior129objects retain original identities."
+  },
+  "rejected_float_predecessor_owner_reuse": {
+    "status": "rejected_frozen_arm64_fixture_size_gate",
+    "report": "previous-owner-reuse-rejected-qualification.json",
+    "report_sha256": "0e5d602018f2c7cff7174fbfea7e7dcd3208de9aad30a0d5bbfe6d34ab83dbeb",
+    "comparison_base": "c59911bc74a250c6d9e39f0045b1f120c0c7c21f",
+    "accepted_runtime_changed": false,
+    "candidate_source_manifest_sha256": "adf7e378479cf9e18c373127643ce34529f769233422257d6a978fb31000e1fc",
+    "failed_combined_growth_bytes": 24076,
+    "frozen_maximum_growth_bytes": 8192,
+    "scope": "Four actual links measured;remaining2/timing/broad candidate qualification skipped. All130prior objects and accepted source preserved;no runtime gain claimed."
   }
 }
