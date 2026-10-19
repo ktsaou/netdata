@@ -831,7 +831,7 @@ impl<'a> Step<'a> {
                         }
                         let heap = &mut self.heaps[group].indices;
                         if heap.len() < self.k {
-                            heap.push(self.input);
+                            heap.push_with_capacity_hint(self.input, self.k);
                             let program = Program::heap_push(heap.len() as u64);
                             self.input += 1;
                             self.start_program(program, group, Resume::Scan);
@@ -1738,13 +1738,26 @@ mod emission_tests {
     }
 
     fn grouped_fixture(operator: TokenKind, groups: usize, account: &QueryAccounting) -> Fixture {
+        let fixture = grouped_fixture_with_limit(operator, groups, 3, 2, account);
+        assert_eq!(fixture.plan.emission_state(), (true, false));
+        fixture
+    }
+
+    fn grouped_fixture_with_limit(
+        operator: TokenKind,
+        groups: usize,
+        members: usize,
+        k: usize,
+        account: &QueryAccounting,
+    ) -> Fixture {
         let control = Control::default();
         let name = if operator == TokenKind::TOPK {
             "topk"
         } else {
             "bottomk"
         };
-        let expression = fixture::expression(&format!("{name} by(region)(2,m)"), account, &control);
+        let expression =
+            fixture::expression(&format!("{name} by(region)({k},m)"), account, &control);
         let labels = |input: usize| {
             vec![
                 (b"__name__".to_vec(), b"m".to_vec()),
@@ -1755,7 +1768,7 @@ mod emission_tests {
                 ),
             ]
         };
-        let count = 3 * groups;
+        let count = members * groups;
         let mut rows = fixture::rows((0..count).map(labels).collect(), account, &control);
         for (input, row) in rows.iter_mut().enumerate() {
             row.ordinal = 1 + 3 * input;
@@ -1773,7 +1786,7 @@ mod emission_tests {
             row.sources = ordinal..ordinal + 1;
         }
         let mut parameters = Parameters::new(true);
-        parameters.push(2.0, account);
+        parameters.push(k as f64, account);
         let mut plan = Plan::new(operator, parameters, account);
         plan.prepare_rows(rows, &expression, expression.root, &control, account)
             .unwrap();
@@ -1781,7 +1794,6 @@ mod emission_tests {
             .unwrap();
         plan.certify_emit(&canonical, &sources, 3 * count, &control, account)
             .unwrap();
-        assert_eq!(plan.emission_state(), (true, false));
         Fixture {
             plan,
             canonical,
@@ -1818,6 +1830,18 @@ mod emission_tests {
         offset: f64,
         account: &QueryAccounting,
     ) -> (Vec<usize>, Vec<usize>) {
+        grouped_delivery_requests(fixture, step, target, mapped, offset, account, false)
+    }
+
+    fn grouped_delivery_requests(
+        fixture: &Fixture,
+        step: &mut Step<'_>,
+        target: Option<usize>,
+        mapped: bool,
+        offset: f64,
+        account: &QueryAccounting,
+        all_requests: bool,
+    ) -> (Vec<usize>, Vec<usize>) {
         let control = Control::default();
         let mut output = Vec::new();
         let mut requests = Vec::new();
@@ -1841,7 +1865,7 @@ mod emission_tests {
                         .position(|row| Some(&row.ordinal) == ordinal)
                         .unwrap();
                     let fresh = step.snapshot.is_some();
-                    if fresh {
+                    if all_requests || fresh {
                         requests.push(input);
                     }
                     let mut sample = source(step.plan, input, false, false, account);
@@ -1878,6 +1902,113 @@ mod emission_tests {
             }
         }
         panic!("grouped ranking delivery exceeded finite progress guard");
+    }
+
+    #[test]
+    fn ranking_capacity_keeps_equivalent_results_and_snapshot_ownership() {
+        struct Observation {
+            operator: TokenKind,
+            members: usize,
+            k: usize,
+            retained: u64,
+            deliveries: Vec<(Vec<usize>, Vec<usize>)>,
+            work: Vec<u64>,
+        }
+        let workspace = |account: &QueryAccounting| {
+            account.snapshot().memory[MemoryKind::Workspace as usize].current
+        };
+        let mut observations = Vec::new();
+        for operator in [TokenKind::TOPK, TokenKind::BOTTOMK] {
+            for members in [1, 5] {
+                for k in [0, 1, 2, 3, 4, 5, 8] {
+                    if k == 8 && members != 5 {
+                        continue;
+                    }
+                    let account = EngineAccounting::default().query();
+                    let fixture = grouped_fixture_with_limit(operator, 8, members, k, &account);
+                    let baseline = workspace(&account);
+                    let expected: Vec<_> = (0..8 * members.min(k)).collect();
+                    let mut retained = 0;
+                    let mut old_snapshot = None;
+                    let mut deliveries = Vec::new();
+                    let mut work = Vec::new();
+                    for (phase, (clock, offset)) in
+                        [(0, 10.0), (0, 20.0), (1000, 30.0)].into_iter().enumerate()
+                    {
+                        if phase == 2 {
+                            old_snapshot = fixture.plan.cache.borrow().as_ref().cloned();
+                        }
+                        let before = account.snapshot().work;
+                        let mut step = grouped_step(&fixture, clock, &account);
+                        let delivered = grouped_delivery_requests(
+                            &fixture, &mut step, None, true, offset, &account, true,
+                        );
+                        assert_eq!(delivered.0, expected);
+                        drop(step);
+                        work.push(account.snapshot().work - before);
+                        if phase == 0 {
+                            retained = workspace(&account) - baseline;
+                        } else if phase == 1 {
+                            assert_eq!(workspace(&account) - baseline, retained);
+                        }
+                        deliveries.push(delivered);
+                    }
+                    let before_release = workspace(&account);
+                    drop(old_snapshot);
+                    assert_eq!(before_release - workspace(&account), retained);
+                    assert_eq!(workspace(&account) - baseline, retained);
+                    if k == 0 {
+                        assert_eq!(retained, 0);
+                        assert!(fixture.plan.cache.borrow().is_none());
+                    }
+                    println!(
+                        "{{\"ranking_capacity\":true,\"operator\":\"{}\",\"members\":{members},\"k\":{k},\"retained\":{retained},\"requests\":{:?},\"work\":{work:?}}}",
+                        if operator == TokenKind::TOPK {
+                            "topk"
+                        } else {
+                            "bottomk"
+                        },
+                        deliveries
+                            .iter()
+                            .map(|(_, requests)| requests.len())
+                            .collect::<Vec<_>>()
+                    );
+                    drop(fixture);
+                    account.snapshot().assert_memory_released();
+                    assert_eq!(account.current_samples(), 0);
+                    observations.push(Observation {
+                        operator,
+                        members,
+                        k,
+                        retained,
+                        deliveries,
+                        work,
+                    });
+                }
+            }
+        }
+        assert_eq!(observations.len(), 26);
+        let mut compared = Vec::new();
+        for operator in [TokenKind::TOPK, TokenKind::BOTTOMK] {
+            for (members, small_k, large_k) in [(1, 1, 4), (1, 2, 4), (1, 3, 4), (5, 5, 8)] {
+                let find = |k| {
+                    observations
+                        .iter()
+                        .find(|row| {
+                            row.operator == operator && row.members == members && row.k == k
+                        })
+                        .unwrap()
+                };
+                let (small, large) = (find(small_k), find(large_k));
+                assert_eq!(small.deliveries, large.deliveries);
+                assert_eq!(small.work, large.work);
+                compared.push((small.retained, large.retained));
+            }
+        }
+        assert!(
+            compared.iter().all(|(small, large)| small < large),
+            "equivalent smaller ranking limits must retain less Workspace: {compared:?}"
+        );
     }
 
     #[test]

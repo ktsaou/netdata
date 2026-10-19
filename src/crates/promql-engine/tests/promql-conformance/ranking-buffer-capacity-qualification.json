@@ -1,0 +1,749 @@
+{
+  "status": "qualified_private_capacity_change",
+  "comparison_base": "0a702ce0b83d963171d7accfe98f2e1a5f757a17",
+  "change": "Only guarded Heap.indices insertion reuses existing push_with_capacity_hint(self.input,self.k).",
+  "preserved": [
+    "same k and insertion/order/value behavior",
+    "all persistent layouts",
+    "raw paging and owner lifetimes",
+    "numerical and public C contracts",
+    "disabled implicit caps"
+  ],
+  "actual_source_phases": {
+    "before-source.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/before-source.json",
+      "sha256": "16cebf59159050939ff0a7dd0f4fe176f83d0d730fbf5b7e8d12fe368e6b7003"
+    },
+    "tests-source.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/tests-source.json",
+      "sha256": "b4c17a04e3282eb802fbb9547a3a1ed8281011b187f5374fc4e3e1d5cd1fa96e"
+    },
+    "runtime-phase-source.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/runtime-phase-source.json",
+      "sha256": "d7c250e715f56216c35d93445608713623754cdbcf04d8cdcaf098bf81726db3"
+    },
+    "qualification-source.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/qualification-source.json",
+      "sha256": "c67bd0ad9af12d462a86a070578694445d5de2bc787e20845602e92e292d886a"
+    }
+  },
+  "current_build_source_manifest_inputs": 378,
+  "retained_before_build_source_manifest_inputs": 372,
+  "causal": {
+    "fixtures": 26,
+    "complete_cold_warm_new_key_deliveries": 78,
+    "old_expected_exit": 101,
+    "candidate_exit": 0,
+    "old_failure": "Only final relational retained-memory guard,after complete outputs/requests/work/releases.",
+    "amd64_eight_group_retained_workspace_bytes": {
+      "k1": [
+        800,
+        608
+      ],
+      "k2": [
+        800,
+        672
+      ],
+      "k3": [
+        800,
+        736
+      ],
+      "filled_k5": [
+        1056,
+        864
+      ]
+    },
+    "controls": "k0no snapshot;k4exact. Same test body,held old snapshot across new-key replacement."
+  },
+  "whole_query_memory": {
+    "pilot_pairs": 48,
+    "lower_symmetric_traffic_pairs": 32,
+    "strict_rule": "Workspace current exact,peak nonincrease,acquired/released symmetric nonincrease;all other exported observations exact.",
+    "g16_topk1_three_clock_page17": {
+      "before_workspace": {
+        "acquired": 941328,
+        "current": 0,
+        "overflowed": false,
+        "peak": 103434,
+        "released": 941328
+      },
+      "current_workspace": {
+        "acquired": 939024,
+        "current": 0,
+        "overflowed": false,
+        "peak": 102666,
+        "released": 939024
+      }
+    }
+  },
+  "new_originals": {
+    "cases": 595,
+    "default_profile": 128,
+    "upstream_test_profile": 467,
+    "expected_default_optional_rejections": 18,
+    "complete_exact_comparisons": 7140,
+    "complete_before_current_pairs": 7140,
+    "targets": [
+      "release",
+      "release-min",
+      "arm32",
+      "arm64"
+    ],
+    "pages": [
+      1,
+      17,
+      1024
+    ],
+    "roster": {
+      "cases": 595,
+      "stable": 216,
+      "optional_limitk": 162,
+      "optional_limit_ratio": 189,
+      "default_optional_rejections": 18,
+      "dynamic_parameters": 10,
+      "stable_parameters": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "ratio_parameters": [
+        "0",
+        ".5",
+        "-.5",
+        "1",
+        "-1",
+        "1.5",
+        "NaN"
+      ],
+      "populations": [
+        {
+          "groups": 8,
+          "members": 1
+        },
+        {
+          "groups": 8,
+          "members": 6
+        },
+        {
+          "groups": 1,
+          "members": 11
+        }
+      ],
+      "native_kinds": [
+        "float",
+        "histogram",
+        "float_histogram"
+      ],
+      "consumers": [
+        "bare",
+        "abs",
+        "parenthesized-scalar-times-one"
+      ],
+      "profiles": [
+        "server-default",
+        "upstream-tests"
+      ],
+      "pages": [
+        1,
+        17,
+        1024
+      ],
+      "cohorts": [
+        "release",
+        "release-min",
+        "arm32",
+        "arm64"
+      ],
+      "numeric": "Fresh pinned Go complete originals; exact new results/labels/times/bits/warnings/errors. Retained reducer ordering policies and strict failures stay separate."
+    },
+    "authority": {
+      "cursor-oracle": "22d18b1d74b10374276ab38745b85e3573fdce5495a00086e1c98df8014847db",
+      "binding.json": "aca5f4a43b8b00385a9ab20d85ab9fcf82ae0308a5b475ef7478ae964f2f3460",
+      "source.json": "e3151702f7e6fc3a7d97319f0410d29374d124bc52f616f59508c79d23fef5ea"
+    }
+  },
+  "query_observation_presence": {
+    "both_absent_expected_construction_error_pairs": 216,
+    "both_present_observation_pairs": 6924,
+    "exact_packet_key_presence": true,
+    "fresh_query_executions": 0
+  },
+  "retained_results": {
+    "complete_reducer_comparisons": 56124,
+    "historical_strict_original_failures_still_failures": 216,
+    "sort_original_comparisons": 456,
+    "policy": "Exact complete equality to authenticated canonical analysis inputs;historical policy and actual binary/source identities retained."
+  },
+  "timing": {
+    "release": {
+      "primary_panel_median_ratio": 0.9864262238622652,
+      "primary_family_median_ratios": {
+        "g4:m1:k1:bare": 0.9067925943835622,
+        "g4:m1:k1:abs": 0.9198173137493169,
+        "g4:m1:k1:scalar-map": 0.9113740163229113,
+        "g4:m1:k4:bare": 0.9320092386625383,
+        "g4:m1:k4:abs": 0.924850802135518,
+        "g4:m1:k4:scalar-map": 0.9066723188947836,
+        "g4:m1:k5:bare": 0.9658587052506518,
+        "g4:m1:k5:abs": 0.9946588708146434,
+        "g4:m1:k5:scalar-map": 1.001772512745626,
+        "g4:m6:k1:bare": 0.975727595038774,
+        "g4:m6:k1:abs": 0.9807950304014198,
+        "g4:m6:k1:scalar-map": 0.9752578108672834,
+        "g4:m6:k4:bare": 0.9677196747622617,
+        "g4:m6:k4:abs": 0.9805115475503965,
+        "g4:m6:k4:scalar-map": 0.9741186504406094,
+        "g4:m6:k5:bare": 0.9821492176815629,
+        "g4:m6:k5:abs": 0.9774597038048121,
+        "g4:m6:k5:scalar-map": 0.9810949738027299,
+        "g16:m1:k1:bare": 0.9970328043591214,
+        "g16:m1:k1:abs": 0.9868306941412612,
+        "g16:m1:k1:scalar-map": 0.981811231592308,
+        "g16:m1:k4:bare": 1.0012379279752603,
+        "g16:m1:k4:abs": 0.9773550005291805,
+        "g16:m1:k4:scalar-map": 0.9897531241219475,
+        "g16:m1:k5:bare": 0.991144350608387,
+        "g16:m1:k5:abs": 0.9968870049123547,
+        "g16:m1:k5:scalar-map": 0.9831541715058429,
+        "g16:m6:k1:bare": 1.0225587348642091,
+        "g16:m6:k1:abs": 1.0152502729759003,
+        "g16:m6:k1:scalar-map": 1.000711090891427,
+        "g16:m6:k4:bare": 1.0137899450445873,
+        "g16:m6:k4:abs": 1.005227876795554,
+        "g16:m6:k4:scalar-map": 1.0117983064583607,
+        "g16:m6:k5:bare": 0.9922258313103517,
+        "g16:m6:k5:abs": 1.0007952110072067,
+        "g16:m6:k5:scalar-map": 0.9869497060471323
+      },
+      "slower_primary_medians": 48,
+      "threshold_primary_medians": 1,
+      "persistent_threshold_medians": 0,
+      "complete_paired_results": 1884,
+      "passed": true
+    },
+    "release-min": {
+      "primary_panel_median_ratio": 0.9995231544618854,
+      "primary_family_median_ratios": {
+        "g4:m1:k1:bare": 0.9847533167929083,
+        "g4:m1:k1:abs": 0.9678844795919204,
+        "g4:m1:k1:scalar-map": 1.0025479544810834,
+        "g4:m1:k4:bare": 0.9846653931297469,
+        "g4:m1:k4:abs": 0.9954082888868891,
+        "g4:m1:k4:scalar-map": 1.0043721541936281,
+        "g4:m1:k5:bare": 1.001092395392608,
+        "g4:m1:k5:abs": 0.9875625718493996,
+        "g4:m1:k5:scalar-map": 1.0063337817307099,
+        "g4:m6:k1:bare": 1.0183585901783503,
+        "g4:m6:k1:abs": 1.0030186786017161,
+        "g4:m6:k1:scalar-map": 1.018947418143263,
+        "g4:m6:k4:bare": 0.994427557192852,
+        "g4:m6:k4:abs": 0.990840894435878,
+        "g4:m6:k4:scalar-map": 0.9905748227269089,
+        "g4:m6:k5:bare": 1.01788594941387,
+        "g4:m6:k5:abs": 1.0282456660002537,
+        "g4:m6:k5:scalar-map": 1.0177981685108701,
+        "g16:m1:k1:bare": 1.019617167110426,
+        "g16:m1:k1:abs": 1.0138225907118463,
+        "g16:m1:k1:scalar-map": 1.011310666801974,
+        "g16:m1:k4:bare": 1.0206209282018628,
+        "g16:m1:k4:abs": 1.0221455850149497,
+        "g16:m1:k4:scalar-map": 1.0076966681073514,
+        "g16:m1:k5:bare": 1.0103551337844303,
+        "g16:m1:k5:abs": 1.020971897264077,
+        "g16:m1:k5:scalar-map": 0.996418331759411,
+        "g16:m6:k1:bare": 0.9799241921756395,
+        "g16:m6:k1:abs": 0.9796768171652627,
+        "g16:m6:k1:scalar-map": 0.982089875487719,
+        "g16:m6:k4:bare": 0.9974710790889828,
+        "g16:m6:k4:abs": 0.9974219309475005,
+        "g16:m6:k4:scalar-map": 0.9791689083742896,
+        "g16:m6:k5:bare": 0.9801138849867272,
+        "g16:m6:k5:abs": 0.9830926878539812,
+        "g16:m6:k5:scalar-map": 0.9632432581733368
+      },
+      "slower_primary_medians": 71,
+      "threshold_primary_medians": 4,
+      "persistent_threshold_medians": 0,
+      "complete_paired_results": 1920,
+      "passed": true
+    }
+  },
+  "timing_policy": {
+    "cases_per_profile": 144,
+    "profiles": [
+      "release",
+      "release-min"
+    ],
+    "groups": [
+      4,
+      16
+    ],
+    "members": [
+      1,
+      6
+    ],
+    "widths": [
+      16,
+      4096
+    ],
+    "parameters": [
+      1,
+      4,
+      5
+    ],
+    "operators": [
+      "topk",
+      "bottomk"
+    ],
+    "consumers": [
+      "bare",
+      "abs",
+      "parenthesized-scalar-times-one"
+    ],
+    "profile": "server-default",
+    "blocks": 3,
+    "warmups_per_side_per_block": 1,
+    "measurements_per_side_per_block": 3,
+    "samples_per_side": 9,
+    "all_primary_panel_median_max_ratio": 1.05,
+    "every_population_consumer_k_family_primary_median_max_ratio": 1.05,
+    "followup_threshold": 1.05,
+    "followup": "Exactly one identical nine-sample followup for each threshold primary case; retain primary medians as gates.",
+    "preflight_max_observed_engine_ms": 500,
+    "no_automatic_signals": true,
+    "speed_gain_required": false,
+    "reason": "Retain only measured memory benefit without a material throughput regression;no speedup is presumed."
+  },
+  "compiled_costs": [
+    {
+      "kind": "fixture",
+      "label": "release",
+      "before": {
+        "path": ".tmp/catalog-views-it81gtud/pilot-release/promql-query-fixture",
+        "sha256": "6d9ef6c8119478c99f1b086933b1f860f9eb56c5f0da3dffe8ef2985fb48c903"
+      },
+      "before_sections": {
+        "text": 4463078,
+        "data": 259512,
+        "bss": 2228
+      },
+      "before_file_bytes": 5741760,
+      "current": {
+        "path": ".tmp/ranking-capacity-5n5wwtrd/pilot-release/promql-query-fixture",
+        "sha256": "11805ecc7c5178016010364b53c175e6bac7dadedb8546cfc89955b58fa885f3"
+      },
+      "current_sections": {
+        "text": 4463906,
+        "data": 259512,
+        "bss": 1412
+      },
+      "current_file_bytes": 5742760,
+      "section_deltas": {
+        "text": 828,
+        "data": 0,
+        "bss": -816
+      },
+      "file_delta": 1000
+    },
+    {
+      "kind": "default-embedding-C",
+      "label": "release",
+      "before": {
+        "path": ".tmp/catalog-views-it81gtud/pilot-release/embedding-current",
+        "sha256": "66ecb7b2e8489fad531bfbf36a92d8b1a365abd36ae0d43ea0fb5cf22f466c11"
+      },
+      "before_sections": {
+        "text": 7561826,
+        "data": 506456,
+        "bss": 400
+      },
+      "before_file_bytes": 13914976,
+      "current": {
+        "path": ".tmp/ranking-capacity-5n5wwtrd/pilot-release/embedding-current",
+        "sha256": "3d9b1fcff9ebebe739c610d3de79956e7fb0387c54d57240fe166cf6d2f49a27"
+      },
+      "current_sections": {
+        "text": 7562658,
+        "data": 506456,
+        "bss": 400
+      },
+      "current_file_bytes": 13915336,
+      "section_deltas": {
+        "text": 832,
+        "data": 0,
+        "bss": 0
+      },
+      "file_delta": 360
+    },
+    {
+      "kind": "fixture",
+      "label": "release-min",
+      "before": {
+        "path": ".tmp/catalog-views-it81gtud/pilot-release-min/promql-query-fixture",
+        "sha256": "fdd4458782843a9464cc5c72623a114f313d3dfa5c571fafe07f176b65d13fb0"
+      },
+      "before_sections": {
+        "text": 2824301,
+        "data": 246024,
+        "bss": 3684
+      },
+      "before_file_bytes": 3640144,
+      "current": {
+        "path": ".tmp/ranking-capacity-5n5wwtrd/pilot-release-min/promql-query-fixture",
+        "sha256": "881dc079a6a00cb23edf3e9f04bb2ea647324c4d1030608ec4fa413ee036c80d"
+      },
+      "current_sections": {
+        "text": 2824917,
+        "data": 246024,
+        "bss": 3060
+      },
+      "current_file_bytes": 3641000,
+      "section_deltas": {
+        "text": 616,
+        "data": 0,
+        "bss": -624
+      },
+      "file_delta": 856
+    },
+    {
+      "kind": "default-embedding-C",
+      "label": "release-min",
+      "before": {
+        "path": ".tmp/catalog-views-it81gtud/pilot-release-min/embedding-current",
+        "sha256": "ce3f83928ba99b00818cdddd063d9eb014cbaac2dfabaf116184fa65e229b07b"
+      },
+      "before_sections": {
+        "text": 5098503,
+        "data": 461824,
+        "bss": 400
+      },
+      "before_file_bytes": 11614336,
+      "current": {
+        "path": ".tmp/ranking-capacity-5n5wwtrd/pilot-release-min/embedding-current",
+        "sha256": "ff996e8b978b485df1ad097e5d11cc123be4f9aacbf8343fe78f38ad09a1b974"
+      },
+      "current_sections": {
+        "text": 5099227,
+        "data": 461832,
+        "bss": 400
+      },
+      "current_file_bytes": 11614688,
+      "section_deltas": {
+        "text": 724,
+        "data": 8,
+        "bss": 0
+      },
+      "file_delta": 352
+    },
+    {
+      "kind": "fixture",
+      "label": "arm32",
+      "before": {
+        "path": ".tmp/catalog-views-it81gtud/pilot-arm32/promql-query-fixture",
+        "sha256": "62f50bb3246094a55c94e30f32cd70b0eeb9f935ff47a47c1919c1e9e08a6fb3"
+      },
+      "before_sections": {
+        "text": 3777818,
+        "data": 164568,
+        "bss": 212
+      },
+      "before_file_bytes": 5062796,
+      "current": {
+        "path": ".tmp/ranking-capacity-5n5wwtrd/pilot-arm32/promql-query-fixture",
+        "sha256": "0f14b695574ab829d75dc3520ea3d70256474a68bfa33330cc05282468a0f9ee"
+      },
+      "current_sections": {
+        "text": 3778514,
+        "data": 164568,
+        "bss": 212
+      },
+      "current_file_bytes": 5062964,
+      "section_deltas": {
+        "text": 696,
+        "data": 0,
+        "bss": 0
+      },
+      "file_delta": 168
+    },
+    {
+      "kind": "fixture",
+      "label": "arm64",
+      "before": {
+        "path": ".tmp/catalog-views-it81gtud/pilot-arm64/promql-query-fixture",
+        "sha256": "f864babb88cd041789f6e12b1458f6214f1321a810d8b30f2fe9d65439794619"
+      },
+      "before_sections": {
+        "text": 3683575,
+        "data": 253040,
+        "bss": 328
+      },
+      "before_file_bytes": 5158760,
+      "current": {
+        "path": ".tmp/ranking-capacity-5n5wwtrd/pilot-arm64/promql-query-fixture",
+        "sha256": "841fd1fe1e007d9f121407718a06f3e89dc6a9506cb233537c34568805d71548"
+      },
+      "current_sections": {
+        "text": 3680255,
+        "data": 253040,
+        "bss": 328
+      },
+      "current_file_bytes": 5093232,
+      "section_deltas": {
+        "text": -3320,
+        "data": 0,
+        "bss": 0
+      },
+      "file_delta": -65528
+    }
+  ],
+  "layouts": {
+    "release": {
+      "ranking_plan": 192,
+      "ranking_plan_allocation": 216,
+      "ranking_snapshot": 128,
+      "ranking_snapshot_allocation": 160,
+      "ranking_step": 4808,
+      "ranking_step_allocation": 4832
+    },
+    "release-min": {
+      "ranking_plan": 192,
+      "ranking_plan_allocation": 216,
+      "ranking_snapshot": 128,
+      "ranking_snapshot_allocation": 160,
+      "ranking_step": 4808,
+      "ranking_step_allocation": 4832
+    },
+    "arm32": {
+      "ranking_plan": 144,
+      "ranking_plan_allocation": 160,
+      "ranking_snapshot": 104,
+      "ranking_snapshot_allocation": 136,
+      "ranking_step": 4160,
+      "ranking_step_allocation": 4176
+    },
+    "arm64": {
+      "ranking_plan": 192,
+      "ranking_plan_allocation": 216,
+      "ranking_snapshot": 128,
+      "ranking_snapshot_allocation": 160,
+      "ranking_step": 4808,
+      "ranking_step_allocation": 4832
+    }
+  },
+  "units": {
+    "release": {
+      "all": {
+        "passed": 849,
+        "ignored": 2
+      }
+    },
+    "release-min": {
+      "all": {
+        "passed": 849,
+        "ignored": 2
+      }
+    },
+    "arm32": {
+      "ranking": {
+        "passed": 13,
+        "ignored": 0
+      },
+      "sort": {
+        "passed": 19,
+        "ignored": 0
+      },
+      "growth": {
+        "passed": 1,
+        "ignored": 0
+      },
+      "cold": {
+        "passed": 1,
+        "ignored": 0
+      },
+      "failures": {
+        "passed": 1,
+        "ignored": 0
+      },
+      "subset": {
+        "passed": 1,
+        "ignored": 0
+      }
+    },
+    "arm64": {
+      "ranking": {
+        "passed": 13,
+        "ignored": 0
+      },
+      "sort": {
+        "passed": 19,
+        "ignored": 0
+      },
+      "growth": {
+        "passed": 1,
+        "ignored": 0
+      },
+      "cold": {
+        "passed": 1,
+        "ignored": 0
+      },
+      "failures": {
+        "passed": 1,
+        "ignored": 0
+      },
+      "subset": {
+        "passed": 1,
+        "ignored": 0
+      }
+    }
+  },
+  "embedding": {
+    "accepted_current_c_pairs": 336,
+    "current_cpp_controls": 336,
+    "per_profile_ranking_cases": 168,
+    "both_default_archives": true,
+    "general_current_c_and_sort_c_cpp": true,
+    "scope": "Actual existing full-union/proper-subset Cowners,errors/cancel/output/retained results;all serialized nonmemory fields exact,Workspace-only nonincrease."
+  },
+  "static": {
+    "strict_clippy_variants": 2,
+    "format": true,
+    "msrv_compile_only": "1.91.0"
+  },
+  "limits": [
+    "No language expansion or full-language claim.",
+    "Fixture observations omit basic sample statistics;C and units exercise their stated statistic assertions separately.",
+    "Tracked requested/retained bytes are not RSS or allocator-resident bytes.",
+    "Timing is isolated engine evaluation,not HTTP,device,concurrency or universal speedup.",
+    "g4/m1/k5resolvesk4;LIMIT_RATIOuses total prepared input count,not its fractional parameter.",
+    "No candidate121reinstatement,decision64answer or exception inferred."
+  ],
+  "receipts": {
+    "ready.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/ready.json",
+      "sha256": "f81260bc80c98443b10f612ee1a048a25701ac9ba4dfa95fd10a113e4c402c5b"
+    },
+    "measurement-plan.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/measurement-plan.json",
+      "sha256": "2c80e7ea7a12590a45047368beb33ad0d93b3e35acaee39ff62726a1ae0f1743"
+    },
+    "old-producer.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/old-producer.json",
+      "sha256": "2f571de488c08192245fb8c8c52b5ec4c81336d43832e2bfc7cacc2905803c9a"
+    },
+    "green.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/green.json",
+      "sha256": "f114a2144da97d4ffb1e6a2cbc24374d161cfc1deef9d7063766d4a4be4f1451"
+    },
+    "panels-ready.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/panels-ready.json",
+      "sha256": "78fff62fc267e9241b0a5a830261b0f44a3123ee2c00d04d2031a824e31ac6b3"
+    },
+    "originals.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/originals.json",
+      "sha256": "6c09d3b3d60e97fa2f89632490615cf1d2d2f23d04bb088483371dcb145edcb1"
+    },
+    "size-gate.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/size-gate.json",
+      "sha256": "147cfddcc7c75eb62ae63c7a81fc59f313ded178be3ae380f465197012c50bd5"
+    },
+    "pilot-memory.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/pilot-memory.json",
+      "sha256": "ece6001d18e22804c4bb2487f618586207fda847c36e16715bbc901030f237d1"
+    },
+    "pilot-memory-observations.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/pilot-memory-observations.json",
+      "sha256": "71cc2ec711b7db1627fe9c20a2670b597ca03a51604bb7d1a3245f91b7f7e7c5"
+    },
+    "timing.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/timing.json",
+      "sha256": "909c161230e1093d5912f3e2336c5961e5298cd90973e58e1d4e4d4313310101"
+    },
+    "query-qualification.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/query-qualification.json",
+      "sha256": "e480e3121eede0bbca778736fc0c350af433ffc53ef88044703c39a841b79c15"
+    },
+    "current-static.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/current-static.json",
+      "sha256": "dce84e561967dbb0fd50ccbd7ac3944e061bc7978f9460cd5e6aa941c07bc575"
+    },
+    "measurement-complete.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/measurement-complete.json",
+      "sha256": "af6022bd9b62acd5c06c48c1405c90ffab066cb8a675d85f3b41add31b210257"
+    },
+    "baseline-layouts.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/baseline-layouts.json",
+      "sha256": "05a82451b9781dc944650edbf3587a7fc8d81e2bb6bb0836c15a25e1a1bfeb32"
+    },
+    "factory-source-review.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/factory-source-review.json",
+      "sha256": "d19d1e8d25b2538ddda6251366672c7be5f495c7855fa7d537ad043b47d46276"
+    },
+    "runner-source-review.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/runner-source-review.json",
+      "sha256": "e4b4a52a4de7b17e78433628db6b0aab31484f4ec57705b2152df4d67a527b5a"
+    },
+    "prepare-friction.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/prepare-friction.json",
+      "sha256": "a7452bc062531accf8ee35f159c4a09ff87e8b81b22f2df825a6da9f98c3c8b3"
+    },
+    "query-friction.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/query-friction.json",
+      "sha256": "a77f920cb5c433bbe475e86027ae38750e7c698a3fe4f7f7948ee3870706a716"
+    },
+    "query-helper-followup.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/query-helper-followup.json",
+      "sha256": "af24147a4831cc662092cf3fa4cdebacb4656c82b0a1fc7f2888ca334b2692d0"
+    },
+    "timing-release.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/timing-release.json",
+      "sha256": "e5130e93afa23228cb11b6310bff7406a5436aa2b4569df45709737fb292f15e"
+    },
+    "timing-release-min.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/timing-release-min.json",
+      "sha256": "bb4777502a2e11896687374e34d358d7097211dbd5599bfd4dbd1d9273404def"
+    },
+    "current-release-build.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/current-release-build.json",
+      "sha256": "75eeca3735b7e939209ed5285d85a611e0e3da317dfcc141e6893948870a59bc"
+    },
+    "current-release-min-build.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/current-release-min-build.json",
+      "sha256": "ab08e8bdb6faaa392ec47370d50335ebebffabf1ed98fc182ecec49a44b2c3fe"
+    },
+    "current-arm32-build.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/current-arm32-build.json",
+      "sha256": "9d235311d983b07aad008deafe351bcfd582a9f5e2fa95dac967890032d3202f"
+    },
+    "current-arm64-build.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/current-arm64-build.json",
+      "sha256": "882283823d333eb0cc74c0bce1ae13f84b36150d157efc60c2226dfdea23a5f1"
+    },
+    "reducers-release.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/reducers-release.json",
+      "sha256": "b9d62f2f213031cd47b86a8cc7b8f6f0dd70f51e82d9263705e7d6b4d05c6e2d"
+    },
+    "originals-release.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/originals-release.json",
+      "sha256": "a60eea80ab252174762253f9261f90bca7d9388f2e8bf88a5c3409c21d316eb1"
+    },
+    "callers-release.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/callers-release.json",
+      "sha256": "118c93c589648843b03a24ee52f02072ac108ca22055d059aa9bb1cec71e8171"
+    },
+    "reducers-release-min.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/reducers-release-min.json",
+      "sha256": "a59e814b7d4a343fcd367ecc922db11618f5418ffe5b1d8b28a7aadb318260b4"
+    },
+    "originals-release-min.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/originals-release-min.json",
+      "sha256": "4731636ebcdc94fcc0dcb17a81a3cb61eaceb07fdf4b13125e43a5f03f0cbd6b"
+    },
+    "callers-release-min.json": {
+      "path": ".tmp/ranking-capacity-5n5wwtrd/callers-release-min.json",
+      "sha256": "b2c36e2b7b85849afaef4ff2ac63a64d71ad0a6827e92f9cc40777a3c2e6ee08"
+    }
+  }
+}

@@ -223,3 +223,86 @@ def grouped_input_cases():
     if len(result) != len({row["request"]["id"] for row in result}):
         raise ValueError("duplicate grouped selection input case")
     return result
+
+
+def _capacity_case(ident, operator, parameter, groups, members, kind, consumer,
+                   profile, width=16, dynamic=False):
+    records = [series({"__name__": "m", "job": f"{group:03d}",
+                       "member": f"{member:02d}", "pad": "p" * width},
+        [(tick * 1000, group * members + (member + tick) % members + 1, kind)
+         for tick in range(3)]) for group in range(groups) for member in range(members)]
+    if dynamic:
+        values = (0, .5, 1) if operator == "limit_ratio" else (0, 2, 5)
+        records.append(series({"__name__": "p"},
+            [(tick * 1000, value, "float") for tick, value in enumerate(values)]))
+    inner = f"{operator} by(job)({parameter},m)"
+    expression = {"bare": inner, "abs": f"abs({inner})",
+                  "scalar-map": f"({inner})*1"}[consumer]
+    return {"request": {"id": ident, "query": expression, "profile": profile,
+        "mode": "range", "time_ms": 0, "start_ms": 0, "end_ms": 2000,
+        "step_ms": 1000, "lookback_ms": 1, "subquery_step_ms": 1000},
+        "dataset": {"schema_version": 1, "series": records[::-1]}, "faults": {}}
+
+
+def capacity_cases():
+    """Small/full/odd groups and optional native values, qualified by fresh originals."""
+    result = []
+    populations = ((8, 1), (8, 6), (1, 11))
+    kinds = ("float", "histogram", "float_histogram")
+    consumers = ("bare", "abs", "scalar-map")
+
+    def add(operator, parameter, groups, members, kind, consumer, profile,
+            dynamic=False):
+        ident = (f"ranking-capacity:{operator}:{parameter}:g{groups}:m{members}:"
+                 f"{kind}:{consumer}:{profile}:{dynamic}")
+        result.append(_capacity_case(ident, operator, parameter, groups, members,
+            kind, consumer, profile, dynamic=dynamic))
+
+    for operator in ("topk", "bottomk"):
+        for parameter in map(str, range(6)):
+            for groups, members in populations:
+                for profile in ("server-default", "upstream-tests"):
+                    for consumer in consumers:
+                        add(operator, parameter, groups, members, "float", consumer, profile)
+    for operator, parameters in (("limitk", tuple(map(str, range(6)))),
+            ("limit_ratio", ("0", ".5", "-.5", "1", "-1", "1.5", "NaN"))):
+        for parameter in parameters:
+            for groups, members in populations:
+                for kind in kinds:
+                    for consumer in consumers:
+                        add(operator, parameter, groups, members, kind, consumer, "upstream-tests")
+        for groups, members in populations:
+            for kind in kinds:
+                add(operator, "1" if operator == "limitk" else ".5", groups, members,
+                    kind, "bare", "server-default")
+    for operator in ("topk", "bottomk", "limitk", "limit_ratio"):
+        profiles = ("server-default", "upstream-tests") if operator in ("topk", "bottomk") else (
+            "upstream-tests",)
+        for profile in profiles:
+            for kind in (("float",) if operator in ("topk", "bottomk") else kinds):
+                add(operator, "scalar(p)", 8, 6, kind, "bare", profile, dynamic=True)
+    if len(result) != 595 or len({row["request"]["id"] for row in result}) != 595:
+        raise ValueError("incomplete independently declared ranking-capacity cases")
+    return result
+
+
+def capacity_timing_cases():
+    """Fixed native timing roster; private heap capacity must not slow ordinary queries."""
+    result = []
+    for groups in (4, 16):
+        for members in (1, 6):
+            for width in (16, 4096):
+                for parameter in (1, 4, 5):
+                    for operator in ("topk", "bottomk"):
+                        for consumer in ("bare", "abs", "scalar-map"):
+                            ident = (f"ranking-capacity-time:g{groups}:m{members}:w{width}:"
+                                     f"k{parameter}:{operator}:{consumer}")
+                            case = _capacity_case(ident, operator, str(parameter), groups,
+                                members, "float", consumer, "server-default", width=width)
+                            case.update(groups=groups, members=members, width=width,
+                                k=parameter, operator=operator, consumer=consumer,
+                                family=f"g{groups}:m{members}:k{parameter}:{consumer}")
+                            result.append(case)
+    if len(result) != 144 or len({row["request"]["id"] for row in result}) != 144:
+        raise ValueError("incomplete independently declared ranking-capacity timing cases")
+    return result

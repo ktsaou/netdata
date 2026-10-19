@@ -73710,5 +73710,11 @@
     "observed_error_path_acquired_released_cost_bytes": 4434,
     "retained_or_peak_memory_increases": false,
     "scope": "Finite complete candidate qualification records a real traffic-criterion failure. Restore accepted runtime under original rule;preserve open exception without inferring an answer. All135prior ledger objects/prose remain;no shipped runtime gain claimed."
+  },
+  "bounded_ranking_buffer_capacity": {
+    "report": "ranking-buffer-capacity-qualification.json",
+    "report_sha256": "df4f6663141b1cc3155cb09d277bca7146bdba25349631fcdbf533ea47c1c63f",
+    "status": "qualified_private_capacity_change",
+    "scope": "One existing bounded growth helper;26causal fixtures,595new originals,7140exact matches,unchanged layouts and measured finite memory/timing costs."
   }
 }

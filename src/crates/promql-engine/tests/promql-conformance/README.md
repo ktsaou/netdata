@@ -9055,3 +9055,45 @@ comparisons, 456 sort-original comparisons, 672 C pairs and 672 C++ controls. Bo
 checks and static checks passed. The 216 historical strict original differences remain failures. Every slower timing
 case and failed trial remains recorded. The failed criterion was preserved, all owned changes were reversed, and
 the continuous improvement work proceeds from the accepted engine without assuming a policy decision.
+
+
+## Bounded ranking-buffer capacity
+
+[The capacity report](ranking-buffer-capacity-qualification.json) qualifies one private change:
+ranking-index growth uses the existing resolved `k` as its allocation hint. It keeps geometric growth
+until that bound and avoids unused final slots. It adds no query cap, eager reservation or sample array.
+All persistent Plan/Snapshot/Step layouts and numerical/provider behavior stay unchanged.
+
+The causal test completes 26 fixtures and 78 cold/warm/new-key deliveries before comparing retained
+Workspace. It checks complete values/labels/times/bits, full child-request traces, work, held-old-cache
+replacement and releases. The unchanged runtime fails only the final memory guard; the same test passes
+with the one-line change. On native AMD64 across eight groups, retained bytes change from 800 to 608/672/736 for
+`k=1/2/3`; a filled `k=5` changes from 1,056 to 864. Zero/four-entry controls remain exact.
+
+The 48 complete-query pilot pairs match every result and other exported observation. Selected cases
+reduce symmetric Workspace traffic; peaks do not increase. At 16 groups, `topk(1)` over three clocks
+and page17 changes Workspace acquisition 941,328→939,024 bytes and peak 103,434→102,666 bytes.
+These tracked byte counts do not establish an equal RSS saving.
+
+Fresh pinned originals cover 595 expressions: small/full/odd populations, stable ranking, optional
+LIMITK/LIMIT_RATIO, both native histogram forms, dynamic parameters and bare/ABS/scalar-map consumers.
+The 18 default optional rejections remain expected errors. Both native profiles and emulated ARM32/64
+match all 7,140 complete original outcomes at pages1/17/1024. The retained 56,124 reducer comparisons
+preserve 216 historical strict original differences as failures; 456 sort-original comparisons pass.
+Fixture observations omit the three basic sample-statistic fields; C and units exercise their stated
+statistic assertions separately.
+
+The fixed 144-case timing panel uses nine measurements per side and retains every slower case and
+prescribed follow-up. Primary median current/before ratios are 0.986426/0.999523. Every population/consumer/k
+family stays within the frozen 1.05 allowance. This establishes the finite regression check, not a
+reliable or universal speedup. A four-input singleton `k=5` resolves to `k=4`; LIMIT_RATIO's bound is
+the full prepared population, so fractional cases need not save memory.
+
+Both native profiles pass 849 tests with two existing tests ignored; each ARM target passes 36 focused
+checks. Actual C/C++ checks retain 168 cases/profile, including provider/output/cancellation/retention
+paths. Strict default/fixture Clippy, formatting and installed Rust1.91 compile checks pass.
+Six combined text/data/BSS deltas are release fixture/C +12/+832 bytes, release-min −8/+732,
+ARM32 +696 and ARM64 −3,320. No public interface, installation or metric-storage change is involved.
+
+From the crate root, run `cargo test --locked --release --features fixtures ranking_capacity_ -- --nocapture --test-threads=1`.
+The independent input factories are `topk_cases.capacity_cases()` and `capacity_timing_cases()`.

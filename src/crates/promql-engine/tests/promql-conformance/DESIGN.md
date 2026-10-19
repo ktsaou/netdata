@@ -2125,3 +2125,19 @@ A rejected fallback-sharing experiment is recorded under
   exception remains unanswered. Continuing from the accepted engine does not imply a user vote or an accepted gain.
 - **Report:** [complete set-aside qualification](ranking-parent-completion-set-aside-qualification.json). A diagnostic
   allocation sequence alone does not establish typed ownership, a universal memory bound or a no-cost repair.
+
+
+## Ranking index capacity hints
+
+The private ranking heap bounds tracked index growth with its already-resolved `k`, using the existing
+`AccountedVec::push_with_capacity_hint`. Required length remains authoritative; growth is geometric and
+only the final capacity is shortened. Zero `k` allocates no index buffer. There is no eager allocation,
+new cache/field/history array or query limit. Shared accounting, replacement-overlap leases, insertion
+order, fresh-value requests, snapshots and all provider/error phases remain unchanged.
+
+TOPK/BOTTOMK and optional LIMITK/LIMIT_RATIO share this insertion. LIMIT_RATIO's `k` is the prepared
+input count, rather than its fractional parameter. The capacity qualification separately proves smaller
+live snapshot ownership and measures complete-query peaks/traffic. It preserves complete original outcomes,
+all other exported resource fields and every slower timing; requested bytes are not an RSS contract.
+See [the finite report](ranking-buffer-capacity-qualification.json) and
+[the procedure](README.md#bounded-ranking-buffer-capacity).
