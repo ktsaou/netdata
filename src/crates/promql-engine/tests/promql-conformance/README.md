@@ -9229,3 +9229,29 @@ Candidate complete-query resource/timing tests, release-min/foreign builds, fres
 full optimized units, C/C++ runtime panels and full static checks did not run after this early rejection.
 Lower isolated work establishes no complete-query speed or memory gain. Historical results keep their own
 identities and failures; this record adds no language coverage, public/data contract, cap, RSS or device claim.
+
+
+## Set-aside shared histogram group ordering
+
+[The measured report](histogram-shared-order-set-aside-qualification.json) records a rejected private
+metadata lookup experiment. It reused one enumeration comparator closure with a numeric-mode boolean for frozen nonplural
+populations above four, used checked binary presence lookup, and reused resolved positions during delivery.
+Logical/plural/tiny paths retained the original label/drop comparator; plural re-sorting explicitly passed false.
+Logical/plural ordering and cache IDs stayed separate. It added no persistent field, index or raw sample array.
+
+Identical old/current tests complete 480 delivery cases before the sole work-growth guard. They check complete
+outputs, labels, value bits, timestamps, ordinals, Count-request order, sample units, metadata and cleanup.
+The accepted code fails only that final guard; the candidate passes. Delivery work falls in 320 cases and
+never increases. Both sides also pass 16 cancellation fixtures, 16 terminal controls and 24 logical-cache cases.
+The calibrated cancellation checks inject 287 old and 215 candidate interruptions. Actual debug layouts agree.
+
+The first optimized cost check rejects this variant: release text+data+BSS grows by **12,248 bytes** in the query
+fixture, exceeding the original **8,192-byte** ceiling. The default-feature C-linked executable grows by **508 bytes**
+and passes. Its file size grows by 6,064 bytes, a distinct measurement. Both owned implementation files are
+restored exactly to accepted122 under signed127documents. The 288 accepted baseline outcomes were authenticated
+from their historical captures, including four complete EOF rechecks; no baseline query was rerun.
+
+Candidate complete-query resource/timing tests, release-min/foreign builds, fresh originals, reducer reuse,
+full optimized units, C/C++ runtime panels and full static checks did not run after this early rejection.
+Lower isolated work establishes no complete-query speed or memory gain. Historical results keep their own
+identities and failures; this record adds no language coverage, public/data contract, cap, RSS or device claim.

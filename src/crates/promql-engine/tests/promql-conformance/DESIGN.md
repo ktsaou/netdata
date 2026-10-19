@@ -2210,3 +2210,17 @@ See [the finite report](ranking-buffer-capacity-qualification.json) and
   ceiling each. Both implementation files were restored exactly. No lookup optimization is retained.
 - See [the measured record](histogram-delivery-lookup-set-aside-qualification.json) and
   [its scope](README.md#set-aside-histogram-delivery-lookup). No changed public/storage/provider/metadata contract.
+
+
+## Set-aside shared histogram group ordering
+
+- A private experiment shared the existing enumeration comparator with a numeric-mode boolean, enabled only
+  for frozen nonplural populations above four. Logical/plural/tiny label/drop ordering stayed ordinary.
+  Checked direct/binary presence lookup and locally returned positions removed repeated group scans without
+  adding a retained owner. Logical/plural enumeration, cache IDs and phase-publication points stayed unchanged.
+- Complete debug semantics, request traces, cancellation, cache flags, sample/byte ownership and work-growth
+  checks passed. Actual debug layouts agreed; complete-query gains were not measured.
+- Actual release fixture linked sections grew 12,248 bytes, exceeding the frozen 8,192-byte ceiling. The
+  default-C link grew 508 bytes and passed. Both implementation files were restored exactly; no variant retained.
+- See [the measured record](histogram-shared-order-set-aside-qualification.json) and
+  [its scope](README.md#set-aside-shared-histogram-group-ordering). No changed public/storage/provider/metadata contract.

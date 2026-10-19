@@ -73751,5 +73751,12 @@
     "status": "rejected_under_original_frozen_compiled_cost_criteria",
     "accepted_runtime_unchanged": true,
     "scope": "Rejected480Step-owner private group lookup experiment. Complete debug outcomes/control/ownership pass;isolated metadata work falls. Release fixture/default-C sections grow16352/9700B,above8192each. Both implementation paths restored;no candidate complete-query or broad qualification claim."
+  },
+  "histogram_shared_order_set_aside": {
+    "report": "histogram-shared-order-set-aside-qualification.json",
+    "report_sha256": "1b3aa9a2048c5ae22f39b82e71e6c1d5eb0da789a53b193b7739ac488fd18970",
+    "status": "rejected_under_original_frozen_compiled_cost_criteria",
+    "accepted_runtime_unchanged": true,
+    "scope": "Rejected480Step-owner private group lookup experiment. Complete debug outcomes/control/ownership pass;isolated metadata work falls. Release fixture grows12248B,above8192;defaultC508Bpasses. Both implementation paths restored;no candidate complete-query or broad qualification claim."
   }
 }
