@@ -73744,5 +73744,12 @@
     "status": "rejected_under_original_frozen_criteria",
     "accepted_runtime_unchanged": true,
     "scope": "Rejected48constructor/336pilot/168case-profile histogram key ownership experiment. Temporary allocation traffic/work improve;whole-query peaks unchanged;original throughput gates fail. All three owned paths restored;no language expansion or broad current qualification."
+  },
+  "histogram_delivery_lookup_set_aside": {
+    "report": "histogram-delivery-lookup-set-aside-qualification.json",
+    "report_sha256": "c2514266131084efb293af6dd0d618e6cea1f1416ca4b42f5a885583a7529ad6",
+    "status": "rejected_under_original_frozen_compiled_cost_criteria",
+    "accepted_runtime_unchanged": true,
+    "scope": "Rejected480Step-owner private group lookup experiment. Complete debug outcomes/control/ownership pass;isolated metadata work falls. Release fixture/default-C sections grow16352/9700B,above8192each. Both implementation paths restored;no candidate complete-query or broad qualification claim."
   }
 }

@@ -2197,3 +2197,16 @@ See [the finite report](ranking-buffer-capacity-qualification.json) and
 - See [the measured record](histogram-constructor-borrowing-set-aside-qualification.json) and
   [its scope](README.md#set-aside-histogram-constructor-key-borrowing). No new owner, field, raw array,
   public/data contract or cap is retained; follow-ups do not replace primary gates.
+
+
+## Set-aside histogram delivery lookup
+
+- A private experiment sorted existing frozen nonplural active groups by numeric ID above four total groups.
+  Checked direct/binary presence lookup and locally returned positions removed repeated group scans without
+  adding a retained owner. Logical/plural enumeration, cache IDs and phase-publication points stayed unchanged.
+- Complete debug semantics, request traces, cancellation, cache flags, sample/byte ownership and work-growth
+  checks passed. Actual debug layouts agreed; complete-query gains were not measured.
+- Actual release fixture/default-C linked sections grew 16,352/9,700 bytes, exceeding the frozen 8,192-byte
+  ceiling each. Both implementation files were restored exactly. No lookup optimization is retained.
+- See [the measured record](histogram-delivery-lookup-set-aside-qualification.json) and
+  [its scope](README.md#set-aside-histogram-delivery-lookup). No changed public/storage/provider/metadata contract.

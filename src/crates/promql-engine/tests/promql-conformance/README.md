@@ -9205,3 +9205,27 @@ Broader original, reducer, native-unit, foreign, layout, C-runtime and static qu
 rejection. The report preserves two distinct helper-reader failures and their recoveries. Current debug layouts
 do not establish old/current optimized or foreign layout equality. Historical qualifications retain their actual
 identities. These finite shared-host measurements establish no new language coverage, RSS or universal speed claim.
+
+
+## Set-aside histogram delivery lookup
+
+[The measured report](histogram-delivery-lookup-set-aside-qualification.json) records a rejected private
+metadata lookup experiment. It sorted the existing active-group vector by numeric ID for frozen nonplural
+populations above four, used checked binary presence lookup, and reused resolved positions during delivery.
+Logical/plural ordering and cache IDs stayed separate. It added no persistent field, index or raw sample array.
+
+Identical old/current tests complete 480 delivery cases before the sole work-growth guard. They check complete
+outputs, labels, value bits, timestamps, ordinals, Count-request order, sample units, metadata and cleanup.
+The accepted code fails only that final guard; the candidate passes. Delivery work falls in 320 cases and
+never increases. Both sides also pass 16 cancellation fixtures, 16 terminal controls and 24 logical-cache cases.
+The calibrated cancellation checks inject 287 old and 215 candidate interruptions. Actual debug layouts agree.
+
+The first optimized cost check rejects this variant: release text+data+BSS grows by **16,352 bytes** in the query
+fixture and **9,700 bytes** in the default-feature C-linked executable. Both exceed the original **8,192-byte**
+ceiling. File size is a different measurement: the C executable file shrinks by 528 bytes despite its linked
+section growth. Both owned implementation files are restored exactly to accepted122 under signed126documents.
+
+Candidate complete-query resource/timing tests, release-min/foreign builds, fresh originals, reducer reuse,
+full optimized units, C/C++ runtime panels and full static checks did not run after this early rejection.
+Lower isolated work establishes no complete-query speed or memory gain. Historical results keep their own
+identities and failures; this record adds no language coverage, public/data contract, cap, RSS or device claim.
