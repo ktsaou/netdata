@@ -73716,5 +73716,12 @@
     "report_sha256": "df4f6663141b1cc3155cb09d277bca7146bdba25349631fcdbf533ea47c1c63f",
     "status": "qualified_private_capacity_change",
     "scope": "One existing bounded growth helper;26causal fixtures,595new originals,7140exact matches,unchanged layouts and measured finite memory/timing costs."
+  },
+  "cold_ranking_routing_set_aside": {
+    "report": "cold-ranking-routing-set-aside-qualification.json",
+    "report_sha256": "83d1782f82e99dcdb802d829361626687d41561e4520998a8c2be0fd0a56e3d0",
+    "status": "rejected_under_original_frozen_criteria",
+    "accepted_runtime_unchanged": true,
+    "scope": "Rejected finite40fixture/120delivery and292case/profile routing experiment. Original gates failed;all candidate source edits restored. No new language qualification."
   }
 }

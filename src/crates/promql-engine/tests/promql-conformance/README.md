@@ -9097,3 +9097,27 @@ ARM32 +696 and ARM64 −3,320. No public interface, installation or metric-stora
 
 From the crate root, run `cargo test --locked --release --features fixtures ranking_capacity_ -- --nocapture --test-threads=1`.
 The independent input factories are `topk_cases.capacity_cases()` and `capacity_timing_cases()`.
+
+
+## Set-aside cold ranking routing
+
+[The experiment report](cold-ranking-routing-set-aside-qualification.json) records a rejected private optimization. It used existing
+canonical-row metadata to skip unrelated heaps during cold `topk`/`bottomk` Vector delivery.
+The runtime, new test and input factory were restored exactly to accepted122; this entry changes documentation only.
+
+The unchanged causal test completes 40 fixtures and 120 deliveries before comparing work. It passes with the
+candidate: at 16 groups, local emission work falls from 2,303 to 975 with identical requests and ownership.
+The 48 complete-query pilot pairs preserve results and every serialized memory/physical observation; eight nested
+ABS queries reduce work. Bare Matrix queries retain their original path and record no work reduction.
+
+Both native profiles complete the fixed 292-case timing panel with nine measured samples per side, plus the
+prescribed follow-ups. Primary panel ratios are 0.977180/1.011955; targeted ratios are
+0.962113/0.995798, exceeding the frozen 0.95 requirement. The size profile also exceeds the
+1.05 family ceiling on small queries. All samples, slower cases, follow-ups and six linked costs remain in the report.
+Follow-ups do not replace the primary gates. The plan also mistakenly required lower bare-query work while
+preserving the Matrix fallback; that planning conflict was discovered by actual query observations and is recorded.
+
+The candidate was rejected under the original criteria. The broader original/reducer/sort/native/foreign/C/static
+roster was consequently not run; prior accepted qualifications keep their source attribution. ARM builds establish
+compiled footprint only. No compatibility, RSS or universal-throughput improvement is claimed from this experiment.
+Future navigation work needs actual whole-query admission and material benefit before extending this route.

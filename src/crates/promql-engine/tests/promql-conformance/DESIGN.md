@@ -2141,3 +2141,17 @@ live snapshot ownership and measures complete-query peaks/traffic. It preserves 
 all other exported resource fields and every slower timing; requested bytes are not an RSS contract.
 See [the finite report](ranking-buffer-capacity-qualification.json) and
 [the procedure](README.md#bounded-ranking-buffer-capacity).
+
+
+## Set-aside cold ranking routing experiment
+
+- Cold canonical-row group lookup was implemented without new persistent fields or arrays, preserving fresh
+  samples, full cold delivery, nonwinner rows, ordinary fallbacks and held-snapshot ownership.
+- Local emission-work gains did not satisfy the frozen complete-query criteria. Nested ABS benefited; bare Matrix
+  delivery remained intentionally ordinary. Size-profile small-query costs also exceeded the original allowance.
+- Requiring a bare-query work gain while preserving its unchanged Matrix admission was a planning conflict, not
+  permission to broaden admission. The implementation, added test and factory were restored exactly to accepted122.
+- Preserve the negative measurements and original criteria. Do not infer complete-query value from a local unit's
+  growth bound. Existing warm routing, storage paging, completion credit and numerical/public contracts remain.
+- See [the experiment report](cold-ranking-routing-set-aside-qualification.json) and
+  [its measured scope](README.md#set-aside-cold-ranking-routing).
