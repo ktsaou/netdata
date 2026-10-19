@@ -2079,3 +2079,15 @@ A rejected fallback-sharing experiment is recorded under
   unknown; no profile change or relaxed size gate follows.
 - **Evidence:** [ARM64 baseline reproduction](arm64-baseline-reproduction-qualification.json). This is a finite
   measurement and workflow clarification, with no accepted engine change or claimed performance gain.
+
+## Catalog validation and matching share a local view
+
+- **Ownership:** build one checked label-reference vector, validate it and pass it to the existing matcher. End
+  that local borrow before the expansion handles its boolean result. No cache, field or label-byte copy is added.
+- **Errors and phases:** preserve storage-error conversion for construction/validation and direct evaluation-error
+  conversion for matching. Keep validation before filtering, control checks, snapshots and diagnostic order.
+- **Measured trade-off:** lower allocation traffic and about 36% less evaluation time on selected metadata-heavy
+  fixtures; no measured tracked-peak reduction. All six compiled-cost gates pass, including ARM64 growth of 8,076
+  bytes. This is a local optimization with unchanged language, provider, contexts and paged-storage contracts.
+- **Evidence:** [catalog view qualification](catalog-validated-view-reuse-qualification.json) retains actual old/new
+  producers, phase controls, full query/original comparisons, C/C++, ARM, native and static checks with their limits.

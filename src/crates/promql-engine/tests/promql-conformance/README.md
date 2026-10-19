@@ -8957,3 +8957,27 @@ comparisons match. Historical source identities and original ordering policies r
 This rules out a differing baseline in this fresh attempt. It does not establish the historical inherited
 compiler environment or isolate the rejected predecessor trial's broader code-generation growth. That trial stays
 rejected. No engine, build profile, API or installation command changes, and no throughput or memory gain is claimed.
+
+## Reuse of validated catalog label views
+
+Catalog selection now uses one checked local label-reference vector for validation and matching. The vector ends
+before the series is retained, rejected or reported. This removes a redundant temporary vector and label walk;
+it adds no persistent metadata store and copies no label bytes. First-view storage errors, direct matcher
+interruptions, validation before filtering, provider diagnostics and cleanup keep their existing boundaries.
+
+[`catalog-validated-view-reuse-qualification.json`](catalog-validated-view-reuse-qualification.json) records the
+actual original/candidate controls, source phases, timings and costs. The original producer finishes all 144
+outcome/release cases before failing the redundant-enumeration guard; the candidate passes. Invalid nonmatches,
+first-view cancellation and direct matcher interruption retain their distinct errors and release all owners.
+
+Across 18 selected metadata-heavy fixture queries, median candidate/baseline evaluation ratios are 0.6369 in
+`release` and 0.6344 in `release-min`. All five query-family control medians pass the frozen 1.05 limit. These are
+fixture evaluation times, excluding compilation, decoding, output serialization and HTTP. The provider deliberately
+overscans metadata; these results do not promise the same gain for every query or a fully prefiltered provider.
+
+All 7,352 full query pairs, 4,600 retained upstream comparisons and 7,224 serialized nonelapsed observations pass
+the declared policy. Only removed work and temporary Workspace allocation/release traffic decrease. Tracked peak
+memory stays unchanged in every comparison. Both native profiles pass 848 tests with two existing tests ignored;
+focused ARM32/ARM64 checks, actual C/C++ callers, format, strict lint and installed MSRV compilation also pass.
+All six linked-cost gates pass; the ARM64 fixture grows 8,076 bytes of combined sections against an 8,192-byte cap.
+No language, public interface, build profile, storage, contexts, raw paging, limit or installation command changes.

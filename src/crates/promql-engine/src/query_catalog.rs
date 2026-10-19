@@ -203,31 +203,24 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
                             annotations,
                         });
                     }
-                    if let Err(error) = value
+                    let result = value
                         .value
                         .label_views_checked(account, control)
                         .map_err(StorageError::from)
-                        .and_then(|labels| validate_labels_checked(&labels, account, control))
-                    {
-                        return Err(ExpansionFailure {
-                            error: error.into(),
-                            annotations,
-                        });
-                    }
-                    if let Some(matchers) = matchers {
-                        let result = value
-                            .value
-                            .label_views_checked(account, control)
-                            .map_err(EvaluationError::from)
-                            .and_then(|labels| {
+                        .map_err(EvaluationError::from)
+                        .and_then(|labels| {
+                            validate_labels_checked(&labels, account, control)?;
+                            if let Some(matchers) = matchers {
                                 matches_checked(&labels, matchers, Some(account), control)
                                     .map_err(EvaluationError::from)
-                            });
-                        match result {
-                            Ok(false) => continue,
-                            Ok(true) => (),
-                            Err(error) => return Err(ExpansionFailure { error, annotations }),
-                        }
+                            } else {
+                                Ok(true)
+                            }
+                        });
+                    match result {
+                        Ok(false) => continue,
+                        Ok(true) => (),
+                        Err(error) => return Err(ExpansionFailure { error, annotations }),
                     }
                     series.push(value);
                 }
@@ -365,4 +358,286 @@ fn expansion_error(
         output.extend_from_slice(bytes);
     }
     EvaluationError::Expansion(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        accounting::MemoryKind,
+        evaluator::EvaluationError,
+        execution::{Engine, EngineOptions, ExecutionError, QueryRequest},
+        result::OwnedValue,
+        storage::{Control, Interrupted, StorageError},
+        test_storage::{FixtureProvider, observe_label_reads},
+    };
+    use std::sync::atomic::Ordering;
+
+    fn provider(count: usize, width: usize, page: usize) -> FixtureProvider {
+        let mut provider = FixtureProvider::new(3, page, count);
+        for series in &mut provider.series {
+            for index in series.labels.len()..width {
+                series
+                    .labels
+                    .push((format!("z{index:03}").into_bytes(), b"padding".to_vec()));
+            }
+            assert_eq!(series.labels.len(), width);
+        }
+        provider
+    }
+
+    #[test]
+    fn validated_views_serve_selected_and_rejected_series_without_a_second_walk() {
+        let mut guards = Vec::new();
+        let mut complete = 0;
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for count in [1, 64] {
+                    for width in [3, 32] {
+                        for range in [false, true] {
+                            for (source, selected) in [
+                                ("counter_total{instance=\"absent\"}", 0),
+                                ("counter_total{instance=\"0\"}", 1),
+                                ("counter_total{instance=~\"0|1\"}", count.min(2)),
+                            ] {
+                                let provider = provider(count, width, page);
+                                let engine = Engine::default();
+                                let control = Control::default();
+                                let query = engine
+                                    .compile(
+                                        source.as_bytes(),
+                                        EngineOptions {
+                                            delayed_name_removal: delayed,
+                                            ..EngineOptions::default()
+                                        },
+                                        &control,
+                                    )
+                                    .unwrap();
+                                let request = if range {
+                                    QueryRequest::Range {
+                                        start_ms: 1000,
+                                        end_ms: 3000,
+                                        step_ms: 1000,
+                                    }
+                                } else {
+                                    QueryRequest::Instant { time_ms: 3000 }
+                                };
+                                let (report, reads) = observe_label_reads(&control, None, || {
+                                    query.collect_reported(&provider, request, &control)
+                                });
+                                let result = report.result.as_ref().unwrap();
+                                assert!(report.annotations.is_empty());
+                                assert!(result.scalar.is_none());
+                                assert_eq!(result.series.len(), selected);
+                                let times = if range {
+                                    &[1000_i64, 2000, 3000][..]
+                                } else {
+                                    &[3000_i64][..]
+                                };
+                                for (index, row) in result.series.iter().enumerate() {
+                                    let expected = &provider.series[index].labels;
+                                    assert_eq!(row.labels.0.len(), expected.len());
+                                    for (actual, (name, value)) in row.labels.0.iter().zip(expected)
+                                    {
+                                        assert_eq!(&*actual.name, name.as_slice());
+                                        assert_eq!(&*actual.value, value.as_slice());
+                                    }
+                                    assert_eq!(row.points.len(), times.len());
+                                    for (point, &time_ms) in row.points.iter().zip(times) {
+                                        assert_eq!(point.time_ms, time_ms);
+                                        let OwnedValue::Float(value) = &point.value else {
+                                            panic!("expected complete float result");
+                                        };
+                                        assert_eq!(
+                                            value.to_bits(),
+                                            (time_ms as f64 / 1000.0).to_bits()
+                                        );
+                                    }
+                                }
+                                assert_eq!(
+                                    report.observations.output_samples,
+                                    (selected * times.len()) as u64
+                                );
+                                assert_eq!(
+                                    provider.counts.series_opened.load(Ordering::Relaxed),
+                                    count
+                                );
+                                if selected == 0 {
+                                    assert_eq!(report.observations.samples_fetched, 0);
+                                    assert_eq!(
+                                        provider.series[0]
+                                            .source
+                                            .counters
+                                            .opened
+                                            .load(Ordering::Relaxed),
+                                        0
+                                    );
+                                    guards.push((page, delayed, count, width, range, reads));
+                                }
+                                let workspace =
+                                    report.observations.memory[MemoryKind::Workspace as usize];
+                                println!(
+                                    "catalog outcome page={page} delayed={delayed} count={count} width={width} range={range} selected={selected} reads={reads} work={} acquired={} released={} peak={}",
+                                    report.observations.work,
+                                    workspace.acquired,
+                                    workspace.released,
+                                    workspace.peak
+                                );
+                                provider.assert_closed();
+                                drop((report, query));
+                                engine.accounting.snapshot().assert_memory_released();
+                                complete += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(complete, 144);
+        assert_eq!(guards.len(), 48);
+        println!("catalog complete144-values-labels-times-annotations-physical-reads-release");
+        for (page, delayed, count, width, range, reads) in guards {
+            assert_eq!(
+                reads,
+                count * width,
+                "duplicate catalog label walk: page={page} delayed={delayed} count={count} width={width} range={range}"
+            );
+        }
+    }
+
+    #[test]
+    fn validation_errors_and_label_cancellation_precede_filtering_and_release() {
+        for page in [1, 17, 1024] {
+            for (malformed, expected) in [
+                (0, "empty label name"),
+                (1, "label names are not unique and sorted"),
+                (2, "label names are not unique and sorted"),
+            ] {
+                let mut provider = provider(1, 32, page);
+                provider.series[0].source.fail_page = Some(0);
+                match malformed {
+                    0 => provider.series[0].labels[0].0.clear(),
+                    1 => {
+                        let duplicate = provider.series[0].labels[0].clone();
+                        provider.series[0].labels.push(duplicate);
+                    }
+                    _ => provider.series[0].labels.swap(0, 1),
+                }
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        b"counter_total{instance=\"absent\"}",
+                        EngineOptions::default(),
+                        &control,
+                    )
+                    .unwrap();
+                let report = query.collect_reported(
+                    &provider,
+                    QueryRequest::Instant { time_ms: 3000 },
+                    &control,
+                );
+                assert!(matches!(
+                    &report.result,
+                    Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Invalid(message))))
+                        if *message == expected
+                ));
+                assert_eq!(
+                    provider.series[0]
+                        .source
+                        .counters
+                        .opened
+                        .load(Ordering::Relaxed),
+                    0
+                );
+                assert_eq!(report.observations.samples_fetched, 0);
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+            for cancel_at in [1, 16, 32] {
+                let provider = provider(1, 32, page);
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        b"counter_total{instance=\"absent\"}",
+                        EngineOptions::default(),
+                        &control,
+                    )
+                    .unwrap();
+                let (report, reads) = observe_label_reads(&control, Some(cancel_at), || {
+                    query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 3000 },
+                        &control,
+                    )
+                });
+                assert!(matches!(
+                    &report.result,
+                    Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                        StorageError::Interrupted(Interrupted::Cancelled)
+                    )))
+                ));
+                assert_eq!(reads, cancel_at);
+                assert!(report.annotations.is_empty());
+                assert_eq!(report.observations.samples_fetched, 0);
+                assert_eq!(
+                    provider.series[0]
+                        .source
+                        .counters
+                        .opened
+                        .load(Ordering::Relaxed),
+                    0
+                );
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+        println!("catalog validation complete9-invalid-nonmatches-and9-cancelled-walks");
+        for page in [1, 17, 1024] {
+            let mut provider = provider(1, 3, page);
+            provider.series[0].labels[1].1 = vec![b'a'; 65_536];
+            provider.series[0].source.fail_page = Some(0);
+            let source = format!("counter_total{{instance=\"{}\"}}", "a".repeat(65_536));
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(source.as_bytes(), EngineOptions::default(), &control)
+                .unwrap();
+            let account = query.execution_accounting();
+            let report =
+                crate::test_storage::interrupt_after_work(&account, &control, 8192, || {
+                    query.collect_reported_in(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 3000 },
+                        &control,
+                        &account,
+                    )
+                });
+            assert!(matches!(
+                &report.result,
+                Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                    Interrupted::Cancelled
+                )))
+            ));
+            assert!(control.cancellation.cancelled());
+            assert!((8192..9216).contains(&report.observations.work));
+            assert_eq!(report.observations.samples_fetched, 0);
+            assert_eq!(
+                provider.series[0]
+                    .source
+                    .counters
+                    .opened
+                    .load(Ordering::Relaxed),
+                0
+            );
+            provider.assert_closed();
+            drop((report, query));
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+        println!("catalog matcher interruption complete3-direct-errors-after-validation");
+    }
 }

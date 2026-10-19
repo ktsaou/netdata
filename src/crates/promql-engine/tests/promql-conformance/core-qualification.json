@@ -73650,5 +73650,22 @@
     "serialized_observation_pairs": 831,
     "retained_original_comparisons": 575,
     "scope": "One unchanged-source fresh ARM64 fixture;all131prior objects preserved. No compiler-cause,historical environment equality or performance gain claim."
+  },
+  "catalog_validated_view_reuse": {
+    "status": "qualified",
+    "report": "catalog-validated-view-reuse-qualification.json",
+    "report_sha256": "397ad4bd889bb784cdfa31a97d695da1f57a0b617ea18a13e7a8ddff7be122b2",
+    "comparison_base": "66cc9d29daae278fceca154b00004daca90ea50a",
+    "accepted_runtime_changed": true,
+    "candidate_source_sha256": "d5684b27cdf57c9f15d1b7a947ac5ec333006ee7c72becd00f96e700022903bd",
+    "complete_query_pairs": 7352,
+    "serialized_observation_pairs": 7224,
+    "retained_original_comparisons": 4600,
+    "timing_primary_selected_ratios": {
+      "release": 0.6368957899426748,
+      "release-min": 0.634412789283407
+    },
+    "tracked_peak_delta_bytes": 0,
+    "scope": "One local catalog descriptor view reused for validation and matching. All132prior objects and prose preserved. Allocation traffic and selected fixture evaluation improve;no peak-memory, new language/live/API/concurrency/RSS claim."
   }
 }

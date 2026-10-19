@@ -1,0 +1,760 @@
+{
+  "schema_version": 1,
+  "status": "qualified_catalog_validated_view_reuse",
+  "comparison_base": "66cc9d29daae278fceca154b00004daca90ea50a",
+  "accepted_runtime_changed": true,
+  "change": "Use the same checked, validated local label-reference vector for catalog matching; drop it before retaining, rejecting or reporting the series. No persistent metadata or label-byte copy.",
+  "source": {
+    "path": "src/crates/promql-engine/src/query_catalog.rs",
+    "before_sha256": "48e83e3183c778ca711596c57fb757336278de5bbbd0463baa3d2cd74b8d8b22",
+    "candidate_sha256": "d5684b27cdf57c9f15d1b7a947ac5ec333006ee7c72becd00f96e700022903bd",
+    "accepted_before_inputs": 372,
+    "candidate_qualified_inputs": 372,
+    "historical_compiled_baseline_inputs": 369,
+    "historical_noncompiled_extra_reports": 3,
+    "phases": {
+      ".tmp/catalog-views-it81gtud/before-source.json": "6bb0a38f30313e0d8248babb3c6e9524574b446275ec237d904f8ce696b021d4",
+      ".tmp/catalog-views-it81gtud/runtime-phase-source.json": "54e4433ccbc0e4f3bff632f80fb2937fcd3715498fc8db34abd22ecf33b8016d",
+      ".tmp/catalog-views-it81gtud/runtime-source.json": "fb3433a613adb60ff423e6923808dc3d43b82e4d7fd983d0d84f5e65d803b5d3",
+      ".tmp/catalog-views-it81gtud/tests-phase-source.json": "0e2a50684a3fe4f00b1637a004aa5e0df7e164db5848341ffe06e049cd36d4d6",
+      ".tmp/catalog-views-it81gtud/tests-source.json": "d30fb549f205638c7d2db95db63b8a4cd18fd1baefd9058b3cdcc12e29339dc3"
+    },
+    "phase_note": "Initial and extended tests ran against actual original production. Initial candidate source was not compiled; the extended runtime-phase is the qualified candidate. Original and candidate extended test bodies are identical."
+  },
+  "preserved_contracts": [
+    "First view construction and validation errors convert through StorageError; matcher interruption converts directly through EvaluationError.",
+    "Validation before filtering, checked matching, provider snapshots, diagnostic/error order and handle/temporary lifetime boundaries remain in place.",
+    "No ABI, interface, dependency, compiler profile, numerical algorithm, storage, contexts, paging, field layout or cap policy change."
+  ],
+  "focused_producer_control": {
+    "focused_units": 2,
+    "complete_owner_cases": 144,
+    "invalid_nonmatches": 9,
+    "first_view_cancellations": 9,
+    "direct_matcher_interruptions": 3,
+    "actual_enumeration_guard": "PASS",
+    "exact_removed_walk_work_per_case": true,
+    "workspace_acquired_released_lower": true,
+    "no_peak_increase": true
+  },
+  "old_producer_control": "Both original-production test binaries finish all144complete outcome/release cases before the intended6-versus3enumeration failure. Extended controls also pass9invalid nonmatches, 9first-view interruptions and3direct matcher interruptions. These two expected exit101children are retained,not counted as passing enumeration guards.",
+  "focused_resource_deltas": {
+    "removed_label_reads_and_work": "Exactly series_count*label_width in all144cases.",
+    "workspace_acquired_and_released_reduction_bytes": [
+      {
+        "series": 1,
+        "labels": 3,
+        "bytes": 128
+      },
+      {
+        "series": 64,
+        "labels": 3,
+        "bytes": 8192
+      },
+      {
+        "series": 1,
+        "labels": 32,
+        "bytes": 1920
+      },
+      {
+        "series": 64,
+        "labels": 32,
+        "bytes": 122880
+      }
+    ],
+    "tracked_peak_delta_bytes": 0,
+    "meaning": "One redundant temporary vector and its growth sequence removed per returned series; the two vectors were sequential,so this reduces allocation traffic rather than tracked peak RAM."
+  },
+  "timing": {
+    "protocol": "Four alternating before/current blocks per profile;one warmup and two measured requests per case/block,eight measured samples per arm. Thirty cases,eighteen selected miss-group/miss-id/narrow-id cases. Exactly one identical followup for primary>=1.05;none needed.",
+    "complete_pairs": 720,
+    "serialized_observation_pairs": 720,
+    "profiles": [
+      {
+        "label": "release",
+        "followup": {},
+        "slow_primary_case_ids": [],
+        "primary_selected_median_ratio": 0.6368957899426748,
+        "effective_family_median_ratios": {
+          "miss-group": 0.6336756312664271,
+          "miss-id": 0.6179053602609663,
+          "narrow-id": 0.6465581400380944,
+          "sum": 0.9723647818888226,
+          "sum-rate": 0.9567780873749046
+        },
+        "gain_gate_passed": true,
+        "family_gate_passed": true
+      },
+      {
+        "label": "release-min",
+        "followup": {},
+        "slow_primary_case_ids": [],
+        "primary_selected_median_ratio": 0.634412789283407,
+        "effective_family_median_ratios": {
+          "miss-group": 0.63837864098367,
+          "miss-id": 0.6262216140581992,
+          "narrow-id": 0.6352855665499673,
+          "sum": 0.9296591881334264,
+          "sum-rate": 0.8984152139483608
+        },
+        "gain_gate_passed": true,
+        "family_gate_passed": true
+      }
+    ],
+    "retention_policy": {
+      "selected_families": [
+        "miss-group",
+        "miss-id",
+        "narrow-id"
+      ],
+      "selected_cases": 18,
+      "primary_repetitions": 8,
+      "warmups": 1,
+      "selected_median_max_ratio": 0.98,
+      "family_median_max_ratio": 1.05,
+      "one_identical_followup_for_primary_at_least": 1.05,
+      "maximum_combined_link_growth_bytes": 8192,
+      "chosen_links": 6,
+      "observations": "Complete outcomes exact. All nonelapsed fields exact except work and Workspace acquired/released may decrease by removed descriptor walks/vectors;Workspace peak may decrease,no tracked peak/current increase. Explicit unmatched-owner tests directly discriminate enumeration and resource deltas."
+    },
+    "scope": "Synthetic paged-provider engine evaluation elapsed time. Excludes compile,decode, serialization and HTTP;not a universal factor or live/concurrent/physical-device/RSS result."
+  },
+  "complete_queries": {
+    "complete_pairs": 7352,
+    "serialized_observation_pairs": 7224,
+    "original_comparisons": 4600,
+    "cohorts": [
+      {
+        "label": "release",
+        "page": 1,
+        "pairs": 919,
+        "observation_pairs": 903,
+        "originals": 575,
+        "panels": [
+          {
+            "panel": "reader-ordinary",
+            "cases": 228,
+            "passed": 228,
+            "failed": 0
+          },
+          {
+            "panel": "reader-clipped",
+            "cases": 32,
+            "passed": 32,
+            "failed": 0
+          },
+          {
+            "panel": "reader-zero",
+            "cases": 20,
+            "passed": 20,
+            "failed": 0
+          },
+          {
+            "panel": "fold-join",
+            "cases": 280,
+            "passed": 280,
+            "failed": 0
+          },
+          {
+            "panel": "native-matrix-copy",
+            "cases": 15,
+            "passed": 15,
+            "failed": 0
+          }
+        ]
+      },
+      {
+        "label": "release",
+        "page": 17,
+        "pairs": 919,
+        "observation_pairs": 903,
+        "originals": 575,
+        "panels": [
+          {
+            "panel": "reader-ordinary",
+            "cases": 228,
+            "passed": 228,
+            "failed": 0
+          },
+          {
+            "panel": "reader-clipped",
+            "cases": 32,
+            "passed": 32,
+            "failed": 0
+          },
+          {
+            "panel": "reader-zero",
+            "cases": 20,
+            "passed": 20,
+            "failed": 0
+          },
+          {
+            "panel": "fold-join",
+            "cases": 280,
+            "passed": 280,
+            "failed": 0
+          },
+          {
+            "panel": "native-matrix-copy",
+            "cases": 15,
+            "passed": 15,
+            "failed": 0
+          }
+        ]
+      },
+      {
+        "label": "release",
+        "page": 1024,
+        "pairs": 919,
+        "observation_pairs": 903,
+        "originals": 575,
+        "panels": [
+          {
+            "panel": "reader-ordinary",
+            "cases": 228,
+            "passed": 228,
+            "failed": 0
+          },
+          {
+            "panel": "reader-clipped",
+            "cases": 32,
+            "passed": 32,
+            "failed": 0
+          },
+          {
+            "panel": "reader-zero",
+            "cases": 20,
+            "passed": 20,
+            "failed": 0
+          },
+          {
+            "panel": "fold-join",
+            "cases": 280,
+            "passed": 280,
+            "failed": 0
+          },
+          {
+            "panel": "native-matrix-copy",
+            "cases": 15,
+            "passed": 15,
+            "failed": 0
+          }
+        ]
+      },
+      {
+        "label": "release-min",
+        "page": 1,
+        "pairs": 919,
+        "observation_pairs": 903,
+        "originals": 575,
+        "panels": [
+          {
+            "panel": "reader-ordinary",
+            "cases": 228,
+            "passed": 228,
+            "failed": 0
+          },
+          {
+            "panel": "reader-clipped",
+            "cases": 32,
+            "passed": 32,
+            "failed": 0
+          },
+          {
+            "panel": "reader-zero",
+            "cases": 20,
+            "passed": 20,
+            "failed": 0
+          },
+          {
+            "panel": "fold-join",
+            "cases": 280,
+            "passed": 280,
+            "failed": 0
+          },
+          {
+            "panel": "native-matrix-copy",
+            "cases": 15,
+            "passed": 15,
+            "failed": 0
+          }
+        ]
+      },
+      {
+        "label": "release-min",
+        "page": 17,
+        "pairs": 919,
+        "observation_pairs": 903,
+        "originals": 575,
+        "panels": [
+          {
+            "panel": "reader-ordinary",
+            "cases": 228,
+            "passed": 228,
+            "failed": 0
+          },
+          {
+            "panel": "reader-clipped",
+            "cases": 32,
+            "passed": 32,
+            "failed": 0
+          },
+          {
+            "panel": "reader-zero",
+            "cases": 20,
+            "passed": 20,
+            "failed": 0
+          },
+          {
+            "panel": "fold-join",
+            "cases": 280,
+            "passed": 280,
+            "failed": 0
+          },
+          {
+            "panel": "native-matrix-copy",
+            "cases": 15,
+            "passed": 15,
+            "failed": 0
+          }
+        ]
+      },
+      {
+        "label": "release-min",
+        "page": 1024,
+        "pairs": 919,
+        "observation_pairs": 903,
+        "originals": 575,
+        "panels": [
+          {
+            "panel": "reader-ordinary",
+            "cases": 228,
+            "passed": 228,
+            "failed": 0
+          },
+          {
+            "panel": "reader-clipped",
+            "cases": 32,
+            "passed": 32,
+            "failed": 0
+          },
+          {
+            "panel": "reader-zero",
+            "cases": 20,
+            "passed": 20,
+            "failed": 0
+          },
+          {
+            "panel": "fold-join",
+            "cases": 280,
+            "passed": 280,
+            "failed": 0
+          },
+          {
+            "panel": "native-matrix-copy",
+            "cases": 15,
+            "passed": 15,
+            "failed": 0
+          }
+        ]
+      },
+      {
+        "label": "arm32",
+        "page": 17,
+        "pairs": 919,
+        "observation_pairs": 903,
+        "originals": 575,
+        "panels": [
+          {
+            "panel": "reader-ordinary",
+            "cases": 228,
+            "passed": 228,
+            "failed": 0
+          },
+          {
+            "panel": "reader-clipped",
+            "cases": 32,
+            "passed": 32,
+            "failed": 0
+          },
+          {
+            "panel": "reader-zero",
+            "cases": 20,
+            "passed": 20,
+            "failed": 0
+          },
+          {
+            "panel": "fold-join",
+            "cases": 280,
+            "passed": 280,
+            "failed": 0
+          },
+          {
+            "panel": "native-matrix-copy",
+            "cases": 15,
+            "passed": 15,
+            "failed": 0
+          }
+        ]
+      },
+      {
+        "label": "arm64",
+        "page": 17,
+        "pairs": 919,
+        "observation_pairs": 903,
+        "originals": 575,
+        "panels": [
+          {
+            "panel": "reader-ordinary",
+            "cases": 228,
+            "passed": 228,
+            "failed": 0
+          },
+          {
+            "panel": "reader-clipped",
+            "cases": 32,
+            "passed": 32,
+            "failed": 0
+          },
+          {
+            "panel": "reader-zero",
+            "cases": 20,
+            "passed": 20,
+            "failed": 0
+          },
+          {
+            "panel": "fold-join",
+            "cases": 280,
+            "passed": 280,
+            "failed": 0
+          },
+          {
+            "panel": "native-matrix-copy",
+            "cases": 15,
+            "passed": 15,
+            "failed": 0
+          }
+        ]
+      }
+    ],
+    "differences": []
+  },
+  "observation_policy": "Complete outputs/errors/annotations/labels/timestamps/bits exact. Serialized nonelapsed observations exact except removed work and Workspace acquired/released/peak reductions. All7224measured peak deltas are zero;all other memory categories,physical reads,provider and temporary-backing fields exact. Existing original order policies remain unchanged.",
+  "actual_c_callers": {
+    "profiles": [
+      "release",
+      "release-min"
+    ],
+    "c_before_current_pairs": 1632,
+    "current_cpp_controls": 1632,
+    "current_c_cpp_exact": true,
+    "full_current_c_suites_terminal_zero": 2,
+    "scope": "Unchanged C11/C++17 programs linked to actual default archives. Complete lifecycle records preserve statuses,output counts,internal statistics,physical reads,all memory categories and callback/error phases with only declared work/Workspace reductions. Query fixtures do not serialize every internal statistic;these C comparisons check them."
+  },
+  "units": {
+    "release": {
+      "passed": 848,
+      "existing_ignored": 2
+    },
+    "release-min": {
+      "passed": 848,
+      "existing_ignored": 2
+    },
+    "emulated_arm32_focused_passed": 6,
+    "emulated_arm64_focused_passed": 6
+  },
+  "static": {
+    "strict_clippy_variants": 2,
+    "format": true,
+    "installed_msrv_compile_only": "1.91.0"
+  },
+  "linked_footprint": {
+    "maximum_combined_text_data_bss_growth_bytes": 8192,
+    "costs": [
+      {
+        "kind": "fixture",
+        "label": "release",
+        "before": {
+          "path": ".tmp/last-owners-7fappohc/pilot-release/promql-query-fixture",
+          "sha256": "36bb8e02fdc84c49ccb2b28f3877325133c1e4ca0e29034d41fb7608b49e8dc8"
+        },
+        "before_sections": {
+          "text": 4463346,
+          "data": 259512,
+          "bss": 1940
+        },
+        "before_file_bytes": 5742096,
+        "current": {
+          "path": ".tmp/catalog-views-it81gtud/pilot-release/promql-query-fixture",
+          "sha256": "6d9ef6c8119478c99f1b086933b1f860f9eb56c5f0da3dffe8ef2985fb48c903"
+        },
+        "current_sections": {
+          "text": 4463078,
+          "data": 259512,
+          "bss": 2228
+        },
+        "current_file_bytes": 5741760,
+        "section_deltas": {
+          "text": -268,
+          "data": 0,
+          "bss": 288
+        },
+        "file_delta": -336
+      },
+      {
+        "kind": "default-embedding-C",
+        "label": "release",
+        "before": {
+          "path": ".tmp/last-owners-7fappohc/pilot-release/embedding-current",
+          "sha256": "e5444832312b7790082e701a7cace37d5ade159e07679f56dd07d6a654e60752"
+        },
+        "before_sections": {
+          "text": 7580518,
+          "data": 506520,
+          "bss": 400
+        },
+        "before_file_bytes": 13943536,
+        "current": {
+          "path": ".tmp/catalog-views-it81gtud/pilot-release/embedding-current",
+          "sha256": "66ecb7b2e8489fad531bfbf36a92d8b1a365abd36ae0d43ea0fb5cf22f466c11"
+        },
+        "current_sections": {
+          "text": 7561826,
+          "data": 506456,
+          "bss": 400
+        },
+        "current_file_bytes": 13914976,
+        "section_deltas": {
+          "text": -18692,
+          "data": -64,
+          "bss": 0
+        },
+        "file_delta": -28560
+      },
+      {
+        "kind": "fixture",
+        "label": "release-min",
+        "before": {
+          "path": ".tmp/last-owners-7fappohc/pilot-release-min/promql-query-fixture",
+          "sha256": "45918776f509ee123b4276585533ca12cef9472dee3542164804f5c2eeba568f"
+        },
+        "before_sections": {
+          "text": 2824545,
+          "data": 246024,
+          "bss": 3428
+        },
+        "before_file_bytes": 3640400,
+        "current": {
+          "path": ".tmp/catalog-views-it81gtud/pilot-release-min/promql-query-fixture",
+          "sha256": "fdd4458782843a9464cc5c72623a114f313d3dfa5c571fafe07f176b65d13fb0"
+        },
+        "current_sections": {
+          "text": 2824301,
+          "data": 246024,
+          "bss": 3684
+        },
+        "current_file_bytes": 3640144,
+        "section_deltas": {
+          "text": -244,
+          "data": 0,
+          "bss": 256
+        },
+        "file_delta": -256
+      },
+      {
+        "kind": "default-embedding-C",
+        "label": "release-min",
+        "before": {
+          "path": ".tmp/last-owners-7fappohc/pilot-release-min/embedding-current",
+          "sha256": "4719386314c96bd23e5691d2d536e0001ab31306e55185e06cce357e57b792c1"
+        },
+        "before_sections": {
+          "text": 5098671,
+          "data": 461824,
+          "bss": 400
+        },
+        "before_file_bytes": 11614336,
+        "current": {
+          "path": ".tmp/catalog-views-it81gtud/pilot-release-min/embedding-current",
+          "sha256": "ce3f83928ba99b00818cdddd063d9eb014cbaac2dfabaf116184fa65e229b07b"
+        },
+        "current_sections": {
+          "text": 5098503,
+          "data": 461824,
+          "bss": 400
+        },
+        "current_file_bytes": 11614336,
+        "section_deltas": {
+          "text": -168,
+          "data": 0,
+          "bss": 0
+        },
+        "file_delta": 0
+      },
+      {
+        "kind": "fixture",
+        "label": "arm32",
+        "before": {
+          "path": ".tmp/last-owners-7fappohc/pilot-arm32/promql-query-fixture",
+          "sha256": "bcf019df93a1bdf5ad7a0c810d5b25e65e0f0bd678338142e31f07121c3c088a"
+        },
+        "before_sections": {
+          "text": 3777838,
+          "data": 164568,
+          "bss": 212
+        },
+        "before_file_bytes": 5062648,
+        "current": {
+          "path": ".tmp/catalog-views-it81gtud/pilot-arm32/promql-query-fixture",
+          "sha256": "62f50bb3246094a55c94e30f32cd70b0eeb9f935ff47a47c1919c1e9e08a6fb3"
+        },
+        "current_sections": {
+          "text": 3777818,
+          "data": 164568,
+          "bss": 212
+        },
+        "current_file_bytes": 5062796,
+        "section_deltas": {
+          "text": -20,
+          "data": 0,
+          "bss": 0
+        },
+        "file_delta": 148
+      },
+      {
+        "kind": "fixture",
+        "label": "arm64",
+        "before": {
+          "path": ".tmp/last-owners-7fappohc/pilot-arm64/promql-query-fixture",
+          "sha256": "451431087650c967ebfe38fd6d1e6c11b0810d0fffd3e930f9df08f14f824e00"
+        },
+        "before_sections": {
+          "text": 3675499,
+          "data": 253040,
+          "bss": 328
+        },
+        "before_file_bytes": 5092920,
+        "current": {
+          "path": ".tmp/catalog-views-it81gtud/pilot-arm64/promql-query-fixture",
+          "sha256": "f864babb88cd041789f6e12b1458f6214f1321a810d8b30f2fe9d65439794619"
+        },
+        "current_sections": {
+          "text": 3683575,
+          "data": 253040,
+          "bss": 328
+        },
+        "current_file_bytes": 5158760,
+        "section_deltas": {
+          "text": 8076,
+          "data": 0,
+          "bss": 0
+        },
+        "file_delta": 65840
+      }
+    ],
+    "passed": true,
+    "scope": "Six actual linked fixtures/default-C programs; ARM64fixture grows8076bytes, native release C shrinks18756bytes. These are combined sections,not file sizes or process RSS."
+  },
+  "compiler_evidence": {
+    "installed_toolchain": "Rust1.97.1",
+    "locked_offline": true,
+    "jobs": 2,
+    "nice": 10,
+    "relevant_inherited_overrides": {},
+    "verbose_effective_commands_retained": true,
+    "settings_and_tools": {
+      "build-environment.json": {
+        "path": ".tmp/catalog-views-it81gtud/build-environment.json",
+        "sha256": "bd85bb0a00eb405f0efff27b9473ff042320cde7ed58f09d52d7c5e08f903e6d"
+      },
+      "tool-identities.json": {
+        "path": ".tmp/catalog-views-it81gtud/tool-identities.json",
+        "sha256": "752db7c73c07bfb5d239b1fb57fbe70cc0317a83f7df9225d6d6d568ed0d3bcd"
+      }
+    },
+    "historical_note": "Immutable actual369-input binaries remain attributed to their original build. Missing historical inherited settings remain unknown."
+  },
+  "receipts": {
+    "planning.json": {
+      "path": ".tmp/catalog-views-it81gtud/planning.json",
+      "sha256": "dc336e3651a66c22e4c731f297e8f2f9423c8af8f704a0703bc24501bfe6000e"
+    },
+    "ready.json": {
+      "path": ".tmp/catalog-views-it81gtud/ready.json",
+      "sha256": "af4c413a311c9d456d9e969e5763f6d7b59b38b5c2a7e43aabdaa1c1de540058"
+    },
+    "old-producer.json": {
+      "path": ".tmp/catalog-views-it81gtud/old-producer.json",
+      "sha256": "082470f2c88d35493e3845dc7347f62108fe0a0bd19bb8ac33d7b8b3d0b1aece"
+    },
+    "old-phase-producer.json": {
+      "path": ".tmp/catalog-views-it81gtud/old-phase-producer.json",
+      "sha256": "9e13af896be84edd9080d8b2e7ddf2d9bfa39d20fba085d1c37a3fb2b97a344d"
+    },
+    "green.json": {
+      "path": ".tmp/catalog-views-it81gtud/green.json",
+      "sha256": "a1045653980bdef010c3be7a7bd98fb08a685f99b7c911e696ae8690c3be7617"
+    },
+    "pilot-release-build.json": {
+      "path": ".tmp/catalog-views-it81gtud/pilot-release-build.json",
+      "sha256": "ff56539cf73090a25b3ad58feb72c5f48f7b0bf78ebe7c1cb12ae55816e0d77e"
+    },
+    "pilot-release-min-build.json": {
+      "path": ".tmp/catalog-views-it81gtud/pilot-release-min-build.json",
+      "sha256": "3f0d8c6dcc1a0afdf6c584865528281da3a89a4b0839cc20bbdea0c5c71a20c3"
+    },
+    "pilot-arm32-build.json": {
+      "path": ".tmp/catalog-views-it81gtud/pilot-arm32-build.json",
+      "sha256": "39d16adc8f4877f137e36632d4f7e9a99246e6809c3f7994a029337d3d029ff5"
+    },
+    "pilot-arm64-build.json": {
+      "path": ".tmp/catalog-views-it81gtud/pilot-arm64-build.json",
+      "sha256": "a554497cd4890a381ed3c8a3bd36e09573e865b6ad9d3bd66faf10fc08604ca2"
+    },
+    "size-gate.json": {
+      "path": ".tmp/catalog-views-it81gtud/size-gate.json",
+      "sha256": "78c87e4e9f9836faa1b977aa5425ba255ff9675f9a0cb5d82ce09385b23d6d68"
+    },
+    "timing.json": {
+      "path": ".tmp/catalog-views-it81gtud/timing.json",
+      "sha256": "ba5741929e90c618c85f0917681128ddf6510a592d6889d922efa4843d144c1e"
+    },
+    "complete-query-comparison.json": {
+      "path": ".tmp/catalog-views-it81gtud/complete-query-comparison.json",
+      "sha256": "10a3833ebda24af6f626cb834247542a1ef41a0d17cbe125752205200db3330a"
+    },
+    "callers-release.json": {
+      "path": ".tmp/catalog-views-it81gtud/callers-release.json",
+      "sha256": "0c545ed7202cad83bf49a0b1d8d39edd8d35aefd41c96d9212465f4e55b89783"
+    },
+    "callers-release-min.json": {
+      "path": ".tmp/catalog-views-it81gtud/callers-release-min.json",
+      "sha256": "d5a65d4e4301796fcc5510d00d0a9e6df040d5eb3e1d7abcb4d0f6035e7df159"
+    },
+    "current-release-build.json": {
+      "path": ".tmp/catalog-views-it81gtud/current-release-build.json",
+      "sha256": "6ee71c9f21a18d8f236399eb504ca8c63aade53e62689e814c064344a0ff257f"
+    },
+    "current-release-min-build.json": {
+      "path": ".tmp/catalog-views-it81gtud/current-release-min-build.json",
+      "sha256": "d1710c47cf5c22534d065227d43644ed24f968a975b5026ae1d01108bd5b2a99"
+    },
+    "current-arm32-build.json": {
+      "path": ".tmp/catalog-views-it81gtud/current-arm32-build.json",
+      "sha256": "fb9dc095486c951ca7c701e3f86f9fd9e17aad50925826263d6edc00215447ca"
+    },
+    "current-arm64-build.json": {
+      "path": ".tmp/catalog-views-it81gtud/current-arm64-build.json",
+      "sha256": "b37a8f1f3dfcb9a11086848b0b3669d30c645097263dca114f4af57a2af17824"
+    },
+    "current-static.json": {
+      "path": ".tmp/catalog-views-it81gtud/current-static.json",
+      "sha256": "db4bf934d480cb5606d1e671ea3c12e5f1ac3855391add591788989775a006b8"
+    }
+  },
+  "limitations": [
+    "The synthetic provider deliberately overscans metadata. Netdata prefilters certain names/IDs/context but other chart labels still require core matching. No guaranteed gain for a fully prefiltered provider.",
+    "No new live dbengine/API,whole-Agent,foreign C,physical-device,concurrency,allocator RSS or universal compiler-footprint qualification. Existing integration is unchanged.",
+    "No new language-coverage claim or peak-memory saving. Continuous improvement goal remains active."
+  ]
+}
