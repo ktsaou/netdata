@@ -8916,8 +8916,11 @@ remain recorded. Ordinary controls vary; this is not a universal throughput fact
 the saving is reference operations, not heap allocation or raw-data bytes.
 
 All six linked cost gates pass. Combined text/data/BSS deltas are −12,304 / −148 bytes for release fixture / C,
-−12 / +200 for release-min, −8 for ARM32 and −1,180 for ARM64. Static symbol inventories distinguish exact methods
-from related specializations and do not establish runtime stack high-water or RSS. Partial native-copy allocation
+−12 / +200 for release-min, −8 for ARM32 and −1,180 for ARM64. The concrete receive method grows 158 / 135 bytes;
+finish sizes are unchanged. Final review identified an owner-spelling filter omission: the corrected inventory
+appends the omitted method and closure ranges from the same immutable links, preserving the original partial
+record. Static inventories distinguish exact methods from related specializations and do not establish runtime
+stack high-water or RSS. Partial native-copy allocation
 at work budget 8,192 is source-derived from reserve/chunk order; the test's general peak assertion alone does not
 identify that phase. No live-service, concurrent, whole-Agent, physical-device or new foreign-C claim is made.
 

@@ -2049,8 +2049,10 @@ A rejected fallback-sharing experiment is recorded under
   peak assertion is not an independent phase discriminator.
 - **Measured trade-off:** selected fixed-query median time is about 7–8% lower in both native profiles, with unchanged
   query memory/work/reads/statistics. Five chosen linked artifacts shrink; the size-optimized default-C link grows
-  200 bytes. Every slower control and all six linked costs remain explicit. These are finite fixture costs and
-  timings, not universal throughput, RSS or physical-device guarantees.
+  200 bytes. Concrete receive text grows 158 / 135 bytes, with unchanged finish sizes. The corrected static
+  inventory appends owner methods and closures missed by the initial spelling filter, preserving the original
+  partial record and unchanged linked gates. Every slower control and all six linked costs remain explicit.
+  These are finite fixture costs and timings, not universal throughput, RSS or physical-device guarantees.
 - **Evidence record:** [Last owner qualification](last-owner-reuse-qualification.json), with its actual 369-input
   candidate and 368-input accepted baseline. The prior report-only addition and all historical identities remain
   explicit. Other predecessor owners have separate semantics and remain independent future opportunities.
