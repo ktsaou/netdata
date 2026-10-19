@@ -9149,3 +9149,31 @@ unestablished. Foreign builds, the remaining cost/layout checks and broader orig
 were consequently not run. Prior accepted qualifications keep their actual source and binary attribution.
 No language, RSS or universal-throughput gain is claimed. A later variant needs fresh measurements against the
 accepted engine, including the same small-query controls.
+
+
+## Set-aside first ranking-item controller
+
+[The experiment report](ranking-first-item-set-aside-qualification.json) records a rejected private optimization. It skipped the initial
+`heap_push(1)` controller after the first accepted member of each group. This controller performs two transitions
+and no comparison or swap. Initial validation, filtering, allocation, sample expiry and later programs stayed ordinary.
+Runtime, tests, timing factory and the test-only C statistic observer were restored exactly to accepted122.
+
+The identical causal body completes 136 fixtures, 408 cold/warm/next-clock deliveries and eight post-append
+cancellations per side before its final work guard. Accepted code fails only there; the candidate passes.
+Membership, labels, raw values, requests, observed comparisons and heap mutations, snapshots and byte/sample
+ownership match. All 240 complete-query pilot pairs also match; the 192 cases with insertions perform less work,
+with exactly unchanged physical reads and all serialized memory/reference/backing observations.
+
+The fixed 292-case panel has 74 families and 128 targets per profile, with nine measured samples per arm.
+Primary current/before targeted time ratios are 1.008546 for release
+and 0.989996 for release-min; the required ceiling is 0.97.
+Whole-panel medians are 1.017215/0.993201.
+The report preserves every failed original gate, slower primary case and prescribed follow-up. Follow-ups never
+replace primary acceptance. Four linked section deltas are fixture/default-C +16/+684 bytes for release and
+0/+32 for release-min. Their small size does not establish a query-speed benefit.
+
+The candidate fails the original throughput criteria and is not retained. Broader native, foreign, original,
+reducer, sort, C-runtime and static qualification did not run after rejection. The C observer's syntax checks
+do not establish runtime statistic equality. The old test wrapper also had a stale filename after its children
+finished; its failure is preserved separately from the intended red guard. Existing qualification keeps its actual
+source/binary attribution. No new language coverage, lower raw-data memory or universal-throughput claim follows.

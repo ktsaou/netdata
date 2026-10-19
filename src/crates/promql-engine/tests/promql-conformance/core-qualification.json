@@ -73730,5 +73730,12 @@
     "status": "rejected_under_original_frozen_criteria",
     "accepted_runtime_unchanged": true,
     "scope": "Rejected152fixture/456delivery/28fault and292case/profile Push experiment. Original timing gates failed;all candidate edits restored. No new language qualification."
+  },
+  "ranking_first_item_set_aside": {
+    "report": "ranking-first-item-set-aside-qualification.json",
+    "report_sha256": "79713df0bd203d796cb665e815e498026beff437ce5a887ef709c05e7e786350",
+    "status": "rejected_under_original_frozen_criteria",
+    "accepted_runtime_unchanged": true,
+    "scope": "Rejected136fixture/408delivery/8cancellation and292case/profile first-item experiment. Original timing gates failed;all three owned paths restored. No new language qualification."
   }
 }

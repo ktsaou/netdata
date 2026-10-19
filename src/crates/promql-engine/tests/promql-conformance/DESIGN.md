@@ -2170,3 +2170,16 @@ See [the finite report](ranking-buffer-capacity-qualification.json) and
 - See [the measured record](ranking-push-value-set-aside-qualification.json) and
   [its qualification scope](README.md#set-aside-incoming-ranking-value-reuse). No new field, sample array, cap,
   public contract, data format or metadata owner is retained.
+
+
+## Set-aside first ranking-item controller experiment
+
+- The first accepted member of a group needs no heap comparison. A private experiment omitted only the
+  `heap_push(1)` Step/Done controller after successful append, preserving group/Scan state and sample expiry.
+- Causal delivery, control and ownership checks pass. Complete-query work falls with exactly unchanged
+  physical acquisition and serialized byte/reference/backing observations.
+- The original complete-query throughput gates fail. Runtime, causal/helper tests, factory and test-only C
+  observer are restored exactly; the optimization is not retained. Fewer transitions do not establish faster queries.
+- See [the measured record](ranking-first-item-set-aside-qualification.json) and
+  [its scope](README.md#set-aside-first-ranking-item-controller). Follow-ups do not replace failed primary gates;
+  no new field, raw array, cap, public contract, data format or metadata owner is retained.
