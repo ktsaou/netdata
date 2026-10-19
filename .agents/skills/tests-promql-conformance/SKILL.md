@@ -31,6 +31,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   Keep historical attribution and compress new query captures without restoring duplicate raw files.
 - Exercise pages 1, 17 and 1024 when changing cursor/replay ownership or temporal evaluation.
 - Record compiler profile, binary hash, source hashes and comparison policy for each new cohort.
+  For compiled footprint or timing comparisons, also retain relevant inherited Rust/Cargo/profile overrides,
+  resolved tool identities and verbose effective compiler commands. Use an environment allowlist; keep missing
+  historical settings explicitly unknown.
 - Bind the comparison runner and imported helper bytes before and after each new cohort.
 - Finalize artifact hashes after their owned writers finish; exclude a receipt from its own artifact map.
 

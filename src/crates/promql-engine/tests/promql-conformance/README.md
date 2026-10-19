@@ -8945,3 +8945,15 @@ The remaining two links, timing and broader optimized qualification were skipped
 No throughput improvement or passing all-six cost gate is claimed. All trial/intermediate/binary evidence remains
 separate from accepted-source qualification. Installation, API usage, language coverage and memory contracts are
 unchanged; the continuous improvement goal remains active.
+
+## Reproduced unchanged ARM64 baseline
+
+A fresh private-target build of the accepted engine reproduces the retained ARM64 fixture byte for byte.
+[`arm64-baseline-reproduction-qualification.json`](arm64-baseline-reproduction-qualification.json) records the
+binary, compiler settings, tools and verbose commands. File size, GNU/ELF sections and selected function rows
+match exactly. All 847 page-17 query pairs, 831 serialized nonelapsed observation pairs and 575 retained upstream
+comparisons match. Historical source identities and original ordering policies remain explicit.
+
+This rules out a differing baseline in this fresh attempt. It does not establish the historical inherited
+compiler environment or isolate the rejected predecessor trial's broader code-generation growth. That trial stays
+rejected. No engine, build profile, API or installation command changes, and no throughput or memory gain is claimed.

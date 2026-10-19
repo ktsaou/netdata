@@ -1,0 +1,321 @@
+{
+  "schema_version": 1,
+  "status": "unchanged_arm64_baseline_reproduced",
+  "comparison_base": "d0080643570802f9bd11253527a6f5adc11b45d1",
+  "accepted_runtime_changed": false,
+  "accepted_source_manifest": ".tmp/arm-baseline-bdypbcws/before-source.json",
+  "accepted_source_manifest_sha256": "dada05875e140b9522913eb4d2e78101659013925c2be0bebe0dbf1f7ad621ce",
+  "accepted_inputs": 371,
+  "historical_compiled_inputs": 369,
+  "noncompiled_delta": [
+    "src/crates/promql-engine/tests/promql-conformance/last-owner-reuse-qualification.json",
+    "src/crates/promql-engine/tests/promql-conformance/previous-owner-reuse-rejected-qualification.json"
+  ],
+  "build": {
+    "target": "aarch64-unknown-linux-gnu",
+    "profile": "release",
+    "features": [
+      "fixtures"
+    ],
+    "toolchain": "installed Rust 1.97.1",
+    "linker": "aarch64-linux-gnu-gcc-14",
+    "fresh_private_target": true,
+    "locked_offline": true,
+    "jobs": 2,
+    "nice": 10,
+    "relevant_inherited_overrides": {},
+    "verbose_compiler_commands_retained": true,
+    "tool_identities_and_hashes_retained": true,
+    "explicit_settings": [
+      "CARGO_TARGET_DIR=<private fresh target>",
+      "CARGO_NET_OFFLINE=true",
+      "RUSTC_BOOTSTRAP=0",
+      "RUSTUP_AUTO_INSTALL=0",
+      "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc-14"
+    ]
+  },
+  "binary_comparison": {
+    "before": {
+      "path": ".tmp/last-owners-7fappohc/pilot-arm64/promql-query-fixture",
+      "sha256": "451431087650c967ebfe38fd6d1e6c11b0810d0fffd3e930f9df08f14f824e00",
+      "file_bytes": 5092920,
+      "gnu_sections": {
+        "text": 3675499,
+        "data": 253040,
+        "bss": 328
+      },
+      "elf_sections": {
+        ".text": {
+          "type": "PROGBITS",
+          "address": "0x000000000003ad80",
+          "file_offset": 241024,
+          "bytes": 2654980
+        },
+        ".rodata": {
+          "type": "PROGBITS",
+          "address": "0x00000000002c30c0",
+          "file_offset": 2896064,
+          "bytes": 296672
+        },
+        ".eh_frame": {
+          "type": "PROGBITS",
+          "address": "0x0000000000313720",
+          "file_offset": 3225376,
+          "bytes": 264544
+        },
+        ".data": {
+          "type": "PROGBITS",
+          "address": "0x00000000003d0000",
+          "file_offset": 3932160,
+          "bytes": 2568
+        },
+        ".bss": {
+          "type": "NOBITS",
+          "address": "0x00000000003d0a08",
+          "file_offset": 3934728,
+          "bytes": 256
+        }
+      }
+    },
+    "fresh": {
+      "path": ".tmp/arm-baseline-bdypbcws/promql-query-fixture",
+      "sha256": "451431087650c967ebfe38fd6d1e6c11b0810d0fffd3e930f9df08f14f824e00",
+      "file_bytes": 5092920,
+      "gnu_sections": {
+        "text": 3675499,
+        "data": 253040,
+        "bss": 328
+      },
+      "elf_sections": {
+        ".text": {
+          "type": "PROGBITS",
+          "address": "0x000000000003ad80",
+          "file_offset": 241024,
+          "bytes": 2654980
+        },
+        ".rodata": {
+          "type": "PROGBITS",
+          "address": "0x00000000002c30c0",
+          "file_offset": 2896064,
+          "bytes": 296672
+        },
+        ".eh_frame": {
+          "type": "PROGBITS",
+          "address": "0x0000000000313720",
+          "file_offset": 3225376,
+          "bytes": 264544
+        },
+        ".data": {
+          "type": "PROGBITS",
+          "address": "0x00000000003d0000",
+          "file_offset": 3932160,
+          "bytes": 2568
+        },
+        ".bss": {
+          "type": "NOBITS",
+          "address": "0x00000000003d0a08",
+          "file_offset": 3934728,
+          "bytes": 256
+        }
+      }
+    }
+  },
+  "comparisons": {
+    "binary_sha256_equal": true,
+    "file_delta": 0,
+    "gnu_section_deltas": {
+      "text": 0,
+      "data": 0,
+      "bss": 0
+    },
+    "elf_selected_section_size_deltas": {
+      ".text": 0,
+      ".rodata": 0,
+      ".eh_frame": 0,
+      ".data": 0,
+      ".bss": 0
+    },
+    "diagnostic_symbol_rows_identical": true
+  },
+  "diagnostic_symbols": {
+    "before": [
+      {
+        "symbol": "netdata_promql_engine::calendar::write_rfc3339::<netdata_promql_engine::binary_labels::Writer>",
+        "address": "0x00000000001f4730",
+        "text_bytes": 576
+      },
+      {
+        "symbol": "<netdata_promql_engine::range_reduce::FoldStep>::finish_pass::{closure#1}",
+        "address": "0x0000000000265bb4",
+        "text_bytes": 844
+      },
+      {
+        "symbol": "<netdata_promql_engine::range_reduce::FoldStep>::receive::{closure#0}",
+        "address": "0x0000000000265f00",
+        "text_bytes": 140
+      },
+      {
+        "symbol": "<netdata_promql_engine::float_text::Decimal>::new",
+        "address": "0x0000000000172a60",
+        "text_bytes": 448
+      },
+      {
+        "symbol": "<netdata_promql_engine::execution::CompiledQuery>::request_timing",
+        "address": "0x0000000000236098",
+        "text_bytes": 708
+      },
+      {
+        "symbol": "<netdata_promql_engine::range_reduce::FoldStep>::finish_pass",
+        "address": "0x00000000002738cc",
+        "text_bytes": 1452
+      },
+      {
+        "symbol": "<netdata_promql_engine::range_reduce::FoldStep>::receive",
+        "address": "0x0000000000273e78",
+        "text_bytes": 4328
+      },
+      {
+        "symbol": "netdata_promql_engine::frontend::number::duration_in",
+        "address": "0x0000000000232260",
+        "text_bytes": 1228
+      },
+      {
+        "symbol": "netdata_promql_engine::frontend::number::number_in",
+        "address": "0x0000000000232768",
+        "text_bytes": 1120
+      }
+    ],
+    "fresh": [
+      {
+        "symbol": "netdata_promql_engine::calendar::write_rfc3339::<netdata_promql_engine::binary_labels::Writer>",
+        "address": "0x00000000001f4730",
+        "text_bytes": 576
+      },
+      {
+        "symbol": "<netdata_promql_engine::range_reduce::FoldStep>::finish_pass::{closure#1}",
+        "address": "0x0000000000265bb4",
+        "text_bytes": 844
+      },
+      {
+        "symbol": "<netdata_promql_engine::range_reduce::FoldStep>::receive::{closure#0}",
+        "address": "0x0000000000265f00",
+        "text_bytes": 140
+      },
+      {
+        "symbol": "<netdata_promql_engine::float_text::Decimal>::new",
+        "address": "0x0000000000172a60",
+        "text_bytes": 448
+      },
+      {
+        "symbol": "<netdata_promql_engine::execution::CompiledQuery>::request_timing",
+        "address": "0x0000000000236098",
+        "text_bytes": 708
+      },
+      {
+        "symbol": "<netdata_promql_engine::range_reduce::FoldStep>::finish_pass",
+        "address": "0x00000000002738cc",
+        "text_bytes": 1452
+      },
+      {
+        "symbol": "<netdata_promql_engine::range_reduce::FoldStep>::receive",
+        "address": "0x0000000000273e78",
+        "text_bytes": 4328
+      },
+      {
+        "symbol": "netdata_promql_engine::frontend::number::duration_in",
+        "address": "0x0000000000232260",
+        "text_bytes": 1228
+      },
+      {
+        "symbol": "netdata_promql_engine::frontend::number::number_in",
+        "address": "0x0000000000232768",
+        "text_bytes": 1120
+      }
+    ]
+  },
+  "query_comparison": {
+    "complete_pairs": 847,
+    "serialized_observation_pairs": 831,
+    "original_comparisons": 575,
+    "differences": [],
+    "original_failure_panels": [],
+    "original_reports": [
+      {
+        "panel": "reader-ordinary",
+        "cases": 228,
+        "ordered": true,
+        "required": 228,
+        "passed": 228,
+        "failed": 0,
+        "open": {},
+        "bitwise_differences": []
+      },
+      {
+        "panel": "reader-clipped",
+        "cases": 32,
+        "ordered": true,
+        "required": 32,
+        "passed": 32,
+        "failed": 0,
+        "open": {},
+        "bitwise_differences": []
+      },
+      {
+        "panel": "reader-zero",
+        "cases": 20,
+        "ordered": true,
+        "required": 20,
+        "passed": 20,
+        "failed": 0,
+        "open": {},
+        "bitwise_differences": []
+      },
+      {
+        "panel": "fold-join",
+        "cases": 280,
+        "ordered": false,
+        "required": 280,
+        "passed": 280,
+        "failed": 0,
+        "open": {},
+        "bitwise_differences": []
+      },
+      {
+        "panel": "native-matrix-copy",
+        "cases": 15,
+        "ordered": true,
+        "required": 15,
+        "passed": 15,
+        "failed": 0,
+        "open": {},
+        "bitwise_differences": []
+      }
+    ]
+  },
+  "query_policy": "Page17under installed QEMU;complete outputs/errors/annotations/labels/timestamps/bits and serialized nonelapsed observations. Ordered readers/native,unordered fold-join original policy unchanged. Both new captures gzip1with verified original raw and compressed digests through EOF.",
+  "receipts": {
+    "reference-build.json": {
+      "path": ".tmp/arm-baseline-bdypbcws/reference-build.json",
+      "sha256": "043bcaaba792613c440ee2a9af0bd8bf8af6afea6c6d2bebf8345d2f3a95da47"
+    },
+    "ready.json": {
+      "path": ".tmp/arm-baseline-bdypbcws/ready.json",
+      "sha256": "dc7024586f8b01916e114c54ac5cefc64e9682d4e0dbeec3d084383f98e588e7"
+    },
+    "artifact-comparison.json": {
+      "path": ".tmp/arm-baseline-bdypbcws/artifact-comparison.json",
+      "sha256": "50de001a93c9d612e58208fd5e588ef8c981fccfcfcc2b03c0a0cec6250b1c48"
+    },
+    "query-comparison.json": {
+      "path": ".tmp/arm-baseline-bdypbcws/query-comparison.json",
+      "sha256": "a3de59fc40d5360b03b2ffbfdd2af76b5e2153443f175ba7808104200fd47387"
+    }
+  },
+  "workflow_lesson": "Conformance compiler-evidence guidance now includes relevant inherited overrides, resolved tools and verbose effective compiler commands. It does not reconstruct missing historical settings.",
+  "limitations": [
+    "One fresh unchanged-source ARM64 fixture matches the retained binary exactly. This establishes current baseline reproducibility,not universal compiler determinism or historical environment equality.",
+    "The rejected predecessor trial remains rejected;this result does not isolate the cause of its broader code-generation changes and does not justify relaxing its fixed size gate.",
+    "No engine/profile/dependency/public-interface/storage/contexts/accounting/cap change. No throughput gain,new memory reduction,native/C/live/physical-device/RSS/concurrency claim.",
+    "Continuous improvement goal remains active;this is a finite measurement record."
+  ]
+}

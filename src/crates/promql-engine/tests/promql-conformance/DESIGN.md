@@ -2069,3 +2069,13 @@ A rejected fallback-sharing experiment is recorded under
   snapshots and compiled artifacts separately. No public contract, query-memory rule or implicit cap changes.
 - **Evidence:** [rejected predecessor qualification](previous-owner-reuse-rejected-qualification.json). The
   diagnostic function-size changes extend outside the edited module; compiler causality remains unisolated.
+
+## Unchanged ARM64 compilation discriminator
+
+- **Measurement:** rebuild the accepted source with a fresh private target, recording relevant inherited compiler
+  overrides, resolved tools and verbose commands. Retain the historical source and binary attribution separately.
+- **Outcome:** exact binary/section/selected-body equality; all 847 query pairs and 575 upstream comparisons match.
+  The current baseline reproduces. Historical uncaptured settings and the rejected trial's compiler cause remain
+  unknown; no profile change or relaxed size gate follows.
+- **Evidence:** [ARM64 baseline reproduction](arm64-baseline-reproduction-qualification.json). This is a finite
+  measurement and workflow clarification, with no accepted engine change or claimed performance gain.

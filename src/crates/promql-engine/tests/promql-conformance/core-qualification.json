@@ -73638,5 +73638,17 @@
     "failed_combined_growth_bytes": 24076,
     "frozen_maximum_growth_bytes": 8192,
     "scope": "Four actual links measured;remaining2/timing/broad candidate qualification skipped. All130prior objects and accepted source preserved;no runtime gain claimed."
+  },
+  "unchanged_arm64_baseline_reproduction": {
+    "status": "fresh_binary_exactly_reproduced",
+    "report": "arm64-baseline-reproduction-qualification.json",
+    "report_sha256": "ec8f777a26ba5896473a7d1f3489b9c0a9438d0dedbbd72fd4027d6f68983cf2",
+    "comparison_base": "d0080643570802f9bd11253527a6f5adc11b45d1",
+    "accepted_runtime_changed": false,
+    "binary_sha256": "451431087650c967ebfe38fd6d1e6c11b0810d0fffd3e930f9df08f14f824e00",
+    "complete_query_pairs": 847,
+    "serialized_observation_pairs": 831,
+    "retained_original_comparisons": 575,
+    "scope": "One unchanged-source fresh ARM64 fixture;all131prior objects preserved. No compiler-cause,historical environment equality or performance gain claim."
   }
 }
