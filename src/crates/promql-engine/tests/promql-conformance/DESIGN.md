@@ -1975,6 +1975,9 @@ owns the measured trade-off, complete failed/slower evidence and candidate-speci
 
 ## Completed instant rate float windows
 
+A rejected fallback-sharing experiment is recorded under
+[rejected shared instant rate fallback](#rejected-shared-instant-rate-fallback).
+
 - **Choice:** a local InstantStep scan collects its existing Float tails during the existing eligible initial
   matrix probe. Require pristine tails and preserve start fields; constructors, receive, finish, derived
   receive-driven evaluation and persistent layout remain unchanged.
@@ -1991,3 +1994,19 @@ owns the measured trade-off, complete failed/slower evidence and candidate-speci
   peak. Native/mixed fallback costs, eight persistent mixed follow-ups per profile, all slower controls and
   linked code growth remain explicit in the [finite report](instant-rate-acquisition-qualification.json).
   This qualification establishes neither uniform speed nor lower process RSS.
+
+## Rejected shared instant rate fallback
+
+- **Experiment:** move the identical window/geometry/pristine-tail checks into ordinary guarded tuple
+  dispatch and share the existing generic Step receiver for unproven Instant inputs. Probe, consuming
+  fallback, terminal phases, numeric finish, derived receive and persistent fields stayed unchanged.
+- **Result:** native default-C text shrank, but ARM32 fixture text grew 70,248 bytes and ARM64 grew 512.
+  This failed the all-target nonincrease rule recorded before source changes. Semantic, resource and
+  native timing successes could not override that gate.
+- **Disposition:** reverse only the two own source chunks and verify all accepted source hashes.
+  Keep the original `InstantStep::scan` fallback. No candidate production change is retained.
+- **Evidence:** the [negative report](rejected-instant-fallback-qualification.json) distinguishes the
+  candidate source/binaries from the restored accepted implementation and retains all slower controls.
+- **Lesson:** compiler/code-generation effects differ by target. Native linked savings do not establish
+  ARM savings; check the selected linked artifacts before broader qualification. Fixture costs do not
+  by themselves measure production ARM C or whole-Agent footprint.

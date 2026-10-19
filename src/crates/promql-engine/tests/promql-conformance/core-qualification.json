@@ -73545,5 +73545,30 @@
     "new_language_features": 0,
     "public_contract_changes": 0,
     "scope": "Completed pristine pure-float irate/idelta acquisition omits a consuming walk. Exact retained outcomes and paged/control/accounting contracts pass. All work/read/time gains,native/mixed costs and linked growth remain explicit;no new feature,foreign-baseline private layout or uniform/live/RSS claim."
+  },
+  "rejected_shared_instant_rate_fallback": {
+    "status": "rejected_finite_experiment",
+    "decision": "reject",
+    "report": "rejected-instant-fallback-qualification.json",
+    "report_sha256": "0a602f7b8a67cd242da9af4e501652945b5d66575d6fc976a04123b47a6d4ce9",
+    "comparison_base": "0b2f77b1681eb9e56765e9be5c48c1dd18663b9d",
+    "candidate_source_inputs": 367,
+    "candidate_source_manifest_sha256": "7dfc25df0e3dd8a29ba99962f022fe8fb23cc550cee36426b29c9a9daa5f5a93",
+    "retained_source_restored_exactly": true,
+    "failed_gates": [
+      {
+        "gate": "six_linked_text_totals",
+        "label": "arm32",
+        "kind": "fixture",
+        "text_delta_bytes": 70248
+      },
+      {
+        "gate": "six_linked_text_totals",
+        "label": "arm64",
+        "kind": "fixture",
+        "text_delta_bytes": 512
+      }
+    ],
+    "scope": "Rejected private guard/fallback experiment. Candidate passes finite semantic/resource/native timing checks but increases ARM fixture text,violating frozen gate. Exact accepted production source restored;candidate evidence keeps its actual source/binary attribution. No retained runtime gain."
   }
 }

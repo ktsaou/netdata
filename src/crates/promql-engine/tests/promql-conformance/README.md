@@ -8710,6 +8710,9 @@ implicit limits remain disabled.
 
 ## Completed instant rate float windows
 
+A rejected fallback-sharing experiment is recorded under
+[rejected shared instant rate fallback](#rejected-shared-instant-rate-fallback).
+
 Ordinary float `irate` and `idelta` now collect their existing last two endpoints during initial matrix
 validation. A completed pure-float acquisition uses one cursor walk instead of two, with the same N useful
 reads. Both start-timestamp modes and counter resets retain the existing numeric finish. No persistent field,
@@ -8779,3 +8782,49 @@ separately; foreign baseline private sizes were not measured. Entry stack reserv
 runtime stack high-water. Results are finite fixture evidence, not traffic-weighted, live, concurrent,
 physical-device, whole-Agent, RSS or Cloud measurements. This change adds no language feature or query limit;
 raw histories remain paged and implicit limits remain disabled.
+
+## Rejected shared instant rate fallback
+
+A private experiment moved the existing `irate`/`idelta` acquisition checks from `InstantStep::scan`
+into guarded tuple dispatch in `evaluate`. Admitted windows kept the original probe and consumption;
+unproven inputs shared the generic `Step::receive` traversal. No field, buffer, receiver, arithmetic,
+derived evaluation, public interface or test changed.
+
+The experiment was **rejected and fully undone**. Its pre-recorded rule required both native default-C
+text totals to shrink and all six matched linked text totals to be nonincreasing. Native savings did
+not predict the ARM fixture costs:
+
+| Linked binary | Cohort | Candidate text-byte change |
+| --- | --- | ---: |
+| fixture | release | -15,012 |
+| default-embedding-C | release | -61,624 |
+| fixture | release-min | -18,240 |
+| default-embedding-C | release-min | -12,808 |
+| fixture | arm32 | +70,248 |
+| fixture | arm64 | +512 |
+
+The selected 48 float cases had candidate/before median timing ratios 1.006457 in release and
+0.995607 in release-min. All effective-family timing gates passed. The fixed 112-case panel used
+nine measured samples per arm and one identical follow-up per primary ratio >=1.05; every sample and
+slower control remains in the [negative qualification](rejected-instant-fallback-qualification.json).
+These timing results do not override the failed footprint gate.
+
+The rejected candidate passed 839 existing tests plus two existing ignored checks per native profile,
+23 focused owners on each emulated ARM target, 4,656 complete before/candidate pairs and another 768
+optimized pilot pairs. The full panel includes 2,480 retained Prometheus-original comparisons under
+the unchanged comparison policy. Complete before/candidate results and all nonelapsed observations
+were equal, including work, physical calls/reads, statistics, reference lifetimes and all eight memory
+categories. Actual C callers passed 480 paired rate arms, 480 matching C++ controls and both full C
+suites. Strict Clippy, formatting and installed Rust 1.91 compile-only checks passed.
+
+Only the two experimental source chunks were reversed. All 367 accepted source hashes match again;
+candidate binaries, source snapshots and measurements retain their own attribution. The previously
+accepted acquisition behavior, including its mixed-histogram costs, remains in place. No candidate
+production code or new language feature is retained.
+
+ARM figures are feature-enabled fixture builds, not production ARM C or whole-Agent measurements.
+GNU size text totals and symbol sums are distinct; the report preserves data/BSS/file and emitted
+body costs too. This experiment establishes no retained throughput, query-memory, RSS, stack, live,
+concurrent, physical-device or Cloud gain. A useful lesson for future footprint experiments is to
+measure every selected target early, before the broader test rebuilds. Raw histories remain paged
+across time and metrics; implicit limits remain disabled.
