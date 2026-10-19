@@ -9121,3 +9121,31 @@ The candidate was rejected under the original criteria. The broader original/red
 roster was consequently not run; prior accepted qualifications keep their source attribution. ARM builds establish
 compiled footprint only. No compatibility, RSS or universal-throughput improvement is claimed from this experiment.
 Future navigation work needs actual whole-query admission and material benefit before extending this route.
+
+
+## Set-aside incoming ranking-value reuse
+
+[The experiment report](ranking-push-value-set-aside-qualification.json) records a rejected private `topk`/`bottomk` optimization.
+It reused one already validated incoming Float during heap insertion, through existing scratch and its query-owned
+sample lease. Fresh ancestors, heap fixes, final sorting and emitted values kept their existing acquisition paths.
+The runtime, added causal test and timing factory were restored exactly to accepted122.
+
+The identical causal test completes 152 fixtures, 456 deliveries and 28 cancellation/kind faults before checking
+redundant incoming reads. Accepted code fails only that final guard; the candidate passes. Comparisons, observed
+heap swaps, complete output labels/bits/times, fresh emission and byte/sample ownership agree. The 96 complete-query
+pilot pairs also agree; all 48 selected bare/ABS pairs reduce pages, fetched samples, provider calls and work.
+Tracked peaks do not increase. In one 16-group `topk(5)` case, fetched samples fall from 13,152 to 12,384 and Workspace
+allocation traffic falls by 158,208 bytes, with unchanged tracked Workspace peak.
+
+The fixed 292-case timing panel uses nine measured samples per side and preserves every prescribed follow-up.
+Release targeted median current/before time is 0.918814; release-min is 0.981992, missing the frozen 0.97 requirement.
+Both profiles exceed the original 1.05 family ceiling on single-series controls. Primary whole-panel medians are
+0.960180/1.017853. Follow-ups never replace primary gates. The four measured native linked section deltas are
+fixture/default-C +4/+1,296 bytes for release and +4/+300 for release-min.
+
+The candidate was rejected under the original criteria. Its read and allocation savings remain useful evidence,
+but do not justify the failed timing controls. The instruction-level cause of those small-query costs remains
+unestablished. Foreign builds, the remaining cost/layout checks and broader original/reducer/sort/C/static suites
+were consequently not run. Prior accepted qualifications keep their actual source and binary attribution.
+No language, RSS or universal-throughput gain is claimed. A later variant needs fresh measurements against the
+accepted engine, including the same small-query controls.

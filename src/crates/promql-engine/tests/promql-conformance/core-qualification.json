@@ -73723,5 +73723,12 @@
     "status": "rejected_under_original_frozen_criteria",
     "accepted_runtime_unchanged": true,
     "scope": "Rejected finite40fixture/120delivery and292case/profile routing experiment. Original gates failed;all candidate source edits restored. No new language qualification."
+  },
+  "ranking_push_value_set_aside": {
+    "report": "ranking-push-value-set-aside-qualification.json",
+    "report_sha256": "90030410c6650f0b45b525f486720ce46d307fd256384ed0d38bc4f0bc551d80",
+    "status": "rejected_under_original_frozen_criteria",
+    "accepted_runtime_unchanged": true,
+    "scope": "Rejected152fixture/456delivery/28fault and292case/profile Push experiment. Original timing gates failed;all candidate edits restored. No new language qualification."
   }
 }

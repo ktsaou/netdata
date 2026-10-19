@@ -2155,3 +2155,18 @@ See [the finite report](ranking-buffer-capacity-qualification.json) and
   growth bound. Existing warm routing, storage paging, completion credit and numerical/public contracts remain.
 - See [the experiment report](cold-ranking-routing-set-aside-qualification.json) and
   [its measured scope](README.md#set-aside-cold-ranking-routing).
+
+
+## Set-aside incoming ranking-value experiment
+
+- One validated Float can serve all initial heap-insertion ancestor comparisons through existing scratch and its
+  exact one-unit query lease. It must supply the comparison directly, leaving the skipped value/owner slot unused.
+- The tested boundary was initial certified Push only. Root clears before Fix, which can compare two children;
+  retaining another candidate there could add a third live value. Sort and final emission remain fresh.
+- The candidate preserves observed results and owners and reduces complete-query reads/work/allocation traffic.
+  It nevertheless fails the original small-query timing families and the size profile's targeted gain requirement.
+- Reject the candidate and restore runtime, added test and factory exactly. Do not replace failed primary criteria
+  with follow-ups or infer instruction-level causes from observed timing alone.
+- See [the measured record](ranking-push-value-set-aside-qualification.json) and
+  [its qualification scope](README.md#set-aside-incoming-ranking-value-reuse). No new field, sample array, cap,
+  public contract, data format or metadata owner is retained.
