@@ -1,0 +1,535 @@
+{
+  "schema_version": 1,
+  "reference_commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+  "dataset_id": "617637ebff1f95082b166cbc08b81d91a5bacb77df8e6213f7f263aaa103c8ad",
+  "dataset": {
+    "schema_version": 1,
+    "series": [
+      {
+        "labels": [
+          {
+            "name": "X19uYW1lX18=",
+            "value": "aGlzdG9ncmFtX3NhbXBsZQ=="
+          }
+        ],
+        "points": [
+          {
+            "time_ms": 0,
+            "kind": "float_histogram",
+            "float_histogram": {
+              "reset_hint": 0,
+              "schema": 0,
+              "zero_threshold": "0000000000000000",
+              "zero_count": "0000000000000000",
+              "count": "3ff0000000000000",
+              "sum": "3ff0000000000000",
+              "positive_spans": null,
+              "negative_spans": null,
+              "positive_buckets": null,
+              "negative_buckets": null,
+              "custom_values": null
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "default_original_binary_sha256": "22d18b1d74b10374276ab38745b85e3573fdce5495a00086e1c98df8014847db",
+    "default_original_build_binding_sha256": "aca5f4a43b8b00385a9ab20d85ab9fcf82ae0308a5b475ef7478ae964f2f3460",
+    "default_original_source_file_sha256": "e3151702f7e6fc3a7d97319f0410d29374d124bc52f616f59508c79d23fef5ea",
+    "upstream_original_stream_sha256": "912efd9174dc3e249a89f84c789880de9423213961b634f291dc92d99c32475c",
+    "upstream_test_file_sha256": "04b1655168755367f99342c408e55f1c3ae070a9a1625deab85ad76e08240918",
+    "meaning": "Two fresh server-default instant originals and four unchanged historical upstream-test outcomes. Exact integer hour values; no numeric tolerance needed."
+  },
+  "default_original": {
+    "cases": [
+      {
+        "events": [
+          {
+            "event": "querier_open",
+            "time_ms": 0,
+            "target_ms": 0
+          },
+          {
+            "event": "querier_close"
+          }
+        ],
+        "executed_ast": [
+          {
+            "parents": [],
+            "text": "hour()",
+            "type": "*parser.Call"
+          }
+        ],
+        "header": {
+          "end_ms": 0,
+          "interval_ns": 0,
+          "lookback_ns": 300000000000,
+          "maxt": 0,
+          "mint": 0,
+          "start_ms": 0
+        },
+        "prepared_ast": [
+          {
+            "parents": [],
+            "text": "hour()",
+            "type": "*parser.Call"
+          }
+        ],
+        "raw_ast": [
+          {
+            "parents": [],
+            "text": "hour()",
+            "type": "*parser.Call"
+          }
+        ],
+        "request": {
+          "id": "public-hour:default:implicit",
+          "query_bytes": "aG91cigp",
+          "profile": "server-default",
+          "mode": "instant",
+          "time_ms": 0,
+          "start_ms": 0,
+          "end_ms": 0,
+          "step_ms": 0,
+          "lookback_ms": 300000,
+          "subquery_step_ms": 60000
+        },
+        "result": {
+          "id": "public-hour:default:implicit",
+          "kind": "vector",
+          "rows": [
+            {
+              "labels": [],
+              "points": [
+                {
+                  "time_ms": 0,
+                  "kind": "float",
+                  "float": "0000000000000000"
+                }
+              ]
+            }
+          ],
+          "warnings": [],
+          "infos": []
+        }
+      },
+      {
+        "events": [
+          {
+            "event": "querier_open",
+            "time_ms": 0,
+            "target_ms": 0
+          },
+          {
+            "event": "querier_close"
+          }
+        ],
+        "executed_ast": [
+          {
+            "parents": [],
+            "text": "hour(vector(1136239445))",
+            "type": "*parser.Call"
+          },
+          {
+            "parents": [
+              "*parser.Call"
+            ],
+            "text": "vector(1136239445)",
+            "type": "*parser.StepInvariantExpr"
+          },
+          {
+            "parents": [
+              "*parser.Call",
+              "*parser.StepInvariantExpr"
+            ],
+            "text": "vector(1136239445)",
+            "type": "*parser.Call"
+          },
+          {
+            "parents": [
+              "*parser.Call",
+              "*parser.StepInvariantExpr",
+              "*parser.Call"
+            ],
+            "text": "1136239445",
+            "type": "*parser.NumberLiteral"
+          }
+        ],
+        "header": {
+          "end_ms": 0,
+          "interval_ns": 0,
+          "lookback_ns": 300000000000,
+          "maxt": 0,
+          "mint": 0,
+          "start_ms": 0
+        },
+        "prepared_ast": [
+          {
+            "parents": [],
+            "text": "hour(vector(1136239445))",
+            "type": "*parser.Call"
+          },
+          {
+            "parents": [
+              "*parser.Call"
+            ],
+            "text": "vector(1136239445)",
+            "type": "*parser.StepInvariantExpr"
+          },
+          {
+            "parents": [
+              "*parser.Call",
+              "*parser.StepInvariantExpr"
+            ],
+            "text": "vector(1136239445)",
+            "type": "*parser.Call"
+          },
+          {
+            "parents": [
+              "*parser.Call",
+              "*parser.StepInvariantExpr",
+              "*parser.Call"
+            ],
+            "text": "1136239445",
+            "type": "*parser.NumberLiteral"
+          }
+        ],
+        "raw_ast": [
+          {
+            "parents": [],
+            "text": "hour(vector(1136239445))",
+            "type": "*parser.Call"
+          },
+          {
+            "parents": [
+              "*parser.Call"
+            ],
+            "text": "vector(1136239445)",
+            "type": "*parser.Call"
+          },
+          {
+            "parents": [
+              "*parser.Call",
+              "*parser.Call"
+            ],
+            "text": "1136239445",
+            "type": "*parser.NumberLiteral"
+          }
+        ],
+        "request": {
+          "id": "public-hour:default:explicit",
+          "query_bytes": "aG91cih2ZWN0b3IoMTEzNjIzOTQ0NSkp",
+          "profile": "server-default",
+          "mode": "instant",
+          "time_ms": 0,
+          "start_ms": 0,
+          "end_ms": 0,
+          "step_ms": 0,
+          "lookback_ms": 300000,
+          "subquery_step_ms": 60000
+        },
+        "result": {
+          "id": "public-hour:default:explicit",
+          "kind": "vector",
+          "rows": [
+            {
+              "labels": [],
+              "points": [
+                {
+                  "time_ms": 0,
+                  "kind": "float",
+                  "float": "4036000000000000"
+                }
+              ]
+            }
+          ],
+          "warnings": [],
+          "infos": []
+        }
+      }
+    ],
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go_arch": "amd64",
+    "go_os": "linux",
+    "go_version": "go1.27.1",
+    "reference": "github.com/prometheus/prometheus@v0.315.0",
+    "schema_version": 1,
+    "unicode_version": "17.0.0"
+  },
+  "upstream_originals": [
+    {
+      "source_command": {
+        "id": "testdata/functions.test:1525",
+        "file": "testdata/functions.test",
+        "line": 1525,
+        "query": "aG91cigp",
+        "mode": "instant",
+        "expected_failure": false,
+        "ordered": false,
+        "warn": false,
+        "info": false,
+        "exclude_generated_range": false,
+        "assertions": {
+          "commands": [],
+          "failure_message": ""
+        }
+      },
+      "variant_ordinal": 0,
+      "dataset_id": "617637ebff1f95082b166cbc08b81d91a5bacb77df8e6213f7f263aaa103c8ad",
+      "request": {
+        "id": "testdata/functions.test:1525:variant:0000",
+        "query_bytes": "aG91cigp",
+        "profile": "upstream-tests",
+        "mode": "instant",
+        "time_ms": 0,
+        "start_ms": 0,
+        "end_ms": 0,
+        "step_ms": 0,
+        "lookback_ms": 300000,
+        "subquery_step_ms": 60000
+      },
+      "query_options": {
+        "nil": true,
+        "per_step": false,
+        "lookback_ns": 0
+      },
+      "effective_context": {
+        "start_ms": 0,
+        "end_ms": 0,
+        "interval_ns": 0,
+        "lookback_ns": 300000000000
+      },
+      "original_assertion_scope": "source-or-generated-instant-result",
+      "result": {
+        "id": "testdata/functions.test:1525:variant:0000",
+        "kind": "vector",
+        "rows": [
+          {
+            "labels": [],
+            "points": [
+              {
+                "time_ms": 0,
+                "kind": "float",
+                "float": "0000000000000000"
+              }
+            ]
+          }
+        ],
+        "warnings": [],
+        "infos": []
+      },
+      "fixture_replay_exact": true
+    },
+    {
+      "source_command": {
+        "id": "testdata/functions.test:1525",
+        "file": "testdata/functions.test",
+        "line": 1525,
+        "query": "aG91cigp",
+        "mode": "instant",
+        "expected_failure": false,
+        "ordered": false,
+        "warn": false,
+        "info": false,
+        "exclude_generated_range": false,
+        "assertions": {
+          "commands": [],
+          "failure_message": ""
+        }
+      },
+      "variant_ordinal": 1,
+      "dataset_id": "617637ebff1f95082b166cbc08b81d91a5bacb77df8e6213f7f263aaa103c8ad",
+      "request": {
+        "id": "testdata/functions.test:1525:variant:0001",
+        "query_bytes": "aG91cigp",
+        "profile": "upstream-tests",
+        "mode": "range",
+        "time_ms": 0,
+        "start_ms": -60000,
+        "end_ms": 60000,
+        "step_ms": 60000,
+        "lookback_ms": 300000,
+        "subquery_step_ms": 60000
+      },
+      "query_options": {
+        "nil": true,
+        "per_step": false,
+        "lookback_ns": 0
+      },
+      "effective_context": {
+        "start_ms": -60000,
+        "end_ms": 60000,
+        "interval_ns": 60000000000,
+        "lookback_ns": 300000000000
+      },
+      "original_assertion_scope": "generated-range-middle-step-and-label-order",
+      "result": {
+        "id": "testdata/functions.test:1525:variant:0001",
+        "kind": "matrix",
+        "rows": [
+          {
+            "labels": [],
+            "points": [
+              {
+                "time_ms": -60000,
+                "kind": "float",
+                "float": "4037000000000000"
+              },
+              {
+                "time_ms": 0,
+                "kind": "float",
+                "float": "0000000000000000"
+              },
+              {
+                "time_ms": 60000,
+                "kind": "float",
+                "float": "0000000000000000"
+              }
+            ]
+          }
+        ],
+        "warnings": [],
+        "infos": []
+      },
+      "fixture_replay_exact": true
+    },
+    {
+      "source_command": {
+        "id": "testdata/functions.test:1528",
+        "file": "testdata/functions.test",
+        "line": 1528,
+        "query": "aG91cih2ZWN0b3IoMTEzNjIzOTQ0NSkp",
+        "mode": "instant",
+        "expected_failure": false,
+        "ordered": false,
+        "warn": false,
+        "info": false,
+        "exclude_generated_range": false,
+        "assertions": {
+          "commands": [],
+          "failure_message": ""
+        }
+      },
+      "variant_ordinal": 0,
+      "dataset_id": "617637ebff1f95082b166cbc08b81d91a5bacb77df8e6213f7f263aaa103c8ad",
+      "request": {
+        "id": "testdata/functions.test:1528:variant:0000",
+        "query_bytes": "aG91cih2ZWN0b3IoMTEzNjIzOTQ0NSkp",
+        "profile": "upstream-tests",
+        "mode": "instant",
+        "time_ms": 0,
+        "start_ms": 0,
+        "end_ms": 0,
+        "step_ms": 0,
+        "lookback_ms": 300000,
+        "subquery_step_ms": 60000
+      },
+      "query_options": {
+        "nil": true,
+        "per_step": false,
+        "lookback_ns": 0
+      },
+      "effective_context": {
+        "start_ms": 0,
+        "end_ms": 0,
+        "interval_ns": 0,
+        "lookback_ns": 300000000000
+      },
+      "original_assertion_scope": "source-or-generated-instant-result",
+      "result": {
+        "id": "testdata/functions.test:1528:variant:0000",
+        "kind": "vector",
+        "rows": [
+          {
+            "labels": [],
+            "points": [
+              {
+                "time_ms": 0,
+                "kind": "float",
+                "float": "4036000000000000"
+              }
+            ]
+          }
+        ],
+        "warnings": [],
+        "infos": []
+      },
+      "fixture_replay_exact": true
+    },
+    {
+      "source_command": {
+        "id": "testdata/functions.test:1528",
+        "file": "testdata/functions.test",
+        "line": 1528,
+        "query": "aG91cih2ZWN0b3IoMTEzNjIzOTQ0NSkp",
+        "mode": "instant",
+        "expected_failure": false,
+        "ordered": false,
+        "warn": false,
+        "info": false,
+        "exclude_generated_range": false,
+        "assertions": {
+          "commands": [],
+          "failure_message": ""
+        }
+      },
+      "variant_ordinal": 1,
+      "dataset_id": "617637ebff1f95082b166cbc08b81d91a5bacb77df8e6213f7f263aaa103c8ad",
+      "request": {
+        "id": "testdata/functions.test:1528:variant:0001",
+        "query_bytes": "aG91cih2ZWN0b3IoMTEzNjIzOTQ0NSkp",
+        "profile": "upstream-tests",
+        "mode": "range",
+        "time_ms": 0,
+        "start_ms": -60000,
+        "end_ms": 60000,
+        "step_ms": 60000,
+        "lookback_ms": 300000,
+        "subquery_step_ms": 60000
+      },
+      "query_options": {
+        "nil": true,
+        "per_step": false,
+        "lookback_ns": 0
+      },
+      "effective_context": {
+        "start_ms": -60000,
+        "end_ms": 60000,
+        "interval_ns": 60000000000,
+        "lookback_ns": 300000000000
+      },
+      "original_assertion_scope": "generated-range-middle-step-and-label-order",
+      "result": {
+        "id": "testdata/functions.test:1528:variant:0001",
+        "kind": "matrix",
+        "rows": [
+          {
+            "labels": [],
+            "points": [
+              {
+                "time_ms": -60000,
+                "kind": "float",
+                "float": "4036000000000000"
+              },
+              {
+                "time_ms": 0,
+                "kind": "float",
+                "float": "4036000000000000"
+              },
+              {
+                "time_ms": 60000,
+                "kind": "float",
+                "float": "4036000000000000"
+              }
+            ]
+          }
+        ],
+        "warnings": [],
+        "infos": []
+      },
+      "fixture_replay_exact": true
+    }
+  ]
+}

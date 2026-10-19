@@ -73683,5 +73683,15 @@
     "nonelapsed_observations_exact": true,
     "all_six_size_gates_passed": true,
     "scope": "Four focused debug controls and actual compiled routes pass;fixed throughput gate fails. All133prior objects and accepted source/prose preserved. No retained runtime or gain claim."
+  },
+  "public_direct_hour_examples": {
+    "status": "pass_finite_public_default_hour_supplement",
+    "report": "public-hour-qualification.json",
+    "report_sha256": "922c3b74b560265a0a90271b8f478cfcfd32769c38cba4fea799a3c69f010b26",
+    "accepted_runtime_changed": false,
+    "new_default_originals": 2,
+    "retained_upstream_outcomes": 4,
+    "complete_exact_comparisons": 24,
+    "scope": "Public direct default-hour evidence; all134prior ledger objects and historical catalog preserved. Accepted actual372-input fixture identities retained; no new runtime or performance claim."
   }
 }

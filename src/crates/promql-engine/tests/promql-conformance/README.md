@@ -9003,3 +9003,32 @@ The owned source and four tests were reversed after all writers finished. Broade
 and static checks were skipped after the conclusive speed-gate failure. The report retains successful checks,
 actual local helper failures and skipped scope separately. No runtime gain or new language coverage is claimed;
 installation, API use, storage, contexts, raw paging and accounting contracts are unchanged.
+
+## Public direct hour examples
+
+[`public-hour-originals.json`](public-hour-originals.json) supplements the historical catalog with two directly
+replayable default-profile originals: `hour()` and `hour(vector(1136239445))`. The fixture also preserves the four
+upstream-test instant/range outcomes. Across midnight, the implicit range returns 23, 0, 0; the explicit timestamp
+returns 22 at each step. These queries use the unchanged captured dataset and fetch no samples or pages.
+
+From the crate root, with a query fixture built in `target/release/promql-query-fixture`:
+
+```sh
+mkdir -p tests/promql-conformance/.tmp
+python tests/promql-conformance/public_hour_calls.py --packets --page-size 17 \
+  > tests/promql-conformance/.tmp/public-hour-inputs.jsonl
+set -o pipefail
+target/release/promql-query-fixture < tests/promql-conformance/.tmp/public-hour-inputs.jsonl \
+  | gzip -1 > tests/promql-conformance/.tmp/public-hour-results.jsonl.gz
+python tests/promql-conformance/public_hour_calls.py \
+  --results tests/promql-conformance/.tmp/public-hour-results.jsonl.gz
+```
+
+Build that fixture with `cargo build --locked --release --features fixtures --bin promql-query-fixture` if needed.
+The adapter generates and checks packets; it launches no subprocesses. It compares all labels, timestamps, values,
+warnings and errors, including exact floating-point bits. A successful check reports six passing cases.
+
+[`public-hour-qualification.json`](public-hour-qualification.json) records 24 exact comparisons on the accepted
+native release/release-min and emulated ARM32/ARM64 fixtures. The real checker rejects a result changed from 22 to
+21. The historical catalog and its private nested witness retain their original identities. This is a public
+evidence supplement, with no new language support, runtime change, speed claim or full-corpus qualification.

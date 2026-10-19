@@ -2102,3 +2102,14 @@ A rejected fallback-sharing experiment is recorded under
   signed base. Preserve timings, slower controls, compiled costs and unrun scope without changing the gate.
 - **Report:** [rejected zero-update qualification](zero-counter-update-rejected-qualification.json). No accepted
   speed or query-memory improvement follows from smaller compiled sections or a shorter zero route alone.
+
+## Public direct default-hour evidence
+
+- **Profiles:** execute two fresh default-profile originals with the retained checked Go executable. Preserve the
+  four historical upstream-test outcomes separately; optional-profile evidence is not relabelled as default.
+- **Replay:** a pinned public fixture and pure packet/check adapter reuse the canonical complete-result validators.
+  Six cases pass on both native profiles and emulated ARM32/ARM64; a changed complete result fails the real checker.
+- **Attribution:** preserve the historical catalog, 42-case default roster and actual compiled binary sources.
+  The new evidence does not change calendar evaluation or establish additional language, speed or memory coverage.
+- **Evidence:** [public hour qualification](public-hour-qualification.json) binds the actual original and current
+  executions, zero sample/page reads, public replay inputs and deliberately incorrect result control.

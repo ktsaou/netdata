@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "status": "pass_finite_public_default_hour_supplement",
+  "accepted_base": "1bb38731fed6923a3b89ed5f672434efe132a0ca",
+  "accepted_runtime_changed": false,
+  "reference_commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+  "reference_profile": {
+    "go_version": "go1.27.1",
+    "go_os": "linux",
+    "go_arch": "amd64"
+  },
+  "new_server_default_originals": 2,
+  "retained_upstream_test_outcomes": 4,
+  "requests": [
+    "hour()",
+    "hour(vector(1136239445))"
+  ],
+  "results": {
+    "default_instant_implicit": 0,
+    "default_instant_explicit": 22,
+    "retained_range_times_ms": [
+      -60000,
+      0,
+      60000
+    ],
+    "retained_range_implicit": [
+      23,
+      0,
+      0
+    ],
+    "retained_range_explicit": [
+      22,
+      22,
+      22
+    ]
+  },
+  "complete_exact_comparisons": 24,
+  "page_size": 17,
+  "cohorts": {
+    "release": {
+      "fixture": {
+        "path": ".tmp/catalog-views-it81gtud/pilot-release/promql-query-fixture",
+        "sha256": "6d9ef6c8119478c99f1b086933b1f860f9eb56c5f0da3dffe8ef2985fb48c903"
+      },
+      "target": "x86_64-unknown-linux-gnu",
+      "profile": "release",
+      "actual_compiled_inputs": 372,
+      "complete_exact_comparisons": 6,
+      "sample_pages": 0,
+      "samples_fetched": 0,
+      "provider_calls": 6,
+      "output_points": 10
+    },
+    "release-min": {
+      "fixture": {
+        "path": ".tmp/catalog-views-it81gtud/pilot-release-min/promql-query-fixture",
+        "sha256": "fdd4458782843a9464cc5c72623a114f313d3dfa5c571fafe07f176b65d13fb0"
+      },
+      "target": "x86_64-unknown-linux-gnu",
+      "profile": "release-min",
+      "actual_compiled_inputs": 372,
+      "complete_exact_comparisons": 6,
+      "sample_pages": 0,
+      "samples_fetched": 0,
+      "provider_calls": 6,
+      "output_points": 10
+    },
+    "arm32": {
+      "fixture": {
+        "path": ".tmp/catalog-views-it81gtud/pilot-arm32/promql-query-fixture",
+        "sha256": "62f50bb3246094a55c94e30f32cd70b0eeb9f935ff47a47c1919c1e9e08a6fb3"
+      },
+      "target": "armv7-unknown-linux-gnueabihf",
+      "profile": "release",
+      "actual_compiled_inputs": 372,
+      "complete_exact_comparisons": 6,
+      "sample_pages": 0,
+      "samples_fetched": 0,
+      "provider_calls": 6,
+      "output_points": 10
+    },
+    "arm64": {
+      "fixture": {
+        "path": ".tmp/catalog-views-it81gtud/pilot-arm64/promql-query-fixture",
+        "sha256": "f864babb88cd041789f6e12b1458f6214f1321a810d8b30f2fe9d65439794619"
+      },
+      "target": "aarch64-unknown-linux-gnu",
+      "profile": "release",
+      "actual_compiled_inputs": 372,
+      "complete_exact_comparisons": 6,
+      "sample_pages": 0,
+      "samples_fetched": 0,
+      "provider_calls": 6,
+      "output_points": 10
+    }
+  },
+  "negative_control": "actual complete result22 changed to21; public CLI exits1 and identifies exactly that request",
+  "fixture": {
+    "path": "public-hour-originals.json",
+    "sha256": "c1a870615bd5fe2daccebf5df87e267abc548dd0beec36865971691143a94108"
+  },
+  "adapter": {
+    "path": "public_hour_calls.py",
+    "sha256": "6b80a128eef2280522309cf473ba88ced1387666a5ebae1e74d0885d81002d69"
+  },
+  "original_binary": {
+    "path": "tests/promql-conformance/.tmp/default-profile-complete-capture-ndc2gya7/cursor-oracle",
+    "bytes": 18226804,
+    "sha256": "22d18b1d74b10374276ab38745b85e3573fdce5495a00086e1c98df8014847db"
+  },
+  "original_build_binding": {
+    "path": "tests/promql-conformance/.tmp/default-profile-complete-capture-ndc2gya7/binding.json",
+    "bytes": 2030,
+    "sha256": "aca5f4a43b8b00385a9ab20d85ab9fcf82ae0308a5b475ef7478ae964f2f3460"
+  },
+  "original_source_binding": {
+    "path": "tests/promql-conformance/.tmp/default-profile-complete-capture-ndc2gya7/source.json",
+    "bytes": 184070,
+    "sha256": "e3151702f7e6fc3a7d97319f0410d29374d124bc52f616f59508c79d23fef5ea"
+  },
+  "original_dataset": {
+    "path": "tests/promql-conformance/.tmp/capture-1usdtup9/datasets/617637ebff1f95082b166cbc08b81d91a5bacb77df8e6213f7f263aaa103c8ad.json",
+    "sha256": "617637ebff1f95082b166cbc08b81d91a5bacb77df8e6213f7f263aaa103c8ad"
+  },
+  "historical_catalog_unchanged_sha256": "b128fa66b0213a1e477a0d72ad7f6a4743addc17373ff2ab8117759c3fb3d666",
+  "historical_default_case_owner_unchanged_sha256": "a55d297abc896f546cad2bbe0679fa2d7e5010dc34d05d1f3a451d49416958ef",
+  "receipts": {
+    ".tmp/public-hour-gjlkambi/originals.json": "7e4d03836654e5fbafea7f320a46ca62ec1bb17996daae9239a139a560f21661",
+    ".tmp/public-hour-gjlkambi/qualification.json": "de4c945caf445f239e3c400474639688052191254424d1d4c4f827999d48e2d6"
+  },
+  "scope": "Two fresh default-profile originals and four unchanged upstream-test outcomes; exact complete labels, timestamps, integer-valued float bits, warnings and errors. Existing372-input binaries are reused with their original compilation attribution. No new language support, runtime/API/profile change, current full-corpus replay, native ARM hardware run, throughput or memory improvement is claimed."
+}
