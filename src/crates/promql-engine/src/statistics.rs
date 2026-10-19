@@ -135,11 +135,16 @@ impl OwnedSamples {
             units: 0,
         };
         lease.resize(units);
+        #[cfg(test)]
+        crate::test_storage::sample_owner_created(account);
         lease
     }
     pub(crate) fn resize(&mut self, units: u64) {
-        self.account.resize_samples(self.units, units);
+        let previous = self.units;
+        self.account.resize_samples(previous, units);
         self.units = units;
+        #[cfg(test)]
+        crate::test_storage::sample_owner_resized(&self.account, previous, units);
     }
     pub(crate) fn add(&mut self, units: u64) {
         let mut next = self.units;

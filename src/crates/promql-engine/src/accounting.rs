@@ -214,6 +214,9 @@ impl QueryAccounting {
     pub(crate) fn allocation_bytes() -> u64 {
         Strong::<QueryState>::allocation_bytes()
     }
+    pub(crate) fn same_query(&self, other: &Self) -> bool {
+        self.0.same_allocation(&other.0)
+    }
     pub fn snapshot(&self) -> QueryObservations {
         lock(&self.0.observations).clone()
     }

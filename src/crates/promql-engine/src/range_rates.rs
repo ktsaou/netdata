@@ -640,7 +640,7 @@ struct InstantPoint {
     time: i64,
     start: i64,
     value: OwnedValue,
-    _float_samples: Option<crate::statistics::OwnedSamples>,
+    float_samples: Option<crate::statistics::OwnedSamples>,
 }
 pub(crate) struct InstantStep {
     counter: bool,
@@ -708,20 +708,32 @@ impl InstantStep {
         } else {
             &mut self.histograms
         };
+        let mut float_samples = points[0].as_mut().and_then(|point| {
+            point
+                .float_samples
+                .take_if(|samples| samples.accounting().same_query(account))
+        });
+        if let Some(samples) = &mut float_samples {
+            // Expired credit stays absent if the checked replacement fails.
+            samples.resize(0);
+        }
         points[0] = points[1].take();
-        let value = crate::statistics::ValueParts::new(
-            OwnedValue::from_sample_checked(sample.value, control, account, MemoryKind::Workspace)?,
-            account,
-        );
+        let value =
+            OwnedValue::from_sample_checked(sample.value, control, account, MemoryKind::Workspace)?;
+        if let Some(samples) = &mut float_samples {
+            samples.resize(1);
+        } else {
+            float_samples = crate::statistics::hold_float(account, value.as_ref());
+        }
         points[1] = Some(InstantPoint {
-            _float_samples: value.float_samples,
+            float_samples,
             time: sample.time_ms,
             start: if self.start_timestamps {
                 sample.start_time_ms
             } else {
                 0
             },
-            value: value.value,
+            value,
         });
         Ok(())
     }
@@ -2009,6 +2021,173 @@ mod tests {
                 walks, 1,
                 "completed instant acquisition replayed: {name}, page={page}, counter={counter}, start={start}"
             );
+        }
+    }
+
+    #[test]
+    fn instant_float_owners_preserve_complete_results_before_acquisition_guard() {
+        let mut guarded = Vec::new();
+        let mut completed = 0;
+        for page in [1, 17, 1024] {
+            for counter in [false, true] {
+                for start_timestamps in [false, true] {
+                    for matrix in [false, true] {
+                        for count in [0, 1, 2, 4, 4096] {
+                            let account = EngineAccounting::default().query();
+                            let control = Control::default();
+                            let source =
+                                GeneratedSeries::new(count, page, crate::test_storage::counter);
+                            let mut input = window(count.max(1));
+                            input.start_timestamps = start_timestamps;
+                            let (result, owners) = crate::test_storage::observe_sample_owners(
+                                &account,
+                                &control,
+                                false,
+                                || {
+                                    evaluate(
+                                        &source,
+                                        input,
+                                        RateFunction::Instant { counter },
+                                        matrix.then(|| acquisition_window(input.end_ms)),
+                                        &control,
+                                        &account,
+                                    )
+                                },
+                            );
+                            let output = result.unwrap();
+                            let value = output.value.as_ref().map(|value| {
+                                let OwnedValue::Float(value) = value else {
+                                    panic!("Float-only owner fixture")
+                                };
+                                value.to_bits()
+                            });
+                            assert_eq!(value, (count >= 2).then_some(1.0f64.to_bits()));
+                            assert!(output.annotations.iter().all(Option::is_none));
+                            assert_eq!(output.nonempty, count != 0);
+                            assert_eq!(output.progress.is_some(), matrix);
+                            if let Some(progress) = output.progress {
+                                assert_eq!(progress.sample_units, count as u64);
+                            }
+                            assert_eq!(
+                                account.snapshot().statistics.samples.samples_read,
+                                count as u64
+                            );
+                            assert_eq!(
+                                account.snapshot().statistics.samples.peak_samples,
+                                count.min(2) as u64 + u64::from(count >= 2)
+                            );
+                            assert_eq!(account.current_samples(), u64::from(count >= 2));
+                            assert_eq!(owners.released, count as u64);
+                            assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                            assert_eq!(
+                                source.counters.opened.load(Ordering::Relaxed),
+                                source.counters.closed.load(Ordering::Relaxed)
+                            );
+                            drop(output);
+                            assert_eq!(account.current_samples(), 0);
+                            let observed = account.snapshot();
+                            observed.assert_memory_released();
+                            println!(
+                                "instant owner outcome page={page} counter={counter} start={start_timestamps} matrix={matrix} count={count} observations={observed:?}"
+                            );
+                            guarded.push((
+                                count,
+                                page,
+                                counter,
+                                start_timestamps,
+                                matrix,
+                                owners.created,
+                            ));
+                            completed += 1;
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(completed, 120);
+        println!("instant owners complete120-values-annotations-progress-observations-release");
+        for (count, page, counter, start, matrix, created) in guarded {
+            assert_eq!(
+                created,
+                count.min(2) as u64 + u64::from(count >= 2),
+                "repeated endpoint ownership: count={count} page={page} counter={counter} start={start} matrix={matrix}"
+            );
+        }
+    }
+
+    #[test]
+    fn instant_float_owner_expiry_precedes_checked_copy_failure() {
+        for counter in [false, true] {
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let mut step = Step::new(window(3).into(), RateFunction::Instant { counter });
+            for index in 0..2 {
+                step.receive(
+                    crate::test_storage::counter(index).as_ref(),
+                    &control,
+                    &account,
+                )
+                .unwrap();
+            }
+            assert_eq!(account.current_samples(), 2);
+            let (result, owners) =
+                crate::test_storage::observe_sample_owners(&account, &control, true, || {
+                    step.receive(crate::test_storage::counter(2).as_ref(), &control, &account)
+                });
+            assert!(matches!(result, Err(StorageError::Interrupted(_))));
+            assert_eq!(owners.created, 0);
+            assert_eq!(owners.released, 1);
+            assert_eq!(account.current_samples(), 1);
+            let Step::Instant(ref tail) = step else {
+                unreachable!()
+            };
+            assert_eq!(tail.floats[0].as_ref().unwrap().time, 2000);
+            assert!(matches!(
+                tail.floats[0].as_ref().unwrap().value,
+                OwnedValue::Float(2.0)
+            ));
+            assert!(tail.floats[1].is_none());
+            assert!(tail.histograms.iter().all(Option::is_none));
+            drop(step);
+            assert_eq!(account.current_samples(), 0);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn instant_float_endpoint_owners_follow_query_state_across_cloned_handles() {
+        for counter in [false, true] {
+            let engine = EngineAccounting::default();
+            let a = engine.query();
+            let alias_a = a.clone();
+            let b = engine.query();
+            let alias_b = b.clone();
+            let control = Control::default();
+            let mut step = Step::new(window(5).into(), RateFunction::Instant { counter });
+            for (index, account, expected) in [
+                (0, &a, (1, 0)),
+                (1, &alias_a, (2, 0)),
+                (2, &b, (1, 1)),
+                (3, &alias_b, (0, 2)),
+                (4, &b, (0, 2)),
+            ] {
+                step.receive(
+                    crate::test_storage::counter(index).as_ref(),
+                    &control,
+                    account,
+                )
+                .unwrap();
+                assert_eq!((a.current_samples(), b.current_samples()), expected);
+            }
+            let output = step.finish_pass(&control, &b).unwrap().unwrap();
+            assert!(matches!(output.value, Some(OwnedValue::Float(1.0))));
+            assert!(output.annotations.iter().all(Option::is_none));
+            assert_eq!((a.current_samples(), b.current_samples()), (0, 1));
+            assert_eq!(b.snapshot().statistics.samples.peak_samples, 3);
+            drop((output, step));
+            assert_eq!((a.current_samples(), b.current_samples()), (0, 0));
+            a.snapshot().assert_memory_released();
+            b.snapshot().assert_memory_released();
         }
     }
 

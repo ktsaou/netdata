@@ -1975,6 +1975,9 @@ owns the measured trade-off, complete failed/slower evidence and candidate-speci
 
 ## Completed instant rate float windows
 
+Current Float endpoint-handle reuse is documented under
+[reused instant-rate endpoint ownership](#reused-instant-rate-endpoint-ownership).
+
 A rejected fallback-sharing experiment is recorded under
 [rejected shared instant rate fallback](#rejected-shared-instant-rate-fallback).
 
@@ -2010,3 +2013,23 @@ A rejected fallback-sharing experiment is recorded under
 - **Lesson:** compiler/code-generation effects differ by target. Native linked savings do not establish
   ARM savings; check the selected linked artifacts before broader qualification. Fixture costs do not
   by themselves measure production ARM C or whole-Agent footprint.
+
+## Reused instant-rate endpoint ownership
+
+- **Choice:** recycle only an oldest Float sample handle whose underlying QueryState matches the incoming
+  account. Existing Strong allocation identity recognizes clones and excludes independent queries.
+- **Failure order:** expire credit before shifting endpoints and the unchanged checked value copy. Restore
+  one unit after success. On failure, the zero-credit temporary drops and the shifted newest remains.
+  Different-query handles keep the original drop-and-create path.
+- **Reason:** a long Float window retains two endpoints, yet the previous receiver cloned and dropped a
+  query reference for every input. Reuse removes that traffic without another field or history buffer.
+- **Preserved:** native/stale input, complete acquired-page validation, histogram fallback clearing, numeric
+  finish, derived delegation, exact sample peaks and the independently owned output. Avoid a transient
+  ValueParts construction when a reusable handle already exists.
+- **Evidence:** 120 complete old/current observation checks precede the actual construction guard; expiry
+  cancellation and query affinity supplement the existing broader owners. Selected native fixture query
+  time improves about 4%, with exactly equal serialized nonelapsed accounting. All six linked growth checks
+  pass. The [finite report](instant-owner-reuse-qualification.json) retains every cost and slower control.
+- **Limits:** fewer handle constructions are not fewer heap allocations or lower query memory. No language,
+  API, metadata, dbengine, profile, ownership policy or query-limit change follows. Existing acquisition
+  tradeoffs remain; finite timing does not establish device, concurrent, live or whole-Agent behavior.

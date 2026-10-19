@@ -8710,6 +8710,9 @@ implicit limits remain disabled.
 
 ## Completed instant rate float windows
 
+Current Float endpoint-handle reuse is documented under
+[reused instant-rate endpoint ownership](#reused-instant-rate-endpoint-ownership).
+
 A rejected fallback-sharing experiment is recorded under
 [rejected shared instant rate fallback](#rejected-shared-instant-rate-fallback).
 
@@ -8828,3 +8831,57 @@ body costs too. This experiment establishes no retained throughput, query-memory
 concurrent, physical-device or Cloud gain. A useful lesson for future footprint experiments is to
 measure every selected target early, before the broader test rebuilds. Raw histories remain paged
 across time and metrics; implicit limits remain disabled.
+
+## Reused instant-rate endpoint ownership
+
+Float `irate` and `idelta` reuse their two existing endpoint sample-accounting handles. The oldest handle
+is reused only for the same underlying query state, including cloned query handles. Its sample credit
+expires before the existing checked copy and returns only after success. A failed copy leaves the former
+newest endpoint; another query keeps the original drop-and-create path. Native/stale processing, acquired
+page validation, histogram fallback, arithmetic and the independent output handle keep their existing behavior.
+No persistent field, raw-history array, heap buffer, public interface, language feature or limit is added.
+
+The unchanged receiver completes 120 result, annotation, progress, accounting and cleanup cases before
+failing the ownership guard: four Float inputs plus output create five handles, while three suffice.
+The candidate passes that guard for raw and eligible-matrix histories of 0/1/2/4/4,096 points at pages
+1/17/1024, both functions and start-timestamp modes. Complete old/current observations match. Separate
+controls check cancellation at actual expired credit, independent-query attribution and an output peak of 3 sample units.
+The observer counts real handle constructions and credit releases; it does not count heap allocations.
+
+The [finite qualification](instant-owner-reuse-qualification.json) reports selected 48-query median
+current/before time ratios 0.961515 in release and 0.954940 in release-min: about 4% less query time in
+this fixture panel. The fixed 112-case panel has nine measured samples per arm in three alternating
+blocks, with one identical follow-up per primary ratio >=1.05. All effective-family medians pass <=1.05.
+The report retains all 17/29 slower primary medians and 4/9 prescribed follow-ups; none remains >=1.05.
+Ordinary-control family medians were 0.972209/1.009562; timing includes control variation.
+This reduces reference-count operations while preserving all eight query-memory categories and peaks.
+
+All six linked costs were checked before broader test rebuilds. Their measured GNU size text changes are:
+
+| Linked binary | Cohort | Text-byte change |
+| --- | --- | ---: |
+| fixture | release | +708 |
+| default-embedding-C | release | +572 |
+| fixture | release-min | +216 |
+| default-embedding-C | release-min | +220 |
+| fixture | arm32 | +940 |
+| fixture | arm64 | -3,584 |
+
+Data/BSS/file costs and emitted scan/receive/finish bodies are recorded separately. Native C links grow
+by 572/220 text bytes, ARM32 fixture text grows by 940 bytes, and ARM64 fixture text shrinks by 3,584 bytes.
+Measured native debug InstantStep/RateStep sizes remain 200/424 bytes. These are compiled sizes, without a
+runtime-stack or RSS inference. Foreign figures describe fixtures rather than production foreign C links.
+
+Both native profiles pass 842 tests, with two existing ignored checks; emulated ARM32/ARM64 each pass
+26 focused owners. The existing 192 complete Instant cases, 180 one-walk guards, 420 native/unproven
+cases, calibrated failure controls and 100,000-point paged histories remain unchanged. Native pages
+1/17/1024 and foreign page 17 give 4,656 complete before/current pairs, including 2,480 checks against
+retained Prometheus originals. Another 768 optimized pilot pairs pass. All serialized nonelapsed
+observations are exactly equal. C callers pass 480 paired lifecycle arms, 480 matching C++ controls and
+both complete C suites. Strict Clippy, formatting and installed Rust 1.91 compile-only checks pass.
+
+The causal 120-case owner uses monotonic Floats; preserved broader owners carry native/stale/NaN/derived
+coverage. The clone control checks attribution, without a separate clone-wrapper acquisition-count guard.
+Existing mixed-histogram acquisition costs and provisional Float copies remain. This finite panel does
+not establish traffic-weighted, concurrent, live, physical-device, whole-Agent or Cloud performance.
+Raw histories remain paged across both axes and implicit limits stay disabled.

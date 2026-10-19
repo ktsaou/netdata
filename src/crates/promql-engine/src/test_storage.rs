@@ -342,6 +342,76 @@ pub(crate) fn interrupt_after_work<R>(
 }
 
 #[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct SampleOwnerCounts {
+    pub created: u64,
+    pub released: u64,
+}
+#[cfg(test)]
+struct SampleOwnerObservation {
+    query: usize,
+    counts: SampleOwnerCounts,
+    cancel_on_release: bool,
+    cancellation: crate::storage::Cancellation,
+}
+#[cfg(test)]
+thread_local! {
+    static SAMPLE_OWNER_OBSERVATION: std::cell::RefCell<Option<SampleOwnerObservation>> = const { std::cell::RefCell::new(None) };
+}
+#[cfg(test)]
+pub(crate) fn observe_sample_owners<R>(
+    account: &QueryAccounting,
+    control: &Control,
+    cancel_on_release: bool,
+    operation: impl FnOnce() -> R,
+) -> (R, SampleOwnerCounts) {
+    struct Restore(Option<SampleOwnerObservation>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            SAMPLE_OWNER_OBSERVATION.with_borrow_mut(|entry| *entry = self.0.take());
+        }
+    }
+    let previous = SAMPLE_OWNER_OBSERVATION.with_borrow_mut(|entry| {
+        entry.replace(SampleOwnerObservation {
+            query: account.test_identity(),
+            counts: SampleOwnerCounts::default(),
+            cancel_on_release,
+            cancellation: control.cancellation.clone(),
+        })
+    });
+    let _restore = Restore(previous);
+    let value = operation();
+    let counts = SAMPLE_OWNER_OBSERVATION.with_borrow(|entry| entry.as_ref().unwrap().counts);
+    (value, counts)
+}
+#[cfg(test)]
+pub(crate) fn sample_owner_created(account: &QueryAccounting) {
+    SAMPLE_OWNER_OBSERVATION.with_borrow_mut(|entry| {
+        if let Some(entry) = entry
+            && entry.query == account.test_identity()
+        {
+            entry.counts.created += 1;
+        }
+    });
+}
+#[cfg(test)]
+pub(crate) fn sample_owner_resized(account: &QueryAccounting, previous: u64, next: u64) {
+    if previous == 0 || next != 0 {
+        return;
+    }
+    SAMPLE_OWNER_OBSERVATION.with_borrow_mut(|entry| {
+        if let Some(entry) = entry
+            && entry.query == account.test_identity()
+        {
+            entry.counts.released += 1;
+            if entry.cancel_on_release {
+                entry.cancellation.cancel();
+            }
+        }
+    });
+}
+
+#[cfg(test)]
 struct LabelObservation {
     cancellation: crate::storage::Cancellation,
     cancel_at: Option<usize>,

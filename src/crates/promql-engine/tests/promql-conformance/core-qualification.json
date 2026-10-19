@@ -73570,5 +73570,44 @@
       }
     ],
     "scope": "Rejected private guard/fallback experiment. Candidate passes finite semantic/resource/native timing checks but increases ARM fixture text,violating frozen gate. Exact accepted production source restored;candidate evidence keeps its actual source/binary attribution. No retained runtime gain."
+  },
+  "reused_instant_rate_sample_owners": {
+    "status": "finite_source_bound_qualification",
+    "report": "instant-owner-reuse-qualification.json",
+    "report_sha256": "9a32c0c2808fae9f9161a4029d2b6cae06167cee2e99ec849ad10731ee4d560c",
+    "comparison_base": "43ce09bbc8d3cb363c55b79b1f01edc5e1508b12",
+    "source_inputs": 368,
+    "source_manifest_sha256": "74761fc09e359658040dd9791679f89b640208b00dfa0a775e64c5318d252a84",
+    "decision": "accept",
+    "full_native_passes_per_profile": 842,
+    "native_ignored_per_profile": 2,
+    "foreign_focused_passes_per_target": 26,
+    "new_tests": 3,
+    "retained_original_cases": 310,
+    "retained_synthetic_controls": 240,
+    "retained_explicit_empty_cases": 32,
+    "complete_full_before_current_pairs": 4656,
+    "same_current_original_comparisons": 2480,
+    "additional_optimized_pilot_pairs": 768,
+    "complete_results_order_and_bits_equal": true,
+    "all_serialized_nonelapsed_query_observations_exact": true,
+    "native_pages": [
+      1,
+      17,
+      1024
+    ],
+    "foreign_pages": [
+      17
+    ],
+    "default_c_pairs": 480,
+    "cpp_controls": 480,
+    "full_current_c_suites": 2,
+    "strict_clippy_variants": 2,
+    "format_check": true,
+    "msrv_compile_only": "1.91.0",
+    "memory_categories": 8,
+    "new_language_features": 0,
+    "public_contract_changes": 0,
+    "scope": "Same-query expired Float endpoint handle reuse,with exact failed-copy ownership and independent output. Actual old/green construction evidence;about4percent selected fixture query-time gain. Eight query-memory categories unchanged;all six linked costs/slower controls retained. No language/public/layout/live/RSS claim."
   }
 }
