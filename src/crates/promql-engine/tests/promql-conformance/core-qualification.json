@@ -73667,5 +73667,21 @@
     },
     "tracked_peak_delta_bytes": 0,
     "scope": "One local catalog descriptor view reused for validation and matching. All132prior objects and prose preserved. Allocation traffic and selected fixture evaluation improve;no peak-memory, new language/live/API/concurrency/RSS claim."
+  },
+  "rejected_zero_counter_update_fast_path": {
+    "status": "rejected_frozen_primary_throughput_gate",
+    "report": "zero-counter-update-rejected-qualification.json",
+    "report_sha256": "99f8006a02545875c902f2b95fd44ec3f8ee0e193b7d81b5d4f5b4d69805657f",
+    "comparison_base": "79fb59ba30fec03f770e7ebf4902ae6dda58691b",
+    "accepted_runtime_changed": false,
+    "primary_selected_ratios": {
+      "release": 1.0301394235639754,
+      "release-min": 0.9967878931031243
+    },
+    "required_maximum_ratio": 0.98,
+    "complete_timed_pairs": 936,
+    "nonelapsed_observations_exact": true,
+    "all_six_size_gates_passed": true,
+    "scope": "Four focused debug controls and actual compiled routes pass;fixed throughput gate fails. All133prior objects and accepted source/prose preserved. No retained runtime or gain claim."
   }
 }

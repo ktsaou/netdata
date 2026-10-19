@@ -8981,3 +8981,25 @@ memory stays unchanged in every comparison. Both native profiles pass 848 tests 
 focused ARM32/ARM64 checks, actual C/C++ callers, format, strict lint and installed MSRV compilation also pass.
 All six linked-cost gates pass; the ARM64 fixture grows 8,076 bytes of combined sections against an 8,192-byte cap.
 No language, public interface, build profile, storage, contexts, raw paging, limit or installation command changes.
+
+## Rejected zero counter-update fast path
+
+[`zero-counter-update-rejected-qualification.json`](zero-counter-update-rejected-qualification.json) records a
+private accounting experiment that was rejected. All accepted engine inputs remain byte-for-byte unchanged.
+
+The candidate skipped the observation mutex and field access for zero additions inside the private counter helper.
+Public work hooks, control polling, page counting and positive updates stayed in place. Actual original/candidate
+tests completed 72 full-observation boundary cases plus hook, empty-matcher, concurrency and recovery controls.
+Only the original producer's final field-access guard failed. Separate default-linked machine-code inspection
+confirmed the candidate's zero return before locking; that result alone did not establish a query-speed benefit.
+
+All six compiled-size gates passed. Combined-section deltas were -20,484/-17,508 bytes for release fixture/C,
+0/+16 for release-min, -4,912 for ARM32 and -26,152 for ARM64. However, selected query evaluation ratios were
+1.0301 in release and 0.9968 in release-min, missing the predeclared 0.98 maximum in both profiles. All 936 timed
+output and nonelapsed-observation pairs matched. Six slower release cases received the prescribed follow-up;
+their results did not replace the primary selected-panel gate. No threshold or workload was changed.
+
+The owned source and four tests were reversed after all writers finished. Broader candidate native/ARM/C runtime
+and static checks were skipped after the conclusive speed-gate failure. The report retains successful checks,
+actual local helper failures and skipped scope separately. No runtime gain or new language coverage is claimed;
+installation, API use, storage, contexts, raw paging and accounting contracts are unchanged.

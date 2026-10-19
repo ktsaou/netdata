@@ -2091,3 +2091,14 @@ A rejected fallback-sharing experiment is recorded under
   bytes. This is a local optimization with unchanged language, provider, contexts and paged-storage contracts.
 - **Evidence:** [catalog view qualification](catalog-validated-view-reuse-qualification.json) retains actual old/new
   producers, phase controls, full query/original comparisons, C/C++, ARM, native and static checks with their limits.
+
+## Rejected zero accounting-update elimination
+
+- **Trial:** return for amount zero inside the private additive counter helper. Preserve public work hooks,
+  all control checks, page counting, positive locks and saturation. No field, cache or raw-data change.
+- **Evidence:** complete focused observations and actual default-linked zero-return routes pass. All six size
+  comparisons pass, but primary selected timing ratios 1.0301/0.9968 miss the fixed 0.98 benefit requirement.
+- **Retained state:** reverse only the owned edits after all writers finish; every accepted input matches the
+  signed base. Preserve timings, slower controls, compiled costs and unrun scope without changing the gate.
+- **Report:** [rejected zero-update qualification](zero-counter-update-rejected-qualification.json). No accepted
+  speed or query-memory improvement follows from smaller compiled sections or a shorter zero route alone.

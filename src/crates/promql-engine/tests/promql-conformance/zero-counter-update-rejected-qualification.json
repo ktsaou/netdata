@@ -1,0 +1,593 @@
+{
+  "schema_version": 1,
+  "status": "rejected_zero_counter_update_fast_path",
+  "decision": "reject",
+  "comparison_base": "79fb59ba30fec03f770e7ebf4902ae6dda58691b",
+  "accepted_runtime_changed": false,
+  "candidate_retained": false,
+  "accepted_inputs": 373,
+  "candidate_inputs": 373,
+  "actual_compiled_baseline_inputs": 372,
+  "uncompiled_extra_before_report": "catalog-validated-view-reuse-qualification.json",
+  "accepted_source_manifest": ".tmp/zero-count-bilzd4p4/restored-source.json",
+  "accepted_source_manifest_sha256": "31eaf29b4ce1262b68ef5a057e0d5f0aeebe10509a1a34cd1d35efe0788d1817",
+  "candidate_source_manifest": ".tmp/zero-count-bilzd4p4/runtime-phase-source.json",
+  "candidate_source_manifest_sha256": "916b52993eee992d6af7f8283994484da4f9858ede238702cf37e91b24bd05b0",
+  "candidate_source_sha256": "71cb6c67698631f7346f64778f6273c48da96eeff252477ee6299077088f9a52",
+  "candidate": "Return for amount0 inside private QueryAccounting::count,before observation lock and field projection. Keep public work/work_observed,Control polling,page0 and positive body unchanged. No layout,cache,array,dependency,ABI or public/default change.",
+  "frozen_policy": {
+    "selected_case_ids": [
+      "catalog:miss-group:n512:w3:server-default",
+      "catalog:miss-group:n512:w16:server-default",
+      "catalog:miss-group:n2048:w3:server-default",
+      "catalog:miss-group:n2048:w16:server-default",
+      "catalog:miss-id:n512:w3:server-default",
+      "catalog:miss-id:n512:w16:server-default",
+      "catalog:miss-id:n2048:w3:server-default",
+      "catalog:miss-id:n2048:w16:server-default",
+      "catalog:narrow-id:n512:w3:server-default",
+      "catalog:narrow-id:n512:w16:server-default",
+      "catalog:narrow-id:n2048:w3:server-default",
+      "catalog:narrow-id:n2048:w16:server-default",
+      "catalog:regex:n512:w3:server-default",
+      "catalog:regex:n512:w16:server-default",
+      "catalog:regex:n2048:w3:server-default",
+      "catalog:regex:n2048:w16:server-default"
+    ],
+    "selected_cases": 16,
+    "total_timing_cases": 36,
+    "primary_repetitions": 8,
+    "warmups": 1,
+    "selected_median_max_ratio": 0.98,
+    "family_median_max_ratio": 1.05,
+    "one_identical_followup_for_primary_at_least": 1.05,
+    "maximum_combined_link_growth_bytes": 8192,
+    "chosen_links": 6,
+    "observations": "Every complete result and nonelapsed observation exact;no allowed work,memory, statistics,physical/provider/reference/backing or overflow difference."
+  },
+  "failed_gate": {
+    "kind": "primary_selected_query_throughput",
+    "maximum_candidate_baseline_ratio": 0.98,
+    "ratios": {
+      "release": 1.0301394235639754,
+      "release-min": 0.9967878931031243
+    },
+    "result": "Neither native profile reaches the predeclared selected-panel benefit."
+  },
+  "focused_tests": {
+    "new_tests": 4,
+    "complete_boundary_observations": 72,
+    "dimensions": "3additive counters x2sticky-overflow states x12zero/positive/saturating transitions.",
+    "other_controls": [
+      "provider_call and page0",
+      "2query-specific public work hooks",
+      "8actual empty equal/not-equal matcher normal/cancelled/deadline/zero-budget cases",
+      "4concurrent workers sharing2independent query accounts",
+      "poisoned-ledger zero/positive recovery"
+    ],
+    "actual_old": "All semantic/release controls finish;only final private field-access guard fails with2field accesses instead of1. Expected exit101retained.",
+    "candidate": "The exact same4tests pass in debug,including final field-access guard. No new production counter or test hook.",
+    "guard_limit": "The final guard establishes field-access omission,not mutex bypass. Separate actual compiled default-linked method inspection owns that conclusion.",
+    "source_snapshots": {
+      "before-accounting.rs": "ee2c6033af08d21b900c9ef4b4f79c6ce0afe28e6013df2ddcdae9724f6ab6ab",
+      "tests-accounting.rs": "05dedd19e726f62a1cf297baf7904d83173d050cf7d1e56bbf4db1fdf1c89865",
+      "candidate-accounting.rs": "71cb6c67698631f7346f64778f6273c48da96eeff252477ee6299077088f9a52",
+      "zero-count-tests.rs": "ccbef9f160e7be01f92c0dffb3ee99dc8c619eba3dd3d38d59c0e299734542d7"
+    }
+  },
+  "compiled_route_evidence": {
+    "report": ".tmp/zero-count-bilzd4p4/compiled-route-conclusions.json",
+    "sha256": "c8cb7565363216da4d6eb4a01d32447c932fc20b52c976484da3013132a5803d",
+    "scope": "Actual AMD64 default Rust archive linked into C11program. work/output/samples_read zero edges return through register pops before lock cmpxchg;positive updates retain the lock. All3method bodies grow5bytes. This alone establishes no query-speed or RAM benefit."
+  },
+  "linked_footprint": {
+    "all_six_passed": true,
+    "maximum_combined_growth_bytes": 8192,
+    "costs": [
+      {
+        "kind": "fixture",
+        "label": "release",
+        "before": {
+          "path": ".tmp/catalog-views-it81gtud/pilot-release/promql-query-fixture",
+          "sha256": "6d9ef6c8119478c99f1b086933b1f860f9eb56c5f0da3dffe8ef2985fb48c903"
+        },
+        "before_sections": {
+          "text": 4463078,
+          "data": 259512,
+          "bss": 2228
+        },
+        "before_file_bytes": 5741760,
+        "current": {
+          "path": ".tmp/zero-count-bilzd4p4/pilot-release/promql-query-fixture",
+          "sha256": "4c6c869ee778e85dbe5a986ddd9f1b5eab71e656288d52ee5eabbbb6cfb2ae2f"
+        },
+        "current_sections": {
+          "text": 4440882,
+          "data": 259512,
+          "bss": 3940
+        },
+        "current_file_bytes": 5719512,
+        "section_deltas": {
+          "text": -22196,
+          "data": 0,
+          "bss": 1712
+        },
+        "file_delta": -22248
+      },
+      {
+        "kind": "default-embedding-C",
+        "label": "release",
+        "before": {
+          "path": ".tmp/catalog-views-it81gtud/pilot-release/embedding-current",
+          "sha256": "66ecb7b2e8489fad531bfbf36a92d8b1a365abd36ae0d43ea0fb5cf22f466c11"
+        },
+        "before_sections": {
+          "text": 7561826,
+          "data": 506456,
+          "bss": 400
+        },
+        "before_file_bytes": 13914976,
+        "current": {
+          "path": ".tmp/zero-count-bilzd4p4/pilot-release/embedding-current",
+          "sha256": "4d7310bda78fe98c118d7c70af681836dacdcfe7345dbf9d57f77e04751a0575"
+        },
+        "current_sections": {
+          "text": 7544318,
+          "data": 506456,
+          "bss": 400
+        },
+        "current_file_bytes": 13898536,
+        "section_deltas": {
+          "text": -17508,
+          "data": 0,
+          "bss": 0
+        },
+        "file_delta": -16440
+      },
+      {
+        "kind": "fixture",
+        "label": "release-min",
+        "before": {
+          "path": ".tmp/catalog-views-it81gtud/pilot-release-min/promql-query-fixture",
+          "sha256": "fdd4458782843a9464cc5c72623a114f313d3dfa5c571fafe07f176b65d13fb0"
+        },
+        "before_sections": {
+          "text": 2824301,
+          "data": 246024,
+          "bss": 3684
+        },
+        "before_file_bytes": 3640144,
+        "current": {
+          "path": ".tmp/zero-count-bilzd4p4/pilot-release-min/promql-query-fixture",
+          "sha256": "dfe8ae73a7619f72f6aed43d381ff6c0dab84bc90d6af62d531ba78a1269cc53"
+        },
+        "current_sections": {
+          "text": 2824317,
+          "data": 246024,
+          "bss": 3668
+        },
+        "current_file_bytes": 3640160,
+        "section_deltas": {
+          "text": 16,
+          "data": 0,
+          "bss": -16
+        },
+        "file_delta": 16
+      },
+      {
+        "kind": "default-embedding-C",
+        "label": "release-min",
+        "before": {
+          "path": ".tmp/catalog-views-it81gtud/pilot-release-min/embedding-current",
+          "sha256": "ce3f83928ba99b00818cdddd063d9eb014cbaac2dfabaf116184fa65e229b07b"
+        },
+        "before_sections": {
+          "text": 5098503,
+          "data": 461824,
+          "bss": 400
+        },
+        "before_file_bytes": 11614336,
+        "current": {
+          "path": ".tmp/zero-count-bilzd4p4/pilot-release-min/embedding-current",
+          "sha256": "101908c8e4054f1628a7f6c11b83dbf83be42057a0fea0f0b98a4ab20ef8baf4"
+        },
+        "current_sections": {
+          "text": 5098519,
+          "data": 461824,
+          "bss": 400
+        },
+        "current_file_bytes": 11614336,
+        "section_deltas": {
+          "text": 16,
+          "data": 0,
+          "bss": 0
+        },
+        "file_delta": 0
+      },
+      {
+        "kind": "fixture",
+        "label": "arm32",
+        "before": {
+          "path": ".tmp/catalog-views-it81gtud/pilot-arm32/promql-query-fixture",
+          "sha256": "62f50bb3246094a55c94e30f32cd70b0eeb9f935ff47a47c1919c1e9e08a6fb3"
+        },
+        "before_sections": {
+          "text": 3777818,
+          "data": 164568,
+          "bss": 212
+        },
+        "before_file_bytes": 5062796,
+        "current": {
+          "path": ".tmp/zero-count-bilzd4p4/pilot-arm32/promql-query-fixture",
+          "sha256": "bb53436586ef4568292a5dcc00b4abdc175559ac2ce256a57703338f7e4da15c"
+        },
+        "current_sections": {
+          "text": 3772906,
+          "data": 164568,
+          "bss": 212
+        },
+        "current_file_bytes": 5058540,
+        "section_deltas": {
+          "text": -4912,
+          "data": 0,
+          "bss": 0
+        },
+        "file_delta": -4256
+      },
+      {
+        "kind": "fixture",
+        "label": "arm64",
+        "before": {
+          "path": ".tmp/catalog-views-it81gtud/pilot-arm64/promql-query-fixture",
+          "sha256": "f864babb88cd041789f6e12b1458f6214f1321a810d8b30f2fe9d65439794619"
+        },
+        "before_sections": {
+          "text": 3683575,
+          "data": 253040,
+          "bss": 328
+        },
+        "before_file_bytes": 5158760,
+        "current": {
+          "path": ".tmp/zero-count-bilzd4p4/pilot-arm64/promql-query-fixture",
+          "sha256": "8a79e0348453498046bfe48144107eee2da8764647c3453cc5dcd60eaf89133b"
+        },
+        "current_sections": {
+          "text": 3657423,
+          "data": 253040,
+          "bss": 328
+        },
+        "current_file_bytes": 5092960,
+        "section_deltas": {
+          "text": -26152,
+          "data": 0,
+          "bss": 0
+        },
+        "file_delta": -65800
+      }
+    ],
+    "scope": "Combined text/data/BSS deltas,not file size or RSS. release fixture -20484B/defaultC -17508B; release-min fixture0B/defaultC +16B;ARM32fixture -4912B;ARM64fixture -26152B."
+  },
+  "timing": {
+    "cases": 36,
+    "selected_cases": 16,
+    "selected": "Equality/regex metadata cases,widths3/16,populations512/2048;all36controls retained.",
+    "protocol": "Four alternating before/current blocks/profile;warmup1+measured2per case/block, eight measured samples/arm. Exactly one identical followup for primary cases>=1.05.",
+    "profiles": [
+      {
+        "label": "release",
+        "followup": {
+          "catalog:miss-group:n512:w3:server-default": {
+            "before_ns": [
+              263018,
+              248798,
+              260728,
+              260558,
+              260948,
+              283028,
+              266168,
+              270337
+            ],
+            "current_ns": [
+              290337,
+              276118,
+              264047,
+              266478,
+              275588,
+              265448,
+              272137,
+              268938
+            ],
+            "before_median_ns": 261983.0,
+            "current_median_ns": 270537.5,
+            "ratio": 1.0326528820572327
+          },
+          "catalog:miss-group:n2048:w3:server-default": {
+            "before_ns": [
+              1000981,
+              1009701,
+              1434468,
+              1075211,
+              1119231,
+              1106901,
+              1037821,
+              1012081
+            ],
+            "current_ns": [
+              1105511,
+              1122560,
+              1047951,
+              1044181,
+              1046381,
+              1032822,
+              1087721,
+              1074491
+            ],
+            "before_median_ns": 1056516.0,
+            "current_median_ns": 1061221.0,
+            "ratio": 1.0044533163719243
+          },
+          "catalog:narrow-id:n512:w3:server-default": {
+            "before_ns": [
+              274288,
+              276678,
+              275637,
+              275258,
+              385216,
+              368517,
+              270007,
+              264128
+            ],
+            "current_ns": [
+              290328,
+              288018,
+              290937,
+              277767,
+              278608,
+              276038,
+              292048,
+              287817
+            ],
+            "before_median_ns": 275447.5,
+            "current_median_ns": 287917.5,
+            "ratio": 1.045271785004402
+          },
+          "catalog:narrow-id:n512:w16:server-default": {
+            "before_ns": [
+              751433,
+              751344,
+              773334,
+              750734,
+              1001021,
+              769203,
+              789954,
+              747204
+            ],
+            "current_ns": [
+              787134,
+              776134,
+              757814,
+              761044,
+              757933,
+              739144,
+              786963,
+              775513
+            ],
+            "before_median_ns": 760318.0,
+            "current_median_ns": 768278.5,
+            "ratio": 1.0104699612530545
+          },
+          "catalog:regex:n2048:w3:server-default": {
+            "before_ns": [
+              1338448,
+              1277639,
+              1341548,
+              1356848,
+              1659415,
+              1621946,
+              1322569,
+              1289369
+            ],
+            "current_ns": [
+              1378398,
+              1401218,
+              1323919,
+              1295489,
+              1338709,
+              1304539,
+              1362008,
+              1349098
+            ],
+            "before_median_ns": 1339998.0,
+            "current_median_ns": 1343903.5,
+            "ratio": 1.0029145565888904
+          },
+          "catalog:regex:n2048:w16:server-default": {
+            "before_ns": [
+              3499061,
+              3246672,
+              3486820,
+              3260343,
+              4157665,
+              3986496,
+              3710599,
+              3585490
+            ],
+            "current_ns": [
+              4178735,
+              4174245,
+              3659569,
+              3640549,
+              3706988,
+              3578639,
+              3413711,
+              3386691
+            ],
+            "before_median_ns": 3542275.5,
+            "current_median_ns": 3650059.0,
+            "ratio": 1.0304277575247889
+          }
+        },
+        "slow_primary_case_ids": [
+          "catalog:miss-group:n512:w3:server-default",
+          "catalog:miss-group:n2048:w3:server-default",
+          "catalog:narrow-id:n512:w3:server-default",
+          "catalog:narrow-id:n512:w16:server-default",
+          "catalog:regex:n2048:w3:server-default",
+          "catalog:regex:n2048:w16:server-default"
+        ],
+        "primary_selected_median_ratio": 1.0301394235639754,
+        "effective_family_median_ratios": {
+          "miss-group": 1.0153689238660109,
+          "miss-id": 1.0093947833253996,
+          "narrow-id": 1.008448973995857,
+          "sum": 1.0106090116646083,
+          "sum-rate": 1.0062850381079076,
+          "regex": 1.006665407605619
+        },
+        "gain_gate_passed": false,
+        "family_gate_passed": true
+      },
+      {
+        "label": "release-min",
+        "followup": {},
+        "slow_primary_case_ids": [],
+        "primary_selected_median_ratio": 0.9967878931031243,
+        "effective_family_median_ratios": {
+          "miss-group": 1.0090606751344111,
+          "miss-id": 0.9932453721780918,
+          "narrow-id": 0.9890093646801662,
+          "sum": 1.0224473982540792,
+          "sum-rate": 1.0217025927181356,
+          "regex": 1.0060122091066228
+        },
+        "gain_gate_passed": false,
+        "family_gate_passed": true
+      }
+    ],
+    "primary_complete_pairs": 864,
+    "followup_complete_pairs": 72,
+    "complete_pairs": 936,
+    "serialized_nonelapsed_pairs": 936,
+    "differences": [],
+    "scope": "Complete outputs/errors/annotations/labels/timestamps/bits and every serialized nonelapsed observation exact. Six native release cases receive fixed followups;none in release-min. Primary selected ratios remain the gain gate. Effective family medians all<=1.05. Engine fixture evaluation excludes compilation,decode,serialization and HTTP."
+  },
+  "baseline": {
+    "actual_native_queries": 1910,
+    "functional_cases_per_profile": 72,
+    "timing_cases_per_profile": 36,
+    "retained_full_cases_per_profile": 847,
+    "retained_original_comparisons": 1150,
+    "scope": "Accepted immutable372-input binaries and existing original ordering policies; 373before inputs add only one uncompiled qualification report."
+  },
+  "not_run": [
+    "candidate full native release/release-min units",
+    "candidate ARM unit/runtime queries",
+    "candidate full7352query/original panel",
+    "candidate C/C++ runtime lifecycle panels",
+    "candidate static lint/format/MSRV"
+  ],
+  "restoration": "After every owned writer completed,guarded inverse removed only the owned branch/comment and4new tests. All373accepted inputs match the signed base exactly. No checkout/reset/delete/signal.",
+  "compiler_evidence": {
+    "installed_toolchain": "Rust1.97.1",
+    "locked_offline": true,
+    "jobs": 2,
+    "nice": 10,
+    "relevant_inherited_overrides": {},
+    "resolved_tools_and_verbose_commands_retained": true,
+    "scope": "Actual per-build settings/tool/binary/source pins;historical attribution unchanged."
+  },
+  "local_failed_attempts": {
+    "tracking": {
+      "attempts": [
+        {
+          "helper": ".tmp/zero-count-bilzd4p4/baseline.py",
+          "sha256": "bd37e882ec42099f87f624c7e28175cf3763fc01ffaf2d2a615037cc62230eff",
+          "tool_session_id": 58784,
+          "observed_terminal_exit": 1,
+          "line": 80,
+          "error": "AssertionError: previous118row is completed,not planning;correct stage119row remains planning.",
+          "completed_children": 6,
+          "child_exits": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "partial_state": "119SOWready written;umbrella unchanged. All373engine/input files unchanged.",
+          "repair": "Reconcile completed source-bound captures throughEOF,update only119row and run ready audit. Do not rerun successful query workloads or alter completed118tracking."
+        }
+      ]
+    },
+    "draft_adapter": {
+      "path": ".tmp/zero-count-bilzd4p4/helper-draft-failures.txt",
+      "sha256": "73d998d67cbe0c73db479af301fdc7703795f5db0619ae53c367284dd01b4423",
+      "scope": "Two in-memory literal-match failures before any writes;successful adapter uses parsed scope and syntax-checks every helper before writing. No workloads repeated."
+    }
+  },
+  "receipts": {
+    "compiled-route-conclusions.json": {
+      "path": ".tmp/zero-count-bilzd4p4/compiled-route-conclusions.json",
+      "sha256": "c8cb7565363216da4d6eb4a01d32447c932fc20b52c976484da3013132a5803d"
+    },
+    "compiled-routes.json": {
+      "path": ".tmp/zero-count-bilzd4p4/compiled-routes.json",
+      "sha256": "b0e0bb05d3ac4f582ea3fbe274e002490bf1b12f4c2a54c4d6838dfeae738b0e"
+    },
+    "green.json": {
+      "path": ".tmp/zero-count-bilzd4p4/green.json",
+      "sha256": "9adcd50147e3a65e2adc277e08ad3782e2bce4aaeb07cfc7bcc3ca671d705277"
+    },
+    "old-producer.json": {
+      "path": ".tmp/zero-count-bilzd4p4/old-producer.json",
+      "sha256": "f653100e90cee2439c5a1c6f502bf7d1d4f7597170cf4bae909d9f662fdd9e64"
+    },
+    "pilot-arm32-build.json": {
+      "path": ".tmp/zero-count-bilzd4p4/pilot-arm32-build.json",
+      "sha256": "2d455481e5df60bfb92631ddc83cd273c8eccdaf88b90adc666a94c027b777f8"
+    },
+    "pilot-arm64-build.json": {
+      "path": ".tmp/zero-count-bilzd4p4/pilot-arm64-build.json",
+      "sha256": "f744ed064e97325e5aad36c8eeea57aa43e4f10d491112f7a24c0c97289c2c0c"
+    },
+    "pilot-release-build.json": {
+      "path": ".tmp/zero-count-bilzd4p4/pilot-release-build.json",
+      "sha256": "3415b7b7c2e0f88de0d500d69228116a25ee75cf3c99c5507b693de0f97ff80c"
+    },
+    "pilot-release-min-build.json": {
+      "path": ".tmp/zero-count-bilzd4p4/pilot-release-min-build.json",
+      "sha256": "a409b4244d922483400ab1531ad461a7ce0149d5c0291b551b02388bfea196b0"
+    },
+    "planning.json": {
+      "path": ".tmp/zero-count-bilzd4p4/planning.json",
+      "sha256": "f0c0e9cc20f8aabbb9e0a3148bca377c0bdabcece04222ca17f83d85305cf26a"
+    },
+    "ready.json": {
+      "path": ".tmp/zero-count-bilzd4p4/ready.json",
+      "sha256": "f959f048067f49364c2f18b4101fd1d649a5282f27e6ca805abbae3d62574c3f"
+    },
+    "rejection.json": {
+      "path": ".tmp/zero-count-bilzd4p4/rejection.json",
+      "sha256": "3ce0755eee5a20304d4caad3d3d7075b1f9bf4284a8c50d817f965f258b7078d"
+    },
+    "size-gate.json": {
+      "path": ".tmp/zero-count-bilzd4p4/size-gate.json",
+      "sha256": "859559e44cc45552cd373736033ca3a5d0808fca00ca06efba2777e34a913df2"
+    },
+    "test-source-freeze.json": {
+      "path": ".tmp/zero-count-bilzd4p4/test-source-freeze.json",
+      "sha256": "b2d7082831f99840a26bb171fa976c71d756c307efa942b65b72fce3e35cf28e"
+    },
+    "timing.json": {
+      "path": ".tmp/zero-count-bilzd4p4/timing.json",
+      "sha256": "aaef6bef2992e26bfe86ee4defcc92dc897bf99a2ff86334dcb80580f8a6a414"
+    }
+  },
+  "limitations": [
+    "Candidate is rejected for missing the frozen speed benefit,despite focused correctness and smaller compiled sections. No threshold relaxation or replacement workload.",
+    "No accepted language coverage,query-memory reduction,throughput,live API,whole-Agent,foreign C, physical ARM,concurrency-throughput or RSS improvement is claimed.",
+    "Candidate broad native/ARM/C/runtime/static qualification was skipped after the conclusive timing failure. Baseline originals and debug controls do not qualify those unrun candidate paths.",
+    "Accepted numerical,storage,contexts,ABI4,paging,ownership,accounting and disabled-cap contracts unchanged. No production operation or installation. Continuous goal remains active."
+  ]
+}
