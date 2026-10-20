@@ -2224,3 +2224,16 @@ See [the finite report](ranking-buffer-capacity-qualification.json) and
   default-C link grew 508 bytes and passed. Both implementation files were restored exactly; no variant retained.
 - See [the measured record](histogram-shared-order-set-aside-qualification.json) and
   [its scope](README.md#set-aside-shared-histogram-group-ordering). No changed public/storage/provider/metadata contract.
+
+
+## Set-aside typed histogram selection
+
+- A private experiment used a two-variant transient selection type to carry native rows or active classic
+  positions. Global binding identities remained separate. Shared numeric ordering and checked lookup removed
+  repeated scans without adding a persistent owner or raw-history storage.
+- All focused semantic/control checks and 288 complete-query resource pairs passed. All four default-feature
+  C-consumer footprint gates passed. Fixture footprints were recorded separately under a prospective policy.
+- The larger-case timing median improved by about 5.6% in `release` and 2.0% in `release-min`. The latter
+  missed the frozen 3% requirement, so both implementation paths were restored. No runtime variant was retained.
+- See [the measured record](histogram-typed-selection-set-aside-qualification.json) and
+  [its scope](README.md#set-aside-typed-histogram-selection). Historical failures and public contracts remain unchanged.

@@ -9255,3 +9255,31 @@ Candidate complete-query resource/timing tests, release-min/foreign builds, fres
 full optimized units, C/C++ runtime panels and full static checks did not run after this early rejection.
 Lower isolated work establishes no complete-query speed or memory gain. Historical results keep their own
 identities and failures; this record adds no language coverage, public/data contract, cap, RSS or device claim.
+
+
+## Set-aside typed histogram selection
+
+[The measured report](histogram-typed-selection-set-aside-qualification.json) records a rejected private
+histogram delivery experiment. It combined shared numeric group ordering and checked presence lookup with a
+two-variant local selection type. Resolved positions replaced repeated group searches; persistent global
+identities, logical/plural ordering and successful replay-publication points stayed unchanged.
+
+All 480 complete delivery checks pass. Work falls in 320 cases and never increases; cancellation, logical-cache
+identity and cleanup controls also pass. All 288 complete-query pairs preserve results, all eight memory
+categories and physical/read/reference/backing observations. Work falls in all 216 nonempty classic cases;
+24 empty and 48 native controls retain identical nonelapsed observations.
+
+The prospective footprint policy measures four actual default-feature C consumers, with an 8,192-byte
+text+data+BSS growth ceiling each. Their deltas are +828 bytes (`release`), +472 (`release-min`),
++3,668 (ARM32) and -432 (ARM64): all pass. Fixture deltas remain diagnostics. These are representative
+library consumers, not containing Agent binaries or device RAM measurements. Earlier rejected gates remain unchanged.
+
+Each timing profile uses 144 cases, 54 workload families and nine measured samples per side. Across the
+48 larger target cases, the median current/before ratios are **0.943575** (`release`) and **0.979511**
+(`release-min`). The latter misses the frozen **0.97** requirement. All other primary timing criteria pass;
+diagnostic followups preserve rather than replace the original results.
+
+Both implementation paths were restored exactly. The measured improvements belong to this rejected candidate.
+Fresh upstream captures, broader original/reducer comparisons, optimized/foreign unit and layout checks,
+candidate C/C++ runtime panels and full static checks did not run after rejection. Timings exclude parsing
+and serialization; they do not establish live-server throughput or a universal speedup.

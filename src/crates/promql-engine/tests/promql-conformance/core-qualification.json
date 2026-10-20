@@ -73758,5 +73758,12 @@
     "status": "rejected_under_original_frozen_compiled_cost_criteria",
     "accepted_runtime_unchanged": true,
     "scope": "Rejected480Step-owner private group lookup experiment. Complete debug outcomes/control/ownership pass;isolated metadata work falls. Release fixture grows12248B,above8192;defaultC508Bpasses. Both implementation paths restored;no candidate complete-query or broad qualification claim."
+  },
+  "histogram_typed_selection_set_aside": {
+    "report": "histogram-typed-selection-set-aside-qualification.json",
+    "report_sha256": "a5e7d29128f6270f566539b6b6cbbf0facad5ba676f2a2837b0326bb7e57619f",
+    "status": "rejected_under_original_stage129_timing_criteria",
+    "accepted_runtime_unchanged": true,
+    "scope": "All480Step checks,288query resource pairs and four C-consumer cost gates pass. Target timing ratios are0.943575release and0.979511release-min; the latter misses0.97. Both implementation paths restored; broader conditional qualification did not run."
   }
 }
