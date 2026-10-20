@@ -73801,5 +73801,11 @@
     "report_sha256": "8ab3d89ae687e33907c73be07442dab9da43a111c91c475a04fa0871a08ac780",
     "status": "finite_qualification_pass",
     "scope": "Shared-item Present acquisition; 1872 exact query pairs, 38912 selected original comparisons, full native/focused ARM and actual C controls. Fewer float-window reads without measured memory growth."
+  },
+  "shared_fold_visitor": {
+    "report": "shared-fold-visitor-qualification.json",
+    "report_sha256": "95033cca0eb7f77651a0fd4633a05e9634a5375dd202f30d85bb71799efdb684",
+    "status": "finite_qualification_pass",
+    "scope": "One remaining no-op fold visitor shared; measured C sections decrease or remain unchanged;3744exact query pairs and38912selected original comparisons."
   }
 }

@@ -9460,3 +9460,32 @@ policies, retaining 1,020 expected errors per page. Strict Clippy, formatting an
 The authenticated retained SRE inventory contains no Present/absence calls among its 790 source slots and 1,110
 rendered expressions, so there is no affected SRE subset to rerun. This inventory check is not fresh all-SRE
 qualification. The change adds no language feature and makes no live-storage, physical-ARM or scheduling claim.
+
+## Shared fold validation visitor
+
+The remaining no-op Sum/Avg consuming callback now uses the existing named validation visitor. Stateful rate
+callbacks and the independent reference-test closure remain unchanged. This removes a redundant compiled
+traversal without changing query phases, admission, arithmetic, diagnostics, credits or result ownership.
+
+The [qualification](shared-fold-visitor-qualification.json) compares against the accepted Present build:
+
+| Build | C-consumer section growth | Fixture section growth |
+| --- | ---: | ---: |
+| release | -10368 bytes | -8188 bytes |
+| release-min | 0 bytes | -8196 bytes |
+| arm32 | -12096 bytes | -3156 bytes |
+| arm64 | -12644 bytes | -15204 bytes |
+
+All frozen footprint gates pass: at least 4,096 bytes saved in the regular release C consumer and no growth in
+any other C cohort. These are text/data/BSS measurements, not whole-Agent size or process RSS.
+
+All 3,744 complete before/current query pairs preserve every nonelapsed observation, including memory and reads.
+The panel includes native, mixed and stale-histogram Sum/Avg queries as well as float controls. Both native panel
+and per-shape median timing gates pass; individual cases at least 5% slower remain in the report. This is a
+compiled-footprint improvement, with no throughput improvement claim.
+
+Both optimized native suites pass 863 tests with two existing timing probes ignored. Each emulated ARM target
+passes 11 matrix, 29 fold and three absence tests. Four actual C consumers preserve all 885 records across their
+816 window-fold cases. The selected original panels pass 38,912 comparisons, preserving 1,020 expected errors
+per page and original ordering policies. Strict Clippy, formatting and Rust 1.91 compilation pass. The change
+adds no language feature and makes no live-storage, physical-device, fresh-SRE or scheduling claim.

@@ -1,0 +1,499 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "31634e544f8a8f295337c5790c7a7299bc5babdd",
+  "change": "The sole remaining production no-op Sum/Avg consuming callback uses the existing ignore_sample<StorageError> function item. No traversal, admission, state, ownership, accounting, error or arithmetic change.",
+  "source_phases": {
+    "before-source.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/before-source.json",
+      "sha256": "d075458a13729d5a8ed4a77202d67bf87e4aee51ebf0ad650eb268720e539b22"
+    },
+    "final-source.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/final-source.json",
+      "sha256": "5a331a67857305254683368051e310be9ec49388851d9298e0ee900262991bf8"
+    }
+  },
+  "qualified_inputs": 392,
+  "runtime": {
+    "range_reduce.rs": "bb13fbe6909d288fc20950115cba7daebc1e2ae8e690cd498a69bb287ca22903"
+  },
+  "baseline_attribution": "Actual immutable Stage135 binaries retain their 390-input qualification. All 148 Rust/Cargo/header inputs match the 392-input documentary baseline; historical builds are not reattributed.",
+  "compiled_cost": {
+    "sections": [
+      "text",
+      "data",
+      "bss"
+    ],
+    "criteria": "release default C total decrease at least4096B; no default C total growth on other cohorts. Fixture deltas diagnostic.",
+    "all_frozen_criteria_passed": true,
+    "observed": {
+      "release": [
+        {
+          "kind": "fixture",
+          "before": [
+            4379210,
+            259712,
+            3948
+          ],
+          "current": [
+            4370910,
+            259680,
+            4092
+          ],
+          "growth": -8188
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            7378134,
+            506488,
+            400
+          ],
+          "current": [
+            7367678,
+            506576,
+            400
+          ],
+          "growth": -10368
+        }
+      ],
+      "release-min": [
+        {
+          "kind": "fixture",
+          "before": [
+            2731701,
+            246048,
+            2076
+          ],
+          "current": [
+            2724625,
+            246048,
+            956
+          ],
+          "growth": -8196
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            5101087,
+            461864,
+            400
+          ],
+          "current": [
+            5101087,
+            461864,
+            400
+          ],
+          "growth": 0
+        }
+      ],
+      "arm32": [
+        {
+          "kind": "fixture",
+          "before": [
+            3692754,
+            164608,
+            212
+          ],
+          "current": [
+            3689654,
+            164552,
+            212
+          ],
+          "growth": -3156
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6386481,
+            292460,
+            244
+          ],
+          "current": [
+            6374369,
+            292476,
+            244
+          ],
+          "growth": -12096
+        }
+      ],
+      "arm64": [
+        {
+          "kind": "fixture",
+          "before": [
+            3653555,
+            253136,
+            328
+          ],
+          "current": [
+            3638279,
+            253208,
+            328
+          ],
+          "growth": -15204
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6403298,
+            496824,
+            384
+          ],
+          "current": [
+            6390590,
+            496888,
+            384
+          ],
+          "growth": -12644
+        }
+      ]
+    },
+    "census": {
+      "C": {
+        "before": {
+          "groups": {
+            "EvaluationError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x4425e0",
+                  "bytes": 7159
+                }
+              ]
+            },
+            "ExecutionError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x4479e0",
+                  "bytes": 7159
+                }
+              ]
+            },
+            "StorageError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x41d9e0",
+                  "bytes": 7159
+                }
+              ]
+            }
+          },
+          "other_bodies": 26,
+          "other_bytes": 186134
+        },
+        "current": {
+          "groups": {
+            "EvaluationError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x440090",
+                  "bytes": 7159
+                }
+              ]
+            },
+            "ExecutionError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x445490",
+                  "bytes": 7159
+                }
+              ]
+            },
+            "StorageError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x41d090",
+                  "bytes": 7159
+                }
+              ]
+            }
+          },
+          "other_bodies": 25,
+          "other_bytes": 178975
+        }
+      },
+      "fixture": {
+        "before": {
+          "groups": {
+            "EvaluationError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x13e6b0",
+                  "bytes": 4844
+                }
+              ]
+            },
+            "ExecutionError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x141f80",
+                  "bytes": 4844
+                }
+              ]
+            },
+            "StorageError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x125900",
+                  "bytes": 4844
+                }
+              ]
+            }
+          },
+          "other_bodies": 24,
+          "other_bytes": 116256
+        },
+        "current": {
+          "groups": {
+            "EvaluationError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x13c7e0",
+                  "bytes": 4844
+                }
+              ]
+            },
+            "ExecutionError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x1400b0",
+                  "bytes": 4844
+                }
+              ]
+            },
+            "StorageError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x124d20",
+                  "bytes": 4844
+                }
+              ]
+            }
+          },
+          "other_bodies": 23,
+          "other_bytes": 111412
+        }
+      }
+    },
+    "scope": "Actual C-consumer and fixture sections; no whole-Agent size or process RSS claim."
+  },
+  "measurement": {
+    "complete_pairs": 3744,
+    "cases_per_profile": 144,
+    "composition": "72 float controls plus72 Sum/Avg cases across native,mixed,stale-histogram histories. Native cases use1/8series,2/32points,pages1/17/1024 and three evaluation instants.",
+    "method": "Three alternating blocks;one warmup and three measured samples per side/block. Nine primary timings per case/side.",
+    "results": "Complete outcomes and every nonelapsed observation exact, including tracked memory and physical sample reads.",
+    "criteria": "Panel and each shape median ratio <=1.05; individual regressions retained.",
+    "profiles": {
+      "release": {
+        "panel_median": 0.9726510000717281,
+        "target_shapes": {
+          "absent": 0.9721239977132452,
+          "average-control": 0.9695711057132492,
+          "bare": 0.9735820729580903,
+          "grouped": 0.9747989091632624,
+          "joined": 0.9659166577430265,
+          "mixed-avg": 0.977438787793748,
+          "mixed-sum": 0.9757840965115935,
+          "native-avg": 0.9700514864625496,
+          "native-sum": 0.9695025614095856,
+          "stale-avg": 0.9768645291773873,
+          "stale-sum": 0.9716303638241683,
+          "sum-control": 0.9628417813263667
+        },
+        "passed": true,
+        "cases_at_least_5_percent_slower": [
+          {
+            "case": {
+              "id": "present-acquisition:n1:w2:p1:bare",
+              "series": 1,
+              "width": 2,
+              "page": 1,
+              "shape": "bare",
+              "expression": "present_over_time(m[2s])"
+            },
+            "ratio": 1.081775931968753
+          }
+        ]
+      },
+      "release-min": {
+        "panel_median": 0.9971986268021114,
+        "target_shapes": {
+          "absent": 1.0018655372923986,
+          "average-control": 0.9992435937117288,
+          "bare": 0.9952018859558831,
+          "grouped": 0.9921098052624934,
+          "joined": 0.99679499739509,
+          "mixed-avg": 0.9980964929257454,
+          "mixed-sum": 0.991297726938279,
+          "native-avg": 0.9937238979317131,
+          "native-sum": 0.9899081171988339,
+          "stale-avg": 1.0003617845536772,
+          "stale-sum": 1.0075792169026132,
+          "sum-control": 1.0026056143328401
+        },
+        "passed": true,
+        "cases_at_least_5_percent_slower": []
+      }
+    },
+    "scope": "Shared-host synthetic engine timing, excluding parsing/serialization. No throughput improvement claim."
+  },
+  "qualification": {
+    "native_optimized_tests_per_profile": 863,
+    "preexisting_ignored_per_profile": 2,
+    "emulated_ARM_tests_per_target": {
+      "matrix_reader": 11,
+      "range_reduce": 29,
+      "absence": 3
+    },
+    "C_cases_per_cohort": 816,
+    "C_records_per_cohort": 885,
+    "C_observations": "All records exact across all four actual C cohorts.",
+    "originals": 38912,
+    "original_cases_per_page": 4864,
+    "expected_errors_per_page": 1020,
+    "native_pages": [
+      1,
+      17,
+      1024
+    ],
+    "foreign_pages": [
+      17
+    ],
+    "policy": "Exact numerical bits and each retained original ordering policy; expected errors preserved.",
+    "original_preparation": "Imported authenticated Stage135 preparation remains historical; current executions bind actual392input candidate.",
+    "strict_Clippy_variants": 2,
+    "format": "pass",
+    "MSRV_compile_only": "1.91.0"
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/measurement-plan.json",
+      "sha256": "814a2bbf90a94ff0cd86cab279b707bfbc3403aed68bc40a258002c19a1a8f3d"
+    },
+    "ready.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/ready.json",
+      "sha256": "b4f868f22c1813d24c9ca18a7d730ca3e437523ef07d06efe70d1d2a9560bd8a"
+    },
+    "baseline.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/baseline.json",
+      "sha256": "459b03e8a41445e89001ca79827624d230c1eddc07704d40a4ebc3cd3f997ce8"
+    },
+    "census.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/census.json",
+      "sha256": "6d10947d8f2181a0235edda0dbdcd7a40bb3138b9021e5012be1826a502785b8"
+    },
+    "native-sequence.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/native-sequence.json",
+      "sha256": "2bae9ea738d79dcf7547c024901752df015a14d18bcd2b25519be694049a41d7"
+    },
+    "cross-sequence.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/cross-sequence.json",
+      "sha256": "8317a5e489e7254584c9733c64874659a78bc6655bc4377d6ff93f2905736de2"
+    },
+    "current-static.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/current-static.json",
+      "sha256": "4d75dcbdabfa23ea66c6b40cbc03fefe0d848890639c6d27e9ab49021ab938f0"
+    },
+    "retained-inputs.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/retained-inputs.json",
+      "sha256": "4ccdc37ffd18c56a369c58f95141fdac48b6412bdad653fb9283aab71a76eb63"
+    },
+    "build-release.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/build-release.json",
+      "sha256": "2a6b0bd6e7eca0d0bda16ca3aef27a6b663c55cf0de5a8da4b3498367a910e16"
+    },
+    "qualification-release.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/qualification-release.json",
+      "sha256": "6a192b67da24369580884015aad0c3c26b3745e2f89516e596850109547f606c"
+    },
+    "C-comparison-release.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/C-comparison-release.json",
+      "sha256": "098d43c376a938494a60e611ad4fa56ec8a32edec799a43c4c38e7a937082b92"
+    },
+    "originals-release.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/originals-release.json",
+      "sha256": "a869dbe9479151fae754c492e2e282852f8400145990025ec996537d697526d1"
+    },
+    "build-release-min.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/build-release-min.json",
+      "sha256": "37773635e24b13da76d95651d6ecd923bd8379d1bd830cebfcab75e55aea9b58"
+    },
+    "qualification-release-min.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/qualification-release-min.json",
+      "sha256": "41d813b6d7d7f839ecf7bed1239adfb2a55b8cba26b651020f8a7268b1c7fa6e"
+    },
+    "C-comparison-release-min.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/C-comparison-release-min.json",
+      "sha256": "14e709db8e702caf72d4dda03ba0027fa383c65f67cf376b29edb7e610ac7f2d"
+    },
+    "originals-release-min.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/originals-release-min.json",
+      "sha256": "2f238a70dbea6ccaf0ebd17fcd0b7ac61cbf02852036fe16edf5b7181152ab63"
+    },
+    "build-arm32.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/build-arm32.json",
+      "sha256": "4bbcc63c6b3ba97b46b11260c4fa430a0201169e2b2ee6cc3c24d5cf17df7383"
+    },
+    "qualification-arm32.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/qualification-arm32.json",
+      "sha256": "bb88489f60b41ce6b0ce66fa3261cee47d279b9bfcf8e3a0bef1ea5a1af0c8f3"
+    },
+    "C-comparison-arm32.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/C-comparison-arm32.json",
+      "sha256": "4097fb2bfc8777b8d4c3114aaeae44bef4fc2894b968d68fbf3664d4b1bb8c0a"
+    },
+    "originals-arm32.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/originals-arm32.json",
+      "sha256": "4c92d31ea21a8e9a447e80393b140bbe9d279c3fb435d321794bf0d4169fdecb"
+    },
+    "build-arm64.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/build-arm64.json",
+      "sha256": "a99669a218631eb40ef50a6179f05c0e75e16cc0609929fca690574c4377bfa6"
+    },
+    "qualification-arm64.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/qualification-arm64.json",
+      "sha256": "58382137319f3aa4a71ae665561a85be59f2ee376b30152bcbd02a4a354dd2f1"
+    },
+    "C-comparison-arm64.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/C-comparison-arm64.json",
+      "sha256": "b81904f4d732c883a99b6b0d0caf7459fa8a9e95d96c8bba7c0a8c6629f9a8d2"
+    },
+    "originals-arm64.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/originals-arm64.json",
+      "sha256": "39050c6eccc461b472e3c8f971cf659508e9b0740a2c4e86f827689ce020084c"
+    },
+    "measurement-release.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/measurement-release.json",
+      "sha256": "067a7f7fdbae501154272a622cf60ecc79875c4a323760bf812f8d2379a41e17"
+    },
+    "measurement-release-min.json": {
+      "path": ".tmp/fold-visitor-udz1kuv2/measurement-release-min.json",
+      "sha256": "21ee783af4aa0b20bd9d2159e47bbb44c7480990f62b001e8443ceef64734ed1"
+    }
+  },
+  "scope": "Private compiled-footprint improvement. No new language feature, raw-history cache, fields, allocation, ABI, limits, live storage, physical ARM or fresh SRE execution. Continuous objective unfinished."
+}

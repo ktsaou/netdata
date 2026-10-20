@@ -2304,3 +2304,11 @@ separately rejected under their original criteria.
   [measured scope](README.md#shared-present-acquisition) retain complete outcomes, physical reads, unchanged
   logical credits, nonincreasing memory, all section sizes and the slower individual Sum control. Growth is
   measured against the already smaller shared-visitor build. All original frozen gates pass without exceptions.
+
+## Shared fold validation visitor
+
+- **Choice:** the remaining production no-op Sum/Avg consume callback uses the existing named function item.
+  Stateful callbacks and the independent reference-test closure remain unchanged.
+- **Contract:** callback type identity changes; phases, controls, progress, credits, arithmetic and ownership do not.
+- **Evidence:** [qualification](shared-fold-visitor-qualification.json) retains actual section savings, complete
+  outcomes, exact observations, timing controls and finite native/ARM/C/original checks. No throughput claim.

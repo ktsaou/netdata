@@ -830,7 +830,7 @@ pub(crate) fn fold<S: Series>(
                     window.with_progress(Some(acquisition.progress)),
                     control,
                     account,
-                    |_| Ok(()),
+                    crate::matrix_reader::ignore_sample::<StorageError>,
                 )?
                 .progress
             } else {
