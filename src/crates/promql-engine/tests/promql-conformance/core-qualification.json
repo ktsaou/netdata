@@ -73771,5 +73771,11 @@
     "report_sha256": "f553f5ed4d3bf3ca959f88c12492da65e6abc6ee3ed17ef344efb5d74dceca91",
     "status": "finite_qualification_with_explicit_compiled_text_exception",
     "scope": "Existing Avg acquisition reuse extended to Sum; 1248 exact query pairs, 5040 selected originals, 13680 affected SRE/own-parent comparisons, four C consumers and explicit 65.A ARM64 text exception."
+  },
+  "rejected_count_acquisition": {
+    "report": "count-acquisition-investigation.json",
+    "report_sha256": "4e43cf7ce441499188155d2dfb2b9fd4ee9248ebbec0498cffc7166deec5f584",
+    "status": "rejected_candidate_runtime_restored",
+    "scope": "Negative private throughput experiment. Accepted runtime and tests match comparison base exactly; existing language, numerical, provider, paging, contexts and accounting contracts remain unchanged."
   }
 }

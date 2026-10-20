@@ -1,0 +1,725 @@
+{
+  "schema_version": 1,
+  "status": "rejected_candidate_runtime_restored",
+  "comparison_base": "e141cd162cc3ae7ec0f1cb3b748904cbbbe841e6",
+  "proposed_change": "Admit Count beside Sum and Avg in existing validated initial acquisition. No added raw-history state or public contract.",
+  "reason": "The frozen release-min ordinary Avg-control median ratio is1.0993684831419848, exceeding1.05. A planned diagnostic repeat is mixed and cannot replace primary evidence.",
+  "interpretation": "Count target gains are real observations in these cohorts; a stable unrelated-query regression is not proven. The candidate nevertheless fails the predeclared acceptance gate and is not shipped.",
+  "accepted_runtime_sha256": "9e8d3faf0b409384a4f099149b5ec2383e388e6e1e12034a47183ad0d764f55f",
+  "rejected_runtime_sha256": "37df992df8c726a7286331eefe50ecee85a8f14eeeaf6bb845c62acf879446b0",
+  "rejected_patch": {
+    "path": ".tmp/count-acquisition-p4ncjsqf/rejected-candidate.patch",
+    "sha256": "7719154f25b8d3689ff11902f39db15a24f0b718af3fe6f08e777c21424f41c2"
+  },
+  "source_phases": {
+    "before-source.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/before-source.json",
+      "sha256": "b19ef1e05e1d466ab5190fa178832a7b56ce7a97780a4e74489df911db0d1717"
+    },
+    "formatted-tests-source.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/formatted-tests-source.json",
+      "sha256": "75319be65b63f629036475ba9441d95551e26d26c9aa66170d99abdab76efd78"
+    },
+    "candidate-source.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/candidate-source.json",
+      "sha256": "7102e5fd90d003a627e49866499e4a2c9ef0c3507c7b4ac9c7c7b05acec4afae"
+    },
+    "restored-source.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/restored-source.json",
+      "sha256": "b19ef1e05e1d466ab5190fa178832a7b56ce7a97780a4e74489df911db0d1717"
+    }
+  },
+  "candidate_tests": {
+    "old_complete_cases_before_final_guard": 30,
+    "old_expected_exit": 101,
+    "focused_candidate_tests": 26,
+    "actual_count_read_seek_failure_cases": 70,
+    "scope": "Exact Count values/absence, annotations, full progress, useful reads, live output lease and cleanup before final one-cursor assertion. Pages1/17/1024;empty/singleton/long histories;native/mixed/stale, cancellation, wider bounds, nonfinite/zero and2048/100000-point memory controls."
+  },
+  "measurement": {
+    "complete_primary_pairs": 1248,
+    "complete_diagnostic_pairs": 120,
+    "cases_per_profile": 48,
+    "series": [
+      1,
+      32
+    ],
+    "window_points": [
+      2,
+      128
+    ],
+    "pages": [
+      1,
+      17,
+      1024
+    ],
+    "primary": "Three alternating serial blocks;one warmup plus three measured samples per side/block;nine primary measurements per side/case.",
+    "target": "32series and128points across bare/grouped/joined Count and all three page sizes.",
+    "physical": "All measured Count cases halve fetched entries and reduce work; all Avg nonelapsed observations remain exact.",
+    "memory": "Matched query memory peaks, retained bytes and allocation traffic never increase in the measured cohorts.",
+    "profiles": {
+      "release": {
+        "passed": true,
+        "target_median": 0.5790807812545499,
+        "target_shapes": {
+          "bare": 0.5790807812545499,
+          "grouped": 0.5760923127593661,
+          "joined": 0.6188435954926198
+        },
+        "panel_median": 0.7719867467404021,
+        "control_median": 1.0134339457263364,
+        "cases_at_least_5_percent_slower": []
+      },
+      "release-min": {
+        "passed": false,
+        "target_median": 0.5990386285829609,
+        "target_shapes": {
+          "bare": 0.5732531889476107,
+          "grouped": 0.5829590417603643,
+          "joined": 0.6941310302224468
+        },
+        "panel_median": 0.8347093009551017,
+        "control_median": 1.0993684831419848,
+        "cases_at_least_5_percent_slower": [
+          {
+            "case": {
+              "id": "count-acquisition:n1:w2:p1:bare",
+              "series": 1,
+              "width": 2,
+              "page": 1,
+              "shape": "bare",
+              "expression": "count_over_time(m[2s])"
+            },
+            "ratio": 1.140653451568491
+          },
+          {
+            "case": {
+              "id": "count-acquisition:n1:w2:p1:average-control",
+              "series": 1,
+              "width": 2,
+              "page": 1,
+              "shape": "average-control",
+              "expression": "avg_over_time(m[2s])"
+            },
+            "ratio": 1.1717888100866825
+          },
+          {
+            "case": {
+              "id": "count-acquisition:n1:w2:p1024:joined",
+              "series": 1,
+              "width": 2,
+              "page": 1024,
+              "shape": "joined",
+              "expression": "(count_over_time(m[2s])+1)/on(id,job)(count_over_time(m[2s])+1)"
+            },
+            "ratio": 1.1537848948036384
+          },
+          {
+            "case": {
+              "id": "count-acquisition:n1:w2:p1024:average-control",
+              "series": 1,
+              "width": 2,
+              "page": 1024,
+              "shape": "average-control",
+              "expression": "avg_over_time(m[2s])"
+            },
+            "ratio": 1.5222894078398665
+          },
+          {
+            "case": {
+              "id": "count-acquisition:n1:w128:p1:average-control",
+              "series": 1,
+              "width": 128,
+              "page": 1,
+              "shape": "average-control",
+              "expression": "avg_over_time(m[128s])"
+            },
+            "ratio": 1.5414284365909956
+          },
+          {
+            "case": {
+              "id": "count-acquisition:n32:w2:p1:average-control",
+              "series": 32,
+              "width": 2,
+              "page": 1,
+              "shape": "average-control",
+              "expression": "avg_over_time(m[2s])"
+            },
+            "ratio": 1.1185897489606358
+          },
+          {
+            "case": {
+              "id": "count-acquisition:n32:w2:p17:average-control",
+              "series": 32,
+              "width": 2,
+              "page": 17,
+              "shape": "average-control",
+              "expression": "avg_over_time(m[2s])"
+            },
+            "ratio": 1.14086324990679
+          },
+          {
+            "case": {
+              "id": "count-acquisition:n32:w2:p1024:average-control",
+              "series": 32,
+              "width": 2,
+              "page": 1024,
+              "shape": "average-control",
+              "expression": "avg_over_time(m[2s])"
+            },
+            "ratio": 1.07010172837498
+          },
+          {
+            "case": {
+              "id": "count-acquisition:n32:w128:p17:average-control",
+              "series": 32,
+              "width": 128,
+              "page": 17,
+              "shape": "average-control",
+              "expression": "avg_over_time(m[128s])"
+            },
+            "ratio": 1.1099400082284652
+          },
+          {
+            "case": {
+              "id": "count-acquisition:n32:w128:p1024:average-control",
+              "series": 32,
+              "width": 128,
+              "page": 1024,
+              "shape": "average-control",
+              "expression": "avg_over_time(m[128s])"
+            },
+            "ratio": 1.0887969580555041
+          }
+        ]
+      }
+    },
+    "diagnostic": {
+      "primary_gate_remains_failed": true,
+      "cases": [
+        {
+          "case": {
+            "id": "count-acquisition:n1:w2:p1:bare",
+            "series": 1,
+            "width": 2,
+            "page": 1,
+            "shape": "bare",
+            "expression": "count_over_time(m[2s])"
+          },
+          "before_ns": [
+            70719,
+            85190,
+            65069,
+            73029,
+            67579,
+            73170,
+            72819,
+            65839,
+            65099
+          ],
+          "current_ns": [
+            55409,
+            50579,
+            49679,
+            100249,
+            90679,
+            84629,
+            55059,
+            51240,
+            50000
+          ],
+          "ratio": 0.7785602171976413
+        },
+        {
+          "case": {
+            "id": "count-acquisition:n1:w2:p1:average-control",
+            "series": 1,
+            "width": 2,
+            "page": 1,
+            "shape": "average-control",
+            "expression": "avg_over_time(m[2s])"
+          },
+          "before_ns": [
+            50949,
+            53149,
+            50389,
+            101849,
+            58609,
+            53019,
+            50720,
+            55000,
+            51730
+          ],
+          "current_ns": [
+            88299,
+            75069,
+            61980,
+            86959,
+            79280,
+            73179,
+            60930,
+            98709,
+            94809
+          ],
+          "ratio": 1.4953130009996416
+        },
+        {
+          "case": {
+            "id": "count-acquisition:n1:w2:p1024:joined",
+            "series": 1,
+            "width": 2,
+            "page": 1024,
+            "shape": "joined",
+            "expression": "(count_over_time(m[2s])+1)/on(id,job)(count_over_time(m[2s])+1)"
+          },
+          "before_ns": [
+            398416,
+            403486,
+            397876,
+            569695,
+            438405,
+            504365,
+            414316,
+            394157,
+            600074
+          ],
+          "current_ns": [
+            432176,
+            466645,
+            347097,
+            423966,
+            544834,
+            349946,
+            352297,
+            503915,
+            370576
+          ],
+          "ratio": 1.0232914007665646
+        },
+        {
+          "case": {
+            "id": "count-acquisition:n1:w2:p1024:average-control",
+            "series": 1,
+            "width": 2,
+            "page": 1024,
+            "shape": "average-control",
+            "expression": "avg_over_time(m[2s])"
+          },
+          "before_ns": [
+            47340,
+            46740,
+            58400,
+            50740,
+            63639,
+            52439,
+            89459,
+            75600,
+            89039
+          ],
+          "current_ns": [
+            56900,
+            71779,
+            83979,
+            49830,
+            50210,
+            47800,
+            47479,
+            46799,
+            83039
+          ],
+          "ratio": 0.8597602739726027
+        },
+        {
+          "case": {
+            "id": "count-acquisition:n1:w128:p1:average-control",
+            "series": 1,
+            "width": 128,
+            "page": 1,
+            "shape": "average-control",
+            "expression": "avg_over_time(m[128s])"
+          },
+          "before_ns": [
+            363377,
+            348097,
+            366876,
+            647894,
+            660114,
+            578514,
+            365337,
+            342507,
+            362037
+          ],
+          "current_ns": [
+            337017,
+            331037,
+            335917,
+            333657,
+            356127,
+            332777,
+            466636,
+            362887,
+            362816
+          ],
+          "ratio": 0.922482529828624
+        },
+        {
+          "case": {
+            "id": "count-acquisition:n32:w2:p1:average-control",
+            "series": 32,
+            "width": 2,
+            "page": 1,
+            "shape": "average-control",
+            "expression": "avg_over_time(m[2s])"
+          },
+          "before_ns": [
+            1219978,
+            1227178,
+            1243318,
+            2294237,
+            2331508,
+            2321187,
+            1855391,
+            1408946,
+            1401857
+          ],
+          "current_ns": [
+            1199268,
+            2148469,
+            2209199,
+            1246168,
+            1282297,
+            1311637,
+            1642484,
+            1843242,
+            2031960
+          ],
+          "ratio": 1.165753691057003
+        },
+        {
+          "case": {
+            "id": "count-acquisition:n32:w2:p17:average-control",
+            "series": 32,
+            "width": 2,
+            "page": 17,
+            "shape": "average-control",
+            "expression": "avg_over_time(m[2s])"
+          },
+          "before_ns": [
+            1157909,
+            1118199,
+            1125310,
+            2101809,
+            2039971,
+            2040621,
+            1329907,
+            1182959,
+            1167409
+          ],
+          "current_ns": [
+            1274697,
+            1421606,
+            1433736,
+            1173449,
+            1133499,
+            1186869,
+            1187209,
+            1821243,
+            1918831
+          ],
+          "ratio": 1.0775496023108155
+        },
+        {
+          "case": {
+            "id": "count-acquisition:n32:w2:p1024:average-control",
+            "series": 32,
+            "width": 2,
+            "page": 1024,
+            "shape": "average-control",
+            "expression": "avg_over_time(m[2s])"
+          },
+          "before_ns": [
+            1125479,
+            1110340,
+            1125389,
+            2185399,
+            2118169,
+            1966201,
+            1150439,
+            1330037,
+            1125029
+          ],
+          "current_ns": [
+            1416066,
+            1312968,
+            1723783,
+            1148149,
+            1170529,
+            1139700,
+            1501246,
+            1123160,
+            1193108
+          ],
+          "ratio": 1.0370893198161746
+        },
+        {
+          "case": {
+            "id": "count-acquisition:n32:w128:p17:average-control",
+            "series": 32,
+            "width": 128,
+            "page": 17,
+            "shape": "average-control",
+            "expression": "avg_over_time(m[128s])"
+          },
+          "before_ns": [
+            3771194,
+            3946622,
+            3767934,
+            4493917,
+            3967631,
+            4462237,
+            3913252,
+            3998491,
+            3835483
+          ],
+          "current_ns": [
+            4318899,
+            4369918,
+            4141390,
+            3734264,
+            3677385,
+            3651934,
+            5867884,
+            5366988,
+            5096681
+          ],
+          "ratio": 1.0943280101311958
+        },
+        {
+          "case": {
+            "id": "count-acquisition:n32:w128:p1024:average-control",
+            "series": 32,
+            "width": 128,
+            "page": 1024,
+            "shape": "average-control",
+            "expression": "avg_over_time(m[128s])"
+          },
+          "before_ns": [
+            3830773,
+            3836712,
+            3959692,
+            4529686,
+            4464827,
+            4847103,
+            3968392,
+            3771304,
+            3794194
+          ],
+          "current_ns": [
+            3884443,
+            3829823,
+            3782703,
+            3824673,
+            3921403,
+            4080310,
+            5587326,
+            6559616,
+            6355848
+          ],
+          "ratio": 0.9903303085189454
+        }
+      ],
+      "scope": "One planned repeat of ten primary cases at least5percent slower; some recover, others remain slower. No primary result replaced."
+    },
+    "limitations": "Shared-host synthetic engine time; excludes parsing/serialization. Not live dbengine throughput, process RSS, uniform speedup or proof of a stable slowdown."
+  },
+  "compiled_cost": {
+    "default_C_growth_bytes": {
+      "release": 16,
+      "release-min": 16
+    },
+    "observed": {
+      "release": [
+        {
+          "kind": "fixture",
+          "before": [
+            4463918,
+            259512,
+            1396
+          ],
+          "current": [
+            4463918,
+            259512,
+            1396
+          ],
+          "growth": 0
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            7562658,
+            506456,
+            400
+          ],
+          "current": [
+            7562674,
+            506456,
+            400
+          ],
+          "growth": 16
+        }
+      ],
+      "release-min": [
+        {
+          "kind": "fixture",
+          "before": [
+            2824869,
+            246024,
+            3108
+          ],
+          "current": [
+            2825253,
+            246024,
+            2724
+          ],
+          "growth": 0
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            5099227,
+            461832,
+            400
+          ],
+          "current": [
+            5099243,
+            461832,
+            400
+          ],
+          "growth": 16
+        }
+      ]
+    },
+    "scope": "Both native profiles compile and link actual default C consumers; neither foreign target is rebuilt for this rejected candidate."
+  },
+  "candidate_builds": {
+    "release": {
+      "profile": "release",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "fixture": {
+        "path": ".tmp/count-acquisition-p4ncjsqf/current-release/promql-query-fixture",
+        "sha256": "70c0cdcab1a6a450d394f0c6969f3947b0505f20713c89b87f24b751a1ff1da0"
+      },
+      "archive": {
+        "path": ".tmp/count-acquisition-p4ncjsqf/current-release/libnetdata_promql_engine.a",
+        "sha256": "a41c80201401e41a89eb0869fcb35c39e89fb1ae2dade112395f0f8f22ee13e9"
+      },
+      "default_embedding": {
+        "path": ".tmp/count-acquisition-p4ncjsqf/current-release/embedding",
+        "sha256": "2043337ab3d064ac2d33304d4a90df8e29d8ecc6f2e03a56f45005ba7a444e2b"
+      },
+      "compiler_settings": {
+        "path": ".tmp/count-acquisition-p4ncjsqf/release-settings.json",
+        "sha256": "3cc0b7905664ec21719752a8842db00d45613d5564191b9bf8379de3ea18cb10"
+      }
+    },
+    "release-min": {
+      "profile": "release-min",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "fixture": {
+        "path": ".tmp/count-acquisition-p4ncjsqf/current-release-min/promql-query-fixture",
+        "sha256": "a12b3c534f34b8c6e7dee702cb6247fbc376483292e0a536f1cd85aaf2e37fb9"
+      },
+      "archive": {
+        "path": ".tmp/count-acquisition-p4ncjsqf/current-release-min/libnetdata_promql_engine.a",
+        "sha256": "802f30727d3c6027b812567e29882e34db8b8cc7bd362c9511a30a8dbc84c966"
+      },
+      "default_embedding": {
+        "path": ".tmp/count-acquisition-p4ncjsqf/current-release-min/embedding",
+        "sha256": "53c52b246bc32629970f93b753a744974f0df5395dbd2489c2418735f65ef2fb"
+      },
+      "compiler_settings": {
+        "path": ".tmp/count-acquisition-p4ncjsqf/release-min-settings.json",
+        "sha256": "3cc0b7905664ec21719752a8842db00d45613d5564191b9bf8379de3ea18cb10"
+      }
+    }
+  },
+  "not_completed": [
+    "Optimized full unit suites",
+    "Actual C execution",
+    "ARM builds/execution",
+    "Selected pinned-original replay",
+    "Affected SRE own-parent replay",
+    "Candidate strict Clippy and MSRV checks"
+  ],
+  "prepared_not_qualified": {
+    "original_cases": 285,
+    "expected_errors": 48,
+    "note": "Pinned reference selection only; no candidate execution. No new compatibility coverage claim."
+  },
+  "restoration": {
+    "runtime_restored": true,
+    "accepted_runtime_sha256": "9e8d3faf0b409384a4f099149b5ec2383e388e6e1e12034a47183ad0d764f55f",
+    "rejected_runtime_sha256": "37df992df8c726a7286331eefe50ecee85a8f14eeeaf6bb845c62acf879446b0",
+    "reason": "Frozen release-min Avg-control median1.0993684831 exceeds1.05. Planned diagnostic does not replace primary evidence.",
+    "authorization": "Original rejection rule under61: restore only exact owned implementation/test bytes; retain negative evidence.",
+    "source_inputs": 386,
+    "patch_sha256": "7719154f25b8d3689ff11902f39db15a24f0b718af3fe6f08e777c21424f41c2"
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/measurement-plan.json",
+      "sha256": "b1184082922908b4dc600a3998bd37833d1c9bd13867c89654335420c69427bd"
+    },
+    "ready.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/ready.json",
+      "sha256": "ba33dcac0aa8611a8c626729c70ff74ac4ba893b1758d95e460229afbf7a51d1"
+    },
+    "baseline.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/baseline.json",
+      "sha256": "156171c51ba9d76184dccfad6e1b358328e07df5138c8ed7f3ff792f4d45e792"
+    },
+    "old-units.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/old-units.json",
+      "sha256": "06b81a0b71be356e805e5c30c6aebefa70fdeb90413efbcc774e1e86950fb22a"
+    },
+    "current-units.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/current-units.json",
+      "sha256": "bed20607b604c5350cd5fc8e1c1d2a354f391108a21b336715936f2ab3b9566a"
+    },
+    "build-release.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/build-release.json",
+      "sha256": "b86ddb9f3a60b1841b29230e2bd859bb25eb6b758268725b634e19beec89ded7"
+    },
+    "build-release-min.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/build-release-min.json",
+      "sha256": "8863788707926e260d3c1f4933f309b94e2a04753e00659bef84a6e65a9c2488"
+    },
+    "measurement-release.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/measurement-release.json",
+      "sha256": "27e528dad2bc05d1d732169a6fd05a3cf213dcefdc4277c1793760b09701f79f"
+    },
+    "measurement-release-min.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/measurement-release-min.json",
+      "sha256": "5e143f6cc0c5db1967db0ce1f70265a1792330c1796f8014d81bfdce9004fd30"
+    },
+    "diagnostic.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/diagnostic.json",
+      "sha256": "2016fb350a68710157206e76a40bc7bb80fecb3581ddae2c31bb189541e5aec8"
+    },
+    "originals-prepared.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/originals-prepared.json",
+      "sha256": "7646b9eacd89ecada8b743707b0f4abb84d8e8d932ae8672c76b33b069c88401"
+    },
+    "preparation-correction.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/preparation-correction.json",
+      "sha256": "08f91c3ff22991093ecd4533280e862ef34fc1271a78528721386cee352d7235"
+    },
+    "restoration.json": {
+      "path": ".tmp/count-acquisition-p4ncjsqf/restoration.json",
+      "sha256": "de03b435891d2534daef5fd9c9498de08b1bfb0855631e7442cd78ad4e0682f5"
+    }
+  },
+  "scope": "Negative private throughput experiment. Accepted runtime and tests match comparison base exactly; existing language, numerical, provider, paging, contexts and accounting contracts remain unchanged."
+}

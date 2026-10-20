@@ -2251,3 +2251,11 @@ See [the finite report](ranking-buffer-capacity-qualification.json) and
 - **Trade-off:** the original 8,192-byte C-consumer growth ceiling fails only on ARM64, whose compiled text grows
   8,256 bytes. Decision 65.A explicitly accepts that specific increase. Native profiles and ARM32 have zero
   combined text/data/BSS growth; measured query-memory peaks do not increase. This grants no general size allowance.
+
+## Rejected Count acquisition reuse
+
+Count could reuse the completed initial Sum/Avg acquisition without adding raw-history storage. A finite candidate
+preserved results, progress, logical reads and cleanup, including native/mixed/stale membership. It halved measured
+Count reads, but failed the frozen release-min Avg-control timing criterion. The diagnostic repeat did not replace
+that failure. The candidate was restored; the accepted admission remains Sum/Avg only. See
+[count-acquisition-investigation.json](count-acquisition-investigation.json) for exact evidence and limits.

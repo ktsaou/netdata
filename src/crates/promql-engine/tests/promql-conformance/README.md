@@ -9323,3 +9323,22 @@ The causal unit completes 30 independent Sum outcomes, complete saved progress, 
 on old and new code; only its final one-cursor assertion fails on the old code. Shared controls cover actual read
 failures, terminal cancellation, native/mixed/stale history, wider bounds, overflow, NaN payloads and signed zero.
 The current evidence preserves each original source/binary attribution and the expected unsupported anchored cases.
+
+## Rejected Count acquisition reuse
+
+A candidate added `count_over_time` to the existing Sum/Avg validated acquisition path. It passed 26 focused
+owners, including 70 actual Count read/seek failures, native/mixed/stale membership, cancellation, complete
+progress/ownership checks and page-bounded 100,000-point histories. The old runtime passed 30 complete semantic
+checks before failing only the final one-traversal guard.
+
+Across 48 synthetic cases/profile, 1,248 complete before/after pairs matched. Larger Count queries took about 42%
+less engine time in release and 40% less in release-min, with half the fetched entries and no measured query-memory
+or allocation-traffic growth. Both native C executables grew 16 bytes. However, release-min Avg controls had a
+median time ratio of 1.0994, above the frozen 1.05 allowance. The single planned diagnostic repeat was mixed and
+adds 120 matching pairs; it does not replace the failed primary result or prove a stable unrelated-query slowdown.
+
+The candidate and its test edits were restored to the accepted source. Count retains its existing traversal.
+[count-acquisition-investigation.json](count-acquisition-investigation.json) preserves measurements, exact source
+and binary identities, the failed criterion and restoration. Foreign execution, full optimized suites, C execution
+and original/SRE replay were not run for this rejected candidate. Prepared reference selection is not coverage.
+These finite shared-host measurements do not describe live dbengine throughput or process RSS.
