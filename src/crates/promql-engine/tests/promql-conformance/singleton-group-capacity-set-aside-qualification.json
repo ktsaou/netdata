@@ -1,0 +1,1987 @@
+{
+  "status": "set_aside_under_frozen_stage138_timing_gate",
+  "comparison_base": "ff495609f38ba51ecdcafb5f745cbe3c7d28b851",
+  "accepted_runtime_unchanged": true,
+  "candidate_retained": false,
+  "candidate": "Use existing push_with_capacity_hint(...,1) only for an already-selected singleton ordinary aggregate Group. Missing ordinals, plural/contributor/all paths, allocation position, polls and reducer construction unchanged.",
+  "actual_layout": {
+    "native_group_bytes": 88,
+    "ordinary_slots": 4,
+    "singleton_slots": 1,
+    "unused_payload_bytes": 264,
+    "complete_queries": 32,
+    "initial_helper_failure": "Preparation incorrectly asserted128B before reading actual result88B; stopped before runtime/SOW mutation. Corrected to derive measured size from all32 actual outputs."
+  },
+  "failed_gate": {
+    "profile": "release",
+    "shape": "raw-ratio",
+    "maximum_median_current_before_ratio": 1.05,
+    "actual": 1.0598564798840613
+  },
+  "measurements": {
+    "complete_pairs": 624,
+    "workspace_target_median_reduction": 0.051178217966234785,
+    "panel_median": 1.0237903292691128,
+    "shape_medians": {
+      "raw-ratio": 1.0598564798840613,
+      "rate-ratio": 1.0184318619891042,
+      "histogram-consumer": 1.027427549253385,
+      "raw-control": 1.0090040736322754
+    },
+    "individual_ratios_over_1_05": [
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p1:raw-ratio",
+          "groups": 1,
+          "page": 1,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          282197,
+          288387,
+          280147,
+          315267,
+          279947,
+          277047,
+          280138,
+          276248,
+          292358
+        ],
+        "current_ns": [
+          305898,
+          304167,
+          303508,
+          299318,
+          293718,
+          309348,
+          329467,
+          292538,
+          288998
+        ],
+        "ratio": 1.0833883639660606
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p17:raw-ratio",
+          "groups": 1,
+          "page": 17,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          210829,
+          210418,
+          214528,
+          236738,
+          214299,
+          228548,
+          209998,
+          208018,
+          208499
+        ],
+        "current_ns": [
+          229498,
+          246748,
+          234438,
+          216548,
+          215078,
+          231748,
+          222288,
+          222008,
+          223998
+        ],
+        "ratio": 1.0624629439024043
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p17:histogram-consumer",
+          "groups": 1,
+          "page": 17,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          120499,
+          122049,
+          120259,
+          122848,
+          122449,
+          122799,
+          121089,
+          132979,
+          121669
+        ],
+        "current_ns": [
+          147908,
+          129729,
+          135809,
+          123979,
+          147538,
+          125699,
+          126218,
+          126249,
+          142389
+        ],
+        "ratio": 1.062925546296979
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p1024:raw-ratio",
+          "groups": 1,
+          "page": 1024,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          213358,
+          209008,
+          210278,
+          213668,
+          211818,
+          221767,
+          208708,
+          223838,
+          210399
+        ],
+        "current_ns": [
+          230558,
+          229398,
+          243358,
+          227368,
+          214588,
+          220168,
+          220098,
+          224219,
+          219738
+        ],
+        "ratio": 1.0585455438159175
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p1:raw-ratio",
+          "groups": 4,
+          "page": 1,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          1226559,
+          1183300,
+          1187420,
+          1198620,
+          1187310,
+          1196219,
+          1260279,
+          1185470,
+          1190460
+        ],
+        "current_ns": [
+          1300649,
+          1381728,
+          1304879,
+          1278969,
+          1239669,
+          1240429,
+          1240119,
+          1264619,
+          1237129
+        ],
+        "ratio": 1.062294407203938
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p1:histogram-consumer",
+          "groups": 4,
+          "page": 1,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          889462,
+          890832,
+          917292,
+          923132,
+          925802,
+          928162,
+          906292,
+          904222,
+          905532
+        ],
+        "current_ns": [
+          977921,
+          1007881,
+          988862,
+          908892,
+          1026351,
+          1169459,
+          913123,
+          909132,
+          906473
+        ],
+        "ratio": 1.079035233677446
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p1:raw-control",
+          "groups": 4,
+          "page": 1,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          99449,
+          109379,
+          96550,
+          101159,
+          102179,
+          98749,
+          95629,
+          96260,
+          95329
+        ],
+        "current_ns": [
+          107769,
+          115448,
+          105519,
+          119519,
+          102960,
+          99729,
+          108569,
+          101809,
+          97759
+        ],
+        "ratio": 1.0685576562800636
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p17:raw-ratio",
+          "groups": 4,
+          "page": 17,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          871052,
+          868363,
+          866083,
+          914662,
+          888903,
+          893032,
+          876402,
+          870313,
+          867953
+        ],
+        "current_ns": [
+          966841,
+          974641,
+          962861,
+          908292,
+          900812,
+          889162,
+          923012,
+          924332,
+          928502
+        ],
+        "ratio": 1.0611674159522049
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p1:raw-ratio",
+          "groups": 32,
+          "page": 1,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          9379409,
+          9365908,
+          9374219,
+          9643536,
+          9630946,
+          9684296,
+          9350309,
+          9307069,
+          9403028
+        ],
+        "current_ns": [
+          10474599,
+          10515279,
+          10498598,
+          10036393,
+          10056962,
+          10070503,
+          9974364,
+          9915823,
+          9936894
+        ],
+        "ratio": 1.072238346787095
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p1:raw-ratio",
+          "groups": 128,
+          "page": 1,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          37924721,
+          37758702,
+          37885841,
+          38819863,
+          38583745,
+          38447276,
+          37738813,
+          37617284,
+          37787121
+        ],
+        "current_ns": [
+          42115414,
+          42197443,
+          42175764,
+          41361270,
+          40196661,
+          40268530,
+          39960483,
+          40004862,
+          39846854
+        ],
+        "ratio": 1.062891279092894
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p17:raw-ratio",
+          "groups": 128,
+          "page": 17,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          28097056,
+          28072566,
+          28478013,
+          28323044,
+          28603602,
+          28502062,
+          28006856,
+          28031317,
+          27839748
+        ],
+        "current_ns": [
+          31566566,
+          31574746,
+          31459227,
+          28741060,
+          28646951,
+          28664511,
+          29381825,
+          29642923,
+          29775311
+        ],
+        "ratio": 1.0550188247480448
+      }
+    ],
+    "cases": [
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p1:raw-ratio",
+          "groups": 1,
+          "page": 1,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          282197,
+          288387,
+          280147,
+          315267,
+          279947,
+          277047,
+          280138,
+          276248,
+          292358
+        ],
+        "current_ns": [
+          305898,
+          304167,
+          303508,
+          299318,
+          293718,
+          309348,
+          329467,
+          292538,
+          288998
+        ],
+        "ratio": 1.0833883639660606
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p1:rate-ratio",
+          "groups": 1,
+          "page": 1,
+          "shape": "rate-ratio",
+          "expression": "sum by(job)(rate(m[5s])) / on(job) sum by(job)(rate(n[5s]))"
+        },
+        "before_ns": [
+          311557,
+          291717,
+          289247,
+          299548,
+          295717,
+          310507,
+          291187,
+          303347,
+          287218
+        ],
+        "current_ns": [
+          315287,
+          305318,
+          293427,
+          308378,
+          292048,
+          289638,
+          305398,
+          315267,
+          300047
+        ],
+        "ratio": 1.0324668517535347
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p1:histogram-consumer",
+          "groups": 1,
+          "page": 1,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          145939,
+          148429,
+          142929,
+          150438,
+          151299,
+          162769,
+          145499,
+          149629,
+          144659
+        ],
+        "current_ns": [
+          154258,
+          157649,
+          154739,
+          149949,
+          147949,
+          145328,
+          149499,
+          152409,
+          148369
+        ],
+        "ratio": 1.0102405864083164
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p1:raw-control",
+          "groups": 1,
+          "page": 1,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          31850,
+          32000,
+          32209,
+          31980,
+          32590,
+          33520,
+          31209,
+          31510,
+          29500
+        ],
+        "current_ns": [
+          34249,
+          33910,
+          34060,
+          32640,
+          32170,
+          30779,
+          32470,
+          31680,
+          30039
+        ],
+        "ratio": 1.015322076297686
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p17:raw-ratio",
+          "groups": 1,
+          "page": 17,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          210829,
+          210418,
+          214528,
+          236738,
+          214299,
+          228548,
+          209998,
+          208018,
+          208499
+        ],
+        "current_ns": [
+          229498,
+          246748,
+          234438,
+          216548,
+          215078,
+          231748,
+          222288,
+          222008,
+          223998
+        ],
+        "ratio": 1.0624629439024043
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p17:rate-ratio",
+          "groups": 1,
+          "page": 17,
+          "shape": "rate-ratio",
+          "expression": "sum by(job)(rate(m[5s])) / on(job) sum by(job)(rate(n[5s]))"
+        },
+        "before_ns": [
+          253928,
+          278298,
+          257918,
+          260247,
+          258687,
+          274667,
+          252288,
+          253917,
+          266007
+        ],
+        "current_ns": [
+          270438,
+          275468,
+          271368,
+          252658,
+          263737,
+          261487,
+          265188,
+          264778,
+          268108
+        ],
+        "ratio": 1.02513075647404
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p17:histogram-consumer",
+          "groups": 1,
+          "page": 17,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          120499,
+          122049,
+          120259,
+          122848,
+          122449,
+          122799,
+          121089,
+          132979,
+          121669
+        ],
+        "current_ns": [
+          147908,
+          129729,
+          135809,
+          123979,
+          147538,
+          125699,
+          126218,
+          126249,
+          142389
+        ],
+        "ratio": 1.062925546296979
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p17:raw-control",
+          "groups": 1,
+          "page": 17,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          25219,
+          25020,
+          24600,
+          29550,
+          24669,
+          26960,
+          26700,
+          24490,
+          24080
+        ],
+        "current_ns": [
+          25570,
+          24660,
+          25100,
+          25979,
+          24760,
+          24970,
+          25770,
+          24890,
+          24180
+        ],
+        "ratio": 0.9980015987210232
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p1024:raw-ratio",
+          "groups": 1,
+          "page": 1024,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          213358,
+          209008,
+          210278,
+          213668,
+          211818,
+          221767,
+          208708,
+          223838,
+          210399
+        ],
+        "current_ns": [
+          230558,
+          229398,
+          243358,
+          227368,
+          214588,
+          220168,
+          220098,
+          224219,
+          219738
+        ],
+        "ratio": 1.0585455438159175
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p1024:rate-ratio",
+          "groups": 1,
+          "page": 1024,
+          "shape": "rate-ratio",
+          "expression": "sum by(job)(rate(m[5s])) / on(job) sum by(job)(rate(n[5s]))"
+        },
+        "before_ns": [
+          260068,
+          265257,
+          264708,
+          269138,
+          269118,
+          255828,
+          267188,
+          251208,
+          253107
+        ],
+        "current_ns": [
+          265908,
+          289418,
+          260448,
+          260677,
+          253157,
+          265477,
+          286337,
+          265877,
+          261018
+        ],
+        "ratio": 1.0029050878704082
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p1024:histogram-consumer",
+          "groups": 1,
+          "page": 1024,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          135919,
+          124919,
+          119168,
+          122539,
+          140269,
+          122849,
+          133779,
+          122829,
+          121009
+        ],
+        "current_ns": [
+          128779,
+          130309,
+          147928,
+          123939,
+          125179,
+          122748,
+          127739,
+          129719,
+          126949
+        ],
+        "ratio": 1.0398049638173692
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g1:p1024:raw-control",
+          "groups": 1,
+          "page": 1024,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          25559,
+          27730,
+          24960,
+          25230,
+          26620,
+          28369,
+          25130,
+          26500,
+          24670
+        ],
+        "current_ns": [
+          25700,
+          26979,
+          25310,
+          25559,
+          26540,
+          37440,
+          24780,
+          26140,
+          25290
+        ],
+        "ratio": 1.0055166477561719
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p1:raw-ratio",
+          "groups": 4,
+          "page": 1,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          1226559,
+          1183300,
+          1187420,
+          1198620,
+          1187310,
+          1196219,
+          1260279,
+          1185470,
+          1190460
+        ],
+        "current_ns": [
+          1300649,
+          1381728,
+          1304879,
+          1278969,
+          1239669,
+          1240429,
+          1240119,
+          1264619,
+          1237129
+        ],
+        "ratio": 1.062294407203938
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p1:rate-ratio",
+          "groups": 4,
+          "page": 1,
+          "shape": "rate-ratio",
+          "expression": "sum by(job)(rate(m[5s])) / on(job) sum by(job)(rate(n[5s]))"
+        },
+        "before_ns": [
+          1147910,
+          1129840,
+          1155050,
+          1136190,
+          1160540,
+          1192520,
+          1170400,
+          1152970,
+          1131310
+        ],
+        "current_ns": [
+          1193900,
+          1264509,
+          1165880,
+          1130970,
+          1160269,
+          1138020,
+          1183030,
+          1180280,
+          1167050
+        ],
+        "ratio": 1.012211939599469
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p1:histogram-consumer",
+          "groups": 4,
+          "page": 1,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          889462,
+          890832,
+          917292,
+          923132,
+          925802,
+          928162,
+          906292,
+          904222,
+          905532
+        ],
+        "current_ns": [
+          977921,
+          1007881,
+          988862,
+          908892,
+          1026351,
+          1169459,
+          913123,
+          909132,
+          906473
+        ],
+        "ratio": 1.079035233677446
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p1:raw-control",
+          "groups": 4,
+          "page": 1,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          99449,
+          109379,
+          96550,
+          101159,
+          102179,
+          98749,
+          95629,
+          96260,
+          95329
+        ],
+        "current_ns": [
+          107769,
+          115448,
+          105519,
+          119519,
+          102960,
+          99729,
+          108569,
+          101809,
+          97759
+        ],
+        "ratio": 1.0685576562800636
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p17:raw-ratio",
+          "groups": 4,
+          "page": 17,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          871052,
+          868363,
+          866083,
+          914662,
+          888903,
+          893032,
+          876402,
+          870313,
+          867953
+        ],
+        "current_ns": [
+          966841,
+          974641,
+          962861,
+          908292,
+          900812,
+          889162,
+          923012,
+          924332,
+          928502
+        ],
+        "ratio": 1.0611674159522049
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p17:rate-ratio",
+          "groups": 4,
+          "page": 17,
+          "shape": "rate-ratio",
+          "expression": "sum by(job)(rate(m[5s])) / on(job) sum by(job)(rate(n[5s]))"
+        },
+        "before_ns": [
+          985362,
+          984751,
+          989401,
+          1005991,
+          1018592,
+          1005311,
+          978251,
+          978762,
+          972581
+        ],
+        "current_ns": [
+          1013922,
+          1096380,
+          1007282,
+          998492,
+          994111,
+          990612,
+          1026361,
+          1035011,
+          1029051
+        ],
+        "ratio": 1.0289842717701718
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p17:histogram-consumer",
+          "groups": 4,
+          "page": 17,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          752274,
+          720214,
+          700494,
+          731554,
+          721244,
+          729884,
+          711994,
+          713014,
+          729354
+        ],
+        "current_ns": [
+          806853,
+          790213,
+          793003,
+          743313,
+          734144,
+          726774,
+          728624,
+          743383,
+          746383
+        ],
+        "ratio": 1.030695575977062
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p17:raw-control",
+          "groups": 4,
+          "page": 17,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          76399,
+          77100,
+          75929,
+          78109,
+          78859,
+          76919,
+          76009,
+          86460,
+          75079
+        ],
+        "current_ns": [
+          79459,
+          80589,
+          95809,
+          78660,
+          79159,
+          78220,
+          76970,
+          95209,
+          77409
+        ],
+        "ratio": 1.0291215434418024
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p1024:raw-ratio",
+          "groups": 4,
+          "page": 1024,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          892272,
+          877352,
+          872322,
+          898502,
+          891413,
+          897202,
+          862023,
+          861713,
+          869823
+        ],
+        "current_ns": [
+          962031,
+          957132,
+          973242,
+          891052,
+          911252,
+          904212,
+          923372,
+          917682,
+          916562
+        ],
+        "ratio": 1.0459678669450803
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p1024:rate-ratio",
+          "groups": 4,
+          "page": 1024,
+          "shape": "rate-ratio",
+          "expression": "sum by(job)(rate(m[5s])) / on(job) sum by(job)(rate(n[5s]))"
+        },
+        "before_ns": [
+          994681,
+          1004291,
+          1007691,
+          1005021,
+          1025471,
+          1019361,
+          978422,
+          975272,
+          979921
+        ],
+        "current_ns": [
+          1006831,
+          1097120,
+          996081,
+          984381,
+          992212,
+          987631,
+          1023401,
+          1053761,
+          1027261
+        ],
+        "ratio": 1.0025291474283848
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p1024:histogram-consumer",
+          "groups": 4,
+          "page": 1024,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          707044,
+          721574,
+          717514,
+          740853,
+          738404,
+          753643,
+          755463,
+          723433,
+          710394
+        ],
+        "current_ns": [
+          777503,
+          804573,
+          795043,
+          729083,
+          738603,
+          731764,
+          738634,
+          742774,
+          739674
+        ],
+        "ratio": 1.0224499020641857
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g4:p1024:raw-control",
+          "groups": 4,
+          "page": 1024,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          77129,
+          75580,
+          76579,
+          79519,
+          85889,
+          79049,
+          78900,
+          74839,
+          76500
+        ],
+        "current_ns": [
+          81229,
+          91640,
+          81019,
+          80240,
+          77470,
+          90649,
+          77210,
+          75869,
+          79139
+        ],
+        "ratio": 1.0403350231430462
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p1:raw-ratio",
+          "groups": 32,
+          "page": 1,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          9379409,
+          9365908,
+          9374219,
+          9643536,
+          9630946,
+          9684296,
+          9350309,
+          9307069,
+          9403028
+        ],
+        "current_ns": [
+          10474599,
+          10515279,
+          10498598,
+          10036393,
+          10056962,
+          10070503,
+          9974364,
+          9915823,
+          9936894
+        ],
+        "ratio": 1.072238346787095
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p1:rate-ratio",
+          "groups": 32,
+          "page": 1,
+          "shape": "rate-ratio",
+          "expression": "sum by(job)(rate(m[5s])) / on(job) sum by(job)(rate(n[5s]))"
+        },
+        "before_ns": [
+          8975213,
+          9017941,
+          8962942,
+          9042072,
+          9007731,
+          9098521,
+          8858833,
+          8867393,
+          8815213
+        ],
+        "current_ns": [
+          9137471,
+          9841375,
+          9111370,
+          8845153,
+          8899842,
+          8836113,
+          9205580,
+          9338849,
+          9199570
+        ],
+        "ratio": 1.0180784567452605
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p1:histogram-consumer",
+          "groups": 32,
+          "page": 1,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          34165713,
+          34694039,
+          34759578,
+          35236524,
+          34804168,
+          34913187,
+          34415001,
+          34253142,
+          34452091
+        ],
+        "current_ns": [
+          38373707,
+          38752194,
+          38417207,
+          34988397,
+          35367503,
+          35127865,
+          34445861,
+          34637639,
+          34737718
+        ],
+        "ratio": 1.0125043382812822
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p1:raw-control",
+          "groups": 32,
+          "page": 1,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          765723,
+          731943,
+          754633,
+          790873,
+          791563,
+          765823,
+          739124,
+          734514,
+          737854
+        ],
+        "current_ns": [
+          752484,
+          767323,
+          757633,
+          748494,
+          749403,
+          749804,
+          758373,
+          752914,
+          744893
+        ],
+        "ratio": 0.9971522581175221
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p17:raw-ratio",
+          "groups": 32,
+          "page": 17,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          7155208,
+          7142127,
+          7131459,
+          7301927,
+          7328716,
+          7255118,
+          6955949,
+          6954660,
+          6987139
+        ],
+        "current_ns": [
+          7631794,
+          7714143,
+          7637913,
+          7085138,
+          7080339,
+          7079468,
+          7284867,
+          7338686,
+          7278957
+        ],
+        "ratio": 1.0199856429324206
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p17:rate-ratio",
+          "groups": 32,
+          "page": 17,
+          "shape": "rate-ratio",
+          "expression": "sum by(job)(rate(m[5s])) / on(job) sum by(job)(rate(n[5s]))"
+        },
+        "before_ns": [
+          8013050,
+          7988620,
+          8083760,
+          8060530,
+          8061440,
+          8068530,
+          10231062,
+          10663648,
+          7763623
+        ],
+        "current_ns": [
+          7847832,
+          8510466,
+          7878051,
+          7720433,
+          7766692,
+          8209619,
+          7983940,
+          8252518,
+          7989011
+        ],
+        "ratio": 0.9903863329628454
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p17:histogram-consumer",
+          "groups": 32,
+          "page": 17,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          27516881,
+          27750068,
+          27853418,
+          27542660,
+          27517771,
+          27646180,
+          27184414,
+          27015796,
+          27117324
+        ],
+        "current_ns": [
+          30602844,
+          30703813,
+          30720823,
+          27751889,
+          27530291,
+          27388462,
+          27222363,
+          27229134,
+          27094804
+        ],
+        "ratio": 1.000454978711757
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p17:raw-control",
+          "groups": 32,
+          "page": 17,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          607464,
+          610005,
+          612485,
+          616075,
+          598654,
+          587795,
+          572095,
+          563905,
+          561315
+        ],
+        "current_ns": [
+          602305,
+          603565,
+          613294,
+          569065,
+          576955,
+          577586,
+          585595,
+          640485,
+          574805
+        ],
+        "ratio": 0.9781860640703979
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p1024:raw-ratio",
+          "groups": 32,
+          "page": 1024,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          6933930,
+          6915200,
+          6977229,
+          7321046,
+          7353976,
+          7238907,
+          6931280,
+          6942400,
+          6913500
+        ],
+        "current_ns": [
+          7680673,
+          7647674,
+          7651113,
+          7161228,
+          7143148,
+          7115478,
+          7242777,
+          7215067,
+          7236187
+        ],
+        "ratio": 1.0423177863563033
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p1024:rate-ratio",
+          "groups": 32,
+          "page": 1024,
+          "shape": "rate-ratio",
+          "expression": "sum by(job)(rate(m[5s])) / on(job) sum by(job)(rate(n[5s]))"
+        },
+        "before_ns": [
+          7848202,
+          7844392,
+          7786352,
+          8169829,
+          8141550,
+          8143200,
+          7701563,
+          7713233,
+          7678373
+        ],
+        "current_ns": [
+          7911311,
+          8539516,
+          8069130,
+          7815502,
+          7780673,
+          7872341,
+          7991751,
+          8076619,
+          8564985
+        ],
+        "ratio": 1.018785267232948
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p1024:histogram-consumer",
+          "groups": 32,
+          "page": 1024,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          26817398,
+          26666798,
+          26695688,
+          27633210,
+          27638250,
+          27881518,
+          26929486,
+          26842856,
+          26918496
+        ],
+        "current_ns": [
+          30634294,
+          30574964,
+          30549804,
+          27552191,
+          27978337,
+          27618891,
+          27083014,
+          27156114,
+          27161944
+        ],
+        "ratio": 1.026019098541018
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g32:p1024:raw-control",
+          "groups": 32,
+          "page": 1024,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          560875,
+          562535,
+          567715,
+          601195,
+          581925,
+          584545,
+          570285,
+          581264,
+          577125
+        ],
+        "current_ns": [
+          613435,
+          592134,
+          589444,
+          575315,
+          589515,
+          588604,
+          586615,
+          570124,
+          582655
+        ],
+        "ratio": 1.0198899718431882
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p1:raw-ratio",
+          "groups": 128,
+          "page": 1,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          37924721,
+          37758702,
+          37885841,
+          38819863,
+          38583745,
+          38447276,
+          37738813,
+          37617284,
+          37787121
+        ],
+        "current_ns": [
+          42115414,
+          42197443,
+          42175764,
+          41361270,
+          40196661,
+          40268530,
+          39960483,
+          40004862,
+          39846854
+        ],
+        "ratio": 1.062891279092894
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p1:rate-ratio",
+          "groups": 128,
+          "page": 1,
+          "shape": "rate-ratio",
+          "expression": "sum by(job)(rate(m[5s])) / on(job) sum by(job)(rate(n[5s]))"
+        },
+        "before_ns": [
+          36195556,
+          36120066,
+          36335045,
+          36563413,
+          36780870,
+          36433434,
+          35462662,
+          35638180,
+          35517961
+        ],
+        "current_ns": [
+          36525453,
+          39459297,
+          36455613,
+          36916220,
+          36364715,
+          36394814,
+          37084008,
+          37333546,
+          36930759
+        ],
+        "ratio": 1.0199102895394119
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p1:histogram-consumer",
+          "groups": 128,
+          "page": 1,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          517364997,
+          517064090,
+          515175196,
+          514586731,
+          515227605,
+          521269392,
+          538579432,
+          525229888,
+          520337370
+        ],
+        "current_ns": [
+          573223052,
+          574480711,
+          577781683,
+          540629104,
+          528760808,
+          533637525,
+          519477858,
+          515865010,
+          517400815
+        ],
+        "ratio": 1.0314527037862207
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p1:raw-control",
+          "groups": 128,
+          "page": 1,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          3249982,
+          2993264,
+          3040274,
+          3167622,
+          3054423,
+          3015604,
+          3098994,
+          2960944,
+          2932165
+        ],
+        "current_ns": [
+          3130833,
+          3020044,
+          3012124,
+          3128952,
+          3049494,
+          3018964,
+          3157512,
+          3049564,
+          3061293
+        ],
+        "ratio": 1.003055645642465
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p17:raw-ratio",
+          "groups": 128,
+          "page": 17,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          28097056,
+          28072566,
+          28478013,
+          28323044,
+          28603602,
+          28502062,
+          28006856,
+          28031317,
+          27839748
+        ],
+        "current_ns": [
+          31566566,
+          31574746,
+          31459227,
+          28741060,
+          28646951,
+          28664511,
+          29381825,
+          29642923,
+          29775311
+        ],
+        "ratio": 1.0550188247480448
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p17:rate-ratio",
+          "groups": 128,
+          "page": 17,
+          "shape": "rate-ratio",
+          "expression": "sum by(job)(rate(m[5s])) / on(job) sum by(job)(rate(n[5s]))"
+        },
+        "before_ns": [
+          31701295,
+          31593615,
+          31859703,
+          32142801,
+          32390789,
+          32518798,
+          31312738,
+          31279448,
+          31442277
+        ],
+        "current_ns": [
+          32386329,
+          35248384,
+          32284389,
+          31178029,
+          33058073,
+          31633335,
+          32867814,
+          33105662,
+          32764076
+        ],
+        "ratio": 1.0335248449629582
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p17:histogram-consumer",
+          "groups": 128,
+          "page": 17,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          435700707,
+          419606316,
+          409818181,
+          399005715,
+          399970996,
+          399354152,
+          402588143,
+          405280830,
+          409608292
+        ],
+        "current_ns": [
+          464761843,
+          460468731,
+          461943578,
+          414141323,
+          416967508,
+          413214071,
+          426419436,
+          407116744,
+          407297033
+        ],
+        "ratio": 1.0288359999657521
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p17:raw-control",
+          "groups": 128,
+          "page": 17,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          2460288,
+          2294891,
+          2367569,
+          2451679,
+          2298170,
+          2318150,
+          2450969,
+          2272141,
+          2996744
+        ],
+        "current_ns": [
+          2469539,
+          2394949,
+          2231060,
+          2306880,
+          2325050,
+          2187080,
+          2397519,
+          2339020,
+          2164152
+        ],
+        "ratio": 0.9820410725093968
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p1024:raw-ratio",
+          "groups": 128,
+          "page": 1024,
+          "shape": "raw-ratio",
+          "expression": "sum by(job)(m) / on(job) sum by(job)(n)"
+        },
+        "before_ns": [
+          29266216,
+          29319676,
+          29452394,
+          28985819,
+          28655242,
+          28447053,
+          33149492,
+          33281102,
+          33268721
+        ],
+        "current_ns": [
+          28508922,
+          28639402,
+          28467942,
+          28332134,
+          28800250,
+          28370153,
+          29042518,
+          29209787,
+          29023908
+        ],
+        "ratio": 0.9767980382866441
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p1024:rate-ratio",
+          "groups": 128,
+          "page": 1024,
+          "shape": "rate-ratio",
+          "expression": "sum by(job)(rate(m[5s])) / on(job) sum by(job)(rate(n[5s]))"
+        },
+        "before_ns": [
+          32343129,
+          33804886,
+          32092901,
+          31525966,
+          31730584,
+          31504467,
+          34946017,
+          32510188,
+          32072911
+        ],
+        "current_ns": [
+          31837023,
+          31508926,
+          31701185,
+          31308178,
+          31106650,
+          31209979,
+          32525658,
+          32542688,
+          32642467
+        ],
+        "ratio": 0.9877943100251361
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p1024:histogram-consumer",
+          "groups": 128,
+          "page": 1024,
+          "shape": "histogram-consumer",
+          "expression": "histogram_sum(sum by(job)(h))"
+        },
+        "before_ns": [
+          399788108,
+          398730038,
+          399914037,
+          404895254,
+          411995592,
+          411297208,
+          402394485,
+          407642829,
+          402429045
+        ],
+        "current_ns": [
+          408357753,
+          408033146,
+          408084147,
+          410997070,
+          418852342,
+          411122189,
+          405735296,
+          408183124,
+          404702135
+        ],
+        "ratio": 1.0142983690454053
+      },
+      {
+        "case": {
+          "id": "singleton-capacity:g128:p1024:raw-control",
+          "groups": 128,
+          "page": 1024,
+          "shape": "raw-control",
+          "expression": "m"
+        },
+        "before_ns": [
+          2337610,
+          2323790,
+          2245110,
+          2395579,
+          2308690,
+          2285990,
+          2384590,
+          2294560,
+          2280261
+        ],
+        "current_ns": [
+          2364729,
+          2308960,
+          2261350,
+          2337529,
+          2286240,
+          2400409,
+          2440359,
+          2628588,
+          2326280
+        ],
+        "ratio": 1.0124914995083791
+      }
+    ]
+  },
+  "observations": {
+    "complete_outcomes": "624 paired queries have exact complete result/annotation membership, label bytes, float bits and timestamps.",
+    "nonmemory_observations": "All fields except elapsed and memory exactly equal, including work, provider traversal and cancellation references.",
+    "memory": "All tracked peaks and allocation traffic nonincreasing; raw-selector control exact. Median Workspace allocation-traffic reduction5.1178217966234785percent for32/128group raw/rate ratio targets. This is cumulative traffic, not resident memory savings.",
+    "baseline_unit": "32 complete grouped query cases pass before runtime change; test-only layout output measures88B per Group,264B unused ordinary three-slot payload per singleton allocation.",
+    "costs": [
+      {
+        "kind": "fixture",
+        "before": [
+          4371902,
+          259712,
+          3100
+        ],
+        "current": [
+          4372886,
+          259712,
+          2108
+        ],
+        "growth": -8
+      },
+      {
+        "kind": "default-C",
+        "before": [
+          7368986,
+          506576,
+          400
+        ],
+        "current": [
+          7369994,
+          506576,
+          400
+        ],
+        "growth": 1008
+      }
+    ],
+    "timing_method": "48 cases:1/4/32/128groups,two members/group,pages1/17/1024,three evaluation ticks;raw/rate ratios,histogram aggregate consumer,raw selector control. Three alternating blocks with one warmup and three measured queries per side/block;9primary measurements per case/side.",
+    "baseline_only": 96
+  },
+  "not_executed": [
+    "release-min candidate build/timing",
+    "ARM builds and size gates",
+    "full native/ARM suites",
+    "candidate original/SRE expression panels",
+    "actual C aggregate consumer execution",
+    "strict static/MSRV qualification"
+  ],
+  "scope": "Early failed gate ends the experiment. Synthetic engine elapsed times on a shared machine do not establish arbitrary/device throughput. No timing retries, relaxed thresholds, feature change or runtime adoption. Candidate build includes a test-only diagnostic change; production impact is one call.",
+  "restoration": "Both evaluator.rs and execution.rs exactly match signed comparison base. Prepared but unexecuted qualification scripts are not passing evidence.",
+  "local_evidence": ".tmp/singleton-group-capacity-bb4o7fx9",
+  "source_phases": {
+    "before": "dc475b2a893e3ecdb19176b66f843f3dd8511b4807e186c6a5d1e513e1cab1d5",
+    "tests": "aa395d82d69d7515e9f8419d337a13a99b9284db9175a58f88993a8986cdb0c4",
+    "candidate": "c6d7783acb98ece18b15bb6d68330774df0ffc39220017e3bb5cddd8d61e786d",
+    "restored": "dc475b2a893e3ecdb19176b66f843f3dd8511b4807e186c6a5d1e513e1cab1d5"
+  },
+  "receipts": {
+    "baseline.json": "2e54a8cee24a22f15831734ff2480680dc06520f2bf2ad96bd7ec053a24c33ea",
+    "baseline-expected.json": "cbdc6a51c95af405c5e186aede2f2889ccd52cc00abf2f309352abfef6e9955c",
+    "tests-units.json": "007aee2ab67855e60762eac11bc1420a6ee490cba996936db7c94e5a4f771a72",
+    "build-release.json": "732e6bab987b6be0818fe4ca51ad949bc2e827c38740211b4c4c1ac736a9f358",
+    "measurement-release.json": "22e3d7670c8ebf3751be6eb88dd6871a4e95694a00271ff502d7f0f76f48f1e2",
+    "rejection.json": "9203f3058b621789d1616c05c7d20d9c025381e86a28da1b5c6ce18024521cd5"
+  }
+}

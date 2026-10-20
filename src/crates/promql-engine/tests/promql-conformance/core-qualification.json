@@ -73813,5 +73813,11 @@
     "report_sha256": "3da51f75cfcba429eebfe86c978e3267b2ba75a4b072d803000377d20ae6cd5d",
     "status": "finite_qualification_pass",
     "scope": "Float Count acquisition units avoid repeated reads;1248paired queries,38912selected originals and13680affected SRE/ancestor comparisons."
+  },
+  "singleton_group_capacity_set_aside": {
+    "report": "singleton-group-capacity-set-aside-qualification.json",
+    "report_sha256": "575daa2f79ff5861f91a5733a6646bfd082385fa72d9388177f27210d40f7ef1",
+    "status": "set_aside_under_frozen_stage138_timing_gate",
+    "scope": "624 exact result pairs;5.12percent target allocation-traffic savings but frozen raw-ratio timing gate fails. Runtime restored; broader qualification not run."
   }
 }

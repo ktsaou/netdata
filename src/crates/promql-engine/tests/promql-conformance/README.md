@@ -9519,3 +9519,21 @@ including 1,020 expected errors per page. The affected SRE subset passes 13,680 
 profiles, including candidate-produced recording parents. Strict Clippy, formatting and Rust 1.91 compilation pass.
 This adds no language feature or scheduling capability. Earlier rejected Count experiments retain their original
 results.
+
+
+## Set-aside singleton aggregate capacity
+
+An allocation-only trial used the existing capacity hint to reserve one ordinary aggregate group instead of
+four when the evaluator already selected exactly one. The native group occupies 88 bytes, leaving 264 bytes of
+unused payload per ordinary singleton allocation. The change added no fields or retained raw samples.
+
+Across 624 complete query pairs, results and nonmemory observations remained exact and tracked memory never
+increased. Larger raw/rate ratios used 5.12% less cumulative Workspace allocation traffic. The release default
+C executable grew 1,008 bytes. These traffic savings do not establish equivalent resident-memory savings.
+
+The trial failed its frozen timing gate: the raw-ratio shape median was 1.059856 times the baseline, above the
+1.05 ceiling. The whole-panel median was 1.023790. All individual timings remain in the
+[experiment report](singleton-group-capacity-set-aside-qualification.json). These shared-host measurements
+are finite evidence; they do not establish a universal slowdown. No repeat measurements replaced the failure.
+Both runtime and test-only diagnostic edits were restored exactly. Remaining native/ARM, original/SRE,
+C execution and static gates were not run after the early failure. The accepted engine is unchanged.
