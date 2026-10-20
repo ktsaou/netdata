@@ -2365,3 +2365,13 @@ separately rejected under their original criteria.
 - **Evidence:** [finite qualification](README.md#completed-scalar-aggregate-values) includes complete originals,
   actual cold/warm/new-clock failures, C logical statistics/cleanup, compiler layout, footprint, timing and
   memory costs. The prior grouped-join-only admission description records the preceding checkpoint.
+
+## Rejected literal scalar arithmetic trial
+
+- Existing scalar-result demand and completed Float ownership were experimentally extended through direct
+  Number-sided Binary ancestors with exact pending-phase/child proof. Ordinary arithmetic remained unchanged.
+- The native timing/memory panels passed, but ARM64 linked growth exceeded the frozen ceiling by 700 bytes.
+  The implementation and coupled test changes were restored; historical accepted scalar-only behavior remains.
+- The [negative qualification](scalar-arithmetic-rejected-qualification.json) retains every measured cost and
+  source binding. A pure structural Binary predicate is an unimplemented successor opportunity, not an exception
+  to this rejected trial's gate. No numerical, storage, API or accounting contract changed.

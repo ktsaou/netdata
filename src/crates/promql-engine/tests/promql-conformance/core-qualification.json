@@ -73837,5 +73837,11 @@
     "report_sha256": "d408d65c1253fd9d60d22a92b58b4b9e90c4fd2831ec3c1b833f9e3d03c9aab9",
     "status": "finite_qualification_pass",
     "scope": "Completed global Float aggregates reused by ordered scalar consumers;3120measured pairs,6480current original comparisons and288actual C pairs."
+  },
+  "rejected_literal_scalar_arithmetic": {
+    "report": "scalar-arithmetic-rejected-qualification.json",
+    "report_sha256": "8ad9c7e18136997638dce3f0bfbbb461f49ee967e0f7e36b6f8038abcafd4989",
+    "status": "rejected_candidate_accepted_runtime_restored",
+    "scope": "Literal scalar arithmetic trial rejected: ARM64 C growth8892B exceeds8192B ceiling. Accepted runtime restored exactly; successful finite measurements retained."
   }
 }

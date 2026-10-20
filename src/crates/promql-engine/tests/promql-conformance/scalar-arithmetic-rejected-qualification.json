@@ -1,0 +1,415 @@
+{
+  "schema_version": 1,
+  "status": "rejected_candidate_accepted_runtime_restored",
+  "comparison_base": "51862635936717f6bcc9ab018b994d0ac205b0ea",
+  "candidate": "Reuse completed global Float aggregates through literal-sided scalar Binary ancestors. A shared helper resolved the nonliteral operand through Preprocessing::child; runtime checked the actual pending phase and existing plural ordered consumer.",
+  "decision": "Reject this implementation under its frozen compiled-footprint rule. No exception accepted, no threshold relaxed and no runtime optimization from this trial shipped.",
+  "failed_gate": {
+    "target": "aarch64-unknown-linux-gnu",
+    "consumer": "Actual optimized default-library C executable",
+    "limit_bytes": 8192,
+    "growth_bytes": 8892,
+    "excess_bytes": 700,
+    "before_text_data_bss": [
+      6374470,
+      497032,
+      384
+    ],
+    "candidate_text_data_bss": [
+      6383290,
+      497104,
+      384
+    ]
+  },
+  "other_compiled_growth_bytes": {
+    "release": 760,
+    "release-min": 896,
+    "ARM32": 7496
+  },
+  "measurement": {
+    "complete_pairs": 5616,
+    "cases_per_profile": 216,
+    "profiles": {
+      "release": {
+        "target_median": 0.11986950300099986,
+        "body_medians": {
+          "plain": 0.09110682482478533,
+          "rate": 0.19380389639934473
+        },
+        "control_medians": {
+          "direct": 0.9861005475365179,
+          "constant": 1.0002943054356057,
+          "standalone-scalar": 0.9904558503530114,
+          "instant": 0.9864376296551095,
+          "single-numerator": 1.0099955714772855,
+          "dependent-sibling": 1.0065549842690884
+        },
+        "passed": true,
+        "individual_ratios_over_1_05": [
+          {
+            "case": {
+              "id": "arithmetic:1:1024:target:sum:plain:True:False",
+              "groups": 1,
+              "page": 1024,
+              "shape": "target",
+              "reducer": "sum",
+              "body": "plain",
+              "reverse": true,
+              "literal_left": false,
+              "mode": "range",
+              "expression": "(scalar(sum(n_total))+1)/m"
+            },
+            "before_ns": [
+              104840,
+              106990,
+              104600,
+              106529,
+              108819,
+              106899,
+              106629,
+              118309,
+              107349
+            ],
+            "current_ns": [
+              180238,
+              181729,
+              176189,
+              107359,
+              109799,
+              108069,
+              108099,
+              129919,
+              115200
+            ],
+            "ratio": 1.0776527376308478
+          },
+          {
+            "case": {
+              "id": "arithmetic:1:1024:target:sum:plain:False:True",
+              "groups": 1,
+              "page": 1024,
+              "shape": "target",
+              "reducer": "sum",
+              "body": "plain",
+              "reverse": false,
+              "literal_left": true,
+              "mode": "range",
+              "expression": "m/(1+scalar(sum(n_total)))"
+            },
+            "before_ns": [
+              104439,
+              105000,
+              104880,
+              114829,
+              108839,
+              107499,
+              105739,
+              106499,
+              108049
+            ],
+            "current_ns": [
+              168509,
+              177949,
+              116899,
+              122819,
+              109149,
+              108349,
+              107970,
+              115080,
+              110489
+            ],
+            "ratio": 1.080573526511986
+          },
+          {
+            "case": {
+              "id": "arithmetic:64:17:instant:sum:rate:False:False",
+              "groups": 64,
+              "page": 17,
+              "shape": "instant",
+              "reducer": "sum",
+              "body": "rate",
+              "reverse": false,
+              "literal_left": false,
+              "mode": "instant",
+              "expression": "m/(scalar(sum(rate(n_total[3s])))+1)"
+            },
+            "before_ns": [
+              1911558,
+              1900198,
+              1893649,
+              1902627,
+              1901148,
+              1874927,
+              1891107,
+              1869908,
+              1912807
+            ],
+            "current_ns": [
+              2102187,
+              2070907,
+              2043787,
+              1943008,
+              2141996,
+              1908648,
+              2798131,
+              2502343,
+              1963207
+            ],
+            "ratio": 1.0898374800941797
+          }
+        ]
+      },
+      "release-min": {
+        "target_median": 0.11922590983618099,
+        "body_medians": {
+          "plain": 0.09383714277787064,
+          "rate": 0.18734542615386868
+        },
+        "control_medians": {
+          "direct": 0.9936749343083963,
+          "constant": 1.0026883360181436,
+          "standalone-scalar": 0.9959518792961716,
+          "instant": 1.0019046149522328,
+          "single-numerator": 1.0013576884390196,
+          "dependent-sibling": 0.9920530326919227
+        },
+        "passed": true,
+        "individual_ratios_over_1_05": [
+          {
+            "case": {
+              "id": "arithmetic:1:17:target:sum:rate:False:True",
+              "groups": 1,
+              "page": 17,
+              "shape": "target",
+              "reducer": "sum",
+              "body": "rate",
+              "reverse": false,
+              "literal_left": true,
+              "mode": "range",
+              "expression": "m/(1+scalar(sum(rate(n_total[3s]))))"
+            },
+            "before_ns": [
+              211118,
+              226448,
+              211458,
+              207728,
+              204949,
+              204279,
+              213148,
+              224848,
+              212808
+            ],
+            "current_ns": [
+              223388,
+              224198,
+              212378,
+              221508,
+              234149,
+              263368,
+              220088,
+              218229,
+              228518
+            ],
+            "ratio": 1.056417822924647
+          },
+          {
+            "case": {
+              "id": "arithmetic:1:1024:target:sum:rate:False:False",
+              "groups": 1,
+              "page": 1024,
+              "shape": "target",
+              "reducer": "sum",
+              "body": "rate",
+              "reverse": false,
+              "literal_left": false,
+              "mode": "range",
+              "expression": "m/(scalar(sum(rate(n_total[3s])))+1)"
+            },
+            "before_ns": [
+              216809,
+              226709,
+              209899,
+              219349,
+              204249,
+              203218,
+              234609,
+              209239,
+              209769
+            ],
+            "current_ns": [
+              226248,
+              214438,
+              226608,
+              228098,
+              229848,
+              217538,
+              221628,
+              228328,
+              214588
+            ],
+            "ratio": 1.0778898422574668
+          }
+        ]
+      }
+    },
+    "byte_peak_increase_in_pilots": 0,
+    "scope": "Both frozen native timing and allocation panels passed, but cannot override the footprint failure. Three release and two release-min individual medians exceed1.05; all retained. Synthetic serial elapsed time and tracked allocations only."
+  },
+  "completed_qualification": {
+    "baseline_analytical_queries": 432,
+    "old_unit_complete_cases_before_growth_failure": 216,
+    "old_unit_second_literal_placement_reached": false,
+    "old_range_reads_G4_G16": [
+      288,
+      2304
+    ],
+    "candidate_range_reads_G4_G16": [
+      216,
+      864
+    ],
+    "candidate_complete_scalar_join_arithmetic_unit_cases": 864,
+    "focused_native_owners": 7,
+    "full_release_tests": 880,
+    "preexisting_ignored": 2,
+    "fresh_original_requests": 2178,
+    "native_current_original_comparisons": 13068,
+    "native_predecessor_original_comparisons": 13068,
+    "original_bit_differences": 0,
+    "original_policy": "Pinned numerical tolerance with complete outcomes; independent raw-bit diagnostic. Both native profiles and pages1/17/1024; both name modes, nine data states, arithmetic/nesting, trim runtime errors and optional min_of/max_of controls.",
+    "native_C_pairs": 288,
+    "native_legacy_C_queries": 144,
+    "phase_scope": "Both literal and outer operand positions; cold scalar-first failure, warm numerator failure, omitted warm denominator acquisition, fresh next-clock failure and cancellation before next(). Numerical polling remains unchanged direct-kernel coverage.",
+    "SRE_admitted_slots": 0,
+    "new_SRE_executions": 0
+  },
+  "not_run_after_rejection": [
+    "Full release-min unit suite",
+    "ARM original/runtime/C execution panels",
+    "Final strict lint, format and MSRV checks for the rejected implementation"
+  ],
+  "footprint_analysis": {
+    "actual_text_section_growth": 8668,
+    "named_changed_function_bytes": {
+      "literal_scalar_child": 344,
+      "prepare_rosters": 72,
+      "singleton_group_key": 56
+    },
+    "limit": "Grouped symbol sizes do not explain all section growth; exact linker-spacing cause remains unproven. This observation does not subtract bytes from the failed footprint gate.",
+    "next_candidate": "Investigate a pure structural operand predicate: Binary preprocessing is identity, so the helper's context arguments and fallible return may be unnecessary. No successor implementation or performance claim is included."
+  },
+  "restoration": {
+    "accepted_source_inputs_exactly_restored": 402,
+    "trial_source_retention": {
+      "src/crates/promql-engine/src/evaluator.rs": {
+        "path": ".tmp/scalar-arithmetic-fxxmowhd/rejected-evaluator.rs",
+        "sha256": "c59053f0366aff6186781aacf73219f51fc738d2e984ae7dcb15c8e3943cc041"
+      },
+      "src/crates/promql-engine/src/execution.rs": {
+        "path": ".tmp/scalar-arithmetic-fxxmowhd/rejected-execution.rs",
+        "sha256": "ad3d27d5419c594729c0aa226daf13fb393d7bc4389135a00fdf6238db208504"
+      },
+      "src/crates/promql-engine/src/scheduled_expression.rs": {
+        "path": ".tmp/scalar-arithmetic-fxxmowhd/rejected-scheduled_expression.rs",
+        "sha256": "e30447dd06ac728a7b67f982c9c778616e40ee4ca05e533906591f2aab44c13c"
+      },
+      "src/crates/promql-engine/tests/promql-conformance/scalar_arithmetic_cases.py": {
+        "path": ".tmp/scalar-arithmetic-fxxmowhd/rejected-public-scalar_arithmetic_cases.py",
+        "sha256": "cd0b9b8bfd7b6be4bc04f5a61150938e968c0dc26b17e8ccf2ebcfab92315094"
+      },
+      "src/crates/promql-engine/tests/promql-conformance/scalar_arithmetic_values.c": {
+        "path": ".tmp/scalar-arithmetic-fxxmowhd/rejected-public-scalar_arithmetic_values.c",
+        "sha256": "3ea8aff1212689361bf26d4ee1942035dd5415e4a5d3437393c963cbd6bd8664"
+      }
+    },
+    "files_deleted": 0,
+    "processes_signalled": 0,
+    "scope": "Only the verified trial diff reversed; new fixtures moved into private evidence. Unrelated untracked directory preserved."
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/measurement-plan.json",
+      "sha256": "dfb032b7b83d46f5b016d76c1143ffede69faaeef2a359d3f87d78ece5748a3e"
+    },
+    "old-units.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/old-units.json",
+      "sha256": "d4749d0c5d97deca5435ccf08e6b18e8af2c5b5ee822e24be6ce14cc58705073"
+    },
+    "old-test-source-proof.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/old-test-source-proof.json",
+      "sha256": "0f0e02198ecd9f8330350be4f2555ce429450f2df993256f360baa205e985a4a"
+    },
+    "baseline.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/baseline.json",
+      "sha256": "87983bd29714c4dfe32bdddb5a7967ef19a9c7fe9c25cd7782e60eac0e4b7c98"
+    },
+    "candidate-units.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/candidate-units.json",
+      "sha256": "d4daf08f915baeb93b5651a78c6b80a516a4192afe5e767f8501f684e8906dd0"
+    },
+    "qualification-release.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/qualification-release.json",
+      "sha256": "d087d5a21c583630ca9ef92e446fee911b793d8609d4378431a5ea6fb6d86922"
+    },
+    "originals-captured.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/originals-captured.json",
+      "sha256": "564e09b1390412a9852447491f0f59286cdb8d476abc8cab6815e3ebae0bd3cf"
+    },
+    "originals-release.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/originals-release.json",
+      "sha256": "25d04a2fff18800c7f8377982aeb821e8f8c09ab24645ae2cbb719f5d37ab056"
+    },
+    "originals-release-min.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/originals-release-min.json",
+      "sha256": "7e1c04c034f76e91a88d876c3fe0307a2af12a464fbfb09c0cf4037cff7b869a"
+    },
+    "sre-assessment.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/sre-assessment.json",
+      "sha256": "0d4fba9d8703acb4cb929ca902beb5c66b8b55467320644fc1ba01ce4a64e147"
+    },
+    "build-release.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/build-release.json",
+      "sha256": "7a5459c54589364e4843f5b5fc4298fc9b81156471b91b9212b6259b1e19671a"
+    },
+    "build-release-min.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/build-release-min.json",
+      "sha256": "19acff87b16a348ccf81f4c9c942dc8b47507ef5a767024dc0e5008aeccb348d"
+    },
+    "build-arm32.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/build-arm32.json",
+      "sha256": "e2b119c79513d1cb6453f7265377545ca66170e8614cea5f8fedc0f141ef87a0"
+    },
+    "measurement-release.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/measurement-release.json",
+      "sha256": "92de8ffaee76bcafb25b3f79ae3f1f34e7abb5419ee0063881565b798bd88969"
+    },
+    "measurement-release-min.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/measurement-release-min.json",
+      "sha256": "97606f45cbbab207fff06e029f623f1d48ce21f58619acdef5e7a568b2796bb7"
+    },
+    "C-callers-release.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/C-callers-release.json",
+      "sha256": "a827ebdeaf2c2686242ab2ec334e8cd2e3a175538b2de32973f6ffc228d7fa08"
+    },
+    "C-callers-release-min.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/C-callers-release-min.json",
+      "sha256": "9f244e4ea1877fbf76aae8dfe41c8ad7296d8d036e7ddf9e21059121afe549b9"
+    },
+    "arm64-footprint-rejected.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/arm64-footprint-rejected.json",
+      "sha256": "1913377daa3a28c2ed9771f1c59954a525eb36758c0dedbde3488979d3f6c4bf"
+    },
+    "arm64-grouped-symbols.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/arm64-grouped-symbols.json",
+      "sha256": "dd0861ff809b9118fac8558709bf0d4922585d3bded0f0f777482a6588ccb4ab"
+    },
+    "arm64-section-differences.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/arm64-section-differences.json",
+      "sha256": "493b99e83069556018ae54a43deb1f77b77c5db2136bafacfbf2e63649180843"
+    },
+    "restoration.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/restoration.json",
+      "sha256": "d9cd3b4871730632149e0683ac1cb14fbde7af1b5aec474c0cf68df2c736485c"
+    }
+  },
+  "scope": "Rejected local experiment, not coverage or performance of the accepted runtime. Continuous coverage/throughput/memory improvement remains unfinished."
+}

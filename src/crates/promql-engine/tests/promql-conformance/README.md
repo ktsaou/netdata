@@ -9648,3 +9648,21 @@ owners. Use `scalar_group_cases.cases()` with the pinned original probe's 300,00
 subquery interval; the older singleton corpus uses different options and contains no direct scalar-division
 cases. Preserve cold/warm/next-clock callback phases and distinguish native input producing Float COUNT from
 native aggregate output. The temporary compiler-layout witness restores the qualified source exactly.
+
+## Rejected literal scalar arithmetic trial
+
+A trial extended completed aggregate reuse to expressions such as `m/(scalar(sum(n))+1)`.
+It passed 5,616 complete measured pairs and reduced larger target elapsed times to about 12% of baseline
+in both native profiles, with no measured pilot byte-peak increase. Five individual cases were over 5%
+slower; all samples remain in the [rejected-trial report](scalar-arithmetic-rejected-qualification.json).
+
+The ARM64 default C executable grew by 8,892 bytes, exceeding the pre-recorded 8,192-byte ceiling.
+The trial was rejected and all 402 accepted source inputs were restored exactly. This optimization is
+not present in the accepted runtime. No limit was relaxed and no architecture exception was accepted.
+Native comparisons passed 13,068 current and 13,068 predecessor original outcomes with no recorded bit
+differences; one full release suite and native C callers also passed. Remaining qualification stopped
+after rejection. These results describe the retained experiment, not a newly shipped implementation.
+
+The compiled helper used fallible preprocessing for Binary operand edges, although that preprocessing
+preserves Binary children unchanged. A simpler structural predicate is a future candidate. It has not
+been qualified by this trial; the exact cause of the additional ELF text spacing remains unproven.
