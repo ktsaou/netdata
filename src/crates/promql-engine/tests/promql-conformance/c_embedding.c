@@ -1311,9 +1311,8 @@ static void four_series_float_query(netdata_promql_engine_t *engine, uint8_t que
     four_series_float_query_members(engine, query_kind, expression_override, 0, 0);
 }
 
-static void completed_single_group_values(netdata_promql_engine_t *engine) {
+static void completed_group_value_expressions(netdata_promql_engine_t *engine, const char *const expressions[2]) {
     const uint64_t pages[] = {1, 17, 1024};
-    const char *expressions[] = {"m/on()group_left()avg(m)", "avg(m)/on()group_right()m"};
     for (unsigned direction = 0; direction < 2; direction++) {
         four_series_float_query_members(engine, FOUR_SERIES_FLOAT_MAP, expressions[direction], 0, 1);
         for (unsigned page = 0; page < 3; page++) {
@@ -1395,6 +1394,11 @@ static void completed_single_group_values(netdata_promql_engine_t *engine) {
             }
         }
     }
+}
+
+static void completed_single_group_values(netdata_promql_engine_t *engine) {
+    const char *expressions[] = {"m/on()group_left()avg(m)", "avg(m)/on()group_right()m"};
+    completed_group_value_expressions(engine, expressions);
 }
 
 typedef struct {

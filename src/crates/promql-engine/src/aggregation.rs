@@ -5,7 +5,7 @@ use crate::{
     annotations::{AnnotationKind, HistogramOperation},
     evaluator::EvaluatedSample,
     evaluator_roster::GroupDescriptor,
-    frontend::token as tokens,
+    frontend::{ast::Expr, token as tokens},
     histogram::HistogramError,
     histogram_accumulator::{Finalization, NativeAccumulator},
     histogram_work::{HistogramEvaluationError, HistogramWork},
@@ -29,6 +29,19 @@ pub(crate) fn ordinary(operator: TokenKind) -> bool {
             | TokenKind::GROUP
             | TokenKind::STDVAR
             | TokenKind::STDDEV
+    )
+}
+
+pub(crate) fn global_ordinary(expression: &Expr) -> bool {
+    matches!(
+        expression,
+        Expr::Aggregate {
+            operator,
+            expression: Some(_),
+            parameter: None,
+            grouping,
+            without: false,
+        } if ordinary(*operator) && grouping.as_ref().is_none_or(|names| names.is_empty())
     )
 }
 

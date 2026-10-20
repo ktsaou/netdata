@@ -9607,3 +9607,44 @@ the default three-function generator remains unchanged. All 3,584 current and 3,
 exactly across the declared page/target panels. The 790-slot SRE inventory has no affected expressions, so no fresh
 SRE replay is claimed. The expanded `native_group_maps.c` checks five functions: 720 before/current pairs pass,
 including 96 improved variance-range pairs and 624 controls with exact exported nonelapsed counters.
+
+## Completed scalar aggregate values
+
+Common normalization expressions such as `m / scalar(sum(n))` now reuse a completed global Float reduction
+when an ordered range consumer requests it repeatedly at the same timestamp. The first reduction completes
+normally; each new timestamp reads again. Scalar-first errors and diagnostics retain their order. The existing
+query-owned table holds one current value per admitted node, with independently accounted delivery leases.
+Raw history remains paged.
+
+Preparation distinguishes scalar-result provenance from recursive contributor demand. It crosses exact
+parentheses and `scalar()` edges and stops at the global ordinary aggregate. Runtime admission additionally
+requires the actual running, nonstreaming, plural ordered consumer. Instant/equal requests, single outputs,
+grouped or nested scalar aggregates, fixed clocks, scalar arithmetic wrappers, native results and absent results
+retain ordinary evaluation. These remain supported expressions; they are outside this optimization.
+
+The [qualification](scalar-group-values-qualification.json) records 3,120 complete measured pairs. Larger
+target queries take 0.0979/0.0982
+of previous elapsed time in release/release-min. All frozen control, memory and executable-size gates pass.
+One small target in each profile is about 6.3% slower; those samples are retained. No measured query byte peak
+increases in this panel. The 256-series example fetches 40,960 entries instead of
+1,607,680. Rate cases can reduce evaluator work while existing window reuse keeps fetched
+entries unchanged. These serial synthetic measurements establish neither live/concurrent throughput nor RSS.
+
+Both native profiles pass 878 tests with two pre-existing ignored tests. Each ARM target passes 16 focused
+checks under QEMU. The fresh 810-case generator covers all eight ordinary reducers, raw/rate bodies, both
+operand orders and name modes, nine data states and wrapper/clock controls. Current and predecessor each pass
+6,480 original comparisons with no paired bit difference. Native comparisons use pages 1/17/1,024; ARM uses 17.
+The retained SRE inventory's two scalar calls use hour comparisons, so neither selects this new aggregate route.
+
+The standalone `scalar_group_values.c` reuses the existing paged C provider and complete collect/stream checks.
+Across four actual archives it passes 288 before/current pairs; another 288 current legacy-group queries pass.
+Logical sample totals, required-read errors and cleanup are preserved. The cached result adds at most one
+live sample lease in these C cases; measured byte peaks do not increase. Final default C executable growth is
+2368/1976/2096/3784 bytes
+for release/release-min/ARM32/ARM64, including the shared test-helper refactor.
+
+Run the two `completed_scalar_group_values` Rust units together with the existing `completed_single_group`
+owners. Use `scalar_group_cases.cases()` with the pinned original probe's 300,000ms lookback and 60,000ms
+subquery interval; the older singleton corpus uses different options and contains no direct scalar-division
+cases. Preserve cold/warm/next-clock callback phases and distinguish native input producing Float COUNT from
+native aggregate output. The temporary compiler-layout witness restores the qualified source exactly.

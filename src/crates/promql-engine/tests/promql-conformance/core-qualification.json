@@ -73831,5 +73831,11 @@
     "report_sha256": "ef4866516856e4b4a21f6571bf30038a473c80c406994ebe6a31b669a70c3369",
     "status": "finite_qualification_pass",
     "scope": "Native variance maps reuse completed contributor membership;2184measured pairs,3584current exact original comparisons and720actual C pairs."
+  },
+  "completed_scalar_group_values": {
+    "report": "scalar-group-values-qualification.json",
+    "report_sha256": "d408d65c1253fd9d60d22a92b58b4b9e90c4fd2831ec3c1b833f9e3d03c9aab9",
+    "status": "finite_qualification_pass",
+    "scope": "Completed global Float aggregates reused by ordered scalar consumers;3120measured pairs,6480current original comparisons and288actual C pairs."
   }
 }

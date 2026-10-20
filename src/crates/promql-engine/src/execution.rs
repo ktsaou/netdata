@@ -1752,8 +1752,14 @@ impl CompiledQuery {
         failure_annotations: &mut Annotations,
     ) -> Result<Rosters, EvaluationError> {
         let _inner_phase = account.phase(crate::statistics::Phase::Inner);
+        #[derive(Clone, Copy)]
+        enum Demand {
+            None,
+            Contributors,
+            ScalarResult,
+        }
         enum Task<'a> {
-            Visit(NodeId, OutputHeader, bool, bool),
+            Visit(NodeId, OutputHeader, bool, Demand),
             Finish(NodeId, OutputHeader, bool),
             LabelFinish(NodeId, OutputHeader, AccountedBox<LabelOperation<'a>>),
             AggregateParameter(NodeId, OutputHeader),
@@ -1765,7 +1771,7 @@ impl CompiledQuery {
             self.expression.root,
             prepared.evaluator_header(),
             true,
-            false,
+            Demand::None,
         ));
         while let Some(task) = tasks.pop() {
             control.check()?;
@@ -1847,7 +1853,7 @@ impl CompiledQuery {
                 rosters.prepare_aggregate_parameter(node, *operator, summary, account);
                 continue;
             }
-            if let Task::Visit(_, _, primary, contributor_demand) = task {
+            if let Task::Visit(_, _, primary, demand) = task {
                 rosters.set_statistics_role(node, primary);
                 let child_primary = primary && !prepared.flags().boundaries[node.0];
                 let grid = crate::query_scopes::Grid::from(header);
@@ -1856,7 +1862,9 @@ impl CompiledQuery {
                     && crate::query_scopes::Grid::from(prepared.source_header(node, header))
                         == grid
                     && crate::query_scopes::Grid::from(prepared.scope_header(node, header)) == grid;
-                let contributor_demand = contributor_demand && contributor_clock;
+                let contributor_demand =
+                    matches!(demand, Demand::Contributors) && contributor_clock;
+                let scalar_result = matches!(demand, Demand::ScalarResult) && contributor_clock;
                 header = prepared.source_header(node, header);
                 if prepared.activate(header, control, account)?.is_none() {
                     if self.expression.arena[node].value_type == ValueType::Scalar {
@@ -1951,7 +1959,7 @@ impl CompiledQuery {
                         )?,
                         grid.header(header),
                         false,
-                        false,
+                        Demand::None,
                     ));
                     continue;
                 }
@@ -1976,7 +1984,7 @@ impl CompiledQuery {
                         header,
                         child_primary,
                         // Numeric aggregate controllers repeatedly request input groups.
-                        true,
+                        Demand::Contributors,
                     ));
                     tasks.push(Task::AggregateParameter(node, header));
                     tasks.push(Task::Visit(
@@ -1989,7 +1997,7 @@ impl CompiledQuery {
                         )?,
                         header,
                         child_primary,
-                        false,
+                        Demand::None,
                     ));
                     continue;
                 }
@@ -2026,16 +2034,53 @@ impl CompiledQuery {
                         header,
                         child_primary,
                         // Projected rows repeatedly select groups at this consumer's clock.
-                        true,
+                        Demand::Contributors,
                     ));
                     continue;
                 }
-                tasks.push(Task::Finish(node, header, contributor_demand));
+                tasks.push(Task::Finish(
+                    node,
+                    header,
+                    contributor_demand
+                        || scalar_result && crate::aggregation::global_ordinary(expression),
+                ));
                 if self
                     .direct_clock_selector(node, control, account)?
                     .is_none()
                 {
                     let consumed = self.consumed_subquery(node, prepared, control, account)?;
+                    // Scalar-result provenance stops at its aggregate; it needs no member lists.
+                    let scalar_child = match expression {
+                        Expr::Binary { left, right, .. }
+                            if contributor_clock && header.start_ms < header.end_ms =>
+                        {
+                            match (
+                                self.expression.arena[*left].value_type,
+                                self.expression.arena[*right].value_type,
+                            ) {
+                                (ValueType::Scalar, ValueType::Vector) => Some(*left),
+                                (ValueType::Vector, ValueType::Scalar) => Some(*right),
+                                _ => None,
+                            }
+                        }
+                        Expr::Paren(child) if scalar_result => Some(*child),
+                        Expr::Call {
+                            function: Some(function),
+                            arguments,
+                        } if scalar_result && function.name == "scalar" => Some(arguments[0]),
+                        _ => None,
+                    };
+                    let scalar_child = scalar_child
+                        .map(|child| {
+                            prepared.preprocessing.child(
+                                &self.expression,
+                                node,
+                                child,
+                                control,
+                                account,
+                            )
+                        })
+                        .transpose()?;
                     // Histograms and ordered maps select grouped outputs repeatedly within their own clock.
                     let contributor_child = if let Expr::Call {
                         function: Some(function),
@@ -2136,8 +2181,15 @@ impl CompiledQuery {
                             child,
                             header,
                             child_primary && Some(child) != consumed,
-                            Some(child) == contributor_child
-                                || contributor_pair.is_some_and(|pair| pair.contains(&child)),
+                            if Some(child) == contributor_child
+                                || contributor_pair.is_some_and(|pair| pair.contains(&child))
+                            {
+                                Demand::Contributors
+                            } else if Some(child) == scalar_child {
+                                Demand::ScalarResult
+                            } else {
+                                Demand::None
+                            },
                         ));
                     }
                 }
@@ -8995,22 +9047,44 @@ mod tests {
 
     #[test]
     fn completed_single_group_join_values_keep_results_and_read_growth() {
+        check_completed_single_group_ratio_results(false);
+    }
+
+    #[test]
+    fn completed_scalar_group_values_keep_results_and_read_growth() {
+        check_completed_single_group_ratio_results(true);
+    }
+
+    fn check_completed_single_group_ratio_results(scalar: bool) {
         let (mut complete, mut growth) = (0, [0_u64; 2]);
         for groups in [4, 16] {
             for page in [1, 17, 1024] {
                 for delayed in [false, true] {
                     for reverse in [false, true] {
-                        let many = "sum by(instance)(counter_total)";
-                        let one = "sum(counter_total)";
+                        let many = if scalar {
+                            "counter_total"
+                        } else {
+                            "sum by(instance)(counter_total)"
+                        };
+                        let one = if scalar {
+                            "scalar(sum(counter_total))"
+                        } else {
+                            "sum(counter_total)"
+                        };
                         let (left, right, modifier) = if reverse {
                             (one, many, "group_right()")
                         } else {
                             (many, one, "group_left()")
                         };
-                        let ratio = format!("{left}/on(){modifier} {right}");
+                        let matching = if scalar {
+                            String::new()
+                        } else {
+                            format!("on(){modifier}")
+                        };
+                        let ratio = format!("{left}/{matching} {right}");
                         for (shape, expression) in [
                             ratio.clone(),
-                            format!("abs(({left})/on(){modifier} ({right}))"),
+                            format!("abs(({left})/{matching} ({right}))"),
                             format!("sum({ratio})"),
                         ]
                         .iter()
@@ -9062,8 +9136,12 @@ mod tests {
                                     if shape == 2 {
                                         assert!(row.labels.0.is_empty());
                                     } else {
-                                        assert_eq!(row.labels.0.len(), 1);
+                                        assert_eq!(row.labels.0.len(), if scalar { 2 } else { 1 });
                                         assert_eq!(&*row.labels.0[0].name, b"instance");
+                                        if scalar {
+                                            assert_eq!(&*row.labels.0[1].name, b"job");
+                                            assert_eq!(&*row.labels.0[1].value, b"worker");
+                                        }
                                         let ordinal: usize =
                                             std::str::from_utf8(&row.labels.0[0].value)
                                                 .unwrap()
@@ -9098,12 +9176,19 @@ mod tests {
                                     && !reverse
                                     && !delayed
                                     && page == 1
-                                    && matches!(request, QueryRequest::Instant { .. })
+                                    && if scalar {
+                                        matches!(
+                                            request,
+                                            QueryRequest::Range { start_ms: 1000, .. }
+                                        )
+                                    } else {
+                                        matches!(request, QueryRequest::Instant { .. })
+                                    }
                                 {
                                     growth[usize::from(groups == 16)] = fetched;
                                 }
                                 println!(
-                                    "single-group-result groups={groups} page={page} delayed={delayed} reverse={reverse} shape={shape} request={request:?} fetched={fetched} work={}",
+                                    "single-group-result scalar={scalar} groups={groups} page={page} delayed={delayed} reverse={reverse} shape={shape} request={request:?} fetched={fetched} work={}",
                                     report.observations.work
                                 );
                                 provider.assert_closed();
@@ -9124,7 +9209,7 @@ mod tests {
         );
         assert!(growth[0] > 0 && growth[1] > 0);
         assert!(
-            growth[1] <= growth[0].saturating_mul(8),
+            growth[1] <= growth[0].saturating_mul(if scalar { 6 } else { 8 }),
             "completed singleton joins must avoid quadratic raw reads"
         );
     }
@@ -9233,6 +9318,15 @@ mod tests {
 
     #[test]
     fn completed_single_group_join_values_preserve_actual_read_phases() {
+        check_completed_single_group_read_phases(false);
+    }
+
+    #[test]
+    fn completed_scalar_group_values_preserve_actual_read_phases() {
+        check_completed_single_group_read_phases(true);
+    }
+
+    fn check_completed_single_group_read_phases(scalar: bool) {
         let acquisitions = |provider: &FixtureProvider| {
             provider
                 .series
@@ -9243,7 +9337,11 @@ mod tests {
         for page in [1, 17, 1024] {
             for reverse in [false, true] {
                 let engine = Engine::default();
-                let expression = if reverse {
+                let expression = if scalar && reverse {
+                    "scalar(sum(b))/a"
+                } else if scalar {
+                    "a/scalar(sum(b))"
+                } else if reverse {
                     "sum(b)/on()group_right() a"
                 } else {
                     "a/on()group_left() sum(b)"
@@ -9276,6 +9374,12 @@ mod tests {
                         let (target, phase) = match fault {
                             "cold" => (4, 0),
                             "omitted" => (4, 1),
+                            "many" if scalar => (
+                                (0..4)
+                                    .find(|&i| landmarks[2][i] > landmarks[1][i])
+                                    .expect("actual selected numerator acquisition"),
+                                1,
+                            ),
                             "many" => (0, 1),
                             "next" => (4, 2),
                             _ => unreachable!(),
@@ -9340,7 +9444,7 @@ mod tests {
                         let ordinals = [0, 1].map(|position| {
                             let bindings = &sources[rows[position].sources.clone()];
                             assert_eq!(bindings.len(), 1);
-                            bindings[0]
+                            if scalar { position } else { bindings[0] }
                         });
                         if fault == "none" {
                             landmarks.push(acquisitions(&provider));
@@ -9379,7 +9483,9 @@ mod tests {
                                 },
                             );
                             machine.restrict_one(ordinal);
-                            machine.bypass_root_order();
+                            if !scalar {
+                                machine.bypass_root_order();
+                            }
                             machine.set_step_index(step);
                             let result = machine.next();
                             let failed = match fault {
@@ -9399,6 +9505,13 @@ mod tests {
                                     assert!(
                                         matches!(&result, Err(EvaluationError::Storage(StorageError::Provider(bytes))) if &**bytes == b"injected page failure")
                                     );
+                                    if scalar && fault == "cold" {
+                                        assert_eq!(
+                                            &acquisitions(&provider)[..4],
+                                            &before[..4],
+                                            "scalar failure must precede numerator reads"
+                                        );
+                                    }
                                 }
                                 drop(result);
                                 drop(machine);
@@ -9458,7 +9571,7 @@ mod tests {
                                 landmarks.push(after);
                             }
                             println!(
-                                "single-group-read-phase page={page} reverse={reverse} fault={fault} phase={phase}"
+                                "single-group-read-phase scalar={scalar} page={page} reverse={reverse} fault={fault} phase={phase}"
                             );
                             if fault == "omitted" && phase == 1 {
                                 break;
@@ -9487,6 +9600,18 @@ mod tests {
                 ("a*on()group_left()sum(b)", "native"),
                 ("a*on()group_left()sum(b)", "mixed"),
                 ("a/on()group_left()sum(b)", "transition"),
+                ("a/scalar(sum(b))", "scalar-native"),
+                ("a/scalar(sum(b))", "scalar-mixed"),
+                ("a/scalar(sum(b))", "scalar-transition"),
+                ("a/scalar(sum(b))", "scalar-nan"),
+                ("a/scalar(count(b))", "scalar-native-count"),
+                ("a/scalar(sum by(instance)(b))", "scalar-grouped"),
+                ("a/scalar(sum(sum by(instance)(b)))", "scalar-nested"),
+                ("a/(scalar(sum(b))+1)", "scalar-arithmetic"),
+                ("a{instance=\"0\"}/scalar(sum(b))", "scalar-single"),
+                ("scalar(sum(b))", "scalar-alone"),
+                ("a/scalar(sum(b @ 2))", "scalar-fixed"),
+                ("a/((scalar((sum by()(b)))))", "scalar-parens"),
             ] {
                 let engine = Engine::default();
                 let control = Control::default();
@@ -9495,7 +9620,9 @@ mod tests {
                     .unwrap();
                 let mut provider = float_map_join_provider(page);
                 for (position, series) in provider.series.iter_mut().enumerate().skip(4) {
-                    if kind == "native" || kind == "mixed" && position.is_multiple_of(2) {
+                    if matches!(kind, "native" | "scalar-native" | "scalar-native-count")
+                        || matches!(kind, "mixed" | "scalar-mixed") && position.is_multiple_of(2)
+                    {
                         series.source.sample = |index| crate::value::Sample {
                             time_ms: (index as i64 + 1) * 1000,
                             start_time_ms: 0,
@@ -9508,7 +9635,7 @@ mod tests {
                                 },
                             ),
                         };
-                    } else if kind == "transition" {
+                    } else if matches!(kind, "transition" | "scalar-transition") {
                         series.source.sample = |index| crate::value::Sample {
                             time_ms: (index as i64 + 1) * 1000,
                             start_time_ms: 0,
@@ -9517,6 +9644,13 @@ mod tests {
                             } else {
                                 f64::from_bits(crate::value::STALE_NAN_BITS)
                             }),
+                        };
+                    } else if kind == "scalar-nan" {
+                        series.source.sample = |index| crate::value::Sample {
+                            value: crate::value::SampleValue::Float(f64::from_bits(
+                                0x7ff8_0000_0000_0001,
+                            )),
+                            ..crate::test_storage::counter(index)
                         };
                     }
                 }
@@ -9571,6 +9705,12 @@ mod tests {
                         .unwrap();
                     prepared.range_folds.clear(&control, &account).unwrap();
                     assert_eq!(prepared.range_folds.completed_aggregates(), 0);
+                    if kind == "scalar-nested" {
+                        for node in 0..compiled.expression.arena.nodes.len() {
+                            assert!(rosters.group_replay(NodeId(node)).is_none());
+                            assert!(rosters.group_selector(NodeId(node)).is_none());
+                        }
+                    }
                     for step in 0..3 {
                         let time = (step + 1) * 1000;
                         let mut annotations = AnnotationBuilder::new(&account);
@@ -9614,10 +9754,22 @@ mod tests {
                                     panic!("float singleton fallback")
                                 };
                                 let expected = match kind {
-                                    "sum" => 4.0 * (step + 1) as f64,
+                                    "sum" | "scalar-alone" => 4.0 * (step + 1) as f64,
                                     "selection" => (step + 1) as f64,
                                     "single" => 1.0,
                                     "transition" => 0.25,
+                                    "scalar-native" | "scalar-mixed" | "scalar-nan"
+                                    | "scalar-grouped" => f64::from_bits(0x7ff8_0000_0000_0001),
+                                    "scalar-transition" if step != 1 => {
+                                        f64::from_bits(0x7ff8_0000_0000_0001)
+                                    }
+                                    "scalar-transition" | "scalar-single" | "scalar-nested"
+                                    | "scalar-parens" => 0.25,
+                                    "scalar-native-count" => (step + 1) as f64 / 4.0,
+                                    "scalar-arithmetic" => {
+                                        (step + 1) as f64 / (4.0 * (step + 1) as f64 + 1.0)
+                                    }
+                                    "scalar-fixed" => (step + 1) as f64 / 8.0,
                                     _ => unreachable!(),
                                 };
                                 assert_eq!(value.to_bits(), expected.to_bits());
@@ -9630,12 +9782,20 @@ mod tests {
                             "mixed" => 0,
                             "transition" if step == 1 => 4,
                             "transition" => 0,
+                            "scalar-single" | "scalar-alone" => 1,
+                            kind if kind.starts_with("scalar-") => 4,
                             _ => 1,
                         };
                         assert_eq!(count, expected_rows, "{expression} {kind} {time}");
                         assert_eq!(
                             prepared.range_folds.completed_aggregates(),
-                            usize::from(kind == "transition" && step == 1)
+                            usize::from(
+                                matches!(kind, "transition" | "scalar-transition") && step == 1
+                                    || matches!(
+                                        kind,
+                                        "scalar-nan" | "scalar-native-count" | "scalar-parens"
+                                    )
+                            )
                         );
                     }
                 }

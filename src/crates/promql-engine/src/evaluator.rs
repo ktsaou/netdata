@@ -2695,6 +2695,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         if !ordinary_clock(&self.frames[index]) {
             return Ok(None);
         }
+        let mut scalar_result = false;
         while index > 0 {
             self.control.check()?;
             self.account.work(1);
@@ -2721,7 +2722,73 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         return Ok(None);
                     }
                 }
-                State::Binary(step) => {
+                State::Scalar {
+                    count: 0,
+                    value: None,
+                    collecting: true,
+                } if !scalar_result
+                    && crate::aggregation::global_ordinary(
+                        &self.expression.arena[node].expression,
+                    ) =>
+                {
+                    let Expr::Call {
+                        function: Some(function),
+                        arguments,
+                    } = &self.expression.arena[parent.node].expression
+                    else {
+                        return Ok(None);
+                    };
+                    if function.name != "scalar"
+                        || self.prepared.preprocessing.child(
+                            self.expression,
+                            parent.node,
+                            arguments[0],
+                            self.control,
+                            self.account,
+                        )? != child.node
+                    {
+                        return Ok(None);
+                    }
+                    scalar_result = true;
+                }
+                State::MixedBinary {
+                    scalar: None,
+                    scalar_node,
+                    collecting: true,
+                    ..
+                } if scalar_result => {
+                    let Some(ordered_index) = index.checked_sub(2) else {
+                        return Ok(None);
+                    };
+                    let ordered = &self.frames[ordered_index];
+                    if !matches!(parent.mode, OutputMode::Matrix)
+                        || !parent.bypass_order
+                        || parent.options.start_ms >= parent.options.end_ms
+                        || ordered.node != parent.node
+                        || !ordinary_clock(ordered)
+                        || key_for(ordered) != key
+                        || !matches!(
+                            &ordered.state,
+                            State::OrderedRows {
+                                descriptors,
+                                running: true,
+                                streaming: false,
+                                ..
+                            } if descriptors.len() > 1
+                        )
+                    {
+                        return Ok(None);
+                    }
+                    return Ok((self.prepared.preprocessing.child(
+                        self.expression,
+                        parent.node,
+                        *scalar_node,
+                        self.control,
+                        self.account,
+                    )? == child.node)
+                        .then_some(key));
+                }
+                State::Binary(step) if !scalar_result => {
                     let Some(side) = step.repeated_singleton_side() else {
                         return Ok(None);
                     };

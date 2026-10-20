@@ -2348,3 +2348,20 @@ separately rejected under their original criteria.
   raw reads and allocation traffic. All timing, control, memory and independent default-C size gates pass.
 - **Evidence:** [qualification](variance-group-map-contributors-qualification.json) preserves exact original outcomes,
   cold/selected/next-clock errors, caller cleanup, slower individual timings and finite measurement limits.
+
+## Completed scalar aggregate values
+
+- **Choice:** extend the existing completed Float table to exact scalar()/MixedBinary consumers under a
+  running nonstreaming plural OrderedRows range owner. Both operand orders retain scalar-first evaluation.
+  Parentheses, ordinary clocks, resolved child identities and exact ReplayKeys must all agree.
+- **Preparation:** local Demand distinguishes None, Contributors and ScalarResult. Existing recursive
+  contributor seeds keep their meaning. ScalarResult crosses only Paren/scalar edges, requests global
+  ordinary parameterless aggregate provenance at Finish, and stops before the aggregate body.
+- **Lifetime:** successful full reduction and diagnostics precede publication. Existing independent leases,
+  replacement, preparation clearing and terminal checks remain authoritative. No new value-table representation,
+  retained history, provider surface, arithmetic route or implicit limit is introduced.
+- **Fallback:** one-pass/instant/equal/grouped/nested/fixed/arithmetic-wrapper consumers and native or absent
+  reduction outputs keep ordinary evaluation. Float NaNs and native-input COUNT may qualify as Float results.
+- **Evidence:** [finite qualification](README.md#completed-scalar-aggregate-values) includes complete originals,
+  actual cold/warm/new-clock failures, C logical statistics/cleanup, compiler layout, footprint, timing and
+  memory costs. The prior grouped-join-only admission description records the preceding checkpoint.

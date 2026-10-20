@@ -1,0 +1,466 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "4fabaf36837467400036d01f03e169d1436dc312",
+  "change": "Reuse the existing completed Float aggregate table through exact scalar() and mixed-binary edges under a running plural ordered range consumer. Separate local ScalarResult demand requests only global ordinary aggregate provenance; it does not seed nested member arrays.",
+  "preserved": "Full first reduction, scalar-first error order, exact replay keys and changed-clock reads, diagnostic phases, independent sample leases, paged history, arithmetic, ABI, provider ownership and disabled implicit limits.",
+  "source_phases": {
+    "accepted-source.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/accepted-source.json",
+      "sha256": "e25953b429c79d9e033f81e5e3a02e40b67f942ef0532f3f435409801b262a4e"
+    },
+    "tests-v3-source.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/tests-v3-source.json",
+      "sha256": "948ae1b4b8a965366ee9ea812ac7afb0d61a83bdecdb8dc13c413f95ae5c819c"
+    },
+    "candidate-fallbacks-source.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/candidate-fallbacks-source.json",
+      "sha256": "c6752ba87492d86545e0a27d39f06a8ff4b087459663bb28ae548e8e8437122e"
+    },
+    "qualified-source.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/qualified-source.json",
+      "sha256": "c78e47710ee16d8537fa5c2724325bccda7985a3ce9bce39adee9e0b4fa8c743"
+    },
+    "layout-source.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/layout-source.json",
+      "sha256": "5b076e273a026e8be3d2520ca2946e425b7fde939b0d6929aa7e4b019a1dddba"
+    }
+  },
+  "source_attribution": "Native engine builds precede only the coupled C/Python fixture additions; all Rust production and fixture inputs remain byte-identical. ARM builds bind the qualified phase. Final C consumers are separately linked from the shared helper revision. The temporary layout probe is restored byte-for-byte and is not shipped.",
+  "compiled_cost": {
+    "sections": [
+      "text",
+      "data",
+      "bss"
+    ],
+    "max_growth_bytes": 8192,
+    "final_default_C": {
+      "release": {
+        "final_default_sizes": {
+          "before": [
+            7368194,
+            506576,
+            400
+          ],
+          "current": [
+            7370378,
+            506744,
+            400
+          ]
+        },
+        "shipping_default_size": [
+          7368178,
+          506576,
+          400
+        ],
+        "final_growth_bytes": 2368
+      },
+      "release-min": {
+        "final_default_sizes": {
+          "before": [
+            5102199,
+            461864,
+            400
+          ],
+          "current": [
+            5103967,
+            462056,
+            400
+          ]
+        },
+        "shipping_default_size": [
+          5102183,
+          461864,
+          400
+        ],
+        "final_growth_bytes": 1976
+      },
+      "arm32": {
+        "final_default_sizes": {
+          "before": [
+            6380721,
+            292484,
+            244
+          ],
+          "current": [
+            6382697,
+            292596,
+            244
+          ]
+        },
+        "shipping_default_size": [
+          6380713,
+          292484,
+          244
+        ],
+        "final_growth_bytes": 2096
+      },
+      "arm64": {
+        "final_default_sizes": {
+          "before": [
+            6395866,
+            496888,
+            384
+          ],
+          "current": [
+            6374470,
+            497032,
+            384
+          ]
+        },
+        "shipping_default_size": [
+          6370830,
+          496888,
+          384
+        ],
+        "final_growth_bytes": 3784
+      }
+    },
+    "task_layout_bytes": {
+      "release": {
+        "current": 56,
+        "predecessor_shape": 56
+      },
+      "arm64": {
+        "current": 56,
+        "predecessor_shape": 56
+      },
+      "arm32": {
+        "current": 48,
+        "predecessor_shape": 48
+      }
+    },
+    "scope": "Actual linked C consumers and actual local Task compiler layouts; not whole-Agent RSS."
+  },
+  "measurement": {
+    "complete_pairs": 3120,
+    "cases_per_profile": 120,
+    "composition": "SUM/AVG,raw/rate bodies,both operand orders,1/8/64/256 series,pages17/1024,three range ticks; constant division,standalone scalar,instant,single-numerator controls.",
+    "method": "Three alternating serial blocks,one warmup and three measured queries per case/side/block; nine primary samples per side. All complete results compared; no replacement timings.",
+    "criteria": {
+      "groups": [
+        1,
+        8,
+        64,
+        256
+      ],
+      "pages": [
+        17,
+        1024
+      ],
+      "reducers": [
+        "sum",
+        "avg"
+      ],
+      "bodies": [
+        "plain",
+        "rate"
+      ],
+      "sides": [
+        "left",
+        "right"
+      ],
+      "ticks": 3,
+      "blocks": 3,
+      "warmups": 1,
+      "measurements": 3,
+      "large_target_median_max": 0.8,
+      "each_body_large_median_max": 0.9,
+      "control_family_median_max": 1.05,
+      "controls": [
+        "constant",
+        "standalone-scalar",
+        "instant",
+        "single-numerator"
+      ]
+    },
+    "memory_criteria": {
+      "new_owner": "Existing lazy completed aggregate table only; no raw history or member buffer from ScalarResult",
+      "target_workspace_peak_extra_max_bytes_per_cached_node": 1024,
+      "large_target_allocation_traffic": "nonincreasing",
+      "other_memory_categories": "no increase; independent sample lease reported separately from bytes",
+      "controls": "no extra retained owner or peak; small-case check/work cost measured"
+    },
+    "profiles": {
+      "release": {
+        "target_median": 0.09793551717897175,
+        "body_medians": {
+          "plain": 0.07264690658147367,
+          "rate": 0.17213947069126856
+        },
+        "control_medians": {
+          "constant": 0.9894346366835347,
+          "standalone-scalar": 0.9931365836058533,
+          "instant": 0.9948869764965389,
+          "single-numerator": 1.0056727391541211
+        },
+        "passed": true,
+        "individual_ratios_over_1_05": [
+          {
+            "case": {
+              "id": "scalar:1:17:target:sum:plain:False",
+              "groups": 1,
+              "page": 17,
+              "shape": "target",
+              "reducer": "sum",
+              "body": "plain",
+              "reverse": false,
+              "mode": "range",
+              "expression": "m / scalar(sum(n))"
+            },
+            "before_ns": [
+              88229,
+              79980,
+              90650,
+              84759,
+              81140,
+              78260,
+              83309,
+              78239,
+              76749
+            ],
+            "current_ns": [
+              86269,
+              81489,
+              79349,
+              141699,
+              133819,
+              132509,
+              109629,
+              84329,
+              79089
+            ],
+            "ratio": 1.0632117328074933
+          }
+        ]
+      },
+      "release-min": {
+        "target_median": 0.09819985031978008,
+        "body_medians": {
+          "plain": 0.0763893349659854,
+          "rate": 0.1625771359567096
+        },
+        "control_medians": {
+          "constant": 1.0011243068640385,
+          "standalone-scalar": 0.9918171422886533,
+          "instant": 0.9965998655596571,
+          "single-numerator": 1.00141923504244
+        },
+        "passed": true,
+        "individual_ratios_over_1_05": [
+          {
+            "case": {
+              "id": "scalar:1:17:target:avg:plain:False",
+              "groups": 1,
+              "page": 17,
+              "shape": "target",
+              "reducer": "avg",
+              "body": "plain",
+              "reverse": false,
+              "mode": "range",
+              "expression": "m / scalar(avg(n))"
+            },
+            "before_ns": [
+              133929,
+              118289,
+              118439,
+              116589,
+              115819,
+              116329,
+              116459,
+              127069,
+              115679
+            ],
+            "current_ns": [
+              117329,
+              133559,
+              124519,
+              124039,
+              126289,
+              118148,
+              118549,
+              117999,
+              128859
+            ],
+            "ratio": 1.0638996817881619
+          }
+        ]
+      }
+    },
+    "example": {
+      "query": "m / scalar(sum(n))",
+      "groups": 256,
+      "page": 17,
+      "samples_fetched": [
+        1607680,
+        40960
+      ],
+      "work": [
+        12540469,
+        481303
+      ],
+      "workspace_peak_bytes": [
+        311060,
+        311060
+      ]
+    },
+    "maximum_byte_peak_increase": 0,
+    "scope": "Finite synthetic serial timings and tracked query allocations on a shared host. One small target per profile is about6.3%slower. No live dbengine,concurrent throughput,physical ARM speed or RSS claim."
+  },
+  "qualification": {
+    "old_semantic_outcomes_before_growth_failure": 216,
+    "causal_range_reads_G4_G16": {
+      "before": [
+        240,
+        2112
+      ],
+      "current": [
+        168,
+        672
+      ]
+    },
+    "complete_scalar_and_join_unit_cases": 432,
+    "phase_controls": "Actual ordered root: cold denominator failure before numerator reads; warm numerator failure; omitted warm denominator acquisition; fresh next-clock failure; cancellation. Nested,grouped,fixed,arithmetic,standalone,N1,native,mixed,stale,FloatNaN,native-inputCOUNT and Paren controls.",
+    "native_tests_per_profile": 878,
+    "preexisting_ignored_per_profile": 2,
+    "ARM_tests_per_target": {
+      "arm32": 16,
+      "arm64": 16
+    },
+    "fresh_original_cases": 810,
+    "original_comparisons_current": 6480,
+    "original_comparisons_predecessor": 6480,
+    "original_bit_differences": 0,
+    "original_policy": "Pinned complete-output comparison and upstream numeric tolerance; independent raw-bit diagnostic has no differences. Native pages1/17/1024;ARM page17;both name modes,eight reducers,nine data states and fallback controls.",
+    "C_pairs": 288,
+    "legacy_C_queries": 288,
+    "C_sample_lease_peak_max_increase": 1,
+    "C_byte_peak_max_increase": 0,
+    "SRE": {
+      "inventoried_slots": 790,
+      "scalar_slots": 2,
+      "admitted_aggregate_slots": 0,
+      "new_executions": 0,
+      "reason": "Both retained scalar calls wrap hour() comparisons, not aggregate expressions."
+    },
+    "strict_Clippy_variants": 2,
+    "format": "pass",
+    "MSRV_compile_only": "1.91.0"
+  },
+  "retained_attempts": [
+    "Initial scalar test expected one label instead of two; corrected complete labels before causal use.",
+    "Second test measured instant growth; corrected range capture before production changes. Only v3 is the causal witness, with all216 semantic outcomes passing before its growth failure.",
+    "Initial baseline checker omitted the ordinary rate-name info; corrected checker reused the same original capture and checks exact diagnostics.",
+    "Initial candidate used unsupported OutputMode equality; corrected to matches! without changing the enum.",
+    "First measurement adapter demanded strictly fewer rate fetches, beyond the frozen plan. Existing window reuse already keeps these fetches flat. Corrected adapter reuses the original pilot and preserves every frozen memory,timing and footprint criterion.",
+    "Initial SRE script retained the old histogram regex; its mislabeled receipt is excluded. Corrected scalar inventory and exact two-slot assessment own the scope.",
+    "The originals runner inherited an exact-numeric scope phrase, but its actual entries use exact_numeric=False and the pinned numeric tolerance. Raw-bit diagnostics separately report zero differences; the original_policy field here states the executed policy."
+  ],
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/measurement-plan.json",
+      "sha256": "76fed3edcf328591eaa5d2ddfc957c59623af5dad5984b0c82104c29e642693c"
+    },
+    "old-v3-units.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/old-v3-units.json",
+      "sha256": "11affc6686474e79e8b3c312b4d6e923d1cab14a7de758b0aa87f3780de5788b"
+    },
+    "baseline.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/baseline.json",
+      "sha256": "dd4af94e46a9ddea7ad97708a5da42b023f9ae41d6fc339318894dff90218462"
+    },
+    "candidate-fallbacks-units.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/candidate-fallbacks-units.json",
+      "sha256": "0819653520f058f8ae94170d73c1088c45a7347e05ccb4a1695f9dc67f3b1cd8"
+    },
+    "originals-captured.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/originals-captured.json",
+      "sha256": "15fa48c88953eaaaf5d99afaf2b7ba7a85a64938ad5138cfa88702efbc5ecad6"
+    },
+    "sre-assessment.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/sre-assessment.json",
+      "sha256": "29ff16dd982dc4a601fa54aa1b5470fca985eb0d312ff08fc536642e6cc1b2be"
+    },
+    "layout.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/layout.json",
+      "sha256": "77d9f79f351eee78b4246e65e4cc3be473b7dd513eae3641627ae0b2e39efe9a"
+    },
+    "current-static.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/current-static.json",
+      "sha256": "5cd0aeeb67e4247845b0e4f7358717b569ad6c246b6b917bd8a58477b6a56e93"
+    },
+    "build-release.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/build-release.json",
+      "sha256": "1979c5698d418c261afb8c2a0de7a4e9b7bd0f820dfe9c79910a6ba8a0f30fc2"
+    },
+    "qualification-release.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/qualification-release.json",
+      "sha256": "152c557ffbe6ee44b29ae3cd07761514a317b9cfe2af0b31d7f3cf6ed8263ee7"
+    },
+    "C-callers-release.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/C-callers-release.json",
+      "sha256": "ac9b19cd50fe6cdfe74dd957c1a09fc8a59bb716fc326d2991c2312d7a75cb1d"
+    },
+    "originals-release.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/originals-release.json",
+      "sha256": "205d84e8537b0e3f8494c952ba6fc764d5bcd3b9f3bd60bdb4091ba55f80d7a5"
+    },
+    "build-release-min.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/build-release-min.json",
+      "sha256": "647d031c6f84e39dfe3d4ef71b8dce76a51b551492d64a7910f7e17cb02583ec"
+    },
+    "qualification-release-min.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/qualification-release-min.json",
+      "sha256": "e013887f46c69b7c19aaec098cef8486a7a6f431cf94e22e22ab867a25417d12"
+    },
+    "C-callers-release-min.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/C-callers-release-min.json",
+      "sha256": "a1d1fe25e545a9363293d19a23a8b7227589d8735b76fcb2499ba6058b8a6ef7"
+    },
+    "originals-release-min.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/originals-release-min.json",
+      "sha256": "5e279f16bbc4748690573552a7f7a4f07fb0e193bb2bbd1bd1a01d9c14e1e5ce"
+    },
+    "build-arm32.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/build-arm32.json",
+      "sha256": "fba9fb393aec3bfc10d930a10ca9510a53284c56ed6a29eb339b064c50290799"
+    },
+    "qualification-arm32.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/qualification-arm32.json",
+      "sha256": "ffb4662ef452795659aa814be3ce4897cbebcd8cc5e567c4555324a8d6718830"
+    },
+    "C-callers-arm32.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/C-callers-arm32.json",
+      "sha256": "3ca9dbf987851b3c0bbb6590e637af4d7c7b608a3404690457e61224705e8474"
+    },
+    "originals-arm32.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/originals-arm32.json",
+      "sha256": "d6beb7435f0406a539f333b5dd69500e995755a5a822d3b4f85569fafba8653b"
+    },
+    "build-arm64.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/build-arm64.json",
+      "sha256": "1c8e848841f6b74c3b3541464c6ac5e32ca1b6c3deac953a8ef78d1a13012065"
+    },
+    "qualification-arm64.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/qualification-arm64.json",
+      "sha256": "bed60ec92679a3a7f01a23c68940314a46f4838b4a2fe4cdd6d90f07ffd3fe13"
+    },
+    "C-callers-arm64.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/C-callers-arm64.json",
+      "sha256": "07eda9215d92c112378aa4b4378479131f226c59cef19eed30464b5ef3be2947"
+    },
+    "originals-arm64.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/originals-arm64.json",
+      "sha256": "7251f20a41d5927352450539f3c1f13fbeaa44bda4db82fdd8ac70ed6f3b676d"
+    },
+    "measurement-release.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/measurement-release.json",
+      "sha256": "b49bf5716e74c0c3be24e6eb86ec7b321d0a8ef9d3e15cbf9e0b1c93d4272d84"
+    },
+    "measurement-release-min.json": {
+      "path": ".tmp/scalar-group-demand-b4etwugy/measurement-release-min.json",
+      "sha256": "699e6cf91a03695be17eeb00dff1df5862ab7a8d919056f01f79736a36fdd2b0"
+    }
+  },
+  "scope": "Private engine optimization; continuous compatibility/throughput/memory improvement remains unfinished."
+}
