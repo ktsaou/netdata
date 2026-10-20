@@ -307,7 +307,7 @@ pub(crate) fn scan<S: Series, E: From<StorageError> + From<Interrupted>>(
 }
 
 // Keep validation independent of the consuming callback's generic type.
-fn ignore_sample<E>(_: SampleRef<'_>) -> Result<(), E> {
+pub(crate) fn ignore_sample<E>(_: SampleRef<'_>) -> Result<(), E> {
     Ok(())
 }
 

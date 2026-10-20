@@ -2290,3 +2290,17 @@ separately rejected under their original criteria.
   complete query/accounting equality, original comparisons and actual C callers. All frozen footprint/timing gates pass.
 - **Limits:** this reduces compiled size on the measured builds. Timings and measured query-memory observations
   are roughly unchanged and exactly unchanged respectively. Present read reuse remains a rejected separate experiment.
+
+## Shared Present acquisition
+
+- **Choice:** eligible unanchored Present reuses completed acquisition and avoids the second float-window read.
+  Both no-op callbacks use the existing named visitor directly; it is now crate-private for this caller.
+- **Ownership and failure:** validation and terminal checks precede useful-read credit. Populated allocated
+  histogram history keeps consuming validation and uses that pass's full acquisition, including membership and
+  progress. Existing finalization owns output credit; global absence still visits every series.
+- **Boundary:** reuse the existing checked window geometry. No new state, allocation, raw history, provider/ABI,
+  arithmetic or limit change; other folds and unproven paths remain unchanged.
+- **Evidence and trade-off:** the [qualification](shared-present-acquisition-qualification.json) and
+  [measured scope](README.md#shared-present-acquisition) retain complete outcomes, physical reads, unchanged
+  logical credits, nonincreasing memory, all section sizes and the slower individual Sum control. Growth is
+  measured against the already smaller shared-visitor build. All original frozen gates pass without exceptions.

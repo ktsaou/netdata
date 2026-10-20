@@ -705,6 +705,45 @@ impl FoldStep {
     }
 }
 
+fn present<S: Series>(
+    series: &S,
+    bounds: Option<TimeBounds>,
+    window: MatrixWindow,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<FoldResult, StorageError> {
+    let acquisition = crate::matrix_reader::probe::<_, StorageError>(
+        series,
+        bounds,
+        window,
+        control,
+        account,
+        crate::matrix_reader::ignore_sample::<StorageError>,
+    )?;
+    let acquisition = if acquisition.populated && acquisition.histograms_allocated {
+        crate::matrix_reader::consume::<_, StorageError>(
+            series,
+            bounds,
+            window.with_progress(Some(acquisition.progress)),
+            control,
+            account,
+            crate::matrix_reader::ignore_sample::<StorageError>,
+        )?
+    } else {
+        account.samples_read(acquisition.progress.sample_units);
+        acquisition
+    };
+    // Completed acquisition proves presence; retain the ordinary result's sample lease.
+    let mut step = FoldStep::new(FoldKind::Present, false);
+    step.count = u64::from(acquisition.populated);
+    let mut result = step
+        .finish_pass(control, account)
+        .map_err(FoldError::storage)?
+        .expect("presence does not require native arithmetic");
+    result.progress = Some(acquisition.progress);
+    Ok(result)
+}
+
 pub(crate) fn fold<S: Series>(
     series: &S,
     bounds: impl Into<Option<TimeBounds>>,
@@ -714,6 +753,14 @@ pub(crate) fn fold<S: Series>(
     account: &QueryAccounting,
 ) -> Result<FoldResult, StorageError> {
     let bounds = bounds.into();
+    if kind == FoldKind::Present
+        && options.anchor_start_ms.is_none()
+        && let Some(window) = options
+            .matrix
+            .filter(|window| window.can_reuse_acquisition(bounds))
+    {
+        return present(series, bounds, window, control, account);
+    }
     let mut anchor = None::<(i64, bool, u64)>;
     let mut full_nonempty = false;
     if let Some(start_ms) = options.anchor_start_ms {
@@ -1370,6 +1417,168 @@ mod tests {
 
     #[test]
     fn sum_acquisition_preserves_complete_results_before_cursor_guard() {
+        check_fold_complete_acquisition(FoldKind::Sum);
+    }
+
+    #[test]
+    fn present_histogram_consumption_keeps_reached_credits_on_cancellation() {
+        for page in [1, 17, 1024] {
+            for (sample, read) in [
+                (average_native as fn(usize) -> Sample, 22),
+                (average_stale_histogram, 1),
+            ] {
+                for (cancel_at, expected_read) in [
+                    (AverageOperation::Next(2, 0), 0),
+                    (AverageOperation::Close(2), read),
+                ] {
+                    let control = Control::default();
+                    let source = AverageSeries {
+                        source: GeneratedSeries::new(2, page, sample),
+                        failure: None,
+                        cancel_at: Some(cancel_at),
+                        cancellation: control.cancellation.clone(),
+                        operations: RefCell::new(Vec::new()),
+                    };
+                    let account = EngineAccounting::default().query();
+                    let output = fold(
+                        &source,
+                        TimeBounds {
+                            start_ms: 1,
+                            end_ms: 2000,
+                        },
+                        FoldKind::Present,
+                        average_options(),
+                        &control,
+                        &account,
+                    );
+                    assert!(matches!(
+                        output,
+                        Err(StorageError::Interrupted(Interrupted::Cancelled))
+                    ));
+                    assert_eq!(
+                        account.snapshot().statistics.samples.samples_read,
+                        expected_read
+                    );
+                    assert_eq!(account.current_samples(), 0);
+                    drop(output);
+                    assert_average_closed(&source.source, &account);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn present_entirely_stale_histograms_do_not_force_consumption() {
+        fn stale(index: usize) -> Sample {
+            let mut sample = average_native(index);
+            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.sum = f64::from_bits(crate::value::STALE_NAN_BITS);
+            sample
+        }
+        for page in [1, 17, 1024] {
+            let source = GeneratedSeries::new(2, page, stale);
+            let account = EngineAccounting::default().query();
+            let output = fold(
+                &source,
+                TimeBounds {
+                    start_ms: 1,
+                    end_ms: 2000,
+                },
+                FoldKind::Present,
+                average_options(),
+                &Control::default(),
+                &account,
+            )
+            .unwrap();
+            assert!(output.value.is_none() && !output.nonempty);
+            assert_eq!(output.annotations, [None, None]);
+            assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+            assert_eq!(account.current_samples(), 0);
+            assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+            drop(output);
+            assert_average_closed(&source, &account);
+        }
+    }
+
+    #[test]
+    fn present_histogram_replay_uses_completed_membership() {
+        struct Changing {
+            first: GeneratedSeries,
+            second: GeneratedSeries,
+            opened: std::cell::Cell<usize>,
+        }
+        impl Series for Changing {
+            type Cursor<'a> = GeneratedCursor<'a>;
+            fn label_count(&self) -> usize {
+                0
+            }
+            fn label(&self, _: usize) -> LabelRef<'_> {
+                panic!("unlabelled presence fixture")
+            }
+            fn resources(&self) -> ProviderResources {
+                ProviderResources::default()
+            }
+            fn cursor(
+                &self,
+                bounds: TimeBounds,
+                control: &Control,
+            ) -> Result<Self::Cursor<'_>, StorageError> {
+                let opened = self.opened.get();
+                self.opened.set(opened + 1);
+                if opened == 0 {
+                    self.first.cursor(bounds, control)
+                } else {
+                    self.second.cursor(bounds, control)
+                }
+            }
+        }
+        for page in [1, 17, 1024] {
+            for count in [0, 2] {
+                let source = Changing {
+                    first: GeneratedSeries::new(2, page, average_native),
+                    second: GeneratedSeries::new(count, page, average_pair),
+                    opened: std::cell::Cell::new(0),
+                };
+                let account = EngineAccounting::default().query();
+                let output = fold(
+                    &source,
+                    TimeBounds {
+                        start_ms: 1,
+                        end_ms: 2000,
+                    },
+                    FoldKind::Present,
+                    average_options(),
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
+                assert_eq!(
+                    selected_float_bits(output.value.as_ref()),
+                    (count != 0).then_some(1.0f64.to_bits())
+                );
+                assert_eq!(output.nonempty, count != 0);
+                assert_eq!(output.annotations, [None, None]);
+                assert_eq!(account.current_samples(), u64::from(count != 0));
+                assert_eq!(
+                    account.snapshot().statistics.samples.samples_read,
+                    count as u64
+                );
+                assert_eq!(source.opened.get(), 2);
+                drop(output);
+                assert_average_closed(&source.first, &account);
+                assert_average_closed(&source.second, &account);
+            }
+        }
+    }
+
+    #[test]
+    fn present_acquisition_preserves_complete_results_before_cursor_guard() {
+        check_fold_complete_acquisition(FoldKind::Present);
+    }
+
+    fn check_fold_complete_acquisition(kind: FoldKind) {
         let mut opened = Vec::new();
         for page in [1, 17, 1024] {
             for count in [0, 1, 2, 128, 1024] {
@@ -1405,7 +1614,7 @@ mod tests {
                     let result = fold(
                         &source,
                         bounds,
-                        FoldKind::Sum,
+                        kind,
                         options,
                         &Control::default(),
                         &account,
@@ -1413,7 +1622,14 @@ mod tests {
                     .unwrap();
                     assert_eq!(
                         selected_float_bits(result.value.as_ref()),
-                        (count != 0).then_some(((count * (count + 1) / 2) as f64).to_bits())
+                        (count != 0).then_some(
+                            (match kind {
+                                FoldKind::Sum => (count * (count + 1) / 2) as f64,
+                                FoldKind::Present => 1.0,
+                                _ => unreachable!(),
+                            })
+                            .to_bits()
+                        )
                     );
                     assert_eq!(result.nonempty, count != 0);
                     assert_eq!(result.annotations, [None, None]);
@@ -1428,7 +1644,7 @@ mod tests {
                     assert_average_closed(&source, &account);
                     let cursors = source.counters.opened.load(Ordering::Relaxed);
                     println!(
-                        "sum acquisition case: page={page} count={count} start={start_timestamps} cursors={cursors}"
+                        "{kind:?} acquisition case: page={page} count={count} start={start_timestamps} cursors={cursors}"
                     );
                     opened.push(cursors);
                 }
@@ -1437,7 +1653,7 @@ mod tests {
         assert_eq!(opened.len(), 30);
         assert!(
             opened.iter().all(|&count| count == 1),
-            "eligible sums must not repeat completed acquisition"
+            "eligible folds must not repeat completed acquisition"
         );
     }
 
@@ -1449,6 +1665,11 @@ mod tests {
     #[test]
     fn sum_acquisition_failures_and_native_consumption_keep_their_phases() {
         check_fold_acquisition_failures(FoldKind::Sum);
+    }
+
+    #[test]
+    fn present_acquisition_failures_and_native_consumption_keep_their_phases() {
+        check_fold_acquisition_failures(FoldKind::Present);
     }
 
     fn check_fold_acquisition_failures(kind: FoldKind) {
@@ -1482,46 +1703,60 @@ mod tests {
                 )
                 .unwrap();
                 assert!(output.nonempty);
-                match (expected_kind, &output.value) {
-                    (0, Some(OwnedValue::Float(value))) => {
-                        assert_eq!(
-                            value.to_bits(),
-                            (if kind == FoldKind::Sum {
-                                3.0f64
-                            } else {
-                                1.5f64
-                            })
-                            .to_bits()
-                        )
+                let (expected_cursors, expected_read) =
+                    if kind == FoldKind::Present && expected_kind == 3 {
+                        (2, 22)
+                    } else {
+                        (expected_cursors, expected_read)
+                    };
+                if kind == FoldKind::Present {
+                    assert_eq!(
+                        selected_float_bits(output.value.as_ref()),
+                        Some(1.0f64.to_bits())
+                    );
+                    assert_eq!(output.annotations, [None, None]);
+                } else {
+                    match (expected_kind, &output.value) {
+                        (0, Some(OwnedValue::Float(value))) => {
+                            assert_eq!(
+                                value.to_bits(),
+                                (if kind == FoldKind::Sum {
+                                    3.0f64
+                                } else {
+                                    1.5f64
+                                })
+                                .to_bits()
+                            )
+                        }
+                        (1, Some(OwnedValue::Float(value))) => {
+                            assert_eq!(value.to_bits(), 1.0f64.to_bits())
+                        }
+                        (2, None) => assert_eq!(
+                            output.annotations,
+                            [Some(AnnotationKind::MixedFloatsHistograms), None]
+                        ),
+                        (3, Some(OwnedValue::Histogram(value))) => {
+                            assert_eq!(
+                                value.as_ref().count.to_bits(),
+                                (if kind == FoldKind::Sum {
+                                    3.0f64
+                                } else {
+                                    1.5f64
+                                })
+                                .to_bits()
+                            );
+                            assert_eq!(
+                                value.as_ref().sum.to_bits(),
+                                (if kind == FoldKind::Sum {
+                                    3.0f64
+                                } else {
+                                    1.5f64
+                                })
+                                .to_bits()
+                            );
+                        }
+                        _ => panic!("complete fold output kind"),
                     }
-                    (1, Some(OwnedValue::Float(value))) => {
-                        assert_eq!(value.to_bits(), 1.0f64.to_bits())
-                    }
-                    (2, None) => assert_eq!(
-                        output.annotations,
-                        [Some(AnnotationKind::MixedFloatsHistograms), None]
-                    ),
-                    (3, Some(OwnedValue::Histogram(value))) => {
-                        assert_eq!(
-                            value.as_ref().count.to_bits(),
-                            (if kind == FoldKind::Sum {
-                                3.0f64
-                            } else {
-                                1.5f64
-                            })
-                            .to_bits()
-                        );
-                        assert_eq!(
-                            value.as_ref().sum.to_bits(),
-                            (if kind == FoldKind::Sum {
-                                3.0f64
-                            } else {
-                                1.5f64
-                            })
-                            .to_bits()
-                        );
-                    }
-                    _ => panic!("complete fold output kind"),
                 }
                 if expected_kind != 2 {
                     assert_eq!(output.annotations, [None, None]);
@@ -1577,8 +1812,8 @@ mod tests {
                 }
             }
         }
-        println!("{{\"avg_reuse_operation_failures\":{failures}}}");
-        assert!(failures >= 72);
+        println!("{kind:?} acquisition operation failures: {failures}");
+        assert!(failures >= if kind == FoldKind::Present { 48 } else { 72 });
     }
 
     #[test]
@@ -1589,6 +1824,11 @@ mod tests {
     #[test]
     fn sum_reuse_cancellation_discards_provisional_credits_and_result() {
         check_fold_acquisition_cancellation(FoldKind::Sum);
+    }
+
+    #[test]
+    fn present_reuse_cancellation_discards_provisional_credits_and_result() {
+        check_fold_acquisition_cancellation(FoldKind::Present);
     }
 
     fn check_fold_acquisition_cancellation(kind: FoldKind) {
@@ -1641,6 +1881,11 @@ mod tests {
         check_wider_fold_bounds(FoldKind::Sum);
     }
 
+    #[test]
+    fn wider_present_bounds_keep_the_consuming_window() {
+        check_wider_fold_bounds(FoldKind::Present);
+    }
+
     fn check_wider_fold_bounds(kind: FoldKind) {
         fn sample(index: usize) -> Sample {
             Sample {
@@ -1679,7 +1924,9 @@ mod tests {
             };
             assert_eq!(
                 value.to_bits(),
-                (if kind == FoldKind::Sum {
+                (if kind == FoldKind::Present {
+                    1.0f64
+                } else if kind == FoldKind::Sum {
                     7.0f64
                 } else {
                     3.5f64
@@ -1702,6 +1949,11 @@ mod tests {
     #[test]
     fn sum_reuse_preserves_overflow_nan_zero_and_stale_values() {
         check_fold_acquisition_values(FoldKind::Sum);
+    }
+
+    #[test]
+    fn present_reuse_counts_special_values_and_excludes_staleness() {
+        check_fold_acquisition_values(FoldKind::Present);
     }
 
     fn check_fold_acquisition_values(kind: FoldKind) {
@@ -1759,6 +2011,11 @@ mod tests {
                 (stale, Some(1.0f64.to_bits()), 1),
                 (empty, None, 0),
             ] {
+                let expected = if kind == FoldKind::Present {
+                    (read != 0).then_some(1.0f64.to_bits())
+                } else {
+                    expected
+                };
                 let source = GeneratedSeries::new(2, page, sample);
                 let account = EngineAccounting::default().query();
                 let output = fold(
@@ -1792,6 +2049,15 @@ mod tests {
 
     #[test]
     fn average_reuse_keeps_long_histories_page_bounded_and_interruptible() {
+        check_fold_bounded_history(FoldKind::Avg);
+    }
+
+    #[test]
+    fn present_reuse_keeps_long_histories_page_bounded_and_interruptible() {
+        check_fold_bounded_history(FoldKind::Present);
+    }
+
+    fn check_fold_bounded_history(kind: FoldKind) {
         for page in [1, 17, 1024] {
             let mut previous_peaks = None;
             for count in [2048, 100_000] {
@@ -1812,7 +2078,7 @@ mod tests {
                 let output = fold(
                     &source,
                     bounds,
-                    FoldKind::Avg,
+                    kind,
                     options,
                     &Control::default(),
                     &account,
@@ -1821,7 +2087,15 @@ mod tests {
                 let Some(OwnedValue::Float(value)) = &output.value else {
                     panic!("float average")
                 };
-                assert_eq!(value.to_bits(), ((count as f64 + 1.0) / 2.0).to_bits());
+                assert_eq!(
+                    value.to_bits(),
+                    (if kind == FoldKind::Present {
+                        1.0f64
+                    } else {
+                        (count as f64 + 1.0) / 2.0
+                    })
+                    .to_bits()
+                );
                 assert_eq!(output.annotations, [None, None]);
                 assert_eq!(
                     account.snapshot().statistics.samples.samples_read,
@@ -1858,7 +2132,7 @@ mod tests {
                 ..options.matrix.unwrap()
             });
             let output = interrupt_during(&account, &control, || {
-                fold(&source, bounds, FoldKind::Avg, options, &control, &account)
+                fold(&source, bounds, kind, options, &control, &account)
             });
             assert!(matches!(
                 output,

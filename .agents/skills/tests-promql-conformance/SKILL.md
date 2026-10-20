@@ -240,6 +240,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   credit, stale-histogram consumption and later native arithmetic phases. Causal controls are owned by
   `src/crates/promql-engine/tests/promql-conformance/README.md#validated-average-acquisition-reuse` and
   `src/crates/promql-engine/tests/promql-conformance/README.md#validated-sum-acquisition-reuse`.
+- Present acquisition reuse and changing histogram replay membership are qualified by
+  `src/crates/promql-engine/tests/promql-conformance/README.md#shared-present-acquisition`.
 - Float rate acquisition reuse MUST retain the separate chronological reset pass, full validation/terminal control
   before credit, and fresh consuming state for any histogram allocation, including stale history. Failed probes
   can truthfully own earlier endpoint sample units. Check all three kinds, shared Avg eligibility, actual operation

@@ -1,0 +1,791 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "c1112f7a9776921ed2fe9a308e1ef2871c1e22ab",
+  "change": "Eligible Present reuses completed initial acquisition. Both no-op phases use the same existing function item; it is now crate-private. The complete consuming Acquisition remains authoritative for allocated histogram history.",
+  "source_phases": {
+    "before-source.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/before-source.json",
+      "sha256": "eb29efbebe16035f9fb150975f05e3c5915ba138544ce3de47b8d744705d837f"
+    },
+    "formatted-tests-source.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/formatted-tests-source.json",
+      "sha256": "48af4e2e3941c2ceb2e51dfaa975dba64ec6d1fca7e1b36cd94049b285f2c3b4"
+    },
+    "final-source.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/final-source.json",
+      "sha256": "e263f599a1c3d82472fad6109a6e468256cc35a45b26a2d2c1aed1d16fcd7f88"
+    }
+  },
+  "qualified_inputs": 390,
+  "runtime": {
+    "matrix_reader.rs": "2f45690c52d6c9524a9d41718aed1ed06ff5f6448288c50da77f3bd4363bc505",
+    "range_reduce.rs": "39c9c531e10249ef8ebcb1856f31afdea0d1e7d3c1264ad0c12664f1da0126be"
+  },
+  "baseline_attribution": "Actual immutable shared-visitor builds retain their 386-input source identities. All 148 Rust/Cargo/header inputs match this baseline; later documentation is separately attributed. Growth is measured against that smaller build, not the earlier rejected Present baseline.",
+  "current_builds": {
+    "release": {
+      "profile": "release",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "fixture": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-release/promql-query-fixture",
+        "sha256": "5dbd307146a59a0605323844fd93d85e8e7cdbbb486023f862540df404ee186a"
+      },
+      "archive": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-release/libnetdata_promql_engine.a",
+        "sha256": "2939e4c55953326fad1829385e999ce16811d44f2c46ab4c2693d4a9852c0b67"
+      },
+      "default_embedding": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-release/embedding",
+        "sha256": "94c16425453c41da764440708983a3b15447a7df0425539fa714bc9b68114744"
+      },
+      "unit": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-release/unit",
+        "sha256": "0ee7f3e77bfacea543c9baec50d75013d457c95c601597372cb5186c9c305a24"
+      },
+      "compiler_settings": {
+        "path": ".tmp/present-shared-ucu_ib6j/release-settings.json",
+        "sha256": "3cc0b7905664ec21719752a8842db00d45613d5564191b9bf8379de3ea18cb10"
+      }
+    },
+    "release-min": {
+      "profile": "release-min",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "fixture": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-release-min/promql-query-fixture",
+        "sha256": "11d1984c07819e6f258fea6f5ec503f0f7e656bfab98d77e3fe7626c6f1f0b55"
+      },
+      "archive": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-release-min/libnetdata_promql_engine.a",
+        "sha256": "9737e65f6f7d5594a3904cdb115d003ed89e41bb83ce6d784f8ef9d5584e6b34"
+      },
+      "default_embedding": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-release-min/embedding",
+        "sha256": "5c8cdbf53a6741ff2773588cc89e63ec2a38a9bcebfa5aa768b7974bf5986afc"
+      },
+      "unit": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-release-min/unit",
+        "sha256": "8d9645f19eb9d7143cba862d6e3f982aed701ae0e982e87a205e4ac133abb3b2"
+      },
+      "compiler_settings": {
+        "path": ".tmp/present-shared-ucu_ib6j/release-min-settings.json",
+        "sha256": "3cc0b7905664ec21719752a8842db00d45613d5564191b9bf8379de3ea18cb10"
+      }
+    },
+    "arm32": {
+      "profile": "release",
+      "target": "armv7-unknown-linux-gnueabihf",
+      "runner": [
+        "qemu-arm",
+        "-L",
+        "/usr/arm-linux-gnueabihf"
+      ],
+      "fixture": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-arm32/promql-query-fixture",
+        "sha256": "ffc991415d31b8df4a78c707b85da542b5ab9abe8e469878e7573c77e03845cf"
+      },
+      "archive": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-arm32/libnetdata_promql_engine.a",
+        "sha256": "eccf3a0a727b48a7b7e433688c9973f8b6cb452610ff35087eacea04d5376156"
+      },
+      "default_embedding": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-arm32/embedding",
+        "sha256": "6a12e6e48d4b71bcd16e68dd842f3eef69b53a0d477aa9bcc65fadd903f46229"
+      },
+      "unit": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-arm32/unit",
+        "sha256": "85b29008958218f030922f53041b88b51c1c47f979089e74dcae4cdf1346c75d"
+      },
+      "compiler_settings": {
+        "path": ".tmp/present-shared-ucu_ib6j/arm32-settings.json",
+        "sha256": "849a8f46a602ece12a95b3a932e0fba416917a99e6d7ede0f33152e1e760c80a"
+      }
+    },
+    "arm64": {
+      "profile": "release",
+      "target": "aarch64-unknown-linux-gnu",
+      "runner": [
+        "qemu-aarch64",
+        "-L",
+        "/usr/aarch64-linux-gnu"
+      ],
+      "fixture": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-arm64/promql-query-fixture",
+        "sha256": "830dc291567dc72836206fb18b92f73f21adc29dd723144235a451356e7492e8"
+      },
+      "archive": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-arm64/libnetdata_promql_engine.a",
+        "sha256": "3a06de6ec508fa6e7cbece228bd96db861b819cca0b1f76aada232dc467ed247"
+      },
+      "default_embedding": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-arm64/embedding",
+        "sha256": "f9c58739bb76cc8356d7177f41a57cd687bb3918491bd025c5ed619275f29cc8"
+      },
+      "unit": {
+        "path": ".tmp/present-shared-ucu_ib6j/current-arm64/unit",
+        "sha256": "1e0202efbe7d4219c8868805c0e643798564274414f955a4e581bf29c5b8afd1"
+      },
+      "compiler_settings": {
+        "path": ".tmp/present-shared-ucu_ib6j/arm64-settings.json",
+        "sha256": "5fc2fce6a076c210cb4d23c945e4deb7c006c561115e606c6393763fbb6c5932"
+      }
+    }
+  },
+  "mechanism": {
+    "admission": "Only unanchored Present with the existing can_reuse_acquisition geometry.",
+    "float": "Complete initial traversal, validation and terminal control before useful-read credit. Reuse its membership and progress without another consuming traversal.",
+    "histograms": "If populated acquisition allocated histogram storage, perform the consuming pass. Use its entire Acquisition, including populated and progress; changing replay data can alter membership. Stale allocated history keeps this path.",
+    "publication": "The existing FoldStep finalizer owns the result and sample lease. Global absence still examines all selected series.",
+    "fallback": "Unproven geometry, anchors, statistics projection, buffering, derived/no-matrix and other fold kinds retain their paths.",
+    "sharing": "Both Present no-op callbacks use ignore_sample<StorageError> directly, without a function pointer. Existing acquire continues using that item. No new state, history buffers, allocation, ABI, arithmetic or limit change."
+  },
+  "causal": {
+    "fresh_old_complete_cases_before_guard": 30,
+    "old_expected_exit": 101,
+    "old_failure": "Only final one-cursor assertion after complete outcomes, progress, useful-read credits and lease cleanup.",
+    "current_fold_tests": 29,
+    "current_absence_tests": 3,
+    "actual_read_seek_failure_controls": 70,
+    "controls": "Changing histogram membership, populated/stale/native/mixed data, acquisition and consuming cancellation, wider bounds, result ownership and long paged history. Existing historical incorrect-membership failure remains attributed to the rejected experiment."
+  },
+  "compiled_cost": {
+    "sections": [
+      "text",
+      "data",
+      "bss"
+    ],
+    "growth_limit_bytes": 8192,
+    "all_frozen_criteria_passed": true,
+    "observed": {
+      "release": [
+        {
+          "kind": "fixture",
+          "before": [
+            4377098,
+            259688,
+            2020
+          ],
+          "current": [
+            4379210,
+            259712,
+            3948
+          ],
+          "growth": 4064
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            7375298,
+            506464,
+            400
+          ],
+          "current": [
+            7378134,
+            506488,
+            400
+          ],
+          "growth": 2860
+        }
+      ],
+      "release-min": [
+        {
+          "kind": "fixture",
+          "before": [
+            2730237,
+            246024,
+            3524
+          ],
+          "current": [
+            2731701,
+            246048,
+            2076
+          ],
+          "growth": 40
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            5099227,
+            461832,
+            400
+          ],
+          "current": [
+            5101087,
+            461864,
+            400
+          ],
+          "growth": 1892
+        }
+      ],
+      "arm32": [
+        {
+          "kind": "fixture",
+          "before": [
+            3692190,
+            164584,
+            212
+          ],
+          "current": [
+            3692754,
+            164608,
+            212
+          ],
+          "growth": 588
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6383709,
+            292444,
+            244
+          ],
+          "current": [
+            6386481,
+            292460,
+            244
+          ],
+          "growth": 2788
+        }
+      ],
+      "arm64": [
+        {
+          "kind": "fixture",
+          "before": [
+            3642927,
+            253224,
+            328
+          ],
+          "current": [
+            3653555,
+            253136,
+            328
+          ],
+          "growth": 10540
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6414082,
+            496800,
+            384
+          ],
+          "current": [
+            6403298,
+            496824,
+            384
+          ],
+          "growth": -10760
+        }
+      ]
+    },
+    "census": {
+      "C": {
+        "before": {
+          "groups": {
+            "EvaluationError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x441c30",
+                  "bytes": 7159
+                }
+              ]
+            },
+            "ExecutionError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x447030",
+                  "bytes": 7159
+                }
+              ]
+            },
+            "StorageError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x41d030",
+                  "bytes": 7159
+                }
+              ]
+            }
+          },
+          "other_bodies": 26,
+          "other_bytes": 186134
+        },
+        "current": {
+          "groups": {
+            "EvaluationError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x4425e0",
+                  "bytes": 7159
+                }
+              ]
+            },
+            "ExecutionError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x4479e0",
+                  "bytes": 7159
+                }
+              ]
+            },
+            "StorageError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x41d9e0",
+                  "bytes": 7159
+                }
+              ]
+            }
+          },
+          "other_bodies": 26,
+          "other_bytes": 186134
+        }
+      },
+      "fixture": {
+        "before": {
+          "groups": {
+            "EvaluationError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x13e590",
+                  "bytes": 4844
+                }
+              ]
+            },
+            "ExecutionError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x141e60",
+                  "bytes": 4844
+                }
+              ]
+            },
+            "StorageError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x1257e0",
+                  "bytes": 4844
+                }
+              ]
+            }
+          },
+          "other_bodies": 24,
+          "other_bytes": 116256
+        },
+        "current": {
+          "groups": {
+            "EvaluationError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x13e6b0",
+                  "bytes": 4844
+                }
+              ]
+            },
+            "ExecutionError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x141f80",
+                  "bytes": 4844
+                }
+              ]
+            },
+            "StorageError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x125900",
+                  "bytes": 4844
+                }
+              ]
+            }
+          },
+          "other_bodies": 24,
+          "other_bytes": 116256
+        }
+      }
+    },
+    "scope": "Actual C consumers and fixtures. Shared no-op walkers remain one per error type; no Present-specific walker is introduced. Section changes are not whole-Agent size or RSS measurements."
+  },
+  "measurement": {
+    "complete_pairs": 1872,
+    "cases_per_profile": 72,
+    "series": [
+      1,
+      32
+    ],
+    "window_points": [
+      2,
+      128
+    ],
+    "pages": [
+      1,
+      17,
+      1024
+    ],
+    "range_ticks": 3,
+    "primary": "Three alternating blocks, one warmup plus three measured runs per side/block; nine measured samples per case/side.",
+    "target": "32 series and 128 points, bare/grouped/joined Present and absence at all three pages.",
+    "physical": "Each measured target Present/absence case halves fetched entries and reduces work. Sum/Avg controls preserve all nonelapsed observations.",
+    "memory": "No measured engine peak, retained ownership or allocation traffic increase. No general memory-footprint reduction claim.",
+    "profiles": {
+      "release": {
+        "target_median": 0.4942289226436358,
+        "target_shapes": {
+          "bare": 0.4910613556040778,
+          "grouped": 0.4921492314953134,
+          "joined": 0.5488794693348827,
+          "absent": 0.4827515652911766
+        },
+        "panel_median": 0.7250190455858085,
+        "control_median": {
+          "average-control": 1.0088158012727204,
+          "sum-control": 1.0063763703391486
+        },
+        "passed": true,
+        "cases_at_least_5_percent_slower": [
+          {
+            "case": {
+              "id": "present-acquisition:n32:w128:p1024:sum-control",
+              "series": 32,
+              "width": 128,
+              "page": 1024,
+              "shape": "sum-control",
+              "expression": "sum_over_time(m[128s])"
+            },
+            "ratio": 1.0567901082212183
+          }
+        ]
+      },
+      "release-min": {
+        "target_median": 0.5153072542714072,
+        "target_shapes": {
+          "bare": 0.5190598596624095,
+          "grouped": 0.5103099458322132,
+          "joined": 0.583079225267732,
+          "absent": 0.5013708510171208
+        },
+        "panel_median": 0.7713912910263081,
+        "control_median": {
+          "average-control": 1.0056563108439138,
+          "sum-control": 1.00095906993556
+        },
+        "passed": true,
+        "cases_at_least_5_percent_slower": []
+      }
+    },
+    "page17_32series_128points": [
+      {
+        "shape": "bare",
+        "samples_fetched": [
+          56448,
+          28224
+        ],
+        "work": [
+          125971,
+          72211
+        ],
+        "workspace_peak_bytes": [
+          40975,
+          40975
+        ]
+      },
+      {
+        "shape": "grouped",
+        "samples_fetched": [
+          84672,
+          42336
+        ],
+        "work": [
+          187850,
+          107210
+        ],
+        "workspace_peak_bytes": [
+          43919,
+          43919
+        ]
+      },
+      {
+        "shape": "joined",
+        "samples_fetched": [
+          282240,
+          141120
+        ],
+        "work": [
+          785024,
+          516224
+        ],
+        "workspace_peak_bytes": [
+          138100,
+          138100
+        ]
+      },
+      {
+        "shape": "absent",
+        "samples_fetched": [
+          56448,
+          28224
+        ],
+        "work": [
+          121322,
+          67562
+        ],
+        "workspace_peak_bytes": [
+          26905,
+          26905
+        ]
+      },
+      {
+        "shape": "sum-control",
+        "samples_fetched": [
+          28224,
+          28224
+        ],
+        "work": [
+          72211,
+          72211
+        ],
+        "workspace_peak_bytes": [
+          40975,
+          40975
+        ]
+      },
+      {
+        "shape": "average-control",
+        "samples_fetched": [
+          28224,
+          28224
+        ],
+        "work": [
+          72211,
+          72211
+        ],
+        "workspace_peak_bytes": [
+          40975,
+          40975
+        ]
+      }
+    ],
+    "limits": "Shared-host synthetic engine timing excludes parsing/serialization. No live dbengine throughput, Cloud, process RSS or universal speedup claim."
+  },
+  "qualification": {
+    "native_optimized_tests_per_profile": 863,
+    "preexisting_ignored_timing_probes_per_profile": 2,
+    "emulated_ARM_tests_per_target": {
+      "matrix_reader": 11,
+      "range_reduce": 29,
+      "absence": 3
+    },
+    "C": {
+      "release": {
+        "cases": 816,
+        "rows": 885,
+        "changed_present_rows": 48,
+        "logical_statistics_exact": true,
+        "non_present_rows_exact": true
+      },
+      "release-min": {
+        "cases": 816,
+        "rows": 885,
+        "changed_present_rows": 48,
+        "logical_statistics_exact": true,
+        "non_present_rows_exact": true
+      },
+      "arm32": {
+        "cases": 816,
+        "rows": 885,
+        "changed_present_rows": 48,
+        "logical_statistics_exact": true,
+        "non_present_rows_exact": true
+      },
+      "arm64": {
+        "cases": 816,
+        "rows": 885,
+        "changed_present_rows": 48,
+        "logical_statistics_exact": true,
+        "non_present_rows_exact": true
+      }
+    },
+    "original_cases_per_page": 4864,
+    "expected_errors_per_page": 1020,
+    "original_comparisons": 38912,
+    "native_pages": [
+      1,
+      17,
+      1024
+    ],
+    "foreign_pages": [
+      17
+    ],
+    "original_policy": "Exact numerical bits and each retained panel original ordered/unordered policy. Unsupported anchored outcomes remain expected errors.",
+    "fresh_Go_captures": 0,
+    "SRE": {
+      "status": "pass",
+      "reviewer": "/root/coverage_audit",
+      "source_slots": 790,
+      "rendered_expressions": 1110,
+      "present_over_time": {
+        "source_slots": 0,
+        "rendered_expressions": 0,
+        "required_ancestors": 0
+      },
+      "absent_over_time": {
+        "source_slots": 0,
+        "rendered_expressions": 0,
+        "required_ancestors": 0
+      },
+      "inputs": {
+        "tests/promql-conformance/.tmp/sre-source-review-gu3b7iu8/sre-full-pufkx0iw/all-790-slot-1110-request-provenance-v2.private.json": "fb229359cefed4d62244861e89300882c9427407faa5f451a016188350c58863",
+        "tests/promql-conformance/.tmp/sre-source-review-gu3b7iu8/sre-full-pufkx0iw/runtime-independent-graph-plan-v2.private.json": "8791451873045a8dedd6c234837c7bee37ad76f33b0c01eeb9a299594600e5dc"
+      },
+      "decision": "No affected SRE subset to execute; use targeted originals, fold/matrix/derived and C controls. No all-SRE compatibility claim."
+    },
+    "strict_Clippy_variants": 2,
+    "format": "pass",
+    "MSRV_compile_only": "1.91.0"
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/measurement-plan.json",
+      "sha256": "69b585062c5c9683c0d7f39ef1b44e42da3a63541151cbb8fd6cb761dbb33774"
+    },
+    "ready.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/ready.json",
+      "sha256": "f29630e972ea89e0f67e45e7dd1fa2589ff8e3d187324042f8196a533ad70572"
+    },
+    "baseline.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/baseline.json",
+      "sha256": "68cbf70ecf50f71ae152ae7740b5125c5b6d1ceb5259880dab2079ecb91f4689"
+    },
+    "old-units.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/old-units.json",
+      "sha256": "49a5ed79447b9711eecd821f9e7acfb8ac57f49ac66503842b5432c3015b7eaf"
+    },
+    "final-units.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/final-units.json",
+      "sha256": "5ac6b1140a275df06e67485c15014b731b85e2b1cd847cc9b474223321c3df1e"
+    },
+    "census.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/census.json",
+      "sha256": "617d2b845315e4c97086375d986511af85e6d85fd691c4bf19b6e951b62778b8"
+    },
+    "originals-prepared.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/originals-prepared.json",
+      "sha256": "e376d3ae9eab3a0641bb83bd9f9559f18b1b264a4d5938a65541754d0af181af"
+    },
+    "native-sequence.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/native-sequence.json",
+      "sha256": "56d2396919af1f9910ab23bfdd4cae6e5de86e5072b41f0c34a89581e97b6f3b"
+    },
+    "cross-sequence.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/cross-sequence.json",
+      "sha256": "2be9eee93ba29a499d74088f1e0dd276c23d47cc692ebe5afa4b8598b9e34228"
+    },
+    "current-static.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/current-static.json",
+      "sha256": "4fc8d09d3e6fa04766fae538fa4c612dedf327e42f558c61380bb72607cab7d1"
+    },
+    "sre-inventory-review.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/sre-inventory-review.json",
+      "sha256": "3b015a7d6916afd7e34c31346c182f7b71ad7e1fdd80b4b10a1f4729d756175c"
+    },
+    "build-release.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/build-release.json",
+      "sha256": "7489d0149f5c60c10dbcf444a33c03cb29488a025c8043310f594684bfe4c8ef"
+    },
+    "qualification-release.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/qualification-release.json",
+      "sha256": "b035422ba5e3f1b9bbffb6327612a7c3467741209d4891b453a5ca1744ab67d9"
+    },
+    "C-comparison-release.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/C-comparison-release.json",
+      "sha256": "d0e70f461a00812080d150e593f0d33976a27aa7d369ef77b31731c30b518a39"
+    },
+    "originals-release.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/originals-release.json",
+      "sha256": "d1287c9f2bbd71da1d98d64840ec77a8e05fd8e0d2577e85e425dcc48cecfba8"
+    },
+    "build-release-min.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/build-release-min.json",
+      "sha256": "e506f4e832494baccaeba4790f94f73dd2f6560c3dd6d9fb39bcfea6a5d86074"
+    },
+    "qualification-release-min.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/qualification-release-min.json",
+      "sha256": "4eecb7c5adae462960ed47479e5acdc0baa1e6c5de3097c5efdf0df25951572f"
+    },
+    "C-comparison-release-min.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/C-comparison-release-min.json",
+      "sha256": "830a4781cd3cf425b6ea4b8944ae65eebdbd47fd130df4dcdae39675c307cb5d"
+    },
+    "originals-release-min.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/originals-release-min.json",
+      "sha256": "0a8cdf5f4fce0f675d5170bdbe736226ddf71901a0aad2a390ad15316366f2c3"
+    },
+    "build-arm32.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/build-arm32.json",
+      "sha256": "e34e4ab78e4df30813b8c3463685c499d0930e37400fb28c135f36f48cd0656b"
+    },
+    "qualification-arm32.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/qualification-arm32.json",
+      "sha256": "21cb685f7cdaa33190913d228e622eb09629a7d9322121be94527bd9c61b9a50"
+    },
+    "C-comparison-arm32.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/C-comparison-arm32.json",
+      "sha256": "81429f335e1a7d08c12b44c4964a056b0fbbd369fae6f05f07286d5701c5bfca"
+    },
+    "originals-arm32.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/originals-arm32.json",
+      "sha256": "c9d3cb233761d73d11d2ce058dead1727044ce963c8e26daaa9510f225256b04"
+    },
+    "build-arm64.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/build-arm64.json",
+      "sha256": "b87dee214f1f0395eb94bb9a42eb72cb8c5f9e91de088565f3df6d11c14a5443"
+    },
+    "qualification-arm64.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/qualification-arm64.json",
+      "sha256": "9949826199a6d45c41c9a512637441ee6ea20801506c2dcc7e22e4818745f920"
+    },
+    "C-comparison-arm64.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/C-comparison-arm64.json",
+      "sha256": "4e77422e697ccd131581630daa6cbe506e3dc933d4bcd9067b8dca89469c0025"
+    },
+    "originals-arm64.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/originals-arm64.json",
+      "sha256": "551952e3a85bc2a6b9d4f9e055dafd137d6bfe9c21ba1939e724c64ae901553c"
+    },
+    "measurement-release.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/measurement-release.json",
+      "sha256": "33cd54c056ec4e031c33b0e27ee37f0810f9cf52950b4db1fe5d41b6e71aa144"
+    },
+    "measurement-release-min.json": {
+      "path": ".tmp/present-shared-ucu_ib6j/measurement-release-min.json",
+      "sha256": "75c480891a8fb19abe8b31b18c939cf00ddfa5b66ed57a967bb39a1023958c82"
+    }
+  },
+  "scope": "Private throughput improvement with bounded raw pages. No new PromQL feature, full-language recertification, physical ARM, live storage, fresh SRE execution or alert scheduler claim. Earlier negative and positive records retain their original attribution."
+}

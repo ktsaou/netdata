@@ -73795,5 +73795,11 @@
     "report_sha256": "de50eadf4a52abac6b2e5594a0c5fad286fbe4a47693d38cfdad2ff70e8b653e",
     "status": "finite_qualification_pass",
     "scope": "Shared no-op validation visitor; smaller compiled C consumers, 1872 exact query/observation pairs, 38912 pinned-original comparisons and four actual C callers. No speedup or language expansion claim."
+  },
+  "shared_present_acquisition": {
+    "report": "shared-present-acquisition-qualification.json",
+    "report_sha256": "8ab3d89ae687e33907c73be07442dab9da43a111c91c475a04fa0871a08ac780",
+    "status": "finite_qualification_pass",
+    "scope": "Shared-item Present acquisition; 1872 exact query pairs, 38912 selected original comparisons, full native/focused ARM and actual C controls. Fewer float-window reads without measured memory growth."
   }
 }

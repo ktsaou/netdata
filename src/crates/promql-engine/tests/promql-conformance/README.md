@@ -9404,3 +9404,59 @@ passes 38,912 comparisons across both native profiles at pages 1/17/1024 and bot
 1,020 expected errors per page remain errors. Numerical bits and original ordering policies are preserved.
 Strict Clippy, formatting and compile-only Rust 1.91 checks pass. This is finite qualification of a private compiler
 sharing change; it adds no language support and does not requalify live storage, SRE rule graphs or scheduling.
+
+## Shared Present acquisition
+
+Eligible ordinary `present_over_time` now reuses its completed initial acquisition. Float windows avoid a second
+read; validation and terminal checks still complete before useful-read credit and result publication. The existing
+window predicate excludes unproven geometry, buffering, statistics projection and anchors. Other folds and derived
+or no-matrix paths retain their existing handling. `absent_over_time` still visits every selected series.
+
+A populated acquisition with allocated histogram history, including stale history, still performs its consuming
+pass. That pass's **entire acquisition result** supplies membership and progress: a provider can return different
+membership during replay. The existing result finalizer retains ownership and output sample credit. There is no
+new field, allocation, raw-history buffer, provider interface or implicit query limit.
+
+Both Present phases use the [shared visitor](#shared-acquisition-validation-visitor), now crate-private for this
+caller. The emitted C and fixture walkers remain one per error type. This addresses the extra callback types in
+the [rejected helper](#rejected-present-acquisition-helper); the earlier failure remains a separate historical result.
+New compiled growth is measured against the smaller shared-visitor baseline and passes the same 8,192-byte ceiling:
+
+| C consumer | Text/data/BSS total growth |
+| --- | ---: |
+| release | 2860 bytes |
+| release-min | 1892 bytes |
+| arm32 | 2788 bytes |
+| arm64 | -10760 bytes |
+
+The [qualification](shared-present-acquisition-qualification.json) retains every section separately, including fixture
+changes. These measurements describe actual C consumers, not a whole Netdata executable or process RSS.
+
+There are 936 complete before/current query pairs per native profile. Every measured Present/absence case halves
+fetched entries; logical results and credits remain exact and measured query memory does not increase. The larger
+32-series, 128-point target has median time ratios 0.494 (release) and 0.515 (release-min), about 51% and 49% less
+engine time. Sum/Avg control medians pass the fixed thresholds. One release Sum control case is 5.7% slower and
+remains in the report. Timings are synthetic and exclude parsing/serialization; they do not establish live disk
+throughput.
+
+At page 17, both native profiles have these physical observations:
+
+| Shape | Fetched entries before → after | Work before → after | Workspace peak before/after |
+| --- | --- | --- | --- |
+| Bare Present | 56,448 → 28,224 | 125,971 → 72,211 | 40,975 bytes |
+| Grouped Present | 84,672 → 42,336 | 187,850 → 107,210 | 43,919 bytes |
+| Joined Present | 282,240 → 141,120 | 785,024 → 516,224 | 138,100 bytes |
+| Absence | 56,448 → 28,224 | 121,322 → 67,562 | 26,905 bytes |
+
+A fresh baseline test passes 30 complete result/progress/credit/cleanup checks before failing only its final
+one-cursor assertion. The candidate passes all 29 fold tests and three absence tests, including 70 actual
+read/seek failures, histogram replay membership, stale history, consuming cancellation, wider bounds and long
+paged histories. Both complete optimized native suites pass 863 tests with two existing timing probes ignored.
+Each emulated ARM target passes 11 matrix, 29 fold and three absence tests. Four actual C consumers pass all
+816 window-fold cases and exact logical outputs/statistics; non-Present records are unchanged. The full selected
+matrix/fold/derived original panels pass 38,912 comparisons under exact numeric bits and their original ordering
+policies, retaining 1,020 expected errors per page. Strict Clippy, formatting and Rust 1.91 compilation pass.
+
+The authenticated retained SRE inventory contains no Present/absence calls among its 790 source slots and 1,110
+rendered expressions, so there is no affected SRE subset to rerun. This inventory check is not fresh all-SRE
+qualification. The change adds no language feature and makes no live-storage, physical-ARM or scheduling claim.
