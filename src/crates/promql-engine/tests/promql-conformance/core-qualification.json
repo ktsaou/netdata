@@ -73765,5 +73765,11 @@
     "status": "rejected_under_original_stage129_timing_criteria",
     "accepted_runtime_unchanged": true,
     "scope": "All480Step checks,288query resource pairs and four C-consumer cost gates pass. Target timing ratios are0.943575release and0.979511release-min; the latter misses0.97. Both implementation paths restored; broader conditional qualification did not run."
+  },
+  "validated_sum_acquisition": {
+    "report": "sum-acquisition-qualification.json",
+    "report_sha256": "f553f5ed4d3bf3ca959f88c12492da65e6abc6ee3ed17ef344efb5d74dceca91",
+    "status": "finite_qualification_with_explicit_compiled_text_exception",
+    "scope": "Existing Avg acquisition reuse extended to Sum; 1248 exact query pairs, 5040 selected originals, 13680 affected SRE/own-parent comparisons, four C consumers and explicit 65.A ARM64 text exception."
   }
 }

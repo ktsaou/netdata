@@ -756,15 +756,15 @@ pub(crate) fn fold<S: Series>(
         options.matrix = options.matrix.map(|window| window.with_progress(progress));
     }
     let mut step = FoldStep::new(kind, options.start_timestamps);
-    let reuse_initial_average = kind == FoldKind::Avg
+    let reuse_initial_fold = matches!(kind, FoldKind::Sum | FoldKind::Avg)
         && options.anchor_start_ms.is_none()
         && options
             .matrix
             .is_some_and(|window| window.can_reuse_acquisition(bounds));
     loop {
         let mut position = 0u64;
-        let progress = if reuse_initial_average && !step.native_pass {
-            let window = options.matrix.expect("certified average window");
+        let progress = if reuse_initial_fold && !step.native_pass {
+            let window = options.matrix.expect("certified fold window");
             let acquisition = crate::matrix_reader::probe::<_, StorageError>(
                 series,
                 bounds,
@@ -1369,7 +1369,89 @@ mod tests {
     }
 
     #[test]
+    fn sum_acquisition_preserves_complete_results_before_cursor_guard() {
+        let mut opened = Vec::new();
+        for page in [1, 17, 1024] {
+            for count in [0, 1, 2, 128, 1024] {
+                for start_timestamps in [false, true] {
+                    let bounds = TimeBounds {
+                        start_ms: 1,
+                        end_ms: (count.max(1) as i64) * 1000,
+                    };
+                    let mut options = average_options();
+                    options.start_timestamps = start_timestamps;
+                    options.matrix = Some(MatrixWindow {
+                        first_end_ms: bounds.end_ms,
+                        end_ms: bounds.end_ms,
+                        range_ms: bounds.end_ms,
+                        data_bounds: bounds,
+                        ..options.matrix.unwrap()
+                    });
+                    let reference = GeneratedSeries::new(count, page, average_pair);
+                    let reference_account = EngineAccounting::default().query();
+                    let progress = crate::matrix_reader::probe::<_, StorageError>(
+                        &reference,
+                        Some(bounds),
+                        options.matrix.unwrap(),
+                        &Control::default(),
+                        &reference_account,
+                        |_| Ok(()),
+                    )
+                    .unwrap()
+                    .progress;
+                    assert_average_closed(&reference, &reference_account);
+                    let source = GeneratedSeries::new(count, page, average_pair);
+                    let account = EngineAccounting::default().query();
+                    let result = fold(
+                        &source,
+                        bounds,
+                        FoldKind::Sum,
+                        options,
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
+                    assert_eq!(
+                        selected_float_bits(result.value.as_ref()),
+                        (count != 0).then_some(((count * (count + 1) / 2) as f64).to_bits())
+                    );
+                    assert_eq!(result.nonempty, count != 0);
+                    assert_eq!(result.annotations, [None, None]);
+                    assert_eq!(result.progress, Some(progress));
+                    assert_eq!(
+                        account.snapshot().statistics.samples.samples_read,
+                        count as u64
+                    );
+                    assert_eq!(account.current_samples(), u64::from(count != 0));
+                    drop(result);
+                    assert_eq!(account.current_samples(), 0);
+                    assert_average_closed(&source, &account);
+                    let cursors = source.counters.opened.load(Ordering::Relaxed);
+                    println!(
+                        "sum acquisition case: page={page} count={count} start={start_timestamps} cursors={cursors}"
+                    );
+                    opened.push(cursors);
+                }
+            }
+        }
+        assert_eq!(opened.len(), 30);
+        assert!(
+            opened.iter().all(|&count| count == 1),
+            "eligible sums must not repeat completed acquisition"
+        );
+    }
+
+    #[test]
     fn average_acquisition_failures_and_native_consumption_keep_their_phases() {
+        check_fold_acquisition_failures(FoldKind::Avg);
+    }
+
+    #[test]
+    fn sum_acquisition_failures_and_native_consumption_keep_their_phases() {
+        check_fold_acquisition_failures(FoldKind::Sum);
+    }
+
+    fn check_fold_acquisition_failures(kind: FoldKind) {
         let mut failures = 0;
         for page in [1, 17, 1024] {
             for (sample, expected_cursors, expected_read, expected_kind) in [
@@ -1393,7 +1475,7 @@ mod tests {
                         start_ms: 1,
                         end_ms: 2000,
                     },
-                    FoldKind::Avg,
+                    kind,
                     average_options(),
                     &control,
                     &account,
@@ -1402,7 +1484,15 @@ mod tests {
                 assert!(output.nonempty);
                 match (expected_kind, &output.value) {
                     (0, Some(OwnedValue::Float(value))) => {
-                        assert_eq!(value.to_bits(), 1.5f64.to_bits())
+                        assert_eq!(
+                            value.to_bits(),
+                            (if kind == FoldKind::Sum {
+                                3.0f64
+                            } else {
+                                1.5f64
+                            })
+                            .to_bits()
+                        )
                     }
                     (1, Some(OwnedValue::Float(value))) => {
                         assert_eq!(value.to_bits(), 1.0f64.to_bits())
@@ -1412,10 +1502,26 @@ mod tests {
                         [Some(AnnotationKind::MixedFloatsHistograms), None]
                     ),
                     (3, Some(OwnedValue::Histogram(value))) => {
-                        assert_eq!(value.as_ref().count.to_bits(), 1.5f64.to_bits());
-                        assert_eq!(value.as_ref().sum.to_bits(), 1.5f64.to_bits());
+                        assert_eq!(
+                            value.as_ref().count.to_bits(),
+                            (if kind == FoldKind::Sum {
+                                3.0f64
+                            } else {
+                                1.5f64
+                            })
+                            .to_bits()
+                        );
+                        assert_eq!(
+                            value.as_ref().sum.to_bits(),
+                            (if kind == FoldKind::Sum {
+                                3.0f64
+                            } else {
+                                1.5f64
+                            })
+                            .to_bits()
+                        );
                     }
-                    _ => panic!("complete average output kind"),
+                    _ => panic!("complete fold output kind"),
                 }
                 if expected_kind != 2 {
                     assert_eq!(output.annotations, [None, None]);
@@ -1450,7 +1556,7 @@ mod tests {
                             start_ms: 1,
                             end_ms: 2000,
                         },
-                        FoldKind::Avg,
+                        kind,
                         average_options(),
                         &control,
                         &account,
@@ -1477,6 +1583,15 @@ mod tests {
 
     #[test]
     fn average_reuse_cancellation_discards_provisional_credits_and_result() {
+        check_fold_acquisition_cancellation(FoldKind::Avg);
+    }
+
+    #[test]
+    fn sum_reuse_cancellation_discards_provisional_credits_and_result() {
+        check_fold_acquisition_cancellation(FoldKind::Sum);
+    }
+
+    fn check_fold_acquisition_cancellation(kind: FoldKind) {
         for page in [1, 17, 1024] {
             for sample in [
                 average_pair as fn(usize) -> Sample,
@@ -1499,7 +1614,7 @@ mod tests {
                             start_ms: 1,
                             end_ms: 2000,
                         },
-                        FoldKind::Avg,
+                        kind,
                         average_options(),
                         &control,
                         &account,
@@ -1518,6 +1633,15 @@ mod tests {
 
     #[test]
     fn wider_average_bounds_keep_the_consuming_window() {
+        check_wider_fold_bounds(FoldKind::Avg);
+    }
+
+    #[test]
+    fn wider_sum_bounds_keep_the_consuming_window() {
+        check_wider_fold_bounds(FoldKind::Sum);
+    }
+
+    fn check_wider_fold_bounds(kind: FoldKind) {
         fn sample(index: usize) -> Sample {
             Sample {
                 time_ms: [1200, 1800, 2100, 3200, 3800][index],
@@ -1544,7 +1668,7 @@ mod tests {
             let output = fold(
                 &source,
                 bounds,
-                FoldKind::Avg,
+                kind,
                 options,
                 &Control::default(),
                 &account,
@@ -1553,7 +1677,15 @@ mod tests {
             let Some(OwnedValue::Float(value)) = &output.value else {
                 panic!("float average")
             };
-            assert_eq!(value.to_bits(), 3.5f64.to_bits());
+            assert_eq!(
+                value.to_bits(),
+                (if kind == FoldKind::Sum {
+                    7.0f64
+                } else {
+                    3.5f64
+                })
+                .to_bits()
+            );
             assert_eq!(output.annotations, [None, None]);
             assert_eq!(account.snapshot().statistics.samples.samples_read, 2);
             assert_eq!(source.counters.opened.load(Ordering::Relaxed), 2);
@@ -1564,6 +1696,15 @@ mod tests {
 
     #[test]
     fn average_reuse_preserves_overflow_nan_zero_and_stale_values() {
+        check_fold_acquisition_values(FoldKind::Avg);
+    }
+
+    #[test]
+    fn sum_reuse_preserves_overflow_nan_zero_and_stale_values() {
+        check_fold_acquisition_values(FoldKind::Sum);
+    }
+
+    fn check_fold_acquisition_values(kind: FoldKind) {
         fn overflow(index: usize) -> Sample {
             Sample {
                 value: SampleValue::Float(f64::MAX),
@@ -1604,7 +1745,15 @@ mod tests {
         }
         for page in [1, 17, 1024] {
             for (sample, expected, read) in [
-                (overflow as fn(usize) -> Sample, Some(f64::MAX.to_bits()), 2),
+                (
+                    overflow as fn(usize) -> Sample,
+                    Some(if kind == FoldKind::Sum {
+                        f64::INFINITY.to_bits()
+                    } else {
+                        f64::MAX.to_bits()
+                    }),
+                    2,
+                ),
                 (negative_zero, Some(0.0f64.to_bits()), 2),
                 (nan, Some(0x7ff8_0000_0000_1234), 2),
                 (stale, Some(1.0f64.to_bits()), 1),
@@ -1618,7 +1767,7 @@ mod tests {
                         start_ms: 1,
                         end_ms: 2000,
                     },
-                    FoldKind::Avg,
+                    kind,
                     average_options(),
                     &Control::default(),
                     &account,

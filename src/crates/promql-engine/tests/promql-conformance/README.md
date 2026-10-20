@@ -9283,3 +9283,43 @@ Both implementation paths were restored exactly. The measured improvements belon
 Fresh upstream captures, broader original/reducer comparisons, optimized/foreign unit and layout checks,
 candidate C/C++ runtime panels and full static checks did not run after rejection. Timings exclude parsing
 and serialization; they do not establish live-server throughput or a universal speedup.
+
+## Validated Sum acquisition reuse
+
+Ordinary `sum_over_time` now shares [Avg's completed acquisition](#validated-average-acquisition-reuse).
+Eligible float windows use the existing compensated Sum accumulator during the first traversal. Full page
+validation and terminal control still precede useful-read credit. Populated histogram allocations, including
+stale histograms, retain consuming validation and later native arithmetic. Wider bounds, anchors, statistics
+projection, buffering and no-matrix calls retain their previous paths. No raw-history cache or persistent field
+is added; query limits remain disabled.
+
+The [Sum qualification](sum-acquisition-qualification.json) records 1,248 complete before/current query pairs.
+The fixed target is 32 series with 128 points, three range ticks, bare/grouped/joined Sum and pages 1/17/1024.
+Median current/before engine-time ratios are 0.561 for release and 0.578 for release-min: about 44% and 42% less
+time. Every measured Sum case halves fetched entries; measured query peaks and allocation traffic do not increase.
+These synthetic timings exclude parsing and serialization and do not establish production disk throughput or RSS.
+
+At page 17, the native profiles have the same physical observations:
+
+| Shape | Fetched entries before → after | Work before → after | Workspace peak before/after |
+| --- | --- | --- | --- |
+| Bare Sum | 56,448 → 28,224 | 125,971 → 72,211 | 40,975 bytes |
+| Grouped Sum | 84,672 → 42,336 | 187,850 → 107,210 | 43,919 bytes |
+| Joined Sum | 282,240 → 141,120 | 785,024 → 516,224 | 138,100 bytes |
+
+Avg control medians are 1.001 and 0.997. Two individual control cases are slower by at least 5% (1.216 in release,
+1.053 in release-min); the report retains them. Default C-consumer text/data/BSS size is unchanged in both native
+profiles and ARM32. ARM64 text grows 8,256 bytes, with data/BSS unchanged. This exceeds the original 8,192-byte
+experiment ceiling by 64 bytes; decision 65.A explicitly accepts only this measured exception.
+
+Both native optimized suites pass 854 tests, with two pre-existing ignored tests each. Both emulated ARM targets
+pass 20 focused fold tests; all four C consumers pass 816 window-fold cases and exact logical-statistic comparisons.
+Selected pinned-original comparisons pass 5,040 cases. The affected 38 SRE Sum expressions and their own-produced
+recording ancestors pass 13,680 comparisons over ten scenes, both profiles and all three pages. This is an
+affected-expression subset, not a full SRE graph or scheduler qualification. No Go recording output is supplied
+as a candidate input. Clippy, formatting and compile-only Rust 1.91 checks pass.
+
+The causal unit completes 30 independent Sum outcomes, complete saved progress, logical credits and release checks
+on old and new code; only its final one-cursor assertion fails on the old code. Shared controls cover actual read
+failures, terminal cancellation, native/mixed/stale history, wider bounds, overflow, NaN payloads and signed zero.
+The current evidence preserves each original source/binary attribution and the expected unsupported anchored cases.

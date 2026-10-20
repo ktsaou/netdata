@@ -2237,3 +2237,17 @@ See [the finite report](ranking-buffer-capacity-qualification.json) and
   missed the frozen 3% requirement, so both implementation paths were restored. No runtime variant was retained.
 - See [the measured record](histogram-typed-selection-set-aside-qualification.json) and
   [its scope](README.md#set-aside-typed-histogram-selection). Historical failures and public contracts remain unchanged.
+
+## Validated Sum acquisition reuse
+
+- **Choice:** extend the existing completed initial Avg acquisition admission to Sum. Reuse the same checked
+  window geometry and publication path; keep Sum's zero-initialized compensated arithmetic and operation order.
+- **Failure and ownership:** complete page validation, closure and terminal checks precede credit. Native/mixed
+  allocations, including stale history, retain consuming validation; later native arithmetic keeps its phase.
+  No raw-history cache, persistent field, provider/ABI or limit change follows.
+- **Evidence:** the [finite qualification](sum-acquisition-qualification.json) and
+  [measured scope](README.md#validated-sum-acquisition-reuse) distinguish complete outcomes, logical statistics,
+  physical reads, memory and timing. SRE parents are produced by each candidate, not copied from Go.
+- **Trade-off:** the original 8,192-byte C-consumer growth ceiling fails only on ARM64, whose compiled text grows
+  8,256 bytes. Decision 65.A explicitly accepts that specific increase. Native profiles and ARM32 have zero
+  combined text/data/BSS growth; measured query-memory peaks do not increase. This grants no general size allowance.

@@ -1,0 +1,612 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_with_explicit_compiled_text_exception",
+  "comparison_base": "4619e75bf24e7a89f360cde2761997abb8cdb531",
+  "change": "Sum joins Avg in the existing completed initial raw-matrix acquisition admission.",
+  "source_phases": {
+    "before-source.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/before-source.json",
+      "sha256": "11dfd6a21883f70d9d3159afb858775db722feaaa638e267852fd331843244dd"
+    },
+    "formatted-tests-source.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/formatted-tests-source.json",
+      "sha256": "b67a124be4cba49d322e5e8c9ae528fe92cdfaff21312c86bf69ca55325b19ac"
+    },
+    "candidate-source.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/candidate-source.json",
+      "sha256": "b19ef1e05e1d466ab5190fa178832a7b56ce7a97780a4e74489df911db0d1717"
+    }
+  },
+  "candidate_source_inputs": 386,
+  "changed_runtime_sha256": "9e8d3faf0b409384a4f099149b5ec2383e388e6e1e12034a47183ad0d764f55f",
+  "baseline_attribution": "Immutable retained builds have 378 source inputs. The 148 Rust/Cargo/header inputs match the accepted runtime; later documentation remains separately attributed. Actual per-target C baseline callers and compiler settings are retained. No mutable cache artifact is used as a baseline.",
+  "current_builds": {
+    "release": {
+      "profile": "release",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "fixture": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-release/promql-query-fixture",
+        "sha256": "4957976f8a9d5e17744769d7c0d68ac979f952d3dcdd7a401f2d084bb34b5361"
+      },
+      "archive": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-release/libnetdata_promql_engine.a",
+        "sha256": "eaaa6cf1e57daf3af782efa4a507be04357e220adb4c9691a1eb5bedff59e1ce"
+      },
+      "default_embedding": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-release/embedding",
+        "sha256": "e8d35ab53532fa2c5d1ffd17bd653a83d6341513287f1745b2750545019716d1"
+      },
+      "unit": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-release/unit",
+        "sha256": "63fcf574cf308ab93f245f75cadc5261e065a8ac60510a1d84ad9599e247c290"
+      },
+      "compiler_settings": {
+        "path": ".tmp/sum-acquisition-23cwxbec/release-settings.json",
+        "sha256": "3cc0b7905664ec21719752a8842db00d45613d5564191b9bf8379de3ea18cb10"
+      }
+    },
+    "release-min": {
+      "profile": "release-min",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "fixture": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-release-min/promql-query-fixture",
+        "sha256": "1485601c0d14d052b7b8363268535c71f47eaae71f9b366903c2ad5431afeb1e"
+      },
+      "archive": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-release-min/libnetdata_promql_engine.a",
+        "sha256": "4e3a1920cb406c6e91d6e402825298f9e19232db8628b7e9037f7bfc087dd3d0"
+      },
+      "default_embedding": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-release-min/embedding",
+        "sha256": "a516f0b083b624dd1613d6558efc717c6320a5d79e072ccf35e1bd66fb7fd011"
+      },
+      "unit": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-release-min/unit",
+        "sha256": "c6fb8d9c8150fe5a23e357fcdf2365b52163b1c3249d42c068c45747f3e37242"
+      },
+      "compiler_settings": {
+        "path": ".tmp/sum-acquisition-23cwxbec/release-min-settings.json",
+        "sha256": "3cc0b7905664ec21719752a8842db00d45613d5564191b9bf8379de3ea18cb10"
+      }
+    },
+    "arm32": {
+      "profile": "release",
+      "target": "armv7-unknown-linux-gnueabihf",
+      "runner": [
+        "qemu-arm",
+        "-L",
+        "/usr/arm-linux-gnueabihf"
+      ],
+      "fixture": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-arm32/promql-query-fixture",
+        "sha256": "9352030152ee0037d93783a220cac9ed1067771337dddcbe732a029288791317"
+      },
+      "archive": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-arm32/libnetdata_promql_engine.a",
+        "sha256": "ebe616528bca7a6eee48857523a30f88ae98056a7a6e133c79018388b33b63e6"
+      },
+      "default_embedding": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-arm32/embedding",
+        "sha256": "2b3d8ac30508d4f5108b751ea9c1d33acd303dec7edabf26630ab33e700f5381"
+      },
+      "unit": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-arm32/unit",
+        "sha256": "a782b78b7d7a1c0a8e88dbcfbf71084ad54df48af6af051c4c560f1e90736ce6"
+      },
+      "compiler_settings": {
+        "path": ".tmp/sum-acquisition-23cwxbec/arm32-settings.json",
+        "sha256": "849a8f46a602ece12a95b3a932e0fba416917a99e6d7ede0f33152e1e760c80a"
+      }
+    },
+    "arm64": {
+      "profile": "release",
+      "target": "aarch64-unknown-linux-gnu",
+      "runner": [
+        "qemu-aarch64",
+        "-L",
+        "/usr/aarch64-linux-gnu"
+      ],
+      "fixture": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-arm64/promql-query-fixture",
+        "sha256": "1c38d98b14d22e8ff2397b72c69b4216b5d4a5109fc8c86a43d1ba5190a461e6"
+      },
+      "archive": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-arm64/libnetdata_promql_engine.a",
+        "sha256": "17d13d91979f785bab3d1f084037cad0d959f939b05c55e7ea6ed18aa98ba48b"
+      },
+      "default_embedding": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-arm64/embedding",
+        "sha256": "bcecd2f3ba40c1b9a6ccd843ca6abbe60c4578d7f746eb1fd4e476477a0ec2a4"
+      },
+      "unit": {
+        "path": ".tmp/sum-acquisition-23cwxbec/current-arm64/unit",
+        "sha256": "f34037edba9842fe55597e529265e0e1920f2aa2b1ac64e8302e613cb9333214"
+      },
+      "compiler_settings": {
+        "path": ".tmp/sum-acquisition-23cwxbec/arm64-settings.json",
+        "sha256": "5fc2fce6a076c210cb4d23c945e4deb7c006c561115e606c6393763fbb6c5932"
+      }
+    }
+  },
+  "mechanism": {
+    "admission": "Positive checked current window, valid contained bounds, matrix present, no statistics projection, buffering or anchor; existing MatrixWindow predicate.",
+    "arithmetic": "Existing zero-initialized compensated Sum receiver and finalization, in original order.",
+    "publication": "Complete reached-page validation, cursor closure and terminal controls precede read credit.",
+    "histograms": "Populated histogram allocation, including stale history, retains consuming validation; later native arithmetic remains after complete acquisition.",
+    "ownership": "No new persistent field, raw-history buffer, cache, index, provider contract or ABI change.",
+    "fallback": "Unproven geometry, anchors and no-matrix paths remain ordinary; derived FoldStep calls unchanged."
+  },
+  "causal": {
+    "complete_cases_before_cursor_guard": 30,
+    "page_sizes": [
+      1,
+      17,
+      1024
+    ],
+    "samples": [
+      0,
+      1,
+      2,
+      128,
+      1024
+    ],
+    "start_timestamp_modes": [
+      false,
+      true
+    ],
+    "old_expected_exit": 101,
+    "old_failure": "Only final one-cursor assertion, after all complete integer results, progress, credits and cleanup.",
+    "current_focused_tests": 20,
+    "controls": "Actual acquisition failures, close cancellation, stale/native/mixed phases, wider bounds, overflow, NaN payload, signed zero and unchanged Avg long-history controls."
+  },
+  "measurement": {
+    "complete_pairs": 1248,
+    "cases_per_profile": 48,
+    "series": [
+      1,
+      32
+    ],
+    "window_points": [
+      2,
+      128
+    ],
+    "pages": [
+      1,
+      17,
+      1024
+    ],
+    "shapes": [
+      "bare Sum",
+      "grouped Sum",
+      "joined Sum",
+      "Avg control"
+    ],
+    "range_ticks": 3,
+    "primary": "Three serial alternating blocks, one warmup plus three measured runs per side/block; nine samples per case/side. No diagnostic follow-up replaced a primary observation.",
+    "target": "32 series and 128 points; all three Sum shapes and page sizes.",
+    "physical": "Every measured Sum case halves fetched entries and reduces work; Avg nonelapsed observations exact.",
+    "memory": "Every measured peak, retained byte count and allocation traffic is nonincreasing.",
+    "profiles": {
+      "release": {
+        "target_median": 0.5608839860836603,
+        "target_shapes": {
+          "bare": 0.5572924288399295,
+          "grouped": 0.5644157533178557,
+          "joined": 0.5960931644770803
+        },
+        "panel_median": 0.7676457464626052,
+        "control_median": 1.001012517649394,
+        "passed": true,
+        "cases_at_least_5_percent_slower": [
+          {
+            "case": {
+              "id": "sum-acquisition:n1:w2:p1024:average-control",
+              "series": 1,
+              "width": 2,
+              "page": 1024,
+              "shape": "average-control",
+              "expression": "avg_over_time(m[2s])"
+            },
+            "ratio": 1.2155022592978797
+          }
+        ]
+      },
+      "release-min": {
+        "target_median": 0.5776794483207551,
+        "target_shapes": {
+          "bare": 0.5776794483207551,
+          "grouped": 0.5730920923254571,
+          "joined": 0.6363050590567103
+        },
+        "panel_median": 0.6702691695991951,
+        "control_median": 0.9972275265928963,
+        "passed": true,
+        "cases_at_least_5_percent_slower": [
+          {
+            "case": {
+              "id": "sum-acquisition:n1:w128:p1:average-control",
+              "series": 1,
+              "width": 128,
+              "page": 1,
+              "shape": "average-control",
+              "expression": "avg_over_time(m[128s])"
+            },
+            "ratio": 1.0533275450126434
+          }
+        ]
+      }
+    },
+    "page17_32series_128points": [
+      {
+        "shape": "bare",
+        "samples_fetched": [
+          56448,
+          28224
+        ],
+        "work": [
+          125971,
+          72211
+        ],
+        "workspace_peak_bytes": [
+          40975,
+          40975
+        ]
+      },
+      {
+        "shape": "grouped",
+        "samples_fetched": [
+          84672,
+          42336
+        ],
+        "work": [
+          187850,
+          107210
+        ],
+        "workspace_peak_bytes": [
+          43919,
+          43919
+        ]
+      },
+      {
+        "shape": "joined",
+        "samples_fetched": [
+          282240,
+          141120
+        ],
+        "work": [
+          785024,
+          516224
+        ],
+        "workspace_peak_bytes": [
+          138100,
+          138100
+        ]
+      },
+      {
+        "shape": "average-control",
+        "samples_fetched": [
+          28224,
+          28224
+        ],
+        "work": [
+          72211,
+          72211
+        ],
+        "workspace_peak_bytes": [
+          40975,
+          40975
+        ]
+      }
+    ],
+    "limitations": "Engine time excludes parsing and serialization. Shared-host synthetic measurements, not live dbengine throughput, process RSS, universal speedup or reduced peak-memory proof."
+  },
+  "compiled_cost": {
+    "original_default_C_limit_bytes": 8192,
+    "original_all_cohort_criterion_passed": false,
+    "observed": {
+      "release": [
+        {
+          "kind": "fixture",
+          "before": [
+            4463906,
+            259512,
+            1412
+          ],
+          "current": [
+            4463918,
+            259512,
+            1396
+          ],
+          "growth": -4
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            7562658,
+            506456,
+            400
+          ],
+          "current": [
+            7562658,
+            506456,
+            400
+          ],
+          "growth": 0
+        }
+      ],
+      "release-min": [
+        {
+          "kind": "fixture",
+          "before": [
+            2824917,
+            246024,
+            3060
+          ],
+          "current": [
+            2824869,
+            246024,
+            3108
+          ],
+          "growth": 0
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            5099227,
+            461832,
+            400
+          ],
+          "current": [
+            5099227,
+            461832,
+            400
+          ],
+          "growth": 0
+        }
+      ],
+      "arm32": [
+        {
+          "kind": "fixture",
+          "before": [
+            3778514,
+            164568,
+            212
+          ],
+          "current": [
+            3778514,
+            164568,
+            212
+          ],
+          "growth": 0
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6564673,
+            292484,
+            244
+          ],
+          "current": [
+            6564673,
+            292484,
+            244
+          ],
+          "growth": 0
+        }
+      ],
+      "arm64": [
+        {
+          "kind": "fixture",
+          "before": [
+            3680255,
+            253040,
+            328
+          ],
+          "current": [
+            3680255,
+            253040,
+            328
+          ],
+          "growth": 0
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6532814,
+            496744,
+            384
+          ],
+          "current": [
+            6541070,
+            496744,
+            384
+          ],
+          "growth": 8256
+        }
+      ]
+    },
+    "explicit_exception": {
+      "decision": "65.A",
+      "approved": true,
+      "arm64_text_growth_bytes": 8256,
+      "excess_over_original_limit_bytes": 64,
+      "data_growth_bytes": 0,
+      "bss_growth_bytes": 0,
+      "scope": "Only this measured ARM64 compiled-text increase. No general footprint or query-memory allowance."
+    }
+  },
+  "qualification": {
+    "native_optimized_tests_per_profile": 854,
+    "preexisting_ignored_per_profile": 2,
+    "emulated_ARM_focused_fold_tests_per_target": 20,
+    "actual_C_window_fold_cases_per_cohort": 816,
+    "actual_C_before_current_rows_per_cohort": 885,
+    "C_logical_statistics": "Exact complete outcomes/statuses/basic sample statistics; 48 Sum rows per cohort reduce physical work or memory traffic. Non-Sum rows exact.",
+    "selected_original_cases": 630,
+    "expected_errors_per_original_page": 136,
+    "original_comparisons": 5040,
+    "original_native_pages": [
+      1,
+      17,
+      1024
+    ],
+    "original_foreign_pages": [
+      17
+    ],
+    "original_policy": "Exact numerical bits; each retained panel's original ordered/unordered policy.",
+    "fresh_Go_captures": 0,
+    "anchored_scope": "Expected unsupported anchored Sum/Avg errors retained, not productive anchored support.",
+    "SRE": {
+      "affected_slots": 38,
+      "required_ancestor_slots": 38,
+      "scenes": 10,
+      "pages": [
+        1,
+        17,
+        1024
+      ],
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "comparisons": 13680,
+      "affected_Sum_comparisons": 6840,
+      "own_ancestor_comparisons": 6840,
+      "Go_parent_payloads_consumed": 0,
+      "policy": "Exact numbers and original unordered policy; candidate's own recording outputs with recording-name/static-label overrides.",
+      "scope": "Affected-expression subset, not a complete SRE graph or new live inventory."
+    },
+    "strict_Clippy_variants": 2,
+    "format": "pass",
+    "MSRV_compile_only": "1.91.0"
+  },
+  "receipts": {
+    "qualification-checkpoint.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/qualification-checkpoint.json",
+      "sha256": "700f2ff4ea5b44568828dc514a794e0054f78ec943d9be57d5ddcf0cb745dd97"
+    },
+    "measurement-plan.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/measurement-plan.json",
+      "sha256": "d46f82a9f92d1339de2fcc1c34ea958c4091b7236aa342303ce2804c4214990f"
+    },
+    "ready.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/ready.json",
+      "sha256": "acfb520329040403a5c73bd1bd1cd62505cece26bf0631cf9ce495b6a42b6fab"
+    },
+    "baseline.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/baseline.json",
+      "sha256": "b732c2b6641c816b9d8542eaaa717f0964848eb6ef81e4580fa29dfec9ff699d"
+    },
+    "old-units.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/old-units.json",
+      "sha256": "169922f08026a918e0385c3f727f210b1ef0a79a9e6e03238f005bd403c6cbb5"
+    },
+    "current-units.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/current-units.json",
+      "sha256": "0320aae40f4311c07e1a933e208fde3c85510c11bb694281e31ce67d06417039"
+    },
+    "current-static.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/current-static.json",
+      "sha256": "118757bed202cac0f3634e8e6eef113a1fafb5edcf9b959fcd86e5096becd561"
+    },
+    "originals-prepared.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/originals-prepared.json",
+      "sha256": "d1d4867d68d09607271890da9d9f7ee924fabab110ad7e5f06ba322a34c10fe5"
+    },
+    "sre-preparation-failure.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/sre-preparation-failure.json",
+      "sha256": "55c8cf445e8721cb9afe692afd03763f976e037b93d8b851edd2ee6c7250f3d7"
+    },
+    "build-release.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/build-release.json",
+      "sha256": "39f5c4f6f25ffd61bf0ad380a5997168e423e3dbc9e0a2f26b22ecb8f20b9ed3"
+    },
+    "qualification-release.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/qualification-release.json",
+      "sha256": "57181b75fe23f6f6888df5fb853aa70c4f8248be0ef15dbb6e49fa59d6d1f6c7"
+    },
+    "C-comparison-release.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/C-comparison-release.json",
+      "sha256": "2a0910b47fe971fe2fd11e3761a45cd3e8f709b8085fd903abf01ab9c660dde4"
+    },
+    "originals-release.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/originals-release.json",
+      "sha256": "4c18d2cf40e7422cf10642eefb1c6e79398bcbb6ba4f60b22bd5cae6900577e1"
+    },
+    "build-release-min.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/build-release-min.json",
+      "sha256": "310b27b4f9b1778431bd3922c4c943522fb65a312c403e2ef5d8ffd8e8175cbe"
+    },
+    "qualification-release-min.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/qualification-release-min.json",
+      "sha256": "e1d0eb2064b0a87a09aab234332a2188ae055955264007909ed99cb55235269e"
+    },
+    "C-comparison-release-min.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/C-comparison-release-min.json",
+      "sha256": "4b8ea8b17d97f7ea7972dea6540fb1e322e3798e14a20fdd26b0a67395d1f541"
+    },
+    "originals-release-min.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/originals-release-min.json",
+      "sha256": "2e8696073d818c85096cb22fd4f0612e2b3c5f6fcf90a3e587a7df93544d8da0"
+    },
+    "build-arm32.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/build-arm32.json",
+      "sha256": "66b6e42288eef7110a805866f5902aee2725f9d53b93aa967caed9687fe2be6d"
+    },
+    "qualification-arm32.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/qualification-arm32.json",
+      "sha256": "cc5ff50e8daaf0d286853a953f3e4dc8393ebb74b1d6fca55643a3c81563646f"
+    },
+    "C-comparison-arm32.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/C-comparison-arm32.json",
+      "sha256": "36da93858a00f36ddee206d0de7282baf4f8388111652b6b41977dee18e323c7"
+    },
+    "originals-arm32.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/originals-arm32.json",
+      "sha256": "6776762621b07543e2b92089fa37d9c0646072c3b5698e6dbc142b1d5da48a2a"
+    },
+    "build-arm64.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/build-arm64.json",
+      "sha256": "e281531f2cab98b64f6b7b74189bf07a260ce0ac0c1a399dae391553cbae4671"
+    },
+    "qualification-arm64.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/qualification-arm64.json",
+      "sha256": "2f7935fb027283bc850641e43fa8f9cea59401ee4a7729a3c8d55df9c45152fb"
+    },
+    "C-comparison-arm64.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/C-comparison-arm64.json",
+      "sha256": "02dea095c60e73b5d05ae03bb72a63ece5e393405619f8cf1f4484b39ae83c19"
+    },
+    "originals-arm64.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/originals-arm64.json",
+      "sha256": "67146c1ed058c24819efc37689751f2933ee927a0792f72564f847f90d592429"
+    },
+    "measurement-release.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/measurement-release.json",
+      "sha256": "2e085a7685da3426f9f0f9331fb267e1fd8bdcf550a511420f5e850f071b3ba5"
+    },
+    "sre-release.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/sre-release.json",
+      "sha256": "4200ea4fd3a8541620fb9a96583f9c333adf8a70129a9ba012d80c16c9be06c8"
+    },
+    "sre-plan-release.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/sre-plan-release.json",
+      "sha256": "71fb28b67dfb6adeafafc7a996878d88da978421a5985b0a1d291b3db166ff56"
+    },
+    "measurement-release-min.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/measurement-release-min.json",
+      "sha256": "68245fda1fb114a57584b25f5766bf1e4ff55c4730d42e81af5706dc0a637ba5"
+    },
+    "sre-release-min.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/sre-release-min.json",
+      "sha256": "8353235c6db64c3907a1aa94cbd635893e89d1bcc3b8da03ba31a0a04d21d320"
+    },
+    "sre-plan-release-min.json": {
+      "path": ".tmp/sum-acquisition-23cwxbec/sre-plan-release-min.json",
+      "sha256": "71fb28b67dfb6adeafafc7a996878d88da978421a5985b0a1d291b3db166ff56"
+    }
+  },
+  "scope": "Private Sum throughput change, finite exact outcomes and controls. Pinned arithmetic, byte labels, provider/ABI4, contexts, paged raw histories, accounting and disabled implicit caps remain unchanged. No language expansion, full-language recertification, live/Cloud throughput, physical ARM or scheduler claim."
+}
