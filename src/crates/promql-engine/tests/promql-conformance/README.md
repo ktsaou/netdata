@@ -9354,3 +9354,18 @@ This exceeds the frozen 8,192-byte limit. The candidate was restored before timi
 C execution, other profiles/targets or original/SRE replay. The 285 prepared originals are not new coverage.
 [count-specialization-investigation.json](count-specialization-investigation.json) retains exact source, build,
 size and restoration evidence. No runtime change or performance gain from this experiment is shipped.
+
+## Rejected Present acquisition helper
+
+A private helper tried to reuse completed presence/progress for eligible `present_over_time` and
+`absent_over_time` windows. Float-only input avoided a second read; histogram allocation retained consuming
+replay. An initial replay-membership error was reproduced and corrected before qualification.
+
+The final candidate passed 29 fold tests and three absence tests, including 30 complete presence cases,
+70 actual read/seek failures, consuming cancellation, stale histograms, changing replay membership and
+bounded raw histories. The native release C executable grew **34,852 bytes**: 34,796 text and 56 data,
+with unchanged BSS. This exceeds the frozen 8,192-byte limit; runtime and tests were restored.
+
+No timing, full optimized suites, C execution, other profiles/targets or original/SRE replay was run.
+[present-acquisition-investigation.json](present-acquisition-investigation.json) records the failed criterion,
+actual tests and exact restoration. No performance or coverage gain from this experiment is shipped.

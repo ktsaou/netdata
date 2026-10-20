@@ -73783,5 +73783,11 @@
     "report_sha256": "e990edb405cc257c08dd4af5a0aa81ff92c4dee6211d17ca18b1ff8789a43f2c",
     "status": "rejected_candidate_runtime_restored",
     "scope": "Negative compiled-footprint experiment only. No retained runtime change or new throughput, memory, language-coverage, platform or live-query qualification claim."
+  },
+  "rejected_present_acquisition": {
+    "report": "present-acquisition-investigation.json",
+    "report_sha256": "3edbb113769821e7e0e81857598ce7b2c0c66c8e4da4dda7fc9169d5c893210c",
+    "status": "rejected_candidate_runtime_restored",
+    "scope": "Negative compiled-footprint experiment only. No retained runtime change or new throughput, memory, language-coverage, platform or live-query qualification claim."
   }
 }

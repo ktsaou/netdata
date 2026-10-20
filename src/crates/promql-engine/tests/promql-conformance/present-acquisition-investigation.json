@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "status": "rejected_candidate_runtime_restored",
+  "comparison_base": "7064330c83fcc71292c2451896faed8c41dcc762",
+  "proposal": "Present-only helper uses completed no-op acquisition with existing unanchored window guards. Float-only acquisition avoids consuming replay; allocated histograms retain the consuming pass and its authoritative membership. Existing FoldStep finalization owns output sample credit.",
+  "motivation": "Present needs presence rather than numerical accumulation; use existing populated/progress result without specializing the complete fold driver. Earlier Count experiments remain rejected.",
+  "rejection": "Native release default C executable grows34,852bytes against frozen8,192-byte limit. Runtime and tests restored; further qualification not run.",
+  "compiled_cost": {
+    "limit_bytes": 8192,
+    "passed": false,
+    "costs": [
+      {
+        "kind": "fixture",
+        "before": [
+          4463918,
+          259512,
+          1396
+        ],
+        "current": [
+          4482894,
+          259664,
+          2716
+        ],
+        "growth": 20448
+      },
+      {
+        "kind": "default-C",
+        "before": [
+          7562658,
+          506456,
+          400
+        ],
+        "current": [
+          7597454,
+          506512,
+          400
+        ],
+        "growth": 34852
+      }
+    ],
+    "text_growth_bytes": 34796,
+    "data_growth_bytes": 56,
+    "bss_growth_bytes": 0
+  },
+  "completed": {
+    "focused_fold_tests": 29,
+    "absence_tests": 3,
+    "complete_present_cases": 30,
+    "present_read_seek_failure_controls": 70,
+    "pages": [
+      1,
+      17,
+      1024
+    ],
+    "scope": "Final focused candidate tests cover presence/progress/useful credit/result leases, native/mixed/stale data, actual operation faults, both acquisition and consuming cancellation, wider bounds, changing replay membership, long paged histories and complete absence traversal.",
+    "old_causal": "Fresh unchanged runtime passed30complete result/progress/lease cases before failing only final one-cursor guard.",
+    "correction": "Initial helper incorrectly used probe presence after required histogram consumption. A changing-provider regression returned Float1 instead of absence and failed. Final helper uses the consuming pass entire Acquisition; the same regression passes.",
+    "native_build": "Final release fixture and default static library/C consumer compile and link; actual section sizes captured."
+  },
+  "not_completed": [
+    "Candidate timing or whole-query memory comparison",
+    "release-min build",
+    "Full optimized units",
+    "C execution",
+    "ARM build/execution",
+    "Pinned-original replay",
+    "SRE replay",
+    "Strict Clippy/MSRV checks"
+  ],
+  "runtime_change_retained": false,
+  "accepted_runtime_sha256": "9e8d3faf0b409384a4f099149b5ec2383e388e6e1e12034a47183ad0d764f55f",
+  "rejected_runtime_sha256": "4cd85df552aa9f4bd31b6800a3050373c9013b842d657b9f98609054cb872f58",
+  "rejected_patch": {
+    "path": ".tmp/present-acquisition-fbl3np2n/rejected-candidate.patch",
+    "sha256": "232623fad24ffc6674dc0b3ba5bb07d0db4d34823e31eef8ab6df26278fa7d38"
+  },
+  "source_phases": {
+    "before-source.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/before-source.json",
+      "sha256": "b19ef1e05e1d466ab5190fa178832a7b56ce7a97780a4e74489df911db0d1717"
+    },
+    "formatted-tests-source.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/formatted-tests-source.json",
+      "sha256": "fc80a610312bb11fa6cd4947e986934e7332288cb10a1d1e6e0623ea9ba18d4d"
+    },
+    "candidate-source.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/candidate-source.json",
+      "sha256": "8d6d042f23b057f8695d9d9ecec3971be94ccb936f177058a5eb1a5b71074573"
+    },
+    "replay-source.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/replay-source.json",
+      "sha256": "cd9a0d5cdea1edb74a42c93eefc20a8159be062d184c098e7e31dee30f726071"
+    },
+    "final-source.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/final-source.json",
+      "sha256": "11e4ca170afdf7fa5fef53966550e5cdd4f0ce46807793d078366168bb39b30c"
+    },
+    "restored-source.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/restored-source.json",
+      "sha256": "b19ef1e05e1d466ab5190fa178832a7b56ce7a97780a4e74489df911db0d1717"
+    }
+  },
+  "candidate_builds": {
+    "release": {
+      "fixture": {
+        "path": ".tmp/present-acquisition-fbl3np2n/current-release/promql-query-fixture",
+        "sha256": "b6feb45f0e569bdf7718c86a4385c2d1f27340b4e8a3dd9ebb19733575ccf0ba"
+      },
+      "default_embedding": {
+        "path": ".tmp/present-acquisition-fbl3np2n/current-release/embedding",
+        "sha256": "dd90a7c38debdd6e9515057c8d147312adacebb7d3908e69c8a06590879f1190"
+      },
+      "compiler_settings": {
+        "path": ".tmp/present-acquisition-fbl3np2n/release-settings.json",
+        "sha256": "3cc0b7905664ec21719752a8842db00d45613d5564191b9bf8379de3ea18cb10"
+      }
+    }
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/measurement-plan.json",
+      "sha256": "3ed8db70f41c8c6243ca50b6c92bfb87832c5883ff65e327bec3de660e9a0a0a"
+    },
+    "ready.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/ready.json",
+      "sha256": "7aaa8a0da18e0b1b58212fc4bd606d9f110302a848519da81c4e5dfa5be984d1"
+    },
+    "old-units.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/old-units.json",
+      "sha256": "6a117eef793c147ebf31eeebaf562a595ddacf79572fde23a83f618da8848b82"
+    },
+    "current-units.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/current-units.json",
+      "sha256": "ad43fbebcb434ed44d384032b6481eff50a14e659d846f5424e24ebb671a3305"
+    },
+    "replay-units.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/replay-units.json",
+      "sha256": "820903de8dea5cafd864f25ed4f968ac1ecabb6288c5b76ecc3be30ae2d35f75"
+    },
+    "final-units.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/final-units.json",
+      "sha256": "4f6dad22f4bba37584c4112cfc243024f06293cdd93a173cd6010a632179ea9a"
+    },
+    "rejected-build.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/rejected-build.json",
+      "sha256": "3b78b8fd66f23a70ec059b3c947fb5b611964ae475a1a615f8a694da0859fe58"
+    },
+    "restoration.json": {
+      "path": ".tmp/present-acquisition-fbl3np2n/restoration.json",
+      "sha256": "f48a087e5de51373745c287063108202cdf059644a9293e30beff413d0ab470b"
+    }
+  },
+  "scope": "Negative compiled-footprint experiment only. No retained runtime change or new throughput, memory, language-coverage, platform or live-query qualification claim."
+}

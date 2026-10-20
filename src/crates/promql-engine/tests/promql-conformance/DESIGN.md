@@ -2267,3 +2267,14 @@ focused semantic and ownership checks but added 72,116 bytes to the native relea
 frozen footprint criterion. A single source body does not guarantee a compact compiled result. This candidate was
 restored; see [count-specialization-investigation.json](count-specialization-investigation.json). The previous
 Count admission experiment remains separately rejected under its original timing criterion.
+
+## Rejected Present acquisition helper
+
+Presence can reuse the completed acquisition result under the existing window proof. When allocated histograms
+require consuming replay, that completed pass determines both presence and progress; the existing result lease
+must remain. A changing-provider regression demonstrated this distinction.
+
+The tested small helper passed focused checks but grew the native release C executable by 34,852 bytes,
+exceeding its frozen footprint criterion. It was restored. Source size alone does not establish emitted size;
+see [present-acquisition-investigation.json](present-acquisition-investigation.json). Count experiments remain
+separately rejected under their original criteria.
