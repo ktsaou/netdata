@@ -9527,8 +9527,8 @@ An allocation-only trial used the existing capacity hint to reserve one ordinary
 four when the evaluator already selected exactly one. The native group occupies 88 bytes, leaving 264 bytes of
 unused payload per ordinary singleton allocation. The change added no fields or retained raw samples.
 
-Across 624 complete query pairs, results and nonmemory observations remained exact and tracked memory never
-increased. Larger raw/rate ratios used 5.12% less cumulative Workspace allocation traffic. The release default
+Across 624 complete query pairs, results and nonmemory, nonelapsed observations remained exact; tracked memory
+never increased. Larger raw/rate ratios used 5.12% less cumulative Workspace allocation traffic. The release default
 C executable grew 1,008 bytes. These traffic savings do not establish equivalent resident-memory savings.
 
 The trial failed its frozen timing gate: the raw-ratio shape median was 1.059856 times the baseline, above the
