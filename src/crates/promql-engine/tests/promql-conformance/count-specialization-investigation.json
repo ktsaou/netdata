@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "status": "rejected_candidate_runtime_restored",
+  "comparison_base": "94b324f4867ebdb35ed21f8c78ff87fd7f864ef7",
+  "proposal": "Convert bounds once and dispatch Count to a private const-true fold implementation; other kinds use const-false. One shared implementation body, with unchanged window guards, receiver, finish and histogram-consuming fallback.",
+  "motivation": "Earlier widening of shared admission failed an ordinary-query timing criterion. This separate experiment isolated Count specialization without maintaining duplicate source implementations; it did not alter the earlier failure.",
+  "rejection": "Native release default C executable grows72,116bytes against the frozen8,192-byte limit. Further qualification stops; original runtime and tests are restored.",
+  "compiled_cost": {
+    "limit_bytes": 8192,
+    "passed": false,
+    "costs": [
+      {
+        "kind": "fixture",
+        "before": [
+          4463918,
+          259512,
+          1396
+        ],
+        "current": [
+          4514070,
+          259616,
+          4364
+        ],
+        "growth": 53224
+      },
+      {
+        "kind": "default-C",
+        "before": [
+          7562658,
+          506456,
+          400
+        ],
+        "current": [
+          7634742,
+          506488,
+          400
+        ],
+        "growth": 72116
+      }
+    ],
+    "text_growth_bytes": 72084,
+    "data_growth_bytes": 32,
+    "bss_growth_bytes": 0
+  },
+  "completed": {
+    "focused_tests": 26,
+    "complete_count_cases": 30,
+    "count_read_seek_failure_controls": 70,
+    "pages": [
+      1,
+      17,
+      1024
+    ],
+    "scope": "Fresh focused candidate tests cover complete Count semantics/progress/read credit/leases/cleanup, native/mixed/stale data, real failures, cancellation, wider bounds and page-bounded long histories.",
+    "old_causal": "Historical131old-causal check is reused only after all386formatted test/runtime source hashes match. It passed30complete cases then failed only the final cursor guard; it was not executed anew.",
+    "native_build": "Release fixture and default static library/C consumer compile and link; actual section sizes captured.",
+    "prepared_originals": {
+      "cases": 285,
+      "expected_errors": 48,
+      "candidate_replayed": false
+    }
+  },
+  "not_completed": [
+    "Candidate timing or whole-query memory comparison",
+    "release-min build",
+    "Full optimized units",
+    "C execution",
+    "ARM build/execution",
+    "Pinned-original replay",
+    "SRE replay",
+    "Strict Clippy/MSRV checks"
+  ],
+  "runtime_change_retained": false,
+  "accepted_runtime_sha256": "9e8d3faf0b409384a4f099149b5ec2383e388e6e1e12034a47183ad0d764f55f",
+  "rejected_runtime_sha256": "b9694b9a198ea3da510bb03f8e37368f60e0c6c057a9a357c1f632c226541e1d",
+  "rejected_patch": {
+    "path": ".tmp/count-specialization-2zsmerou/rejected-candidate.patch",
+    "sha256": "16f8240f84f6cb86df3edb36056f0365c5e30e9494cfc1a3d617538a9cf9489c"
+  },
+  "source_phases": {
+    "before-source.json": {
+      "path": ".tmp/count-specialization-2zsmerou/before-source.json",
+      "sha256": "b19ef1e05e1d466ab5190fa178832a7b56ce7a97780a4e74489df911db0d1717"
+    },
+    "formatted-tests-source.json": {
+      "path": ".tmp/count-specialization-2zsmerou/formatted-tests-source.json",
+      "sha256": "d2d3ffb8bec5df1f93ba63bbfab00d0dd88f25e60abfa57565646bae4f6aff37"
+    },
+    "candidate-source.json": {
+      "path": ".tmp/count-specialization-2zsmerou/candidate-source.json",
+      "sha256": "479e331bc1a5d2a4527b898687b618ab4e8cb83f5dec1968d389082ae0bb038e"
+    },
+    "restored-source.json": {
+      "path": ".tmp/count-specialization-2zsmerou/restored-source.json",
+      "sha256": "b19ef1e05e1d466ab5190fa178832a7b56ce7a97780a4e74489df911db0d1717"
+    }
+  },
+  "candidate_builds": {
+    "release": {
+      "fixture": {
+        "path": ".tmp/count-specialization-2zsmerou/current-release/promql-query-fixture",
+        "sha256": "cc467b7790ba3439dd6a2f2a9a93874783bc94647cae0be22f7e653782cca604"
+      },
+      "default_embedding": {
+        "path": ".tmp/count-specialization-2zsmerou/current-release/embedding",
+        "sha256": "00badb3180a61159faf70dc088eae26f427d6a0d82b52380324ba73df71ad2c0"
+      },
+      "compiler_settings": {
+        "path": ".tmp/count-specialization-2zsmerou/release-settings.json",
+        "sha256": "3cc0b7905664ec21719752a8842db00d45613d5564191b9bf8379de3ea18cb10"
+      }
+    }
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/count-specialization-2zsmerou/measurement-plan.json",
+      "sha256": "a47bf945dc0eb158dc290f648429e9fc4ac83dfb7671729921a65feb79d9da20"
+    },
+    "ready.json": {
+      "path": ".tmp/count-specialization-2zsmerou/ready.json",
+      "sha256": "f817be54171a5ec3b35b9018b7defd9acd2ffe424678bc44c9af607fbb1fb4d8"
+    },
+    "baseline-reuse.json": {
+      "path": ".tmp/count-specialization-2zsmerou/baseline-reuse.json",
+      "sha256": "ba12ee861ad67d62e567aa8fc6ac3cdef4cd926c45a6d470562dcfa6af944709"
+    },
+    "old-causal-reuse.json": {
+      "path": ".tmp/count-specialization-2zsmerou/old-causal-reuse.json",
+      "sha256": "8e00c5147623e4796f3e309d19014647438f093ffa8ae2de1612f3e6ceb02e77"
+    },
+    "current-units.json": {
+      "path": ".tmp/count-specialization-2zsmerou/current-units.json",
+      "sha256": "c5eafa10a1a7e7d1973cf078eae6cf46c67016227f01625a0a8fabca0a601582"
+    },
+    "originals-prepared.json": {
+      "path": ".tmp/count-specialization-2zsmerou/originals-prepared.json",
+      "sha256": "1801e4f2785976de05757a2cb17a2c4d59ee6aa793aae43fe32b14c8185c1887"
+    },
+    "rejected-build.json": {
+      "path": ".tmp/count-specialization-2zsmerou/rejected-build.json",
+      "sha256": "4d8d1487b4a473d3f925b673a17718f2f213234e4a9fea08d95b1c2f59fa1633"
+    },
+    "restoration.json": {
+      "path": ".tmp/count-specialization-2zsmerou/restoration.json",
+      "sha256": "686a6ecf2518bb55ff562921b8a2a4ab43777e88504e40a8a4dd7e61177e48a3"
+    }
+  },
+  "scope": "Negative compiled-footprint experiment only. No retained runtime change or new throughput, memory, language-coverage, platform or live-query qualification claim."
+}

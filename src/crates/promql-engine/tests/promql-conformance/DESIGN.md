@@ -2259,3 +2259,11 @@ preserved results, progress, logical reads and cleanup, including native/mixed/s
 Count reads, but failed the frozen release-min Avg-control timing criterion. The diagnostic repeat did not replace
 that failure. The candidate was restored; the accepted admission remains Sum/Avg only. See
 [count-acquisition-investigation.json](count-acquisition-investigation.json) for exact evidence and limits.
+
+## Rejected Count driver specialization
+
+A shared const-generic fold body was tried to isolate Count from the numerical specialization. It preserved the
+focused semantic and ownership checks but added 72,116 bytes to the native release C executable, exceeding the
+frozen footprint criterion. A single source body does not guarantee a compact compiled result. This candidate was
+restored; see [count-specialization-investigation.json](count-specialization-investigation.json). The previous
+Count admission experiment remains separately rejected under its original timing criterion.

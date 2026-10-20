@@ -73777,5 +73777,11 @@
     "report_sha256": "4e43cf7ce441499188155d2dfb2b9fd4ee9248ebbec0498cffc7166deec5f584",
     "status": "rejected_candidate_runtime_restored",
     "scope": "Negative private throughput experiment. Accepted runtime and tests match comparison base exactly; existing language, numerical, provider, paging, contexts and accounting contracts remain unchanged."
+  },
+  "rejected_count_specialization": {
+    "report": "count-specialization-investigation.json",
+    "report_sha256": "e990edb405cc257c08dd4af5a0aa81ff92c4dee6211d17ca18b1ff8789a43f2c",
+    "status": "rejected_candidate_runtime_restored",
+    "scope": "Negative compiled-footprint experiment only. No retained runtime change or new throughput, memory, language-coverage, platform or live-query qualification claim."
   }
 }

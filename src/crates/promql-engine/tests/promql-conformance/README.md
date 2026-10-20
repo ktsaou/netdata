@@ -9342,3 +9342,15 @@ The candidate and its test edits were restored to the accepted source. Count ret
 and binary identities, the failed criterion and restoration. Foreign execution, full optimized suites, C execution
 and original/SRE replay were not run for this rejected candidate. Prepared reference selection is not coverage.
 These finite shared-host measurements do not describe live dbengine throughput or process RSS.
+
+## Rejected Count driver specialization
+
+A separate Count experiment kept one source implementation while selecting a private compile-time specialization
+for Count. Bounds were converted once; other folds kept the original Sum/Avg admission. All 26 focused tests
+passed, including 30 complete Count cases and 70 actual read/seek failures.
+
+The native release C executable grew **72,116 bytes**: 72,084 text and 32 data bytes, with unchanged BSS.
+This exceeds the frozen 8,192-byte limit. The candidate was restored before timing, full optimized suites,
+C execution, other profiles/targets or original/SRE replay. The 285 prepared originals are not new coverage.
+[count-specialization-investigation.json](count-specialization-investigation.json) retains exact source, build,
+size and restoration evidence. No runtime change or performance gain from this experiment is shipped.
