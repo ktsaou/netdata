@@ -1,0 +1,583 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "96dfa02315c2a92ba3d7f07ea3a9ecc5005a1428",
+  "change": "Extend only local contributor demand to HistogramStdVar/StdDev at ordinary unequal range clocks. Same-key completed membership skips unrelated groups; selected values and bucket kernels remain fresh.",
+  "source_phases": {
+    "accepted-source.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/accepted-source.json",
+      "sha256": "5fc4ce70db3613e0d0a9e10697d087423e233c7c3555dee87426cac9d52592bf"
+    },
+    "tests-source.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/tests-source.json",
+      "sha256": "44d2f0cc2e8ff1c0c0a828ab2e8f45269af115ad08bbab5f1b73b2c64f5b044f"
+    },
+    "controls-source.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/controls-source.json",
+      "sha256": "4919a8aa705135ab0aece7ef6cf937cf4ef761e4b683c397ba4e332ac04c539e"
+    },
+    "kernel-source.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/kernel-source.json",
+      "sha256": "39369fac01cf0ebf8289a01e8dbb69ec5bc0fbf16f027f01e7d71e449d7eac5f"
+    },
+    "kernel-v2-source.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/kernel-v2-source.json",
+      "sha256": "61fa29c30348397bd04d489a05af430dca0275b201cef44bbaefa10689aac57b"
+    },
+    "candidate-source.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/candidate-source.json",
+      "sha256": "61fa29c30348397bd04d489a05af430dca0275b201cef44bbaefa10689aac57b"
+    }
+  },
+  "source_attribution": "Stage139 predecessor binaries retain their actual build receipts. Current builds bind the frozen398input candidate inventory. Failed first kernel test retains its source snapshot; Engine normalization and direct Machine errors are asserted separately in the passing successor.",
+  "preserved": "Raw paging,ABI,provider,contexts ownership,language behavior,disabled implicit limits,Pair certification,schedule purity and statistics-only decoding are unchanged. Full child Done,exact keys,preparation clearing,fresh selected values and clock fallbacks remain authoritative.",
+  "compiled_cost": {
+    "sections": [
+      "text",
+      "data",
+      "bss"
+    ],
+    "criterion": "Each actual default C executable growth<=8192bytes independently",
+    "observed": {
+      "release": [
+        {
+          "kind": "fixture",
+          "before": [
+            4373190,
+            259712,
+            1788
+          ],
+          "current": [
+            4373190,
+            259712,
+            1788
+          ],
+          "growth": 0
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            7368178,
+            506576,
+            400
+          ],
+          "current": [
+            7368178,
+            506576,
+            400
+          ],
+          "growth": 0
+        }
+      ],
+      "release-min": [
+        {
+          "kind": "fixture",
+          "before": [
+            2724989,
+            246048,
+            588
+          ],
+          "current": [
+            2724989,
+            246048,
+            588
+          ],
+          "growth": 0
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            5102183,
+            461864,
+            400
+          ],
+          "current": [
+            5102183,
+            461864,
+            400
+          ],
+          "growth": 0
+        }
+      ],
+      "arm32": [
+        {
+          "kind": "fixture",
+          "before": [
+            3691742,
+            164552,
+            212
+          ],
+          "current": [
+            3691742,
+            164552,
+            212
+          ],
+          "growth": 0
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6380713,
+            292484,
+            244
+          ],
+          "current": [
+            6380713,
+            292484,
+            244
+          ],
+          "growth": 0
+        }
+      ],
+      "arm64": [
+        {
+          "kind": "fixture",
+          "before": [
+            3639047,
+            253208,
+            328
+          ],
+          "current": [
+            3639047,
+            253208,
+            328
+          ],
+          "growth": 0
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6370830,
+            496888,
+            384
+          ],
+          "current": [
+            6370830,
+            496888,
+            384
+          ],
+          "growth": 0
+        }
+      ]
+    },
+    "scope": "Linked C consumers;not whole-Agent executable or RSS."
+  },
+  "measurement": {
+    "complete_pairs": 2184,
+    "cases_per_profile": 84,
+    "composition": "SUM/AVG under2variance maps;G1/4/32/128,2members/group,3ticks,pages1/17/1024;raw Float,Float-map andungrouped-native controls. Timed histograms use their zero bucket;nonempty custom buckets are independently qualified.",
+    "method": "Three alternating blocks,one warmup+three measured queries per case/side/block,nine primary samples per case/side. Complete outputs checked for all pairs;no replacement timings.",
+    "criteria": {
+      "blocks": 3,
+      "warmups": 1,
+      "measurements": 3,
+      "target_median_max": 0.8,
+      "each_target_function_median_max": 0.9,
+      "control_shape_median_max": 1.05
+    },
+    "memory_criteria": {
+      "raw_pages": "unchanged bounded lifetime",
+      "direct_fixture_workspace_peak_extra_max": "64*G+1024 bytes for one admitted two-member aggregate; derives from existing Builder pair + Plan range/member payloads and fixed owner allowance",
+      "small_fixture_traffic_extra_max": "256*G+4096 bytes atG1/4",
+      "large_target_workspace_traffic": "nonincreasing atG32/128",
+      "other_memory": "all increases must be attributable to existing contributor owner; unaccounted or unexplained growth rejects",
+      "non_target_controls": "no new retained payload or peak increase"
+    },
+    "profiles": {
+      "release": {
+        "target_median": 0.09711727490934394,
+        "function_medians": {
+          "histogram_stdvar": 0.09683557262047311,
+          "histogram_stddev": 0.09750391308483328
+        },
+        "control_medians": {
+          "raw-control": 1.0072693628489593,
+          "float-control": 1.0417256240237958,
+          "native-control": 1.003341527247746
+        },
+        "passed": true,
+        "individual_ratios_over_1_05": [
+          {
+            "case": {
+              "id": "native-field:g1:p17:float-control",
+              "groups": 1,
+              "page": 17,
+              "shape": "float-control",
+              "function": null,
+              "operator": null,
+              "expression": "abs(sum by(job)(m))"
+            },
+            "ratio": 1.0630440517013982
+          },
+          {
+            "case": {
+              "id": "native-field:g1:p17:native-control",
+              "groups": 1,
+              "page": 17,
+              "shape": "native-control",
+              "function": null,
+              "operator": null,
+              "expression": "histogram_sum(h)"
+            },
+            "ratio": 1.118531367447239
+          },
+          {
+            "case": {
+              "id": "native-field:g1:p1024:histogram_stddev-sum",
+              "groups": 1,
+              "page": 1024,
+              "shape": "histogram_stddev-sum",
+              "function": "histogram_stddev",
+              "operator": "sum",
+              "expression": "histogram_stddev(sum by(job)(h))"
+            },
+            "ratio": 1.0823770874148708
+          },
+          {
+            "case": {
+              "id": "native-field:g1:p1024:raw-control",
+              "groups": 1,
+              "page": 1024,
+              "shape": "raw-control",
+              "function": null,
+              "operator": null,
+              "expression": "m"
+            },
+            "ratio": 1.0758077879038939
+          },
+          {
+            "case": {
+              "id": "native-field:g4:p1:float-control",
+              "groups": 4,
+              "page": 1,
+              "shape": "float-control",
+              "function": null,
+              "operator": null,
+              "expression": "abs(sum by(job)(m))"
+            },
+            "ratio": 1.0532770111891894
+          },
+          {
+            "case": {
+              "id": "native-field:g4:p1024:float-control",
+              "groups": 4,
+              "page": 1024,
+              "shape": "float-control",
+              "function": null,
+              "operator": null,
+              "expression": "abs(sum by(job)(m))"
+            },
+            "ratio": 1.0591235912983212
+          },
+          {
+            "case": {
+              "id": "native-field:g32:p17:raw-control",
+              "groups": 32,
+              "page": 17,
+              "shape": "raw-control",
+              "function": null,
+              "operator": null,
+              "expression": "m"
+            },
+            "ratio": 1.1063838977194196
+          },
+          {
+            "case": {
+              "id": "native-field:g32:p17:float-control",
+              "groups": 32,
+              "page": 17,
+              "shape": "float-control",
+              "function": null,
+              "operator": null,
+              "expression": "abs(sum by(job)(m))"
+            },
+            "ratio": 1.0555413978624666
+          }
+        ]
+      },
+      "release-min": {
+        "target_median": 0.1018395320094452,
+        "function_medians": {
+          "histogram_stdvar": 0.10023693169594983,
+          "histogram_stddev": 0.1018395320094452
+        },
+        "control_medians": {
+          "raw-control": 1.0143170298306328,
+          "float-control": 1.0055890279410953,
+          "native-control": 1.0012629192651943
+        },
+        "passed": true,
+        "individual_ratios_over_1_05": [
+          {
+            "case": {
+              "id": "native-field:g128:p1:native-control",
+              "groups": 128,
+              "page": 1,
+              "shape": "native-control",
+              "function": null,
+              "operator": null,
+              "expression": "histogram_sum(h)"
+            },
+            "ratio": 1.0631351539636391
+          }
+        ]
+      }
+    },
+    "example": {
+      "profile": "release",
+      "query": "histogram_stdvar(sum by(job)(h))",
+      "groups": 128,
+      "page": 17,
+      "samples_fetched": [
+        800768,
+        26576
+      ],
+      "work": [
+        12783735,
+        595762
+      ],
+      "workspace_peak_bytes": [
+        251684,
+        256060
+      ],
+      "workspace_acquired_bytes": [
+        270441112,
+        10716200
+      ],
+      "workspace_released_bytes": [
+        270441112,
+        10716200
+      ]
+    },
+    "scope": "Finite synthetic elapsed times and tracked allocations on a shared host;not concurrent throughput,cold dbengine,RSS or physical ARM speed."
+  },
+  "qualification": {
+    "old_complete_semantic_cases_before_expected_growth_failure": 240,
+    "new_nonempty_variance_cases": 96,
+    "existing_focused_owners": 4,
+    "native_tests_per_profile": 876,
+    "preexisting_ignored_per_profile": 2,
+    "kernel_owner": "Twelve real Engine preparation errors;24separate constructed group-owner cases prove full-Call Machine errors after Done and actual propagation cancellation at iterator entry. Existing direct kernel unit checks a productive second bucket. Constructed owners do not establish Engine final-phase admission.",
+    "ARM_tests_per_target": {
+      "arm32": [
+        {
+          "filter": "execution::tests::native_group_maps_check_complete_results_before_bounded_source_reads",
+          "passed": 1
+        },
+        {
+          "filter": "execution::tests::mapped_group_demand_follows_ordered_maps_and_preserves_clock_fallbacks",
+          "passed": 1
+        },
+        {
+          "filter": "execution::tests::mapped_groups_keep_cold_selected_next_clock_and_output_failures",
+          "passed": 1
+        },
+        {
+          "filter": "execution::tests::histogram_group_contributors_keep_cold_and_selected_failures",
+          "passed": 1
+        },
+        {
+          "filter": "evaluator::filter_tests::native_variance_keeps_bucket_errors_and_interruptions_after_group_done",
+          "passed": 1
+        },
+        {
+          "filter": "histogram_functions::tests::variance_poll_interrupts_bucket_traversal_without_mutating_input",
+          "passed": 1
+        },
+        {
+          "filter": "aggregate_replay::tests::",
+          "passed": 3
+        },
+        {
+          "filter": "aggregation::tests::",
+          "passed": 2
+        },
+        {
+          "filter": "histogram::tests::",
+          "passed": 13
+        }
+      ],
+      "arm64": [
+        {
+          "filter": "execution::tests::native_group_maps_check_complete_results_before_bounded_source_reads",
+          "passed": 1
+        },
+        {
+          "filter": "execution::tests::mapped_group_demand_follows_ordered_maps_and_preserves_clock_fallbacks",
+          "passed": 1
+        },
+        {
+          "filter": "execution::tests::mapped_groups_keep_cold_selected_next_clock_and_output_failures",
+          "passed": 1
+        },
+        {
+          "filter": "execution::tests::histogram_group_contributors_keep_cold_and_selected_failures",
+          "passed": 1
+        },
+        {
+          "filter": "evaluator::filter_tests::native_variance_keeps_bucket_errors_and_interruptions_after_group_done",
+          "passed": 1
+        },
+        {
+          "filter": "histogram_functions::tests::variance_poll_interrupts_bucket_traversal_without_mutating_input",
+          "passed": 1
+        },
+        {
+          "filter": "aggregate_replay::tests::",
+          "passed": 3
+        },
+        {
+          "filter": "aggregation::tests::",
+          "passed": 2
+        },
+        {
+          "filter": "histogram::tests::",
+          "passed": 13
+        }
+      ]
+    },
+    "new_original_expressions": 448,
+    "new_original_comparisons_current": 3584,
+    "new_original_comparisons_predecessor": 3584,
+    "native_pages": [
+      1,
+      17,
+      1024
+    ],
+    "ARM_pages": [
+      17
+    ],
+    "original_policy": "Complete outputs,diagnostics,errors and exact numeric bits;both names,8reducers,7native/mixed/stale/absent/schema/custom states,range and clock/wrapper controls.",
+    "C_pairs": 720,
+    "C_asserted_queries": 1440,
+    "C_variance_range_reductions": 96,
+    "C_exact_control_pairs": 624,
+    "SRE": {
+      "inventoried_source_slots": 790,
+      "affected_variance_slots": 0,
+      "new_executions": 0
+    },
+    "strict_Clippy_variants": 2,
+    "format": "pass",
+    "MSRV_compile_only": "1.91.0"
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/measurement-plan.json",
+      "sha256": "8f011eb4f5040f4a07800e5f3b0f98cf3fa7a904a62ccf2af35d723f8bbbf650"
+    },
+    "ready.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/ready.json",
+      "sha256": "6c85f86c8f680bd0c827ceb096049ac7de4528527b5b39b43903484f6d73d394"
+    },
+    "old-units.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/old-units.json",
+      "sha256": "9560858ef48243511c552ee617e656e09c0c2e7a4510b903bc018996c9016f40"
+    },
+    "candidate-units.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/candidate-units.json",
+      "sha256": "b2fa6b3ee9e20f3007056bd267dc05342f098b30ecde54e13db7d5bbab5b9553"
+    },
+    "kernel-v2-units.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/kernel-v2-units.json",
+      "sha256": "95f5791743e614a776c147446e216257879e14006fa87f3a5cff56fb193ccc92"
+    },
+    "baseline.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/baseline.json",
+      "sha256": "23a45c458cef92fcec4dc24cacf292d3d15a4c2ed11edf37e0aafea28ce58938"
+    },
+    "baseline-expected.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/baseline-expected.json",
+      "sha256": "562df97515f264493e67199c5e47b1916057ba8f3b58a5a236c3d1d63cf8bc9b"
+    },
+    "originals-captured.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/originals-captured.json",
+      "sha256": "e3d6c80913dd8d9e144ee55ef83f9c1f06e10e719b0dc95594da16f114642af2"
+    },
+    "sre-scope.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/sre-scope.json",
+      "sha256": "0951668ea766c40ad6c2c45b6f46b90daed6623bb7e914ff294487b86848421d"
+    },
+    "current-static.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/current-static.json",
+      "sha256": "46562958f9d21c0269a8a71baaa872f6bfb21b7feb4a865ab64f03f16c06fce4"
+    },
+    "references.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/references.json",
+      "sha256": "8de78e1cc0ae8e168c267bf0d4399460c554bb87fd993d4a7e0e0bb566cbf7c0"
+    },
+    "build-release.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/build-release.json",
+      "sha256": "68eb70c01ef28d94ad17c59ffa1ebd1cdb21a2e686e01cc6d525e8eb55f359bf"
+    },
+    "qualification-release.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/qualification-release.json",
+      "sha256": "1c520878a0da7e373cab349c89bd9cedfe9962ce7226d16e0e5b16cbaf19ac3b"
+    },
+    "C-callers-release.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/C-callers-release.json",
+      "sha256": "faf0ccc9c6a01aa5d3c23382852a7d1d42ca0963aaaecf72918ee149513e9a39"
+    },
+    "originals-release.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/originals-release.json",
+      "sha256": "a2c830c2e086a2a9dee3bae2752e15a995fe1a6448fcd6da43ac8d99d372c9a5"
+    },
+    "build-release-min.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/build-release-min.json",
+      "sha256": "8adeab55e0bd859bf49da6b9d49f81fad3a3d3bf226f58549f22cf2c676b509c"
+    },
+    "qualification-release-min.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/qualification-release-min.json",
+      "sha256": "1b5109c9f41c91ea30f5f9fa216d028bad4def982346bf48d4134f326a652248"
+    },
+    "C-callers-release-min.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/C-callers-release-min.json",
+      "sha256": "4f23e864773eac2db229369cbad4ceb3d41a09c02ccc79a6949f64a90d24334d"
+    },
+    "originals-release-min.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/originals-release-min.json",
+      "sha256": "e2a170d39f1c6e28b332a79db708d2278fb020face1b569aabbf00c5a2896f02"
+    },
+    "build-arm32.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/build-arm32.json",
+      "sha256": "d0136be5e0489d979992fb601b1a46d8c17422d475ec87f3972fbd9767003037"
+    },
+    "qualification-arm32.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/qualification-arm32.json",
+      "sha256": "9eaad30f3dc2d87686f3970479ffe0f879a15a7d2c85ad00d49a39a29cbc99f3"
+    },
+    "C-callers-arm32.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/C-callers-arm32.json",
+      "sha256": "58e044e1b52d202e738b1db6bb6308f969896617426d133e14c357dd192e383f"
+    },
+    "originals-arm32.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/originals-arm32.json",
+      "sha256": "64c78fabbd8bfe4a2a7f6e90e1c669396288373a210844d1693bf7130b0af49b"
+    },
+    "build-arm64.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/build-arm64.json",
+      "sha256": "b978613c513e731f93acf22e9927656baa4f0ee6dfbbe69cc4e738d08b936681"
+    },
+    "qualification-arm64.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/qualification-arm64.json",
+      "sha256": "67675e0369af68d6e13f1b5b275671f10efe406b22a1375c12093991f222b716"
+    },
+    "C-callers-arm64.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/C-callers-arm64.json",
+      "sha256": "e041e3371dc636870f205c8db5e29d61495dcf26a62b300ebf7c0163245debc3"
+    },
+    "originals-arm64.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/originals-arm64.json",
+      "sha256": "6ef733ceecaddfec741ab6b13fb56c48238b321c18e6ef33208e6d1b043ea43c"
+    },
+    "measurement-release.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/measurement-release.json",
+      "sha256": "3dd3666e97187f6a9961dacbe9795da8ff432c611db6bfd4ee6920dd39364464"
+    },
+    "measurement-release-min.json": {
+      "path": ".tmp/variance-map-demand-g5bumejv/measurement-release-min.json",
+      "sha256": "50f421a5ba1c2fb0c816f146ae395d305e3af6283e7194edba2c5a087fee37c5"
+    }
+  },
+  "scope": "Private preparation optimization;live integration unchanged. Continuous improvement remains unfinished."
+}

@@ -73,7 +73,9 @@ static uint32_t native_next(void *context, void *handle,
 
 int main(void) {
     const uint64_t pages[] = {1, 17, 1024};
-    const char *functions[] = {"histogram_sum", "histogram_count", "histogram_avg"};
+    const char *functions[] = {
+        "histogram_sum", "histogram_count", "histogram_avg", "histogram_stdvar", "histogram_stddev"
+    };
     unsigned cases = 0;
     for (unsigned delayed = 0; delayed < 2; delayed++) {
         netdata_promql_engine_options_t options;
@@ -85,7 +87,7 @@ int main(void) {
         for (unsigned page = 0; page < 3; page++)
             for (unsigned mode = 0; mode < 3; mode++)
                 for (unsigned average = 0; average < 2; average++)
-                    for (unsigned function = 0; function < 3; function++) {
+                    for (unsigned function = 0; function < 5; function++) {
                         native_fixture source;
                         memset(&source, 0, sizeof(source));
                         init_fixture(&source.source.source, 3, pages[page]);
@@ -143,7 +145,8 @@ int main(void) {
                             seen |= 1u << ordinal;
                             double factor = ordinal ? 2 : 1;
                             double expected = function == 0 ? 14 * factor : function == 1 ? 4 : 3.5 * factor;
-                            if (average && function != 2) expected /= 2;
+                            if (average && function < 2) expected /= 2;
+                            if (function == 3) expected *= expected;
                             for (unsigned index = 0; index < points; index++) {
                                 netdata_promql_point_info_t point;
                                 assert(netdata_promql_result_point(result, row, index, &point) == NETDATA_PROMQL_OK);
@@ -169,7 +172,7 @@ int main(void) {
                     }
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
     }
-    assert(cases == 108);
+    assert(cases == 180);
     printf("{\"native_group_maps\":\"pass\",\"cases\":%u}\n", cases);
     return 0;
 }

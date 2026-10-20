@@ -4946,6 +4946,309 @@ mod filter_tests {
     use crate::accounting::EngineAccounting;
 
     #[test]
+    fn native_variance_keeps_bucket_errors_and_interruptions_after_group_done() {
+        use crate::{
+            evaluator_roster::HeadSummary,
+            execution::{Engine, EngineOptions, ExecutionError, QueryRequest},
+            frontend::{ast::ParserOptions, parser, regex::Selector},
+            histogram::{CUSTOM_BUCKETS_SCHEMA, FloatHistogram, Span},
+            storage::{LabelRef, Provider},
+            test_storage::{FixtureProvider, interrupt_after_work},
+            value::{Sample, SampleValue},
+        };
+        use std::sync::atomic::Ordering;
+
+        fn point<const BAD: bool>(index: usize) -> Sample {
+            Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: SampleValue::FloatHistogram(FloatHistogram {
+                    schema: CUSTOM_BUCKETS_SCHEMA,
+                    count: 1.0,
+                    sum: 1.0,
+                    positive_spans: Some(
+                        vec![Span {
+                            offset: if BAD { 2 } else { 0 },
+                            length: 1,
+                        }]
+                        .into(),
+                    ),
+                    positive_buckets: Some(vec![1.0].into()),
+                    custom_values: Some(vec![1.0].into()),
+                    ..FloatHistogram::default()
+                }),
+            }
+        }
+        fn bucket_error(error: &EvaluationError) {
+            assert!(matches!(error,
+                EvaluationError::Storage(StorageError::Runtime { wrapped: false, message })
+                if &**message == b"index 2 out of bounds for custom bounds of length 1"));
+        }
+        for function in ["histogram_stdvar", "histogram_stddev"] {
+            for page in [1, 17, 1024] {
+                for delayed in [false, true] {
+                    let source = format!("{function}(sum by(instance)(m))");
+                    let mut provider = FixtureProvider::new(2, page, 2);
+                    for (ordinal, series) in provider.series.iter_mut().enumerate() {
+                        series.labels = vec![
+                            (b"__name__".to_vec(), b"m".to_vec()),
+                            (b"instance".to_vec(), ordinal.to_string().into_bytes()),
+                        ];
+                        series.source.sample = if ordinal == 0 {
+                            point::<true>
+                        } else {
+                            point::<false>
+                        };
+                    }
+                    // Full Engine preparation evaluates the map and must retain the original failure.
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            source.as_bytes(),
+                            EngineOptions {
+                                delayed_name_removal: delayed,
+                                ..EngineOptions::default()
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 2000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    );
+                    let Err(ExecutionError::Evaluation(error)) = &report.result else {
+                        panic!("malformed native bucket must fail");
+                    };
+                    assert!(matches!(error, EvaluationError::Runtime(message)
+                        if &**message == b"index 2 out of bounds for custom bounds of length 1"));
+                    assert_eq!(report.observations.output_samples, 0);
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+
+                    for interrupt in [false, true] {
+                        let engine = EngineAccounting::default();
+                        {
+                            let account = engine.query();
+                            let control = Control::default();
+                            let parsed = parser::parse(
+                                source.as_bytes(),
+                                ParserOptions::default(),
+                                |pattern| Selector::compile_in(pattern, None),
+                            );
+                            assert!(parsed.errors.is_empty());
+                            let expression = ParsedExpression {
+                                source: source.as_bytes().to_vec().into(),
+                                arena: parsed.arena,
+                                root: parsed.root.unwrap(),
+                            };
+                            let Expr::Call { arguments, .. } =
+                                &expression.arena[expression.root].expression
+                            else {
+                                unreachable!()
+                            };
+                            let aggregate = arguments[0];
+                            let Expr::Aggregate {
+                                expression: Some(selector),
+                                grouping,
+                                without,
+                                ..
+                            } = &expression.arena[aggregate].expression
+                            else {
+                                unreachable!()
+                            };
+                            let selector = *selector;
+                            let preprocessing = crate::evaluator_order::preprocess(
+                                &expression,
+                                MemoryKind::Workspace,
+                                &control,
+                                &account,
+                            )
+                            .unwrap();
+                            let prepared = Prepared::new(
+                                &expression,
+                                &preprocessing,
+                                crate::result::OutputHeader {
+                                    value_type: ValueType::Matrix,
+                                    start_ms: 1000,
+                                    end_ms: 2000,
+                                    step_ms: 1000,
+                                },
+                                60_000,
+                                &control,
+                                &account,
+                            )
+                            .unwrap();
+                            prepared
+                                .activate(prepared.evaluator_header(), &control, &account)
+                                .unwrap();
+                            let options = EvaluationOptions {
+                                time_ms: 1000,
+                                start_ms: 1000,
+                                end_ms: 2000,
+                                step_ms: 1000,
+                                lookback_ms: 1000,
+                                start_timestamps: false,
+                                delayed_name_removal: delayed,
+                            };
+                            let bounds = TimeBounds {
+                                start_ms: 0,
+                                end_ms: 2000,
+                            };
+                            let scope = provider.open(bounds, &control).unwrap();
+                            let catalog = Catalog::new(
+                                &scope,
+                                &expression,
+                                &prepared,
+                                options,
+                                60_000,
+                                &control,
+                                &account,
+                            )
+                            .unwrap();
+                            drop(
+                                catalog
+                                    .expand(selector, &control, &account)
+                                    .map_err(|failure| failure.error)
+                                    .unwrap(),
+                            );
+                            // Construct only the membership owner: this does not qualify Engine admission.
+                            let mut rosters =
+                                Rosters::new(&account, expression.arena.nodes.len(), &control)
+                                    .unwrap();
+                            let mut rows = AccountedVec::new(&account, MemoryKind::Workspace);
+                            for (ordinal, series) in provider.series.iter().enumerate() {
+                                let labels: Vec<_> = series
+                                    .labels
+                                    .iter()
+                                    .map(|(name, value)| LabelRef { name, value })
+                                    .collect();
+                                let labels = OwnedLabels::copy_from_checked(
+                                    &labels,
+                                    &account,
+                                    MemoryKind::Workspace,
+                                    &control,
+                                )
+                                .unwrap();
+                                let hash = label_hash::full(&labels, &control, &account).unwrap();
+                                rows.push(Descriptor {
+                                    labels,
+                                    ordinal,
+                                    hash,
+                                    drop_name: false,
+                                    first_order: ordinal,
+                                    sources: ordinal..ordinal + 1,
+                                    kinds: 2,
+                                    heads: HeadSummary::default(),
+                                });
+                            }
+                            rosters.output(selector, rows, &control, &account).unwrap();
+                            rosters
+                                .prepare_groups(
+                                    aggregate,
+                                    selector,
+                                    grouping.as_deref(),
+                                    *without,
+                                    Some(selector),
+                                    &account,
+                                    &control,
+                                )
+                                .unwrap();
+                            let plan = rosters.group_replay(aggregate).unwrap();
+                            assert!(!plan.has_completion());
+                            let timestamps = vec![false; expression.arena.nodes.len()];
+                            let metadata = || EvaluationMetadata {
+                                prepared: &prepared,
+                                rosters: &rosters,
+                                timestamp_selectors: &timestamps,
+                                data_bounds: bounds,
+                                annotations: None,
+                                binary_preparation: None,
+                                histogram_preparation: None,
+                                info_preparation: None,
+                                count_preparation: None,
+                            };
+                            let acquisitions: Vec<_> = provider
+                                .series
+                                .iter()
+                                .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
+                                .collect();
+                            if interrupt {
+                                let mut child = Machine::new(
+                                    &catalog,
+                                    &expression,
+                                    aggregate,
+                                    options,
+                                    &control,
+                                    &account,
+                                    metadata(),
+                                );
+                                child.restrict_one(0);
+                                let sample = child.next().unwrap().unwrap();
+                                assert!(plan.has_completion());
+                                drop(child);
+                                let mut map = Machine::new(
+                                    &catalog,
+                                    &expression,
+                                    expression.root,
+                                    options,
+                                    &control,
+                                    &account,
+                                    metadata(),
+                                );
+                                map.restrict_one(0);
+                                assert!(map.enter(0).unwrap().is_none());
+                                let before = account.snapshot().work;
+                                // One propagation step, then the first bucket-iterator step.
+                                let error = interrupt_after_work(&account, &control, 2, || {
+                                    map.propagate(sample, 1)
+                                })
+                                .unwrap_err();
+                                assert_eq!(account.snapshot().work - before, 2);
+                                assert!(matches!(
+                                    error,
+                                    EvaluationError::Storage(StorageError::Interrupted(
+                                        Interrupted::Cancelled
+                                    ))
+                                ));
+                            } else {
+                                let mut machine = Machine::new(
+                                    &catalog,
+                                    &expression,
+                                    expression.root,
+                                    options,
+                                    &control,
+                                    &account,
+                                    metadata(),
+                                );
+                                machine.restrict_one(0);
+                                bucket_error(&machine.next().unwrap_err());
+                            }
+                            assert!(
+                                plan.has_completion(),
+                                "child Done precedes bucket evaluation"
+                            );
+                            for (series, before) in provider.series.iter().zip(acquisitions) {
+                                assert!(
+                                    series.source.counters.opened.load(Ordering::Relaxed) > before
+                                );
+                            }
+                        }
+                        provider.assert_closed();
+                        engine.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn mapped_identity_keeps_full_hash_kinds_and_lazy_ownership() {
         let engine = EngineAccounting::default();
         {

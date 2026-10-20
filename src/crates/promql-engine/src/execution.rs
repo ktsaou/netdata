@@ -2060,7 +2060,9 @@ impl CompiledQuery {
                                 if matches!(PointwiseFunction::parse(function.name),
                                     Some(PointwiseFunction::HistogramSum
                                         | PointwiseFunction::HistogramCount
-                                        | PointwiseFunction::HistogramAvg))
+                                        | PointwiseFunction::HistogramAvg
+                                        | PointwiseFunction::HistogramStdVar
+                                        | PointwiseFunction::HistogramStdDev))
                         )
                     {
                         crate::scheduled_expression::vector_child(
@@ -20573,17 +20575,41 @@ mod tests {
     }
 
     fn native_mapped_group_provider(page: usize, groups: usize) -> FixtureProvider {
-        fn point<const COUNT: u64, const SUM: u64>(index: usize) -> crate::value::Sample {
+        native_group_provider::<false>(page, groups)
+    }
+
+    fn native_variance_group_provider(page: usize, groups: usize) -> FixtureProvider {
+        native_group_provider::<true>(page, groups)
+    }
+
+    fn native_group_provider<const BUCKETS: bool>(page: usize, groups: usize) -> FixtureProvider {
+        fn point<const COUNT: u64, const SUM: u64, const BUCKETS: bool>(
+            index: usize,
+        ) -> crate::value::Sample {
             let time = (index + 1) as f64;
             crate::value::Sample {
                 time_ms: (index as i64 + 1) * 1000,
                 start_time_ms: 0,
                 value: crate::value::SampleValue::FloatHistogram(
                     crate::histogram::FloatHistogram {
-                        zero_threshold: 128.0,
-                        zero_count: COUNT as f64 * time,
+                        schema: if BUCKETS {
+                            crate::histogram::CUSTOM_BUCKETS_SCHEMA
+                        } else {
+                            0
+                        },
+                        zero_threshold: if BUCKETS { 0.0 } else { 128.0 },
+                        zero_count: if BUCKETS { 0.0 } else { COUNT as f64 * time },
                         count: COUNT as f64 * time,
                         sum: SUM as f64 * time * time,
+                        positive_spans: BUCKETS.then(|| {
+                            vec![crate::histogram::Span {
+                                offset: 1,
+                                length: 1,
+                            }]
+                            .into()
+                        }),
+                        positive_buckets: BUCKETS.then(|| vec![COUNT as f64 * time].into()),
+                        custom_values: BUCKETS.then(|| vec![1.0, 3.0].into()),
                         ..crate::histogram::FloatHistogram::default()
                     },
                 ),
@@ -20593,10 +20619,10 @@ mod tests {
         for (index, series) in provider.series.iter_mut().enumerate() {
             let group = groups - 1 - index / 2;
             series.source.sample = match (group.is_multiple_of(2), index % 2) {
-                (true, 0) => point::<1, 2>,
-                (true, _) => point::<3, 12>,
-                (false, 0) => point::<1, 4>,
-                (false, _) => point::<3, 24>,
+                (true, 0) => point::<1, 2, BUCKETS>,
+                (true, _) => point::<3, 12, BUCKETS>,
+                (false, 0) => point::<1, 4, BUCKETS>,
+                (false, _) => point::<3, 24, BUCKETS>,
             };
         }
         provider
@@ -20609,6 +20635,11 @@ mod tests {
             "histogram_sum" => factor * 14.0 * time * time / divisor,
             "histogram_count" => 4.0 * time / divisor,
             "histogram_avg" => factor * 3.5 * time,
+            "histogram_stdvar" => {
+                let distance = 2.0 - factor * 3.5 * time;
+                distance * distance
+            }
+            "histogram_stddev" => (2.0 - factor * 3.5 * time).abs(),
             _ => panic!("unknown native field map"),
         }
     }
@@ -20616,12 +20647,23 @@ mod tests {
     #[test]
     fn native_group_maps_check_complete_results_before_bounded_source_reads() {
         let mut growth = Vec::new();
-        for function in ["histogram_sum", "histogram_count", "histogram_avg"] {
+        for function in [
+            "histogram_sum",
+            "histogram_count",
+            "histogram_avg",
+            "histogram_stdvar",
+            "histogram_stddev",
+        ] {
             for operator in ["sum", "avg"] {
                 for delayed in [false, true] {
                     for page in [1, 17, 1024] {
                         for groups in [2_usize, 4, 8, 16] {
-                            let provider = native_mapped_group_provider(page, groups);
+                            let variance = function.starts_with("histogram_std");
+                            let provider = if variance {
+                                native_variance_group_provider(page, groups)
+                            } else {
+                                native_mapped_group_provider(page, groups)
+                            };
                             let engine = Engine::default();
                             let control = Control::default();
                             let expression =
@@ -20671,7 +20713,7 @@ mod tests {
                                     .statistics
                                     .samples
                                     .total_queryable_samples,
-                                (66 * groups) as u64
+                                (if variance { 78 } else { 66 } * groups) as u64
                             );
                             assert_eq!(
                                 report.observations.memory[MemoryKind::Workspace as usize].current,
@@ -21282,10 +21324,80 @@ mod tests {
             (
                 "histogram_stdvar(sum by(instance)(counter_total))",
                 range,
+                1,
+            ),
+            (
+                "histogram_stdvar(sum by(instance)(counter_total))",
+                instant,
+                0,
+            ),
+            (
+                "histogram_stdvar(sum by(instance)(counter_total))",
+                equal,
+                0,
+            ),
+            (
+                "histogram_stdvar((sum by(instance)(counter_total)))",
+                range,
+                1,
+            ),
+            (
+                "abs(histogram_stdvar(sum by(instance)(counter_total)))",
+                range,
+                1,
+            ),
+            (
+                "histogram_stdvar(sum by(instance)(counter_total offset 1s))",
+                range,
+                1,
+            ),
+            (
+                "histogram_stdvar(sum by(instance)(counter_total @ 3))",
+                range,
+                0,
+            ),
+            (
+                "histogram_stdvar(sum by(instance)(counter_total*scalar(counter_total)))",
+                range,
                 0,
             ),
             (
                 "histogram_stddev(sum by(instance)(counter_total))",
+                range,
+                1,
+            ),
+            (
+                "histogram_stddev(sum by(instance)(counter_total))",
+                instant,
+                0,
+            ),
+            (
+                "histogram_stddev(sum by(instance)(counter_total))",
+                equal,
+                0,
+            ),
+            (
+                "histogram_stddev((sum by(instance)(counter_total)))",
+                range,
+                1,
+            ),
+            (
+                "abs(histogram_stddev(sum by(instance)(counter_total)))",
+                range,
+                1,
+            ),
+            (
+                "histogram_stddev(sum by(instance)(counter_total offset 1s))",
+                range,
+                1,
+            ),
+            (
+                "histogram_stddev(sum by(instance)(counter_total @ 3))",
+                range,
+                0,
+            ),
+            (
+                "histogram_stddev(sum by(instance)(counter_total*scalar(counter_total)))",
                 range,
                 0,
             ),
@@ -21373,7 +21485,9 @@ mod tests {
                 0,
             ),
         ] {
-            let provider = if expression.contains("histogram_") {
+            let provider = if expression.contains("histogram_std") {
+                native_variance_group_provider(17, 4)
+            } else if expression.contains("histogram_") {
                 native_mapped_group_provider(17, 4)
             } else {
                 mapped_group_provider(17, 4)
@@ -21634,6 +21748,8 @@ mod tests {
                     "histogram_sum(sum by(instance)(counter_total))",
                     "histogram_count(sum by(instance)(counter_total))",
                     "histogram_avg(sum by(instance)(counter_total))",
+                    "histogram_stdvar(sum by(instance)(counter_total))",
+                    "histogram_stddev(sum by(instance)(counter_total))",
                     "sum by(instance)(counter_total) > 0",
                     "label_join(sum by(instance)(counter_total),\"row\",\"/\",\"instance\")",
                     "label_replace(sum by(instance)(counter_total),\"row\",\"$1\",\"instance\",\"(.*)\")",
@@ -21643,7 +21759,9 @@ mod tests {
                         .compile(expression.as_bytes(), options(delayed), &Control::default())
                         .unwrap();
                     let provider = || {
-                        if expression.starts_with("histogram_") {
+                        if expression.starts_with("histogram_std") {
+                            native_variance_group_provider(page, 4)
+                        } else if expression.starts_with("histogram_") {
                             native_mapped_group_provider(page, 4)
                         } else {
                             mapped_group_provider(page, 4)

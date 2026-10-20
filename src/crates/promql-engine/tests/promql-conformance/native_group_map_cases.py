@@ -7,7 +7,7 @@ from info_cases import bits
 from plural_histogram_cases import cases as plural_cases
 
 
-def cases():
+def cases(functions=("histogram_sum", "histogram_count", "histogram_avg")):
     custom = next(
         point["float_histogram"]
         for row in plural_cases()[0]["series"]
@@ -50,7 +50,7 @@ def cases():
                     "lookback_ms": 300000, "subquery_step_ms": 60000,
                 })
 
-        for function in ("histogram_sum", "histogram_count", "histogram_avg"):
+        for function in functions:
             for operator in OPERATORS:
                 add(f"{function}({operator} by(zone)(m_total))", f"{function}-{operator}")
             body = f"{function}(sum by(zone)(m_total))"

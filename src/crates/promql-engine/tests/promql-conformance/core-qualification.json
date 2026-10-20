@@ -73825,5 +73825,11 @@
     "report_sha256": "52952699372eec1554ffcbedee175374b06308d2696e14ae96d4cc29489e0db6",
     "status": "finite_qualification_pass",
     "scope": "Native histogram field maps reuse complete contributor membership;2808measured pairs,5376current exact original comparisons and432actual C pairs."
+  },
+  "variance_group_map_contributors": {
+    "report": "variance-group-map-contributors-qualification.json",
+    "report_sha256": "ef4866516856e4b4a21f6571bf30038a473c80c406994ebe6a31b669a70c3369",
+    "status": "finite_qualification_pass",
+    "scope": "Native variance maps reuse completed contributor membership;2184measured pairs,3584current exact original comparisons and720actual C pairs."
   }
 }

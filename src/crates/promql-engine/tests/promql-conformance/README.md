@@ -9576,3 +9576,34 @@ labels, timestamps, values, logical sample totals and cleanup checks: 144 produc
 and 288 instant/equal-range controls preserve all exported nonelapsed counters. This caller does not replace the
 Rust driver's precisely calibrated failure-phase tests. Raw histories remain paged across both axes; the change
 adds no persistent metadata owner, raw-value cache, ABI or resource limit.
+
+## Native histogram variance-map contributors
+
+The follow-up to field-map contributors also admits `histogram_stdvar` and `histogram_stddev` to local grouped
+membership reuse. Bucket arithmetic, schedule purity, statistics-only decode exclusions and fresh value reads stay
+with their existing owners. The first selected group still completes the full child; later selections can skip
+already-validated nonmembers at the same clock. No language feature, ABI, storage format or implicit limit changes.
+
+The [qualification](variance-group-map-contributors-qualification.json) records 2,184 complete measured pairs.
+Larger targeted medians improve 90.3%/89.8% in release/release-min. All frozen control, memory and compiled-cost gates
+pass; slower individual timings remain reported. The 128-group page17 variance example fetches
+26,576 entries instead of 800,768; Workspace peak changes from
+251,684 to 256,060 bytes for the retained contributor metadata.
+Default C executable changes are 0/0/0/0 bytes for release/release-min/ARM32/ARM64. These are synthetic serial
+engine and tracked-allocation results; they do not establish live dbengine, concurrent, process-RSS or physical ARM performance.
+
+The existing native-group regression now checks 240 complete outcomes, including 96 new nonempty-custom-bucket
+variance cases, before its read-growth guard. The unchanged predecessor fails only that guard. Actual range
+admission, cold nonmember, selected-member, next-clock, output and cancellation owners cover the extended maps.
+`native_variance_keeps_bucket_errors_and_interruptions_after_group_done` distinguishes the real Engine preparation
+error from a constructed membership owner's full-call Machine error after child Done. Its separate actual-map
+propagation case cancels at bucket-iterator entry; the existing direct variance unit covers a productive second
+bucket. The constructed owner does not claim full Engine final-phase admission.
+
+Both native profiles pass 876 tests with two existing ignored timing probes; each emulated ARM target passes the
+24 focused owner checks. Strict default/fixture Clippy, formatting and Rust1.91 compilation pass.
+`native_group_map_cases.cases(("histogram_stdvar", "histogram_stddev"))` generates 448 fresh pinned-original requests;
+the default three-function generator remains unchanged. All 3,584 current and 3,584 predecessor executions match
+exactly across the declared page/target panels. The 790-slot SRE inventory has no affected expressions, so no fresh
+SRE replay is claimed. The expanded `native_group_maps.c` checks five functions: 720 before/current pairs pass,
+including 96 improved variance-range pairs and 624 controls with exact exported nonelapsed counters.

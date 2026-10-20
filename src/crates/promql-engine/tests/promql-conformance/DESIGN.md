@@ -2328,10 +2328,23 @@ separately rejected under their original criteria.
 ## Native histogram field-map contributor demand
 
 - **Choice:** request existing contributor metadata for HistogramSum/Count/Avg at ordinary unequal range clocks.
-  Keep binary replay certification and schedule admission unchanged; bucket-dependent StdVar/StdDev remain excluded.
+  Keep binary replay certification and schedule admission unchanged. This initial checkpoint excluded StdVar/StdDev;
+  the subsequent variance-map stage below extends only local demand.
 - **Ownership:** reuse only completed same-key membership. Cold validation, preparation clearing, fresh selected
   values, next-clock checks and diagnostics stay with the existing owners. Raw histories remain paged.
 - **Trade-off:** contributor membership adds accounted per-member/group metadata while removing repeated unrelated
   reads. The finite 128-group example adds 4,376 B to tracked Workspace peak and cuts allocation traffic by about 95%.
 - **Evidence:** [qualification](native-group-map-contributors-qualification.json) retains full outputs, original
   diagnostics, actual C/ARM callers, all compiled costs and slower timings. No API, limits or language change.
+
+## Native histogram variance-map contributor demand
+
+- **Choice:** extend local demand to StdVar/StdDev using the same completed group-membership owner. Keep their
+  bucket-dependent kernels, schedule exclusions and statistics-only decode exclusions unchanged.
+- **Error phases:** child Done proves membership, not kernel success. Full Engine preparation can itself report a
+  malformed bucket. Separate actual Engine tests and constructed post-Done Machine/propagation owners qualify
+  those phases without pretending that constructed metadata proves Engine admission.
+- **Cost:** contributor metadata increases the measured peak within its frozen allowance while removing unrelated
+  raw reads and allocation traffic. All timing, control, memory and independent default-C size gates pass.
+- **Evidence:** [qualification](variance-group-map-contributors-qualification.json) preserves exact original outcomes,
+  cold/selected/next-clock errors, caller cleanup, slower individual timings and finite measurement limits.
