@@ -9689,3 +9689,14 @@ The trial was rejected before query, unit, timing or memory execution. All 404 a
 the [negative record](scalar-inline-rejected-qualification.json) preserves actual code/size evidence and source
 identities. The earlier arithmetic speed measurements do not qualify this variant. Further arbitrary layout
 variants are not selected; the accepted runtime retains scalar-only aggregate reuse.
+
+## Rejected C output label capacity hint
+
+A trial reused the existing capacity hint for metadata and query-output label descriptors. The actual ARM64 C
+consumer grew by 24,636 bytes, exceeding the frozen 8,192-byte ceiling. Six extra linker gaps account for
+24,480 bytes; the two changed functions grew by 12 bytes each. Compiler options and CPU workarounds were unchanged.
+
+The [negative record](output-label-capacity-rejected-qualification.json) retains both native baseline C pilots,
+source/binary identities, exact linked-size attribution and restoration of all 405 accepted inputs. No candidate
+queries or memory/timing comparisons ran after rejection. The accepted provider-input hint remains unchanged;
+this output-side experiment establishes no runtime benefit.

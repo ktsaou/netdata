@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "status": "rejected_candidate_accepted_runtime_restored",
+  "comparison_base": "61e7481605ead6d14a90e14e904eed55194987dc",
+  "candidate": "Existing lazy capacity hint at both known-length C metadata and query-output label descriptor loops.",
+  "failed_gate": {
+    "target": "aarch64-unknown-linux-gnu",
+    "consumer": "Actual optimized default-library C executable",
+    "limit_bytes": 8192,
+    "growth_bytes": 24636,
+    "excess_bytes": 16444,
+    "sizes": {
+      "before": [
+        6374470,
+        497032,
+        384
+      ],
+      "current": [
+        6399106,
+        497032,
+        384
+      ]
+    },
+    "fixture_growth_bytes": 0
+  },
+  "observed_code": {
+    "text_growth": 24636,
+    "unique_sized_code_growth": 84,
+    "zero_padding_growth": 24480,
+    "other_unsized_growth": 72,
+    "A53_erratum_stubs_before": 3,
+    "A53_erratum_stubs_candidate": 9,
+    "metadata_row_growth": 12,
+    "chunk_checked_growth": 12,
+    "scope": "Six additional eight-byte workaround stubs account for48of84sized bytes. The actual linked increase remains real. No compiler,CPU fix or gate adjustment."
+  },
+  "qualification": {
+    "baseline_native_profiles": [
+      "release",
+      "release-min"
+    ],
+    "baseline_pilot_cases_per_profile": 6,
+    "calls_per_case": 4,
+    "baseline_cases": [
+      [
+        "metadata",
+        0,
+        1
+      ],
+      [
+        "query",
+        0,
+        1
+      ],
+      [
+        "metadata",
+        9,
+        512
+      ],
+      [
+        "query",
+        9,
+        512
+      ],
+      [
+        "metadata",
+        17,
+        2048
+      ],
+      [
+        "query",
+        17,
+        2048
+      ]
+    ],
+    "candidate_queries_executed": 0,
+    "candidate_tests_executed": 0,
+    "candidate_timing_measurements": 0,
+    "candidate_memory_measurements": 0,
+    "baseline_scope": "Complete label names/values/order including binary bytes, row IDs, sample time/bits, successful callback sequence and terminal memory/handle balances. Baseline pilot excludes failure/END/cancellation cases. Latency covers execute/discover through callback completion; compilation, fixture allocation, report inspection/release are outside measurement. Header step and sample start-time are not asserted; metadata logical counters are serialized but not explicitly zero-asserted."
+  },
+  "decision": "Reject at frozen early size gate and restore exact owned diff. Retain padding attribution separately from runtime allocation predictions. No measured memory or throughput benefit claimed.",
+  "restoration": {
+    "accepted_source_inputs_exactly_restored": 405,
+    "trial_source_retention": {
+      "src/crates/promql-engine/src/c_abi/output.rs": {
+        "path": ".tmp/output-label-capacity-x48eulcd/rejected-output.rs",
+        "sha256": "8852b77f9f3ba87b29c14aca6797bedd0a66b2d0a0ec396ad3b66498610b2e29"
+      }
+    },
+    "files_deleted": 0,
+    "processes_signalled": 0
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/output-label-capacity-x48eulcd/measurement-plan.json",
+      "sha256": "d93de8101d17b20b3cb0dd4f78014ee946e9e3a28a10dd46228aea7c1d6ab02a"
+    },
+    "baseline-panel-release.json": {
+      "path": ".tmp/output-label-capacity-x48eulcd/baseline-panel-release.json",
+      "sha256": "bdbc01a5aaf37eb5b66b52f284183b1ca61685356ee90cc5a8f917d4244544cd"
+    },
+    "baseline-panel-release-min.json": {
+      "path": ".tmp/output-label-capacity-x48eulcd/baseline-panel-release-min.json",
+      "sha256": "5b3dfbaf157f5520d947f11f2c6637e082e5b477b61a2e437791c417eb638e2e"
+    },
+    "arm64-footprint-rejected.json": {
+      "path": ".tmp/output-label-capacity-x48eulcd/arm64-footprint-rejected.json",
+      "sha256": "7216638387d04f7e65e8beb9af95fb86fcd53d7064b2eecd99332017ab45730c"
+    },
+    "arm64-linker-padding.json": {
+      "path": ".tmp/output-label-capacity-x48eulcd/arm64-linker-padding.json",
+      "sha256": "dc06f1f7294c6c382be487b13258b9fe5a490ac3e28a03385f0095d6bc605c4b"
+    },
+    "restoration.json": {
+      "path": ".tmp/output-label-capacity-x48eulcd/restoration.json",
+      "sha256": "52eda1c6ce523556d648fb4e5ca107f8cc06854c403141cb2e6000bb1dc3d87c"
+    }
+  },
+  "not_run_after_rejection": [
+    "Candidate native runtime/timing/memory panel",
+    "ARM runtime panel",
+    "Focused unit/lint/MSRV checks"
+  ],
+  "scope": "No runtime change accepted. Continuous improvement remains unfinished. The test consumer linker padding must not be presented as query allocation growth."
+}

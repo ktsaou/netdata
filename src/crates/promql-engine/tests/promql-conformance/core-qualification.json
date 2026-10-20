@@ -73855,5 +73855,11 @@
     "report_sha256": "733cc71795f70bb8f07cd62e5f34ce57b7e5ccf3653e479b3b3290bc6f9272d3",
     "status": "rejected_candidate_accepted_runtime_restored",
     "scope": "Ordinary inline hint leaves ARM64 .text unchanged;17376BdefaultC growth fails8192Bgate.404accepted inputs restored; no candidate query execution."
+  },
+  "rejected_output_label_capacity": {
+    "report": "output-label-capacity-rejected-qualification.json",
+    "report_sha256": "1466a8006e9e309344eee5a99054ca89feb6605b6cefdfbe152d160c8ccebf21",
+    "status": "rejected_candidate_accepted_runtime_restored",
+    "scope": "Two existing label capacity hints fail early ARM64 default C size gate:24636B growth,24480B extra zero padding.405accepted inputs restored; no candidate query execution."
   }
 }

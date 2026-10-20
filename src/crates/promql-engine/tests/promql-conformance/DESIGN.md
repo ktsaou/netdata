@@ -2392,3 +2392,11 @@ separately rejected under their original criteria.
 - The early size gate rejected this variant before runtime qualification. Exact restoration leaves the accepted
   engine unchanged; [retained evidence](scalar-inline-rejected-qualification.json) reports no new performance gain.
 - This closes the tested helper representations without selecting further arbitrary layout changes.
+
+## Rejected C output label capacity hint
+
+- Known-length output descriptor hints preserved lazy check/work/allocation order in the source trial, but failed
+  the early ARM64 linked-size gate. [Evidence](output-label-capacity-rejected-qualification.json) separates
+  24,480 bytes of additional linker padding from the two 12-byte function increases.
+- Runtime allocation savings remain a prediction. The exact owned diff was reversed; no compiler workaround,
+  acceptance threshold, public interface or accepted runtime behavior changed.
