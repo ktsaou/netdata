@@ -2312,3 +2312,15 @@ separately rejected under their original criteria.
 - **Contract:** callback type identity changes; phases, controls, progress, credits, arithmetic and ownership do not.
 - **Evidence:** [qualification](shared-fold-visitor-qualification.json) retains actual section savings, complete
   outcomes, exact observations, timing controls and finite native/ARM/C/original checks. No throughput claim.
+
+## Count from completed acquisition units
+
+- **Choice:** reuse completed sample units only for proven Float-only, unanchored Count windows. Strict emitted
+  timestamp progression makes the existing count exact even when physical Seek revisits a sample.
+- **Ownership:** complete validation and terminal checks precede useful-read credit. Allocated histogram history
+  retains the existing consuming visitor and its actual count, progress, failures and reached credits. Output
+  finalization retains its sample lease; no new fields, allocation, interface or limits are introduced.
+- **Fallbacks:** preserve statistics, buffered, non-reduced, wider, direct and anchored paths; the Sum/Avg
+  arithmetic probe remains unchanged. Native histogram weights are never interpreted as counts.
+- **Evidence:** [qualification](count-acquisition-units-qualification.json) records exact outcomes, bounded
+  histories, actual failure phases, lower measured reads/time, all compiled sizes and slower individual controls.

@@ -1,0 +1,384 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "dd21a8ebffe2b2775cabafdaa014396ffb67ae05",
+  "change": "Eligible unanchored count_over_time Float windows reuse completed acquisition sample_units. One ordinary visitor serves histogram consuming replay and unchanged fallbacks; the Sum/Avg numerical probe remains unchanged.",
+  "source_phases": {
+    "before-source.json": {
+      "path": ".tmp/count-units-ow6yl3j3/before-source.json",
+      "sha256": "74bc9d22fa62ee7d453a39e2ca5c7e31f4abefd2670adb741f5d319a8f756349"
+    },
+    "formatted-tests-source.json": {
+      "path": ".tmp/count-units-ow6yl3j3/formatted-tests-source.json",
+      "sha256": "6c67e18fc4a3356491584c7d709377216f33c4519555ced8bdefefc2673f4d62"
+    },
+    "final-source.json": {
+      "path": ".tmp/count-units-ow6yl3j3/final-source.json",
+      "sha256": "aafa59edab86cb35b3d16c520868afcbf697c96e07c9d151cd53c99b0e795f34"
+    },
+    "qualification-source.json": {
+      "path": ".tmp/count-units-ow6yl3j3/qualification-source.json",
+      "sha256": "66fa9e4ac062b14ccdbf8709e890e43e06707ae14e605fcac210244d70a15b84"
+    },
+    "qualified-source.json": {
+      "path": ".tmp/count-units-ow6yl3j3/qualified-source.json",
+      "sha256": "749bb8e6ca4ad40e7abb0a545b8b6836718b29ad6886c71647042c0a04a87d95"
+    }
+  },
+  "qualified_inputs": 393,
+  "runtime": {
+    "range_reduce.rs": "1f3c36157ad2edd6018baf9edc8f55e008cecefe4c0b4d7c26812cad5ae3caa0"
+  },
+  "baseline_attribution": "Accepted Stage136 binaries retain their actual392-input build identity. All148Rust/Cargo/header inputs match the393-input baseline. Early release candidate was built before two test-only additions; its production prefix is byte-identical to final qualification.",
+  "compiled_cost": {
+    "sections": [
+      "text",
+      "data",
+      "bss"
+    ],
+    "criteria": "Each actual default C executable total growth <=8192bytes against136, without offsets or exceptions. Fixture changes diagnostic.",
+    "all_frozen_criteria_passed": true,
+    "observed": {
+      "release": [
+        {
+          "kind": "fixture",
+          "before": [
+            4370910,
+            259680,
+            4092
+          ],
+          "current": [
+            4371902,
+            259712,
+            3100
+          ],
+          "growth": 32
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            7367678,
+            506576,
+            400
+          ],
+          "current": [
+            7368986,
+            506576,
+            400
+          ],
+          "growth": 1308
+        }
+      ],
+      "release-min": [
+        {
+          "kind": "fixture",
+          "before": [
+            2724625,
+            246048,
+            956
+          ],
+          "current": [
+            2724829,
+            246048,
+            748
+          ],
+          "growth": -4
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            5101087,
+            461864,
+            400
+          ],
+          "current": [
+            5102063,
+            461864,
+            400
+          ],
+          "growth": 976
+        }
+      ],
+      "arm32": [
+        {
+          "kind": "fixture",
+          "before": [
+            3689654,
+            164552,
+            212
+          ],
+          "current": [
+            3691626,
+            164560,
+            212
+          ],
+          "growth": 1980
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6374369,
+            292476,
+            244
+          ],
+          "current": [
+            6380605,
+            292484,
+            244
+          ],
+          "growth": 6244
+        }
+      ],
+      "arm64": [
+        {
+          "kind": "fixture",
+          "before": [
+            3638279,
+            253208,
+            328
+          ],
+          "current": [
+            3643071,
+            253208,
+            328
+          ],
+          "growth": 4792
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6390590,
+            496888,
+            384
+          ],
+          "current": [
+            6383058,
+            496888,
+            384
+          ],
+          "growth": -7532
+        }
+      ]
+    },
+    "scope": "Actual linked C consumers, not whole-Agent size or RSS."
+  },
+  "measurement": {
+    "complete_pairs": 1248,
+    "cases_per_profile": 48,
+    "composition": "1/32series by2/128points by pages1/17/1024; bare/grouped Count and independent Sum/Avg controls, three ticks.",
+    "method": "Three alternating blocks; one warmup and three measured samples per side/block; nine timings per case/side.",
+    "results": "Complete outcomes exact;624Count pairs halve fetched entries and reduce work, with no tracked memory/traffic increase;624Sum/Avg controls preserve every nonelapsed observation. Every capture has independently verified unique ordered query IDs and exact row counts.",
+    "criteria": "Larger Count median<=0.97,each Count target shape<=1.0,panel<=1.05,each Sum/Avg control median<=1.05. Individual regressions retained.",
+    "profiles": {
+      "release": {
+        "target_median": 0.47809577397518954,
+        "target_shapes": {
+          "bare": 0.4774502960956733,
+          "grouped": 0.4787412518547058
+        },
+        "panel_median": 0.865415677033136,
+        "control_median": {
+          "sum-control": 0.9754872076303744,
+          "average-control": 0.9791225662626608
+        },
+        "passed": true,
+        "cases_at_least_5_percent_slower": []
+      },
+      "release-min": {
+        "target_median": 0.5085675156500498,
+        "target_shapes": {
+          "bare": 0.5109205908483156,
+          "grouped": 0.5072315409918162
+        },
+        "panel_median": 0.8629121933750152,
+        "control_median": {
+          "sum-control": 0.9706742034534477,
+          "average-control": 0.9707231775416312
+        },
+        "passed": true,
+        "cases_at_least_5_percent_slower": []
+      }
+    },
+    "scope": "Shared-host synthetic engine time, excluding parsing/serialization; not device-wide throughput."
+  },
+  "qualification": {
+    "native_optimized_tests_per_profile": 874,
+    "preexisting_ignored_per_profile": 2,
+    "emulated_ARM_tests_per_target": {
+      "matrix_reader": 11,
+      "range_reduce": 40,
+      "absence": 3
+    },
+    "old_causal_cases": 30,
+    "old_expected_exit": 101,
+    "candidate_Count_actual_operation_failures": 70,
+    "C_cases_per_cohort": 816,
+    "C_records_per_cohort": 885,
+    "C_changes": {
+      "release": 48,
+      "release-min": 48,
+      "arm32": 48,
+      "arm64": 48
+    },
+    "originals": 38912,
+    "original_cases_per_page": 4864,
+    "expected_errors_per_page": 1020,
+    "native_pages": [
+      1,
+      17,
+      1024
+    ],
+    "foreign_pages": [
+      17
+    ],
+    "policy": "Exact numerical bits and retained original ordering policies; expected errors retained.",
+    "SRE": {
+      "comparisons": 13680,
+      "affected_count_comparisons": 6840,
+      "own_ancestor_comparisons": 6840,
+      "affected_slots": 38,
+      "ancestor_slots": 38,
+      "scenes": 10,
+      "pages": [
+        1,
+        17,
+        1024
+      ],
+      "scope": "Affected expressions and candidate-produced recording parents only; no full SRE graph or scheduler claim."
+    },
+    "strict_Clippy_variants": 2,
+    "format": "pass",
+    "MSRV_compile_only": "1.91.0"
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/count-units-ow6yl3j3/measurement-plan.json",
+      "sha256": "359dde641c0d2f217dfc9083532e53dcb4bf1aef97901a3be1ebec33a1727ac2"
+    },
+    "ready.json": {
+      "path": ".tmp/count-units-ow6yl3j3/ready.json",
+      "sha256": "e18315974fc13e425e655c5a39bf32b260bd35b6ae98bc94679e83933d73e3ea"
+    },
+    "baseline.json": {
+      "path": ".tmp/count-units-ow6yl3j3/baseline.json",
+      "sha256": "a5aa04c86ba301ec3c8ea51ad6ae5c0d03b26cc955cb192652e3923d36dc4bcc"
+    },
+    "old-units.json": {
+      "path": ".tmp/count-units-ow6yl3j3/old-units.json",
+      "sha256": "ec52275c85c71a316d875cbb213791c52a13a2ac214884c798c9d53734baf9be"
+    },
+    "current-units.json": {
+      "path": ".tmp/count-units-ow6yl3j3/current-units.json",
+      "sha256": "9b87511b0e34f86d4d31cf30095dedd53eb405b008d50e2dee5bff676dd59b3b"
+    },
+    "qualified-units.json": {
+      "path": ".tmp/count-units-ow6yl3j3/qualified-units.json",
+      "sha256": "59b5cdecaf6eb6e902ef75102a6a16a1480891b689db8419d24fca3af27fd7a4"
+    },
+    "measurement-identity-check.json": {
+      "path": ".tmp/count-units-ow6yl3j3/measurement-identity-check.json",
+      "sha256": "48aa14c48159ab13810918925ba2e8cce9766818fa2e12a8093bf90acf4cb624"
+    },
+    "native-sequence.json": {
+      "path": ".tmp/count-units-ow6yl3j3/native-sequence.json",
+      "sha256": "add9c81d35edcc2c76366c8139ba24fab5d9d55a3a8b16f85d011a7ff2a92db5"
+    },
+    "cross-sequence.json": {
+      "path": ".tmp/count-units-ow6yl3j3/cross-sequence.json",
+      "sha256": "ac5176bb985b33340cfcd61da3a053351b0f397fc78ee3bd58cace3ccfa4f7b2"
+    },
+    "current-static.json": {
+      "path": ".tmp/count-units-ow6yl3j3/current-static.json",
+      "sha256": "9abf8272e204e75d4cf2637818e399aea20590036e6a1ec55b811550007743a5"
+    },
+    "original-import.json": {
+      "path": ".tmp/count-units-ow6yl3j3/original-import.json",
+      "sha256": "fb47b5b4676ed16d21a3ef12894def8b7107f2b7def430a694027059a9423cea"
+    },
+    "build-helper-phases.json": {
+      "path": ".tmp/count-units-ow6yl3j3/build-helper-phases.json",
+      "sha256": "582eb2866923f5ee2ba8bdd0390b96bdfda3ca7fde96ca01ee32519aba967282"
+    },
+    "build-release.json": {
+      "path": ".tmp/count-units-ow6yl3j3/build-release.json",
+      "sha256": "0d1df87da9e106e4ae5aaeb6973366f1fdd76160dcf655df4de04a441b040237"
+    },
+    "qualification-release.json": {
+      "path": ".tmp/count-units-ow6yl3j3/qualification-release.json",
+      "sha256": "79a1b9ff11153b21cc53e2b60a4e5170ad4336a8c87bd1f87cbd1a6f7c18f00e"
+    },
+    "C-comparison-release.json": {
+      "path": ".tmp/count-units-ow6yl3j3/C-comparison-release.json",
+      "sha256": "29971cc0007cb284d9e17844b15554d39951dcba46b260cc6bd4c302ec360424"
+    },
+    "originals-release.json": {
+      "path": ".tmp/count-units-ow6yl3j3/originals-release.json",
+      "sha256": "45bac0f04b66285a54902262cb80e085d09c7f95255c87cc0b931c3081b230fa"
+    },
+    "build-release-min.json": {
+      "path": ".tmp/count-units-ow6yl3j3/build-release-min.json",
+      "sha256": "2ca99638bf2b78b4b695dbfee5315503b9a8571297804b23470a1719101baabc"
+    },
+    "qualification-release-min.json": {
+      "path": ".tmp/count-units-ow6yl3j3/qualification-release-min.json",
+      "sha256": "4012270729efd3aba970e4ed835a3ba9e48c26c744c12297be5ea362b478a9ba"
+    },
+    "C-comparison-release-min.json": {
+      "path": ".tmp/count-units-ow6yl3j3/C-comparison-release-min.json",
+      "sha256": "bddfbacd955f020b3c162d95d6ce7b41e5e494f7c18b46669f5f43106d7ed7c4"
+    },
+    "originals-release-min.json": {
+      "path": ".tmp/count-units-ow6yl3j3/originals-release-min.json",
+      "sha256": "d68c92ed3197c350998d73fbd86e4f91e79a84c4700a56a20825af6a435b8d1a"
+    },
+    "build-arm32.json": {
+      "path": ".tmp/count-units-ow6yl3j3/build-arm32.json",
+      "sha256": "05824388db9071599896a8a79e9332092de86300e7a8703d1c26558720d25047"
+    },
+    "qualification-arm32.json": {
+      "path": ".tmp/count-units-ow6yl3j3/qualification-arm32.json",
+      "sha256": "b29de57811ed9e5f6a5c3763b099b93a2365f8a3bed10bb9c58252f12a57ce07"
+    },
+    "C-comparison-arm32.json": {
+      "path": ".tmp/count-units-ow6yl3j3/C-comparison-arm32.json",
+      "sha256": "f6007f65078b1978020fa8d3cfc440ee8ddfafa1ae038502ee784c3636ddfe6f"
+    },
+    "originals-arm32.json": {
+      "path": ".tmp/count-units-ow6yl3j3/originals-arm32.json",
+      "sha256": "cc97c6fb5712bb976c3b0a4c7400dff63199d1a1a3dc1e0488020dfda3bffd97"
+    },
+    "build-arm64.json": {
+      "path": ".tmp/count-units-ow6yl3j3/build-arm64.json",
+      "sha256": "76e380fdfa18646aaac33b1f3bccf7ec93434f745d70bca956c42e71a37881b5"
+    },
+    "qualification-arm64.json": {
+      "path": ".tmp/count-units-ow6yl3j3/qualification-arm64.json",
+      "sha256": "8f1aec4cd972fe47d1da91b94d34b6a48069e744a818bdd5636591be8b7a2304"
+    },
+    "C-comparison-arm64.json": {
+      "path": ".tmp/count-units-ow6yl3j3/C-comparison-arm64.json",
+      "sha256": "9b0d207f57a3f1fa3a6fefd6cc9fb5e86e531d37aff0580d73f6229359edc78d"
+    },
+    "originals-arm64.json": {
+      "path": ".tmp/count-units-ow6yl3j3/originals-arm64.json",
+      "sha256": "353f0283ece00c8931e338a092aaa6609267cfb09d51ee402b04ad54aa3de84c"
+    },
+    "measurement-release.json": {
+      "path": ".tmp/count-units-ow6yl3j3/measurement-release.json",
+      "sha256": "dac879f5c6def88382e80d305eb518eb2916bb5471b371cafa6265795793af96"
+    },
+    "sre-release.json": {
+      "path": ".tmp/count-units-ow6yl3j3/sre-release.json",
+      "sha256": "54e2b1582bd6847c07dd97fda2f99c792c254f3795fad6ea437c0d631520997d"
+    },
+    "measurement-release-min.json": {
+      "path": ".tmp/count-units-ow6yl3j3/measurement-release-min.json",
+      "sha256": "ce5b2f7ad4a8191b901d476c43110f0bc7880096aee9633146dbabcd8ebd07d9"
+    },
+    "sre-release-min.json": {
+      "path": ".tmp/count-units-ow6yl3j3/sre-release-min.json",
+      "sha256": "46bd9d616adea3d23951f13a3f626bc64860b7299dbcacc0c92721a26b6f39fb"
+    }
+  },
+  "scope": "Private physical read reuse. No new language feature, history array, fields, allocations, ABI, limits, live-storage, physical ARM or scheduling claim. Historical rejected Count mechanisms remain unchanged; continuous objective unfinished."
+}

@@ -9489,3 +9489,33 @@ passes 11 matrix, 29 fold and three absence tests. Four actual C consumers prese
 816 window-fold cases. The selected original panels pass 38,912 comparisons, preserving 1,020 expected errors
 per page and original ordering policies. Strict Clippy, formatting and Rust 1.91 compilation pass. The change
 adds no language feature and makes no live-storage, physical-device, fresh-SRE or scheduling claim.
+
+## Count from completed acquisition units
+
+Eligible unanchored `count_over_time` Float windows reuse the count already recorded during acquisition.
+The existing admission proof excludes statistics, buffering and wider bounds. Each emitted Float contributes
+one unit; ordinary NaNs count and stale values do not. Histogram allocation keeps the consuming pass and its
+actual membership, weighted credits and failure phases. Direct and anchored paths retain their ordinary behavior.
+
+The [qualification](count-acquisition-units-qualification.json) compares against the accepted shared-fold-visitor build:
+
+| Build | C-consumer section growth | Fixture section growth |
+| --- | ---: | ---: |
+| release | 1308 bytes | 32 bytes |
+| release-min | 976 bytes | -4 bytes |
+| arm32 | 6244 bytes | 1980 bytes |
+| arm64 | -7532 bytes | 4792 bytes |
+
+All four frozen 8,192-byte C footprint gates pass without exceptions. Larger Count-query engine-time medians
+are about 52% lower in release and 49% lower in release-min. Across 1,248 complete paired queries, Count fetches
+half as many entries with no measured memory increase, while Sum/Avg controls preserve all nonelapsed observations.
+Both timing panels and each control median pass; slower individual cases remain in the report. These are finite
+shared-host measurements, not whole-Agent throughput, process RSS or physical-device measurements.
+
+Both optimized native suites pass 874 tests with two existing timing probes ignored. Each emulated ARM target
+passes 11 matrix, 40 fold and three absence tests. Four actual C callers pass 816 window-fold cases each.
+Selected original expressions pass 38,912 comparisons with exact numbers and retained ordering policies,
+including 1,020 expected errors per page. The affected SRE subset passes 13,680 comparisons across both native
+profiles, including candidate-produced recording parents. Strict Clippy, formatting and Rust 1.91 compilation pass.
+This adds no language feature or scheduling capability. Earlier rejected Count experiments retain their original
+results.

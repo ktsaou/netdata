@@ -73807,5 +73807,11 @@
     "report_sha256": "95033cca0eb7f77651a0fd4633a05e9634a5375dd202f30d85bb71799efdb684",
     "status": "finite_qualification_pass",
     "scope": "One remaining no-op fold visitor shared; measured C sections decrease or remain unchanged;3744exact query pairs and38912selected original comparisons."
+  },
+  "count_acquisition_units": {
+    "report": "count-acquisition-units-qualification.json",
+    "report_sha256": "3da51f75cfcba429eebfe86c978e3267b2ba75a4b072d803000377d20ae6cd5d",
+    "status": "finite_qualification_pass",
+    "scope": "Float Count acquisition units avoid repeated reads;1248paired queries,38912selected originals and13680affected SRE/ancestor comparisons."
   }
 }
