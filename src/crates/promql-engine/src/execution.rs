@@ -2052,6 +2052,24 @@ impl CompiledQuery {
                             control,
                             account,
                         )?)
+                    } else if contributor_clock
+                        && header.start_ms != header.end_ms
+                        && matches!(
+                            expression,
+                            Expr::Call { function: Some(function), .. }
+                                if matches!(PointwiseFunction::parse(function.name),
+                                    Some(PointwiseFunction::HistogramSum
+                                        | PointwiseFunction::HistogramCount
+                                        | PointwiseFunction::HistogramAvg))
+                        )
+                    {
+                        crate::scheduled_expression::vector_child(
+                            &self.expression,
+                            prepared,
+                            node,
+                            control,
+                            account,
+                        )?
                     } else if contributor_demand
                         || contributor_clock
                             && header.start_ms != header.end_ms
@@ -20554,6 +20572,131 @@ mod tests {
         provider
     }
 
+    fn native_mapped_group_provider(page: usize, groups: usize) -> FixtureProvider {
+        fn point<const COUNT: u64, const SUM: u64>(index: usize) -> crate::value::Sample {
+            let time = (index + 1) as f64;
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::FloatHistogram(
+                    crate::histogram::FloatHistogram {
+                        zero_threshold: 128.0,
+                        zero_count: COUNT as f64 * time,
+                        count: COUNT as f64 * time,
+                        sum: SUM as f64 * time * time,
+                        ..crate::histogram::FloatHistogram::default()
+                    },
+                ),
+            }
+        }
+        let mut provider = mapped_group_provider(page, groups);
+        for (index, series) in provider.series.iter_mut().enumerate() {
+            let group = groups - 1 - index / 2;
+            series.source.sample = match (group.is_multiple_of(2), index % 2) {
+                (true, 0) => point::<1, 2>,
+                (true, _) => point::<3, 12>,
+                (false, 0) => point::<1, 4>,
+                (false, _) => point::<3, 24>,
+            };
+        }
+        provider
+    }
+
+    fn native_group_field_expected(function: &str, average: bool, group: usize, time: f64) -> f64 {
+        let factor = if group.is_multiple_of(2) { 1.0 } else { 2.0 };
+        let divisor = if average { 2.0 } else { 1.0 };
+        match function {
+            "histogram_sum" => factor * 14.0 * time * time / divisor,
+            "histogram_count" => 4.0 * time / divisor,
+            "histogram_avg" => factor * 3.5 * time,
+            _ => panic!("unknown native field map"),
+        }
+    }
+
+    #[test]
+    fn native_group_maps_check_complete_results_before_bounded_source_reads() {
+        let mut growth = Vec::new();
+        for function in ["histogram_sum", "histogram_count", "histogram_avg"] {
+            for operator in ["sum", "avg"] {
+                for delayed in [false, true] {
+                    for page in [1, 17, 1024] {
+                        for groups in [2_usize, 4, 8, 16] {
+                            let provider = native_mapped_group_provider(page, groups);
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let expression =
+                                format!("{function}({operator} by(instance)(counter_total))");
+                            let query = engine
+                                .compile(expression.as_bytes(), options(delayed), &control)
+                                .unwrap();
+                            let report = query.collect_reported(
+                                &provider,
+                                QueryRequest::Range {
+                                    start_ms: 3000,
+                                    end_ms: 5000,
+                                    step_ms: 1000,
+                                },
+                                &control,
+                            );
+                            let result = report.result.as_ref().unwrap();
+                            assert!(report.annotations.is_empty());
+                            assert_eq!(result.series.len(), groups);
+                            for (group, row) in result.series.iter().enumerate() {
+                                assert_eq!(row.labels.0.len(), 1);
+                                assert_eq!(&*row.labels.0[0].name, b"instance");
+                                assert_eq!(
+                                    &*row.labels.0[0].value,
+                                    format!("g{group:04}").as_bytes()
+                                );
+                                assert_eq!(row.points.len(), 3);
+                                for (tick, point) in row.points.iter().enumerate() {
+                                    let time = (tick + 3) as f64;
+                                    assert_eq!(point.time_ms, (tick as i64 + 3) * 1000);
+                                    assert_eq!(
+                                        float_bits(point),
+                                        native_group_field_expected(
+                                            function,
+                                            operator == "avg",
+                                            group,
+                                            time
+                                        )
+                                        .to_bits()
+                                    );
+                                }
+                            }
+                            assert_eq!(report.observations.output_samples, (3 * groups) as u64);
+                            assert_eq!(
+                                report
+                                    .observations
+                                    .statistics
+                                    .samples
+                                    .total_queryable_samples,
+                                (66 * groups) as u64
+                            );
+                            assert_eq!(
+                                report.observations.memory[MemoryKind::Workspace as usize].current,
+                                0
+                            );
+                            provider.assert_closed();
+                            println!(
+                                "native-group-complete function={function} operator={operator} delayed={delayed} page={page} groups={groups} fetched={} work={}",
+                                report.observations.samples_fetched, report.observations.work
+                            );
+                            growth.push(report.observations.samples_fetched);
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                    }
+                }
+            }
+        }
+        // Complete values and ownership precede the read-growth assertion.
+        assert!(
+            growth.chunks_exact(4).all(|group| group[3] <= 3 * group[2]),
+            "native field maps must avoid unrelated group rereads: {growth:?}"
+        );
+    }
+
     #[test]
     fn aggregate_label_borrows_outlive_machines_and_materialize_at_descriptor_boundaries() {
         use crate::{evaluator::EvaluatedSample, sample_labels::SampleLabels};
@@ -21056,6 +21199,96 @@ mod tests {
             step_ms: 1000,
         };
         for (expression, request, expected) in [
+            ("histogram_sum(sum by(instance)(counter_total))", range, 1),
+            ("histogram_sum(sum by(instance)(counter_total))", instant, 0),
+            ("histogram_sum(sum by(instance)(counter_total))", equal, 0),
+            ("histogram_sum((sum by(instance)(counter_total)))", range, 1),
+            (
+                "abs(histogram_sum(sum by(instance)(counter_total)))",
+                range,
+                1,
+            ),
+            (
+                "histogram_sum(sum by(instance)(counter_total offset 1s))",
+                range,
+                1,
+            ),
+            (
+                "histogram_sum(sum by(instance)(counter_total @ 3))",
+                range,
+                0,
+            ),
+            (
+                "histogram_sum(sum by(instance)(counter_total*scalar(counter_total)))",
+                range,
+                0,
+            ),
+            ("histogram_count(sum by(instance)(counter_total))", range, 1),
+            (
+                "histogram_count(sum by(instance)(counter_total))",
+                instant,
+                0,
+            ),
+            ("histogram_count(sum by(instance)(counter_total))", equal, 0),
+            (
+                "histogram_count((sum by(instance)(counter_total)))",
+                range,
+                1,
+            ),
+            (
+                "abs(histogram_count(sum by(instance)(counter_total)))",
+                range,
+                1,
+            ),
+            (
+                "histogram_count(sum by(instance)(counter_total offset 1s))",
+                range,
+                1,
+            ),
+            (
+                "histogram_count(sum by(instance)(counter_total @ 3))",
+                range,
+                0,
+            ),
+            (
+                "histogram_count(sum by(instance)(counter_total*scalar(counter_total)))",
+                range,
+                0,
+            ),
+            ("histogram_avg(sum by(instance)(counter_total))", range, 1),
+            ("histogram_avg(sum by(instance)(counter_total))", instant, 0),
+            ("histogram_avg(sum by(instance)(counter_total))", equal, 0),
+            ("histogram_avg((sum by(instance)(counter_total)))", range, 1),
+            (
+                "abs(histogram_avg(sum by(instance)(counter_total)))",
+                range,
+                1,
+            ),
+            (
+                "histogram_avg(sum by(instance)(counter_total offset 1s))",
+                range,
+                1,
+            ),
+            (
+                "histogram_avg(sum by(instance)(counter_total @ 3))",
+                range,
+                0,
+            ),
+            (
+                "histogram_avg(sum by(instance)(counter_total*scalar(counter_total)))",
+                range,
+                0,
+            ),
+            (
+                "histogram_stdvar(sum by(instance)(counter_total))",
+                range,
+                0,
+            ),
+            (
+                "histogram_stddev(sum by(instance)(counter_total))",
+                range,
+                0,
+            ),
             ("sum by(instance)(rate(counter_total[3s])) > 1", range, 1),
             ("abs(sum by(instance)(rate(counter_total[3s])))", range, 1),
             ("-(sum by(instance)(rate(counter_total[3s])) > 1)", range, 1),
@@ -21140,7 +21373,11 @@ mod tests {
                 0,
             ),
         ] {
-            let provider = mapped_group_provider(17, 4);
+            let provider = if expression.contains("histogram_") {
+                native_mapped_group_provider(17, 4)
+            } else {
+                mapped_group_provider(17, 4)
+            };
             let engine = Engine::default();
             let control = Control::default();
             let query = engine
@@ -21360,8 +21597,22 @@ mod tests {
                         let group = std::str::from_utf8(&sample.labels.0[0].value).unwrap()[1..]
                             .parse::<usize>()
                             .unwrap();
-                        let expected =
-                            (if group % 2 == 0 { 2.0 } else { 4.0 }) * (instant + 1) as f64;
+                        let source = &*compiled.expression.source;
+                        let expected = if source.starts_with(b"histogram_") {
+                            let function = std::str::from_utf8(source)
+                                .unwrap()
+                                .split('(')
+                                .next()
+                                .unwrap();
+                            native_group_field_expected(
+                                function,
+                                false,
+                                group,
+                                (instant + 1) as f64,
+                            )
+                        } else {
+                            (if group % 2 == 0 { 2.0 } else { 4.0 }) * (instant + 1) as f64
+                        };
                         assert!(
                             matches!(sample.value, OwnedValue::Float(value) if value.to_bits() == expected.to_bits())
                         );
@@ -21380,6 +21631,9 @@ mod tests {
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
                 for expression in [
+                    "histogram_sum(sum by(instance)(counter_total))",
+                    "histogram_count(sum by(instance)(counter_total))",
+                    "histogram_avg(sum by(instance)(counter_total))",
                     "sum by(instance)(counter_total) > 0",
                     "label_join(sum by(instance)(counter_total),\"row\",\"/\",\"instance\")",
                     "label_replace(sum by(instance)(counter_total),\"row\",\"$1\",\"instance\",\"(.*)\")",
@@ -21388,7 +21642,14 @@ mod tests {
                     let compiled = engine
                         .compile(expression.as_bytes(), options(delayed), &Control::default())
                         .unwrap();
-                    let calibration = mapped_group_provider(page, 4);
+                    let provider = || {
+                        if expression.starts_with("histogram_") {
+                            native_mapped_group_provider(page, 4)
+                        } else {
+                            mapped_group_provider(page, 4)
+                        }
+                    };
+                    let calibration = provider();
                     let (landmarks, group_order) = drive(&compiled, &calibration, None);
                     let cold_nonmember = (0..8)
                         .rfind(|&index| 3 - index / 2 != group_order[0][0])
@@ -21432,7 +21693,7 @@ mod tests {
                             landmarks[1][0][next_nonmember] + 1,
                         ),
                     ] {
-                        let mut input = mapped_group_provider(page, 4);
+                        let mut input = provider();
                         input.series[target].source.fail_acquisition = Some(acquisition);
                         let observed = drive(&compiled, &input, Some((instant, after, false)));
                         assert_eq!(observed.0.len(), instant + 1);
@@ -21442,13 +21703,13 @@ mod tests {
                             "mapped-group expression={expression} phase={phase} page={page} delayed={delayed} instant={instant} outputs={after} target={target} acquisition={acquisition}"
                         );
                     }
-                    let input = mapped_group_provider(page, 4);
+                    let input = provider();
                     assert_eq!(
                         drive(&compiled, &input, Some((0, prefix, true))).0[0].len(),
                         prefix + 1
                     );
                     for cancel in [false, true] {
-                        let input = mapped_group_provider(page, 4);
+                        let input = provider();
                         let control = Control::default();
                         let mut sink = RecordingSink {
                             fail_after: (!cancel).then_some(1),

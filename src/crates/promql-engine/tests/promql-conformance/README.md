@@ -9537,3 +9537,42 @@ The trial failed its frozen timing gate: the raw-ratio shape median was 1.059856
 are finite evidence; they do not establish a universal slowdown. No repeat measurements replaced the failure.
 Both runtime and test-only diagnostic edits were restored exactly. Remaining native/ARM, original/SRE,
 C execution and static gates were not run after the early failure. The accepted engine is unchanged.
+
+## Native histogram field-map contributors
+
+`histogram_sum`, `histogram_count` and `histogram_avg` over ordinary grouped aggregates now request the existing
+contributor plan at unequal range clocks. Previously, selecting each output group reread all input groups.
+The first evaluation still validates the complete child; subsequent same-key selections read the required members
+freshly. Preparation clearing, diagnostics, cancellation and next-clock validation remain unchanged. Instant,
+equal-range, fixed-clock and unsupported-child paths retain their existing behavior. This adds no language feature.
+
+The [qualification](native-group-map-contributors-qualification.json) records 2,808 complete measured pairs.
+Larger targeted query-time medians fall about 91% in both native profiles; all predefined control medians pass.
+For 128 groups at page 17, `histogram_sum(sum by(job)(h))` fetches 26,576 entries instead of 800,768. Tracked Workspace
+allocation traffic falls from 113,971,864 B to 5,214,392 B; its peak rises from 251,684 B to 256,060 B for contributor metadata.
+All memory allowances pass, and slower individual timings remain in the report. These are synthetic engine
+measurements, not whole-Agent throughput, process RSS, cold-storage or physical ARM measurements.
+
+The default linked C executable changes by −808/+120/+108/−12,228 B for release/release-min/ARM32/ARM64; all four
+independent 8,192 B growth gates pass. Both native suites pass 875 tests with two existing timing probes ignored.
+Each emulated ARM target passes 22 focused tests covering actual mapped range execution, admission, fault phases,
+contributor ownership and histogram arithmetic. Strict default/fixture Clippy, formatting and Rust 1.91 compilation pass.
+
+`native_group_map_cases.cases()` generates 672 requests for productive native groups, Float/native transitions,
+native staleness, missing groups, schema coarsening and incompatible custom bounds. It includes all eight ordinary
+reducers, both name modes, wrappers and clock controls. Fresh pinned Go captures match 5,376 current and 5,376
+predecessor executions exactly across the declared native/ARM page panels. The 790-slot retained SRE inventory
+contains no calls to these field maps; no new SRE execution coverage is claimed.
+
+Run the `native_group_maps_check_complete_results_before_bounded_source_reads` unit and the existing `mapped_group`
+units. The new growth test checks all 144 complete outcomes and cleanup before its final cardinality-read guard;
+the unchanged engine fails only that guard. The existing range driver also checks cold nonmember, freshly read
+selected-member, next-clock, cancellation and output-failure phases. Native staleness/schema diagnostics are in
+the fresh original panel, rather than inferred from pure native-value tests.
+
+`native_group_maps.c` reuses the C paged provider and immutable per-series histogram views. Compile it against the
+same default static archive and native libraries used by `c_embedding.c`. All 432 before/current pairs pass complete
+labels, timestamps, values, logical sample totals and cleanup checks: 144 productive range pairs reduce reads,
+and 288 instant/equal-range controls preserve all exported nonelapsed counters. This caller does not replace the
+Rust driver's precisely calibrated failure-phase tests. Raw histories remain paged across both axes; the change
+adds no persistent metadata owner, raw-value cache, ABI or resource limit.

@@ -1,0 +1,519 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "3b9e43993eed005dfd5e6cfbc197b8aefe70caf8",
+  "change": "Seed existing aggregate contributor demand under HistogramSum/Count/Avg at ordinary unequal range clocks. Reuse completed same-key membership while evaluating selected values freshly.",
+  "source_phases": {
+    "accepted-source.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/accepted-source.json",
+      "sha256": "6f22546a994ac7adf275b49bb2c204b24bd44abde1149d420d465d532583846b"
+    },
+    "tests-source.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/tests-source.json",
+      "sha256": "dbbff773058377bffd3cf21c1c6408b501360d72b993a7e0d617e166a984eadd"
+    },
+    "controls-source.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/controls-source.json",
+      "sha256": "415027010d179d463ac0cd8d9325ac0a5a358bb75b84881d31c798fe20b45641"
+    },
+    "candidate-source.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/candidate-source.json",
+      "sha256": "efe23322993b5006a5c81411f9af43bedaa6e5ad30c1924a39d0e530ff9c4474"
+    },
+    "qualification-source.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/qualification-source.json",
+      "sha256": "c94f2eefb1101d7a220dd373bfb1d83f27f89b5f38b31dad21cf84e79b90efc4"
+    }
+  },
+  "source_attribution": "Candidate build receipts retain395 inputs. Two new caller/panel files are bound separately by actual execution receipts; qualified inventory includes them. Accepted137 binaries retain their original build identity. No old binary is reattributed to current source.",
+  "runtime": {
+    "execution.rs": "8796c57250f8d11f6a060c6c7cef79b0cab321418d5a809bde662d2cac171e7a"
+  },
+  "preserved": "No new raw history owner,ABI,provider,metadata cache,language behavior,limits,Pair certification or scheduled-selector admission. Cold validation,exact replay key,preparation clearing,fresh selected values and ordinary clock fallbacks remain authoritative.",
+  "compiled_cost": {
+    "sections": [
+      "text",
+      "data",
+      "bss"
+    ],
+    "criterion": "Each actual default C executable growth<=8192bytes independently",
+    "all_passed": true,
+    "observed": {
+      "release": [
+        {
+          "kind": "fixture",
+          "before": [
+            4371902,
+            259712,
+            3100
+          ],
+          "current": [
+            4373190,
+            259712,
+            1788
+          ],
+          "growth": -24
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            7368986,
+            506576,
+            400
+          ],
+          "current": [
+            7368178,
+            506576,
+            400
+          ],
+          "growth": -808
+        }
+      ],
+      "release-min": [
+        {
+          "kind": "fixture",
+          "before": [
+            2724829,
+            246048,
+            748
+          ],
+          "current": [
+            2724989,
+            246048,
+            588
+          ],
+          "growth": 0
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            5102063,
+            461864,
+            400
+          ],
+          "current": [
+            5102183,
+            461864,
+            400
+          ],
+          "growth": 120
+        }
+      ],
+      "arm32": [
+        {
+          "kind": "fixture",
+          "before": [
+            3691626,
+            164560,
+            212
+          ],
+          "current": [
+            3691742,
+            164552,
+            212
+          ],
+          "growth": 108
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6380605,
+            292484,
+            244
+          ],
+          "current": [
+            6380713,
+            292484,
+            244
+          ],
+          "growth": 108
+        }
+      ],
+      "arm64": [
+        {
+          "kind": "fixture",
+          "before": [
+            3643071,
+            253208,
+            328
+          ],
+          "current": [
+            3639047,
+            253208,
+            328
+          ],
+          "growth": -4024
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6383058,
+            496888,
+            384
+          ],
+          "current": [
+            6370830,
+            496888,
+            384
+          ],
+          "growth": -12228
+        }
+      ]
+    },
+    "scope": "Actual linked C programs;not whole-Agent size or RSS."
+  },
+  "measurement": {
+    "complete_pairs": 2808,
+    "cases_per_profile": 108,
+    "composition": "SUM/AVG under3native field maps;G1/4/32/128,2members/group,3ticks,pages1/17/1024;raw Float,Float-map andungrouped-native controls.",
+    "method": "Three alternating blocks,one warmup+three measured queries per case/side/block,nine primary samples percase/side. Complete outputs checked for every pair;no replacement timings.",
+    "criteria": {
+      "blocks": 3,
+      "warmups": 1,
+      "measurements": 3,
+      "target_median_max": 0.8,
+      "each_target_function_median_max": 0.9,
+      "control_shape_median_max": 1.05
+    },
+    "memory_criteria": {
+      "raw_pages": "unchanged bounded lifetime",
+      "direct_fixture_workspace_peak_extra_max": "64*G+1024 bytes for one admitted two-member aggregate; derives from existing Builder pair + Plan range/member payloads and fixed owner allowance",
+      "small_fixture_traffic_extra_max": "256*G+4096 bytes atG1/4",
+      "large_target_workspace_traffic": "nonincreasing atG32/128",
+      "other_memory": "all increases must be attributable to existing contributor owner; unaccounted or unexplained growth rejects",
+      "non_target_controls": "no new retained payload or peak increase"
+    },
+    "profiles": {
+      "release": {
+        "target_median": 0.08828987747487146,
+        "function_medians": {
+          "histogram_sum": 0.08735689885166494,
+          "histogram_count": 0.0886728386408526,
+          "histogram_avg": 0.08797410804116887
+        },
+        "control_medians": {
+          "raw-control": 0.9767297560088343,
+          "float-control": 0.9867049645947837,
+          "native-control": 0.9910784778664836
+        },
+        "passed": true,
+        "individual_ratios_over_1_05": []
+      },
+      "release-min": {
+        "target_median": 0.0931895621788925,
+        "function_medians": {
+          "histogram_sum": 0.09360651348915869,
+          "histogram_count": 0.0931846436279533,
+          "histogram_avg": 0.09522449285473114
+        },
+        "control_medians": {
+          "raw-control": 1.0114669822839233,
+          "float-control": 0.9899172328470434,
+          "native-control": 1.0049599970989789
+        },
+        "passed": true,
+        "individual_ratios_over_1_05": [
+          {
+            "case": {
+              "id": "native-field:g1:p1:histogram_avg-avg",
+              "groups": 1,
+              "page": 1,
+              "shape": "histogram_avg-avg",
+              "function": "histogram_avg",
+              "operator": "avg",
+              "expression": "histogram_avg(avg by(job)(h))"
+            },
+            "ratio": 1.0502647532806384
+          },
+          {
+            "case": {
+              "id": "native-field:g1:p1:native-control",
+              "groups": 1,
+              "page": 1,
+              "shape": "native-control",
+              "function": null,
+              "operator": null,
+              "expression": "histogram_sum(h)"
+            },
+            "ratio": 1.0628734160593527
+          },
+          {
+            "case": {
+              "id": "native-field:g1:p17:histogram_sum-avg",
+              "groups": 1,
+              "page": 17,
+              "shape": "histogram_sum-avg",
+              "function": "histogram_sum",
+              "operator": "avg",
+              "expression": "histogram_sum(avg by(job)(h))"
+            },
+            "ratio": 1.089902135679658
+          },
+          {
+            "case": {
+              "id": "native-field:g1:p17:histogram_count-avg",
+              "groups": 1,
+              "page": 17,
+              "shape": "histogram_count-avg",
+              "function": "histogram_count",
+              "operator": "avg",
+              "expression": "histogram_count(avg by(job)(h))"
+            },
+            "ratio": 1.0629109339612288
+          },
+          {
+            "case": {
+              "id": "native-field:g1:p17:histogram_avg-sum",
+              "groups": 1,
+              "page": 17,
+              "shape": "histogram_avg-sum",
+              "function": "histogram_avg",
+              "operator": "sum",
+              "expression": "histogram_avg(sum by(job)(h))"
+            },
+            "ratio": 1.0720321788706961
+          },
+          {
+            "case": {
+              "id": "native-field:g1:p17:raw-control",
+              "groups": 1,
+              "page": 17,
+              "shape": "raw-control",
+              "function": null,
+              "operator": null,
+              "expression": "m"
+            },
+            "ratio": 1.0868298368298368
+          }
+        ]
+      }
+    },
+    "example": {
+      "profile": "release",
+      "groups": 128,
+      "page": 17,
+      "query": "histogram_sum(sum by(job)(h))",
+      "fetched": [
+        800768,
+        26576
+      ],
+      "work": [
+        18081143,
+        764148
+      ],
+      "workspace_acquired_bytes": [
+        113971864,
+        5214392
+      ],
+      "workspace_peak_bytes": [
+        251684,
+        256060
+      ]
+    },
+    "scope": "Finite synthetic engine elapsed time and tracked allocation counters on shared host;not whole-Agent/concurrent throughput,cold dbengine,RSS or physical ARM speed."
+  },
+  "qualification": {
+    "old_complete_semantic_cases_before_expected_growth_failure": 144,
+    "candidate_focused_owners": 4,
+    "native_tests_per_profile": 875,
+    "preexisting_ignored_per_profile": 2,
+    "ARM_tests_per_target": {
+      "arm32": [
+        {
+          "filter": "execution::tests::native_group_maps_check_complete_results_before_bounded_source_reads",
+          "passed": 1
+        },
+        {
+          "filter": "execution::tests::mapped_group_demand_follows_ordered_maps_and_preserves_clock_fallbacks",
+          "passed": 1
+        },
+        {
+          "filter": "execution::tests::mapped_groups_keep_cold_selected_next_clock_and_output_failures",
+          "passed": 1
+        },
+        {
+          "filter": "execution::tests::histogram_group_contributors_keep_cold_and_selected_failures",
+          "passed": 1
+        },
+        {
+          "filter": "aggregate_replay::tests::",
+          "passed": 3
+        },
+        {
+          "filter": "aggregation::tests::",
+          "passed": 2
+        },
+        {
+          "filter": "histogram::tests::",
+          "passed": 13
+        }
+      ],
+      "arm64": [
+        {
+          "filter": "execution::tests::native_group_maps_check_complete_results_before_bounded_source_reads",
+          "passed": 1
+        },
+        {
+          "filter": "execution::tests::mapped_group_demand_follows_ordered_maps_and_preserves_clock_fallbacks",
+          "passed": 1
+        },
+        {
+          "filter": "execution::tests::mapped_groups_keep_cold_selected_next_clock_and_output_failures",
+          "passed": 1
+        },
+        {
+          "filter": "execution::tests::histogram_group_contributors_keep_cold_and_selected_failures",
+          "passed": 1
+        },
+        {
+          "filter": "aggregate_replay::tests::",
+          "passed": 3
+        },
+        {
+          "filter": "aggregation::tests::",
+          "passed": 2
+        },
+        {
+          "filter": "histogram::tests::",
+          "passed": 13
+        }
+      ]
+    },
+    "new_original_expressions": 672,
+    "new_original_comparisons_current": 5376,
+    "new_original_comparisons_predecessor": 5376,
+    "native_pages": [
+      1,
+      17,
+      1024
+    ],
+    "ARM_pages": [
+      17
+    ],
+    "original_policy": "Complete outcomes,diagnostics,errors and exact numeric bits under retained ordering policy;both name modes,8reducers,7native/mixed/stale/absent/schema/custom states,range andexplicit controls.",
+    "C_pairs": 432,
+    "C_asserted_queries": 864,
+    "C_productive_range_reductions": 144,
+    "C_exact_instant_equal_controls": 288,
+    "SRE": {
+      "inventoried_source_slots": 790,
+      "affected_field_map_slots": 0,
+      "new_executions": 0,
+      "scope": "No affected expressions;historical SRE qualification retains its actual source attribution."
+    },
+    "strict_Clippy_variants": 2,
+    "format": "pass",
+    "MSRV_compile_only": "1.91.0"
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/measurement-plan.json",
+      "sha256": "5494c6e32ad420620e099efbb7b8dc5694252eda9a78c5fb7d393a9328c0946c"
+    },
+    "ready.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/ready.json",
+      "sha256": "88353a2ad5991b17260e7a6ede1a3719d4d98c9db734c3b69faf9f068db2b990"
+    },
+    "old-units.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/old-units.json",
+      "sha256": "ae056d3250dde074679d283ce14bfbd0c93112c17fa74397d3bf15eb286af231"
+    },
+    "candidate-units.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/candidate-units.json",
+      "sha256": "b2de050f4c6c3737b9d490f59018b4cc2e9429695b0aa5f179a229b22ebed679"
+    },
+    "baseline.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/baseline.json",
+      "sha256": "000d492ade1daefc5b477321baca86c6298f9a6e92cac92ecc91d0f8842e6483"
+    },
+    "baseline-expected.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/baseline-expected.json",
+      "sha256": "09916ae4e80694e3a5285e22d98cc40b22920264c09c2dab3b68c5db555801fb"
+    },
+    "originals-captured.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/originals-captured.json",
+      "sha256": "ea633ddcdb5879dca2a7dc968c49e8812fdb122f71058bb40752ccbfc241c69a"
+    },
+    "sre-scope.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/sre-scope.json",
+      "sha256": "1d296775e2bbff0eed592612ada5dfa12bb2c1cd2ebe8eafd5b58e9242afe8d1"
+    },
+    "current-static.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/current-static.json",
+      "sha256": "a4a64eefcefd31519482ddf0ea0342d32f96417df3c289771bb2e68f6ca30452"
+    },
+    "build-release.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/build-release.json",
+      "sha256": "d482366e75948ae04bb0b150cffe5a15f69c225a7b9892bc6c9a55275d5ce437"
+    },
+    "qualification-release.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/qualification-release.json",
+      "sha256": "447026a47005d8e3a878828a3b540187105d3b62d8572e2cdee153b8e9993733"
+    },
+    "C-callers-release.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/C-callers-release.json",
+      "sha256": "ca06c0b2a48cb70af337698ec114f9b0f58fc860115456fdfbe027f6c375e59c"
+    },
+    "originals-release.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/originals-release.json",
+      "sha256": "b340551edaaa37dbe857e09adf93e3e3339c260fcff1b6356e1513fbdf409de8"
+    },
+    "build-release-min.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/build-release-min.json",
+      "sha256": "13ec4b1edeb5a4434dabccf68279151972d085bc3e7046d6eb5ad36988c5e97b"
+    },
+    "qualification-release-min.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/qualification-release-min.json",
+      "sha256": "bb1157e647a9bcad17b5a170da329d39d275f09fd988dd4ab1824256ba7ae252"
+    },
+    "C-callers-release-min.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/C-callers-release-min.json",
+      "sha256": "e0324c16080f72457df35aec4a6ab143ac9d9a0c8e2f62ccb523e4a746f3f348"
+    },
+    "originals-release-min.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/originals-release-min.json",
+      "sha256": "e919c76aced2abedcfe77a59697f67bfc113cf66ffd034bd8ac7de26ab99f757"
+    },
+    "build-arm32.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/build-arm32.json",
+      "sha256": "b4db3dd18f9b4b439381daf3e7acc78eb196cfe77a3d4e0d99ee1c54832358d3"
+    },
+    "qualification-arm32.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/qualification-arm32.json",
+      "sha256": "d947444391726887188afaddef532bd06cfeffa2459f7fd96451ac4481293d9d"
+    },
+    "C-callers-arm32.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/C-callers-arm32.json",
+      "sha256": "bc8146ed088a6dadac00934297f73846618ae21d3ffc7383da14ee7f2ea6aa91"
+    },
+    "originals-arm32.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/originals-arm32.json",
+      "sha256": "95d46a2588b6aa7f3fd052698631676a17b5d8dff488bb3d802d26deb66096c7"
+    },
+    "build-arm64.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/build-arm64.json",
+      "sha256": "0c407ed99264b02d3a8150d31b8263dd4bf728052ec0d8d183f5b71e7a23c529"
+    },
+    "qualification-arm64.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/qualification-arm64.json",
+      "sha256": "9bc2fe0aa19119bc2b9d6f672ec35d8c9c378bfb7041b3a83b0deed12bd6d417"
+    },
+    "C-callers-arm64.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/C-callers-arm64.json",
+      "sha256": "d3ecadb6d96995b27adf0322648c3320e599fcba9718a06881a38d88ac242bdf"
+    },
+    "originals-arm64.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/originals-arm64.json",
+      "sha256": "7c557fa78baef5fe4bd65cec1cf40e80c0b423f15055917957246c4e9665a5ff"
+    },
+    "measurement-release.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/measurement-release.json",
+      "sha256": "56f0a802c57293fb28cf16ce871a7d14d4b098c6c34914cfbdf9f06da349f5d6"
+    },
+    "measurement-release-min.json": {
+      "path": ".tmp/native-map-demand-dsa54ipa/measurement-release-min.json",
+      "sha256": "f65ef97168843eee942c4aa6d17430fe2cb2d2e1f94deeff9857de5a2bb7d0bc"
+    }
+  },
+  "scope": "Private preparation optimization and finite qualification. Live Netdata integration remains unchanged. Continuous improvement objective remains unfinished."
+}

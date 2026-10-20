@@ -73819,5 +73819,11 @@
     "report_sha256": "575daa2f79ff5861f91a5733a6646bfd082385fa72d9388177f27210d40f7ef1",
     "status": "set_aside_under_frozen_stage138_timing_gate",
     "scope": "624 exact result pairs;5.12percent target allocation-traffic savings but frozen raw-ratio timing gate fails. Runtime restored; broader qualification not run."
+  },
+  "native_group_map_contributors": {
+    "report": "native-group-map-contributors-qualification.json",
+    "report_sha256": "52952699372eec1554ffcbedee175374b06308d2696e14ae96d4cc29489e0db6",
+    "status": "finite_qualification_pass",
+    "scope": "Native histogram field maps reuse complete contributor membership;2808measured pairs,5376current exact original comparisons and432actual C pairs."
   }
 }
