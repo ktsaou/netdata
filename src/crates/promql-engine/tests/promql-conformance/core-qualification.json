@@ -73843,5 +73843,11 @@
     "report_sha256": "8ad9c7e18136997638dce3f0bfbbb461f49ee967e0f7e36b6f8038abcafd4989",
     "status": "rejected_candidate_accepted_runtime_restored",
     "scope": "Literal scalar arithmetic trial rejected: ARM64 C growth8892B exceeds8192B ceiling. Accepted runtime restored exactly; successful finite measurements retained."
+  },
+  "rejected_structural_scalar_arithmetic": {
+    "report": "scalar-structural-rejected-qualification.json",
+    "report_sha256": "f326948df228a2d412b91c557b7d7aa5bebb030caef8cee3c30437b4c3c9707c",
+    "status": "rejected_candidate_accepted_runtime_restored",
+    "scope": "Pure structural successor rejected at early ARM64 default C gate:17376B>8192B.403accepted inputs restored; no candidate query measurements."
   }
 }

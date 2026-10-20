@@ -9666,3 +9666,14 @@ after rejection. These results describe the retained experiment, not a newly shi
 The compiled helper used fallible preprocessing for Binary operand edges, although that preprocessing
 preserves Binary children unchanged. A simpler structural predicate is a future candidate. It has not
 been qualified by this trial; the exact cause of the additional ELF text spacing remains unproven.
+
+## Rejected structural scalar arithmetic trial
+
+The successor to the literal arithmetic trial replaced its fallible operand helper with a pure structural
+check. The actual ARM64 default C executable grew by 17,376 bytes, again exceeding the unchanged 8,192-byte
+ceiling. The fixture executable shrank by 10,764 bytes; that does not establish a smaller shipping consumer.
+The early footprint gate rejected this variant before any query, unit, timing or memory panels were run.
+
+All 403 accepted source inputs were restored exactly. The [negative record](scalar-structural-rejected-qualification.json)
+retains the actual compiler/linker evidence and trial sources. No optimization from either rejected arithmetic
+trial is present in the accepted runtime. Earlier trial timings cannot be attributed to this variant.

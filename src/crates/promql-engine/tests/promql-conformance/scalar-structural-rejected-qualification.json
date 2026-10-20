@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "status": "rejected_candidate_accepted_runtime_restored",
+  "comparison_base": "392e1967949c2ccab406ec3adbde1e739c5762e4",
+  "candidate": "Pure structural Option child/phase classifier for literal-sided scalar Binary. Same completed Float cache and exact pending operand proof; unnecessary fallible preprocessing removed.",
+  "failed_gate": {
+    "target": "aarch64-unknown-linux-gnu",
+    "consumer": "Actual optimized default-library C executable",
+    "limit_bytes": 8192,
+    "growth_bytes": 17376,
+    "excess_bytes": 9184,
+    "before_text_data_bss": [
+      6374470,
+      497032,
+      384
+    ],
+    "candidate_text_data_bss": [
+      6391702,
+      497176,
+      384
+    ]
+  },
+  "fixture_growth_bytes": -10764,
+  "decision": "Rejected immediately under the unchanged frozen default-C footprint limit. A smaller fixture executable does not override the failed shipping consumer gate. No exception or relaxed limit.",
+  "qualification": {
+    "ARM64_compile_link_size_commands": 9,
+    "candidate_queries_executed": 0,
+    "candidate_tests_executed": 0,
+    "candidate_timing_measurements": 0,
+    "candidate_memory_measurements": 0,
+    "original_reference_recaptures": 0,
+    "scope": "Only ARM64 fixture/default-library compilation, C linking and size comparison completed. No functional, timing or memory claim for this variant."
+  },
+  "not_run_after_rejection": [
+    "Native and ARM unit/runtime panels",
+    "Original outcome comparisons",
+    "C runtime and logical statistics",
+    "Timing and allocation comparisons",
+    "Strict lint and MSRV checks"
+  ],
+  "cause": "The structural simplification did not reduce the actual linked default C size. Source simplicity and fixture size alone do not predict that consumer cost. Detailed linker/code-layout cause is not established by this record.",
+  "restoration": {
+    "accepted_source_inputs_exactly_restored": 403,
+    "trial_source_retention": {
+      "src/crates/promql-engine/src/evaluator.rs": {
+        "path": ".tmp/scalar-structural-ph1s6plk/rejected-evaluator.rs",
+        "sha256": "ecf5bef7fdcf55decb92803f8c49bb073abf8aae5170f17475ad9df2e1f4f9f8"
+      },
+      "src/crates/promql-engine/src/execution.rs": {
+        "path": ".tmp/scalar-structural-ph1s6plk/rejected-execution.rs",
+        "sha256": "17ef6007dae8888f3a48b14e92eaadaa109a611a43dc45977381528675963116"
+      },
+      "src/crates/promql-engine/src/scheduled_expression.rs": {
+        "path": ".tmp/scalar-structural-ph1s6plk/rejected-scheduled_expression.rs",
+        "sha256": "51e0574f0bb77860a0683d02a77ffab59b68bac3cae7975980ac20f2ed9d3e84"
+      },
+      "src/crates/promql-engine/tests/promql-conformance/scalar_arithmetic_cases.py": {
+        "path": ".tmp/scalar-structural-ph1s6plk/rejected-public-scalar_arithmetic_cases.py",
+        "sha256": "cd0b9b8bfd7b6be4bc04f5a61150938e968c0dc26b17e8ccf2ebcfab92315094"
+      },
+      "src/crates/promql-engine/tests/promql-conformance/scalar_arithmetic_values.c": {
+        "path": ".tmp/scalar-structural-ph1s6plk/rejected-public-scalar_arithmetic_values.c",
+        "sha256": "3ea8aff1212689361bf26d4ee1942035dd5415e4a5d3437393c963cbd6bd8664"
+      }
+    },
+    "files_deleted": 0,
+    "processes_signalled": 0,
+    "scope": "Only exact owned diff reversed; new fixtures moved into retained evidence. Accepted runtime and unrelated untracked directory preserved."
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/scalar-structural-ph1s6plk/measurement-plan.json",
+      "sha256": "ff85569f6af70659e44e547878b8230a94fb6f36d33501460017ae7239aedf76"
+    },
+    "predecessor-evidence.json": {
+      "path": ".tmp/scalar-structural-ph1s6plk/predecessor-evidence.json",
+      "sha256": "59cb78281c3b8c0f7a9eb4b13804c15617c7f4fb77364ff8fb784025df75c35d"
+    },
+    "implementation.json": {
+      "path": ".tmp/scalar-structural-ph1s6plk/implementation.json",
+      "sha256": "12247a247072d78470ef720b0847ba217a9ca267c1202e8f340db01c54d76471"
+    },
+    "arm64-footprint-rejected.json": {
+      "path": ".tmp/scalar-structural-ph1s6plk/arm64-footprint-rejected.json",
+      "sha256": "264edb20f811bc2bfd66b9068c053391a5c488280e57c13636461af09034c185"
+    },
+    "restoration.json": {
+      "path": ".tmp/scalar-structural-ph1s6plk/restoration.json",
+      "sha256": "489391b3816a5d238aa812987ac16685fa154c7065d449f7ee34fe3878d4a28c"
+    }
+  },
+  "scope": "Second rejected local representation experiment, not new accepted coverage or performance. Earlier142measurements remain attributed to142; continuous improvement remains unfinished."
+}

@@ -2375,3 +2375,12 @@ separately rejected under their original criteria.
 - The [negative qualification](scalar-arithmetic-rejected-qualification.json) retains every measured cost and
   source binding. A pure structural Binary predicate is an unimplemented successor opportunity, not an exception
   to this rejected trial's gate. No numerical, storage, API or accounting contract changed.
+
+## Rejected structural scalar arithmetic trial
+
+- A pure Binary operand/phase classifier preserved the intended cache admission while removing the previous
+  helper's unnecessary preprocessing context. Its linked ARM64 C cost still exceeded the unchanged ceiling.
+- This successor was rejected at the early size gate, before functional or performance qualification.
+  Exact restoration leaves the accepted scalar-only optimization unchanged; both arithmetic trials remain historical.
+- The [negative record](scalar-structural-rejected-qualification.json) makes no throughput or memory claim.
+  Source length and fixture size are insufficient evidence for shipping executable footprint.
