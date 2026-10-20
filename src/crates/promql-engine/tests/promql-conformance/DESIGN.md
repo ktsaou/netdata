@@ -2278,3 +2278,15 @@ The tested small helper passed focused checks but grew the native release C exec
 exceeding its frozen footprint criterion. It was restored. Source size alone does not establish emitted size;
 see [present-acquisition-investigation.json](present-acquisition-investigation.json). Count experiments remain
 separately rejected under their original criteria.
+
+## Shared acquisition validation visitor
+
+- **Choice:** use a module-private named no-op visitor generic only over the error type for the initial acquisition
+  probe. Its compiler identity no longer includes the consuming callback type. The consuming path is unchanged.
+- **Contract:** preserve all existing traversal, validation, error, cancellation, credit and ownership phases.
+  No persistent state, allocation, provider/ABI, arithmetic or query-limit change is introduced.
+- **Evidence:** the [qualification](acquisition-visitor-qualification.json) and
+  [measured scope](README.md#shared-acquisition-validation-visitor) record emitted bodies, every section size,
+  complete query/accounting equality, original comparisons and actual C callers. All frozen footprint/timing gates pass.
+- **Limits:** this reduces compiled size on the measured builds. Timings and measured query-memory observations
+  are roughly unchanged and exactly unchanged respectively. Present read reuse remains a rejected separate experiment.

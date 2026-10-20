@@ -1,0 +1,761 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "48bf45be1d391c46f27d029dd3eb08d967163630",
+  "change": "Replace the nested no-op acquisition validation closure with one module-private function item generic only over its error type. Consuming callbacks and all validation logic are unchanged.",
+  "source_phases": {
+    "before-source.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/before-source.json",
+      "sha256": "b19ef1e05e1d466ab5190fa178832a7b56ce7a97780a4e74489df911db0d1717"
+    },
+    "final-source.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/final-source.json",
+      "sha256": "aee97447289c80fe386e5853440737c105d51889813d2a0f22f0383b99675627"
+    }
+  },
+  "qualified_source_inputs": 386,
+  "changed_runtime_sha256": "c355e789b70ab3187fa618860f51bd7f59e745d6890f0c8a914313275aa6b9e8",
+  "baseline_attribution": "Immutable accepted Sum builds retain their original 386-input source identities. All 148 Rust/Cargo/header inputs match the accepted runtime. Later documentation is separately attributed.",
+  "current_builds": {
+    "release": {
+      "profile": "release",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "fixture": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-release/promql-query-fixture",
+        "sha256": "4f473edeecce639b2ddb8dde84e21cfe00049eb88427095dee3be3d3cf308aee"
+      },
+      "archive": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-release/libnetdata_promql_engine.a",
+        "sha256": "19e7ef0326c6608fbe9cad0d94fc9ecf7f7417fd5c53d8858e1e9608ee9e4475"
+      },
+      "default_embedding": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-release/embedding",
+        "sha256": "0358e5db95e6edc1c27c16c6aea1071f2d92777863dc3924db33dc584e9b605b"
+      },
+      "unit": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-release/unit",
+        "sha256": "3b3cd7cd3ed480a49c96aab9e2de6c23f2bdf204d8c039f8c10d63993cb12122"
+      },
+      "compiler_settings": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/release-settings.json",
+        "sha256": "3cc0b7905664ec21719752a8842db00d45613d5564191b9bf8379de3ea18cb10"
+      }
+    },
+    "release-min": {
+      "profile": "release-min",
+      "target": "x86_64-unknown-linux-gnu",
+      "runner": [],
+      "fixture": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-release-min/promql-query-fixture",
+        "sha256": "6ed7c8e6ee240d5e7fbe7642f00d92979c0c60aa3783c15aac82e2f25e971a05"
+      },
+      "archive": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-release-min/libnetdata_promql_engine.a",
+        "sha256": "80caa77163cd1cb4129e69b193fbd5ff65ff6dce2495b084a96f19bc432e8b30"
+      },
+      "default_embedding": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-release-min/embedding",
+        "sha256": "0f14f70960c3c6809c7f73bbd8590d39ca183e450c66c297625da7ea1f0165c2"
+      },
+      "unit": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-release-min/unit",
+        "sha256": "2bda331457c137404e688eb30cc9dec8cae48da6a09849ef0433eaaa1de967df"
+      },
+      "compiler_settings": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/release-min-settings.json",
+        "sha256": "3cc0b7905664ec21719752a8842db00d45613d5564191b9bf8379de3ea18cb10"
+      }
+    },
+    "arm32": {
+      "profile": "release",
+      "target": "armv7-unknown-linux-gnueabihf",
+      "runner": [
+        "qemu-arm",
+        "-L",
+        "/usr/arm-linux-gnueabihf"
+      ],
+      "fixture": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-arm32/promql-query-fixture",
+        "sha256": "9d8ce29bffb00ba584b594fe52398f85b9a9daa2fbcd89e3767a25d9d48714db"
+      },
+      "archive": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-arm32/libnetdata_promql_engine.a",
+        "sha256": "5f0b2bc26b05567ffb0f87289b315a8be3c8d5ac73aef95abd91157863f1dbb7"
+      },
+      "default_embedding": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-arm32/embedding",
+        "sha256": "8558c9f0dc444be3253ebffbcc02832dd01516d46dbcaa51ca2a6275ed174762"
+      },
+      "unit": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-arm32/unit",
+        "sha256": "86c14ba23f1c5c62757fa532c9742dfead417a360300d7533ded909efdeb42d5"
+      },
+      "compiler_settings": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/arm32-settings.json",
+        "sha256": "849a8f46a602ece12a95b3a932e0fba416917a99e6d7ede0f33152e1e760c80a"
+      }
+    },
+    "arm64": {
+      "profile": "release",
+      "target": "aarch64-unknown-linux-gnu",
+      "runner": [
+        "qemu-aarch64",
+        "-L",
+        "/usr/aarch64-linux-gnu"
+      ],
+      "fixture": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-arm64/promql-query-fixture",
+        "sha256": "c91f97253eaed9c289dbddb4807a8cacd4314c0339f6873236dbbb5af648f20d"
+      },
+      "archive": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-arm64/libnetdata_promql_engine.a",
+        "sha256": "eba5320f68b19418173a95fc044055569e6a0031a6e19b26cc3ee4e61ba7f5bb"
+      },
+      "default_embedding": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-arm64/embedding",
+        "sha256": "e948e3bb7477ee5a6166b191c8bf6a8bee1aea2cacf2517d6c8748f25085957d"
+      },
+      "unit": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/current-arm64/unit",
+        "sha256": "23a4d1ad224d14b6748d395944db1d93eaa8dbaf1607f92c40dd13265484a26d"
+      },
+      "compiler_settings": {
+        "path": ".tmp/acquisition-visitor-k1xavewc/arm64-settings.json",
+        "sha256": "5fc2fce6a076c210cb4d23c945e4deb7c006c561115e606c6393763fbb6c5932"
+      }
+    }
+  },
+  "mechanism": {
+    "before": "The no-op closure nested in generic acquire retains the consuming callback type in its compiler identity, producing separate copies of the same validation traversal.",
+    "after": "A named no-op visitor permits validation traversal sharing across consuming callback types while preserving the error type.",
+    "ownership": "No new fields, allocations, caches, history buffers, limits, interfaces or dependencies.",
+    "behavior": "Same complete page validation, error and cancellation phases, saved traversal state, consuming pass, useful-read credits and cleanup.",
+    "limits": "This does not implement the rejected Present acquisition-reuse experiment or remove any required storage traversal."
+  },
+  "compiled_cost": {
+    "sections": [
+      "text",
+      "data",
+      "bss"
+    ],
+    "default_C_growth_limit_bytes": 0,
+    "release_minimum_reduction_bytes": 16384,
+    "all_frozen_criteria_passed": true,
+    "observed": {
+      "release": [
+        {
+          "kind": "fixture",
+          "before": [
+            4463918,
+            259512,
+            1396
+          ],
+          "current": [
+            4377098,
+            259688,
+            2020
+          ],
+          "growth": -86020
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            7562658,
+            506456,
+            400
+          ],
+          "current": [
+            7375298,
+            506464,
+            400
+          ],
+          "growth": -187352
+        }
+      ],
+      "release-min": [
+        {
+          "kind": "fixture",
+          "before": [
+            2824869,
+            246024,
+            3108
+          ],
+          "current": [
+            2730237,
+            246024,
+            3524
+          ],
+          "growth": -94216
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            5099227,
+            461832,
+            400
+          ],
+          "current": [
+            5099227,
+            461832,
+            400
+          ],
+          "growth": 0
+        }
+      ],
+      "arm32": [
+        {
+          "kind": "fixture",
+          "before": [
+            3778514,
+            164568,
+            212
+          ],
+          "current": [
+            3692190,
+            164584,
+            212
+          ],
+          "growth": -86308
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6564673,
+            292484,
+            244
+          ],
+          "current": [
+            6383709,
+            292444,
+            244
+          ],
+          "growth": -181004
+        }
+      ],
+      "arm64": [
+        {
+          "kind": "fixture",
+          "before": [
+            3680255,
+            253040,
+            328
+          ],
+          "current": [
+            3642927,
+            253224,
+            328
+          ],
+          "growth": -37144
+        },
+        {
+          "kind": "default-C",
+          "before": [
+            6541070,
+            496744,
+            384
+          ],
+          "current": [
+            6414082,
+            496800,
+            384
+          ],
+          "growth": -126932
+        }
+      ]
+    },
+    "census": {
+      "C": {
+        "before": {
+          "groups": {
+            "EvaluationError": {
+              "count": 2,
+              "bytes": 14318,
+              "bodies": [
+                {
+                  "address": "0x4644d0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x4660d0",
+                  "bytes": 7159
+                }
+              ]
+            },
+            "ExecutionError": {
+              "count": 4,
+              "bytes": 28636,
+              "bodies": [
+                {
+                  "address": "0x46b4d0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x46d0d0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x46ecd0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x4708d0",
+                  "bytes": 7159
+                }
+              ]
+            },
+            "StorageError": {
+              "count": 14,
+              "bytes": 100226,
+              "bodies": [
+                {
+                  "address": "0x428cd0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x42a8d0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x42c4d0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x42e0d0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x42fcd0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x4318d0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x4334d0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x4350d0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x436cd0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x4388d0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x43a4d0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x43c0d0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x43dcd0",
+                  "bytes": 7159
+                },
+                {
+                  "address": "0x43f8d0",
+                  "bytes": 7159
+                }
+              ]
+            }
+          },
+          "other_bodies": 26,
+          "other_bytes": 186134
+        },
+        "current": {
+          "groups": {
+            "EvaluationError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x441c30",
+                  "bytes": 7159
+                }
+              ]
+            },
+            "ExecutionError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x447030",
+                  "bytes": 7159
+                }
+              ]
+            },
+            "StorageError": {
+              "count": 1,
+              "bytes": 7159,
+              "bodies": [
+                {
+                  "address": "0x41d030",
+                  "bytes": 7159
+                }
+              ]
+            }
+          },
+          "other_bodies": 26,
+          "other_bytes": 186134
+        }
+      },
+      "fixture": {
+        "before": {
+          "groups": {
+            "EvaluationError": {
+              "count": 2,
+              "bytes": 9688,
+              "bodies": [
+                {
+                  "address": "0x151290",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x152580",
+                  "bytes": 4844
+                }
+              ]
+            },
+            "ExecutionError": {
+              "count": 2,
+              "bytes": 9688,
+              "bodies": [
+                {
+                  "address": "0x155e50",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x157140",
+                  "bytes": 4844
+                }
+              ]
+            },
+            "StorageError": {
+              "count": 14,
+              "bytes": 67816,
+              "bodies": [
+                {
+                  "address": "0x128eb0",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x12a1a0",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x12b490",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x12c780",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x12da70",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x12ed60",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x130050",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x131340",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x132630",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x133920",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x134c10",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x135f00",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x1371f0",
+                  "bytes": 4844
+                },
+                {
+                  "address": "0x1384e0",
+                  "bytes": 4844
+                }
+              ]
+            }
+          },
+          "other_bodies": 24,
+          "other_bytes": 116256
+        },
+        "current": {
+          "groups": {
+            "EvaluationError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x13e590",
+                  "bytes": 4844
+                }
+              ]
+            },
+            "ExecutionError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x141e60",
+                  "bytes": 4844
+                }
+              ]
+            },
+            "StorageError": {
+              "count": 1,
+              "bytes": 4844,
+              "bodies": [
+                {
+                  "address": "0x1257e0",
+                  "bytes": 4844
+                }
+              ]
+            }
+          },
+          "other_bodies": 24,
+          "other_bytes": 116256
+        }
+      }
+    },
+    "attribution": "Count unique emitted ELF address/size pairs, not symbol aliases. C validation walkers 20 to 3, summed bodies 143180 to 21477 bytes; fixture 18 to 3, 87192 to 14532 bytes. Other walker aggregate counts/sizes are unchanged. Whole linked reduction also includes other compiler effects; body sums do not fully attribute it.",
+    "limits": "Section sizes describe actual synthetic C consumers and fixtures, not a whole Netdata executable, process RSS, resident memory or universal compiler behavior. Fixture section increases are retained in the full table."
+  },
+  "measurement": {
+    "complete_pairs": 1872,
+    "cases_per_profile": 72,
+    "series": [
+      1,
+      32
+    ],
+    "window_points": [
+      2,
+      128
+    ],
+    "pages": [
+      1,
+      17,
+      1024
+    ],
+    "range_ticks": 3,
+    "shapes": [
+      "bare Present",
+      "grouped Present",
+      "joined Present",
+      "absence",
+      "Sum control",
+      "Avg control"
+    ],
+    "primary": "Three alternating blocks, one warmup and three measurements per side/block; nine measured samples per case/side. No diagnostic repeat replaces a primary result.",
+    "equivalence": "Complete results, labels, timestamps, warnings/errors, numeric bits and every nonelapsed observation identical.",
+    "profiles": {
+      "release": {
+        "complete_pairs": 936,
+        "panel_median": 1.0045162765737279,
+        "target_shapes": {
+          "absent": 1.0040615636138905,
+          "average-control": 0.9896814094091964,
+          "bare": 1.006960997382635,
+          "grouped": 1.0015316719704659,
+          "joined": 1.008012655185385,
+          "sum-control": 1.0000145881738882
+        },
+        "passed": true,
+        "cases_at_least_5_percent_slower": []
+      },
+      "release-min": {
+        "complete_pairs": 936,
+        "panel_median": 1.003909838388437,
+        "target_shapes": {
+          "absent": 1.0035529538973953,
+          "average-control": 1.0043832223428217,
+          "bare": 1.0123496529221943,
+          "grouped": 1.0015196432685438,
+          "joined": 1.0011074323541629,
+          "sum-control": 1.0070981244329866
+        },
+        "passed": true,
+        "cases_at_least_5_percent_slower": []
+      }
+    },
+    "limits": "No throughput or query-memory reduction claim. Shared-host synthetic engine timings exclude parsing/serialization. Panel and each shape median pass the predeclared 1.05 ceiling; individual slower cases are retained."
+  },
+  "qualification": {
+    "native_optimized_tests_per_profile": 854,
+    "preexisting_ignored_per_profile": 2,
+    "ignored_tests": [
+      "accounting::tests::measure_empty_vector_owners",
+      "c_abi::tests::output_points::measure_streamed_point_descriptors"
+    ],
+    "emulated_ARM_tests_per_target": {
+      "matrix_reader": 11,
+      "range_reduce": 20,
+      "absence": 3
+    },
+    "actual_C_window_fold_cases_per_cohort": 816,
+    "actual_C_complete_exact_record_pairs_per_cohort": 885,
+    "cohorts": [
+      "release",
+      "release-min",
+      "arm32",
+      "arm64"
+    ],
+    "original_cases_per_page": 4864,
+    "expected_errors_per_page": 1020,
+    "original_comparisons": 38912,
+    "original_panels": {
+      "reader-ordinary": 1826,
+      "reader-clipped": 370,
+      "reader-zero": 220,
+      "fold-join": 2266,
+      "native-recovery": 126,
+      "derived": 56
+    },
+    "original_native_pages": [
+      1,
+      17,
+      1024
+    ],
+    "original_foreign_pages": [
+      17
+    ],
+    "original_policy": "Exact numerical bits; each retained panel keeps its original ordered/unordered policy. Expected errors, including unsupported anchored functions, remain errors.",
+    "fresh_Go_captures": 0,
+    "fresh_SRE_comparisons": 0,
+    "strict_Clippy_variants": 2,
+    "format": "pass",
+    "MSRV_compile_only": "1.91.0"
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/measurement-plan.json",
+      "sha256": "47346c9b5fb2ce103f259eb9cd69c1f0ee96d739178d6fb6f999d5ce8f96fd92"
+    },
+    "ready.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/ready.json",
+      "sha256": "b5fc218a48acbe5d6286616a4d10830c8b00cec437215d41afe703a2ae4033b4"
+    },
+    "baseline.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/baseline.json",
+      "sha256": "98601c0e1171fded90e47895802681346e296ae25402addaeadb6fc58e1c378f"
+    },
+    "originals-prepared.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/originals-prepared.json",
+      "sha256": "94b03b229df986dc6f19c1188b49b850cdc798a5a633e7db38a9ef8c4a08f32c"
+    },
+    "native-sequence.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/native-sequence.json",
+      "sha256": "382214fea837fa4423fff8409027268ff16b894283dc15ebb571641171430ef0"
+    },
+    "cross-sequence.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/cross-sequence.json",
+      "sha256": "b42ee042c38c183eb1644945d90d5f3f9dde3796b75cc819b3ddf71c8ed459af"
+    },
+    "current-static.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/current-static.json",
+      "sha256": "7b968d4576a8e0423a2e0ab95f6041b09679109ee4a19a63218b2ccd73801024"
+    },
+    "census.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/census.json",
+      "sha256": "ebeb455570fee70614c024741ee5fb45c20862fae0d6548a5dc57cecd73ba344"
+    },
+    "build-release.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/build-release.json",
+      "sha256": "9c00a2be7b1ccbb75249493a6208845c0d258977d45f3dd13dd4840916ca3be1"
+    },
+    "qualification-release.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/qualification-release.json",
+      "sha256": "4b65d5e3a3b88ffd29e2c4378aa3693839271dadd282542dc748a2d1d66a9e63"
+    },
+    "C-comparison-release.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/C-comparison-release.json",
+      "sha256": "72decfb2702d14b26efd4acfaab17df66239ad3153a30b6e238d3a0cabf123ba"
+    },
+    "originals-release.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/originals-release.json",
+      "sha256": "2327486f862400ed9c223f6106d3c27fe5a865eeb7dc794feb7f03ec2d736b48"
+    },
+    "build-release-min.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/build-release-min.json",
+      "sha256": "af9c7b1a8375a67584f6c597e5bd890a042405c64b75dbb2b56df018eac96dcf"
+    },
+    "qualification-release-min.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/qualification-release-min.json",
+      "sha256": "68688952e9d22175917a0a7ad9c4d8620a0280103e1db80304882dff7c519960"
+    },
+    "C-comparison-release-min.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/C-comparison-release-min.json",
+      "sha256": "9d4a23bd0d53d43d1c220e5042908aeaf758def860837f7ebe0399b9e97eeefc"
+    },
+    "originals-release-min.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/originals-release-min.json",
+      "sha256": "c9a34e79fa564f8f5a152c506eadbfb66326e444e92449e8582fb77db469ea9d"
+    },
+    "build-arm32.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/build-arm32.json",
+      "sha256": "054cd3f319aa0f51f6ff11d829dd3ff3768b6bf045ce3d683304ab359182cabe"
+    },
+    "qualification-arm32.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/qualification-arm32.json",
+      "sha256": "0dafbd1f62bb76b45c589b7bc2224064cc4bc06795d95ab185f4797ac04de460"
+    },
+    "C-comparison-arm32.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/C-comparison-arm32.json",
+      "sha256": "b1232f74c7b680f362dec0e9f967ec5fd5ce594683c20a16294939d29c10604f"
+    },
+    "originals-arm32.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/originals-arm32.json",
+      "sha256": "186ff334f9ae9fee65c5c7bc949487f1fe257df3258216010f76a181e428aa6f"
+    },
+    "build-arm64.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/build-arm64.json",
+      "sha256": "7b7184a3c80350a099f87748a8fcaead887535b1edbd24ea5398344cdde4ac20"
+    },
+    "qualification-arm64.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/qualification-arm64.json",
+      "sha256": "5269aa9737fd6c682fcc66c9e1c5a5925c900a921ee0fb6a47319d9cf06435db"
+    },
+    "C-comparison-arm64.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/C-comparison-arm64.json",
+      "sha256": "e680211f3c6756b0efbc2454ab5f57afc3957caaff495951a08a3361566c8ef5"
+    },
+    "originals-arm64.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/originals-arm64.json",
+      "sha256": "2c05e47a200eaab08c8c17e234e2d1d054d4bcbf9181f09c95d3b792ae1ae071"
+    },
+    "measurement-release.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/measurement-release.json",
+      "sha256": "c474ef456311568f8fa69e3d8662d523d32183b79e3a8de4e7f3199162a049e4"
+    },
+    "measurement-release-min.json": {
+      "path": ".tmp/acquisition-visitor-k1xavewc/measurement-release-min.json",
+      "sha256": "d8d0039b018e07bf62c082dd924cc7006754db68a70372af2fedfd93ac4758ba"
+    }
+  },
+  "orchestration": "Initial census parser omitted the Rust turbofish delimiter and failed before producing a census. Corrected helper reuses authenticated completed nm captures; both helpers are retained.",
+  "scope": "Private compiled-footprint improvement. No new language feature, full-language recertification, live dbengine/Cloud throughput, physical ARM execution or alert scheduler claim. Earlier qualifications retain their original attribution."
+}

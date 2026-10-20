@@ -9369,3 +9369,38 @@ with unchanged BSS. This exceeds the frozen 8,192-byte limit; runtime and tests 
 No timing, full optimized suites, C execution, other profiles/targets or original/SRE replay was run.
 [present-acquisition-investigation.json](present-acquisition-investigation.json) records the failed criterion,
 actual tests and exact restoration. No performance or coverage gain from this experiment is shipped.
+
+## Shared acquisition validation visitor
+
+Acquisition validation now uses one named no-op visitor, generic only over its error type. Previously, the nested
+closure also carried the consuming callback's type into compilation, creating duplicate validation walkers.
+The consuming callbacks, page traversal, validation, errors, cancellation, credits and cleanup are unchanged.
+No fields, allocations or raw-history buffers are added. This does not enable the rejected Present optimization.
+
+The [qualification report](acquisition-visitor-qualification.json) records the measured text/data/BSS totals of
+actual C consumers. Native release has 20 emitted acquisition-validation walkers before this change and three
+afterward, counted by unique address/size pairs. Their summed body sizes fall from 143,180 to 21,477 bytes;
+the larger linked reduction includes additional compiler effects.
+
+| C consumer | Change in text/data/BSS total |
+| --- | ---: |
+| Native release | −187,352 bytes |
+| Native release-min | 0 bytes |
+| Emulated ARM32 release | −181,004 bytes |
+| Emulated ARM64 release | −126,932 bytes |
+
+The report retains every section separately, including small data/BSS increases in some consumers or fixtures.
+These are compiled-footprint measurements, not process RSS or whole-Netdata binary measurements.
+
+Both native profiles pass 936 complete before/current query pairs each, with every nonelapsed observation exact.
+Panel median time ratios are 1.0045 and 1.0039; every shape median meets the predeclared 1.05 ceiling. No speedup
+or query-memory reduction is claimed. Individual cases at least 5% slower remain in the report. Timings cover
+synthetic paged queries and exclude parsing and serialization.
+
+Both optimized native suites pass 854 tests with two existing timing probes ignored. Each emulated ARM target
+passes 11 matrix, 20 fold and three absence tests. All four C consumers pass 816 window-fold cases and match all
+885 complete output/accounting records exactly. The full selected 4,864-case matrix/fold/derived original roster
+passes 38,912 comparisons across both native profiles at pages 1/17/1024 and both ARM targets at page 17. Its
+1,020 expected errors per page remain errors. Numerical bits and original ordering policies are preserved.
+Strict Clippy, formatting and compile-only Rust 1.91 checks pass. This is finite qualification of a private compiler
+sharing change; it adds no language support and does not requalify live storage, SRE rule graphs or scheduling.

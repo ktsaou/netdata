@@ -73789,5 +73789,11 @@
     "report_sha256": "3edbb113769821e7e0e81857598ce7b2c0c66c8e4da4dda7fc9169d5c893210c",
     "status": "rejected_candidate_runtime_restored",
     "scope": "Negative compiled-footprint experiment only. No retained runtime change or new throughput, memory, language-coverage, platform or live-query qualification claim."
+  },
+  "shared_acquisition_validation_visitor": {
+    "report": "acquisition-visitor-qualification.json",
+    "report_sha256": "de50eadf4a52abac6b2e5594a0c5fad286fbe4a47693d38cfdad2ff70e8b653e",
+    "status": "finite_qualification_pass",
+    "scope": "Shared no-op validation visitor; smaller compiled C consumers, 1872 exact query/observation pairs, 38912 pinned-original comparisons and four actual C callers. No speedup or language expansion claim."
   }
 }

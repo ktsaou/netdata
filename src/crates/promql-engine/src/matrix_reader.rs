@@ -306,6 +306,11 @@ pub(crate) fn scan<S: Series, E: From<StorageError> + From<Interrupted>>(
         .map(|acquisition| Some(acquisition.progress))
 }
 
+// Keep validation independent of the consuming callback's generic type.
+fn ignore_sample<E>(_: SampleRef<'_>) -> Result<(), E> {
+    Ok(())
+}
+
 pub(crate) fn acquire<S: Series, E: From<StorageError> + From<Interrupted>>(
     series: &S,
     bounds: impl Into<Option<TimeBounds>>,
@@ -315,7 +320,7 @@ pub(crate) fn acquire<S: Series, E: From<StorageError> + From<Interrupted>>(
     visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), E>,
 ) -> Result<Acquisition, E> {
     let bounds = bounds.into();
-    let acquisition = probe(series, bounds, window, control, account, |_| Ok::<_, E>(()))?;
+    let acquisition = probe(series, bounds, window, control, account, ignore_sample::<E>)?;
     if !acquisition.populated {
         return Ok(acquisition);
     }
