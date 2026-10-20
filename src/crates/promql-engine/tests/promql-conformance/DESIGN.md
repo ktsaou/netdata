@@ -2384,3 +2384,11 @@ separately rejected under their original criteria.
   Exact restoration leaves the accepted scalar-only optimization unchanged; both arithmetic trials remain historical.
 - The [negative record](scalar-structural-rejected-qualification.json) makes no throughput or memory claim.
   Source length and fixture size are insufficient evidence for shipping executable footprint.
+
+## Rejected scalar arithmetic inline hint
+
+- An ordinary inline hint did not fold known caller facts: the ARM64 code text remained byte-identical to the
+  rejected structural variant. CPU workaround handling and the footprint ceiling were unchanged.
+- The early size gate rejected this variant before runtime qualification. Exact restoration leaves the accepted
+  engine unchanged; [retained evidence](scalar-inline-rejected-qualification.json) reports no new performance gain.
+- This closes the tested helper representations without selecting further arbitrary layout changes.

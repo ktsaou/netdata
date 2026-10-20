@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "status": "rejected_candidate_accepted_runtime_restored",
+  "comparison_base": "06d16f6f5f0ddced31558c63f02f358770f00dc3",
+  "candidate": "Ordinary #[inline] hint on the pure scalar Binary operand/phase classifier. Existing completed Float cache and exact operand proof unchanged.",
+  "failed_gate": {
+    "target": "aarch64-unknown-linux-gnu",
+    "consumer": "Actual optimized default-library C executable",
+    "limit_bytes": 8192,
+    "growth_bytes": 17376,
+    "excess_bytes": 9184,
+    "before_text_data_bss": [
+      6374470,
+      497032,
+      384
+    ],
+    "candidate_text_data_bss": [
+      6391702,
+      497176,
+      384
+    ]
+  },
+  "decision": "Reject at early footprint gate. No threshold or CPU workaround changed; do not continue trying arbitrary source layouts.",
+  "observed_code": {
+    "same_text_as_rejected143": true,
+    "text_sha256": "fb92ebcc6743d6c2c3158374a0ed99b69278302bd34d407095147ca05611265c",
+    "helper_copies": 2,
+    "helper_bytes_each": 232,
+    "A53_erratum_stubs": 7,
+    "whole_executables_identical": false,
+    "scope": "The ordinary hint did not remove helper calls or redundant checks. Exact .text equality is narrower than whole-binary identity."
+  },
+  "qualification": {
+    "ARM64_build_and_tool_commands": 9,
+    "candidate_queries_executed": 0,
+    "candidate_tests_executed": 0,
+    "candidate_timing_measurements": 0,
+    "candidate_memory_measurements": 0,
+    "reference_queries_newly_executed": 0,
+    "retained_reference_requests_checked": 2178,
+    "retained_baseline_outcomes_checked": 432
+  },
+  "not_run_after_rejection": [
+    "Native and ARM runtime/unit/original panels",
+    "C runtime and logical statistics",
+    "Timing and allocation comparisons",
+    "Strict lint and MSRV checks"
+  ],
+  "restoration": {
+    "accepted_source_inputs_exactly_restored": 404,
+    "trial_source_retention": {
+      "src/crates/promql-engine/src/evaluator.rs": {
+        "path": ".tmp/scalar-inline-yobmbnu0/rejected-evaluator.rs",
+        "sha256": "ecf5bef7fdcf55decb92803f8c49bb073abf8aae5170f17475ad9df2e1f4f9f8"
+      },
+      "src/crates/promql-engine/src/execution.rs": {
+        "path": ".tmp/scalar-inline-yobmbnu0/rejected-execution.rs",
+        "sha256": "17ef6007dae8888f3a48b14e92eaadaa109a611a43dc45977381528675963116"
+      },
+      "src/crates/promql-engine/src/scheduled_expression.rs": {
+        "path": ".tmp/scalar-inline-yobmbnu0/rejected-scheduled_expression.rs",
+        "sha256": "17ed81d67221938a1e0589183ed371ab757ad2c8a13e06f2fbe99609707b2bec"
+      },
+      "src/crates/promql-engine/tests/promql-conformance/scalar_arithmetic_cases.py": {
+        "path": ".tmp/scalar-inline-yobmbnu0/rejected-public-scalar_arithmetic_cases.py",
+        "sha256": "cd0b9b8bfd7b6be4bc04f5a61150938e968c0dc26b17e8ccf2ebcfab92315094"
+      },
+      "src/crates/promql-engine/tests/promql-conformance/scalar_arithmetic_values.c": {
+        "path": ".tmp/scalar-inline-yobmbnu0/rejected-public-scalar_arithmetic_values.c",
+        "sha256": "3ea8aff1212689361bf26d4ee1942035dd5415e4a5d3437393c963cbd6bd8664"
+      }
+    },
+    "files_deleted": 0,
+    "processes_signalled": 0,
+    "scope": "Exact owned diff reversed; added fixtures moved to private evidence. Unrelated untracked directory untouched."
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/scalar-inline-yobmbnu0/measurement-plan.json",
+      "sha256": "c68895b4a96e15c30610bc64342021bf26cd63644f2209cc638e7df0dfb4ea8a"
+    },
+    "implementation.json": {
+      "path": ".tmp/scalar-inline-yobmbnu0/implementation.json",
+      "sha256": "b611b305bc5775da0992159b307e1bf451e33fd84e338efde77388a7546a6805"
+    },
+    "predecessor-evidence.json": {
+      "path": ".tmp/scalar-inline-yobmbnu0/predecessor-evidence.json",
+      "sha256": "7da9edb41e415b3e521baa34d9a22d1489d1101cdcdfc14e8726001c450b04bb"
+    },
+    "retained-inputs.json": {
+      "path": ".tmp/scalar-inline-yobmbnu0/retained-inputs.json",
+      "sha256": "503723af93f1403adcab7b06abb5a9178754ffbf122c6866cdcadbf6e0c47840"
+    },
+    "arm64-footprint-rejected.json": {
+      "path": ".tmp/scalar-inline-yobmbnu0/arm64-footprint-rejected.json",
+      "sha256": "82147eb381ca7c7db274424c0a9d5b1d18d5babfadc6d8dae0b5b365ff692216"
+    },
+    "hint-evidence.json": {
+      "path": ".tmp/scalar-inline-yobmbnu0/hint-evidence.json",
+      "sha256": "ea08db1b0f8657cc1024b9a9c0e8623c23f2e53aa04ab5a05abc920a19dcefa3"
+    },
+    "restoration.json": {
+      "path": ".tmp/scalar-inline-yobmbnu0/restoration.json",
+      "sha256": "c910e28521c4855b26f5f774bfccfa9863a4b59ff0ae338bcdea2f7b2104378f"
+    }
+  },
+  "scope": "Third rejected scalar arithmetic representation experiment. No runtime improvement or new coverage accepted; earlier measurements retain their actual sources. Continuous work remains unfinished and moves to another source-grounded opportunity."
+}

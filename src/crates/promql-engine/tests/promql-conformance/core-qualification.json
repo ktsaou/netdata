@@ -73849,5 +73849,11 @@
     "report_sha256": "f326948df228a2d412b91c557b7d7aa5bebb030caef8cee3c30437b4c3c9707c",
     "status": "rejected_candidate_accepted_runtime_restored",
     "scope": "Pure structural successor rejected at early ARM64 default C gate:17376B>8192B.403accepted inputs restored; no candidate query measurements."
+  },
+  "rejected_inline_scalar_arithmetic": {
+    "report": "scalar-inline-rejected-qualification.json",
+    "report_sha256": "733cc71795f70bb8f07cd62e5f34ce57b7e5ccf3653e479b3b3290bc6f9272d3",
+    "status": "rejected_candidate_accepted_runtime_restored",
+    "scope": "Ordinary inline hint leaves ARM64 .text unchanged;17376BdefaultC growth fails8192Bgate.404accepted inputs restored; no candidate query execution."
   }
 }

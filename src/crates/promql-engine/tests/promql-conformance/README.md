@@ -9677,3 +9677,15 @@ The early footprint gate rejected this variant before any query, unit, timing or
 All 403 accepted source inputs were restored exactly. The [negative record](scalar-structural-rejected-qualification.json)
 retains the actual compiler/linker evidence and trial sources. No optimization from either rejected arithmetic
 trial is present in the accepted runtime. Earlier trial timings cannot be attributed to this variant.
+
+## Rejected scalar arithmetic inline hint
+
+An ordinary `#[inline]` hint on the structural predicate produced exactly the same ARM64 `.text` bytes as
+the rejected structural variant, including two 232-byte helper bodies and seven Cortex-A53 workaround stubs.
+The default C executable still grew by 17,376 bytes against the unchanged 8,192-byte ceiling. Its complete
+binary hash is distinct; identical code text does not mean identical executables.
+
+The trial was rejected before query, unit, timing or memory execution. All 404 accepted inputs were restored;
+the [negative record](scalar-inline-rejected-qualification.json) preserves actual code/size evidence and source
+identities. The earlier arithmetic speed measurements do not qualify this variant. Further arbitrary layout
+variants are not selected; the accepted runtime retains scalar-only aggregate reuse.
