@@ -10047,3 +10047,41 @@ Frozen whole-query candidate/baseline family medians:
 | release-min | 0.4531 | 0.2574 | 0.2599 | 1.0052 |
 
 Ratios below 1 favor the candidate. Individual slower cases and the single predefined follow-up remain in the report. Default C text/data/BSS total changes are release -56,532 B, release-min +4,112 B, arm32 -19,888 B, arm64 -17,740 B.
+
+
+## Completed grouped average clocks
+
+Grouped `avg(rate(...))`, `avg(increase(...))` and `avg(delta(...))` subqueries now reuse the same completed
+clock and contributor metadata as SUM. The shared admission also covers supported grouped ratios and
+literal classic-histogram consumers. It keeps the existing Float-only child proof, clock checks, native/delayed
+fallback and cold full traversal. Each selected group computes a fresh average with its current contributor count.
+
+The [finite qualification](grouped-average-clocks-qualification.json) retains 498 complete baseline pairs per
+profile and 996 comparisons against 166 fresh pinned Go outcomes. Unequal/changing populations distinguish AVG
+from SUM in direct queries, mixed ratios and histogram buckets. Overflow, missing data, resets and native/mixed
+fallback are included. All policy-qualified outcomes match with zero numerical bit differences; 294 strict
+instant-order differences remain recorded as failures.
+
+Nine existing causal tests now exercise both SUM and AVG, including actual required-read failures, partial
+completion, fresh selected reads and final clearing. Both native profiles pass 900 tests with two existing ignored
+tests; each ARM target executes 16 focused tests. The affected C/C++ consumers execute 3,456 cases across six
+target/profile/language combinations. Their success, provider-error, cancellation and output-error arms each
+execute 864 times. Both complete native C suites, strict lint, formatting and the installed MSRV compile check pass.
+
+The frozen 35-case, five-block timing panel retains 1,400 complete result pairs. Target family times fall by
+about 35–80%, depending on expression; controls remain essentially unchanged. No individual ratio exceeds 1.05,
+so the predefined slower-case follow-up is empty. These are synthetic engine timings, not live-provider results.
+The larger direct AVG case reads 377,344→49,984 entries and uses 51,242→52,058 bytes of workspace (+816 bytes).
+Its ratio counterpart reads 765,952→111,232 entries and uses 98,357→97,350 bytes. The singleton retains its reads
+and peak, with 150 additional work units. Across 54 increasing-time cases, direct and histogram-fed workspace
+peaks remain 34,127 and 41,696 bytes respectively. Raw storage remains page-bounded on both axes.
+
+No runtime layout is changed. Default C executable total changes are 0 bytes for native release, +16 for
+release-min, +8 for ARM32 and +4,096 for ARM64; data/BSS are unchanged. The report also retains relative and
+cumulative compiled costs. Existing metadata activation is distinct from a raw-data or aggregate-value cache.
+
+To repeat the causal checks, run the fixture-enabled Rust tests in both release profiles, then compile and run
+`grouped_subquery_clocks.c`, `grouped_ratio_clocks.c` and `histogram_discovery.c` against each matching default
+archive using the existing C embedding workflow. Compare complete varied-input results at page sizes 1/17/1024;
+retain source/compiler/binary identities and strict original-order reports separately. C fixture output contains
+individual case records and separate summaries; validate both. ARM execution establishes correctness only.

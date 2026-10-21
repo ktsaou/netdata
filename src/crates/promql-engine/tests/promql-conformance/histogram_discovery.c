@@ -95,10 +95,12 @@ int main(void) {
         netdata_promql_engine_t *engine = NULL;
         assert(netdata_promql_engine_create(&options, &engine) == NETDATA_PROMQL_OK);
         netdata_promql_engine_observations_t idle = engine_observations(engine);
+        const char *aggregates[] = {"sum", "avg"};
+        for (unsigned aggregate = 0; aggregate < 2; aggregate++)
         for (unsigned function = 0; function < 3; function++) {
             char expression[192];
             int length = snprintf(expression, sizeof(expression),
-                "max_over_time((histogram_quantile(.5,sum by(job,le)(%s(m_total[3s]))))[2s:1s])", functions[function]);
+                "max_over_time((histogram_quantile(.5,%s by(job,le)(%s(m_total[3s]))))[2s:1s])", aggregates[aggregate], functions[function]);
             assert(length > 0 && (size_t)length < sizeof(expression));
             netdata_promql_query_t *query = compile(engine, expression);
             for (unsigned page = 0; page < 3; page++) {
@@ -151,8 +153,8 @@ int main(void) {
                     assert(observed.samples_fetched == source.source.samples_returned && observed.pages == source.source.pages_returned);
                     assert(observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
                     released(&source.source);
-                    printf("{\"histogram_discovery\":\"pass\",\"function\":\"%s\",\"page\":%" PRIu64 ",\"delayed\":%u,\"arm\":%u,\"fetched\":%" PRIu64 "}\n",
-                           functions[function], pages[page], delayed, arm, observed.samples_fetched);
+                    printf("{\"histogram_discovery\":\"pass\",\"aggregate\":\"%s\",\"function\":\"%s\",\"page\":%" PRIu64 ",\"delayed\":%u,\"arm\":%u,\"fetched\":%" PRIu64 "}\n",
+                           aggregates[aggregate], functions[function], pages[page], delayed, arm, observed.samples_fetched);
                     if (output.output.control) assert(netdata_promql_control_release(output.output.control) == NETDATA_PROMQL_OK);
                     assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
                 }

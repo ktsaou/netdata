@@ -1392,7 +1392,7 @@ impl CompiledQuery {
                     )?;
                 }
                 Expr::Aggregate {
-                    operator: TokenKind::SUM,
+                    operator: TokenKind::SUM | TokenKind::AVG,
                     expression: Some(child),
                     parameter: None,
                     ..
@@ -10602,6 +10602,14 @@ mod tests {
 
     #[test]
     fn grouped_histogram_discovery_preserves_changing_results_and_paged_reads() {
+        for aggregate in ["sum", "avg"] {
+            grouped_histogram_discovery_preserves_changing_results_and_paged_reads_case(aggregate);
+        }
+    }
+
+    fn grouped_histogram_discovery_preserves_changing_results_and_paged_reads_case(
+        aggregate: &str,
+    ) {
         for rate_function in ["rate", "increase", "delta"] {
             for page in [1, 17, 1024] {
                 for delayed in [false, true] {
@@ -10613,7 +10621,7 @@ mod tests {
                         let engine = Engine::default();
                         let control = Control::default();
                         let query = engine.compile(
-                            format!("{function}_over_time((histogram_quantile(.5,sum by(id,le)({rate_function}(duration_bucket[3s]))))[8s:1s])").as_bytes(),
+                            format!("{function}_over_time((histogram_quantile(.5,{aggregate} by(id,le)({rate_function}(duration_bucket[3s]))))[8s:1s])").as_bytes(),
                             options(delayed), &control,
                         ).unwrap();
                         let provider = grouped_histogram_provider(page, 2);
@@ -10674,13 +10682,23 @@ mod tests {
 
     #[test]
     fn grouped_histogram_discovery_preserves_every_required_delivery_read_failure() {
+        for aggregate in ["sum", "avg"] {
+            grouped_histogram_discovery_preserves_every_required_delivery_read_failure_case(
+                aggregate,
+            );
+        }
+    }
+
+    fn grouped_histogram_discovery_preserves_every_required_delivery_read_failure_case(
+        aggregate: &str,
+    ) {
         for rate_function in ["rate", "increase", "delta"] {
             let request = QueryRequest::Instant { time_ms: 8000 };
             for page in [1, 17, 1024] {
                 let engine = Engine::default();
                 let control = Control::default();
                 let query = engine.compile(
-                    format!("max_over_time((histogram_quantile(.5,sum by(id,le)({rate_function}(duration_bucket[3s]))))[4s:1s])").as_bytes(),
+                    format!("max_over_time((histogram_quantile(.5,{aggregate} by(id,le)({rate_function}(duration_bucket[3s]))))[4s:1s])").as_bytes(),
                     EngineOptions::default(), &control,
                 ).unwrap();
                 let calibration = grouped_histogram_provider(page, 2);
@@ -10740,6 +10758,16 @@ mod tests {
 
     #[test]
     fn grouped_histogram_discovery_keeps_cold_completion_fresh_reads_and_clearing() {
+        for aggregate in ["sum", "avg"] {
+            grouped_histogram_discovery_keeps_cold_completion_fresh_reads_and_clearing_case(
+                aggregate,
+            );
+        }
+    }
+
+    fn grouped_histogram_discovery_keeps_cold_completion_fresh_reads_and_clearing_case(
+        aggregate: &str,
+    ) {
         fn drive(
             compiled: &CompiledQuery,
             input: &FixtureProvider,
@@ -10885,7 +10913,7 @@ mod tests {
             let engine = Engine::default();
             let control = Control::default();
             let query = engine.compile(
-                b"max_over_time((histogram_quantile(.5,sum by(id,le)(rate(duration_bucket[3s]))))[4s:1s])",
+                format!("max_over_time((histogram_quantile(.5,{aggregate} by(id,le)(rate(duration_bucket[3s]))))[4s:1s])").as_bytes(),
                 EngineOptions::default(), &control).unwrap();
             let calibration = grouped_histogram_provider(page, 2);
             let landmarks = drive(&query, &calibration, None);
@@ -10926,6 +10954,12 @@ mod tests {
 
     #[test]
     fn grouped_ratio_clocks_preserve_results_statistics_and_paged_reads() {
+        for aggregate in ["sum", "avg"] {
+            grouped_ratio_clocks_preserve_results_statistics_and_paged_reads_case(aggregate);
+        }
+    }
+
+    fn grouped_ratio_clocks_preserve_results_statistics_and_paged_reads_case(aggregate: &str) {
         for rate_function in ["rate", "increase", "delta"] {
             for page in [1, 17, 1024] {
                 for count in [4, 16] {
@@ -10939,7 +10973,7 @@ mod tests {
                             let engine = Engine::default();
                             let control = Control::default();
                             let expression = format!(
-                                "{function}((sum by(id)({rate_function}(m_total[3s])) / sum by(id)({rate_function}(n_total[3s])))[8s:1s])"
+                                "{function}(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[8s:1s])"
                             );
                             let query = engine
                                 .compile(expression.as_bytes(), options(delayed), &control)
@@ -10988,14 +11022,9 @@ mod tests {
                                 report.observations.memory[MemoryKind::Workspace as usize].current,
                                 0
                             );
-                            assert!(
-                                provider.series.iter().all(|row| row
-                                    .source
-                                    .counters
-                                    .peak
-                                    .load(Ordering::Relaxed)
-                                    == 1)
-                            );
+                            assert!(provider.series.iter().all(|row| {
+                                row.source.counters.peak.load(Ordering::Relaxed) == 1
+                            }));
                             if !delayed && count == 16 && page == 17 && function == "max_over_time"
                             {
                                 assert!(report.observations.samples_fetched < 200_000);
@@ -11012,6 +11041,12 @@ mod tests {
 
     #[test]
     fn grouped_ratio_clocks_preserve_every_required_delivery_read_failure() {
+        for aggregate in ["sum", "avg"] {
+            grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(aggregate);
+        }
+    }
+
+    fn grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(aggregate: &str) {
         for rate_function in ["rate", "increase", "delta"] {
             let request = QueryRequest::Instant { time_ms: 8000 };
             for page in [1, 17, 1024] {
@@ -11019,7 +11054,7 @@ mod tests {
                 let control = Control::default();
                 let query = engine
                     .compile(
-                        format!("max_over_time((sum by(id)({rate_function}(m_total[3s])) / sum by(id)({rate_function}(n_total[3s])))[4s:1s])")
+                        format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[4s:1s])")
                             .as_bytes(),
                         EngineOptions::default(),
                         &control,
@@ -11084,6 +11119,12 @@ mod tests {
 
     #[test]
     fn grouped_subquery_clocks_preserve_results_statistics_and_paged_reads() {
+        for aggregate in ["sum", "avg"] {
+            grouped_subquery_clocks_preserve_results_statistics_and_paged_reads_case(aggregate);
+        }
+    }
+
+    fn grouped_subquery_clocks_preserve_results_statistics_and_paged_reads_case(aggregate: &str) {
         for (rate_function, rate_factor) in [("rate", 1.0), ("increase", 3.0), ("delta", 3.0)] {
             for page in [1, 17, 1024] {
                 for count in [4, 16] {
@@ -11097,7 +11138,7 @@ mod tests {
                             let engine = Engine::default();
                             let control = Control::default();
                             let expression = format!(
-                                "{function}((sum by(id)({rate_function}(m_total[3s])))[8s:1s])"
+                                "{function}(({aggregate} by(id)({rate_function}(m_total[3s])))[8s:1s])"
                             );
                             let query = engine
                                 .compile(expression.as_bytes(), options(delayed), &control)
@@ -11133,7 +11174,9 @@ mod tests {
                                 };
                                 assert_eq!(
                                     float_bits(&row.points[0]),
-                                    (value * factor * rate_factor).to_bits()
+                                    (value * factor * rate_factor
+                                        / if aggregate == "avg" { 2.0 } else { 1.0 })
+                                    .to_bits()
                                 );
                             }
                             assert_eq!(report.observations.output_samples, count as u64);
@@ -11149,14 +11192,9 @@ mod tests {
                                 report.observations.memory[MemoryKind::Workspace as usize].current,
                                 0
                             );
-                            assert!(
-                                provider.series.iter().all(|row| row
-                                    .source
-                                    .counters
-                                    .peak
-                                    .load(Ordering::Relaxed)
-                                    == 1)
-                            );
+                            assert!(provider.series.iter().all(|row| {
+                                row.source.counters.peak.load(Ordering::Relaxed) == 1
+                            }));
                             if !delayed && count == 16 && page == 17 && function == "max_over_time"
                             {
                                 assert!(report.observations.samples_fetched < 100_000);
@@ -11173,6 +11211,12 @@ mod tests {
 
     #[test]
     fn grouped_subquery_clocks_preserve_every_required_delivery_read_failure() {
+        for aggregate in ["sum", "avg"] {
+            grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(aggregate);
+        }
+    }
+
+    fn grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(aggregate: &str) {
         for rate_function in ["rate", "increase", "delta"] {
             let request = QueryRequest::Instant { time_ms: 8000 };
             for page in [1, 17, 1024] {
@@ -11180,7 +11224,7 @@ mod tests {
                 let control = Control::default();
                 let query = engine
                     .compile(
-                        format!("max_over_time((sum by(id)({rate_function}(m_total[3s])))[4s:1s])")
+                        format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])")
                             .as_bytes(),
                         EngineOptions::default(),
                         &control,
@@ -11245,6 +11289,12 @@ mod tests {
 
     #[test]
     fn grouped_ratio_clocks_keep_group_and_pair_completion_separate() {
+        for aggregate in ["sum", "avg"] {
+            grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(aggregate);
+        }
+    }
+
+    fn grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(aggregate: &str) {
         for rate_function in ["rate", "increase", "delta"] {
             for (page, fault) in [1, 17, 1024]
                 .into_iter()
@@ -11254,7 +11304,7 @@ mod tests {
                 let control = Control::default();
                 let compiled = engine
                     .compile(
-                        format!("max_over_time((sum by(id)({rate_function}(m_total[3s])) / sum by(id)({rate_function}(n_total[3s])))[4s:1s])")
+                        format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[4s:1s])")
                             .as_bytes(),
                         EngineOptions::default(),
                         &control,
@@ -11436,13 +11486,19 @@ mod tests {
 
     #[test]
     fn grouped_subquery_clocks_do_not_credit_truncated_endpoints() {
+        for aggregate in ["sum", "avg"] {
+            grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(aggregate);
+        }
+    }
+
+    fn grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(aggregate: &str) {
         for rate_function in ["rate", "increase", "delta"] {
             for page in [1, 17, 1024] {
                 let engine = Engine::default();
                 let control = Control::default();
                 let compiled = engine
                     .compile(
-                        format!("max_over_time((sum by(id)({rate_function}(m_total[3s])))[4s:1s])")
+                        format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])")
                             .as_bytes(),
                         EngineOptions::default(),
                         &control,

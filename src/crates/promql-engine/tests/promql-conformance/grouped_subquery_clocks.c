@@ -11,6 +11,11 @@ int main(void) {
         "sum_over_time((sum by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
         "max_over_time((sum by(zone)(increase(m_total[3s])))[2s:1s]) > bool 0",
         "max_over_time((sum by(zone)(delta(m_total[3s])))[2s:1s]) > bool 0",
+        "max_over_time((avg by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
+        "max_over_time((((avg by(zone)(rate(m_total[3s])))))[2s:1s]) > bool 0",
+        "sum_over_time((avg by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
+        "max_over_time((avg by(zone)(increase(m_total[3s])))[2s:1s]) > bool 0",
+        "max_over_time((avg by(zone)(delta(m_total[3s])))[2s:1s]) > bool 0",
     };
     for (unsigned delayed = 0; delayed < 2; delayed++) {
         netdata_promql_engine_options_t options;
@@ -24,6 +29,7 @@ int main(void) {
         balanced(engine, &idle);
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
     }
-    puts("{\"grouped_subquery_clocks\":\"pass\",\"cases\":120}");
+    printf("{\"grouped_subquery_clocks\":\"pass\",\"cases\":%zu}\n",
+           sizeof(expressions) / sizeof(expressions[0]) * 2 * 3 * 4);
     return 0;
 }

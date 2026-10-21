@@ -73915,5 +73915,11 @@
     "report_sha256": "b318cf50291e60a2633c2b80060ee86db2bed748bb2497b69d42bda0739a9cf1",
     "status": "finite_qualification_pass",
     "scope": "Reuse completed grouped bucket discovery in consumed classic histogram_quantile subqueries."
+  },
+  "grouped_average_clocks": {
+    "status": "finite_qualification_pass",
+    "report": "grouped-average-clocks-qualification.json",
+    "report_sha256": "2eb8eae5b93cbfc9f4f38c154217b45f1d86a738bcbc229c6db9f2776163c4cd",
+    "summary": "AVG shares existing completed grouped rate-family clocks, including ratios and classic histograms; fresh arithmetic and paged raw data preserved."
   }
 }

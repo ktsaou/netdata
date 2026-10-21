@@ -2558,3 +2558,19 @@ certify histogram arithmetic, disappearance is decided from current values, and 
 before final delivery. Unsupported shapes retain fallback. The existing binary-parent route is preserved.
 See [the finite qualification](histogram-discovery-qualification.json) for actual layouts, callback failures,
 changing membership, special literals, complete original comparisons and proportional runtime/compiled costs.
+
+
+## Completed grouped average clocks
+
+- **Choice:** extend the existing grouped rate-family admission from SUM to SUM/AVG, including supported ratio
+  and classic histogram compositions. Require the same nonempty Float-only, single-head child output proof.
+- **Arithmetic:** recreate ordinary selected-group state; count only currently emitted contributors and preserve
+  their order, compensated sum, overflow-to-incremental-mean transition and final division. Do not cache averages.
+- **Completion:** keep child exhaustion and selected-group finalization as the owner. Binary pair and histogram
+  completion remain separate; preparation credit clears before final delivery. Native/delayed/clock fallbacks stay.
+- **Memory:** activate existing accounted membership and lazy intervals without adding fields or raw/value arrays.
+  The larger measured direct case adds 816 bytes while reducing fetched entries by about 87%; its ratio reduces
+  both entries and workspace. Longer tested time extents keep workspace fixed.
+- **Evidence:** unequal and changing populations, mixed reducers, overflow, required failures and actual C callers
+  are covered by the [qualification](grouped-average-clocks-qualification.json). Finite native timing and compiled
+  costs remain distinct from live-provider throughput and process RSS.
