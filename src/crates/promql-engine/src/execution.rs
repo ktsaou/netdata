@@ -1406,7 +1406,7 @@ impl CompiledQuery {
                     )?;
                     return Ok(matches!(&self.expression.arena[child].expression,
                         Expr::Call { function: Some(function), arguments, .. }
-                            if function.name == "rate" && arguments.len() == 1
+                            if matches!(function.name, "rate" | "increase" | "delta") && arguments.len() == 1
                                 && matches!(self.expression.arena[arguments[0]].expression, Expr::Matrix { .. })
                     ).then_some(child));
                 }
@@ -10436,80 +10436,87 @@ mod tests {
 
     #[test]
     fn grouped_subquery_clocks_preserve_results_statistics_and_paged_reads() {
-        for page in [1, 17, 1024] {
-            for count in [4, 16] {
-                for delayed in [false, true] {
-                    for (function, factor) in [
-                        ("max_over_time", 1.0),
-                        ("min_over_time", 1.0),
-                        ("avg_over_time", 1.0),
-                        ("sum_over_time", 8.0),
-                    ] {
-                        let engine = Engine::default();
-                        let control = Control::default();
-                        let expression =
-                            format!("{function}((sum by(id)(rate(m_total[3s])))[8s:1s])");
-                        let query = engine
-                            .compile(expression.as_bytes(), options(delayed), &control)
-                            .unwrap();
-                        let provider = grouped_subquery_provider(page, count);
-                        let report = query.collect_reported(
-                            &provider,
-                            QueryRequest::Instant { time_ms: 16000 },
-                            &control,
-                        );
-                        let result = report.result.as_ref().unwrap();
-                        assert!(report.annotations.is_empty());
-                        assert_eq!(result.series.len(), count);
-                        // Instant group order follows discovery; compare every label/value pair.
-                        let mut rows = result.series.iter().collect::<Vec<_>>();
-                        rows.sort_by(|a, b| a.labels.0[0].value.cmp(&b.labels.0[0].value));
-                        for (identity, row) in rows.into_iter().enumerate() {
-                            let id = format!("{identity:06}");
-                            assert_eq!(
-                                row.labels
-                                    .0
-                                    .iter()
-                                    .map(|label| (&*label.name, &*label.value))
-                                    .collect::<Vec<_>>(),
-                                [(b"id".as_slice(), id.as_bytes())]
+        for (rate_function, rate_factor) in [("rate", 1.0), ("increase", 3.0), ("delta", 3.0)] {
+            for page in [1, 17, 1024] {
+                for count in [4, 16] {
+                    for delayed in [false, true] {
+                        for (function, factor) in [
+                            ("max_over_time", 1.0),
+                            ("min_over_time", 1.0),
+                            ("avg_over_time", 1.0),
+                            ("sum_over_time", 8.0),
+                        ] {
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let expression = format!(
+                                "{function}((sum by(id)({rate_function}(m_total[3s])))[8s:1s])"
                             );
-                            assert_eq!(row.points.len(), 1);
-                            assert_eq!(row.points[0].time_ms, 16000);
-                            let value: f64 = if identity.is_multiple_of(2) {
-                                6.0
-                            } else {
-                                12.0
-                            };
-                            assert_eq!(float_bits(&row.points[0]), (value * factor).to_bits());
+                            let query = engine
+                                .compile(expression.as_bytes(), options(delayed), &control)
+                                .unwrap();
+                            let provider = grouped_subquery_provider(page, count);
+                            let report = query.collect_reported(
+                                &provider,
+                                QueryRequest::Instant { time_ms: 16000 },
+                                &control,
+                            );
+                            let result = report.result.as_ref().unwrap();
+                            assert!(report.annotations.is_empty());
+                            assert_eq!(result.series.len(), count);
+                            // Instant group order follows discovery; compare every label/value pair.
+                            let mut rows = result.series.iter().collect::<Vec<_>>();
+                            rows.sort_by(|a, b| a.labels.0[0].value.cmp(&b.labels.0[0].value));
+                            for (identity, row) in rows.into_iter().enumerate() {
+                                let id = format!("{identity:06}");
+                                assert_eq!(
+                                    row.labels
+                                        .0
+                                        .iter()
+                                        .map(|label| (&*label.name, &*label.value))
+                                        .collect::<Vec<_>>(),
+                                    [(b"id".as_slice(), id.as_bytes())]
+                                );
+                                assert_eq!(row.points.len(), 1);
+                                assert_eq!(row.points[0].time_ms, 16000);
+                                let value: f64 = if identity.is_multiple_of(2) {
+                                    6.0
+                                } else {
+                                    12.0
+                                };
+                                assert_eq!(
+                                    float_bits(&row.points[0]),
+                                    (value * factor * rate_factor).to_bits()
+                                );
+                            }
+                            assert_eq!(report.observations.output_samples, count as u64);
+                            assert_eq!(
+                                report
+                                    .observations
+                                    .statistics
+                                    .samples
+                                    .total_queryable_samples,
+                                (8 * count) as u64
+                            );
+                            assert_eq!(
+                                report.observations.memory[MemoryKind::Workspace as usize].current,
+                                0
+                            );
+                            assert!(
+                                provider.series.iter().all(|row| row
+                                    .source
+                                    .counters
+                                    .peak
+                                    .load(Ordering::Relaxed)
+                                    == 1)
+                            );
+                            if !delayed && count == 16 && page == 17 && function == "max_over_time"
+                            {
+                                assert!(report.observations.samples_fetched < 100_000);
+                            }
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
                         }
-                        assert_eq!(report.observations.output_samples, count as u64);
-                        assert_eq!(
-                            report
-                                .observations
-                                .statistics
-                                .samples
-                                .total_queryable_samples,
-                            (8 * count) as u64
-                        );
-                        assert_eq!(
-                            report.observations.memory[MemoryKind::Workspace as usize].current,
-                            0
-                        );
-                        assert!(
-                            provider.series.iter().all(|row| row
-                                .source
-                                .counters
-                                .peak
-                                .load(Ordering::Relaxed)
-                                == 1)
-                        );
-                        if !delayed && count == 16 && page == 17 && function == "max_over_time" {
-                            assert!(report.observations.samples_fetched < 100_000);
-                        }
-                        provider.assert_closed();
-                        drop((report, query));
-                        engine.accounting.snapshot().assert_memory_released();
                     }
                 }
             }
@@ -10518,186 +10525,199 @@ mod tests {
 
     #[test]
     fn grouped_subquery_clocks_preserve_every_required_delivery_read_failure() {
-        let request = QueryRequest::Instant { time_ms: 8000 };
-        for page in [1, 17, 1024] {
-            let engine = Engine::default();
-            let control = Control::default();
-            let query = engine
-                .compile(
-                    b"max_over_time((sum by(id)(rate(m_total[3s])))[4s:1s])",
-                    EngineOptions::default(),
+        for rate_function in ["rate", "increase", "delta"] {
+            let request = QueryRequest::Instant { time_ms: 8000 };
+            for page in [1, 17, 1024] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        format!("max_over_time((sum by(id)({rate_function}(m_total[3s])))[4s:1s])")
+                            .as_bytes(),
+                        EngineOptions::default(),
+                        &control,
+                    )
+                    .unwrap();
+                let calibration = grouped_subquery_provider(page, 2);
+                let (rows, prepared, pairs) = float_map_join_preparation_with_discovery(
+                    &query,
+                    &calibration,
+                    request,
                     &control,
-                )
-                .unwrap();
-            let calibration = grouped_subquery_provider(page, 2);
-            let (rows, prepared, pairs) =
-                float_map_join_preparation_with_discovery(&query, &calibration, request, &control);
-            assert_eq!((rows, pairs), (2, 0));
-            let provider = grouped_subquery_provider(page, 2);
-            let mut sink = RecordingSink::default();
-            let report = query.execute_reported(&provider, request, &control, &mut sink);
-            assert!(report.result.is_ok());
-            assert!(sink.begun && sink.committed && !sink.aborted);
-            let last = provider
-                .series
-                .iter()
-                .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
-                .collect::<Vec<_>>();
-            provider.assert_closed();
-            drop(report);
-            let mut faults = 0;
-            for (position, (&first, &last)) in prepared.iter().zip(&last).enumerate() {
-                assert!(last > first);
-                for acquisition in first + 1..=last {
-                    let mut provider = grouped_subquery_provider(page, 2);
-                    provider.series[position].source.fail_acquisition = Some(acquisition);
-                    let mut sink = RecordingSink::default();
-                    let report = query.execute_reported(&provider, request, &control, &mut sink);
-                    assert!(
-                        matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
-                        if &**bytes == b"injected page failure")
-                    );
-                    assert!(sink.begun && sink.aborted && !sink.committed);
-                    assert_eq!(
-                        provider.series[position]
-                            .source
-                            .counters
-                            .opened
-                            .load(Ordering::Relaxed),
-                        acquisition
-                    );
-                    assert!(report.annotations.is_empty());
-                    report.assert_retained_callback_error_memory();
-                    provider.assert_closed();
-                    faults += 1;
+                );
+                assert_eq!((rows, pairs), (2, 0));
+                let provider = grouped_subquery_provider(page, 2);
+                let mut sink = RecordingSink::default();
+                let report = query.execute_reported(&provider, request, &control, &mut sink);
+                assert!(report.result.is_ok());
+                assert!(sink.begun && sink.committed && !sink.aborted);
+                let last = provider
+                    .series
+                    .iter()
+                    .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
+                    .collect::<Vec<_>>();
+                provider.assert_closed();
+                drop(report);
+                let mut faults = 0;
+                for (position, (&first, &last)) in prepared.iter().zip(&last).enumerate() {
+                    assert!(last > first);
+                    for acquisition in first + 1..=last {
+                        let mut provider = grouped_subquery_provider(page, 2);
+                        provider.series[position].source.fail_acquisition = Some(acquisition);
+                        let mut sink = RecordingSink::default();
+                        let report =
+                            query.execute_reported(&provider, request, &control, &mut sink);
+                        assert!(
+                            matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
+                            if &**bytes == b"injected page failure")
+                        );
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        assert_eq!(
+                            provider.series[position]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            acquisition
+                        );
+                        assert!(report.annotations.is_empty());
+                        report.assert_retained_callback_error_memory();
+                        provider.assert_closed();
+                        faults += 1;
+                    }
                 }
+                println!(
+                    "grouped-subquery-clocks function={rate_function} page={page} required-delivery-faults={faults}"
+                );
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
             }
-            println!("grouped-subquery-clocks page={page} required-delivery-faults={faults}");
-            drop(query);
-            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
     #[test]
     fn grouped_subquery_clocks_do_not_credit_truncated_endpoints() {
-        for page in [1, 17, 1024] {
-            let engine = Engine::default();
-            let control = Control::default();
-            let compiled = engine
-                .compile(
-                    b"max_over_time((sum by(id)(rate(m_total[3s])))[4s:1s])",
-                    EngineOptions::default(),
-                    &control,
-                )
-                .unwrap();
-            let provider = grouped_subquery_provider(page, 2);
-            let account = compiled.execution_accounting();
-            {
-                let header = compiled
-                    .header(QueryRequest::Instant { time_ms: 8000 })
-                    .unwrap();
-                let prepared = Prepared::new(
-                    &compiled.expression,
-                    &compiled.preprocessing,
-                    header,
-                    compiled.options.no_step_subquery_interval_ms,
-                    &control,
-                    &account,
-                )
-                .unwrap();
-                let header = prepared.evaluator_header();
-                prepared.activate(header, &control, &account).unwrap();
-                let options = compiled.evaluation_options(header, header.start_ms, &prepared);
-                let bounds = crate::query_bounds::find(
-                    &compiled.expression,
-                    options,
-                    &prepared,
-                    &control,
-                    &account,
-                )
-                .unwrap();
-                let scope = provider.open(bounds, &control).unwrap();
-                let catalog = Catalog::new(
-                    &scope,
-                    &compiled.expression,
-                    &prepared,
-                    options,
-                    compiled.options.no_step_subquery_interval_ms,
-                    &control,
-                    &account,
-                )
-                .unwrap();
-                let rosters = compiled
-                    .prepare_rosters(
-                        &catalog,
-                        &prepared,
-                        bounds,
+        for rate_function in ["rate", "increase", "delta"] {
+            for page in [1, 17, 1024] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let compiled = engine
+                    .compile(
+                        format!("max_over_time((sum by(id)({rate_function}(m_total[3s])))[4s:1s])")
+                            .as_bytes(),
+                        EngineOptions::default(),
                         &control,
-                        &account,
-                        &mut Annotations::default(),
                     )
                     .unwrap();
-                let plan = (0..compiled.expression.arena.nodes.len())
-                    .find_map(|index| rosters.group_replay(NodeId(index)))
+                let provider = grouped_subquery_provider(page, 2);
+                let account = compiled.execution_accounting();
+                {
+                    let header = compiled
+                        .header(QueryRequest::Instant { time_ms: 8000 })
+                        .unwrap();
+                    let prepared = Prepared::new(
+                        &compiled.expression,
+                        &compiled.preprocessing,
+                        header,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
                     .unwrap();
-                assert!(plan.supports_interval());
-                assert!(!plan.has_interval());
-                let mut machine = Machine::new(
-                    &catalog,
-                    &compiled.expression,
-                    compiled.expression.root,
-                    options,
-                    &control,
-                    &account,
-                    EvaluationMetadata {
-                        prepared: &prepared,
-                        rosters: &rosters,
-                        timestamp_selectors: &compiled.timestamp_selectors,
-                        data_bounds: bounds,
-                        annotations: None,
-                        binary_preparation: None,
-                        histogram_preparation: None,
-                        info_preparation: None,
-                        count_preparation: None,
-                    },
-                );
-                let mut rows = 0;
-                while machine.next().unwrap().is_some() {
-                    rows += 1;
-                }
-                assert_eq!(rows, 2);
-                let subquery = compiled
-                    .expression
-                    .arena
-                    .nodes
-                    .iter()
-                    .position(|node| matches!(node.expression, Expr::Subquery { .. }))
+                    let header = prepared.evaluator_header();
+                    prepared.activate(header, &control, &account).unwrap();
+                    let options = compiled.evaluation_options(header, header.start_ms, &prepared);
+                    let bounds = crate::query_bounds::find(
+                        &compiled.expression,
+                        options,
+                        &prepared,
+                        &control,
+                        &account,
+                    )
                     .unwrap();
-                let grid = prepared
-                    .subquery_scope(NodeId(subquery), &control, &account)
+                    let scope = provider.open(bounds, &control).unwrap();
+                    let catalog = Catalog::new(
+                        &scope,
+                        &compiled.expression,
+                        &prepared,
+                        options,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
                     .unwrap();
-                assert_eq!(grid.end_ms, 8000);
-                for index in 0..grid.steps().unwrap() {
-                    let time_ms = grid.start_ms + index * grid.interval_ms;
-                    let key = crate::vector_matching::ReplayKey::new(
-                        compiled.evaluation_options(grid.header(header), time_ms, &prepared),
-                        index,
-                        prepared.lookback_ns(compiled.options.lookback_ms),
-                        bounds,
+                    let rosters = compiled
+                        .prepare_rosters(
+                            &catalog,
+                            &prepared,
+                            bounds,
+                            &control,
+                            &account,
+                            &mut Annotations::default(),
+                        )
+                        .unwrap();
+                    let plan = (0..compiled.expression.arena.nodes.len())
+                        .find_map(|index| rosters.group_replay(NodeId(index)))
+                        .unwrap();
+                    assert!(plan.supports_interval());
+                    assert!(!plan.has_interval());
+                    let mut machine = Machine::new(
+                        &catalog,
+                        &compiled.expression,
+                        compiled.expression.root,
+                        options,
+                        &control,
+                        &account,
+                        EvaluationMetadata {
+                            prepared: &prepared,
+                            rosters: &rosters,
+                            timestamp_selectors: &compiled.timestamp_selectors,
+                            data_bounds: bounds,
+                            annotations: None,
+                            binary_preparation: None,
+                            histogram_preparation: None,
+                            info_preparation: None,
+                            count_preparation: None,
+                        },
                     );
-                    assert_eq!(
-                        plan.interval_contains(key),
-                        time_ms < grid.end_ms,
-                        "only actual child completion earns clock {time_ms}"
-                    );
+                    let mut rows = 0;
+                    while machine.next().unwrap().is_some() {
+                        rows += 1;
+                    }
+                    assert_eq!(rows, 2);
+                    let subquery = compiled
+                        .expression
+                        .arena
+                        .nodes
+                        .iter()
+                        .position(|node| matches!(node.expression, Expr::Subquery { .. }))
+                        .unwrap();
+                    let grid = prepared
+                        .subquery_scope(NodeId(subquery), &control, &account)
+                        .unwrap();
+                    assert_eq!(grid.end_ms, 8000);
+                    for index in 0..grid.steps().unwrap() {
+                        let time_ms = grid.start_ms + index * grid.interval_ms;
+                        let key = crate::vector_matching::ReplayKey::new(
+                            compiled.evaluation_options(grid.header(header), time_ms, &prepared),
+                            index,
+                            prepared.lookback_ns(compiled.options.lookback_ms),
+                            bounds,
+                        );
+                        assert_eq!(
+                            plan.interval_contains(key),
+                            time_ms < grid.end_ms,
+                            "only actual child completion earns clock {time_ms}"
+                        );
+                    }
+                    drop(machine);
+                    rosters.clear_replay_progress(&control, &account).unwrap();
+                    assert!(!plan.has_interval() && !plan.has_completion());
                 }
-                drop(machine);
-                rosters.clear_replay_progress(&control, &account).unwrap();
-                assert!(!plan.has_interval() && !plan.has_completion());
+                provider.assert_closed();
+                drop((account, compiled));
+                engine.accounting.snapshot().assert_memory_released();
             }
-            provider.assert_closed();
-            drop((account, compiled));
-            engine.accounting.snapshot().assert_memory_released();
         }
     }
 

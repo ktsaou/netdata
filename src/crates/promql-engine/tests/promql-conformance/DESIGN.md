@@ -2514,3 +2514,15 @@ individual slower cases and unfinished checks.
   Existing two-plan controls add 48 B; longer tested time extents keep workspace flat. Compiled costs and limits
   remain separate in the [qualification](grouped-subquery-clocks-qualification.json) and
   [procedure](README.md#completed-clocks-in-grouped-subqueries).
+
+
+## Grouped rate-family admission
+
+- **Choice:** admit only direct increase and delta beside rate in the existing grouped SUM subquery path.
+  Keep the same Float-output proof, clock identity, fresh contributors and actual completion owner.
+- **Arithmetic:** retain distinct kernels, including negative-gauge delta and start-aware counter increase.
+  Shared storage traversal does not authorize arithmetic rewriting.
+- **Memory:** no added fields or values; newly admitted paths activate existing bounded metadata.
+- **Validation:** explicit enabled-start profiles, complete baseline and pinned-original outcomes, required-read
+  failures and actual C consumers. Source, timing and proportional executable costs are in the
+  [qualification](grouped-rate-family-qualification.json).

@@ -9914,8 +9914,41 @@ Strict lint, formatting and installed Rust 1.91 compile-only checks pass. Fixed 
 
 Reproduce focused Rust checks with fixtures and either release profile, filtering on `grouped_subquery_clocks`,
 `aggregate_replay::tests`, `derived_binary_completed_clocks` and `vector_matching::tests::completed_interval`.
-The new Engine checks cover 48 complete results, 120 required delivery-read failures and truncated endpoints at all
-three page sizes. Build `grouped_subquery_clocks.c` against the default archive and include directory as for
+The initial rate-only Engine panel covered 48 complete results, 120 required delivery-read failures and truncated
+endpoints at all three page sizes. The current expanded panel is described below. Build `grouped_subquery_clocks.c` against the default archive and include directory as for
 `c_embedding.c`; it reuses complete labels/values/timestamps, callback ordering, error bytes and ownership checks.
 Retain mixed-history, absent-output, without-grouping, inner-offset and native fallback cases when changing admission.
 The fixture called numeric cancellation is distinct from cancellation-token tests.
+
+
+## Grouped increase and delta subqueries
+
+The same completed-clock path now admits direct `sum(increase(...))` and `sum(delta(...))` subqueries.
+All admission and completion rules above still apply. Each function executes its original kernel: increase is
+never synthesized from a rate result, and delta retains negative-gauge and counter-reset behavior. There are no
+new runtime fields or raw-value buffers. The [qualification report](grouped-rate-family-qualification.json)
+records function-specific results, actual costs and the frozen timing gate.
+
+The 1,040-pair pilot gives increase/delta/control median time ratios of 0.3598/0.3557/1.0003 in release
+and 0.3607/0.3687/1.0213 in release-min. Every slower individual case and its predefined follow-up are retained
+in the report. These are finite synthetic whole-query measurements.
+
+For the 16-group/two-member/page17 fixture, both newly admitted functions reduce fetched entries from 377,344
+to 49,984. Their workspace peak rises from 51,242 to 52,058 B as existing completion metadata becomes active.
+The previously optimized rate controls keep identical reads and workspace. Four-group workspace remains
+25,250 B across all 18 function/page/window cases, with page-bounded borrowed samples.
+
+Qualification includes 4,212 complete baseline comparisons, 72 structural pairs and 702 new pinned Go outcomes
+compared 4,212 times with exact values, diagnostics and strict order. Histories include negative gauges, resets,
+gaps, stale samples, mixed/native histograms and non-counter metric names. Explicit `upstream-tests` cases with
+`delayed_name_removal=false` exercise enabled start timestamps and demonstrate their effect on increase;
+`server-default` alone disables that feature even when supplied samples contain start markers.
+
+The existing focused filters now exercise 144 complete results, 360 required delivery-read failures and nine
+truncation cases across rate/increase/delta. Both native profiles pass 892 units, with two pre-existing ignored.
+Each ARM target passes the 12 focused units under QEMU. The current `grouped_subquery_clocks.c` executes
+120 cases per consumer, 720 across native C/C++ and ARM C: 180 each success, provider error, cancellation and
+output error. Both complete native C suites, strict lint, formatting and installed Rust 1.91 compile checks pass.
+
+When extending this path, retain explicit feature-profile checks and the ordinary/native/nested/rate controls.
+A shared evaluator does not establish equivalent arithmetic or diagnostic behavior between function names.

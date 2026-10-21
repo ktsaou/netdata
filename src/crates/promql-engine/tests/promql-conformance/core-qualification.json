@@ -73897,5 +73897,11 @@
     "report_sha256": "101cd593e90869c0b02025e4334d37b244d5889d4f73b54b22272287fc51011a",
     "status": "finite_qualification_pass",
     "scope": "Reuse complete child-scan intervals for direct Float-output SUM(rate(selector)) subqueries consumed by range functions; selected contributors keep fresh values and ordinary arithmetic."
+  },
+  "grouped_rate_family": {
+    "report": "grouped-rate-family-qualification.json",
+    "report_sha256": "63f42f88353b6c2ca36bb5534bf1e4e3dc4e16da2d8b1b3e1f8e82a774ea2386",
+    "status": "finite_qualification_pass",
+    "scope": "Admit direct increase and delta beside rate in existing grouped SUM subquery completed-clock reuse."
   }
 }
