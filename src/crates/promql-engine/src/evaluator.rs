@@ -2751,6 +2751,20 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                     scalar_result = true;
                 }
+                State::ScalarBinary { left, right, phase } if scalar_result => {
+                    if right.is_some()
+                        || !matches!((phase, left.is_some()), (0, false) | (1, true))
+                        || crate::scheduled_expression::literal_scalar_child(
+                            self.expression,
+                            self.prepared,
+                            parent.node,
+                            self.control,
+                            self.account,
+                        )? != Some((child.node, *phase))
+                    {
+                        return Ok(None);
+                    }
+                }
                 State::MixedBinary {
                     scalar: None,
                     scalar_node,

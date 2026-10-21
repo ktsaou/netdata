@@ -2060,6 +2060,16 @@ impl CompiledQuery {
                             ) {
                                 (ValueType::Scalar, ValueType::Vector) => Some(*left),
                                 (ValueType::Vector, ValueType::Scalar) => Some(*right),
+                                (ValueType::Scalar, ValueType::Scalar) if scalar_result => {
+                                    crate::scheduled_expression::literal_scalar_child(
+                                        &self.expression,
+                                        prepared,
+                                        node,
+                                        control,
+                                        account,
+                                    )?
+                                    .map(|(child, _)| child)
+                                }
                                 _ => None,
                             }
                         }
@@ -9047,15 +9057,21 @@ mod tests {
 
     #[test]
     fn completed_single_group_join_values_keep_results_and_read_growth() {
-        check_completed_single_group_ratio_results(false);
+        check_completed_single_group_ratio_results(false, None);
     }
 
     #[test]
     fn completed_scalar_group_values_keep_results_and_read_growth() {
-        check_completed_single_group_ratio_results(true);
+        check_completed_single_group_ratio_results(true, None);
     }
 
-    fn check_completed_single_group_ratio_results(scalar: bool) {
+    #[test]
+    fn completed_scalar_arithmetic_values_keep_results_and_read_growth() {
+        check_completed_single_group_ratio_results(true, Some(false));
+        check_completed_single_group_ratio_results(true, Some(true));
+    }
+
+    fn check_completed_single_group_ratio_results(scalar: bool, literal_left: Option<bool>) {
         let (mut complete, mut growth) = (0, [0_u64; 2]);
         for groups in [4, 16] {
             for page in [1, 17, 1024] {
@@ -9071,6 +9087,12 @@ mod tests {
                         } else {
                             "sum(counter_total)"
                         };
+                        let one = match literal_left {
+                            Some(true) => format!("(1+{one})"),
+                            Some(false) => format!("({one}+1)"),
+                            None => one.to_owned(),
+                        };
+                        let one = one.as_str();
                         let (left, right, modifier) = if reverse {
                             (one, many, "group_right()")
                         } else {
@@ -9120,11 +9142,6 @@ mod tests {
                                     &[2000_i64][..]
                                 };
                                 let rows = if shape == 2 { 1 } else { groups };
-                                let value = if reverse {
-                                    groups as f64
-                                } else {
-                                    1.0 / groups as f64
-                                } * if shape == 2 { groups as f64 } else { 1.0 };
                                 assert!(result.scalar.is_none() && report.annotations.is_empty());
                                 assert_eq!(result.series.len(), rows);
                                 assert_eq!(
@@ -9156,6 +9173,15 @@ mod tests {
                                         let OwnedValue::Float(actual) = &point.value else {
                                             panic!("expected completed float ratio");
                                         };
+                                        let numerator = (time_ms / 1000) as f64;
+                                        let denominator = groups as f64 * numerator
+                                            + f64::from(literal_left.is_some());
+                                        let value =
+                                            if reverse {
+                                                denominator / numerator
+                                            } else {
+                                                numerator / denominator
+                                            } * if shape == 2 { groups as f64 } else { 1.0 };
                                         assert_eq!(actual.to_bits(), value.to_bits());
                                     }
                                 }
@@ -9188,7 +9214,7 @@ mod tests {
                                     growth[usize::from(groups == 16)] = fetched;
                                 }
                                 println!(
-                                    "single-group-result scalar={scalar} groups={groups} page={page} delayed={delayed} reverse={reverse} shape={shape} request={request:?} fetched={fetched} work={}",
+                                    "single-group-result scalar={scalar} literal_left={literal_left:?} groups={groups} page={page} delayed={delayed} reverse={reverse} shape={shape} request={request:?} fetched={fetched} work={}",
                                     report.observations.work
                                 );
                                 provider.assert_closed();
@@ -9318,15 +9344,21 @@ mod tests {
 
     #[test]
     fn completed_single_group_join_values_preserve_actual_read_phases() {
-        check_completed_single_group_read_phases(false);
+        check_completed_single_group_read_phases(false, None);
     }
 
     #[test]
     fn completed_scalar_group_values_preserve_actual_read_phases() {
-        check_completed_single_group_read_phases(true);
+        check_completed_single_group_read_phases(true, None);
     }
 
-    fn check_completed_single_group_read_phases(scalar: bool) {
+    #[test]
+    fn completed_scalar_arithmetic_values_preserve_actual_read_phases() {
+        check_completed_single_group_read_phases(true, Some(false));
+        check_completed_single_group_read_phases(true, Some(true));
+    }
+
+    fn check_completed_single_group_read_phases(scalar: bool, literal_left: Option<bool>) {
         let acquisitions = |provider: &FixtureProvider| {
             provider
                 .series
@@ -9337,14 +9369,19 @@ mod tests {
         for page in [1, 17, 1024] {
             for reverse in [false, true] {
                 let engine = Engine::default();
+                let scalar_expression = match literal_left {
+                    Some(true) => "(1+scalar(sum(b)))",
+                    Some(false) => "(scalar(sum(b))+1)",
+                    None => "scalar(sum(b))",
+                };
                 let expression = if scalar && reverse {
-                    "scalar(sum(b))/a"
+                    format!("{scalar_expression}/a")
                 } else if scalar {
-                    "a/scalar(sum(b))"
+                    format!("a/{scalar_expression}")
                 } else if reverse {
-                    "sum(b)/on()group_right() a"
+                    "sum(b)/on()group_right() a".into()
                 } else {
-                    "a/on()group_left() sum(b)"
+                    "a/on()group_left() sum(b)".into()
                 };
                 let compiled = engine
                     .compile(expression.as_bytes(), options(false), &Control::default())
@@ -9536,10 +9573,12 @@ mod tests {
                             let OwnedValue::Float(value) = &sample.value else {
                                 panic!("singleton ratio")
                             };
+                            let tick = (time / 1000) as f64;
+                            let denominator = 4.0 * tick + f64::from(literal_left.is_some());
                             let expected = if reverse {
-                                4.0 / (time / 1000) as f64
+                                denominator / (tick * tick)
                             } else {
-                                (time / 1000) as f64 / 4.0
+                                tick * tick / denominator
                             };
                             assert_eq!(value.to_bits(), expected.to_bits());
                             drop(sample);
@@ -9571,7 +9610,7 @@ mod tests {
                                 landmarks.push(after);
                             }
                             println!(
-                                "single-group-read-phase scalar={scalar} page={page} reverse={reverse} fault={fault} phase={phase}"
+                                "single-group-read-phase scalar={scalar} literal_left={literal_left:?} page={page} reverse={reverse} fault={fault} phase={phase}"
                             );
                             if fault == "omitted" && phase == 1 {
                                 break;
@@ -9608,6 +9647,11 @@ mod tests {
                 ("a/scalar(sum by(instance)(b))", "scalar-grouped"),
                 ("a/scalar(sum(sum by(instance)(b)))", "scalar-nested"),
                 ("a/(scalar(sum(b))+1)", "scalar-arithmetic"),
+                ("a/(scalar(sum(b))+(1))", "scalar-literal-parens"),
+                ("a/(scalar(sum(b))+scalar(sum(b)))", "scalar-dependent"),
+                ("a/min_of(scalar(sum(b)),1)", "scalar-min"),
+                ("a/max_of(1,scalar(sum(b)))", "scalar-max"),
+                ("a/(2-(scalar(sum(b))-1))", "scalar-noncommuting"),
                 ("a{instance=\"0\"}/scalar(sum(b))", "scalar-single"),
                 ("scalar(sum(b))", "scalar-alone"),
                 ("a/scalar(sum(b @ 2))", "scalar-fixed"),
@@ -9615,8 +9659,11 @@ mod tests {
             ] {
                 let engine = Engine::default();
                 let control = Control::default();
+                let mut settings = options(false);
+                settings.parser.experimental_functions =
+                    matches!(kind, "scalar-min" | "scalar-max");
                 let compiled = engine
-                    .compile(expression.as_bytes(), options(false), &control)
+                    .compile(expression.as_bytes(), settings, &control)
                     .unwrap();
                 let mut provider = float_map_join_provider(page);
                 for (position, series) in provider.series.iter_mut().enumerate().skip(4) {
@@ -9766,8 +9813,14 @@ mod tests {
                                     "scalar-transition" | "scalar-single" | "scalar-nested"
                                     | "scalar-parens" => 0.25,
                                     "scalar-native-count" => (step + 1) as f64 / 4.0,
-                                    "scalar-arithmetic" => {
+                                    "scalar-arithmetic" | "scalar-literal-parens" => {
                                         (step + 1) as f64 / (4.0 * (step + 1) as f64 + 1.0)
+                                    }
+                                    "scalar-dependent" => 0.125,
+                                    "scalar-min" => (step + 1) as f64,
+                                    "scalar-max" => 0.25,
+                                    "scalar-noncommuting" => {
+                                        (step + 1) as f64 / (2.0 - (4.0 * (step + 1) as f64 - 1.0))
                                     }
                                     "scalar-fixed" => (step + 1) as f64 / 8.0,
                                     _ => unreachable!(),
@@ -9793,7 +9846,11 @@ mod tests {
                                 matches!(kind, "transition" | "scalar-transition") && step == 1
                                     || matches!(
                                         kind,
-                                        "scalar-nan" | "scalar-native-count" | "scalar-parens"
+                                        "scalar-nan"
+                                            | "scalar-native-count"
+                                            | "scalar-parens"
+                                            | "scalar-arithmetic"
+                                            | "scalar-noncommuting"
                                     )
                             )
                         );

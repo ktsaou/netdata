@@ -58,6 +58,38 @@ pub(crate) fn vector_child(
     }
 }
 
+pub(crate) fn literal_scalar_child(
+    expression: &ParsedExpression,
+    prepared: &Prepared,
+    node: NodeId,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<Option<(NodeId, u8)>, Interrupted> {
+    let Expr::Binary { left, right, .. } = expression.arena[node].expression else {
+        return Ok(None);
+    };
+    if expression.arena[left].value_type != ValueType::Scalar
+        || expression.arena[right].value_type != ValueType::Scalar
+    {
+        return Ok(None);
+    }
+    let (child, phase) = match (
+        matches!(expression.arena[left].expression, Expr::Number { .. }),
+        matches!(expression.arena[right].expression, Expr::Number { .. }),
+    ) {
+        (false, true) => (left, 0),
+        (true, false) => (right, 1),
+        _ => return Ok(None),
+    };
+    // Keep the actual operand edge; scalar arithmetic still evaluates both sides.
+    Ok(Some((
+        prepared
+            .preprocessing
+            .child(expression, node, child, control, account)?,
+        phase,
+    )))
+}
+
 fn pure_scalar(
     expression: &ParsedExpression,
     node: NodeId,

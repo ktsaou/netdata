@@ -2355,12 +2355,12 @@ separately rejected under their original criteria.
   running nonstreaming plural OrderedRows range owner. Both operand orders retain scalar-first evaluation.
   Parentheses, ordinary clocks, resolved child identities and exact ReplayKeys must all agree.
 - **Preparation:** local Demand distinguishes None, Contributors and ScalarResult. Existing recursive
-  contributor seeds keep their meaning. ScalarResult crosses only Paren/scalar edges, requests global
+  contributor seeds keep their meaning. ScalarResult crosses Paren/scalar and admitted literal-sided Binary edges, requests global
   ordinary parameterless aggregate provenance at Finish, and stops before the aggregate body.
 - **Lifetime:** successful full reduction and diagnostics precede publication. Existing independent leases,
   replacement, preparation clearing and terminal checks remain authoritative. No new value-table representation,
   retained history, provider surface, arithmetic route or implicit limit is introduced.
-- **Fallback:** one-pass/instant/equal/grouped/nested/fixed/arithmetic-wrapper consumers and native or absent
+- **Fallback:** one-pass/instant/equal/grouped/nested/fixed/unsupported-wrapper consumers and native or absent
   reduction outputs keep ordinary evaluation. Float NaNs and native-input COUNT may qualify as Float results.
 - **Evidence:** [finite qualification](README.md#completed-scalar-aggregate-values) includes complete originals,
   actual cold/warm/new-clock failures, C logical statistics/cleanup, compiler layout, footprint, timing and
@@ -2371,17 +2371,18 @@ separately rejected under their original criteria.
 - Existing scalar-result demand and completed Float ownership were experimentally extended through direct
   Number-sided Binary ancestors with exact pending-phase/child proof. Ordinary arithmetic remained unchanged.
 - The native timing/memory panels passed, but ARM64 linked growth exceeded the frozen ceiling by 700 bytes.
-  The implementation and coupled test changes were restored; historical accepted scalar-only behavior remains.
+  The implementation and coupled test changes were restored at that checkpoint. The later
+  [literal scalar arithmetic qualification](#literal-scalar-arithmetic) records its accepted continuation.
 - The [negative qualification](scalar-arithmetic-rejected-qualification.json) retains every measured cost and
-  source binding. A pure structural Binary predicate is an unimplemented successor opportunity, not an exception
-  to this rejected trial's gate. No numerical, storage, API or accounting contract changed.
+  source binding. A pure structural Binary predicate was separately tested and rejected below, not treated as an
+  exception to this trial's gate. No numerical, storage, API or accounting contract changed.
 
 ## Rejected structural scalar arithmetic trial
 
 - A pure Binary operand/phase classifier preserved the intended cache admission while removing the previous
   helper's unnecessary preprocessing context. Its linked ARM64 C cost still exceeded the unchanged ceiling.
 - This successor was rejected at the early size gate, before functional or performance qualification.
-  Exact restoration leaves the accepted scalar-only optimization unchanged; both arithmetic trials remain historical.
+  Exact restoration left the scalar-only optimization unchanged at that checkpoint; both failed gates remain historical.
 - The [negative record](scalar-structural-rejected-qualification.json) makes no throughput or memory claim.
   Source length and fixture size are insufficient evidence for shipping executable footprint.
 
@@ -2422,6 +2423,20 @@ is retired for subsequent qualification decisions; it is not replaced by another
 
 For the retained scalar arithmetic trial, the ARM64 C consumer's code + data + BSS grew from 6,871,886 to
 6,880,778 bytes: 8,892 bytes, approximately 0.13%. The user accepts this fixed increase. Its remaining
-qualification must still pass before the optimization is accepted. The earlier
+qualification was still required before accepting the optimization and is now recorded in
+[Literal scalar arithmetic](#literal-scalar-arithmetic). The earlier
 [negative record](scalar-arithmetic-rejected-qualification.json) retains the measured target benefits,
 individual slower cases and unfinished checks.
+
+## Literal scalar arithmetic
+
+- Shared `literal_scalar_child` recognizes typed Binary operands with exactly one immediate Number sibling.
+  Preparation forwards existing scalar-result demand only to the other operand.
+- Runtime requires the exact pending child: phase zero with both slots empty, or phase one with completed left
+  and empty right. Syntax and slot presence establish literal identity without floating equality.
+- The ancestor walk still requires scalar(), exact ordinary clocks/keys and actual plural ordered consumption.
+  Every arithmetic continuation remains unchanged; only the completed aggregate value is cached.
+- Parenthesized/unary/compound/data-dependent siblings and call-based min/max retain ordinary evaluation.
+  Native/absent values remain uncached. No new state or buffer is added.
+- Finite results, errors, callback phases and costs are recorded in
+  [the qualification](README.md#literal-scalar-arithmetic). Historical scalar-only evidence retains its original scope.

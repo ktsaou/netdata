@@ -9619,8 +9619,8 @@ Raw history remains paged.
 Preparation distinguishes scalar-result provenance from recursive contributor demand. It crosses exact
 parentheses and `scalar()` edges and stops at the global ordinary aggregate. Runtime admission additionally
 requires the actual running, nonstreaming, plural ordered consumer. Instant/equal requests, single outputs,
-grouped or nested scalar aggregates, fixed clocks, scalar arithmetic wrappers, native results and absent results
-retain ordinary evaluation. These remain supported expressions; they are outside this optimization.
+grouped or nested scalar aggregates, fixed clocks, native results and absent results retain ordinary evaluation.
+Literal-sided scalar arithmetic is covered by the subsequent extension below; other wrappers keep ordinary evaluation.
 
 The [qualification](scalar-group-values-qualification.json) records 3,120 complete measured pairs. Larger
 target queries take 0.0979/0.0982
@@ -9657,15 +9657,16 @@ in both native profiles, with no measured pilot byte-peak increase. Five individ
 slower; all samples remain in the [rejected-trial report](scalar-arithmetic-rejected-qualification.json).
 
 The ARM64 default C executable grew by 8,892 bytes, exceeding the pre-recorded 8,192-byte ceiling.
-The trial was rejected and all 402 accepted source inputs were restored exactly. This optimization is
-not present in the accepted runtime. No limit was relaxed and no architecture exception was accepted.
+The trial was rejected and all 402 accepted source inputs were restored exactly. At that checkpoint, the
+optimization was absent, no limit was relaxed and no architecture exception was accepted. Its later
+qualification under the revised footprint policy is recorded in [Literal scalar arithmetic](#literal-scalar-arithmetic).
 Native comparisons passed 13,068 current and 13,068 predecessor original outcomes with no recorded bit
 differences; one full release suite and native C callers also passed. Remaining qualification stopped
 after rejection. These results describe the retained experiment, not a newly shipped implementation.
 
 The compiled helper used fallible preprocessing for Binary operand edges, although that preprocessing
-preserves Binary children unchanged. A simpler structural predicate is a future candidate. It has not
-been qualified by this trial; the exact cause of the additional ELF text spacing remains unproven.
+preserves Binary children unchanged. A simpler structural predicate was tested in the following rejected
+trial; it is not part of the accepted continuation. The exact cause of the additional ELF text spacing remains unproven.
 
 ## Rejected structural scalar arithmetic trial
 
@@ -9675,8 +9676,8 @@ ceiling. The fixture executable shrank by 10,764 bytes; that does not establish 
 The early footprint gate rejected this variant before any query, unit, timing or memory panels were run.
 
 All 403 accepted source inputs were restored exactly. The [negative record](scalar-structural-rejected-qualification.json)
-retains the actual compiler/linker evidence and trial sources. No optimization from either rejected arithmetic
-trial is present in the accepted runtime. Earlier trial timings cannot be attributed to this variant.
+retains the actual compiler/linker evidence and trial sources. At that checkpoint, neither arithmetic trial
+was present in the accepted runtime. Earlier trial timings cannot be attributed to this variant.
 
 ## Rejected scalar arithmetic inline hint
 
@@ -9688,7 +9689,7 @@ binary hash is distinct; identical code text does not mean identical executables
 The trial was rejected before query, unit, timing or memory execution. All 404 accepted inputs were restored;
 the [negative record](scalar-inline-rejected-qualification.json) preserves actual code/size evidence and source
 identities. The earlier arithmetic speed measurements do not qualify this variant. Further arbitrary layout
-variants are not selected; the accepted runtime retains scalar-only aggregate reuse.
+variants were not selected; that checkpoint retained scalar-only aggregate reuse.
 
 ## Rejected C output label capacity hint
 
@@ -9700,3 +9701,36 @@ The [negative record](output-label-capacity-rejected-qualification.json) retains
 source/binary identities, exact linked-size attribution and restoration of all 405 accepted inputs. No candidate
 queries or memory/timing comparisons ran after rejection. The accepted provider-input hint remains unchanged;
 this output-side experiment establishes no runtime benefit.
+
+## Literal scalar arithmetic
+
+Expressions such as `m / (scalar(sum(n)) + 1)` now reuse the same completed aggregate value.
+The former rejection is historical; this section records its completed qualification under decision66.
+The scalar operation still runs in its original order. Both literal positions and nested literal-sided
+chains qualify only through the actual pending operand; another data-dependent scalar does not qualify.
+The sibling must be an immediate number node. Parenthesized, unary and compound siblings retain ordinary evaluation.
+Call-based `min_of`/`max_of` remain separate, even though their evaluator state is shared.
+
+The [qualification](scalar-arithmetic-qualification.json) records
+5,616 complete measured pairs.
+Large target elapsed-time ratios are 0.1199 and
+0.1192 in release and release-min.
+All frozen control and allocation gates pass; every slower individual case remains in the report.
+The former fixed-size veto failed historically and is superseded by the approved proportional review policy.
+Maximum pilot byte-peak change is 0 bytes. These are synthetic serial measurements.
+
+The two `completed_scalar_arithmetic_values` Rust units share complete results and actual callback-phase
+checks with the preceding scalar/group tests. Full native suites pass 880/880
+tests; ARM32/ARM64 pass 18/18 focused checks under QEMU.
+`scalar_arithmetic_cases.cases()` supplies 2,178 retained original requests,
+including scalar operators that return errors, numerical boundary values, nested arithmetic and ordinary fallbacks.
+Native evidence is reused from the exact retained implementation; ARM comparisons and the missing qualification
+are completed here. Each runtime side passes 17,424 original comparisons;
+use the pinned probe's 300,000ms lookback and 60,000ms subquery interval.
+
+`scalar_arithmetic_values.c` checks both literal positions with `+0`, using the existing full C output checks.
+All 576 before/current pairs preserve logical totals and cleanup; maximum C byte-peak
+change is 0, while the independently owned cached sample can add 1 live sample units.
+This extends the previously rejected trial under the subsequent footprint policy; the negative record is preserved.
+Default C executable growth is 760/896/7496/8892 bytes
+for release/release-min/ARM32/ARM64. No structure fields, raw-history storage or public interfaces change.

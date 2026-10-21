@@ -73861,5 +73861,11 @@
     "report_sha256": "1466a8006e9e309344eee5a99054ca89feb6605b6cefdfbe152d160c8ccebf21",
     "status": "rejected_candidate_accepted_runtime_restored",
     "scope": "Two existing label capacity hints fail early ARM64 default C size gate:24636B growth,24480B extra zero padding.405accepted inputs restored; no candidate query execution."
+  },
+  "literal_scalar_arithmetic_values": {
+    "report": "scalar-arithmetic-qualification.json",
+    "report_sha256": "d87b19ae3619b33560732cb95f586b4e5e8e972fca165bfd51c26b5a720ebf19",
+    "status": "finite_qualification_pass",
+    "scope": "Completed aggregate reuse through immediate Number-sided scalar Binary; ordinary arithmetic preserved."
   }
 }

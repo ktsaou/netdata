@@ -1,0 +1,667 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "51862635936717f6bcc9ab018b994d0ac205b0ea",
+  "policy_checkpoint": "eb9f5e517a59f574dfccdb48e7f82ea1f4a31224",
+  "continuation_plan": {
+    "path": ".tmp/arithmetic-policy-klrcq9se/measurement-plan.json",
+    "sha256": "884635c3540837b599581193b66437023dec3d04d6aa440b3a9c1a58731e490a"
+  },
+  "change": "Existing completed global Float values pass through typed scalar Binary ancestors with exactly one immediate Number sibling. Preparation and runtime share operand recognition; runtime also checks actual unfinished phase and plural ordered range ancestry.",
+  "preserved": "Ordinary scalar arithmetic, first full reduction, diagnostics, exact replay keys, changed-clock reads, independent leases, paged history, public interfaces and disabled caps.",
+  "fallbacks": "Nonliteral/parenthesized/unary/compound siblings, call-based min_of/max_of, unsupported clocks/consumers and native/absent reduction outputs keep ordinary evaluation.",
+  "source_phases": {
+    "accepted-source.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/accepted-source.json",
+      "sha256": "5d1b8761c3d5d69408694151ef8ad20ecf36dba9f019391394ab38db4099435c"
+    },
+    "policy-source.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/policy-source.json",
+      "sha256": "6e1c094ec2fbdaa5013240f1d7fcb822aaaf86e6f300ec243d1435fdb348f713"
+    },
+    "candidate-source.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/candidate-source.json",
+      "sha256": "91d4a2c2b64748b3a8a11e8b83b1f1bab793acfae2816dd0448a6c4325889c4b"
+    },
+    "qualified-source.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/qualified-source.json",
+      "sha256": "91d4a2c2b64748b3a8a11e8b83b1f1bab793acfae2816dd0448a6c4325889c4b"
+    }
+  },
+  "source_attribution": "Exact retained142 implementation restored after decision66. All313 historical code/fixture inventory entries match; this is not a compiled-file count. Native timings, native originals, native C pairs and release full units are reused under their original142 source/binary identities. Release-min full units, focused ARM units, ARM original/C runs and static checks finish here. No fields or layouts change.",
+  "historical_qualified_source": {
+    "path": ".tmp/scalar-arithmetic-fxxmowhd/qualified-source.json",
+    "sha256": "560cc3630bd769f709a8e24aa1eefe6f2d41b6d451d80fa068197061293c4ab9"
+  },
+  "fixed_footprint_policy": "Decision66 retires the blanket8192-byte veto prospectively. The user accepts8892 fixed ARM64 bytes (about0.13percent), not a per-query cost. The original142 rejection remains unchanged; other frozen requirements still apply.",
+  "reuse": {
+    "native_measurements": "retained142",
+    "native_originals": "retained142",
+    "native_C": "retained142",
+    "release_full_units": "retained142",
+    "all_fixture_and_archive_builds": "immutable142 binaries; explicit reuse receipts",
+    "new_execution": [
+      "release-min full units",
+      "ARM32/ARM64 focused units",
+      "ARM32/ARM64 originals",
+      "ARM32/ARM64 C callers",
+      "strict lint, format and MSRV compile"
+    ]
+  },
+  "measurement": {
+    "complete_pairs": 5616,
+    "cases_per_profile": 216,
+    "criteria": {
+      "groups": [
+        1,
+        8,
+        64,
+        256
+      ],
+      "pages": [
+        17,
+        1024
+      ],
+      "reducers": [
+        "sum",
+        "avg"
+      ],
+      "bodies": [
+        "plain",
+        "rate"
+      ],
+      "literal_sides": [
+        "left",
+        "right"
+      ],
+      "outer_sides": [
+        "left",
+        "right"
+      ],
+      "ticks": 3,
+      "blocks": 3,
+      "warmups": 1,
+      "measurements": 3,
+      "large_target_median_max": 0.8,
+      "each_body_large_median_max": 0.9,
+      "control_family_median_max": 1.05,
+      "controls": [
+        "direct",
+        "constant",
+        "standalone-scalar",
+        "instant",
+        "single-numerator",
+        "dependent-sibling"
+      ]
+    },
+    "memory_criteria": {
+      "target_workspace_peak_extra_max_bytes_per_cached_node": 1024,
+      "small_target_workspace_traffic_extra_max": 4096,
+      "large_target_traffic": "nonincreasing",
+      "other_categories": "no increase",
+      "controls": "no extra peak or allocation traffic",
+      "samples": "independent lease reported separately"
+    },
+    "method": "Three alternating serial blocks; one warmup and three measured queries per case/side/block. Nine primary samples per side; all complete outputs compared. No replacement timings.",
+    "profiles": {
+      "release": {
+        "target_median": 0.11986950300099986,
+        "body_medians": {
+          "plain": 0.09110682482478533,
+          "rate": 0.19380389639934473
+        },
+        "control_medians": {
+          "direct": 0.9861005475365179,
+          "constant": 1.0002943054356057,
+          "standalone-scalar": 0.9904558503530114,
+          "instant": 0.9864376296551095,
+          "single-numerator": 1.0099955714772855,
+          "dependent-sibling": 1.0065549842690884
+        },
+        "individual_ratios_over_1_05": [
+          {
+            "case": {
+              "id": "arithmetic:1:1024:target:sum:plain:True:False",
+              "groups": 1,
+              "page": 1024,
+              "shape": "target",
+              "reducer": "sum",
+              "body": "plain",
+              "reverse": true,
+              "literal_left": false,
+              "mode": "range",
+              "expression": "(scalar(sum(n_total))+1)/m"
+            },
+            "before_ns": [
+              104840,
+              106990,
+              104600,
+              106529,
+              108819,
+              106899,
+              106629,
+              118309,
+              107349
+            ],
+            "current_ns": [
+              180238,
+              181729,
+              176189,
+              107359,
+              109799,
+              108069,
+              108099,
+              129919,
+              115200
+            ],
+            "ratio": 1.0776527376308478
+          },
+          {
+            "case": {
+              "id": "arithmetic:1:1024:target:sum:plain:False:True",
+              "groups": 1,
+              "page": 1024,
+              "shape": "target",
+              "reducer": "sum",
+              "body": "plain",
+              "reverse": false,
+              "literal_left": true,
+              "mode": "range",
+              "expression": "m/(1+scalar(sum(n_total)))"
+            },
+            "before_ns": [
+              104439,
+              105000,
+              104880,
+              114829,
+              108839,
+              107499,
+              105739,
+              106499,
+              108049
+            ],
+            "current_ns": [
+              168509,
+              177949,
+              116899,
+              122819,
+              109149,
+              108349,
+              107970,
+              115080,
+              110489
+            ],
+            "ratio": 1.080573526511986
+          },
+          {
+            "case": {
+              "id": "arithmetic:64:17:instant:sum:rate:False:False",
+              "groups": 64,
+              "page": 17,
+              "shape": "instant",
+              "reducer": "sum",
+              "body": "rate",
+              "reverse": false,
+              "literal_left": false,
+              "mode": "instant",
+              "expression": "m/(scalar(sum(rate(n_total[3s])))+1)"
+            },
+            "before_ns": [
+              1911558,
+              1900198,
+              1893649,
+              1902627,
+              1901148,
+              1874927,
+              1891107,
+              1869908,
+              1912807
+            ],
+            "current_ns": [
+              2102187,
+              2070907,
+              2043787,
+              1943008,
+              2141996,
+              1908648,
+              2798131,
+              2502343,
+              1963207
+            ],
+            "ratio": 1.0898374800941797
+          }
+        ],
+        "passed": true
+      },
+      "release-min": {
+        "target_median": 0.11922590983618099,
+        "body_medians": {
+          "plain": 0.09383714277787064,
+          "rate": 0.18734542615386868
+        },
+        "control_medians": {
+          "direct": 0.9936749343083963,
+          "constant": 1.0026883360181436,
+          "standalone-scalar": 0.9959518792961716,
+          "instant": 1.0019046149522328,
+          "single-numerator": 1.0013576884390196,
+          "dependent-sibling": 0.9920530326919227
+        },
+        "individual_ratios_over_1_05": [
+          {
+            "case": {
+              "id": "arithmetic:1:17:target:sum:rate:False:True",
+              "groups": 1,
+              "page": 17,
+              "shape": "target",
+              "reducer": "sum",
+              "body": "rate",
+              "reverse": false,
+              "literal_left": true,
+              "mode": "range",
+              "expression": "m/(1+scalar(sum(rate(n_total[3s]))))"
+            },
+            "before_ns": [
+              211118,
+              226448,
+              211458,
+              207728,
+              204949,
+              204279,
+              213148,
+              224848,
+              212808
+            ],
+            "current_ns": [
+              223388,
+              224198,
+              212378,
+              221508,
+              234149,
+              263368,
+              220088,
+              218229,
+              228518
+            ],
+            "ratio": 1.056417822924647
+          },
+          {
+            "case": {
+              "id": "arithmetic:1:1024:target:sum:rate:False:False",
+              "groups": 1,
+              "page": 1024,
+              "shape": "target",
+              "reducer": "sum",
+              "body": "rate",
+              "reverse": false,
+              "literal_left": false,
+              "mode": "range",
+              "expression": "m/(scalar(sum(rate(n_total[3s])))+1)"
+            },
+            "before_ns": [
+              216809,
+              226709,
+              209899,
+              219349,
+              204249,
+              203218,
+              234609,
+              209239,
+              209769
+            ],
+            "current_ns": [
+              226248,
+              214438,
+              226608,
+              228098,
+              229848,
+              217538,
+              221628,
+              228328,
+              214588
+            ],
+            "ratio": 1.0778898422574668
+          }
+        ],
+        "passed": true
+      }
+    },
+    "maximum_pilot_byte_peak_increase": 0,
+    "scope": "Synthetic serial engine elapsed time and tracked allocations. No live dbengine, concurrency, physical ARM performance or process RSS claim."
+  },
+  "qualification": {
+    "old_complete_cases_before_growth_failure": 216,
+    "old_second_literal_placement_reached": false,
+    "causal_range_reads_G4_G16": {
+      "before": [
+        288,
+        2304
+      ],
+      "current": [
+        216,
+        864
+      ]
+    },
+    "candidate_complete_scalar_join_arithmetic_unit_cases": 864,
+    "test_counts": {
+      "release": 880,
+      "release-min": 880,
+      "arm32": 18,
+      "arm64": 18
+    },
+    "native_preexisting_ignored": 2,
+    "phase_scope": "Both literal/outer sides; actual cold denominator failure before numerator reads, warm numerator fault, omitted warm denominator fault, changed-clock fault and cancellation before next(). Reached POW/MOD numerical polling remains existing direct-kernel coverage, not a new integrated cancellation claim.",
+    "original_cases": 2178,
+    "original_current_comparisons": 17424,
+    "original_predecessor_comparisons": 17424,
+    "original_reports": {
+      "release": [
+        {
+          "page": 1,
+          "side": "before",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        },
+        {
+          "page": 1,
+          "side": "current",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        },
+        {
+          "page": 17,
+          "side": "before",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        },
+        {
+          "page": 17,
+          "side": "current",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        },
+        {
+          "page": 1024,
+          "side": "before",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        },
+        {
+          "page": 1024,
+          "side": "current",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        }
+      ],
+      "release-min": [
+        {
+          "page": 1,
+          "side": "before",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        },
+        {
+          "page": 1,
+          "side": "current",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        },
+        {
+          "page": 17,
+          "side": "before",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        },
+        {
+          "page": 17,
+          "side": "current",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        },
+        {
+          "page": 1024,
+          "side": "before",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        },
+        {
+          "page": 1024,
+          "side": "current",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        }
+      ],
+      "arm32": [
+        {
+          "page": 17,
+          "side": "before",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        },
+        {
+          "page": 17,
+          "side": "current",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        }
+      ],
+      "arm64": [
+        {
+          "page": 17,
+          "side": "before",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        },
+        {
+          "page": 17,
+          "side": "current",
+          "comparisons": 2178,
+          "bitwise_differences": []
+        }
+      ]
+    },
+    "original_policy": "Pinned numerical tolerance and complete outcome comparison; separate raw-bit diagnostics retained. Predecessor/current complete outputs match exactly.",
+    "C_pairs": 576,
+    "legacy_C_queries": 288,
+    "C_maximum_byte_peak_increase": 0,
+    "C_maximum_sample_lease_peak_increase": 1,
+    "C_scope": "Both literal positions using +0, both outer sides and name modes; existing complete collect/stream values, logical statistics, required-read errors and cleanup.",
+    "SRE": {
+      "source_slots": 790,
+      "admitted_slots": 0,
+      "new_executions": 0
+    },
+    "static": "Strict default/fixtures Clippy, formatting, installed Rust1.91 compile-only."
+  },
+  "compiled_C_growth_bytes": {
+    "release": 760,
+    "release-min": 896,
+    "arm32": 7496,
+    "arm64": 8892
+  },
+  "compiled_C_sizes": {
+    "release": {
+      "before_text_data_bss": [
+        7370378,
+        506744,
+        400
+      ],
+      "current_text_data_bss": [
+        7371058,
+        506824,
+        400
+      ],
+      "before_total": 7877522,
+      "current_total": 7878282,
+      "change_percent": 0.009647703935323824
+    },
+    "release-min": {
+      "before_text_data_bss": [
+        5103967,
+        462056,
+        400
+      ],
+      "current_text_data_bss": [
+        5104735,
+        462184,
+        400
+      ],
+      "before_total": 5566423,
+      "current_total": 5567319,
+      "change_percent": 0.01609651296712449
+    },
+    "arm32": {
+      "before_text_data_bss": [
+        6382697,
+        292596,
+        244
+      ],
+      "current_text_data_bss": [
+        6390129,
+        292660,
+        244
+      ],
+      "before_total": 6675537,
+      "current_total": 6683033,
+      "change_percent": 0.11229059175314286
+    },
+    "arm64": {
+      "before_text_data_bss": [
+        6374470,
+        497032,
+        384
+      ],
+      "current_text_data_bss": [
+        6383290,
+        497104,
+        384
+      ],
+      "before_total": 6871886,
+      "current_total": 6880778,
+      "change_percent": 0.12939679150672756
+    }
+  },
+  "cumulative_footprint_baseline": {
+    "revision": "51862635936717f6bcc9ab018b994d0ac205b0ea",
+    "scope": "Runtime unchanged between141 and policy checkpoint; immediate and cumulative growth from this identified baseline are equal for this qualification. Future changes retain this baseline alongside predecessor comparisons."
+  },
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/measurement-plan.json",
+      "sha256": "dfb032b7b83d46f5b016d76c1143ffede69faaeef2a359d3f87d78ece5748a3e"
+    },
+    "old-units.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/old-units.json",
+      "sha256": "d4749d0c5d97deca5435ccf08e6b18e8af2c5b5ee822e24be6ce14cc58705073"
+    },
+    "old-test-source-proof.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/old-test-source-proof.json",
+      "sha256": "0f0e02198ecd9f8330350be4f2555ce429450f2df993256f360baa205e985a4a"
+    },
+    "baseline.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/baseline.json",
+      "sha256": "87983bd29714c4dfe32bdddb5a7967ef19a9c7fe9c25cd7782e60eac0e4b7c98"
+    },
+    "candidate-units.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/candidate-units.json",
+      "sha256": "d4daf08f915baeb93b5651a78c6b80a516a4192afe5e767f8501f684e8906dd0"
+    },
+    "originals-captured.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/originals-captured.json",
+      "sha256": "564e09b1390412a9852447491f0f59286cdb8d476abc8cab6815e3ebae0bd3cf"
+    },
+    "sre-assessment.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/sre-assessment.json",
+      "sha256": "0d4fba9d8703acb4cb929ca902beb5c66b8b55467320644fc1ba01ce4a64e147"
+    },
+    "current-static.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/current-static.json",
+      "sha256": "29dfc47031a1528fb5a113844789aa983e1f260c44dbaf37f7efadafcdc8a79a"
+    },
+    "build-release.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/build-release.json",
+      "sha256": "d6c7e3fdf99b9b7d152d2a1f796eb386f72f5e032f2822dbf4ccb086382de386"
+    },
+    "qualification-release.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/qualification-release.json",
+      "sha256": "d087d5a21c583630ca9ef92e446fee911b793d8609d4378431a5ea6fb6d86922"
+    },
+    "C-callers-release.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/C-callers-release.json",
+      "sha256": "a827ebdeaf2c2686242ab2ec334e8cd2e3a175538b2de32973f6ffc228d7fa08"
+    },
+    "originals-release.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/originals-release.json",
+      "sha256": "25d04a2fff18800c7f8377982aeb821e8f8c09ab24645ae2cbb719f5d37ab056"
+    },
+    "build-release-min.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/build-release-min.json",
+      "sha256": "a789de8433f559b7d425bc90c1ef18217a45c24cd00ad6e3ebd0962376a35033"
+    },
+    "qualification-release-min.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/qualification-release-min.json",
+      "sha256": "29129dddd430e05552b4d2452f93156a67cebd5454c4e2a2a82ae03376fbe8e9"
+    },
+    "C-callers-release-min.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/C-callers-release-min.json",
+      "sha256": "9f244e4ea1877fbf76aae8dfe41c8ad7296d8d036e7ddf9e21059121afe549b9"
+    },
+    "originals-release-min.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/originals-release-min.json",
+      "sha256": "7e1c04c034f76e91a88d876c3fe0307a2af12a464fbfb09c0cf4037cff7b869a"
+    },
+    "build-arm32.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/build-arm32.json",
+      "sha256": "a9ba8cf770e97b17f799facc9c8742db9163d807ceac9cacef9fb81e3d29282f"
+    },
+    "qualification-arm32.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/qualification-arm32.json",
+      "sha256": "e9bd43fa451f2f418d9f1c2bb2704e9b6ea0fb11d671826c548b508ff228ae95"
+    },
+    "C-callers-arm32.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/C-callers-arm32.json",
+      "sha256": "5c3b041d06131f44cdeecf58bbf4478240c9588a9f2aef86670b25e72ed1fb08"
+    },
+    "originals-arm32.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/originals-arm32.json",
+      "sha256": "00f721b21caae43399440516a9ab063e55f81d7ed683d92041befb877d36a336"
+    },
+    "build-arm64.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/build-arm64.json",
+      "sha256": "17a5fe6e8083cb5a094c07ee1a6a506faaceeb65014388f121cc7a1b039f45a3"
+    },
+    "qualification-arm64.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/qualification-arm64.json",
+      "sha256": "9768053946dfeea4a2568df29f522595cd544f290b56911e89d89d3891814a02"
+    },
+    "C-callers-arm64.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/C-callers-arm64.json",
+      "sha256": "436db56550c3ca13867322d15588a83b80500b680b5a7feec693b37bbee108d7"
+    },
+    "originals-arm64.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/originals-arm64.json",
+      "sha256": "b277bb2f6636f251a047abe86c75d913576ea75870b9d3f87b17a1622ffe427e"
+    },
+    "measurement-release.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/measurement-release.json",
+      "sha256": "92de8ffaee76bcafb25b3f79ae3f1f34e7abb5419ee0063881565b798bd88969"
+    },
+    "measurement-release-min.json": {
+      "path": ".tmp/scalar-arithmetic-fxxmowhd/measurement-release-min.json",
+      "sha256": "97606f45cbbab207fff06e029f623f1d48ce21f58619acdef5e7a568b2796bb7"
+    },
+    "restored-candidate.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/restored-candidate.json",
+      "sha256": "47bb566855a074a5c6f318e2a2f2037981bd7d179e64de0a1dde3ea28da34e57"
+    },
+    "policy-plan.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/policy-plan.json",
+      "sha256": "fdad349f945ba8841d99c007ba846af09382ede1fa332c7b42a5cf600589f153"
+    },
+    "policy-publication.json": {
+      "path": ".tmp/arithmetic-policy-klrcq9se/policy-publication.json",
+      "sha256": "a7807aa51304b5b8cf044ceab86167d6855241c6d5aad58d4e2b4eecd1568f13"
+    }
+  },
+  "scope": "Private engine optimization; continuous coverage/throughput/memory work remains unfinished."
+}

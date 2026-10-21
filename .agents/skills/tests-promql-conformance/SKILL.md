@@ -36,6 +36,10 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   historical settings explicitly unknown.
 - Bind the comparison runner and imported helper bytes before and after each new cohort.
 - Finalize artifact hashes after their owned writers finish; exclude a receipt from its own artifact map.
+- Review fixed executable growth proportionally under
+  `src/crates/promql-engine/tests/promql-conformance/DESIGN.md#proportional-compiled-footprint-review`.
+  Report absolute, relative and cumulative costs separately from runtime memory; minor fixed increases do not
+  require repeated exceptions. Preserve historical failed size gates and complete all other required checks.
 
 ## Bad practices
 
@@ -173,6 +177,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Completed singleton aggregate values MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-singleton-aggregate-values` for actual
   pending-side/clock admission, terminal publication, independent sample ownership and bounded table costs.
+- Literal scalar arithmetic reuse MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#literal-scalar-arithmetic` for immediate-number
+  admission, actual operand phases, unchanged arithmetic, fallbacks and retained-versus-new evidence attribution.
 - Generic derived range changes MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#known-empty-derived-histogram-probes` for actual
   Float completion, type-union provenance, backing fallbacks and source-bound physical/error/memory scopes.
