@@ -167,9 +167,10 @@ pub(crate) fn fixed_map_vector(
     let child = prepared
         .preprocessing
         .child(expression, node, child, control, account)?;
-    // Float calls truncate pair traversal before its completion can be reused.
+    // Qualified ratios use their separate successful-prefix proof under Float calls.
     if matches!(expression.arena[node].expression, Expr::Call { .. })
         && !matches!(expression.arena[child].expression, Expr::Aggregate { .. })
+        && unique_ratio_operands(expression, child).is_none()
     {
         return Ok(None);
     }

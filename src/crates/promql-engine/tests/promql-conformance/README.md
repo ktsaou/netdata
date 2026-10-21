@@ -10276,11 +10276,10 @@ One fixed Float function over a qualified group, or one unary operator over a gr
 scans in a consumed subquery. [Qualification](qualified-fixed-map-clocks-qualification.json) records the finite
 results and costs. Existing literal arithmetic/comparison behavior remains.
 
-Float calls require an explicit vector, immediate-number parameters and a resolved Aggregate child. Preparation
-and runtime use the same predicate and retain the original producer and clock checks. Both spellings of a
-Float-over-ratio call stay on the generic path: argument parentheses do not change Vector consumption. Group
-completion cannot substitute for Pair Done. Unary keeps its existing Matrix traversal. No numerical kernel,
-evaluation mode, ownership layout or raw/value cache changes.
+This earlier qualification required an explicit vector, immediate-number parameters and a resolved Aggregate
+child for Float calls. Float-over-ratio calls then stayed generic because Group completion cannot substitute for
+Pair Done. The later [ratio-prefix extension](#successful-prefixes-in-grouped-ratios) adds separate proof for that
+case. The earlier measurements and rejection record below retain their original scope and source identities.
 
 The broad predecessor remains [rejected](grouped-fixed-maps-rejected-qualification.json). The refined experiment
 had its own prospective scope and frozen gate; its measurements do not rewrite the earlier failure.
@@ -10323,5 +10322,62 @@ original execution identities; the refined candidate was executed freshly.
 
 Repeat with `grouped_fixed_map_clocks`, retaining arithmetic/comparison and Group/Pair ownership tests.
 Trace resolved Call edges when checking completion: source parentheses may have been removed. Check actual
-full completion independently for each owner, and include Float-ratio, dynamic, nested and nonordinary
-aggregate fallbacks. The paged C fixtures cover each wrapper across all four callback outcomes.
+full completion independently for each owner. Retain dynamic, nested and nonordinary aggregate fallbacks; the
+Float-ratio cases now exercise the separate prefix extension below. Paged C fixtures cover all four callback outcomes.
+
+
+## Successful prefixes in grouped ratios
+
+One fixed Float function over a qualified grouped division can reuse successful input discovery and pair
+processing across subquery clocks. [Qualification](grouped-ratio-prefix-qualification.json) records all results
+and costs. This extends the earlier single-map implementation without granting partial work full Pair Done.
+
+The accounted certificate stores a covered clock interval and a common physical-row prefix. A constant-size
+forward sweep must visit every covered clock before that prefix advances. Expanded or replaced clock domains
+clear provisional progress. Selected operands are read freshly; an absent selected pair restarts ordinary
+evaluation and visits its unprocessed suffix. Preparation clearing drops the certificate. Raw samples, values
+and cross-clock presence are never cached here.
+
+Admission keeps the existing unique Float frontier, one-to-one DIV, no fills, exact clock/ancestry checks and
+one fixed map with immediate-number parameters. Dynamic parameters, nested maps and comparisons keep existing paths.
+
+| Profile | Rate targets | Increase targets | Delta targets | Controls |
+|---|---:|---:|---:|---:|
+| release | 0.3885 | 0.3753 | 0.3732 | 0.9903 |
+| release-min | 0.3970 | 0.3957 | 0.3982 | 1.0257 |
+
+These are candidate/baseline median time ratios from 1,200 complete paired queries. Individual slower cases
+remain in the report, including the predeclared follow-up; they do not replace primary measurements.
+
+| Representative 16-group case | Fetched sample entries | Workspace peak, bytes |
+|---|---:|---:|
+| g16-round | 777216→143616 | 114411→113492 |
+| g16-increase | 777216→143616 | 114411→113492 |
+| g16-delta | 777216→143616 | 114411→113492 |
+| g16-bare | 111232→111232 | 97350→97390 |
+
+All 36 time/page checks retain analytical outcomes and constant workspace at four groups as windows grow
+from 8 to 64 steps. Series metadata and result storage still depend on cardinality; this is not an RSS bound.
+
+Synthetic validation includes 918 native tests plus two ignored per profile, 22 focused tests per ARM target, 11,808
+C/C++ cases, 3,780 exact baseline pairs and 3,780 agreed-order Prometheus comparisons. The 1,884 strict
+original row-order failures remain recorded; numerical-bit differences are zero. Four new causal tests
+cover incomplete clock sweeps, admission, fresh selected reads, sparse suffix cancellation and clearing.
+Separate provider-callback tests exercise 256 required read failures; these complementary tests do not form
+a sparse-provider suffix-fault panel.
+
+| Default C executable | Total change, bytes | Relative change |
+|---|---:|---:|
+| release | +77620 | 0.986% |
+| release-min | +4044 | 0.072% |
+| arm32 | +12944 | 0.194% |
+| arm64 | +23736 | 0.344% |
+
+Compiled text/data/BSS and cumulative costs are separate from query workspace in the report. The retained
+performance fixtures precede a test-only cleanup of two assertion forms; runtime source is unchanged.
+Final native/ARM tests and C builds use the corrected source. All capture identities remain explicit.
+
+Repeat `prefix_interval_` and `grouped_fixed_map_clocks` tests alongside existing arithmetic/comparison
+and Group/Pair controls. Distinguish discovery-clock coverage from common-prefix advancement and from
+full Pair completion. Keep fresh selected reads, absent-target suffix work and preparation clearing in
+scope; the paged C consumers cover success, read failure, cancellation and deadline outcomes.

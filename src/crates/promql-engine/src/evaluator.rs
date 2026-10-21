@@ -601,6 +601,12 @@ enum OutputMode {
     Matrix,
     Vector,
 }
+#[derive(Clone, Copy)]
+enum RangePath {
+    Completed,
+    FloatMap,
+}
+
 fn discovery_target(
     mode: OutputMode,
     bypass_order: bool,
@@ -2787,11 +2793,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         }
     }
 
-    fn direct_range_child(
+    fn direct_range_path(
         &self,
         mut index: usize,
         mut grouped_operand: bool,
-    ) -> Result<bool, Interrupted> {
+    ) -> Result<Option<RangePath>, Interrupted> {
         let key_for = |frame: &Frame| {
             crate::vector_matching::ReplayKey::new(
                 frame.options,
@@ -2802,6 +2808,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         };
         let key = key_for(&self.frames[index]);
         let mut fixed_map = false;
+        let mut path = RangePath::Completed;
         while index > 0 {
             self.control.check()?;
             self.account.work(1);
@@ -2813,16 +2820,16 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 || self.rosters.matrix(child.node).is_some()
                 || key_for(child) != key
             {
-                return Ok(false);
+                return Ok(None);
             }
             match &parent.state {
                 // The range reducer owns the outer clock, not the subquery clock.
-                State::Range(_) => return Ok(true),
+                State::Range(_) => return Ok(Some(path)),
                 State::OrderedRows { running: true, .. }
                     if parent.node == child.node && child.bypass_order => {}
                 State::Pass => {
                     let Expr::Paren(next) = self.expression.arena[parent.node].expression else {
-                        return Ok(false);
+                        return Ok(None);
                     };
                     if self.prepared.preprocessing.child(
                         self.expression,
@@ -2832,7 +2839,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.account,
                     )? != child.node
                     {
-                        return Ok(false);
+                        return Ok(None);
                     }
                 }
                 State::Map {
@@ -2843,17 +2850,26 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     ..
                 } if !fixed_map => {
                     if self.grouped_map_child(parent.node)? != Some(child.node) {
-                        return Ok(false);
+                        return Ok(None);
                     }
                     // A fixed map preserves source identities, not group or pair completion.
                     fixed_map = true;
+                    if matches!(
+                        parent.state,
+                        State::Map {
+                            operation: MapOperation::Pointwise(PointwiseFunction::Float(..)),
+                            ..
+                        }
+                    ) {
+                        path = RangePath::FloatMap;
+                    }
                 }
                 State::Binary(_) if grouped_operand => {
                     if !self
                         .grouped_ratio_children(parent.node)?
                         .is_some_and(|pair| pair.contains(&child.node))
                     {
-                        return Ok(false);
+                        return Ok(None);
                     }
                     // Group completion never certifies its sibling or the enclosing pair.
                     grouped_operand = false;
@@ -2863,15 +2879,15 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         .grouped_histogram_child(parent.node)?
                         .is_some_and(|(edge, _)| edge == child.node)
                     {
-                        return Ok(false);
+                        return Ok(None);
                     }
                     grouped_operand = false;
                 }
-                _ => return Ok(false),
+                _ => return Ok(None),
             }
             index -= 1;
         }
-        Ok(false)
+        Ok(None)
     }
 
     fn singleton_group_key(
@@ -3262,7 +3278,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     );
                     let interval = plan.supports_interval()
                         && !(node == self.diagnostic_node && self.annotations.is_some())
-                        && self.direct_range_child(index, true)?;
+                        && self.direct_range_path(index, true)?.is_some();
                     let active = if interval {
                         plan.activate_interval(filter, key, self.control, self.account)?
                     } else {
@@ -3387,10 +3403,24 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         let raw_pair = [left, right].into_iter().all(|child| {
                             matches!(self.expression.arena[*child].expression, Expr::Selector(_))
                         });
-                        let interval = (raw_pair || self.grouped_ratio_children(node)?.is_some())
-                            && step.has_pair_discovery()
-                            && self.direct_range_child(index, false)?
-                            && step.enable_interval(target, key, self.control, self.account)?;
+                        let grouped = self.grouped_ratio_children(node)?.is_some();
+                        let path = if (raw_pair || grouped) && step.has_pair_discovery() {
+                            self.direct_range_path(index, false)?
+                        } else {
+                            None
+                        };
+                        let interval = match path {
+                            Some(RangePath::FloatMap) if grouped => step.enable_prefix_interval(
+                                target,
+                                key,
+                                self.control,
+                                self.account,
+                            )?,
+                            Some(RangePath::Completed) => {
+                                step.enable_interval(target, key, self.control, self.account)?
+                            }
+                            _ => false,
+                        };
                         if !interval {
                             if step.has_pair_discovery() {
                                 step.enable_pair_discovery(key, self.control, self.account)?;
@@ -4451,7 +4481,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             if ordinal.is_none()
                                 && argument == 1
                                 && let RowFilter::Ordinals([binding]) = filter
-                                && self.direct_range_child(index, false)?
+                                && self.direct_range_path(index, false)?.is_some()
                                 && let Some((_, group)) = self.grouped_histogram_child(node)?
                                 && self
                                     .rosters
@@ -4635,7 +4665,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     self.account,
                                 )?;
                             }
-                            step.complete_replay(self.control)?;
+                            step.complete_replay(self.control, self.account)?;
                             step.complete_interval(self.control, self.account)?;
                             self.frames.pop();
                         }

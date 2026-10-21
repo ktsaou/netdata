@@ -327,4 +327,6 @@ Update this workflow when a new canonical panel, ownership defect, comparison ex
 
 Fixed-map grouped reuse follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-through-qualified-fixed-maps`:
-trace resolved Call edges and actual Group/Pair completion separately; retain Float-ratio fallback controls.
+trace resolved Call edges and actual Group/Pair completion separately.
+The ratio-prefix extension follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#successful-prefixes-in-grouped-ratios`.

@@ -2633,10 +2633,25 @@ changing membership, special literals, complete original comparisons and proport
 ## Qualified fixed maps over completed grouped clocks
 
 - **Choice:** share a resolved vector-edge recognizer across preparation/runtime. Keep original literal binaries;
-  admit unary ADD/SUB and fixed Float calls only over a qualified Aggregate child.
+  initially admit unary ADD/SUB and fixed Float calls only over a qualified Aggregate child.
 - **Reason:** Float calls over ratios stop before Pair Done, so their unfiltered discovery cannot reuse Group credit.
-  Both ratio spellings remain generic. Unary preserves its existing Matrix completion behavior.
+  Both ratio spellings initially remained generic. The separate prefix extension below covers them.
+  Unary preserves its existing Matrix completion behavior.
 - **Ownership:** retain all producer, clock, boundary and single-wrapper checks; no new cache, field or raw array.
 - **Evidence:** the [refined qualification](qualified-fixed-map-clocks-qualification.json) reports current outcomes,
   causal controls, finite speedups and all resource costs. The [broad trial](grouped-fixed-maps-rejected-qualification.json)
   remains rejected; its failed gate and source attribution are unchanged.
+
+
+## Successful physical prefixes in grouped ratios
+
+- **Choice:** reuse successful discovery and a common processed physical-row prefix for one fixed Float map over
+  an already-qualified grouped DIV. Keep full Pair completion as a separate authority.
+- **Reason:** Vector consumption can stop at one pair before Pair Done. Group completion alone cannot justify
+  skipping other pairs. Prefix promotion therefore requires a contiguous successful sweep across every covered clock.
+- **Ownership:** a lazy accounted constant-size certificate; fresh selected discovery/reacquisition; ordinary
+  fallback for absent or invalid selected inputs; reset with preparation. No raw/value or clock-history cache.
+- **Limits:** existing unique Float frontier, one-to-one DIV, no fills, one map and unchanged clock domain.
+  Other operators and nested maps keep existing behavior.
+- **Evidence:** [ratio-prefix qualification](grouped-ratio-prefix-qualification.json) separates clock discovery,
+  common-prefix advancement, full Done, sparse suffix cancellation, actual provider faults and measured costs.

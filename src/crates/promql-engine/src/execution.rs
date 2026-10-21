@@ -12346,7 +12346,7 @@ mod tests {
         aggregate: &str,
         full_matrix: bool,
         wrapper: Option<&str>,
-        intervals: bool,
+        pair_intervals: bool,
     ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             for (page, fault) in grouped_clock_pages(full_matrix)
@@ -12444,11 +12444,8 @@ mod tests {
                     let left = rosters.group_replay(left);
                     let right = rosters.group_replay(right);
                     let binary = rosters.binary(binary).unwrap();
-                    assert_eq!(left.is_some_and(|plan| plan.supports_interval()), intervals);
-                    assert_eq!(
-                        right.is_some_and(|plan| plan.supports_interval()),
-                        intervals
-                    );
+                    assert!(left.is_some_and(|plan| plan.supports_interval()));
+                    assert!(right.is_some_and(|plan| plan.supports_interval()));
                     assert!(
                         !left.is_some_and(|plan| plan.has_interval())
                             && !right.is_some_and(|plan| plan.has_interval())
@@ -12479,7 +12476,7 @@ mod tests {
                         );
                         assert_eq!(
                             left.is_some_and(|plan| plan.has_interval()),
-                            intervals && fault == "right",
+                            fault == "right",
                             "{fault}"
                         );
                         assert!(
@@ -12523,21 +12520,20 @@ mod tests {
                                 prepared.lookback_ns(compiled.options.lookback_ms),
                                 bounds,
                             );
-                            assert_eq!(
+                            assert!(
                                 left.is_some_and(|plan| plan.interval_contains(key)),
-                                intervals,
                                 "left operand at {time_ms}"
                             );
-                            assert_eq!(
+                            assert!(
                                 right.is_some_and(|plan| plan.interval_contains(key)),
-                                intervals,
                                 "right operand at {time_ms}"
                             );
                             assert_eq!(
                                 binary.completed_interval_contains(key),
-                                intervals && time_ms < grid.end_ms,
+                                pair_intervals && time_ms < grid.end_ms,
                                 "only actual binary completion earns clock {time_ms}"
                             );
+                            assert_eq!(binary.prefix_interval_contains(key), !pair_intervals);
                         }
                     }
                     drop(machine);
@@ -12551,7 +12547,9 @@ mod tests {
                             && !right.is_some_and(|plan| plan.has_completion())
                     );
                     assert!(
-                        !binary.has_completed_interval() && !binary.has_completed_pair_discovery()
+                        !binary.has_completed_interval()
+                            && !binary.has_completed_pair_discovery()
+                            && !binary.has_prefix_interval()
                     );
                 }
                 provider.assert_closed();

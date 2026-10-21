@@ -102,6 +102,7 @@ struct Replay {
     rows: ReplayRows,
     completed: RefCell<Option<AccountedBox<CompletedStep>>>,
     interval: RefCell<Option<AccountedBox<CompletedInterval>>>,
+    prefix: RefCell<Option<AccountedBox<PrefixInterval>>>,
 }
 enum ReplayRows {
     Pairs(AccountedVec<[usize; 2]>),
@@ -165,9 +166,83 @@ impl CompletedInterval {
     }
 }
 
+struct PrefixInterval {
+    clocks: CompletedInterval,
+    // Physical many-side rows below this count succeeded at every covered clock.
+    common: usize,
+    current: Option<i64>,
+    current_prefix: usize,
+    prior_min: Option<usize>,
+}
+impl PrefixInterval {
+    fn new(key: ReplayKey) -> Self {
+        Self {
+            clocks: CompletedInterval::new(key),
+            common: 0,
+            current: None,
+            current_prefix: 0,
+            prior_min: None,
+        }
+    }
+
+    fn discover(&mut self, key: ReplayKey) {
+        if self.clocks.contains(key) {
+            return;
+        }
+        self.clocks.record(key);
+        // Expanded coverage has no successful pair prefix at its new clock.
+        self.common = 0;
+        self.current = None;
+        self.current_prefix = 0;
+        self.prior_min = None;
+    }
+
+    fn processed(&mut self, key: ReplayKey, prefix: usize) {
+        if !self.clocks.contains(key) {
+            return;
+        }
+        let clock = key.clock[5];
+        if self.current == Some(clock) {
+            self.current_prefix = self.current_prefix.max(prefix);
+        } else if clock == self.clocks.first.clock[5] {
+            self.current = Some(clock);
+            self.current_prefix = prefix;
+            self.prior_min = None;
+        } else if self.current.and_then(|prior| prior.checked_add(1)) == Some(clock) {
+            self.prior_min = Some(
+                self.prior_min
+                    .map_or(self.current_prefix, |prior| prior.min(self.current_prefix)),
+            );
+            self.current = Some(clock);
+            self.current_prefix = prefix;
+        } else {
+            self.current = None;
+            self.current_prefix = 0;
+            self.prior_min = None;
+            return;
+        }
+        if clock == self.clocks.last_index {
+            let completed = self
+                .prior_min
+                .map_or(self.current_prefix, |prior| prior.min(self.current_prefix));
+            self.common = self.common.max(completed);
+        }
+    }
+
+    fn permits(&self, key: ReplayKey, row: usize) -> bool {
+        self.clocks.contains(key) && row <= self.common
+    }
+}
+
 enum IntervalAttempt {
     Cold(ReplayKey),
     Restricted([usize; 2]),
+    PrefixCold(ReplayKey),
+    PrefixRestricted {
+        key: ReplayKey,
+        pair: [usize; 2],
+        valid: bool,
+    },
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ReplayKey {
@@ -425,12 +500,14 @@ impl Plan {
             replay.rows = ReplayRows::Pairs(pairs);
             replay.completed.get_mut().take();
             replay.interval.get_mut().take();
+            replay.prefix.get_mut().take();
         } else {
             self.replay = Some(AccountedBox::new(
                 Replay {
                     rows: ReplayRows::Pairs(pairs),
                     completed: RefCell::new(None),
                     interval: RefCell::new(None),
+                    prefix: RefCell::new(None),
                 },
                 &context,
             ));
@@ -448,6 +525,7 @@ impl Plan {
                 rows: ReplayRows::PairCandidate,
                 completed: RefCell::new(None),
                 interval: RefCell::new(None),
+                prefix: RefCell::new(None),
             },
             &AllocationContext::new(account, MemoryKind::Workspace),
         ));
@@ -468,6 +546,24 @@ impl Plan {
         self.replay
             .as_ref()
             .is_some_and(|replay| replay.interval.borrow().is_some())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn prefix_interval_contains(&self, key: ReplayKey) -> bool {
+        self.replay.as_ref().is_some_and(|replay| {
+            replay
+                .prefix
+                .borrow()
+                .as_ref()
+                .is_some_and(|prefix| prefix.clocks.contains(key))
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn has_prefix_interval(&self) -> bool {
+        self.replay
+            .as_ref()
+            .is_some_and(|replay| replay.prefix.borrow().is_some())
     }
     #[cfg(test)]
     pub(crate) fn completed_interval_contains(&self, key: ReplayKey) -> bool {
@@ -529,6 +625,7 @@ impl Plan {
                 },
                 completed: RefCell::new(None),
                 interval: RefCell::new(None),
+                prefix: RefCell::new(None),
             },
             &AllocationContext::new(account, MemoryKind::Workspace),
         ));
@@ -586,6 +683,7 @@ impl Plan {
         ));
         replay.completed.borrow_mut().take();
         replay.interval.borrow_mut().take();
+        replay.prefix.borrow_mut().take();
         self.replay = Some(replay);
         Ok(())
     }
@@ -608,6 +706,7 @@ impl Plan {
             }
             replay.completed.borrow_mut().take();
             replay.interval.borrow_mut().take();
+            replay.prefix.borrow_mut().take();
         }
     }
     fn pair_discovery(&self, key: &ReplayKey) -> Option<&crate::pair_discovery::Plan> {
@@ -823,7 +922,7 @@ impl<'a> Step<'a> {
         self.plan.has_pair_discovery()
             && !matches!(
                 self.interval.as_deref(),
-                Some(IntervalAttempt::Restricted(_))
+                Some(IntervalAttempt::Restricted(_) | IntervalAttempt::PrefixRestricted { .. })
             )
     }
     pub(crate) fn new(
@@ -861,13 +960,7 @@ impl<'a> Step<'a> {
         }
     }
 
-    pub(crate) fn enable_interval(
-        &mut self,
-        target: usize,
-        key: ReplayKey,
-        control: &Control,
-        account: &QueryAccounting,
-    ) -> Result<bool, Interrupted> {
+    fn interval_pair(&self, target: usize, key: ReplayKey) -> Option<[usize; 2]> {
         if self.matching.cardinality != Cardinality::OneToOne
             || self.matching.fill_left.is_some()
             || self.matching.fill_right.is_some()
@@ -885,17 +978,66 @@ impl<'a> Step<'a> {
                         | TokenKind::ATAN2
                 ))
         {
+            return None;
+        }
+        let replay = self.plan.replay.as_ref()?;
+        let ReplayRows::PairDiscovery(plan) = &replay.rows else {
+            return None;
+        };
+        plan.certified_pair(target)
+    }
+
+    pub(crate) fn enable_prefix_interval(
+        &mut self,
+        target: usize,
+        key: ReplayKey,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        if self.operator != TokenKind::DIV {
             return Ok(false);
         }
-        let Some(replay) = &self.plan.replay else {
+        let Some(pair) = self.interval_pair(target, key) else {
             return Ok(false);
         };
-        let ReplayRows::PairDiscovery(plan) = &replay.rows else {
+        control.check()?;
+        account.work(1);
+        let restricted = self
+            .plan
+            .replay
+            .as_ref()
+            .expect("pair prefix owner")
+            .prefix
+            .borrow()
+            .as_ref()
+            .is_some_and(|prefix| prefix.permits(key, pair[usize::from(self.swapped())]));
+        let attempt = if restricted {
+            IntervalAttempt::PrefixRestricted {
+                key,
+                pair,
+                valid: true,
+            }
+        } else {
+            IntervalAttempt::PrefixCold(key)
+        };
+        self.interval = Some(AccountedBox::new(
+            attempt,
+            &AllocationContext::new(account, MemoryKind::Workspace),
+        ));
+        Ok(restricted)
+    }
+
+    pub(crate) fn enable_interval(
+        &mut self,
+        target: usize,
+        key: ReplayKey,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        let Some(pair) = self.interval_pair(target, key) else {
             return Ok(false);
         };
-        let Some(pair) = plan.certified_pair(target) else {
-            return Ok(false);
-        };
+        let replay = self.plan.replay.as_ref().expect("interval plan");
         control.check()?;
         account.work(1);
         let restricted = replay
@@ -959,9 +1101,9 @@ impl<'a> Step<'a> {
 
     fn discovery_ordinal(&self, side: usize) -> Option<&'a usize> {
         match self.interval.as_deref() {
-            Some(IntervalAttempt::Restricted(pair)) => {
-                Some(&self.plan.sides[side].rows[pair[side]].ordinal)
-            }
+            Some(
+                IntervalAttempt::Restricted(pair) | IntervalAttempt::PrefixRestricted { pair, .. },
+            ) => Some(&self.plan.sides[side].rows[pair[side]].ordinal),
             _ => None,
         }
     }
@@ -1123,7 +1265,11 @@ impl<'a> Step<'a> {
         self.pending = Some(AccountedBox::new(CompletedStep { key, members }, &context));
         Ok(())
     }
-    pub(crate) fn complete_replay(&mut self, control: &Control) -> Result<(), Interrupted> {
+    pub(crate) fn complete_replay(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
         if self.pending.is_some() {
             control.check()?;
             let completed = self
@@ -1137,6 +1283,19 @@ impl<'a> Step<'a> {
                 .expect("certified complete binary replay");
             if let ReplayRows::SetDiscovery { prefix } = &replay.rows {
                 prefix.set(None);
+            }
+            if let Some(IntervalAttempt::PrefixCold(key)) = self.interval.as_deref() {
+                control.check()?;
+                account.work(1);
+                let mut prefix = replay.prefix.borrow_mut();
+                if let Some(prefix) = prefix.as_mut() {
+                    prefix.discover(*key);
+                } else {
+                    *prefix = Some(AccountedBox::new(
+                        PrefixInterval::new(*key),
+                        &AllocationContext::new(account, MemoryKind::Workspace),
+                    ));
+                }
             }
             *replay.completed.borrow_mut() = Some(completed);
         }
@@ -1152,18 +1311,31 @@ impl<'a> Step<'a> {
             Phase::Left | Phase::Right => {
                 if sample.value.kind_bit() != 1 {
                     self.pending = None;
-                    if matches!(self.interval.as_deref(), Some(IntervalAttempt::Cold(_))) {
+                    if matches!(
+                        self.interval.as_deref(),
+                        Some(IntervalAttempt::Cold(_) | IntervalAttempt::PrefixCold(_))
+                    ) {
                         self.interval = None;
                     }
                 }
                 let side = usize::from(matches!(self.phase, Phase::Right));
                 let row = self.plan.position(side, &sample, control, account)?;
+                if let Some(IntervalAttempt::PrefixRestricted { pair, valid, .. }) =
+                    self.interval.as_deref_mut()
+                {
+                    *valid &= sample.value.kind_bit() == 1
+                        && self.active[side].is_empty()
+                        && row == pair[side];
+                }
                 if (self.operator.is_set() || self.plan.has_pair_discovery())
                     && self.pending.is_some()
                 {
                     if self.active[side].last().is_some_and(|last| last.row >= row) {
                         self.pending = None;
-                        if matches!(self.interval.as_deref(), Some(IntervalAttempt::Cold(_))) {
+                        if matches!(
+                            self.interval.as_deref(),
+                            Some(IntervalAttempt::Cold(_) | IntervalAttempt::PrefixCold(_))
+                        ) {
                             self.interval = None;
                         }
                     } else {
@@ -1351,7 +1523,66 @@ impl<'a> Step<'a> {
         {
             plan.record(ordinal, kept, control, account)?;
         }
+        let key = match self.interval.as_deref() {
+            Some(IntervalAttempt::PrefixCold(key)) if self.plan.pair_discovery(key).is_some() => {
+                *key
+            }
+            Some(IntervalAttempt::PrefixRestricted {
+                key, valid: true, ..
+            }) => *key,
+            _ => return Ok(()),
+        };
+        let Some(Choice::Pair { left, right, .. }) = self.choice else {
+            return Ok(());
+        };
+        if self.duplicate || self.last_diagnostic.is_some() {
+            return Ok(());
+        }
+        let many = usize::from(self.swapped());
+        let row = if left.side == many {
+            left.row
+        } else {
+            right.row
+        };
+        control.check()?;
+        account.work(1);
+        if let Some(prefix) = self
+            .plan
+            .replay
+            .as_ref()
+            .expect("pair prefix owner")
+            .prefix
+            .borrow_mut()
+            .as_mut()
+        {
+            prefix.processed(key, row + 1);
+        }
         Ok(())
+    }
+
+    fn restart_prefix(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        let Some(IntervalAttempt::PrefixRestricted { key, .. }) = self.interval.as_deref() else {
+            return Ok(false);
+        };
+        let key = *key;
+        // An absent requested pair still owes its unknown suffix.
+        *self = Self::new(
+            self.plan,
+            self.matching,
+            self.operator,
+            self.return_bool,
+            account,
+        );
+        self.interval = Some(AccountedBox::new(
+            IntervalAttempt::PrefixCold(key),
+            &AllocationContext::new(account, MemoryKind::Workspace),
+        ));
+        self.enable_input_discovery(key, control, account)?;
+        Ok(true)
     }
     fn labels(
         &self,
@@ -1781,13 +2012,23 @@ impl<'a> Step<'a> {
                     });
                 }
                 Phase::Right => {
+                    if matches!(
+                        self.interval.as_deref(),
+                        Some(IntervalAttempt::PrefixRestricted { valid: false, .. })
+                    ) && self.restart_prefix(control, account)?
+                    {
+                        continue;
+                    }
                     if self.operator.is_set() || self.plan.has_pair_discovery() {
-                        self.complete_replay(control)?;
+                        self.complete_replay(control, account)?;
                     }
                     self.phase = Phase::Begin;
                 }
                 Phase::Begin => {
                     let empty = self.active[0].is_empty() || self.active[1].is_empty();
+                    if empty && self.restart_prefix(control, account)? {
+                        continue;
+                    }
                     if !self.operator.is_set()
                         && empty
                         && (self.active[0].is_empty() && self.active[1].is_empty()
@@ -2111,6 +2352,291 @@ mod tests {
     }
 
     #[test]
+    fn prefix_interval_declines_non_ratio_operators() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let matching = VectorMatching::default();
+        let plan = interval_plan(&control, &account);
+        for operator in [
+            TokenKind::ADD,
+            TokenKind::MUL,
+            TokenKind::GTR,
+            TokenKind::EQLC,
+            TokenKind::LOR,
+        ] {
+            let mut step = Step::new(&plan, &matching, operator, false, &account);
+            assert!(
+                !step
+                    .enable_prefix_interval(0, discovery_key(), &control, &account)
+                    .unwrap()
+            );
+            assert!(step.interval.is_none());
+        }
+        assert!(!plan.has_prefix_interval());
+        drop(plan);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn prefix_interval_absent_target_visits_unprocessed_suffix() {
+        for interrupt_suffix in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let matching = VectorMatching::default();
+            let plan = interval_plan(&control, &account);
+            let keys = [0, 1, 2].map(|index| {
+                let mut key = discovery_key();
+                key.clock[5] = index;
+                key.clock[0] = 1000 + index * 1000;
+                key
+            });
+            let mut suffix_reached = false;
+            for visit in 0..7 {
+                let final_visit = visit == 6;
+                let key = keys[visit % 3];
+                let target = usize::from(final_visit);
+                let members: [&[usize]; 2] = [
+                    if visit % 3 == 0 { &[0, 2] } else { &[0, 1, 2] },
+                    &[0, 1, 2],
+                ];
+                let mut step = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+                let restricted = step
+                    .enable_prefix_interval(target, key, &control, &account)
+                    .unwrap();
+                assert_eq!(restricted, visit >= 3);
+                if !restricted {
+                    step.enable_pair_discovery(key, &control, &account).unwrap();
+                }
+                let progress = Some(Progress {
+                    key: &key,
+                    target: Some(target),
+                });
+                let mut reads = Vec::new();
+                let mut outputs = Vec::new();
+                let mut finished = false;
+                for _ in 0..30 {
+                    match step
+                        .advance(
+                            NodeId(0),
+                            discovery_options(),
+                            None,
+                            progress,
+                            &control,
+                            &account,
+                        )
+                        .unwrap()
+                    {
+                        Action::Child { side, ordinal } => {
+                            let row = ordinal.map(|ordinal| {
+                                step.plan.sides[side]
+                                    .rows
+                                    .iter()
+                                    .position(|row| row.ordinal == *ordinal)
+                                    .unwrap()
+                            });
+                            reads.push((side, row));
+                            if final_visit && row == Some(2) {
+                                suffix_reached = true;
+                                if interrupt_suffix {
+                                    control.cancellation.cancel();
+                                    assert!(
+                                        step.advance(
+                                            NodeId(0),
+                                            discovery_options(),
+                                            None,
+                                            progress,
+                                            &control,
+                                            &account
+                                        )
+                                        .is_err()
+                                    );
+                                    finished = true;
+                                    break;
+                                }
+                            }
+                            for &member in members[side] {
+                                if row.is_none_or(|row| row == member) {
+                                    let sample =
+                                        discovery_sample(&plan, side, member, &control, &account);
+                                    step.receive(sample, &control, &account).unwrap();
+                                }
+                            }
+                        }
+                        Action::Sample(sample) => {
+                            outputs.push(sample.ordinal);
+                            if !final_visit {
+                                assert_eq!(sample.ordinal, 0);
+                                finished = true;
+                                break;
+                            }
+                        }
+                        Action::Done(diagnostic) => {
+                            assert!(final_visit && diagnostic.is_none());
+                            finished = true;
+                            break;
+                        }
+                    }
+                }
+                assert!(finished);
+                assert!(!plan.has_completed_interval());
+                if final_visit {
+                    assert_eq!(&reads[..2], &[(0, Some(1)), (1, Some(1))]);
+                    assert!(reads.contains(&(0, None)) && reads.contains(&(1, None)));
+                    assert!(!outputs.contains(&1));
+                    assert_eq!(outputs.contains(&2), !interrupt_suffix);
+                }
+            }
+            assert!(suffix_reached);
+            plan.clear_discovery();
+            assert!(!plan.has_prefix_interval());
+            drop(plan);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn prefix_interval_never_promotes_an_unvisited_clock() {
+        let keys = [0, 1, 2].map(|index| {
+            let mut key = discovery_key();
+            key.clock[5] = index;
+            key.clock[0] = 1000 + index * 1000;
+            key
+        });
+        for mut sequence in 0..100_000 {
+            let mut certificate: Option<PrefixInterval> = None;
+            let mut truth = [None; 3];
+            for _ in 0..5 {
+                let event = sequence % 10;
+                sequence /= 10;
+                if event == 0 {
+                    certificate = None;
+                    truth = [None; 3];
+                } else {
+                    let clock = (event - 1) / 3;
+                    let action = (event - 1) % 3;
+                    if action == 0 {
+                        truth[clock].get_or_insert(0);
+                        if let Some(certificate) = certificate.as_mut() {
+                            certificate.discover(keys[clock]);
+                        } else {
+                            certificate = Some(PrefixInterval::new(keys[clock]));
+                        }
+                    } else if let Some(prior) = truth[clock].as_mut() {
+                        *prior = (*prior).max(action);
+                        if let Some(certificate) = certificate.as_mut() {
+                            certificate.processed(keys[clock], action);
+                        }
+                    }
+                }
+                if let Some(certificate) = certificate.as_ref() {
+                    for clock in 0..3 {
+                        if certificate.clocks.contains(keys[clock]) {
+                            assert!(certificate.common <= truth[clock].unwrap());
+                        }
+                    }
+                }
+            }
+        }
+        let mut certificate = PrefixInterval::new(keys[0]);
+        for key in keys {
+            certificate.discover(key);
+        }
+        for prefix in 1..=16 {
+            certificate.processed(keys[0], prefix);
+            certificate.processed(keys[0], prefix);
+            assert!(certificate.common < prefix);
+            certificate.processed(keys[1], prefix);
+            assert!(certificate.common < prefix);
+            certificate.processed(keys[2], prefix);
+            assert_eq!(certificate.common, prefix);
+        }
+        let mut other = keys[0];
+        other.clock[6] += 1;
+        assert!(!certificate.permits(other, 0));
+        certificate.discover(other);
+        assert_eq!(certificate.common, 0);
+    }
+
+    #[test]
+    fn prefix_interval_keeps_fresh_selected_reads_and_separate_completion() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let matching = VectorMatching::default();
+        let plan = interval_plan(&control, &account);
+        let keys = [0, 1, 2].map(|index| {
+            let mut key = discovery_key();
+            key.clock[5] = index;
+            key.clock[0] = 1000 + index * 1000;
+            key
+        });
+        for sweep in 0..2 {
+            for key in keys {
+                let mut step = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+                let restricted = step
+                    .enable_prefix_interval(0, key, &control, &account)
+                    .unwrap();
+                assert_eq!(restricted, sweep == 1);
+                if !restricted {
+                    step.enable_pair_discovery(key, &control, &account).unwrap();
+                }
+                let trace = discovery_trace_scoped(
+                    &mut step,
+                    [&[0, 1, 2]; 2],
+                    Some(Progress {
+                        key: &key,
+                        target: Some(0),
+                    }),
+                    Some(0),
+                    &control,
+                    &account,
+                );
+                assert_eq!(trace.scans, if restricted { 0 } else { 2 });
+                assert_eq!(trace.rereads.len(), if restricted { 4 } else { 2 });
+                assert_eq!(trace.outputs.len(), 1);
+                step.complete_interval(&control, &account).unwrap();
+                assert!(!plan.has_completed_interval());
+            }
+        }
+        assert_eq!(
+            plan.replay
+                .as_ref()
+                .unwrap()
+                .prefix
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .common,
+            1
+        );
+        let mut next = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+        assert!(
+            next.enable_prefix_interval(1, keys[0], &control, &account)
+                .unwrap()
+        );
+        let trace = discovery_trace_scoped(
+            &mut next,
+            [&[0, 1, 2]; 2],
+            Some(Progress {
+                key: &keys[0],
+                target: Some(1),
+            }),
+            Some(1),
+            &control,
+            &account,
+        );
+        assert_eq!(trace.scans, 0);
+        assert_eq!(trace.rereads, [(0, 1), (1, 1), (0, 1), (1, 1)]);
+        drop(next);
+        plan.clear_discovery();
+        assert!(!plan.has_prefix_interval());
+        drop(plan);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
     fn completed_interval_requires_full_final_success_and_clears_with_discovery() {
         let engine = EngineAccounting::default();
         let account = engine.query();
@@ -2231,7 +2757,7 @@ mod tests {
                 assert!(matches!(output, Some(OwnedValue::Float(value)) if value == 3.0));
                 assert_eq!(trace, [(0, 1), (1, 1), (0, 1), (1, 1)]);
             }
-            step.complete_replay(&control).unwrap();
+            step.complete_replay(&control, &account).unwrap();
             step.complete_interval(&control, &account).unwrap();
             assert_eq!(
                 &*plan
@@ -2706,7 +3232,7 @@ mod tests {
                 }
                 Action::Done(diagnostic) => {
                     assert!(diagnostic.is_none());
-                    step.complete_replay(control).unwrap();
+                    step.complete_replay(control, account).unwrap();
                     return trace;
                 }
             }
@@ -3840,7 +4366,7 @@ mod tests {
                 [0, 64, 65, 66, 129]
             );
             assert_eq!(plan.set_prefix(&key), Some(129));
-            step.complete_replay(&control).unwrap();
+            step.complete_replay(&control, &account).unwrap();
             assert_eq!(plan.set_prefix(&key), Some(129));
         }
         let mut step = Step::new(&plan, &matching, TokenKind::LOR, false, &account);
@@ -5593,7 +6119,7 @@ mod tests {
                                     }
                                     Action::Done(diagnostic) => {
                                         assert!(diagnostic.is_none());
-                                        step.complete_replay(&control).unwrap();
+                                        step.complete_replay(&control, &account).unwrap();
                                         break;
                                     }
                                 }
