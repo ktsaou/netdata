@@ -2747,8 +2747,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         Ok(self.interval_group_node(child)?.map(|group| (child, group)))
     }
 
-    fn grouped_literal_child(&self, node: NodeId) -> Result<Option<NodeId>, Interrupted> {
-        let Some(edge) = crate::scheduled_expression::literal_binary_vector(
+    fn grouped_map_child(&self, node: NodeId) -> Result<Option<NodeId>, Interrupted> {
+        let Some(edge) = crate::scheduled_expression::fixed_map_vector(
             self.expression,
             self.prepared,
             node,
@@ -2801,7 +2801,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             )
         };
         let key = key_for(&self.frames[index]);
-        let mut literal_binary = false;
+        let mut fixed_map = false;
         while index > 0 {
             self.control.check()?;
             self.account.work(1);
@@ -2836,14 +2836,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                 }
                 State::Map {
-                    operation: MapOperation::Binary { .. },
+                    operation:
+                        MapOperation::Binary { .. }
+                        | MapOperation::Unary(_)
+                        | MapOperation::Pointwise(PointwiseFunction::Float(..)),
                     ..
-                } if !literal_binary => {
-                    if self.grouped_literal_child(parent.node)? != Some(child.node) {
+                } if !fixed_map => {
+                    if self.grouped_map_child(parent.node)? != Some(child.node) {
                         return Ok(false);
                     }
-                    // A literal map preserves source identities, not group or pair completion.
-                    literal_binary = true;
+                    // A fixed map preserves source identities, not group or pair completion.
+                    fixed_map = true;
                 }
                 State::Binary(_) if grouped_operand => {
                     if !self

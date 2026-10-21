@@ -95,57 +95,85 @@ pub(crate) fn vector_child(
     }
 }
 
-pub(crate) fn literal_binary_vector(
+pub(crate) fn fixed_map_vector(
     expression: &ParsedExpression,
     prepared: &Prepared,
     node: NodeId,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<Option<NodeId>, Interrupted> {
-    let Expr::Binary {
-        operator,
-        left,
-        right,
-        ..
-    } = expression.arena[node].expression
-    else {
-        return Ok(None);
-    };
-    if !operator.is_comparison()
-        && !matches!(
-            operator,
-            TokenKind::ADD
-                | TokenKind::SUB
-                | TokenKind::MUL
-                | TokenKind::DIV
-                | TokenKind::MOD
-                | TokenKind::POW
-                | TokenKind::ATAN2
-        )
-    {
-        return Ok(None);
-    }
-    let child = match (
-        expression.arena[left].value_type,
-        expression.arena[right].value_type,
-    ) {
-        (ValueType::Vector, ValueType::Scalar)
-            if matches!(expression.arena[right].expression, Expr::Number { .. }) =>
+    let child = match &expression.arena[node].expression {
+        Expr::Unary {
+            operator: TokenKind::ADD | TokenKind::SUB,
+            expression: child,
+        } => *child,
+        Expr::Call {
+            function: Some(function),
+            arguments,
+        } if matches!(
+            PointwiseFunction::parse(function.name),
+            Some(PointwiseFunction::Float(..))
+        ) =>
         {
-            left
+            let Some((&child, parameters)) = arguments.split_first() else {
+                return Ok(None);
+            };
+            if !parameters.iter().all(|parameter| {
+                matches!(expression.arena[*parameter].expression, Expr::Number { .. })
+            }) {
+                return Ok(None);
+            }
+            child
         }
-        (ValueType::Scalar, ValueType::Vector)
-            if matches!(expression.arena[left].expression, Expr::Number { .. }) =>
+        Expr::Binary {
+            operator,
+            left,
+            right,
+            ..
+        } if operator.is_comparison()
+            || matches!(
+                operator,
+                TokenKind::ADD
+                    | TokenKind::SUB
+                    | TokenKind::MUL
+                    | TokenKind::DIV
+                    | TokenKind::MOD
+                    | TokenKind::POW
+                    | TokenKind::ATAN2
+            ) =>
         {
-            right
+            match (
+                expression.arena[*left].value_type,
+                expression.arena[*right].value_type,
+            ) {
+                (ValueType::Vector, ValueType::Scalar)
+                    if matches!(expression.arena[*right].expression, Expr::Number { .. }) =>
+                {
+                    *left
+                }
+                (ValueType::Scalar, ValueType::Vector)
+                    if matches!(expression.arena[*left].expression, Expr::Number { .. }) =>
+                {
+                    *right
+                }
+                _ => return Ok(None),
+            }
         }
         _ => return Ok(None),
     };
-    Ok(Some(
-        prepared
-            .preprocessing
-            .child(expression, node, child, control, account)?,
-    ))
+    if expression.arena[child].value_type != ValueType::Vector {
+        return Ok(None);
+    }
+    let child = prepared
+        .preprocessing
+        .child(expression, node, child, control, account)?;
+    // Float calls truncate pair traversal before its completion can be reused.
+    if matches!(expression.arena[node].expression, Expr::Call { .. })
+        && !matches!(expression.arena[child].expression, Expr::Aggregate { .. })
+    {
+        return Ok(None);
+    }
+    Ok(Some(child))
 }
 
 pub(crate) fn literal_scalar_child(

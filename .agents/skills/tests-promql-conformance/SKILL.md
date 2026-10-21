@@ -323,3 +323,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 ## Update rules
 
 Update this workflow when a new canonical panel, ownership defect, comparison exception or qualification gap is found.
+
+
+Fixed-map grouped reuse follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-through-qualified-fixed-maps`:
+trace resolved Call edges and actual Group/Pair completion separately; retain Float-ratio fallback controls.

@@ -1465,7 +1465,7 @@ impl CompiledQuery {
         }
     }
 
-    fn grouped_literal_child(
+    fn grouped_map_child(
         &self,
         mut node: NodeId,
         prepared: &Prepared,
@@ -1491,7 +1491,7 @@ impl CompiledQuery {
                 )?;
                 continue;
             }
-            let Some(child) = crate::scheduled_expression::literal_binary_vector(
+            let Some(child) = crate::scheduled_expression::fixed_map_vector(
                 &self.expression,
                 prepared,
                 node,
@@ -2271,7 +2271,7 @@ impl CompiledQuery {
                                 .grouped_histogram_child(child, prepared, control, account)?
                                 .is_some()
                             || self
-                                .grouped_literal_child(child, prepared, control, account)?
+                                .grouped_map_child(child, prepared, control, account)?
                                 .is_some()
                     } else {
                         false
@@ -2416,9 +2416,9 @@ impl CompiledQuery {
                         } else {
                             None
                         };
-                    let grouped_literal =
+                    let grouped_map =
                         if contributor_demand && matches!(demand, Demand::GroupedSubquery) {
-                            self.grouped_literal_child(node, prepared, control, account)?
+                            self.grouped_map_child(node, prepared, control, account)?
                         } else {
                             None
                         };
@@ -2443,7 +2443,7 @@ impl CompiledQuery {
                                 && matches!(expression, Expr::Paren(_)))
                                 || grouped_pair.is_some_and(|pair| pair.contains(&child))
                                 || Some(child) == grouped_histogram
-                                || Some(child) == grouped_literal
+                                || Some(child) == grouped_map
                             {
                                 Demand::GroupedSubquery
                             } else if Some(child) == contributor_child
@@ -10656,8 +10656,8 @@ mod tests {
         provider
     }
 
-    fn grouped_binary_test_expression(expression: String, suffix: Option<&str>) -> String {
-        let Some(suffix) = suffix else {
+    fn grouped_map_test_expression(expression: String, wrapper: Option<&str>) -> String {
+        let Some(wrapper) = wrapper else {
             return expression;
         };
         let child = expression
@@ -10665,7 +10665,8 @@ mod tests {
             .unwrap()
             .strip_suffix(")[4s:1s])")
             .unwrap();
-        format!("max_over_time((({child}) {suffix})[4s:1s])")
+        let child = wrapper.replace("{child}", child);
+        format!("max_over_time(({child})[4s:1s])")
     }
 
     #[test]
@@ -10673,23 +10674,326 @@ mod tests {
         grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
             "sum",
             false,
-            Some("* 100"),
+            Some("({child}) * 100"),
         );
         grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
             "sum",
             false,
-            Some("* 100"),
+            Some("({child}) * 100"),
         );
     }
 
     #[test]
     fn grouped_arithmetic_clocks_completion() {
-        grouped_subquery_clocks_do_not_credit_truncated_endpoints_case("sum", false, Some("* 100"));
+        grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(
+            "sum",
+            false,
+            Some("({child}) * 100"),
+        );
         grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(
             "sum",
             false,
-            Some("* 100"),
+            Some("({child}) * 100"),
+            true,
         );
+    }
+
+    #[test]
+    fn grouped_fixed_map_clocks_failures() {
+        for wrapper in ["round({child},1)", "-({child})"] {
+            grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
+                "sum",
+                false,
+                Some(wrapper),
+            );
+            grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
+                "sum",
+                false,
+                Some(wrapper),
+            );
+        }
+    }
+
+    #[test]
+    fn grouped_fixed_map_clocks_completion() {
+        for wrapper in ["round({child},1)", "+({child})", "-({child})"] {
+            grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(
+                "sum",
+                false,
+                Some(wrapper),
+            );
+        }
+        for (wrapper, pair_finishes) in [
+            ("round({child},1)", false),
+            ("round(({child}),1)", false),
+            ("+({child})", true),
+            ("-({child})", true),
+        ] {
+            grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(
+                "sum",
+                false,
+                Some(wrapper),
+                pair_finishes,
+            );
+        }
+    }
+
+    #[test]
+    fn grouped_fixed_map_clocks_filtering() {
+        for page in [1, 17, 1024] {
+            for ratio in [false, true] {
+                for (template, empty) in [
+                    ("clamp({child},10,2)", true),
+                    ("clamp({child},NaN,100)", false),
+                ] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let group = "sum by(id)(rate(m_total[3s]))";
+                    let child = if ratio {
+                        format!("{group}/sum by(id)(rate(n_total[3s]))")
+                    } else {
+                        group.to_owned()
+                    };
+                    let body = template.replace("{child}", &child);
+                    let expression = format!("last_over_time(({body})[8s:1s])");
+                    let query = engine
+                        .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                        .unwrap();
+                    let provider = if ratio {
+                        grouped_ratio_provider(page, 4)
+                    } else {
+                        grouped_subquery_provider(page, 4)
+                    };
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 16000 },
+                        &control,
+                    );
+                    let result = report.result.as_ref().unwrap();
+                    assert!(report.annotations.is_empty());
+                    assert_eq!(result.series.len(), if empty { 0 } else { 4 });
+                    for row in &result.series {
+                        assert_eq!(row.points.len(), 1);
+                        assert_eq!(row.points[0].time_ms, 16000);
+                        assert!(f64::from_bits(float_bits(&row.points[0])).is_nan());
+                    }
+                    provider.assert_closed();
+                    drop(report);
+                    // An empty result does not bypass errors while preparing the vector argument.
+                    if empty {
+                        let mut provider = if ratio {
+                            grouped_ratio_provider(page, 4)
+                        } else {
+                            grouped_subquery_provider(page, 4)
+                        };
+                        provider.series[0].source.fail_acquisition = Some(1);
+                        let report = query.collect_reported(
+                            &provider,
+                            QueryRequest::Instant { time_ms: 16000 },
+                            &control,
+                        );
+                        assert!(
+                            matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes)))) if &**bytes == b"injected page failure")
+                        );
+                        report.assert_retained_callback_error_memory();
+                        provider.assert_closed();
+                    }
+                    drop(query);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn grouped_fixed_map_clocks_results() {
+        // Pinned Go final-value results for direct 6/12 and quadratic-ratio 45/180.
+        let cases: &[(&str, [u64; 4])] = &[
+            (
+                "abs({child})",
+                [
+                    0x4018000000000000,
+                    0x4028000000000000,
+                    0x4046800000000000,
+                    0x4066800000000000,
+                ],
+            ),
+            (
+                "round({child})",
+                [
+                    0x4018000000000000,
+                    0x4028000000000000,
+                    0x4046800000000000,
+                    0x4066800000000000,
+                ],
+            ),
+            (
+                "round({child},100)",
+                [
+                    0x0000000000000000,
+                    0x0000000000000000,
+                    0x0000000000000000,
+                    0x4069000000000000,
+                ],
+            ),
+            (
+                "round(({child}),100)",
+                [
+                    0x0000000000000000,
+                    0x0000000000000000,
+                    0x0000000000000000,
+                    0x4069000000000000,
+                ],
+            ),
+            (
+                "clamp_min({child},10)",
+                [
+                    0x4024000000000000,
+                    0x4028000000000000,
+                    0x4046800000000000,
+                    0x4066800000000000,
+                ],
+            ),
+            (
+                "clamp_max({child},100)",
+                [
+                    0x4018000000000000,
+                    0x4028000000000000,
+                    0x4046800000000000,
+                    0x4059000000000000,
+                ],
+            ),
+            (
+                "clamp({child},2,100)",
+                [
+                    0x4018000000000000,
+                    0x4028000000000000,
+                    0x4046800000000000,
+                    0x4059000000000000,
+                ],
+            ),
+            (
+                "year({child})",
+                [
+                    0x409ec80000000000,
+                    0x409ec80000000000,
+                    0x409ec80000000000,
+                    0x409ec80000000000,
+                ],
+            ),
+            (
+                "sgn({child})",
+                [
+                    0x3ff0000000000000,
+                    0x3ff0000000000000,
+                    0x3ff0000000000000,
+                    0x3ff0000000000000,
+                ],
+            ),
+            (
+                "+({child})",
+                [
+                    0x4018000000000000,
+                    0x4028000000000000,
+                    0x4046800000000000,
+                    0x4066800000000000,
+                ],
+            ),
+            (
+                "-({child})",
+                [
+                    0xc018000000000000,
+                    0xc028000000000000,
+                    0xc046800000000000,
+                    0xc066800000000000,
+                ],
+            ),
+        ];
+        for page in [1, 17, 1024] {
+            for count in [4, 16] {
+                for ratio in [false, true] {
+                    for &(template, expected) in cases {
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let group = "sum by(id)(rate(m_total[3s]))";
+                        let child = if ratio {
+                            format!("{group}/sum by(id)(rate(n_total[3s]))")
+                        } else {
+                            group.to_owned()
+                        };
+                        let body = template.replace("{child}", &child);
+                        let expression = format!("last_over_time(({body})[8s:1s])");
+                        let query = engine
+                            .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                            .unwrap();
+                        let provider = if ratio {
+                            grouped_ratio_provider(page, count)
+                        } else {
+                            grouped_subquery_provider(page, count)
+                        };
+                        let report = query.collect_reported(
+                            &provider,
+                            QueryRequest::Instant { time_ms: 16000 },
+                            &control,
+                        );
+                        let result = report.result.as_ref().unwrap();
+                        assert!(report.annotations.is_empty());
+                        assert_eq!(result.series.len(), count);
+                        let mut rows = result.series.iter().collect::<Vec<_>>();
+                        rows.sort_by(|a, b| a.labels.0[0].value.cmp(&b.labels.0[0].value));
+                        for (identity, row) in rows.into_iter().enumerate() {
+                            let id = format!("{identity:06}");
+                            assert_eq!(
+                                row.labels
+                                    .0
+                                    .iter()
+                                    .map(|label| (&*label.name, &*label.value))
+                                    .collect::<Vec<_>>(),
+                                [(b"id".as_slice(), id.as_bytes())]
+                            );
+                            assert_eq!(row.points.len(), 1);
+                            assert_eq!(row.points[0].time_ms, 16000);
+                            assert_eq!(
+                                float_bits(&row.points[0]),
+                                expected[usize::from(ratio) * 2 + identity % 2],
+                                "{expression}"
+                            );
+                        }
+                        assert_eq!(
+                            report
+                                .observations
+                                .statistics
+                                .samples
+                                .total_queryable_samples,
+                            (count * 8) as u64
+                        );
+                        assert_eq!(report.observations.output_samples, count as u64);
+                        assert_eq!(
+                            report.observations.memory[MemoryKind::Workspace as usize].current,
+                            0
+                        );
+                        assert!(
+                            provider.series.iter().all(|series| series
+                                .source
+                                .counters
+                                .peak
+                                .load(Ordering::Relaxed)
+                                == 1)
+                        );
+                        if !ratio && count == 16 && page == 17 {
+                            assert!(
+                                report.observations.samples_fetched < 100_000,
+                                "{expression}: {}",
+                                report.observations.samples_fetched
+                            );
+                        }
+                        provider.assert_closed();
+                        drop((report, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
     }
 
     #[test]
@@ -11001,12 +11305,12 @@ mod tests {
         grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
             "sum",
             false,
-            Some("> bool 0"),
+            Some("({child}) > bool 0"),
         );
         grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
             "sum",
             false,
-            Some("> bool 0"),
+            Some("({child}) > bool 0"),
         );
     }
 
@@ -11015,12 +11319,13 @@ mod tests {
         grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(
             "sum",
             false,
-            Some("> bool 0"),
+            Some("({child}) > bool 0"),
         );
         grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(
             "sum",
             false,
-            Some("> bool 0"),
+            Some("({child}) > bool 0"),
+            true,
         );
     }
 
@@ -11193,7 +11498,7 @@ mod tests {
                 aggregate, false,
             );
             grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(
-                aggregate, false, None,
+                aggregate, false, None, true,
             );
             grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(aggregate, false, None);
         }
@@ -11722,7 +12027,7 @@ mod tests {
     fn grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
         aggregate: &str,
         full_matrix: bool,
-        suffix: Option<&str>,
+        wrapper: Option<&str>,
     ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             let request = QueryRequest::Instant { time_ms: 8000 };
@@ -11731,7 +12036,7 @@ mod tests {
                 let control = Control::default();
                 let query = engine
                     .compile(
-                        grouped_binary_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[4s:1s])"), suffix)
+                        grouped_map_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[4s:1s])"), wrapper)
                             .as_bytes(),
                         EngineOptions::default(),
                         &control,
@@ -11956,7 +12261,7 @@ mod tests {
     fn grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
         aggregate: &str,
         full_matrix: bool,
-        suffix: Option<&str>,
+        wrapper: Option<&str>,
     ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             let request = QueryRequest::Instant { time_ms: 8000 };
@@ -11965,7 +12270,7 @@ mod tests {
                 let control = Control::default();
                 let query = engine
                     .compile(
-                        grouped_binary_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])"), suffix)
+                        grouped_map_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])"), wrapper)
                             .as_bytes(),
                         EngineOptions::default(),
                         &control,
@@ -12032,7 +12337,7 @@ mod tests {
     fn grouped_ratio_clocks_keep_group_and_pair_completion_separate() {
         for aggregate in ["sum", "avg"] {
             grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(
-                aggregate, true, None,
+                aggregate, true, None, true,
             );
         }
     }
@@ -12040,7 +12345,8 @@ mod tests {
     fn grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(
         aggregate: &str,
         full_matrix: bool,
-        suffix: Option<&str>,
+        wrapper: Option<&str>,
+        intervals: bool,
     ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             for (page, fault) in grouped_clock_pages(full_matrix)
@@ -12052,7 +12358,7 @@ mod tests {
                 let control = Control::default();
                 let compiled = engine
                     .compile(
-                        grouped_binary_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[4s:1s])"), suffix)
+                        grouped_map_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[4s:1s])"), wrapper)
                             .as_bytes(),
                         EngineOptions::default(),
                         &control,
@@ -12135,13 +12441,17 @@ mod tests {
                             _ => None,
                         })
                         .unwrap();
-                    let left = rosters.group_replay(left).unwrap();
-                    let right = rosters.group_replay(right).unwrap();
+                    let left = rosters.group_replay(left);
+                    let right = rosters.group_replay(right);
                     let binary = rosters.binary(binary).unwrap();
-                    assert!(left.supports_interval() && right.supports_interval());
+                    assert_eq!(left.is_some_and(|plan| plan.supports_interval()), intervals);
+                    assert_eq!(
+                        right.is_some_and(|plan| plan.supports_interval()),
+                        intervals
+                    );
                     assert!(
-                        !left.has_interval()
-                            && !right.has_interval()
+                        !left.is_some_and(|plan| plan.has_interval())
+                            && !right.is_some_and(|plan| plan.has_interval())
                             && !binary.has_completed_interval()
                     );
                     let mut machine = Machine::new(
@@ -12167,8 +12477,15 @@ mod tests {
                         assert!(
                             matches!(machine.next(), Err(EvaluationError::Storage(StorageError::Provider(bytes))) if &*bytes == b"injected page failure")
                         );
-                        assert_eq!(left.has_interval(), fault == "right", "{fault}");
-                        assert!(!right.has_interval() && !binary.has_completed_interval());
+                        assert_eq!(
+                            left.is_some_and(|plan| plan.has_interval()),
+                            intervals && fault == "right",
+                            "{fault}"
+                        );
+                        assert!(
+                            !right.is_some_and(|plan| plan.has_interval())
+                                && !binary.has_completed_interval()
+                        );
                         assert_eq!(
                             provider.series[4]
                                 .source
@@ -12206,21 +12523,33 @@ mod tests {
                                 prepared.lookback_ns(compiled.options.lookback_ms),
                                 bounds,
                             );
-                            assert!(
-                                left.interval_contains(key) && right.interval_contains(key),
-                                "completed operands at {time_ms}"
+                            assert_eq!(
+                                left.is_some_and(|plan| plan.interval_contains(key)),
+                                intervals,
+                                "left operand at {time_ms}"
+                            );
+                            assert_eq!(
+                                right.is_some_and(|plan| plan.interval_contains(key)),
+                                intervals,
+                                "right operand at {time_ms}"
                             );
                             assert_eq!(
                                 binary.completed_interval_contains(key),
-                                time_ms < grid.end_ms,
+                                intervals && time_ms < grid.end_ms,
                                 "only actual binary completion earns clock {time_ms}"
                             );
                         }
                     }
                     drop(machine);
                     rosters.clear_replay_progress(&control, &account).unwrap();
-                    assert!(!left.has_interval() && !left.has_completion());
-                    assert!(!right.has_interval() && !right.has_completion());
+                    assert!(
+                        !left.is_some_and(|plan| plan.has_interval())
+                            && !left.is_some_and(|plan| plan.has_completion())
+                    );
+                    assert!(
+                        !right.is_some_and(|plan| plan.has_interval())
+                            && !right.is_some_and(|plan| plan.has_completion())
+                    );
                     assert!(
                         !binary.has_completed_interval() && !binary.has_completed_pair_discovery()
                     );
@@ -12242,7 +12571,7 @@ mod tests {
     fn grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(
         aggregate: &str,
         full_matrix: bool,
-        suffix: Option<&str>,
+        wrapper: Option<&str>,
     ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             for &page in grouped_clock_pages(full_matrix) {
@@ -12250,7 +12579,7 @@ mod tests {
                 let control = Control::default();
                 let compiled = engine
                     .compile(
-                        grouped_binary_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])"), suffix)
+                        grouped_map_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])"), wrapper)
                             .as_bytes(),
                         EngineOptions::default(),
                         &control,

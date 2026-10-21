@@ -10268,3 +10268,60 @@ The initial incorrect parenthesized-call completion assertion and its corrected 
 
 A refined experiment can retain Float-over-group and unary gains while measuring Float-over-ratio as an unchanged
 fallback. It must preserve this failed gate and use a new prospective scope; these measurements do not qualify it.
+
+
+## Completed clocks through qualified fixed maps
+
+One fixed Float function over a qualified group, or one unary operator over a group/ratio, can reuse completed
+scans in a consumed subquery. [Qualification](qualified-fixed-map-clocks-qualification.json) records the finite
+results and costs. Existing literal arithmetic/comparison behavior remains.
+
+Float calls require an explicit vector, immediate-number parameters and a resolved Aggregate child. Preparation
+and runtime use the same predicate and retain the original producer and clock checks. Both spellings of a
+Float-over-ratio call stay on the generic path: argument parentheses do not change Vector consumption. Group
+completion cannot substitute for Pair Done. Unary keeps its existing Matrix traversal. No numerical kernel,
+evaluation mode, ownership layout or raw/value cache changes.
+
+The broad predecessor remains [rejected](grouped-fixed-maps-rejected-qualification.json). The refined experiment
+had its own prospective scope and frozen gate; its measurements do not rewrite the earlier failure.
+
+| Profile | Group | Unary ratio | Increase | Delta | Other controls | Float-ratio fallback |
+|---|---:|---:|---:|---:|---:|---:|
+| release | 0.3836 | 0.3692 | 0.3948 | 0.3941 | 1.0080 | 0.9958 |
+| release-min | 0.3982 | 0.3691 | 0.3749 | 0.3896 | 0.9866 | 0.9987 |
+
+Numbers are candidate/baseline time ratios from 960 complete pairs. All individual timings are retained.
+No individual primary ratio exceeded 1.05. Target family medians passed the frozen 0.95 criterion.
+
+| Representative 16-group case | Fetched entries | Workspace peak, bytes |
+|---|---:|---:|
+| g16-group-clamp | 382976→55616 | 56455→56567 |
+| g16-group-unary | 388608→61248 | 52794→53610 |
+| g16-ratio-direct | 777216→777216 | 114411→114411 |
+| g16-ratio-unary | 788480→133760 | 110709→109784 |
+
+Validation: 914 native tests plus two ignored per profile; 18 focused tests per ARM target; 11,808 C/C++
+cases; 2,700 exact baseline pairs; 2,700 approved-order original comparisons; 36 additional nonempty fallback
+pairs. The 1,566 strict original row-order failures remain failures; there are no numeric-bit differences.
+Four causal tests include 132 original-bit result queries, 12 filtering cases, six preparation errors and
+288 required read failures. Both positive completion and absent fallback credit are checked.
+
+All 36 growing-time checks retain analytical results and constant workspace at four groups, across windows
+8/32/64 and pages 1/17/1024. Borrowed raw samples stay page-bounded. Metadata/output can still grow with series
+cardinality; this is not a total-query or process-RSS bound.
+
+| Default C executable | Total change, bytes |
+|---|---:|
+| release | -22412 |
+| release-min | +560 |
+| arm32 | +416 |
+| arm64 | -11476 |
+
+The report separates text/data/BSS, proportional and cumulative compiled costs from query memory. These are
+synthetic native timings, not live-provider or ARM performance. Baseline binaries and Go outcomes retain their
+original execution identities; the refined candidate was executed freshly.
+
+Repeat with `grouped_fixed_map_clocks`, retaining arithmetic/comparison and Group/Pair ownership tests.
+Trace resolved Call edges when checking completion: source parentheses may have been removed. Check actual
+full completion independently for each owner, and include Float-ratio, dynamic, nested and nonordinary
+aggregate fallbacks. The paged C fixtures cover each wrapper across all four callback outcomes.

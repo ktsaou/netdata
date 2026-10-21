@@ -2628,3 +2628,15 @@ changing membership, special literals, complete original comparisons and proport
 - **Implication:** preserve evaluation modes and independent completion proofs. A separately measured admission
   refinement may retain useful group/unary cases without enabling ineffective Float-over-ratio bookkeeping.
 - **Limits:** positive subfamily results and passing finite semantics do not override the failed frozen gate.
+
+
+## Qualified fixed maps over completed grouped clocks
+
+- **Choice:** share a resolved vector-edge recognizer across preparation/runtime. Keep original literal binaries;
+  admit unary ADD/SUB and fixed Float calls only over a qualified Aggregate child.
+- **Reason:** Float calls over ratios stop before Pair Done, so their unfiltered discovery cannot reuse Group credit.
+  Both ratio spellings remain generic. Unary preserves its existing Matrix completion behavior.
+- **Ownership:** retain all producer, clock, boundary and single-wrapper checks; no new cache, field or raw array.
+- **Evidence:** the [refined qualification](qualified-fixed-map-clocks-qualification.json) reports current outcomes,
+  causal controls, finite speedups and all resource costs. The [broad trial](grouped-fixed-maps-rejected-qualification.json)
+  remains rejected; its failed gate and source attribution are unchanged.
