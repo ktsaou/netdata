@@ -2696,3 +2696,21 @@ changing membership, special literals, complete original comparisons and proport
 - **Evidence:** [grouped selector qualification](grouped-selector-clocks-qualification.json) separates strict
   and agreed-order results, actual C callback controls, native/ARM checks and compiled/runtime costs. Reference
   capture options must match requests; a fixed-lookback adapter does not qualify custom-lookback inputs.
+
+
+## Completed literal-comparison set discovery
+
+- **Choice:** admit one literal-scalar comparison over direct Selector/Paren operands only on multi-step grids.
+  Two local traversal guards prevent extension into projection wrappers, chains or arbitrary calls; existing
+  raw/projection/nested-set paths retain their checks. Shared fixed-map resolution owns scalar/type validation.
+- **Proof:** original child uniqueness and final Float/single-head certification remain required. Both actual
+  discovery streams must finish at the exact key before reuse. Warm selected comparisons execute freshly.
+- **Diagnostics:** final Float output does not certify raw Float-only history. Full comparison preparation owns
+  incompatible native annotations and transfers them before raw child descriptors are released.
+- **Ownership:** reuse the existing current-key bitmap and serial Plan lifecycle. No new retained state or raw
+  cache; preparation clears completion before final evaluation. False bool values remain present set members.
+- **Cost:** target Workspace increases280B; a nested-set control increases560B. Read/time reductions and all
+  fixed/cumulative compiled costs are measured separately. No new implicit query cap or universal memory claim.
+- **Evidence:** [comparison-set qualification](comparison-set-discovery-qualification.json) separates complete
+  baseline and original-policy checks, strict ordering differences, malformed-storage exclusions, actual callback
+  phases and portable tests. Single-tick and other computed operand classes keep their existing fallbacks.

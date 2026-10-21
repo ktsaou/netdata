@@ -10549,3 +10549,60 @@ Cumulative compiled costs are recorded separately from runtime memory. For maint
 `grouped_selector_clocks`, existing group interval/composition owners and the C fixture. Preserve actual
 Group Done before credit, fresh requested values, exact clock keys, preparation clearing and required
 failure phases. Check effective original lookback settings before reusing a capture adapter.
+
+
+## Completed comparison-set discovery
+
+`(m > 0) and on(id) n` and equivalent literal-comparison operands can reuse completed input membership
+in multi-step queries. The existing set plan records both successfully exhausted input streams, including
+suppressed members. Requested values are still read freshly. No raw sample values or history are cached.
+
+Admission permits one immediate-number scalar comparison, either orientation and with or without `bool`,
+over a direct selector through parentheses. Every resolved clock and original/final uniqueness check remains.
+Direct single-tick scopes and function, arithmetic, dynamic-scalar, chained or projection-wrapped comparisons keep
+their existing paths. Existing raw-selector, projection and qualified nested-set admission is unchanged.
+
+Mixed native history can produce Float-only comparison outputs while dropping an incompatible native point.
+Completed preparation owns those diagnostics independently of later membership reuse. A false `bool` value
+is present in a set; it is not filtered out. Qualification checks both distinctions.
+
+[Qualification](comparison-set-discovery-qualification.json) records complete results, source identities and costs.
+
+| Native profile | Target time ratio | Control time ratio |
+|---|---:|---:|
+| release | 0.4236 | 0.9682 |
+| release-min | 0.4065 | 0.9745 |
+
+The 480 paired queries cover four/sixteen series per side, page 17 and instant/range controls, using five
+alternating blocks and four repeats with the first discarded. Target range time falls about 58–59%; no
+individual control exceeds the predefined 5% follow-up threshold. This is a synthetic native measurement.
+
+The sixteen-series range target fetches 12,560 → 1,985 sample entries. Workspace peak is 38,692 → 38,972
+bytes (+280 bytes, 0.72%); the largest nested-set control increase is 560 bytes. Other category peaks match
+across all 1,116 pairs. Nine fixed-cardinality cases retain 26,781 Workspace bytes across 8/32/128 ticks and
+pages 1/17/1024. These category measurements are neither process RSS nor a universal query bound.
+
+All 1,116 baseline pairs and 1,068 original-policy comparisons pass with zero numeric-bit differences.
+The 178 original requests cover all three set operators, both scalar orientations, filtering versus bool,
+changing presence, gaps, native diagnostics, aliases and fallback compositions. One instant subquery result
+per panel retains a strict ordering failure. Eight additional malformed duplicate-storage requests are
+baseline-only: the unchanged original fixture rejects the dataset before evaluation; that failed capture remains.
+
+Both native profiles pass 930 unit tests with two ignored. Three new owners cover 80 admission combinations,
+12 analytical value queries and 135 calibrated final-acquisition failures, including 108 after output.
+The extracted preparation helper also preserves the earlier final-route clearing test. Focused ARM tests run
+under QEMU. `comparison_sets.c` checks 180 cases per consumer: five expressions, two name modes, three pages
+and six lifecycle arms. Four C and two C++ consumers provide 1,080 cases, alongside both complete native C suites.
+
+| Default C executable | Text/data/BSS change, bytes | Relative change |
+|---|---:|---:|
+| release | -420 | -0.0053% |
+| release-min | +208 | 0.0037% |
+| arm32 | +396 | 0.0059% |
+| arm64 | +28344 | 0.4095% |
+
+Cumulative compiled costs are retained in the report separately from query memory. For maintenance, run
+`comparison_set_discovery`, the existing set-discovery/prefix owners and preparation-clearing test, then
+the actual C fixture. Preserve cold both-side completion, exact keys, fresh selected operands, suppressed
+membership, diagnostics and required errors. Calibrate the actual C cursor and series; do not assume the
+first output follows a particular input series. Rate/window terminals receive no eligibility from this change.

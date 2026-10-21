@@ -1797,6 +1797,8 @@ impl CompiledQuery {
         account: &QueryAccounting,
     ) -> Result<bool, Interrupted> {
         let grid = crate::query_scopes::Grid::from(header);
+        let mut allow_comparison = grid.steps().is_ok_and(|steps| steps > 1);
+        let mut selector_only = false;
         loop {
             control.check()?;
             account.work(1);
@@ -1817,11 +1819,32 @@ impl CompiledQuery {
                 }
                 Expr::Paren(child) => *child,
                 Expr::Call { arguments, .. }
-                    if label_functions::is_label_call(&self.expression.arena[node].expression) =>
+                    if !selector_only
+                        && label_functions::is_label_call(
+                            &self.expression.arena[node].expression,
+                        ) =>
                 {
+                    allow_comparison = false;
                     arguments[0]
                 }
-                Expr::Binary { operator, .. } if operator.is_set() => {
+                Expr::Binary { operator, .. } if allow_comparison && operator.is_comparison() => {
+                    let Some(child) = crate::scheduled_expression::fixed_map_vector(
+                        &self.expression,
+                        prepared,
+                        node,
+                        control,
+                        account,
+                    )?
+                    else {
+                        return Ok(false);
+                    };
+                    // Only the direct selector comparison has completed-input qualification.
+                    allow_comparison = false;
+                    selector_only = true;
+                    node = child;
+                    continue;
+                }
+                Expr::Binary { operator, .. } if !selector_only && operator.is_set() => {
                     return Ok(rosters
                         .binary(node)
                         .is_some_and(|plan| plan.has_set_discovery()));
@@ -17274,6 +17297,68 @@ mod tests {
         }
     }
 
+    fn prepared_set_discovery_count(
+        compiled: &CompiledQuery,
+        provider: &FixtureProvider,
+        request: QueryRequest,
+        control: &Control,
+    ) -> usize {
+        let account = compiled.execution_accounting();
+        let mut certified = 0;
+        {
+            let header = compiled.header(request).unwrap();
+            let prepared = Prepared::new(
+                &compiled.expression,
+                &compiled.preprocessing,
+                header,
+                compiled.options.no_step_subquery_interval_ms,
+                control,
+                &account,
+            )
+            .unwrap();
+            let bounds = crate::query_bounds::find(
+                &compiled.expression,
+                compiled.evaluation_options(header, header.start_ms, &prepared),
+                &prepared,
+                control,
+                &account,
+            )
+            .unwrap();
+            let query = provider.open(bounds, control).unwrap();
+            let catalog = Catalog::new(
+                &query,
+                &compiled.expression,
+                &prepared,
+                compiled.evaluation_options(header, header.start_ms, &prepared),
+                compiled.options.no_step_subquery_interval_ms,
+                control,
+                &account,
+            )
+            .unwrap();
+            let rosters = compiled
+                .prepare_rosters(
+                    &catalog,
+                    &prepared,
+                    bounds,
+                    control,
+                    &account,
+                    &mut Annotations::default(),
+                )
+                .unwrap();
+            for position in 0..compiled.expression.arena.nodes.len() {
+                if let Some(plan) = rosters.binary(NodeId(position))
+                    && plan.has_set_discovery()
+                {
+                    certified += 1;
+                    assert!(!plan.has_completed_set_discovery());
+                }
+            }
+        }
+        provider.assert_closed();
+        account.snapshot().assert_memory_released();
+        certified
+    }
+
     #[test]
     fn completed_set_preparation_clears_discovery_before_both_final_routes() {
         let body = "label_replace(counter_total,\"branch\",\"a\",\"instance\",\".*\") or label_replace(counter_total,\"branch\",\"b\",\"instance\",\".*\")";
@@ -17317,66 +17402,229 @@ mod tests {
                 let compiled = engine
                     .compile(expression.as_bytes(), EngineOptions::default(), &control)
                     .unwrap();
-                let account = engine.accounting.query();
-                {
-                    let header = compiled.header(request).unwrap();
-                    let prepared = Prepared::new(
-                        &compiled.expression,
-                        &compiled.preprocessing,
-                        header,
-                        compiled.options.no_step_subquery_interval_ms,
-                        &control,
-                        &account,
-                    )
-                    .unwrap();
-                    let bounds = crate::query_bounds::find(
-                        &compiled.expression,
-                        compiled.evaluation_options(header, header.start_ms, &prepared),
-                        &prepared,
-                        &control,
-                        &account,
-                    )
-                    .unwrap();
-                    let query = provider.open(bounds, &control).unwrap();
-                    let catalog = Catalog::new(
-                        &query,
-                        &compiled.expression,
-                        &prepared,
-                        compiled.evaluation_options(header, header.start_ms, &prepared),
-                        compiled.options.no_step_subquery_interval_ms,
-                        &control,
-                        &account,
-                    )
-                    .unwrap();
-                    let rosters = compiled
-                        .prepare_rosters(
-                            &catalog,
-                            &prepared,
-                            bounds,
-                            &control,
-                            &account,
-                            &mut Annotations::default(),
-                        )
-                        .unwrap();
-                    let mut certified = 0;
-                    for position in 0..compiled.expression.arena.nodes.len() {
-                        if let Some(plan) = rosters.binary(NodeId(position))
-                            && plan.has_set_discovery()
-                        {
-                            certified += 1;
-                            assert!(!plan.has_completed_set_discovery());
-                        }
-                    }
-                    assert!(
-                        certified > 0,
-                        "derived={derived},request={request:?},page={page}"
-                    );
-                }
-                provider.assert_closed();
-                account.snapshot().assert_memory_released();
-                drop((compiled, account));
+                assert!(
+                    prepared_set_discovery_count(&compiled, &provider, request, &control) > 0,
+                    "derived={derived},request={request:?},page={page}"
+                );
+                drop(compiled);
                 engine.accounting.snapshot().assert_memory_released();
             }
+        }
+    }
+
+    #[test]
+    fn comparison_set_discovery_admission() {
+        for (body, admitted) in [
+            ("counter_total > 0", true),
+            ("0 < counter_total", true),
+            ("counter_total > bool 0", true),
+            ("0 < bool ((counter_total))", true),
+            ("counter_total > scalar(vector(0))", false),
+            ("counter_total + 1", false),
+            ("rate(counter_total[2s]) > 0", false),
+            ("abs(counter_total) > 0", false),
+            ("(counter_total > 0) > 0", false),
+            (
+                "label_join(counter_total > 0, \"branch\", \"\", \"instance\")",
+                false,
+            ),
+        ] {
+            for request in [
+                QueryRequest::Instant { time_ms: 4000 },
+                QueryRequest::Range {
+                    start_ms: 4000,
+                    end_ms: 4000,
+                    step_ms: 1000,
+                },
+                QueryRequest::Range {
+                    start_ms: 4000,
+                    end_ms: 4001,
+                    step_ms: 1000,
+                },
+                QueryRequest::Range {
+                    start_ms: 2000,
+                    end_ms: 4000,
+                    step_ms: 1000,
+                },
+            ] {
+                for delayed in [false, true] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let expression = format!("({body}) and on(instance) counter_total");
+                    let compiled = engine
+                        .compile(expression.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let provider = FixtureProvider::new(4, 1, 4);
+                    let count =
+                        prepared_set_discovery_count(&compiled, &provider, request, &control);
+                    let multiple = matches!(request, QueryRequest::Range { start_ms: 2000, .. });
+                    assert_eq!(
+                        count,
+                        usize::from(admitted && multiple),
+                        "{body} {request:?} delayed={delayed}"
+                    );
+                    drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    fn comparison_set_provider(page: usize) -> FixtureProvider {
+        let mut provider = FixtureProvider::new(5, page, 8);
+        provider.filter_selectors = true;
+        for (index, series) in provider.series.iter_mut().enumerate() {
+            series.labels[0].1 = if index < 4 { b"m_total" } else { b"n_total" }.to_vec();
+            series.labels[1].1 = (index % 4).to_string().into_bytes();
+            series.source.counters = Default::default();
+            if index < 4 {
+                series.source.sample = |index| {
+                    let mut sample = crate::test_storage::counter(index);
+                    sample.value =
+                        crate::value::SampleValue::Float(if index % 2 == 0 { 1.0 } else { -1.0 });
+                    sample
+                };
+            }
+        }
+        provider
+    }
+
+    #[test]
+    fn comparison_set_discovery_preserves_filtered_and_bool_values() {
+        for page in [1, 17, 1024] {
+            for (expression, boolean) in [
+                ("(m_total > 0) and on(instance) n_total", false),
+                ("(m_total > bool 0) and on(instance) n_total", true),
+                ("(0 < m_total) unless on(instance) (n_total < 0)", false),
+                ("(0 < bool m_total) or on(instance) (n_total < 0)", true),
+            ] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let provider = comparison_set_provider(page);
+                let report = query.collect_reported(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 5000,
+                        step_ms: 1000,
+                    },
+                    &control,
+                );
+                let result = report.result.as_ref().unwrap();
+                assert!(report.annotations.is_empty());
+                assert_eq!(result.series.len(), 4);
+                for (index, row) in result.series.iter().enumerate() {
+                    let identity = index.to_string();
+                    let mut expected = vec![
+                        (b"instance".as_slice(), identity.as_bytes()),
+                        (b"job".as_slice(), b"worker".as_slice()),
+                    ];
+                    if !boolean {
+                        expected.insert(0, (b"__name__".as_slice(), b"m_total".as_slice()));
+                    }
+                    assert_eq!(
+                        row.labels
+                            .0
+                            .iter()
+                            .map(|label| (&*label.name, &*label.value))
+                            .collect::<Vec<_>>(),
+                        expected
+                    );
+                    let ticks: &[i64] = if boolean {
+                        &[1, 2, 3, 4, 5]
+                    } else {
+                        &[1, 3, 5]
+                    };
+                    assert_eq!(row.points.len(), ticks.len());
+                    for (point, tick) in row.points.iter().zip(ticks) {
+                        assert_eq!(point.time_ms, tick * 1000);
+                        assert_eq!(
+                            float_bits(point),
+                            if tick % 2 == 0 { 0_f64 } else { 1_f64 }.to_bits()
+                        );
+                    }
+                }
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn comparison_set_discovery_keeps_required_final_acquisitions() {
+        let request = QueryRequest::Range {
+            start_ms: 1000,
+            end_ms: 3000,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"(m_total > bool 0) and on(instance) n_total",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let (count, prepared) = float_map_join_preparation(
+                &query,
+                &comparison_set_provider(page),
+                request,
+                &control,
+            );
+            assert_eq!(count, 4);
+            let healthy = comparison_set_provider(page);
+            let report = query.collect_reported(&healthy, request, &control);
+            report.result.as_ref().unwrap();
+            let complete: Vec<_> = healthy
+                .series
+                .iter()
+                .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
+                .collect();
+            drop(report);
+            healthy.assert_closed();
+            let mut faults = 0;
+            let mut after_output = 0;
+            for (index, (&prepared, &complete)) in prepared.iter().zip(&complete).enumerate() {
+                assert!(complete > prepared);
+                for acquisition in prepared + 1..=complete {
+                    let mut input = comparison_set_provider(page);
+                    input.series[index].source.fail_acquisition = Some(acquisition);
+                    let account = query.execution_accounting();
+                    let mut sink = RecordingSink::default();
+                    let report =
+                        query.execute_reported_in(&input, request, &control, &mut sink, &account);
+                    assert!(
+                        matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes)))) if &**bytes == b"injected page failure"),
+                        "page={page},series={index},acquisition={acquisition}"
+                    );
+                    assert!(sink.begun && sink.aborted && !sink.committed);
+                    assert_eq!(
+                        input.series[index]
+                            .source
+                            .counters
+                            .opened
+                            .load(Ordering::Relaxed),
+                        acquisition
+                    );
+                    faults += 1;
+                    after_output += usize::from(report.observations.output_samples > 0);
+                    input.assert_closed();
+                    drop(report);
+                    account.snapshot().assert_memory_released();
+                }
+            }
+            assert!(faults >= 16 && after_output > 0);
+            println!(
+                "comparison set page={page}: {faults} final acquisition failures, {after_output} after output"
+            );
+            drop(query);
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 

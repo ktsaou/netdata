@@ -1,0 +1,1205 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "24282f9346d693822771c8346302720168f4ed9c",
+  "change": "Reuse completed set-input discovery for multistep literal scalar comparisons over direct selectors.",
+  "proof": "One immediate-literal comparison through parentheses, then Selector only. Existing resolved source/scope/producer grids, pre-copy uniqueness and final Float/single-head descriptors remain authoritative.",
+  "preserved": "Actual both-side completion, suppressed membership, fresh selected values, required suffixes, exact scope keys, serial Plan ownership and preparation clearing. Completed comparison preparation retains native-suppression diagnostics.",
+  "ownership": "Existing set membership bitmap only; no new replay owner, raw values/history, ABI, provider, metadata authority, numerical contract or implicit cap.",
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/computed-set-l081mq8k/baseline-source.json",
+      "sha256": "e1380a4d6b40d0d962d91bdc331d518b9daf799b87acfd113666b75f95732db8"
+    },
+    "candidate": {
+      "path": ".tmp/computed-set-l081mq8k/candidate-source.json",
+      "sha256": "9f987d15a3d82543b9c7e845862be767db01f54905bbce4daba0e0d2a5377394"
+    },
+    "candidate-v2": {
+      "path": ".tmp/computed-set-l081mq8k/candidate-v2-source.json",
+      "sha256": "7af97060c690df28bfbd2d9cc132d04ac793336daed2299e5cd66633f74f895e"
+    }
+  },
+  "tests_only_v2": {
+    "candidate_v1_sha256": "585b4ed6c1fa7b7a9b77746ce768823f73013f6feb8377adac86672b78dfdc28",
+    "candidate_v2_sha256": "3ce9f88c548209ccdaca83bbe45428b58a37a82b15c2c375be1619f3164a456e",
+    "production_prefix_sha256": "a2ff2144659a7ae2a6968a90e2b3652026332ddd290bb9e8bd44361a5f6a0c96",
+    "scope": "Exact candidate v1 reconstructed by removing only new test helper/two tests; its full SHA equals frozen v1. All production bytes equal. Added C fixture does not affect Rust runtime."
+  },
+  "qualification": {
+    "units": {
+      "release": [
+        {
+          "filter": "",
+          "passed": 930,
+          "ignored": 2
+        }
+      ],
+      "release-min": [
+        {
+          "filter": "",
+          "passed": 930,
+          "ignored": 2
+        }
+      ],
+      "arm32": [
+        {
+          "filter": "comparison_set_discovery",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "vector_matching::tests::set_",
+          "passed": 17,
+          "ignored": 0
+        },
+        {
+          "filter": "completed_set_preparation",
+          "passed": 1,
+          "ignored": 0
+        }
+      ],
+      "arm64": [
+        {
+          "filter": "comparison_set_discovery",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "vector_matching::tests::set_",
+          "passed": 17,
+          "ignored": 0
+        },
+        {
+          "filter": "completed_set_preparation",
+          "passed": 1,
+          "ignored": 0
+        }
+      ]
+    },
+    "new_causal_tests": 3,
+    "admission_combinations": 80,
+    "analytical_value_queries": 12,
+    "calibrated_final_acquisition_failures": 135,
+    "failures_after_output": 108,
+    "baseline_pairs": 1116,
+    "original_policy_passes": 1068,
+    "unique_original_requests": 178,
+    "baseline_only_malformed_storage_requests": 8,
+    "strict_original_failures": 6,
+    "numeric_bit_differences": 0,
+    "callers": {
+      "release": [
+        {
+          "language": "C",
+          "cases": 180,
+          "binary_sha256": "02040b19bfd802736d444a959f2c51e533b56a9459fc1e223649c5a7567a1079"
+        },
+        {
+          "language": "CPP",
+          "cases": 180,
+          "binary_sha256": "79877f67a470385fc603e56c262fe279b10a00aa1f1f8e246cc573496590e7b7"
+        }
+      ],
+      "release-min": [
+        {
+          "language": "C",
+          "cases": 180,
+          "binary_sha256": "8d5bebdac9c41bce37fe5c30532f0f5a9c6706cd4df356d8bfb3d8a2361bbce2"
+        },
+        {
+          "language": "CPP",
+          "cases": 180,
+          "binary_sha256": "dbd969e512569389f9d8273d5f2f71d7e197e8cf0701e066e8b06ed424ec84b4"
+        }
+      ],
+      "arm32": [
+        {
+          "language": "C",
+          "cases": 180,
+          "binary_sha256": "1bd1f2730f1ce8c16c89d12c692fda143d220fce46d6009d3954fc75373b9599"
+        }
+      ],
+      "arm64": [
+        {
+          "language": "C",
+          "cases": 180,
+          "binary_sha256": "518a984deb564c3cc35bb1b679adae1b043babb7ccdd2710245916ce8745f779"
+        }
+      ]
+    },
+    "C_and_CPP_cases": 1080,
+    "complete_native_C_suites": 2,
+    "strict_lint_variants": 2,
+    "format": true,
+    "MSRV_compile_only": "1.91.0"
+  },
+  "measurement": {
+    "plan": {
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "blocks": 5,
+      "repeats": 4,
+      "discard_first": true,
+      "page": 17,
+      "target_shape": "computed-set-range",
+      "target_median_max": 0.9,
+      "control_median_max": 1.05,
+      "individual_control_followup": {
+        "threshold": 1.05,
+        "blocks": 6,
+        "max_rounds": 1
+      },
+      "compiled_policy": "Decision66 absolute/relative/cumulative; runtime memory separate",
+      "scope": "One immediate literal comparison over selector/Paren on multistep grids only; raw set/comparison/instant controls"
+    },
+    "profiles": {
+      "release": {
+        "target": 0.4235813177239802,
+        "controls": 0.9682253917702763,
+        "complete_pairs": 240,
+        "cases": [
+          {
+            "id": "n4-computed-set-instant",
+            "target": false,
+            "before_median_ns": 144958,
+            "candidate_median_ns": 137188,
+            "ratio": 0.9463982670842589
+          },
+          {
+            "id": "n4-computed-set-range",
+            "target": true,
+            "before_median_ns": 570885,
+            "candidate_median_ns": 351718,
+            "ratio": 0.6160925580458411
+          },
+          {
+            "id": "n4-selector-set-instant",
+            "target": false,
+            "before_median_ns": 95420,
+            "candidate_median_ns": 95489,
+            "ratio": 1.00072311884301
+          },
+          {
+            "id": "n4-selector-set-range",
+            "target": false,
+            "before_median_ns": 235998,
+            "candidate_median_ns": 222298,
+            "ratio": 0.9419486605818693
+          },
+          {
+            "id": "n4-comparison-instant",
+            "target": false,
+            "before_median_ns": 51640,
+            "candidate_median_ns": 50800,
+            "ratio": 0.983733539891557
+          },
+          {
+            "id": "n4-comparison-range",
+            "target": false,
+            "before_median_ns": 87619,
+            "candidate_median_ns": 84000,
+            "ratio": 0.958696173204442
+          },
+          {
+            "id": "n16-computed-set-instant",
+            "target": false,
+            "before_median_ns": 452347,
+            "candidate_median_ns": 444336,
+            "ratio": 0.9822901445129514
+          },
+          {
+            "id": "n16-computed-set-range",
+            "target": true,
+            "before_median_ns": 6161330,
+            "candidate_median_ns": 1423699,
+            "ratio": 0.23107007740211935
+          },
+          {
+            "id": "n16-selector-set-instant",
+            "target": false,
+            "before_median_ns": 328577,
+            "candidate_median_ns": 321957,
+            "ratio": 0.9798525155443016
+          },
+          {
+            "id": "n16-selector-set-range",
+            "target": false,
+            "before_median_ns": 998262,
+            "candidate_median_ns": 962732,
+            "ratio": 0.9644081413496657
+          },
+          {
+            "id": "n16-comparison-instant",
+            "target": false,
+            "before_median_ns": 163999,
+            "candidate_median_ns": 155929,
+            "ratio": 0.9507923828803834
+          },
+          {
+            "id": "n16-comparison-range",
+            "target": false,
+            "before_median_ns": 315087,
+            "candidate_median_ns": 306278,
+            "ratio": 0.972042642190887
+          }
+        ]
+      },
+      "release-min": {
+        "target": 0.40645585104205306,
+        "controls": 0.9744725076506584,
+        "complete_pairs": 240,
+        "cases": [
+          {
+            "id": "n4-computed-set-instant",
+            "target": false,
+            "before_median_ns": 199308,
+            "candidate_median_ns": 196389,
+            "ratio": 0.9853543259678488
+          },
+          {
+            "id": "n4-computed-set-range",
+            "target": true,
+            "before_median_ns": 917593,
+            "candidate_median_ns": 543125,
+            "ratio": 0.5919018562696098
+          },
+          {
+            "id": "n4-selector-set-instant",
+            "target": false,
+            "before_median_ns": 139119,
+            "candidate_median_ns": 135519,
+            "ratio": 0.9741228732236431
+          },
+          {
+            "id": "n4-selector-set-range",
+            "target": false,
+            "before_median_ns": 354637,
+            "candidate_median_ns": 345708,
+            "ratio": 0.9748221420776738
+          },
+          {
+            "id": "n4-comparison-instant",
+            "target": false,
+            "before_median_ns": 70740,
+            "candidate_median_ns": 69929,
+            "ratio": 0.9885354820469324
+          },
+          {
+            "id": "n4-comparison-range",
+            "target": false,
+            "before_median_ns": 127669,
+            "candidate_median_ns": 124239,
+            "ratio": 0.9731336502988196
+          },
+          {
+            "id": "n16-computed-set-instant",
+            "target": false,
+            "before_median_ns": 708654,
+            "candidate_median_ns": 687845,
+            "ratio": 0.970635881544449
+          },
+          {
+            "id": "n16-computed-set-range",
+            "target": true,
+            "before_median_ns": 10291175,
+            "candidate_median_ns": 2274451,
+            "ratio": 0.2210098458144964
+          },
+          {
+            "id": "n16-selector-set-instant",
+            "target": false,
+            "before_median_ns": 491746,
+            "candidate_median_ns": 482476,
+            "ratio": 0.9811488044640932
+          },
+          {
+            "id": "n16-selector-set-range",
+            "target": false,
+            "before_median_ns": 1566537,
+            "candidate_median_ns": 1530957,
+            "ratio": 0.9772874818788193
+          },
+          {
+            "id": "n16-comparison-instant",
+            "target": false,
+            "before_median_ns": 236448,
+            "candidate_median_ns": 229858,
+            "ratio": 0.9721291785085938
+          },
+          {
+            "id": "n16-comparison-range",
+            "target": false,
+            "before_median_ns": 478096,
+            "candidate_median_ns": 462256,
+            "ratio": 0.9668685786954921
+          }
+        ]
+      }
+    },
+    "complete_pairs": 480,
+    "followup_selected": [],
+    "extent_workspace_peak": 26781,
+    "extent_cases": 9
+  },
+  "resources": {
+    "peak_deltas": [
+      {
+        "profile": "release",
+        "page": 1,
+        "changed_rows": 82,
+        "categories": [
+          {
+            "kind": 0,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 1,
+            "minimum_delta": 0,
+            "maximum_delta": 560,
+            "maximum_case": "control-boundaries-10-range",
+            "before": 36920,
+            "candidate": 37480
+          },
+          {
+            "kind": 2,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 1616,
+            "candidate": 1616
+          },
+          {
+            "kind": 3,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 4,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 272,
+            "candidate": 272
+          },
+          {
+            "kind": 5,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 6,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 7,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 888,
+            "candidate": 888
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page": 17,
+        "changed_rows": 82,
+        "categories": [
+          {
+            "kind": 0,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 1,
+            "minimum_delta": 0,
+            "maximum_delta": 560,
+            "maximum_case": "control-boundaries-10-range",
+            "before": 36920,
+            "candidate": 37480
+          },
+          {
+            "kind": 2,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 1616,
+            "candidate": 1616
+          },
+          {
+            "kind": 3,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 4,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 1360,
+            "candidate": 1360
+          },
+          {
+            "kind": 5,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 6,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 7,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 888,
+            "candidate": 888
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page": 1024,
+        "changed_rows": 82,
+        "categories": [
+          {
+            "kind": 0,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 1,
+            "minimum_delta": 0,
+            "maximum_delta": 560,
+            "maximum_case": "control-boundaries-10-range",
+            "before": 36920,
+            "candidate": 37480
+          },
+          {
+            "kind": 2,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 1616,
+            "candidate": 1616
+          },
+          {
+            "kind": 3,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 4,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 1360,
+            "candidate": 1360
+          },
+          {
+            "kind": 5,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 6,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 7,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 888,
+            "candidate": 888
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "page": 1,
+        "changed_rows": 82,
+        "categories": [
+          {
+            "kind": 0,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 1,
+            "minimum_delta": 0,
+            "maximum_delta": 560,
+            "maximum_case": "control-boundaries-10-range",
+            "before": 36920,
+            "candidate": 37480
+          },
+          {
+            "kind": 2,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 1616,
+            "candidate": 1616
+          },
+          {
+            "kind": 3,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 4,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 272,
+            "candidate": 272
+          },
+          {
+            "kind": 5,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 6,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 7,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 888,
+            "candidate": 888
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "page": 17,
+        "changed_rows": 82,
+        "categories": [
+          {
+            "kind": 0,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 1,
+            "minimum_delta": 0,
+            "maximum_delta": 560,
+            "maximum_case": "control-boundaries-10-range",
+            "before": 36920,
+            "candidate": 37480
+          },
+          {
+            "kind": 2,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 1616,
+            "candidate": 1616
+          },
+          {
+            "kind": 3,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 4,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 1360,
+            "candidate": 1360
+          },
+          {
+            "kind": 5,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 6,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 7,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 888,
+            "candidate": 888
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "page": 1024,
+        "changed_rows": 82,
+        "categories": [
+          {
+            "kind": 0,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 1,
+            "minimum_delta": 0,
+            "maximum_delta": 560,
+            "maximum_case": "control-boundaries-10-range",
+            "before": 36920,
+            "candidate": 37480
+          },
+          {
+            "kind": 2,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 1616,
+            "candidate": 1616
+          },
+          {
+            "kind": 3,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 4,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 1360,
+            "candidate": 1360
+          },
+          {
+            "kind": 5,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 6,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 7,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "n4-selector-set-range",
+            "before": 888,
+            "candidate": 888
+          }
+        ]
+      }
+    ],
+    "representative_range": {
+      "id": "n16-computed-set-range",
+      "before": {
+        "cancellation_references": {
+          "engine_owned": {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          "external": {
+            "acquired": 2513,
+            "current": 0,
+            "overflowed": false,
+            "peak": 2,
+            "released": 2513
+          }
+        },
+        "counter_overflowed": false,
+        "elapsed_ns": "7066212",
+        "memory": [
+          {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          {
+            "acquired": 1359804,
+            "current": 0,
+            "overflowed": false,
+            "peak": 38692,
+            "released": 1359804
+          },
+          {
+            "acquired": 7718,
+            "current": 6470,
+            "overflowed": false,
+            "peak": 6470,
+            "released": 1248
+          },
+          {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          {
+            "acquired": 3416320,
+            "current": 0,
+            "overflowed": false,
+            "peak": 1360,
+            "released": 3416320
+          },
+          {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          {
+            "acquired": 888,
+            "current": 888,
+            "overflowed": false,
+            "peak": 888,
+            "released": 0
+          }
+        ],
+        "output_samples": 48,
+        "pages": 2512,
+        "provider_calls": 5095,
+        "samples_fetched": 12560,
+        "temporary_storage": {
+          "counter_overflowed": false,
+          "extent": {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          "read_bytes": 0,
+          "read_calls": 0,
+          "stores": {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          "write_calls": 0,
+          "written_bytes": 0
+        },
+        "work": 330683
+      },
+      "candidate": {
+        "cancellation_references": {
+          "engine_owned": {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          "external": {
+            "acquired": 398,
+            "current": 0,
+            "overflowed": false,
+            "peak": 2,
+            "released": 398
+          }
+        },
+        "counter_overflowed": false,
+        "elapsed_ns": "1419608",
+        "memory": [
+          {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          {
+            "acquired": 434168,
+            "current": 0,
+            "overflowed": false,
+            "peak": 38972,
+            "released": 434168
+          },
+          {
+            "acquired": 7718,
+            "current": 6470,
+            "overflowed": false,
+            "peak": 6470,
+            "released": 1248
+          },
+          {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          {
+            "acquired": 539920,
+            "current": 0,
+            "overflowed": false,
+            "peak": 1360,
+            "released": 539920
+          },
+          {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          {
+            "acquired": 888,
+            "current": 888,
+            "overflowed": false,
+            "peak": 888,
+            "released": 0
+          }
+        ],
+        "output_samples": 48,
+        "pages": 397,
+        "provider_calls": 865,
+        "samples_fetched": 1985,
+        "temporary_storage": {
+          "counter_overflowed": false,
+          "extent": {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          "read_bytes": 0,
+          "read_calls": 0,
+          "stores": {
+            "acquired": 0,
+            "current": 0,
+            "overflowed": false,
+            "peak": 0,
+            "released": 0
+          },
+          "write_calls": 0,
+          "written_bytes": 0
+        },
+        "work": 84376
+      }
+    },
+    "scope": "Engine-accounted categories, not RSS or simultaneous total peaks. Metadata depends on cardinality; fixed-cardinality extent is finite evidence, not a universal bound."
+  },
+  "compiled_C_sizes": {
+    "release": {
+      "kind": "default-C",
+      "before": [
+        7424450,
+        508512,
+        400
+      ],
+      "current": [
+        7424030,
+        508512,
+        400
+      ],
+      "growth": -420,
+      "before_total": 7933362,
+      "current_total": 7932942,
+      "growth_percent": -0.0052940985171230056,
+      "cumulative_baseline_text_data_bss": [
+        7370378,
+        506744,
+        400
+      ],
+      "cumulative_growth_bytes": 55420,
+      "cumulative_growth_percent": 0.7035207264416399
+    },
+    "release-min": {
+      "kind": "default-C",
+      "before": [
+        5128059,
+        464048,
+        400
+      ],
+      "current": [
+        5128267,
+        464048,
+        400
+      ],
+      "growth": 208,
+      "before_total": 5592507,
+      "current_total": 5592715,
+      "growth_percent": 0.0037192622199668235,
+      "cumulative_baseline_text_data_bss": [
+        5103967,
+        462056,
+        400
+      ],
+      "cumulative_growth_bytes": 26292,
+      "cumulative_growth_percent": 0.47233205237905923
+    },
+    "arm32": {
+      "kind": "default-C",
+      "before": [
+        6403357,
+        293660,
+        244
+      ],
+      "current": [
+        6403753,
+        293660,
+        244
+      ],
+      "growth": 396,
+      "before_total": 6697261,
+      "current_total": 6697657,
+      "growth_percent": 0.0059128649756967815,
+      "cumulative_baseline_text_data_bss": [
+        6382697,
+        292596,
+        244
+      ],
+      "cumulative_growth_bytes": 22120,
+      "cumulative_growth_percent": 0.33135911013600855
+    },
+    "arm64": {
+      "kind": "default-C",
+      "before": [
+        6423254,
+        498760,
+        384
+      ],
+      "current": [
+        6451598,
+        498760,
+        384
+      ],
+      "growth": 28344,
+      "before_total": 6922398,
+      "current_total": 6950742,
+      "growth_percent": 0.40945348707196555,
+      "cumulative_baseline_text_data_bss": [
+        6374470,
+        497032,
+        384
+      ],
+      "cumulative_growth_bytes": 78856,
+      "cumulative_growth_percent": 1.1475161258495847
+    }
+  },
+  "cumulative_compiled_baseline": "51862635936717f6bcc9ab018b994d0ac205b0ea",
+  "receipts": {
+    "release-focused": {
+      "path": ".tmp/computed-set-l081mq8k/release-focused.json",
+      "sha256": "b814cdee9cfc34d8ff32e3140210cebf087a7bf5df621f10df35552e485052a0"
+    },
+    "release-v2-focused": {
+      "path": ".tmp/computed-set-l081mq8k/release-v2-focused.json",
+      "sha256": "b9d50c96124711b237ebf23fc1a43e2bd29a9af1ba70cdaf145d792b39b6d5da"
+    },
+    "pilot": {
+      "path": ".tmp/computed-set-l081mq8k/pilot.json",
+      "sha256": "0ff27e3d738ad430394ae3084cf19baa0225dcc55ca466f65fcb0bd81a481e4d"
+    },
+    "slower-followup": {
+      "path": ".tmp/computed-set-l081mq8k/slower-followup.json",
+      "sha256": "366301d8e4915b48445d2e74ac9f836fabe3f1492417b24bb7cb7c6dec639ebd"
+    },
+    "original-capture": {
+      "path": ".tmp/computed-set-l081mq8k/original-capture.json",
+      "sha256": "f397d8b50240b9891a8642a042001225dc8a12d0dd4b56bdadfe91ca2ae69fd3"
+    },
+    "original-fixture-rejection": {
+      "path": ".tmp/computed-set-l081mq8k/original-fixture-rejection.json",
+      "sha256": "dbe66709c1113f88719ae4e37bacf83c14bf6a5564a55d7a35801a2341fbea61"
+    },
+    "controls-comparison-release": {
+      "path": ".tmp/computed-set-l081mq8k/controls-comparison-release.json",
+      "sha256": "e64e33b01034cd75712dcc27f43830c652fe1315ca198a112f8dbde2ae91b8ac"
+    },
+    "controls-comparison-release-min": {
+      "path": ".tmp/computed-set-l081mq8k/controls-comparison-release-min.json",
+      "sha256": "ce655742499583efab25281e3fe6e868e00d74c8cc14c49b1ce20800bb285afc"
+    },
+    "extent": {
+      "path": ".tmp/computed-set-l081mq8k/extent.json",
+      "sha256": "2990896adc6af82eec0c1a13aa30d8433fab388698abb1f745c1398151afd5fa"
+    },
+    "resource-analysis": {
+      "path": ".tmp/computed-set-l081mq8k/resource-analysis.json",
+      "sha256": "41f5b7246d5d5431cdcb320160e34a7cbe101ae05f5a89b726db3f7d6edfcb3d"
+    },
+    "candidate-static": {
+      "path": ".tmp/computed-set-l081mq8k/candidate-static.json",
+      "sha256": "0b3d25bb9a1591a658eb4cf6c432e083c80ea7b44a7383f1d98014153fe055ed"
+    },
+    "development-review": {
+      "path": ".tmp/computed-set-l081mq8k/development-review.json",
+      "sha256": "9b2a1b83e589ffc751a7bbc051f4d7dd5b91fc05f7eb06d43511d1ead15d5782"
+    },
+    "perf-release-builds": {
+      "path": ".tmp/computed-set-l081mq8k/perf-release-builds.json",
+      "sha256": "df4326ea2873ac6f346fb7c9c10399bc1441646c777cbb7d6780eff044e2cd29"
+    },
+    "perf-release-min-builds": {
+      "path": ".tmp/computed-set-l081mq8k/perf-release-min-builds.json",
+      "sha256": "127249e6a23988ed9cc98eb0deba9d4116ee5eea11e096ff6aaad3b2097acfa5"
+    },
+    "build-release": {
+      "path": ".tmp/computed-set-l081mq8k/build-release.json",
+      "sha256": "5a8069486cdd03127da04fa9fd54d48a6e715d8d7f06bad4a6e466694ef33cd4"
+    },
+    "build-release-min": {
+      "path": ".tmp/computed-set-l081mq8k/build-release-min.json",
+      "sha256": "2363fd002191174f3ad8d896037250cab94ec265bc160f7646402001a9330983"
+    },
+    "build-arm32": {
+      "path": ".tmp/computed-set-l081mq8k/build-arm32.json",
+      "sha256": "f36f418b418ad8ceae7a970e05b60aebf27e1d39ee83534d3db1137336e4e07a"
+    },
+    "build-arm64": {
+      "path": ".tmp/computed-set-l081mq8k/build-arm64.json",
+      "sha256": "ad7d6d4313e43ba9fcf539a0d7f594e7e973f7575de9609b9839edba44600d7e"
+    },
+    "qualification-release": {
+      "path": ".tmp/computed-set-l081mq8k/qualification-release.json",
+      "sha256": "edd95c9cfacffa9321e481cb7206504a7a8d969fc3036a90d5ffb13f8a5603ae"
+    },
+    "qualification-release-min": {
+      "path": ".tmp/computed-set-l081mq8k/qualification-release-min.json",
+      "sha256": "2df162ecf86befdc1a46b4eb665d0e698638a5fe145f081d1a0126019f9e5f31"
+    },
+    "qualification-arm32": {
+      "path": ".tmp/computed-set-l081mq8k/qualification-arm32.json",
+      "sha256": "e5bdfd988bc7936b7c3dbe544b97e390490eaf9dcb189e834ce5b02284734dc8"
+    },
+    "qualification-arm64": {
+      "path": ".tmp/computed-set-l081mq8k/qualification-arm64.json",
+      "sha256": "fc6e0cc7e3575bd23fcffefb684ac025fdac6d2dfc98168b2f8f0f550a444ddc"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/computed-set-l081mq8k/artifact-integrity.json",
+      "sha256": "e95e1cd0db3ee119f4b0e7aea191ae4b69f0ea2e06b9cd6880a71217eabe7865"
+    },
+    "baseline-binding": {
+      "path": ".tmp/computed-set-l081mq8k/baseline-binding.json",
+      "sha256": "db2f919e3ebd6fb0a1a68d5e9fd9aa2d2d3ca6c3dbaf4c3ce0ef04132a68856f"
+    },
+    "baseline-observations": {
+      "path": ".tmp/computed-set-l081mq8k/baseline-observations.json",
+      "sha256": "6234c5a0573fd9e6ad7662ab119c36acc2548d33744d0dcec4ec8a012057c958"
+    },
+    "tests-only-v2-binding": {
+      "path": ".tmp/computed-set-l081mq8k/tests-only-v2-binding.json",
+      "sha256": "cfbdfac48b9592df39ac931ed7ce2af1d50777ec52d1e606da4542e606ec7f06"
+    }
+  },
+  "limitations": [
+    "Finite synthetic checks; no universal expression equivalence, production-weighted throughput, live-provider or ARM-throughput claim.",
+    "Direct single-tick comparison sets retain fallback, including instant requests; multistep subquery scopes may qualify. rate/function/arithmetic/dynamic/chained/projection-wrapped comparisons remain separate unqualified optimization classes, not unsupported language.",
+    "Target Workspace increases280B; nested-set control increases560B. Other seven category peaks match in1116pairs. These are measured values, not enforced limits.",
+    "One instant consumed-subquery result per panel differs from Go only in unspecified row order; strict failures are retained separately from approved-policy passes.",
+    "Original storage fixture rejects eight duplicate-labelset inputs before expressions run. Failed capture is retained; these eight remain baseline-only and are not passing original compatibility checks.",
+    "New Rust fault tests cover all calibrated final acquisitions but do not independently classify each into an internal cold/selected/suffix phase; existing low-level owners and C landmarks cover those distinctions.",
+    "Query fixtures were built at candidate phase; candidate-v2 only adds tests and C caller. Exact reconstruction authenticates unchanged production bytes; final native/ARM callers use candidate-v2.",
+    "Every individual timing ratio and proportional compiled cost is retained, including slower controls. Compiled text/data/BSS is separate from query memory.",
+    "The preliminary C fixture check referenced a mutable Cargo archive later replaced by the default build. Its record is retained but excluded from final qualification proof; final C/C++ callers bind preserved immutable archives."
+  ]
+}

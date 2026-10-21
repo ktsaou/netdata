@@ -73975,5 +73975,11 @@
     "report": "grouped-selector-clocks-qualification.json",
     "report_sha256": "79aa94e7a148aefb5b331fbbd78dde495857be7fc035d5256db39f0491d394ed",
     "summary": "Reuse completed Group clocks for consumed subqueries directly over ordinary grouped instant selectors."
+  },
+  "comparison_set_discovery": {
+    "status": "finite_qualification_pass",
+    "report": "comparison-set-discovery-qualification.json",
+    "report_sha256": "8ffd66f29ce04440fe6ebb0bb9b99c11d1470981c34ea708f3f1f064d35ef63a",
+    "summary": "Reuse completed set-input discovery for multistep literal scalar comparisons over direct selectors."
   }
 }

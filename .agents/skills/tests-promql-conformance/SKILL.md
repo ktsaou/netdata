@@ -339,3 +339,6 @@ Mixed-history instant-rate probes follow
 
 Direct grouped selectors follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-in-grouped-selector-subqueries`.
+
+Literal-comparison set operands follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#completed-comparison-set-discovery`.
