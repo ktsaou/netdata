@@ -9768,3 +9768,19 @@ Default C executable changes are +180/-40/-4/+16,432 bytes for release/release-m
 The ARM64 increase is about 0.24% of that consumer. Before/after and cumulative costs are in the report.
 The earlier rejected label trial remains historical; this continuation is measured against the later scalar-arithmetic
 baseline under the proportional fixed-footprint policy. No compiler workaround or public interface changes.
+
+## Rejected scalar arithmetic ownership transfer
+
+A small trial reused an input sample-accounting lease after successful scalar arithmetic, following the existing
+scalar-conversion path. It avoided release/recreation bookkeeping without changing numeric operations or adding state.
+The [negative qualification](scalar-owner-rejected-qualification.json) preserves the experiment and exact restoration.
+
+The fixed pilot compares 27 cases per native profile across five alternating blocks: one warmup and three measured
+calls per case/block. All 1,080 before/after pairs match complete results and fixture non-time observations, including
+tracked memory, reads and work. Scalar-family median ratios are 0.9762 for release and 0.9909 for release-min;
+production-style ratios are 1.0046/0.9838 and unchanged-control ratios are 1.0060/1.0056.
+
+The release-min scalar family misses the prespecified 0.98 benefit criterion. The exact candidate and uncompiled test
+draft were reversed. No broader unit, C, ARM or original-expression qualification is claimed, and no runtime change
+was accepted. These finite timings do not establish RSS reduction or live-provider throughput. The proportional
+compiled-footprint policy is unchanged; this experiment ended on runtime benefit before new compiled-cost comparisons.

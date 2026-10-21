@@ -73873,5 +73873,11 @@
     "report_sha256": "38302b9960f580ea185d25a53a669ad122060633042adbebbcea30aa1cbbbaca",
     "status": "finite_qualification_pass",
     "scope": "Existing lazy capacity hint at both C metadata and Series output label-descriptor loops. No preallocation before the first label check and no label-byte copying or ownership change."
+  },
+  "scalar_arithmetic_owner_transfer_rejected": {
+    "report": "scalar-owner-rejected-qualification.json",
+    "report_sha256": "527ecc67ca18921f80d775f74330761792389ab4d2b18ea931c3bd94b09c6f62",
+    "status": "rejected_per_frozen_runtime_benefit_criterion",
+    "runtime_changed": false
   }
 }

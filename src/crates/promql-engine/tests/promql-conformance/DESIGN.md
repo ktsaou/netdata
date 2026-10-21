@@ -2451,3 +2451,12 @@ individual slower cases and unfinished checks.
   because other owned state dominates. Timing and cumulative fixed-binary costs remain separate measurements.
 - [Finite qualification](README.md#c-output-label-descriptor-capacity) records actual C calls, all slower primary cases,
   their bounded follow-up, native/ARM ownership checks and precise retained-versus-current evidence attribution.
+
+## Rejected scalar arithmetic ownership transfer
+
+- ScalarBinary was tested with an existing input sample lease moved to its result after successful arithmetic.
+  The experiment targeted mutex/reference bookkeeping, not heap memory. The missing-owner fallback followed frame release.
+- Complete native pilot outputs and fixture non-time observations matched, but release-min scalar-family timing
+  missed the benefit criterion fixed before implementation. Exact baseline runtime and tests were restored.
+- [Retained negative qualification](README.md#rejected-scalar-arithmetic-ownership-transfer) records all samples,
+  both profiles, unchanged memory, unrun broader checks and source attribution. No new ownership rule was adopted.
