@@ -2652,6 +2652,56 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         })
     }
 
+    fn direct_range_child(&self, mut index: usize) -> Result<bool, Interrupted> {
+        let key_for = |frame: &Frame| {
+            crate::vector_matching::ReplayKey::new(
+                frame.options,
+                frame.step_index,
+                self.prepared.lookback_ns(frame.options.lookback_ms),
+                self.data_bounds,
+            )
+        };
+        let key = key_for(&self.frames[index]);
+        while index > 0 {
+            self.control.check()?;
+            self.account.work(1);
+            let child = &self.frames[index];
+            let parent = &self.frames[index - 1];
+            if child.boundary_time_ms.is_some()
+                || self.invariants[child.node.0]
+                || self.prepared.flags().boundaries[child.node.0]
+                || self.rosters.matrix(child.node).is_some()
+                || key_for(child) != key
+            {
+                return Ok(false);
+            }
+            match &parent.state {
+                // The range reducer owns the outer clock, not the subquery clock.
+                State::Range(_) => return Ok(true),
+                State::OrderedRows { running: true, .. }
+                    if parent.node == child.node && child.bypass_order => {}
+                State::Pass => {
+                    let Expr::Paren(next) = self.expression.arena[parent.node].expression else {
+                        return Ok(false);
+                    };
+                    if self.prepared.preprocessing.child(
+                        self.expression,
+                        parent.node,
+                        next,
+                        self.control,
+                        self.account,
+                    )? != child.node
+                    {
+                        return Ok(false);
+                    }
+                }
+                _ => return Ok(false),
+            }
+            index -= 1;
+        }
+        Ok(false)
+    }
+
     fn singleton_group_key(
         &self,
         mut index: usize,
@@ -3152,10 +3202,19 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             self.prepared.lookback_ns(frame.options.lookback_ms),
                             self.data_bounds,
                         );
-                        if step.has_pair_discovery() {
-                            step.enable_pair_discovery(key, self.control, self.account)?;
-                        } else {
-                            step.enable_replay(target, key, self.control, self.account)?;
+                        let raw_pair = [left, right].into_iter().all(|child| {
+                            matches!(self.expression.arena[*child].expression, Expr::Selector(_))
+                        });
+                        let interval = raw_pair
+                            && step.has_pair_discovery()
+                            && self.direct_range_child(index)?
+                            && step.enable_interval(target, key, self.control, self.account)?;
+                        if !interval {
+                            if step.has_pair_discovery() {
+                                step.enable_pair_discovery(key, self.control, self.account)?;
+                            } else {
+                                step.enable_replay(target, key, self.control, self.account)?;
+                            }
                         }
                     }
                     self.frames[index].state = State::Binary(AccountedBox::new(
@@ -4367,6 +4426,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                 )?;
                             }
                             step.complete_replay(self.control)?;
+                            step.complete_interval(self.control, self.account)?;
                             self.frames.pop();
                         }
                     }

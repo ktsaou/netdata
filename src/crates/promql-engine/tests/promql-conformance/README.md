@@ -9784,3 +9784,65 @@ The release-min scalar family misses the prespecified 0.98 benefit criterion. Th
 draft were reversed. No broader unit, C, ARM or original-expression qualification is claimed, and no runtime change
 was accepted. These finite timings do not establish RSS reduction or live-provider throughput. The proportional
 compiled-footprint policy is unchanged; this experiment ended on runtime benefit before new compiled-cost comparisons.
+
+
+## Completed clocks in binary subqueries
+
+Direct Float one-to-one binary subqueries can reuse evidence that an earlier complete pass validated a contiguous
+set of evaluation clocks. A later row still discovers its left and right operands freshly and uses ordinary pair
+matching, comparison filtering and arithmetic. The engine retains a constant-size clock interval, not raw values
+or membership arrays across time. The [qualification report](derived-binary-clocks-qualification.json) binds inputs,
+binaries, complete outputs, failures and finite measurements.
+
+Admission requires bare selectors, an existing immutable unique Float-pair proof and an actual range consumer,
+through only transparent parentheses/ordering frames. It excludes fills, delayed-name removal and unproved shapes.
+Only unrestricted successful binary Done earns credit; endpoint truncation cannot certify an unread suffix.
+Restricted reads cannot publish partial global membership. Ancestors may consume already-frozen child plans during
+preparation; all interval credit clears before final delivery. Other expressions retain their existing evaluators.
+
+The fixed pilot contains 1,200 complete before/after pairs across both native profiles. Target-family median time
+ratios are 0.4122 for release and 0.3959 for release-min; control-family ratios are 0.9509 and 0.9573. These are
+synthetic whole-query fixture timings on a shared host. Every individual slower case and its one fixed follow-up
+remains in the report; the follow-up never replaces the primary measurements.
+
+One release control, `max_over_time((sum(rate(m_total[3s])) / sum(rate(n_total[3s])))[8s:1s])`,
+was 15.0% slower in the primary panel and 10.3% slower in the fixed follow-up. Its reads and accounted work are
+unchanged. A separate fixed AB/BA diagnostic recorded equal rounded aggregate CPU time (0.73 s each), mixed
+block timings, and 79,915,521 versus 79,815,845 whole-process instructions. The cause remains unresolved.
+Acceptance follows the predeclared family/resource gates; this does not establish universal improvement or
+prove that the slower control is measurement noise.
+
+| Direct ratio subquery | Fetched sample entries | Work units | Peak workspace |
+|---|---:|---:|---:|
+| 16 pairs, 16 input times | 529,664 → 66,432 | 4,276,376 → 565,128 | 45,508 → 44,979 B |
+| 4 pairs, 32 input times | 144,838 → 61,598 | 780,088 → 340,520 | 20,607 → 20,751 B |
+
+At four pairs the measured extra peak is 144 B across 8/16/32 input times. The larger case reduces cumulative
+workspace allocation from 14,802,660 to 2,420,964 B. Fetched entries are not disk reads, and neither allocation
+counters nor linked executable sections establish process RSS.
+
+Qualification includes 885 passing units per native profile (two pre-existing ignored), six focused units on each
+ARM target under QEMU, 2,964 rebuilt reference comparisons, and 480 complete short-lookback baseline comparisons.
+The reference total includes 768 comparisons under the approved instant-order policy and 2,196 strict ordered
+fallback comparisons. It includes 186 expected-error matches; 336 strict instant-order differences are retained
+separately. These totals do not mean 2,964 strict successful query results.
+The new actual Engine tests cover 36 complete results plus 102 required post-preparation read failures per target.
+Both complete native C suites pass. The new C/C++ panel contributes 432 executions across native profiles and ARM:
+144 successes and 288 provider errors. Those C arms cover post-output required reads and error priority; they do
+not claim cancellation or a winning output-error arm. Existing core controls cover cancellation/publication.
+
+Reproduce the focused Rust checks with the fixtures feature and either release profile, filtering on
+`derived_binary_completed_clocks` and `completed_interval`. Build `derived_binary_clocks.c` against the default
+engine archive and include directory, as for `c_embedding.c`. It reuses complete labels/values/timestamps,
+callback order, provider-error bytes and ownership checks; it emits eight nine-case records and a 72-case summary.
+
+For differential replay, preserve original actual engine options. The retained plural-histogram Go wrapper fixes
+lookback at five minutes and the implicit subquery step at one minute even when request fields say otherwise.
+The fresh changing-value panel and selected historical direct queries use those actual options; the separate
+1 ms-lookback panel compares the accepted implementation with the rebuilt candidate. Retain strict instant-vector
+order differences separately from the approved deterministic-order policy. Do not classify mismatched-option
+comparisons as engine failures or passing same-input evidence.
+
+Default C text/data/BSS growth is 9,236 / 4,908 / 5,996 / 5,476 B for release/release-min/ARM32/ARM64
+(about 0.08–0.12%). The report retains immediate and cumulative baselines under the proportional footprint policy.
+No API/provider/storage change, new language feature or live-provider performance claim is made by this stage.

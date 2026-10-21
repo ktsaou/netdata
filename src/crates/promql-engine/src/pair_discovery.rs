@@ -142,6 +142,13 @@ impl Plan {
         matches!(self.mode, Mode::Frontier(_))
     }
 
+    pub(crate) fn certified_pair(&self, ordinal: usize) -> Option<[usize; 2]> {
+        self.has_frontier()
+            .then(|| self.pairs.get(ordinal).copied())
+            .flatten()
+            .filter(|pair| !pair.contains(&usize::MAX))
+    }
+
     pub(crate) fn clear(&self) {
         self.credits.borrow_mut().clear();
         if let Mode::Frontier(frontier) = &self.mode {

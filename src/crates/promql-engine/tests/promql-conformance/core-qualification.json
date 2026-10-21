@@ -73879,5 +73879,11 @@
     "report_sha256": "527ecc67ca18921f80d775f74330761792389ab4d2b18ea931c3bd94b09c6f62",
     "status": "rejected_per_frozen_runtime_benefit_criterion",
     "runtime_changed": false
+  },
+  "completed_binary_subquery_clocks": {
+    "report": "derived-binary-clocks-qualification.json",
+    "report_sha256": "eeeb4b4ea35b8832d046a7d5eaa18de6a997850209a901bcc8d055896bb0ce96",
+    "status": "finite_qualification_pass",
+    "scope": "Reuse a constant-size interval of completely evaluated clocks for certified direct Float one-to-one binary subqueries. Discover both selected sides freshly, then use ordinary matching and arithmetic. No cached values or temporal membership matrix."
   }
 }

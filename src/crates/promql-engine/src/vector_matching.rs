@@ -101,6 +101,7 @@ pub(crate) struct Plan {
 struct Replay {
     rows: ReplayRows,
     completed: RefCell<Option<AccountedBox<CompletedStep>>>,
+    interval: RefCell<Option<AccountedBox<CompletedInterval>>>,
 }
 enum ReplayRows {
     Pairs(AccountedVec<[usize; 2]>),
@@ -112,6 +113,61 @@ enum ReplayRows {
 struct CompletedStep {
     key: ReplayKey,
     members: AccountedVec<u64>,
+}
+struct CompletedInterval {
+    first: ReplayKey,
+    last_index: i64,
+}
+impl CompletedInterval {
+    fn valid(key: ReplayKey) -> bool {
+        let [time, start, end, step, _, index, ..] = key.clock;
+        step > 0
+            && index >= 0
+            && time <= end
+            && index
+                .checked_mul(step)
+                .and_then(|delta| start.checked_add(delta))
+                == Some(time)
+    }
+
+    fn same_domain(&self, mut key: ReplayKey) -> bool {
+        key.clock[0] = self.first.clock[0];
+        key.clock[5] = self.first.clock[5];
+        key == self.first
+    }
+
+    fn contains(&self, key: ReplayKey) -> bool {
+        Self::valid(key)
+            && self.same_domain(key)
+            && (self.first.clock[5]..=self.last_index).contains(&key.clock[5])
+    }
+
+    fn new(key: ReplayKey) -> Self {
+        Self {
+            first: key,
+            last_index: key.clock[5],
+        }
+    }
+
+    fn record(&mut self, key: ReplayKey) {
+        let index = key.clock[5];
+        if !self.same_domain(key)
+            || index < self.first.clock[5].saturating_sub(1)
+            || index > self.last_index.saturating_add(1)
+        {
+            *self = Self::new(key);
+        } else {
+            if index < self.first.clock[5] {
+                self.first = key;
+            }
+            self.last_index = self.last_index.max(index);
+        }
+    }
+}
+
+enum IntervalAttempt {
+    Cold(ReplayKey),
+    Restricted([usize; 2]),
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ReplayKey {
@@ -368,11 +424,13 @@ impl Plan {
         if let Some(replay) = self.replay.as_deref_mut() {
             replay.rows = ReplayRows::Pairs(pairs);
             replay.completed.get_mut().take();
+            replay.interval.get_mut().take();
         } else {
             self.replay = Some(AccountedBox::new(
                 Replay {
                     rows: ReplayRows::Pairs(pairs),
                     completed: RefCell::new(None),
+                    interval: RefCell::new(None),
                 },
                 &context,
             ));
@@ -389,6 +447,7 @@ impl Plan {
             Replay {
                 rows: ReplayRows::PairCandidate,
                 completed: RefCell::new(None),
+                interval: RefCell::new(None),
             },
             &AllocationContext::new(account, MemoryKind::Workspace),
         ));
@@ -403,6 +462,12 @@ impl Plan {
         if self.has_pair_candidate() {
             self.replay = None;
         }
+    }
+    #[cfg(test)]
+    pub(crate) fn has_completed_interval(&self) -> bool {
+        self.replay
+            .as_ref()
+            .is_some_and(|replay| replay.interval.borrow().is_some())
     }
     #[cfg(test)]
     pub(crate) fn has_completed_pair_discovery(&self) -> bool {
@@ -453,6 +518,7 @@ impl Plan {
                     prefix: Cell::new(None),
                 },
                 completed: RefCell::new(None),
+                interval: RefCell::new(None),
             },
             &AllocationContext::new(account, MemoryKind::Workspace),
         ));
@@ -509,6 +575,7 @@ impl Plan {
             &AllocationContext::new(account, MemoryKind::Workspace),
         ));
         replay.completed.borrow_mut().take();
+        replay.interval.borrow_mut().take();
         self.replay = Some(replay);
         Ok(())
     }
@@ -530,6 +597,7 @@ impl Plan {
                 ReplayRows::Pairs(_) | ReplayRows::PairCandidate => return,
             }
             replay.completed.borrow_mut().take();
+            replay.interval.borrow_mut().take();
         }
     }
     fn pair_discovery(&self, key: &ReplayKey) -> Option<&crate::pair_discovery::Plan> {
@@ -698,6 +766,7 @@ pub(crate) struct Step<'a> {
     values: [Option<crate::statistics::ValueParts>; 2],
     last_diagnostic: Option<Diagnostic>,
     pending: Option<AccountedBox<CompletedStep>>,
+    interval: Option<AccountedBox<IntervalAttempt>>,
 }
 impl<'a> Step<'a> {
     pub(crate) fn repeated_singleton_side(&self) -> Option<usize> {
@@ -742,6 +811,10 @@ impl<'a> Step<'a> {
     }
     pub(crate) fn has_pair_discovery(&self) -> bool {
         self.plan.has_pair_discovery()
+            && !matches!(
+                self.interval.as_deref(),
+                Some(IntervalAttempt::Restricted(_))
+            )
     }
     pub(crate) fn new(
         plan: &'a Plan,
@@ -774,6 +847,112 @@ impl<'a> Step<'a> {
             values: [None, None],
             last_diagnostic: None,
             pending: None,
+            interval: None,
+        }
+    }
+
+    pub(crate) fn enable_interval(
+        &mut self,
+        target: usize,
+        key: ReplayKey,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        if self.matching.cardinality != Cardinality::OneToOne
+            || self.matching.fill_left.is_some()
+            || self.matching.fill_right.is_some()
+            || key.delayed_name_removal
+            || !CompletedInterval::valid(key)
+            || !(self.operator.is_comparison()
+                || matches!(
+                    self.operator,
+                    TokenKind::ADD
+                        | TokenKind::SUB
+                        | TokenKind::MUL
+                        | TokenKind::DIV
+                        | TokenKind::MOD
+                        | TokenKind::POW
+                        | TokenKind::ATAN2
+                ))
+        {
+            return Ok(false);
+        }
+        let Some(replay) = &self.plan.replay else {
+            return Ok(false);
+        };
+        let ReplayRows::PairDiscovery(plan) = &replay.rows else {
+            return Ok(false);
+        };
+        let Some(pair) = plan.certified_pair(target) else {
+            return Ok(false);
+        };
+        control.check()?;
+        account.work(1);
+        let restricted = replay
+            .interval
+            .borrow()
+            .as_ref()
+            .is_some_and(|span| span.contains(key));
+        let attempt = if restricted {
+            IntervalAttempt::Restricted(pair)
+        } else if replay
+            .completed
+            .borrow()
+            .as_ref()
+            .is_some_and(|step| step.key == key)
+        {
+            // A warm prefix is not evidence of an unrestricted completed clock.
+            return Ok(false);
+        } else {
+            IntervalAttempt::Cold(key)
+        };
+        self.interval = Some(AccountedBox::new(
+            attempt,
+            &AllocationContext::new(account, MemoryKind::Workspace),
+        ));
+        Ok(restricted)
+    }
+
+    pub(crate) fn complete_interval(
+        &self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        if !matches!(self.phase, Phase::Finished)
+            || self.duplicate
+            || self.last_diagnostic.is_some()
+        {
+            return Ok(());
+        }
+        let Some(IntervalAttempt::Cold(key)) = self.interval.as_deref() else {
+            return Ok(());
+        };
+        control.check()?;
+        account.work(1);
+        let mut interval = self
+            .plan
+            .replay
+            .as_ref()
+            .expect("interval plan")
+            .interval
+            .borrow_mut();
+        if let Some(interval) = interval.as_mut() {
+            interval.record(*key);
+        } else {
+            *interval = Some(AccountedBox::new(
+                CompletedInterval::new(*key),
+                &AllocationContext::new(account, MemoryKind::Workspace),
+            ));
+        }
+        Ok(())
+    }
+
+    fn discovery_ordinal(&self, side: usize) -> Option<&'a usize> {
+        match self.interval.as_deref() {
+            Some(IntervalAttempt::Restricted(pair)) => {
+                Some(&self.plan.sides[side].rows[pair[side]].ordinal)
+            }
+            _ => None,
         }
     }
     pub(crate) fn enable_replay(
@@ -963,6 +1142,9 @@ impl<'a> Step<'a> {
             Phase::Left | Phase::Right => {
                 if sample.value.kind_bit() != 1 {
                     self.pending = None;
+                    if matches!(self.interval.as_deref(), Some(IntervalAttempt::Cold(_))) {
+                        self.interval = None;
+                    }
                 }
                 let side = usize::from(matches!(self.phase, Phase::Right));
                 let row = self.plan.position(side, &sample, control, account)?;
@@ -971,6 +1153,9 @@ impl<'a> Step<'a> {
                 {
                     if self.active[side].last().is_some_and(|last| last.row >= row) {
                         self.pending = None;
+                        if matches!(self.interval.as_deref(), Some(IntervalAttempt::Cold(_))) {
+                            self.interval = None;
+                        }
                     } else {
                         let position = row
                             + if side == 0 {
@@ -1574,7 +1759,7 @@ impl<'a> Step<'a> {
                     self.phase = Phase::Left;
                     return Ok(Action::Child {
                         side: 0,
-                        ordinal: None,
+                        ordinal: self.discovery_ordinal(0),
                     });
                 }
                 Phase::Left => self.phase = Phase::StartRight,
@@ -1582,7 +1767,7 @@ impl<'a> Step<'a> {
                     self.phase = Phase::Right;
                     return Ok(Action::Child {
                         side: 1,
-                        ordinal: None,
+                        ordinal: self.discovery_ordinal(1),
                     });
                 }
                 Phase::Right => {
@@ -1839,6 +2024,221 @@ fn frozen_labels<'a>(
 mod tests {
     use super::*;
     use crate::{accounting::EngineAccounting, storage::LabelRef};
+
+    #[test]
+    fn completed_interval_keeps_exact_domains_and_never_infers_holes() {
+        let mut base = discovery_key();
+        base.clock[2] = 9000;
+        let at = |index: i64| {
+            let mut key = base;
+            key.clock[0] += index * 1000;
+            key.clock[5] = index;
+            key
+        };
+        let mut span = CompletedInterval::new(at(2));
+        span.record(at(3));
+        span.record(at(1));
+        for index in 0..9 {
+            assert_eq!(span.contains(at(index)), (1..=3).contains(&index));
+        }
+        span.record(at(6));
+        assert!(!span.contains(at(3)) && !span.contains(at(5)) && span.contains(at(6)));
+        for field in 0..9 {
+            let mut changed = at(6);
+            changed.clock[field] += 1;
+            assert!(!span.contains(changed), "clock field {field}");
+        }
+        let mut changed = at(6);
+        changed.start_timestamps = true;
+        assert!(!span.contains(changed));
+        changed = at(6);
+        changed.delayed_name_removal = true;
+        assert!(!span.contains(changed));
+        let mut invalid = base;
+        for step in [0, -1, i64::MAX] {
+            invalid.clock[3] = step;
+            invalid.clock[5] = 2;
+            assert!(!CompletedInterval::valid(invalid));
+        }
+        invalid = base;
+        invalid.clock[5] = -1;
+        assert!(!CompletedInterval::valid(invalid));
+        invalid.clock[5] = 0;
+        invalid.clock[0] = i64::MAX;
+        invalid.clock[1] = i64::MAX;
+        invalid.clock[2] = i64::MAX;
+        assert!(CompletedInterval::valid(invalid));
+        invalid.clock[5] = 1;
+        assert!(!CompletedInterval::valid(invalid));
+    }
+
+    fn interval_plan(control: &Control, account: &QueryAccounting) -> Plan {
+        let matching = VectorMatching::default();
+        let mut plan = discovery_plan(3, &matching, control, account);
+        let mut cache = Cache::new(account);
+        for row in 0..3 {
+            Step::new(&plan, &matching, TokenKind::DIV, false, account)
+                .result_labels(
+                    &mut cache,
+                    [
+                        &plan.sides[0].rows[row].labels,
+                        &plan.sides[1].rows[row].labels,
+                    ],
+                    Some([row, row]),
+                    false,
+                    control,
+                    account,
+                )
+                .unwrap();
+        }
+        plan.cache = cache;
+        plan.certify_replay(&[0, 1, 2], Cardinality::OneToOne, control, account)
+            .unwrap();
+        plan.certify_pair_discovery(Cardinality::OneToOne, control, account)
+            .unwrap();
+        assert!(plan.has_pair_discovery());
+        plan
+    }
+
+    #[test]
+    fn completed_interval_requires_full_final_success_and_clears_with_discovery() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let matching = VectorMatching::default();
+        let plan = interval_plan(&control, &account);
+        let key = discovery_key();
+        {
+            let mut cold = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+            assert!(!cold.enable_interval(0, key, &control, &account).unwrap());
+            cold.enable_pair_discovery(key, &control, &account).unwrap();
+            cold.complete_interval(&control, &account).unwrap();
+            assert!(plan.replay.as_ref().unwrap().interval.borrow().is_none());
+            discovery_trace_scoped(
+                &mut cold,
+                [&[0, 1, 2]; 2],
+                None,
+                Some(0),
+                &control,
+                &account,
+            );
+            cold.complete_interval(&control, &account).unwrap();
+            assert!(plan.replay.as_ref().unwrap().interval.borrow().is_none());
+            discovery_trace(&mut cold, [&[0, 1, 2]; 2], &control, &account);
+            let cancelled = Control::default();
+            cancelled.cancellation.cancel();
+            assert!(cold.complete_interval(&cancelled, &account).is_err());
+            assert!(plan.replay.as_ref().unwrap().interval.borrow().is_none());
+            cold.complete_interval(&control, &account).unwrap();
+            assert!(
+                plan.replay
+                    .as_ref()
+                    .unwrap()
+                    .interval
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .contains(key)
+            );
+        }
+        plan.clear_discovery();
+        assert!(plan.replay.as_ref().unwrap().interval.borrow().is_none());
+        drop(plan);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn completed_interval_rediscovers_both_sides_without_publishing_partial_membership() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let matching = VectorMatching::default();
+        let plan = interval_plan(&control, &account);
+        let key = discovery_key();
+        {
+            let mut cold = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+            assert!(!cold.enable_interval(0, key, &control, &account).unwrap());
+            cold.enable_pair_discovery(key, &control, &account).unwrap();
+            discovery_trace(&mut cold, [&[0, 1, 2]; 2], &control, &account);
+            cold.complete_interval(&control, &account).unwrap();
+        }
+        let saved = plan
+            .replay
+            .as_ref()
+            .unwrap()
+            .completed
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .members
+            .to_vec();
+        for absent in [false, true] {
+            let mut step = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+            assert!(step.enable_interval(1, key, &control, &account).unwrap());
+            assert!(!step.has_pair_discovery());
+            let mut trace = Vec::new();
+            let mut output = None;
+            loop {
+                match step
+                    .advance(
+                        NodeId(0),
+                        discovery_options(),
+                        None,
+                        None,
+                        &control,
+                        &account,
+                    )
+                    .unwrap()
+                {
+                    Action::Child { side, ordinal } => {
+                        let ordinal = *ordinal.expect("restricted discovery and replay");
+                        let row = plan.sides[side]
+                            .rows
+                            .iter()
+                            .position(|row| row.ordinal == ordinal)
+                            .unwrap();
+                        trace.push((side, row));
+                        assert_eq!(row, 1);
+                        if !(absent && side == 0) {
+                            let mut sample = discovery_sample(&plan, side, row, &control, &account);
+                            sample.value = OwnedValue::Float(if side == 0 { 9.0 } else { 3.0 });
+                            step.receive(sample, &control, &account).unwrap();
+                        }
+                    }
+                    Action::Sample(sample) => {
+                        output = Some(sample.value);
+                    }
+                    Action::Done(note) => {
+                        assert!(note.is_none());
+                        break;
+                    }
+                }
+            }
+            if absent {
+                assert!(output.is_none());
+                assert_eq!(trace, [(0, 1), (1, 1)]);
+            } else {
+                assert!(matches!(output, Some(OwnedValue::Float(value)) if value == 3.0));
+                assert_eq!(trace, [(0, 1), (1, 1), (0, 1), (1, 1)]);
+            }
+            step.complete_replay(&control).unwrap();
+            step.complete_interval(&control, &account).unwrap();
+            assert_eq!(
+                &*plan
+                    .replay
+                    .as_ref()
+                    .unwrap()
+                    .completed
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .members,
+                &saved
+            );
+        }
+        drop(plan);
+        account.snapshot().assert_memory_released();
+    }
 
     fn labels(value: &[u8], account: &QueryAccounting) -> OwnedLabels {
         OwnedLabels::copy_from(

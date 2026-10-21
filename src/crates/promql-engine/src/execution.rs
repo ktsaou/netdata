@@ -10306,6 +10306,152 @@ mod tests {
     }
 
     #[test]
+    fn derived_binary_completed_clocks_preserve_results_and_bounded_reads() {
+        for page in [1, 17, 1024] {
+            for count in [4, 16] {
+                for (expression, multiplier) in [
+                    ("max_over_time((m/n)[8s:1s])", 1.0),
+                    ("max_over_time((((m/n)))[8s:1s])", 1.0),
+                    ("abs(max_over_time((m/n)[8s:1s]))", 1.0),
+                    ("sum_over_time((m/n)[8s:1s])", 8.0),
+                    ("max_over_time((m/n)[8s:1s] @ 16)", 1.0),
+                    ("max_over_time((m/n)[8s:1s] offset 1s)", 1.0),
+                ] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                        .unwrap();
+                    let mut provider = ordered_binary_provider(page, count);
+                    for series in &mut provider.series {
+                        series.source.count = 16;
+                    }
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 16000 },
+                        &control,
+                    );
+                    let result = report.result.as_ref().unwrap();
+                    assert!(report.annotations.is_empty());
+                    assert_eq!(result.series.len(), count);
+                    for (identity, row) in result.series.iter().enumerate() {
+                        let id = format!("{identity:06}");
+                        assert_eq!(
+                            row.labels
+                                .0
+                                .iter()
+                                .map(|label| (&*label.name, &*label.value))
+                                .collect::<Vec<_>>(),
+                            [
+                                (b"id".as_slice(), id.as_bytes()),
+                                (b"job".as_slice(), b"worker".as_slice())
+                            ]
+                        );
+                        assert_eq!(row.points.len(), 1);
+                        assert_eq!(row.points[0].time_ms, 16000);
+                        let value: f64 = if identity.is_multiple_of(2) { 0.5 } else { 2.0 };
+                        assert_eq!(float_bits(&row.points[0]), (value * multiplier).to_bits());
+                    }
+                    assert_eq!(report.observations.output_samples, count as u64);
+                    assert_eq!(
+                        report
+                            .observations
+                            .statistics
+                            .samples
+                            .total_queryable_samples,
+                        // The range function consumes eight derived values per series.
+                        (8 * count) as u64
+                    );
+                    assert_eq!(
+                        report.observations.memory[MemoryKind::Workspace as usize].current,
+                        0
+                    );
+                    assert!(
+                        provider.series.iter().all(|row| row
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed)
+                            == 1)
+                    );
+                    println!(
+                        "derived-binary-clocks expression={expression:?} page={page} count={count} fetched={} work={}",
+                        report.observations.samples_fetched, report.observations.work
+                    );
+                    if count == 16 && page == 17 && expression == "max_over_time((m/n)[8s:1s])" {
+                        // The complete result must pass before detecting the repeated full-discovery regression.
+                        assert!(report.observations.samples_fetched < 100_000);
+                    }
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn derived_binary_completed_clocks_preserve_required_read_failures() {
+        let request = QueryRequest::Instant { time_ms: 3000 };
+        for page in [1, 17, 1024] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"max_over_time((m/n)[2s:1s])",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let calibration = ordered_binary_provider(page, 2);
+            let (rows, prepared, plans) =
+                float_map_join_preparation_with_discovery(&query, &calibration, request, &control);
+            assert_eq!((rows, plans), (2, 1));
+            let provider = ordered_binary_provider(page, 2);
+            let mut sink = RecordingSink::default();
+            let report = query.execute_reported(&provider, request, &control, &mut sink);
+            assert!(report.result.is_ok());
+            assert!(sink.begun && sink.committed && !sink.aborted);
+            provider.assert_closed();
+            let last = provider
+                .series
+                .iter()
+                .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
+                .collect::<Vec<_>>();
+            drop(report);
+            let mut faults = 0;
+            for (position, (&first, &last)) in prepared.iter().zip(&last).enumerate() {
+                assert!(last > first);
+                for acquisition in first + 1..=last {
+                    let mut provider = ordered_binary_provider(page, 2);
+                    provider.series[position].source.fail_acquisition = Some(acquisition);
+                    let mut sink = RecordingSink::default();
+                    let report = query.execute_reported(&provider, request, &control, &mut sink);
+                    assert!(
+                        matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes)))) if &**bytes == b"injected page failure")
+                    );
+                    assert!(sink.begun && sink.aborted && !sink.committed);
+                    assert_eq!(
+                        provider.series[position]
+                            .source
+                            .counters
+                            .opened
+                            .load(Ordering::Relaxed),
+                        acquisition
+                    );
+                    assert!(report.annotations.is_empty());
+                    report.assert_retained_callback_error_memory();
+                    provider.assert_closed();
+                    faults += 1;
+                }
+            }
+            println!("derived-binary-clocks page={page} post-preparation-faults={faults}");
+            drop(query);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
     fn ordered_binary_consumers_check_complete_results_before_bounded_reads() {
         let mut growth = Vec::new();
         let mut complete = 0;
@@ -11291,6 +11437,10 @@ mod tests {
                     assert!(
                         !plan.has_completed_pair_discovery(),
                         "preparation retained pair progress"
+                    );
+                    assert!(
+                        !plan.has_completed_interval(),
+                        "preparation retained completed clocks"
                     );
                     pair_plans += usize::from(plan.has_pair_discovery());
                 }

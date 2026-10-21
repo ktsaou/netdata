@@ -2460,3 +2460,27 @@ individual slower cases and unfinished checks.
   missed the benefit criterion fixed before implementation. Exact baseline runtime and tests were restored.
 - [Retained negative qualification](README.md#rejected-scalar-arithmetic-ownership-transfer) records all samples,
   both profiles, unchanged memory, unrun broader checks and source attribution. No new ownership rule was adopted.
+
+
+## Completed binary subquery clocks
+
+- **Decision:** reuse a constant-size interval of actually completed clocks for direct, certified unique Float
+  binary subqueries. Keep selected values and membership fresh; do not retain a metric-by-time matrix.
+- **Admission:** bare selector operands, one-to-one ordinary arithmetic/comparison, no fill or delayed-name mode,
+  and a real range consumer through only transparent parentheses/same-node ordering frames. Every child-domain
+  field stays exact; only checked positive aligned clocks can extend contiguous credit.
+- **Completion:** successful unrestricted binary Done earns credit. A stopped endpoint, failed/native/nonmonotone
+  discovery or restricted read cannot extend it. Selected left and right are rediscovered in order even if left
+  is absent; ordinary pair reacquisition, matching, filtering and arithmetic remain authoritative.
+- **Ownership:** one accounted interval per eligible plan, plus accounted active-attempt state. No partial
+  global membership or generic prefix publication on restricted execution. Frozen child plans may be consumed
+  during ancestor preparation; preparation-to-final clearing, replacement and recertification invalidate credit.
+- **Measured trade-off:** the fixed synthetic target family takes about 40–41% of baseline time. One 16-pair
+  case fetches 66,432 rather than 529,664 entries with a 529 B lower workspace peak; four-pair cases add 144 B.
+  One aggregate-ratio control remains 10.3% slower in the fixed follow-up, with unchanged reads/work and an
+  unresolved cause; a separate CPU diagnostic is mixed. Acceptance follows the predeclared family gates.
+  The report preserves all controls and compiled costs separately from runtime memory. These observations
+  do not establish live-dbengine throughput or RSS.
+- **Evidence:** [completed-clock qualification](derived-binary-clocks-qualification.json) and the corresponding
+  [reproduction procedure](README.md#completed-clocks-in-binary-subqueries). Initial non-activation, mismatched
+  original options and strict order differences remain historical evidence, not silently converted passes.
