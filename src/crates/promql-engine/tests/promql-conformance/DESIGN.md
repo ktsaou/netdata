@@ -2484,3 +2484,17 @@ individual slower cases and unfinished checks.
 - **Evidence:** [completed-clock qualification](derived-binary-clocks-qualification.json) and the corresponding
   [reproduction procedure](README.md#completed-clocks-in-binary-subqueries). Initial non-activation, mismatched
   original options and strict order differences remain historical evidence, not silently converted passes.
+
+
+## Unchanged provider resource snapshots
+
+- **Decision:** skip ledger mutation for an entirely unchanged resource batch, after same-query validation.
+  Borrow the first lease's live query owner for validation; clone it only for the existing changed-batch body.
+- **Preserved:** all provider callbacks and hierarchy snapshots, ownership rejection, changed-batch locks,
+  release-before-acquire transfers, exact memory counters and existing control/error phases. No new state or cap.
+- **Measured result:** target-family time falls about 14% in the fixed synthetic panel; every reported nonelapsed
+  observation matches. Preserve individual slower measurements and their single follow-up; no universal or live
+  throughput claim follows. Compiled costs are separate from runtime memory.
+- **Evidence:** [qualification](unchanged-resource-snapshots-qualification.json) and
+  [procedure](README.md#unchanged-provider-resource-snapshots). This is separate from the rejected generic zero-count
+  experiment; `MemoryLease::resize` and provider callback frequency remain unchanged.

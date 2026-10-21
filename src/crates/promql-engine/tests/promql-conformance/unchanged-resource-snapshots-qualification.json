@@ -1,0 +1,706 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "6a77f221c28421841a1c1be77bc11298d85cb9fb",
+  "change": "Validate same-query ownership, then skip ledger mutation for an entirely unchanged batch of provider resource sizes. Borrow owner for validation; clone only for the existing changed-batch body.",
+  "preserved": [
+    "Every provider resource callback and hierarchy snapshot",
+    "Mixed-query rejection even for unchanged zero and nonzero sizes",
+    "Changed-batch engine/query locks and release-before-acquire transfer",
+    "Current/peak/acquired/released/sticky-overflow observations",
+    "Public provider/ABI/storage/control/paging/metadata/numerical contracts and disabled implicit caps"
+  ],
+  "no_new_state_or_buffers": true,
+  "scope_limit": "Internal temporary reference counts differ; the unchanged path omits the temporary clone and its artificial maximum-alias assertion. No ordinary-query route to that leaked-alias state is established. This does not relax saturating memory-counter behavior.",
+  "source_phases": {
+    "current-source": {
+      "path": ".tmp/resource-reconcile-p36e3it1/current-source.json",
+      "sha256": "694f84b277966d53a91a59c997ef072958073c03640b16598da53103f1081886"
+    },
+    "tests-source": {
+      "path": ".tmp/resource-reconcile-p36e3it1/tests-source.json",
+      "sha256": "f5929e3d299a276cbf55f3732850760fefc9f0d0dfda5ff37645f73b087c3714"
+    },
+    "candidate-source": {
+      "path": ".tmp/resource-reconcile-p36e3it1/candidate-source.json",
+      "sha256": "699b51702dca024c853d152e73a5b93b3c514bf590c6e1da2e710fcf318cb28c"
+    },
+    "final-source": {
+      "path": ".tmp/resource-reconcile-p36e3it1/final-source.json",
+      "sha256": "699b51702dca024c853d152e73a5b93b3c514bf590c6e1da2e710fcf318cb28c"
+    }
+  },
+  "baseline_attribution": {
+    "actual_build_stage": "completed-binary-subquery-clocks",
+    "binaries": {
+      "release": {
+        "path": ".tmp/derived-workload-tbi88rju/current-release/query",
+        "sha256": "c809b7056f2de6565b7ac2cad996ebe26b0e640c283bd09d0046cc85f4fc6e1f"
+      },
+      "release-min": {
+        "path": ".tmp/derived-workload-tbi88rju/current-release-min/query",
+        "sha256": "457f1a204b4054835f03bda771ba2f3139fbc2b961a82fc44305005eb0b5fcd1"
+      }
+    },
+    "runtime_equivalent_commit": "6a77f221c28421841a1c1be77bc11298d85cb9fb",
+    "actual_build_receipts": {
+      "release": {
+        "path": ".tmp/derived-workload-tbi88rju/qualification-release.json",
+        "sha256": "c57d6de6ebbb5f7271b9fa952f5c8c545cf4b18de4e4c36dd01d8f4f1dd51782"
+      },
+      "release-min": {
+        "path": ".tmp/derived-workload-tbi88rju/qualification-release-min.json",
+        "sha256": "c273ba31059ac795fd89a3fb81c90569413624ee334640e1dad999bfde99e5f4"
+      }
+    },
+    "attribution": "Existing binaries retain actual stage149 frozen source; subsequent docs commit changes no runtime. No historical source rebinding."
+  },
+  "causal_profile": {
+    "N4_calls": 8,
+    "N6_calls": 11072,
+    "N8_calls": 12288,
+    "self_instructions": 9749488,
+    "whole_process_instructions": 79815845,
+    "receipt": {
+      "path": ".tmp/derived-workload-tbi88rju/cpu-diagnosis.json",
+      "sha256": "0fc4ffdef6e86a3bdf92514001197d1072dcb9cd9dc1038f8a06f0810d70b433"
+    },
+    "current_instruction_capture": {
+      "summary_instructions": 79815845,
+      "path": ".tmp/derived-workload-tbi88rju/cpu-diagnosis-callgrind-current.out",
+      "sha256": "0d2370f2464610e521d49bfc2382adf247621ee52394d5d77a75090adc0f2651"
+    }
+  },
+  "measurement": {
+    "pairs": 1200,
+    "design": "30cases/profile (10ratio/grouped-rate targets,20controls),5alternatingblocks,onewarm+3measured; same CPU; complete results and every fixture nonelapsed observation exact.",
+    "frozen_gates": {
+      "cases": 30,
+      "target_cases": 10,
+      "controls": 20,
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "blocks": 5,
+      "warmups": 1,
+      "measured_per_block": 3,
+      "target_family_ratio_max": 0.98,
+      "control_family_ratio_max": 1.05,
+      "comparisons": "Complete outputs and all nonelapsed observations exact; any difference fails.",
+      "slower_cases": "Preserve all; one fixed6block one-warm+6measured follow-up only if primaryindividualratio>1.05; never replaces primary gate.",
+      "scope": "Private unchanged resource snapshot optimization; no live performance/RSS claim."
+    },
+    "profiles": {
+      "release": {
+        "families": {
+          "target": 0.8639344185260822,
+          "control": 0.8930823204274292
+        },
+        "individual_ratios_over_1_05": []
+      },
+      "release-min": {
+        "families": {
+          "target": 0.8598792693439121,
+          "control": 0.913395310057924
+        },
+        "individual_ratios_over_1_05": [
+          {
+            "case": {
+              "id": "n4-t16-ratio",
+              "count": 4,
+              "ticks": 16,
+              "tag": "ratio",
+              "family": "target",
+              "expression": "max_over_time((sum(rate(m_total[3s])) / sum(rate(n_total[3s])))[8s:1s])"
+            },
+            "before_ns": [
+              4070469,
+              4212448,
+              3732522,
+              4311947,
+              5177321,
+              3820911,
+              4443036,
+              3872771,
+              3677012,
+              4325477,
+              3791671,
+              3953450,
+              5421838,
+              5201141,
+              6229622
+            ],
+            "candidate_ns": [
+              6682349,
+              6731708,
+              6750209,
+              3517643,
+              4437906,
+              4435446,
+              3441253,
+              3396845,
+              4844623,
+              4040189,
+              3707082,
+              3789011,
+              4535955,
+              5074941,
+              4883753
+            ],
+            "ratio": 1.0535218476287422
+          },
+          {
+            "case": {
+              "id": "n4-t16-join",
+              "count": 4,
+              "ticks": 16,
+              "tag": "join",
+              "family": "control",
+              "expression": "max_over_time((m_total/n_total)[8s:1s])"
+            },
+            "before_ns": [
+              4966742,
+              5603967,
+              4972772,
+              5023481,
+              5371849,
+              5006712,
+              5463728,
+              5089621,
+              5125200,
+              5484658,
+              5109201,
+              5086381,
+              5371469,
+              5503258,
+              6117283
+            ],
+            "candidate_ns": [
+              8740654,
+              8757962,
+              8729623,
+              5828346,
+              5452288,
+              6097233,
+              5692537,
+              5714526,
+              4763114,
+              5473538,
+              5131951,
+              5205200,
+              5538097,
+              4483225,
+              4435646
+            ],
+            "ratio": 1.0805621244049013
+          },
+          {
+            "case": {
+              "id": "n16-t16-direct",
+              "count": 16,
+              "ticks": 16,
+              "tag": "direct",
+              "family": "control",
+              "expression": "sum(rate(m_total[3s]))"
+            },
+            "before_ns": [
+              276168,
+              294108,
+              276367,
+              361297,
+              479667,
+              388627,
+              284757,
+              275348,
+              325838,
+              277598,
+              275458,
+              301307,
+              433217,
+              391477,
+              278757
+            ],
+            "candidate_ns": [
+              272748,
+              342818,
+              356867,
+              440936,
+              440777,
+              389257,
+              234308,
+              248408,
+              238469,
+              384677,
+              395237,
+              347077,
+              234758,
+              228168,
+              233949
+            ],
+            "ratio": 1.16561943231738
+          }
+        ]
+      }
+    },
+    "followup": {
+      "release-min": {
+        "pairs": 126,
+        "cases": [
+          {
+            "id": "n16-t16-direct",
+            "primary_ratio": 1.16561943231738,
+            "before_ns": [
+              524236,
+              531886,
+              527086,
+              530276,
+              512396,
+              523216,
+              304228,
+              284388,
+              281857,
+              376137,
+              468877,
+              481957,
+              425786,
+              465706,
+              426246,
+              464776,
+              469536,
+              479086,
+              483797,
+              409347,
+              432437,
+              445027,
+              410717,
+              445316,
+              516766,
+              528525,
+              509546,
+              499196,
+              510157,
+              431796,
+              542656,
+              534816,
+              554576,
+              552546,
+              528676,
+              552716
+            ],
+            "current_ns": [
+              417567,
+              433637,
+              435356,
+              409937,
+              411297,
+              432497,
+              252188,
+              265748,
+              239438,
+              277577,
+              281778,
+              263508,
+              409487,
+              441887,
+              427546,
+              452376,
+              420777,
+              453246,
+              414296,
+              424946,
+              413776,
+              445156,
+              405128,
+              444556,
+              440277,
+              413087,
+              447817,
+              432737,
+              430117,
+              430017,
+              431277,
+              451627,
+              429967,
+              435427,
+              403877,
+              459257
+            ],
+            "ratio": 0.8879207334372936
+          },
+          {
+            "id": "n4-t16-join",
+            "primary_ratio": 1.0805621244049013,
+            "before_ns": [
+              5067722,
+              7468192,
+              9337348,
+              9098320,
+              9303808,
+              9390547,
+              7854009,
+              7282934,
+              8775262,
+              8007818,
+              8328696,
+              8189597,
+              7550871,
+              8405885,
+              7765830,
+              7835409,
+              8370126,
+              8376526,
+              9623976,
+              9857724,
+              8998901,
+              9660465,
+              9047191,
+              9929103,
+              8923311,
+              9491607,
+              9509237,
+              9460996,
+              9474758,
+              9411918,
+              9589466,
+              9637815,
+              9383738,
+              8672583,
+              8387006,
+              9552286
+            ],
+            "current_ns": [
+              7545882,
+              8077248,
+              8261136,
+              8096988,
+              8216907,
+              8029948,
+              9417987,
+              7769010,
+              4556185,
+              4484646,
+              4509765,
+              4458045,
+              8069788,
+              8068308,
+              7473992,
+              7079835,
+              7323184,
+              7098916,
+              8636843,
+              8575704,
+              8700503,
+              8408086,
+              7446373,
+              8167587,
+              7805160,
+              8026598,
+              8492695,
+              8366305,
+              7973988,
+              7590642,
+              8632333,
+              8813732,
+              7353533,
+              8630784,
+              8735602,
+              8927281
+            ],
+            "ratio": 0.8942709590530736
+          },
+          {
+            "id": "n4-t16-ratio",
+            "primary_ratio": 1.0535218476287422,
+            "before_ns": [
+              6977506,
+              6503280,
+              6984666,
+              6779378,
+              6734598,
+              6464670,
+              6597569,
+              6894496,
+              5491118,
+              4879403,
+              6380141,
+              6488220,
+              6514990,
+              6249232,
+              6153612,
+              6100163,
+              6313502,
+              6195272,
+              6893447,
+              6625589,
+              6714588,
+              7148275,
+              6797068,
+              7248774,
+              7251574,
+              7569522,
+              7363273,
+              5958694,
+              6120893,
+              5956574,
+              7366214,
+              6466851,
+              6694668,
+              7102335,
+              7116705,
+              7160596
+            ],
+            "current_ns": [
+              5986444,
+              5917325,
+              5888915,
+              5952084,
+              6162292,
+              5955684,
+              5637807,
+              7372483,
+              5115410,
+              6226902,
+              5952165,
+              6049253,
+              6525190,
+              5654236,
+              4903592,
+              5222970,
+              6484451,
+              5221129,
+              6584270,
+              6395190,
+              6859557,
+              6792558,
+              6339612,
+              6676599,
+              5393539,
+              5263850,
+              6331281,
+              6221742,
+              6375751,
+              6378200,
+              5711346,
+              5799085,
+              5596267,
+              5589967,
+              5994774,
+              6220103
+            ],
+            "ratio": 0.8994734861346895
+          }
+        ]
+      }
+    },
+    "followup_observations": 126,
+    "cpu": 0,
+    "followup_cpu": 0,
+    "resource_effects": "All reported fixture memory categories, work, pages, source entries, provider calls, references and backing observations match exactly. Fixture JSON does not expose the complete basic-statistics structure; actual Engine/C tests cover their own stated fields."
+  },
+  "qualification": {
+    "focused_units_before_and_after": 11,
+    "new_tests": 3,
+    "unchanged_snapshot_cases": 16,
+    "unchanged_mixed_query_rejections": 2,
+    "concurrent_scope": "Four independent queries sharing one engine;32changed+32unchanged batches perworker. No cloned same-query-worker claim.",
+    "saturation_scope": "Injected saturated records prove unchanged observations; normal cases prove balanced release.",
+    "native_units_per_profile": 888,
+    "preexisting_ignored_per_profile": 2,
+    "foreign_focused_units_per_target": 11,
+    "candidate_C_CPP_executions": 432,
+    "candidate_C_successes": 144,
+    "candidate_C_provider_errors": 288,
+    "complete_native_C_suites": 2,
+    "original_policy_comparisons": 768,
+    "strict_order_differences_retained": 336,
+    "original_scope": "Previously authenticated direct/dynamic originals, actual fixed Go options, exact numeric values with approved unspecified instant-vector ordering. Strict failures retained separately; not newly captured originals or a full-language recapture.",
+    "static_variants": 2,
+    "format": true,
+    "msrv_compile_only": "1.91.0"
+  },
+  "compiled_C_sizes": {
+    "release": {
+      "kind": "default-C",
+      "before": [
+        7380170,
+        507128,
+        400
+      ],
+      "current": [
+        7380342,
+        507128,
+        400
+      ],
+      "growth": 172,
+      "before_total": 7887698,
+      "current_total": 7887870,
+      "growth_percent": 0.0021806108702437646,
+      "cumulative_baseline_text_data_bss": [
+        7370378,
+        506744,
+        400
+      ],
+      "cumulative_growth_bytes": 10348,
+      "cumulative_growth_percent": 0.13136110568780385
+    },
+    "release-min": {
+      "kind": "default-C",
+      "before": [
+        5109283,
+        462504,
+        400
+      ],
+      "current": [
+        5109403,
+        462504,
+        400
+      ],
+      "growth": 120,
+      "before_total": 5572187,
+      "current_total": 5572307,
+      "growth_percent": 0.002153552994542358,
+      "cumulative_baseline_text_data_bss": [
+        5103967,
+        462056,
+        400
+      ],
+      "cumulative_growth_bytes": 5884,
+      "cumulative_growth_percent": 0.1057052257796434
+    },
+    "arm32": {
+      "kind": "default-C",
+      "before": [
+        6395945,
+        292836,
+        244
+      ],
+      "current": [
+        6396417,
+        292836,
+        244
+      ],
+      "growth": 472,
+      "before_total": 6689025,
+      "current_total": 6689497,
+      "growth_percent": 0.007056334817107127,
+      "cumulative_baseline_text_data_bss": [
+        6382697,
+        292596,
+        244
+      ],
+      "cumulative_growth_bytes": 13960,
+      "cumulative_growth_percent": 0.20912175305147734
+    },
+    "arm64": {
+      "kind": "default-C",
+      "before": [
+        6404910,
+        497392,
+        384
+      ],
+      "current": [
+        6405158,
+        497392,
+        384
+      ],
+      "growth": 248,
+      "before_total": 6902686,
+      "current_total": 6902934,
+      "growth_percent": 0.0035928043083518504,
+      "cumulative_baseline_text_data_bss": [
+        6374470,
+        497032,
+        384
+      ],
+      "cumulative_growth_bytes": 31048,
+      "cumulative_growth_percent": 0.45181191888223987
+    }
+  },
+  "cumulative_compiled_baseline": "51862635936717f6bcc9ab018b994d0ac205b0ea",
+  "compiled_scope": "Actual default-library C consumer sections; no full Netdata/RSS/per-query-memory equivalence claim. Proportional footprint policy applies.",
+  "receipts": {
+    "tests-semantic": {
+      "path": ".tmp/resource-reconcile-p36e3it1/tests-semantic.json",
+      "sha256": "8ce5d7211a2e5d2ed93095f23656230e88c5a8ab3e0ddd5e24259b92e7949b88"
+    },
+    "candidate-semantic": {
+      "path": ".tmp/resource-reconcile-p36e3it1/candidate-semantic.json",
+      "sha256": "1f28cc7532acb97c36718b16fc05b057c4272bc4516a61274ba6bb7e305d3124"
+    },
+    "analysis-review": {
+      "path": ".tmp/resource-reconcile-p36e3it1/analysis-review.json",
+      "sha256": "4ac25ba8ee96928687bf28d85dd263a225192eb48f60cb494371966894bfaca9"
+    },
+    "implementation-review": {
+      "path": ".tmp/resource-reconcile-p36e3it1/implementation-review.json",
+      "sha256": "25c92139cc65b7755044e32f3b6e426274ffffac3d3ef4f8ea7a399d15dea1d8"
+    },
+    "pilot": {
+      "path": ".tmp/resource-reconcile-p36e3it1/pilot.json",
+      "sha256": "091fcb5fd242525cf9c69cba300566b42c3a52a4753c1ce42ae9b7e91438ff42"
+    },
+    "slower-followup": {
+      "path": ".tmp/resource-reconcile-p36e3it1/slower-followup.json",
+      "sha256": "4d7332651b95cfa4bf9b54e06e3b4346f3dd12dbaa2eed28542af4090ddfecd8"
+    },
+    "followup-observations": {
+      "path": ".tmp/resource-reconcile-p36e3it1/followup-observations.json",
+      "sha256": "904ba02c7ec01d3bc1f7ea9cac525ea20e67b1c9a1ab7d2218b11f38998a99e5"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/resource-reconcile-p36e3it1/artifact-integrity.json",
+      "sha256": "82b46b2c4af26aa22d007f9dee6e4f96fe8edbb6079d30011197da29bf1c6774"
+    },
+    "current-static": {
+      "path": ".tmp/resource-reconcile-p36e3it1/current-static.json",
+      "sha256": "aa6efc7f1c0ce0897ea2f5e6d327dea1f1ae430f4bc8146ca9fb06ec9422cfc0"
+    },
+    "build-release": {
+      "path": ".tmp/resource-reconcile-p36e3it1/build-release.json",
+      "sha256": "bff06ded3870e0aff513217626e89fa8aeeaf4a36b6ce6ffcc20139547f6b968"
+    },
+    "build-release-min": {
+      "path": ".tmp/resource-reconcile-p36e3it1/build-release-min.json",
+      "sha256": "1ba603a5d4f9a5c2c2106e19637f2128f4b9522d02e0f8788c658c86496d5c49"
+    },
+    "build-arm32": {
+      "path": ".tmp/resource-reconcile-p36e3it1/build-arm32.json",
+      "sha256": "efff3c003e0d4ec65626ccf52f5f7c128807964b52418d0efb7256d37f6f7da6"
+    },
+    "build-arm64": {
+      "path": ".tmp/resource-reconcile-p36e3it1/build-arm64.json",
+      "sha256": "144f0ad9b01ab6dbea309e9be10606417701458c9fb01420d691e15d4557d34a"
+    },
+    "qualification-release": {
+      "path": ".tmp/resource-reconcile-p36e3it1/qualification-release.json",
+      "sha256": "7a03693a3ae82c785cffd021d4c6dc17910cbd7f45135357010119f5c2664832"
+    },
+    "qualification-release-min": {
+      "path": ".tmp/resource-reconcile-p36e3it1/qualification-release-min.json",
+      "sha256": "52f68b4dd82803a67b6607011daf5a3e4f4202925c7fdfa77cf3b39993e51dd2"
+    },
+    "qualification-arm32": {
+      "path": ".tmp/resource-reconcile-p36e3it1/qualification-arm32.json",
+      "sha256": "c9656db5a380ee44fc0f689bb1d5064bce066b3db55fdd461871387b31fdc0a2"
+    },
+    "qualification-arm64": {
+      "path": ".tmp/resource-reconcile-p36e3it1/qualification-arm64.json",
+      "sha256": "1fca5b7a0f400ae65ce8e5e67f5645e00556888b3c482c5a93bd39712b4837dd"
+    },
+    "references-release": {
+      "path": ".tmp/resource-reconcile-p36e3it1/references-release.json",
+      "sha256": "bd18e1021bb02d45516ec017727846364043ea55000e6d5421d9bfccbc6b6173"
+    },
+    "references-release-min": {
+      "path": ".tmp/resource-reconcile-p36e3it1/references-release-min.json",
+      "sha256": "1f77305be514ecb0e624b0fca3d48b96dd7c7cc3fe5b26bb33abbd95acdfe027"
+    }
+  },
+  "limitations": [
+    "Synthetic shared-host fixture timings do not establish live-dbengine throughput or RSS.",
+    "All slower primary cases remain retained; fixed follow-up is not a replacement gate or proof of universal improvement.",
+    "Existing C panel covers required provider errors, not a new cancellation/winning-output-error claim.",
+    "Earlier stage149 control slowdown remains historical evidence with its original source identity."
+  ]
+}

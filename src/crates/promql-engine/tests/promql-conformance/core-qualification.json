@@ -73885,5 +73885,11 @@
     "report_sha256": "eeeb4b4ea35b8832d046a7d5eaa18de6a997850209a901bcc8d055896bb0ce96",
     "status": "finite_qualification_pass",
     "scope": "Reuse a constant-size interval of completely evaluated clocks for certified direct Float one-to-one binary subqueries. Discover both selected sides freshly, then use ordinary matching and arithmetic. No cached values or temporal membership matrix."
+  },
+  "unchanged_provider_resource_snapshots": {
+    "report": "unchanged-resource-snapshots-qualification.json",
+    "report_sha256": "1a9a91e0bfdb51319b154c19f0c17034cb6f93b44239f50430dbb90d43f28f9d",
+    "status": "finite_qualification_pass",
+    "scope": "Validate same-query ownership, then skip ledger mutation for an entirely unchanged batch of provider resource sizes. Borrow owner for validation; clone only for the existing changed-batch body."
   }
 }

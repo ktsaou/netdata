@@ -476,13 +476,17 @@ impl MemoryLease {
         if N == 0 {
             return;
         }
-        let owner = targets[0].0.query.clone();
+        let owner = &targets[0].0.query;
         assert!(
             targets
                 .iter()
                 .all(|(lease, _)| owner.0.same_allocation(&lease.query.0)),
             "snapshot owners must share a query"
         );
+        if targets.iter().all(|(lease, bytes)| lease.bytes == *bytes) {
+            return;
+        }
+        let owner = owner.clone();
         let mut engine = lock(&owner.0.engine.0);
         let mut query = lock(&owner.0.observations);
         // Ownership transfer is one observation, not overlapping allocations.
@@ -1289,6 +1293,116 @@ mod tests {
         drop(buffer);
         engine_alias.snapshot().assert_memory_released();
     }
+    #[test]
+    fn unchanged_resource_batches_preserve_complete_observations() {
+        fn check<const N: usize>(bytes: u64, saturated: bool) {
+            let engine = EngineAccounting::default();
+            let query = engine.query();
+            let mut leases: [MemoryLease; N] = std::array::from_fn(|index| {
+                query.hold(
+                    if index % 2 == 0 {
+                        MemoryKind::ProviderHeld
+                    } else {
+                        MemoryKind::SharedCacheReference
+                    },
+                    bytes,
+                )
+            });
+            if saturated {
+                let record = MemoryObservation {
+                    current: u64::MAX,
+                    peak: u64::MAX,
+                    acquired: u64::MAX,
+                    released: u64::MAX,
+                    overflowed: true,
+                };
+                for kind in [MemoryKind::ProviderHeld, MemoryKind::SharedCacheReference] {
+                    lock(&engine.0).memory[kind as usize] = record;
+                    lock(&query.0.observations).memory[kind as usize] = record;
+                }
+            }
+            let before = (engine.snapshot(), query.snapshot());
+            MemoryLease::reconcile(leases.each_mut().map(|lease| {
+                let bytes = lease.bytes();
+                (lease, bytes)
+            }));
+            assert_eq!((engine.snapshot(), query.snapshot()), before);
+            drop(leases);
+            if !saturated {
+                query.snapshot().assert_memory_released();
+                drop(query);
+                engine.snapshot().assert_memory_released();
+            }
+        }
+        for bytes in [0, 37] {
+            for saturated in [false, true] {
+                check::<0>(bytes, saturated);
+                check::<4>(bytes, saturated);
+                check::<6>(bytes, saturated);
+                check::<8>(bytes, saturated);
+            }
+        }
+    }
+
+    #[test]
+    fn unchanged_resource_batches_still_reject_distinct_queries() {
+        let engine = EngineAccounting::default();
+        let left = engine.query();
+        let right = engine.query();
+        for bytes in [0, 37] {
+            let mut a = left.hold(MemoryKind::ProviderHeld, bytes);
+            let mut b = right.hold(MemoryKind::ProviderHeld, bytes);
+            let before = (engine.snapshot(), left.snapshot(), right.snapshot());
+            assert!(
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    MemoryLease::reconcile([(&mut a, bytes), (&mut b, bytes)]);
+                }))
+                .is_err()
+            );
+            assert_eq!(
+                (engine.snapshot(), left.snapshot(), right.snapshot()),
+                before
+            );
+        }
+        left.snapshot().assert_memory_released();
+        right.snapshot().assert_memory_released();
+        drop((left, right));
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn unchanged_resource_batches_preserve_transfers_and_concurrent_updates() {
+        let engine = EngineAccounting::default();
+        std::thread::scope(|scope| {
+            for _ in 0..4 {
+                let engine = &engine;
+                scope.spawn(move || {
+                    let query = engine.query();
+                    let mut a = query.hold(MemoryKind::ProviderHeld, 100);
+                    let mut b = query.hold(MemoryKind::ProviderHeld, 20);
+                    let mut expected = query.snapshot();
+                    for round in 0..32 {
+                        let (left, right) = if round % 2 == 0 { (50, 70) } else { (100, 20) };
+                        MemoryLease::reconcile([(&mut a, left), (&mut b, right)]);
+                        let record = &mut expected.memory[MemoryKind::ProviderHeld as usize];
+                        record.acquired += 50;
+                        record.released += 50;
+                        assert_eq!(query.snapshot(), expected);
+                        MemoryLease::reconcile([(&mut a, left), (&mut b, right)]);
+                        assert_eq!(query.snapshot(), expected);
+                    }
+                    drop((a, b));
+                    query.snapshot().assert_memory_released();
+                });
+            }
+        });
+        engine.snapshot().assert_memory_released();
+        let record = engine.snapshot().memory[MemoryKind::ProviderHeld as usize];
+        assert_eq!(record.acquired, 4 * (120 + 32 * 50));
+        assert_eq!(record.acquired, record.released);
+        assert!((120..=480).contains(&record.peak));
+    }
+
     #[test]
     fn root_identity_and_reconciliation_do_not_merge_independent_queries() {
         let engine = EngineAccounting::default();

@@ -9846,3 +9846,37 @@ comparisons as engine failures or passing same-input evidence.
 Default C text/data/BSS growth is 9,236 / 4,908 / 5,996 / 5,476 B for release/release-min/ARM32/ARM64
 (about 0.08–0.12%). The report retains immediate and cumulative baselines under the proportional footprint policy.
 No API/provider/storage change, new language feature or live-provider performance claim is made by this stage.
+
+
+## Unchanged provider resource snapshots
+
+The engine still asks the provider for every resource snapshot. After validating that all leases belong to the
+same query, it skips ledger mutation if every requested byte count is already current. Changed batches retain
+both accounting locks and release-before-acquire transfer ordering. No buffer, cache or new resource limit is added.
+The [qualification report](unchanged-resource-snapshots-qualification.json) preserves the exact source and measurements.
+
+The fixed 1,200-pair pilot measures target-family time ratios of 0.8639/0.8599 for release/release-min: about 14%
+less time. Control-family ratios are 0.8931/0.9134. Every complete output and every reported fixture counter other
+than elapsed time matches, including all memory observations. Three individual release-min cases were slower in
+the primary panel; the single predefined follow-up gives ratios 0.8879/0.8943/0.8995. Both panels remain in the
+report. These synthetic shared-host measurements do not prove universal speedup, live-dbengine throughput or RSS.
+
+Three new tests compare complete unchanged snapshots across zero/nonzero sizes, saturated counters and batch
+arities; reject unchanged mixed-query ownership; and check mixed transfers followed by unchanged updates from
+four independent queries sharing one engine. The concurrency test does not claim cloned same-query workers.
+Synthetic saturated records establish unchanged observations; normal records establish balanced release.
+The same 11 focused accounting/provider/poisoned-ledger tests pass before and after the runtime change.
+
+Qualification adds 888 passing units per native profile (two pre-existing ignored), 11 focused units per ARM target
+under QEMU, both complete native C suites, and 432 executions of the existing C/C++ callback panel. Its 144 successes
+and 288 required provider errors retain their earlier scope. The 768 original comparisons use authenticated inputs
+and actual fixed Go options; 336 strict instant-order differences remain separate from the approved order policy.
+Strict lint variants, formatting and installed Rust 1.91 compile-only checks pass. Fixed executable costs and their
+cumulative baseline are reported separately from query memory.
+
+For accounting changes, run `unchanged_resource_batches`, `storage_observed::tests` and `poisoned_root_ledgers`
+with the fixtures feature in both release profiles. Preserve resource gathering even when it returns unchanged
+sizes: callbacks can transfer ownership on success, failure, EOF and close. Keep mixed-query validation ahead of
+any no-op return, and retain actual C consumers and both ARM targets when changing shared accounting code.
+The temporary owner clone is omitted only on an unchanged batch; its internal reference-count trace and artificial
+maximum-alias assertion are not an additional public accounting guarantee. Saturating memory counters remain exact.

@@ -168,6 +168,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-foreign-sample-pages`.
 - Completed binary replay MUST preserve full first-pass failure priority before reusing membership metadata; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-unique-float-join-scans` for its causal controls.
+- Unchanged provider resource batches MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#unchanged-provider-resource-snapshots` for ownership
+  rejection, exact counters, transfer peaks and actual callback phases.
 - Completed binary subquery clocks MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-in-binary-subqueries` for actual
   Done/phase clearing, fresh both-side discovery, effective original options and separate strict/order-policy reports.
