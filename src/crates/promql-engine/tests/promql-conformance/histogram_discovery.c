@@ -46,6 +46,7 @@ typedef struct {
     delivery output;
     discovery_source *source;
     uint64_t first_cursors;
+    uint64_t expected_bits;
 } discovery_delivery;
 
 static uint32_t discovery_begin(void *context, const netdata_promql_output_header_t *header,
@@ -70,7 +71,7 @@ static uint32_t discovery_chunk(void *context, const netdata_promql_chunk_t *chu
     assert(series->labels.data[0].value.len == 1 && series->labels.data[0].value.data[0] == 'a' + index % 2);
     assert(series->points.data[0].time_ms == (index < 2 ? 4000 : 5000));
     assert(series->points.data[0].value.kind == NETDATA_PROMQL_VALUE_FLOAT);
-    assert(series->points.data[0].value.payload.float_bits == netdata_promql_double_bits(.5));
+    assert(series->points.data[0].value.payload.float_bits == d->expected_bits);
     return output_status(&d->output, 2, control, error);
 }
 
@@ -95,8 +96,8 @@ int main(void) {
         netdata_promql_engine_t *engine = NULL;
         assert(netdata_promql_engine_create(&options, &engine) == NETDATA_PROMQL_OK);
         netdata_promql_engine_observations_t idle = engine_observations(engine);
-        const char *aggregates[] = {"sum", "avg"};
-        for (unsigned aggregate = 0; aggregate < 2; aggregate++)
+        const char *aggregates[] = {"sum", "avg", "count", "min", "max", "group", "stdvar", "stddev"};
+        for (unsigned aggregate = 0; aggregate < sizeof(aggregates) / sizeof(aggregates[0]); aggregate++)
         for (unsigned function = 0; function < 3; function++) {
             char expression[192];
             int length = snprintf(expression, sizeof(expression),
@@ -125,6 +126,9 @@ int main(void) {
                     discovery_delivery output;
                     memset(&output, 0, sizeof(output));
                     output.source = &source;
+                    /* Equal contributors give variance buckets with zero total and a NaN quantile. */
+                    output.expected_bits = (!strcmp(aggregates[aggregate], "stdvar") || !strcmp(aggregates[aggregate], "stddev"))
+                        ? UINT64_C(0x7ff8000000000001) : netdata_promql_double_bits(.5);
                     output.output.failure = arm == 3 ? 2 : 0;
                     if (arm == 2) {
                         output.output.cancel_at = 2;

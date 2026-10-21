@@ -73921,5 +73921,11 @@
     "report": "grouped-average-clocks-qualification.json",
     "report_sha256": "2eb8eae5b93cbfc9f4f38c154217b45f1d86a738bcbc229c6db9f2776163c4cd",
     "summary": "AVG shares existing completed grouped rate-family clocks, including ratios and classic histograms; fresh arithmetic and paged raw data preserved."
+  },
+  "ordinary_grouped_clocks": {
+    "status": "finite_qualification_pass",
+    "report": "ordinary-grouped-clocks-qualification.json",
+    "report_sha256": "9fd15d9db97ff4c64ae517167f6e9baa75a49b712b6268b319cdf1af04945354",
+    "summary": "All ordinary reducers share completed grouped rate-family clocks with fresh arithmetic and existing paged ownership."
   }
 }

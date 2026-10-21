@@ -14,6 +14,13 @@ int main(void) {
         "max_over_time((avg by(zone)(delta(m_total[3s])) / avg by(zone)(delta(m_total[3s])))[2s:1s]) > bool 0",
         "max_over_time((avg by(zone)(rate(m_total[3s])) / sum by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
         "max_over_time((sum by(zone)(rate(m_total[3s])) / avg by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
+        "max_over_time((count by(zone)(rate(m_total[3s])) / count by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
+        "max_over_time((min by(zone)(rate(m_total[3s])) / min by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
+        "max_over_time((max by(zone)(rate(m_total[3s])) / max by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
+        "max_over_time((group by(zone)(rate(m_total[3s])) / group by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
+        /* Equal contributors yield zero/zero; NaN compares unequal to zero. */
+        "max_over_time((stdvar by(zone)(rate(m_total[3s])) / stdvar by(zone)(rate(m_total[3s])))[2s:1s]) != bool 0",
+        "max_over_time((stddev by(zone)(rate(m_total[3s])) / stddev by(zone)(rate(m_total[3s])))[2s:1s]) != bool 0",
     };
     for (unsigned delayed = 0; delayed < 2; delayed++) {
         netdata_promql_engine_options_t options;

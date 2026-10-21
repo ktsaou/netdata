@@ -1392,11 +1392,11 @@ impl CompiledQuery {
                     )?;
                 }
                 Expr::Aggregate {
-                    operator: TokenKind::SUM | TokenKind::AVG,
+                    operator,
                     expression: Some(child),
                     parameter: None,
                     ..
-                } => {
+                } if crate::aggregation::ordinary(*operator) => {
                     let child = prepared.preprocessing.child(
                         &self.expression,
                         node,
@@ -10600,24 +10600,86 @@ mod tests {
         provider
     }
 
+    fn grouped_clock_rates(full_matrix: bool) -> &'static [(&'static str, f64)] {
+        if full_matrix {
+            &[("rate", 1.0), ("increase", 3.0), ("delta", 3.0)]
+        } else {
+            &[("rate", 1.0)]
+        }
+    }
+
+    fn grouped_clock_pages(full_matrix: bool) -> &'static [usize] {
+        if full_matrix { &[1, 17, 1024] } else { &[17] }
+    }
+
+    #[test]
+    fn ordinary_grouped_clocks_results() {
+        for aggregate in ["count", "min", "max", "group", "stdvar", "stddev"] {
+            grouped_histogram_discovery_preserves_changing_results_and_paged_reads_case(
+                aggregate, false,
+            );
+            grouped_ratio_clocks_preserve_results_statistics_and_paged_reads_case(aggregate, false);
+            grouped_subquery_clocks_preserve_results_statistics_and_paged_reads_case(
+                aggregate, false,
+            );
+        }
+    }
+
+    #[test]
+    fn ordinary_grouped_clocks_failures() {
+        for aggregate in ["count", "min", "max", "group", "stdvar", "stddev"] {
+            grouped_histogram_discovery_preserves_every_required_delivery_read_failure_case(
+                aggregate, false,
+            );
+            grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
+                aggregate, false,
+            );
+            grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
+                aggregate, false,
+            );
+        }
+    }
+
+    #[test]
+    fn ordinary_grouped_clocks_completion() {
+        for aggregate in ["count", "min", "max", "group", "stdvar", "stddev"] {
+            grouped_histogram_discovery_keeps_cold_completion_fresh_reads_and_clearing_case(
+                aggregate, false,
+            );
+            grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(aggregate, false);
+            grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(aggregate, false);
+        }
+    }
+
     #[test]
     fn grouped_histogram_discovery_preserves_changing_results_and_paged_reads() {
         for aggregate in ["sum", "avg"] {
-            grouped_histogram_discovery_preserves_changing_results_and_paged_reads_case(aggregate);
+            grouped_histogram_discovery_preserves_changing_results_and_paged_reads_case(
+                aggregate, true,
+            );
         }
     }
 
     fn grouped_histogram_discovery_preserves_changing_results_and_paged_reads_case(
         aggregate: &str,
+        full_matrix: bool,
     ) {
-        for rate_function in ["rate", "increase", "delta"] {
-            for page in [1, 17, 1024] {
-                for delayed in [false, true] {
+        for &(rate_function, _) in grouped_clock_rates(full_matrix) {
+            for &page in grouped_clock_pages(full_matrix) {
+                for &delayed in if full_matrix {
+                    &[false, true][..]
+                } else {
+                    &[false][..]
+                } {
                     for (function, expected) in [
                         ("min", 10.0 / 11.0),
                         ("max", 1.0),
                         ("avg", (10.0 / 11.0 + 7.0) / 8.0),
-                    ] {
+                    ]
+                    .into_iter()
+                    .skip(if full_matrix { 0 } else { 1 })
+                    .take(if full_matrix { 3 } else { 1 })
+                    {
                         let engine = Engine::default();
                         let control = Control::default();
                         let query = engine.compile(
@@ -10645,6 +10707,11 @@ mod tests {
                             assert_eq!(row.points.len(), 1);
                             assert_eq!(row.points[0].time_ms, 16000);
                             let value = f64::from_bits(float_bits(&row.points[0]));
+                            let expected = match aggregate {
+                                "count" | "group" => 0.5,
+                                "stdvar" => 1.0,
+                                _ => expected,
+                            };
                             assert!(
                                 (value - expected).abs() < 1e-14,
                                 "{function}/{rate_function}: {value} != {expected}"
@@ -10684,17 +10751,18 @@ mod tests {
     fn grouped_histogram_discovery_preserves_every_required_delivery_read_failure() {
         for aggregate in ["sum", "avg"] {
             grouped_histogram_discovery_preserves_every_required_delivery_read_failure_case(
-                aggregate,
+                aggregate, true,
             );
         }
     }
 
     fn grouped_histogram_discovery_preserves_every_required_delivery_read_failure_case(
         aggregate: &str,
+        full_matrix: bool,
     ) {
-        for rate_function in ["rate", "increase", "delta"] {
+        for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             let request = QueryRequest::Instant { time_ms: 8000 };
-            for page in [1, 17, 1024] {
+            for &page in grouped_clock_pages(full_matrix) {
                 let engine = Engine::default();
                 let control = Control::default();
                 let query = engine.compile(
@@ -10760,18 +10828,25 @@ mod tests {
     fn grouped_histogram_discovery_keeps_cold_completion_fresh_reads_and_clearing() {
         for aggregate in ["sum", "avg"] {
             grouped_histogram_discovery_keeps_cold_completion_fresh_reads_and_clearing_case(
-                aggregate,
+                aggregate, true,
             );
         }
     }
 
     fn grouped_histogram_discovery_keeps_cold_completion_fresh_reads_and_clearing_case(
         aggregate: &str,
+        full_matrix: bool,
     ) {
+        let expected = match aggregate {
+            "count" | "group" => 0.5,
+            "stdvar" => 1.0,
+            _ => 5.0 / 7.0,
+        };
         fn drive(
             compiled: &CompiledQuery,
             input: &FixtureProvider,
             stop: Option<(usize, bool)>,
+            expected: f64,
         ) -> Vec<Vec<usize>> {
             let acquisitions = || {
                 input
@@ -10890,7 +10965,7 @@ mod tests {
                     };
                     assert!(group.has_interval());
                     assert!(
-                        matches!(sample.value, OwnedValue::Float(value) if (value - 5.0 / 7.0).abs() < 1e-14)
+                        matches!(sample.value, OwnedValue::Float(value) if (value - expected).abs() < 1e-14)
                     );
                     outputs += 1;
                     landmarks.push(acquisitions());
@@ -10909,14 +10984,14 @@ mod tests {
             account.snapshot().assert_memory_released();
             landmarks
         }
-        for page in [1, 17, 1024] {
+        for &page in grouped_clock_pages(full_matrix) {
             let engine = Engine::default();
             let control = Control::default();
             let query = engine.compile(
                 format!("max_over_time((histogram_quantile(.5,{aggregate} by(id,le)(rate(duration_bucket[3s]))))[4s:1s])").as_bytes(),
                 EngineOptions::default(), &control).unwrap();
             let calibration = grouped_histogram_provider(page, 2);
-            let landmarks = drive(&query, &calibration, None);
+            let landmarks = drive(&query, &calibration, None, expected);
             assert_eq!(landmarks.len(), 3);
             let fresh = (0..8)
                 .filter(|&i| landmarks[2][i] > landmarks[1][i])
@@ -10935,7 +11010,10 @@ mod tests {
                 let mut input = grouped_histogram_provider(page, 2);
                 let acquisition = landmarks[after][target] + 1;
                 input.series[target].source.fail_acquisition = Some(acquisition);
-                assert_eq!(drive(&query, &input, Some((after, false))).len(), after + 1);
+                assert_eq!(
+                    drive(&query, &input, Some((after, false)), expected).len(),
+                    after + 1
+                );
                 assert_eq!(
                     input.series[target]
                         .source
@@ -10946,7 +11024,7 @@ mod tests {
                 );
             }
             let input = grouped_histogram_provider(page, 2);
-            assert_eq!(drive(&query, &input, Some((1, true))).len(), 2);
+            assert_eq!(drive(&query, &input, Some((1, true)), expected).len(), 2);
             drop(query);
             engine.accounting.snapshot().assert_memory_released();
         }
@@ -10955,21 +11033,31 @@ mod tests {
     #[test]
     fn grouped_ratio_clocks_preserve_results_statistics_and_paged_reads() {
         for aggregate in ["sum", "avg"] {
-            grouped_ratio_clocks_preserve_results_statistics_and_paged_reads_case(aggregate);
+            grouped_ratio_clocks_preserve_results_statistics_and_paged_reads_case(aggregate, true);
         }
     }
 
-    fn grouped_ratio_clocks_preserve_results_statistics_and_paged_reads_case(aggregate: &str) {
-        for rate_function in ["rate", "increase", "delta"] {
-            for page in [1, 17, 1024] {
-                for count in [4, 16] {
-                    for delayed in [false, true] {
+    fn grouped_ratio_clocks_preserve_results_statistics_and_paged_reads_case(
+        aggregate: &str,
+        full_matrix: bool,
+    ) {
+        for &(rate_function, _) in grouped_clock_rates(full_matrix) {
+            for &page in grouped_clock_pages(full_matrix) {
+                for &count in if full_matrix { &[4, 16][..] } else { &[2][..] } {
+                    for &delayed in if full_matrix {
+                        &[false, true][..]
+                    } else {
+                        &[false][..]
+                    } {
                         for (function, factor) in [
                             ("max_over_time", 1.0),
                             ("min_over_time", 8.0 / 15.0),
                             ("avg_over_time", 11.5 / 15.0),
                             ("sum_over_time", 92.0 / 15.0),
-                        ] {
+                        ]
+                        .into_iter()
+                        .take(if full_matrix { 4 } else { 1 })
+                        {
                             let engine = Engine::default();
                             let control = Control::default();
                             let expression = format!(
@@ -11002,10 +11090,45 @@ mod tests {
                                 );
                                 assert_eq!(row.points.len(), 1);
                                 assert_eq!(row.points[0].time_ms, 16000);
-                                let value: f64 = if identity.is_multiple_of(2) {
-                                    45.0
-                                } else {
-                                    180.0
+                                let even = identity.is_multiple_of(2);
+                                let value: f64 = match aggregate {
+                                    "sum" | "avg" => {
+                                        if even {
+                                            45.0
+                                        } else {
+                                            180.0
+                                        }
+                                    }
+                                    "count" | "group" => 1.0,
+                                    "min" => {
+                                        if even {
+                                            60.0
+                                        } else {
+                                            240.0
+                                        }
+                                    }
+                                    "max" => {
+                                        if even {
+                                            40.0
+                                        } else {
+                                            160.0
+                                        }
+                                    }
+                                    "stdvar" => {
+                                        if even {
+                                            900.0
+                                        } else {
+                                            14400.0
+                                        }
+                                    }
+                                    "stddev" => {
+                                        if even {
+                                            30.0
+                                        } else {
+                                            120.0
+                                        }
+                                    }
+                                    _ => unreachable!(),
                                 };
                                 assert_eq!(float_bits(&row.points[0]), (value * factor).to_bits());
                             }
@@ -11042,14 +11165,19 @@ mod tests {
     #[test]
     fn grouped_ratio_clocks_preserve_every_required_delivery_read_failure() {
         for aggregate in ["sum", "avg"] {
-            grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(aggregate);
+            grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
+                aggregate, true,
+            );
         }
     }
 
-    fn grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(aggregate: &str) {
-        for rate_function in ["rate", "increase", "delta"] {
+    fn grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
+        aggregate: &str,
+        full_matrix: bool,
+    ) {
+        for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             let request = QueryRequest::Instant { time_ms: 8000 };
-            for page in [1, 17, 1024] {
+            for &page in grouped_clock_pages(full_matrix) {
                 let engine = Engine::default();
                 let control = Control::default();
                 let query = engine
@@ -11120,21 +11248,33 @@ mod tests {
     #[test]
     fn grouped_subquery_clocks_preserve_results_statistics_and_paged_reads() {
         for aggregate in ["sum", "avg"] {
-            grouped_subquery_clocks_preserve_results_statistics_and_paged_reads_case(aggregate);
+            grouped_subquery_clocks_preserve_results_statistics_and_paged_reads_case(
+                aggregate, true,
+            );
         }
     }
 
-    fn grouped_subquery_clocks_preserve_results_statistics_and_paged_reads_case(aggregate: &str) {
-        for (rate_function, rate_factor) in [("rate", 1.0), ("increase", 3.0), ("delta", 3.0)] {
-            for page in [1, 17, 1024] {
-                for count in [4, 16] {
-                    for delayed in [false, true] {
+    fn grouped_subquery_clocks_preserve_results_statistics_and_paged_reads_case(
+        aggregate: &str,
+        full_matrix: bool,
+    ) {
+        for &(rate_function, rate_factor) in grouped_clock_rates(full_matrix) {
+            for &page in grouped_clock_pages(full_matrix) {
+                for &count in if full_matrix { &[4, 16][..] } else { &[2][..] } {
+                    for &delayed in if full_matrix {
+                        &[false, true][..]
+                    } else {
+                        &[false][..]
+                    } {
                         for (function, factor) in [
                             ("max_over_time", 1.0),
                             ("min_over_time", 1.0),
                             ("avg_over_time", 1.0),
                             ("sum_over_time", 8.0),
-                        ] {
+                        ]
+                        .into_iter()
+                        .take(if full_matrix { 4 } else { 1 })
+                        {
                             let engine = Engine::default();
                             let control = Control::default();
                             let expression = format!(
@@ -11167,16 +11307,62 @@ mod tests {
                                 );
                                 assert_eq!(row.points.len(), 1);
                                 assert_eq!(row.points[0].time_ms, 16000);
-                                let value: f64 = if identity.is_multiple_of(2) {
-                                    6.0
-                                } else {
-                                    12.0
+                                let even = identity.is_multiple_of(2);
+                                let value: f64 = match aggregate {
+                                    "sum" => {
+                                        if even {
+                                            6.0
+                                        } else {
+                                            12.0
+                                        }
+                                    }
+                                    "avg" => {
+                                        if even {
+                                            3.0
+                                        } else {
+                                            6.0
+                                        }
+                                    }
+                                    "count" => 2.0,
+                                    "group" => 1.0,
+                                    "min" => {
+                                        if even {
+                                            2.0
+                                        } else {
+                                            4.0
+                                        }
+                                    }
+                                    "max" => {
+                                        if even {
+                                            4.0
+                                        } else {
+                                            8.0
+                                        }
+                                    }
+                                    "stdvar" => {
+                                        if even {
+                                            1.0
+                                        } else {
+                                            4.0
+                                        }
+                                    }
+                                    "stddev" => {
+                                        if even {
+                                            1.0
+                                        } else {
+                                            2.0
+                                        }
+                                    }
+                                    _ => unreachable!(),
+                                };
+                                let scale = match aggregate {
+                                    "count" | "group" => 1.0,
+                                    "stdvar" => rate_factor * rate_factor,
+                                    _ => rate_factor,
                                 };
                                 assert_eq!(
                                     float_bits(&row.points[0]),
-                                    (value * factor * rate_factor
-                                        / if aggregate == "avg" { 2.0 } else { 1.0 })
-                                    .to_bits()
+                                    (value * factor * scale).to_bits()
                                 );
                             }
                             assert_eq!(report.observations.output_samples, count as u64);
@@ -11212,14 +11398,19 @@ mod tests {
     #[test]
     fn grouped_subquery_clocks_preserve_every_required_delivery_read_failure() {
         for aggregate in ["sum", "avg"] {
-            grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(aggregate);
+            grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
+                aggregate, true,
+            );
         }
     }
 
-    fn grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(aggregate: &str) {
-        for rate_function in ["rate", "increase", "delta"] {
+    fn grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
+        aggregate: &str,
+        full_matrix: bool,
+    ) {
+        for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             let request = QueryRequest::Instant { time_ms: 8000 };
-            for page in [1, 17, 1024] {
+            for &page in grouped_clock_pages(full_matrix) {
                 let engine = Engine::default();
                 let control = Control::default();
                 let query = engine
@@ -11290,14 +11481,18 @@ mod tests {
     #[test]
     fn grouped_ratio_clocks_keep_group_and_pair_completion_separate() {
         for aggregate in ["sum", "avg"] {
-            grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(aggregate);
+            grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(aggregate, true);
         }
     }
 
-    fn grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(aggregate: &str) {
-        for rate_function in ["rate", "increase", "delta"] {
-            for (page, fault) in [1, 17, 1024]
-                .into_iter()
+    fn grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(
+        aggregate: &str,
+        full_matrix: bool,
+    ) {
+        for &(rate_function, _) in grouped_clock_rates(full_matrix) {
+            for (page, fault) in grouped_clock_pages(full_matrix)
+                .iter()
+                .copied()
                 .flat_map(|page| [(page, "none"), (page, "right"), (page, "both")])
             {
                 let engine = Engine::default();
@@ -11487,13 +11682,16 @@ mod tests {
     #[test]
     fn grouped_subquery_clocks_do_not_credit_truncated_endpoints() {
         for aggregate in ["sum", "avg"] {
-            grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(aggregate);
+            grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(aggregate, true);
         }
     }
 
-    fn grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(aggregate: &str) {
-        for rate_function in ["rate", "increase", "delta"] {
-            for page in [1, 17, 1024] {
+    fn grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(
+        aggregate: &str,
+        full_matrix: bool,
+    ) {
+        for &(rate_function, _) in grouped_clock_rates(full_matrix) {
+            for &page in grouped_clock_pages(full_matrix) {
                 let engine = Engine::default();
                 let control = Control::default();
                 let compiled = engine

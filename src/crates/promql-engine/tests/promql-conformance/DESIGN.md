@@ -2574,3 +2574,18 @@ changing membership, special literals, complete original comparisons and proport
 - **Evidence:** unequal and changing populations, mixed reducers, overflow, required failures and actual C callers
   are covered by the [qualification](grouped-average-clocks-qualification.json). Finite native timing and compiled
   costs remain distinct from live-provider throughput and process RSS.
+
+
+## Completed ordinary grouped clocks
+
+- **Choice:** use the existing ordinary-aggregation predicate for grouped rate/increase/delta admission. Retain
+  the same Float-only, single-head child proof and all clock/parent checks, including ratio and histogram paths.
+- **Arithmetic:** fresh groups preserve current membership and source order. COUNT/GROUP visit all required
+  children; MIN/MAX preserve zero/NaN choices and sample ownership; STDVAR/STDDEV keep ordered online updates.
+- **Completion:** retain child exhaustion plus selected-group finalization. Pair/histogram completion stays
+  separate, and preparation credit clears before final delivery. No saved aggregate values or new owner is added.
+- **Memory:** activate existing accounted contributor/interval metadata; raw data remains paged across both axes.
+  Measured extent peaks stay fixed, while series-dependent metadata and result storage retain their existing costs.
+- **Evidence:** complete before/original comparisons, reducer-specific numerical cases, actual required-read
+  failures, C callbacks and native/ARM execution are recorded in the
+  [qualification](ordinary-grouped-clocks-qualification.json). Native synthetic timing is separate from live data.

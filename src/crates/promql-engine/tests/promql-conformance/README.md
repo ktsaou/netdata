@@ -10085,3 +10085,50 @@ To repeat the causal checks, run the fixture-enabled Rust tests in both release 
 archive using the existing C embedding workflow. Compare complete varied-input results at page sizes 1/17/1024;
 retain source/compiler/binary identities and strict original-order reports separately. C fixture output contains
 individual case records and separate summaries; validate both. ARM execution establishes correctness only.
+
+
+## Completed ordinary grouped clocks
+
+COUNT, MIN, MAX, GROUP, STDVAR and STDDEV now share the completed grouped rate-family scans already used by
+SUM and AVG. This also covers supported ratio and classic-histogram subqueries. The engine still reads current
+values for each selected group. It preserves contributor order, counts, signed-zero/NaN choices and variance
+arithmetic. Existing native, delayed-name and incompatible-clock fallbacks remain.
+
+The [finite qualification](ordinary-grouped-clocks-qualification.json) records 6,444 exact baseline pairs and
+6,444 comparisons against 1,074 fresh pinned Go outcomes. Numerical bits match; 1,806 strict instant-order
+differences remain separately recorded. Edge cases include signed-zero ties, all-NaN groups, singleton infinity
+and ordered variance values of 4 versus 8/3. Changing/unequal populations and native/mixed histories cover all
+new reducers in direct, ratio and classic-histogram compositions.
+
+Both native profiles pass 903 tests, with two existing ignored tests. Three small new tests cover the six
+reducers; all nine original SUM/AVG test matrices remain. Each ARM target passes ten focused tests and 1,296 C
+cases. Across all six target/profile/language combinations, 7,776 C/C++ cases cover success, provider errors,
+cancellation and output errors equally. Both complete native C suites, strict lint, formatting and the installed
+MSRV compile check pass. Foreign tests use small correctness cases; their results do not measure ARM throughput.
+
+The frozen 46-case, five-block timing panel retains 1,840 complete result pairs. Ratios below 1 favor the change:
+
+| Profile | Ordinary | Ratio | Histogram | Increase | Delta | Controls |
+|---|---:|---:|---:|---:|---:|---:|
+| release | 0.1942 | 0.1518 | 0.6304 | 0.1941 | 0.1950 | 1.0150 |
+| release-min | 0.1966 | 0.1501 | 0.6360 | 0.1962 | 0.1968 | 1.0042 |
+
+No individual ratio exceeds 1.05, so the predefined slower-case follow-up is empty. Primary samples
+and gates are preserved. A fixture-input correction reloads datasets when switching between them; all 184 query
+packets, their order, repetitions and 46 cases are unchanged. The failed baseline capture remains available.
+
+Across 108 increasing-time cases, workspace stays at 21,584 bytes for direct queries and 31,750 bytes for
+histogram queries. Raw pages remain bounded by provider page size. No production fields, layouts or raw/value
+cache are added. Existing contributor metadata can grow with series count; this is not a bound on total query
+memory or process RSS. The report retains every measured query peak and allocation cost.
+The larger direct COUNT case reads 377,344→49,984 entries and uses 51,242→52,058 bytes of workspace (+816 bytes).
+Its ratio counterpart reads 765,952→111,232 entries and uses 98,357→97,350 bytes. The singleton retains its reads
+and peak, with 150 additional work units. These costs remain distinct from the increasing-time cases.
+
+Default C executable total changes are 0 bytes for release, −16 for release-min, +160 for ARM32 and −4,080 for
+ARM64; data/BSS are unchanged. Relative and cumulative compiled costs are retained separately from query memory.
+
+To repeat the causal checks, run the full fixture-enabled native suites in both profiles. On ARM, select
+`ordinary_grouped_clocks`, `aggregate_replay::tests` and `vector_matching::tests::completed_interval`, then run
+the three affected C fixtures. Keep exact source/compiler/binary identities and compare complete varied results
+at pages 1/17/1024. Variance fixtures deliberately exercise zero and NaN; do not reuse SUM/AVG numeric expectations.

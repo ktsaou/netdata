@@ -16,6 +16,13 @@ int main(void) {
         "sum_over_time((avg by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
         "max_over_time((avg by(zone)(increase(m_total[3s])))[2s:1s]) > bool 0",
         "max_over_time((avg by(zone)(delta(m_total[3s])))[2s:1s]) > bool 0",
+        "max_over_time((count by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
+        "max_over_time((min by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
+        "max_over_time((max by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
+        "max_over_time((group by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
+        /* Equal contributors have zero variance. */
+        "max_over_time((stdvar by(zone)(rate(m_total[3s])))[2s:1s]) >= bool 0",
+        "max_over_time((stddev by(zone)(rate(m_total[3s])))[2s:1s]) >= bool 0",
     };
     for (unsigned delayed = 0; delayed < 2; delayed++) {
         netdata_promql_engine_options_t options;
