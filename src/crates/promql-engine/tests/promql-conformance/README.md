@@ -9952,3 +9952,6 @@ output error. Both complete native C suites, strict lint, formatting and install
 
 When extending this path, retain explicit feature-profile checks and the ordinary/native/nested/rate controls.
 A shared evaluator does not establish equivalent arithmetic or diagnostic behavior between function names.
+
+When comparing enabled and disabled feature profiles, exclude only the deliberately different request ID from
+the complete result comparison. A changed ID alone does not establish that the feature affected the outcome.

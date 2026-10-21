@@ -6254,12 +6254,8 @@
         "increase_results_changed_by_active_marker": [
           "increase-started-enabled-p1-e0",
           "increase-started-enabled-p1-e1",
-          "increase-started-enabled-p1-e3",
           "increase-started-enabled-p1-e4",
           "increase-started-enabled-p1-e5",
-          "increase-started-enabled-p1-e6",
-          "increase-started-enabled-p1-e7",
-          "increase-started-enabled-p1-e8",
           "increase-started-enabled-p1-e9",
           "increase-started-enabled-p1-e10",
           "increase-started-enabled-p1-e11",
@@ -6278,12 +6274,8 @@
           "increase-started-enabled-p1-e24",
           "increase-started-enabled-p17-e0",
           "increase-started-enabled-p17-e1",
-          "increase-started-enabled-p17-e3",
           "increase-started-enabled-p17-e4",
           "increase-started-enabled-p17-e5",
-          "increase-started-enabled-p17-e6",
-          "increase-started-enabled-p17-e7",
-          "increase-started-enabled-p17-e8",
           "increase-started-enabled-p17-e9",
           "increase-started-enabled-p17-e10",
           "increase-started-enabled-p17-e11",
@@ -6302,12 +6294,8 @@
           "increase-started-enabled-p17-e24",
           "increase-started-enabled-p1024-e0",
           "increase-started-enabled-p1024-e1",
-          "increase-started-enabled-p1024-e3",
           "increase-started-enabled-p1024-e4",
           "increase-started-enabled-p1024-e5",
-          "increase-started-enabled-p1024-e6",
-          "increase-started-enabled-p1024-e7",
-          "increase-started-enabled-p1024-e8",
           "increase-started-enabled-p1024-e9",
           "increase-started-enabled-p1024-e10",
           "increase-started-enabled-p1024-e11",
@@ -6324,6 +6312,32 @@
           "increase-started-enabled-p1024-e22",
           "increase-started-enabled-p1024-e23",
           "increase-started-enabled-p1024-e24"
+        ],
+        "increase_results_unchanged_by_active_marker": [
+          "increase-started-enabled-p1-e3",
+          "increase-started-enabled-p1-e6",
+          "increase-started-enabled-p1-e7",
+          "increase-started-enabled-p1-e8",
+          "increase-started-enabled-p17-e3",
+          "increase-started-enabled-p17-e6",
+          "increase-started-enabled-p17-e7",
+          "increase-started-enabled-p17-e8",
+          "increase-started-enabled-p1024-e3",
+          "increase-started-enabled-p1024-e6",
+          "increase-started-enabled-p1024-e7",
+          "increase-started-enabled-p1024-e8"
+        ],
+        "active_path_observations": [
+          {
+            "id": "increase-started-enabled-p17-e0",
+            "before_fetched": 25536,
+            "current_fetched": 11424
+          },
+          {
+            "id": "delta-started-enabled-p17-e0",
+            "before_fetched": 8512,
+            "current_fetched": 3808
+          }
         ]
       },
       "release-min": {
@@ -6331,12 +6345,8 @@
         "increase_results_changed_by_active_marker": [
           "increase-started-enabled-p1-e0",
           "increase-started-enabled-p1-e1",
-          "increase-started-enabled-p1-e3",
           "increase-started-enabled-p1-e4",
           "increase-started-enabled-p1-e5",
-          "increase-started-enabled-p1-e6",
-          "increase-started-enabled-p1-e7",
-          "increase-started-enabled-p1-e8",
           "increase-started-enabled-p1-e9",
           "increase-started-enabled-p1-e10",
           "increase-started-enabled-p1-e11",
@@ -6355,12 +6365,8 @@
           "increase-started-enabled-p1-e24",
           "increase-started-enabled-p17-e0",
           "increase-started-enabled-p17-e1",
-          "increase-started-enabled-p17-e3",
           "increase-started-enabled-p17-e4",
           "increase-started-enabled-p17-e5",
-          "increase-started-enabled-p17-e6",
-          "increase-started-enabled-p17-e7",
-          "increase-started-enabled-p17-e8",
           "increase-started-enabled-p17-e9",
           "increase-started-enabled-p17-e10",
           "increase-started-enabled-p17-e11",
@@ -6379,12 +6385,8 @@
           "increase-started-enabled-p17-e24",
           "increase-started-enabled-p1024-e0",
           "increase-started-enabled-p1024-e1",
-          "increase-started-enabled-p1024-e3",
           "increase-started-enabled-p1024-e4",
           "increase-started-enabled-p1024-e5",
-          "increase-started-enabled-p1024-e6",
-          "increase-started-enabled-p1024-e7",
-          "increase-started-enabled-p1024-e8",
           "increase-started-enabled-p1024-e9",
           "increase-started-enabled-p1024-e10",
           "increase-started-enabled-p1024-e11",
@@ -6401,9 +6403,36 @@
           "increase-started-enabled-p1024-e22",
           "increase-started-enabled-p1024-e23",
           "increase-started-enabled-p1024-e24"
+        ],
+        "increase_results_unchanged_by_active_marker": [
+          "increase-started-enabled-p1-e3",
+          "increase-started-enabled-p1-e6",
+          "increase-started-enabled-p1-e7",
+          "increase-started-enabled-p1-e8",
+          "increase-started-enabled-p17-e3",
+          "increase-started-enabled-p17-e6",
+          "increase-started-enabled-p17-e7",
+          "increase-started-enabled-p17-e8",
+          "increase-started-enabled-p1024-e3",
+          "increase-started-enabled-p1024-e6",
+          "increase-started-enabled-p1024-e7",
+          "increase-started-enabled-p1024-e8"
+        ],
+        "active_path_observations": [
+          {
+            "id": "increase-started-enabled-p17-e0",
+            "before_fetched": 25536,
+            "current_fetched": 11424
+          },
+          {
+            "id": "delta-started-enabled-p17-e0",
+            "before_fetched": 8512,
+            "current_fetched": 3808
+          }
         ]
       }
-    }
+    },
+    "result_comparison_correction": "Original started.json counted different result.id fields as effects. Excluding only id yields60changed and12unchanged increase outcomes/profile. Complete before/current equality and original comparison results are unaffected."
   },
   "compiled_C_sizes": {
     "release": {
@@ -6584,6 +6613,10 @@
     "artifact-integrity": {
       "path": ".tmp/grouped-increase-vzdg5u9z/artifact-integrity.json",
       "sha256": "f3986863cbb37842ced960c665c89eba1676240f5dcc8359925dc170864de0dc"
+    },
+    "started-result-check": {
+      "path": ".tmp/grouped-increase-vzdg5u9z/started-result-check.json",
+      "sha256": "d9bb92f947e391f4f84c105e62669cd1baba2b4d87e8e28af8eba91455a2d4bf"
     }
   },
   "limitations": [
