@@ -1465,6 +1465,47 @@ impl CompiledQuery {
         }
     }
 
+    fn grouped_histogram_child(
+        &self,
+        mut node: NodeId,
+        prepared: &Prepared,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<NodeId>, Interrupted> {
+        if self.options.delayed_name_removal {
+            return Ok(None);
+        }
+        loop {
+            control.check()?;
+            account.work(1);
+            if prepared.flags().invariants[node.0] || prepared.flags().boundaries[node.0] {
+                return Ok(None);
+            }
+            if let Expr::Paren(child) = self.expression.arena[node].expression {
+                node = prepared.preprocessing.child(
+                    &self.expression,
+                    node,
+                    child,
+                    control,
+                    account,
+                )?;
+                continue;
+            }
+            let Some(child) =
+                crate::scheduled_expression::fixed_quantile_vector(&self.expression, node)
+            else {
+                return Ok(None);
+            };
+            let child =
+                prepared
+                    .preprocessing
+                    .child(&self.expression, node, child, control, account)?;
+            return Ok(self
+                .grouped_rate_child(child, prepared, control, account)?
+                .map(|_| child));
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn group_replay_selector(
         &self,
@@ -2180,6 +2221,9 @@ impl CompiledQuery {
                             || self
                                 .grouped_ratio_children(child, prepared, control, account)?
                                 .is_some()
+                            || self
+                                .grouped_histogram_child(child, prepared, control, account)?
+                                .is_some()
                     } else {
                         false
                     };
@@ -2317,6 +2361,12 @@ impl CompiledQuery {
                         } else {
                             None
                         };
+                    let grouped_histogram =
+                        if contributor_demand && matches!(demand, Demand::GroupedSubquery) {
+                            self.grouped_histogram_child(node, prepared, control, account)?
+                        } else {
+                            None
+                        };
                     for child in children(&self.expression, prepared, node, control, account)?.rev()
                     {
                         let child = child?;
@@ -2337,6 +2387,7 @@ impl CompiledQuery {
                                 && matches!(demand, Demand::GroupedSubquery)
                                 && matches!(expression, Expr::Paren(_)))
                                 || grouped_pair.is_some_and(|pair| pair.contains(&child))
+                                || Some(child) == grouped_histogram
                             {
                                 Demand::GroupedSubquery
                             } else if Some(child) == contributor_child
@@ -10500,6 +10551,377 @@ mod tests {
             series.source.count = 16;
         }
         provider
+    }
+
+    fn grouped_histogram_provider(page: usize, groups: usize) -> FixtureProvider {
+        fn point<const BUCKET: bool, const SCALE: u32>(index: usize) -> crate::value::Sample {
+            let tick = index + 1;
+            let value = if BUCKET {
+                tick.min(8) * 70 + tick.saturating_sub(8) * 40
+            } else {
+                tick * 100
+            };
+            crate::value::Sample {
+                time_ms: tick as i64 * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(value as f64 * f64::from(SCALE)),
+            }
+        }
+        let mut provider = FixtureProvider::new(16, page, groups * 4);
+        provider.filter_selectors = true;
+        for (position, series) in provider.series.iter_mut().enumerate() {
+            let bucket = position % 4 < 2;
+            let member = position % 2;
+            series.labels = vec![
+                (b"__name__".to_vec(), b"duration_bucket".to_vec()),
+                (
+                    b"id".to_vec(),
+                    format!("{:06}", groups - 1 - position / 4).into_bytes(),
+                ),
+                (
+                    b"le".to_vec(),
+                    if bucket {
+                        b"1".as_slice()
+                    } else {
+                        b"+Inf".as_slice()
+                    }
+                    .to_vec(),
+                ),
+                (b"member".to_vec(), member.to_string().into_bytes()),
+            ];
+            series.source.sample = match (bucket, member) {
+                (true, 0) => point::<true, 1>,
+                (true, _) => point::<true, 3>,
+                (false, 0) => point::<false, 1>,
+                (false, _) => point::<false, 3>,
+            };
+            series.source.counters = Default::default();
+        }
+        provider
+    }
+
+    #[test]
+    fn grouped_histogram_discovery_preserves_changing_results_and_paged_reads() {
+        for rate_function in ["rate", "increase", "delta"] {
+            for page in [1, 17, 1024] {
+                for delayed in [false, true] {
+                    for (function, expected) in [
+                        ("min", 10.0 / 11.0),
+                        ("max", 1.0),
+                        ("avg", (10.0 / 11.0 + 7.0) / 8.0),
+                    ] {
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let query = engine.compile(
+                            format!("{function}_over_time((histogram_quantile(.5,sum by(id,le)({rate_function}(duration_bucket[3s]))))[8s:1s])").as_bytes(),
+                            options(delayed), &control,
+                        ).unwrap();
+                        let provider = grouped_histogram_provider(page, 2);
+                        let report = query.collect_reported(
+                            &provider,
+                            QueryRequest::Instant { time_ms: 16000 },
+                            &control,
+                        );
+                        let result = report.result.as_ref().unwrap();
+                        assert!(report.annotations.is_empty());
+                        assert_eq!(result.series.len(), 2);
+                        let mut rows = result.series.iter().collect::<Vec<_>>();
+                        rows.sort_by(|a, b| a.labels.0[0].value.cmp(&b.labels.0[0].value));
+                        for (identity, row) in rows.into_iter().enumerate() {
+                            assert_eq!(row.labels.0.len(), 1);
+                            assert_eq!(&*row.labels.0[0].name, b"id");
+                            assert_eq!(
+                                &*row.labels.0[0].value,
+                                format!("{identity:06}").as_bytes()
+                            );
+                            assert_eq!(row.points.len(), 1);
+                            assert_eq!(row.points[0].time_ms, 16000);
+                            let value = f64::from_bits(float_bits(&row.points[0]));
+                            assert!(
+                                (value - expected).abs() < 1e-14,
+                                "{function}/{rate_function}: {value} != {expected}"
+                            );
+                        }
+                        assert_eq!(report.observations.output_samples, 2);
+                        assert_eq!(
+                            report
+                                .observations
+                                .statistics
+                                .samples
+                                .total_queryable_samples,
+                            16
+                        );
+                        assert_eq!(
+                            report.observations.memory[MemoryKind::Workspace as usize].current,
+                            0
+                        );
+                        assert!(
+                            provider.series.iter().all(|row| row
+                                .source
+                                .counters
+                                .peak
+                                .load(Ordering::Relaxed)
+                                == 1)
+                        );
+                        provider.assert_closed();
+                        drop((report, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn grouped_histogram_discovery_preserves_every_required_delivery_read_failure() {
+        for rate_function in ["rate", "increase", "delta"] {
+            let request = QueryRequest::Instant { time_ms: 8000 };
+            for page in [1, 17, 1024] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine.compile(
+                    format!("max_over_time((histogram_quantile(.5,sum by(id,le)({rate_function}(duration_bucket[3s]))))[4s:1s])").as_bytes(),
+                    EngineOptions::default(), &control,
+                ).unwrap();
+                let calibration = grouped_histogram_provider(page, 2);
+                let (rows, prepared, pairs) = float_map_join_preparation_with_discovery(
+                    &query,
+                    &calibration,
+                    request,
+                    &control,
+                );
+                assert_eq!((rows, pairs), (2, 0));
+                let provider = grouped_histogram_provider(page, 2);
+                let mut sink = RecordingSink::default();
+                let report = query.execute_reported(&provider, request, &control, &mut sink);
+                assert!(report.result.is_ok());
+                assert!(sink.begun && sink.committed && !sink.aborted);
+                let last = provider
+                    .series
+                    .iter()
+                    .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
+                    .collect::<Vec<_>>();
+                provider.assert_closed();
+                drop(report);
+                let mut faults = 0;
+                for (position, (&first, &last)) in prepared.iter().zip(&last).enumerate() {
+                    assert!(last > first);
+                    for acquisition in first + 1..=last {
+                        let mut provider = grouped_histogram_provider(page, 2);
+                        provider.series[position].source.fail_acquisition = Some(acquisition);
+                        let mut sink = RecordingSink::default();
+                        let report =
+                            query.execute_reported(&provider, request, &control, &mut sink);
+                        assert!(
+                            matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes)))) if &**bytes == b"injected page failure")
+                        );
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        assert_eq!(
+                            provider.series[position]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            acquisition
+                        );
+                        report.assert_retained_callback_error_memory();
+                        provider.assert_closed();
+                        faults += 1;
+                    }
+                }
+                println!(
+                    "grouped-histogram-discovery function={rate_function} page={page} required-delivery-faults={faults}"
+                );
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn grouped_histogram_discovery_keeps_cold_completion_fresh_reads_and_clearing() {
+        fn drive(
+            compiled: &CompiledQuery,
+            input: &FixtureProvider,
+            stop: Option<(usize, bool)>,
+        ) -> Vec<Vec<usize>> {
+            let acquisitions = || {
+                input
+                    .series
+                    .iter()
+                    .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
+                    .collect::<Vec<_>>()
+            };
+            let control = Control::default();
+            let account = compiled.execution_accounting();
+            let mut landmarks = Vec::new();
+            {
+                let header = compiled
+                    .header(QueryRequest::Instant { time_ms: 8000 })
+                    .unwrap();
+                let prepared = Prepared::new(
+                    &compiled.expression,
+                    &compiled.preprocessing,
+                    header,
+                    compiled.options.no_step_subquery_interval_ms,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let header = prepared.evaluator_header();
+                prepared.activate(header, &control, &account).unwrap();
+                let options = compiled.evaluation_options(header, header.start_ms, &prepared);
+                let bounds = crate::query_bounds::find(
+                    &compiled.expression,
+                    options,
+                    &prepared,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let scope = input.open(bounds, &control).unwrap();
+                let catalog = Catalog::new(
+                    &scope,
+                    &compiled.expression,
+                    &prepared,
+                    options,
+                    compiled.options.no_step_subquery_interval_ms,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let rosters = compiled
+                    .prepare_rosters(
+                        &catalog,
+                        &prepared,
+                        bounds,
+                        &control,
+                        &account,
+                        &mut Annotations::default(),
+                    )
+                    .unwrap();
+                let group = (0..compiled.expression.arena.nodes.len())
+                    .find_map(|i| rosters.group_replay(NodeId(i)))
+                    .unwrap();
+                let histogram = (0..compiled.expression.arena.nodes.len())
+                    .find_map(|i| rosters.histogram(NodeId(i)))
+                    .unwrap();
+                assert!(group.supports_interval() && histogram.routes_classic_inputs());
+                assert!(
+                    !group.has_interval() && !group.has_completion(),
+                    "preparation credit must be cleared"
+                );
+                landmarks.push(acquisitions());
+                let mut machine = Machine::new(
+                    &catalog,
+                    &compiled.expression,
+                    compiled.expression.root,
+                    options,
+                    &control,
+                    &account,
+                    EvaluationMetadata {
+                        prepared: &prepared,
+                        rosters: &rosters,
+                        timestamp_selectors: &compiled.timestamp_selectors,
+                        data_bounds: bounds,
+                        annotations: None,
+                        binary_preparation: None,
+                        histogram_preparation: None,
+                        info_preparation: None,
+                        count_preparation: None,
+                    },
+                );
+                let mut outputs = 0;
+                loop {
+                    let stopping = stop.is_some_and(|(after, _)| outputs == after);
+                    let cancelled = stopping && stop.unwrap().1;
+                    let before = acquisitions();
+                    if cancelled {
+                        control.cancellation.cancel();
+                    }
+                    let next = machine.next();
+                    if stopping {
+                        let error = next.unwrap_err();
+                        if cancelled {
+                            assert!(matches!(
+                                error,
+                                EvaluationError::Interrupted(Interrupted::Cancelled)
+                            ));
+                            assert_eq!(acquisitions(), before);
+                        } else {
+                            assert!(
+                                matches!(&error, EvaluationError::Storage(StorageError::Provider(bytes)) if &**bytes == b"injected page failure")
+                            );
+                        }
+                        assert_eq!(group.has_interval(), outputs != 0);
+                        drop(error);
+                        break;
+                    }
+                    let Some(sample) = next.unwrap() else {
+                        break;
+                    };
+                    assert!(group.has_interval());
+                    assert!(
+                        matches!(sample.value, OwnedValue::Float(value) if (value - 5.0 / 7.0).abs() < 1e-14)
+                    );
+                    outputs += 1;
+                    landmarks.push(acquisitions());
+                }
+                if stop.is_none() {
+                    assert_eq!(outputs, 2);
+                }
+                drop(machine);
+                // Cancellation must not erase prior credit; ordinary cleanup owns its lifetime.
+                rosters
+                    .clear_replay_progress(&Control::default(), &account)
+                    .unwrap();
+                assert!(!group.has_interval() && !group.has_completion());
+            }
+            input.assert_closed();
+            account.snapshot().assert_memory_released();
+            landmarks
+        }
+        for page in [1, 17, 1024] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine.compile(
+                b"max_over_time((histogram_quantile(.5,sum by(id,le)(rate(duration_bucket[3s]))))[4s:1s])",
+                EngineOptions::default(), &control).unwrap();
+            let calibration = grouped_histogram_provider(page, 2);
+            let landmarks = drive(&query, &calibration, None);
+            assert_eq!(landmarks.len(), 3);
+            let fresh = (0..8)
+                .filter(|&i| landmarks[2][i] > landmarks[1][i])
+                .collect::<Vec<_>>();
+            assert_eq!(
+                fresh.len(),
+                4,
+                "selected histogram must reread its four raw contributors"
+            );
+            let nonmember = (0..8).find(|i| !fresh.contains(i)).unwrap();
+            assert!(
+                landmarks[1][nonmember] > landmarks[0][nonmember],
+                "cold discovery must read other histograms"
+            );
+            for (after, target) in [(0, nonmember), (1, fresh[0])] {
+                let mut input = grouped_histogram_provider(page, 2);
+                let acquisition = landmarks[after][target] + 1;
+                input.series[target].source.fail_acquisition = Some(acquisition);
+                assert_eq!(drive(&query, &input, Some((after, false))).len(), after + 1);
+                assert_eq!(
+                    input.series[target]
+                        .source
+                        .counters
+                        .opened
+                        .load(Ordering::Relaxed),
+                    acquisition
+                );
+            }
+            let input = grouped_histogram_provider(page, 2);
+            assert_eq!(drive(&query, &input, Some((1, true))).len(), 2);
+            drop(query);
+            engine.accounting.snapshot().assert_memory_released();
+        }
     }
 
     #[test]

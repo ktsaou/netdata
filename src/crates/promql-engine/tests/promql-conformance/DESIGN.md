@@ -2540,3 +2540,21 @@ individual slower cases and unfinished checks.
   workspace; the smaller case adds 344 B. Finite timings, per-target executable costs, original-order differences and
   all slower controls remain in the [qualification](grouped-ratio-clocks-qualification.json) and
   [procedure](README.md#completed-clocks-in-grouped-ratio-subqueries).
+
+
+## Completed classic histogram discovery
+
+A consumed literal histogram_quantile over direct SUM(rate/increase/delta) may compose existing child
+completed-clock proof with frozen classic bucket metadata. Input proof is computed once and is independent
+of ordered output certification: nonempty Float-only rows, single heads, strictly increasing input ordinals
+and parsed bound/group membership. A borrowed filter carries the classic group and enumerates bucket-output
+ordinals; the existing SUM union expands raw contributors. Equal numeric bounds with distinct text remain
+distinct inputs. No new membership array, value cache or histogram completion owner is introduced.
+
+Only the exact admitted Histogram vector edge permits one ancestry crossing, with unchanged ReplayKey checks.
+The first cold discovery and histogram's own diagnostic preparation remain complete. Later selected discovery
+requires an already completed child clock; ordinary bucket-count reads remain fresh. Child completion cannot
+certify histogram arithmetic, disappearance is decided from current values, and preparation progress clears
+before final delivery. Unsupported shapes retain fallback. The existing binary-parent route is preserved.
+See [the finite qualification](histogram-discovery-qualification.json) for actual layouts, callback failures,
+changing membership, special literals, complete original comparisons and proportional runtime/compiled costs.

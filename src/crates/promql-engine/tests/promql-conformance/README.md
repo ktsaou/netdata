@@ -10001,3 +10001,49 @@ Retain separate group and pair completion tests whenever changing the shared anc
 fixtures alone do not prove fresh values; use the quadratic numerator fixture and changing RHS panel. Keep actual
 original profile/options and compare all labels, timestamps, values, diagnostics and errors under the stated
 ordering policy. Preserve previously recorded original order differences and rejected intermediate attempts.
+
+
+## Completed classic histogram discovery
+
+Consumed expressions such as `max_over_time((histogram_quantile(.95,sum by(service,le)
+(rate(request_duration_seconds_bucket[3s]))))[4s:1s])` reuse completed bucket discovery.
+The same path accepts direct increase/delta leaves and transparent parentheses. A literal quantile and
+certified classic-only bucket metadata are required. Dynamic parameters, delayed name removal, malformed/native
+inputs, nested groups and unsupported clocks keep their existing evaluator paths.
+
+Cold clocks still discover all input buckets. After the SUM child actually completes an exact clock, a later
+selected histogram borrows its possible bucket ordinals from existing metadata. The ordinary group contributor
+plan expands those buckets to raw series; fresh reads determine current values and presence. Child completion
+does not certify histogram arithmetic. Preparation credit clears before final delivery, and no bucket-value
+cache or complete time/series array is added.
+
+The [qualification report](histogram-discovery-qualification.json) retains exact comparisons and all costs.
+At 16 services/four buckets/two contributors/page 17, the measured subquery fetches 487,424→70,784 sample entries,
+work falls 9,814,332→2,695,430 and workspace peaks 186,278→184,510 B. One-service workspace rises 30,426→30,602 B
+(+176 B). The separate four-service time-extent panel stays at 41,696 B across 8/32/64-second windows and all
+three page sizes. Plan/filter/frame/boxed-plan layouts are unchanged on both native profiles and ARM targets.
+
+Five new units cover sparse/reversed binding identities, input/output certification, changing quantiles,
+720 required delivery failures and 12 cold/warm/cancel/clearing traces. Both native profiles pass 900 tests
+with 2 existing exclusions; each ARM target passes 13 focused tests. Six actual C/C++ consumers execute 432 cases,
+split equally among success, provider error, cancellation and output error. Both complete native C suites pass.
+There are 1,650 exact baseline comparisons and1,650 fresh pinned-original comparisons from 275 original outcomes.
+All approved-order comparisons pass with zero numeric-bit differences; 1,314 strict order failures remain recorded.
+
+Reproduce Rust checks with fixtures and either release profile using filters `grouped_histogram_discovery`,
+`classic_discovery_`, `aggregate_replay::tests`, and the retained grouped-ratio completion control.
+Build `histogram_discovery.c` against the default archive/include directory as for `c_embedding.c`; its 72 cases
+per consumer use pages 1/17/1024, both name-removal modes, three rate functions and all four callback outcomes.
+Fresh original qualification must retain complete diagnostics, temporary absence/return, duplicate textual bounds,
+monotonic repair, malformed/native/mixed fallback and special literal quantiles. Keep original order failures.
+The fixture does not serialize logical statistics; Engine/C tests own those checks. QEMU establishes correctness,
+not foreign throughput. No live-provider or process-RSS claim is made by this cohort.
+
+Frozen whole-query candidate/baseline family medians:
+
+| Profile | Rate | Increase | Delta | Controls |
+|---|---:|---:|---:|---:|
+| release | 0.4267 | 0.2366 | 0.2371 | 0.9565 |
+| release-min | 0.4531 | 0.2574 | 0.2599 | 1.0052 |
+
+Ratios below 1 favor the candidate. Individual slower cases and the single predefined follow-up remain in the report. Default C text/data/BSS total changes are release -56,532 B, release-min +4,112 B, arm32 -19,888 B, arm64 -17,740 B.

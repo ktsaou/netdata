@@ -127,6 +127,7 @@ pub(crate) struct Plan {
     groups: AccountedVec<Group>,
     bindings: AccountedVec<Binding>,
     ordered_streaming: bool,
+    classic_inputs: bool,
 }
 
 fn lookup_group(
@@ -161,16 +162,19 @@ impl Plan {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Self, EvaluationError> {
+        let classic_inputs = !rows.is_empty();
         let mut result = Self {
             rows,
             metadata: AccountedVec::new(account, MemoryKind::Workspace),
             groups: AccountedVec::new(account, MemoryKind::Workspace),
             bindings: AccountedVec::new(account, MemoryKind::Workspace),
             ordered_streaming: false,
+            classic_inputs,
         };
         let context = AllocationContext::new(account, MemoryKind::Workspace);
         let mut keys = AccountedVec::<AccountedVec<u8>>::new(account, MemoryKind::Workspace);
         let mut key_index = PositionIndex::new(account);
+        let mut previous = None;
         for row in &*result.rows {
             control.check()?;
             account.work(1);
@@ -221,6 +225,12 @@ impl Plan {
                     }
                 }
             }
+            result.classic_inputs &= row.kinds == 1
+                && !row.heads.multiple()
+                && previous.is_none_or(|ordinal| ordinal < row.ordinal)
+                && bound.is_some()
+                && group.is_some();
+            previous = Some(row.ordinal);
             result.metadata.push(Row {
                 bound,
                 group,
@@ -275,23 +285,94 @@ impl Plan {
     pub(crate) fn streams_ordered(&self) -> bool {
         self.ordered_streaming
     }
+    pub(crate) fn routes_classic_inputs(&self) -> bool {
+        self.classic_inputs && self.ordered_streaming
+    }
+    pub(crate) fn classic_group(&self, binding: usize) -> Option<usize> {
+        if !self.routes_classic_inputs() {
+            return None;
+        }
+        match self.bindings.get(binding)?.key {
+            BindingKey::Classic(group) => Some(group),
+            BindingKey::Native(_) => None,
+        }
+    }
+    pub(crate) fn visit_classic_ordinals(
+        &self,
+        group: usize,
+        control: &Control,
+        account: &QueryAccounting,
+        mut visit: impl FnMut(usize) -> Result<(), Interrupted>,
+    ) -> Result<(), Interrupted> {
+        for (row, metadata) in self.rows.iter().zip(&*self.metadata) {
+            control.check()?;
+            account.work(1);
+            if metadata.group == Some(group) {
+                visit(row.ordinal)?;
+            }
+        }
+        control.check()
+    }
+    pub(crate) fn accepts_classic_ordinal(
+        &self,
+        group: usize,
+        ordinal: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        control.check()?;
+        let position = self.ordinal_position(ordinal, control, account)?;
+        Ok(self
+            .rows
+            .get(position)
+            .is_some_and(|row| row.ordinal == ordinal)
+            && self.metadata[position].group == Some(group))
+    }
+    pub(crate) fn next_classic_ordinal(
+        &self,
+        group: usize,
+        start: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<usize>, Interrupted> {
+        control.check()?;
+        let position = self.ordinal_position(start, control, account)?;
+        for position in position..self.rows.len() {
+            control.check()?;
+            account.work(1);
+            if self.metadata[position].group == Some(group) {
+                return Ok(Some(self.rows[position].ordinal));
+            }
+        }
+        control.check()?;
+        Ok(None)
+    }
+    fn ordinal_position(
+        &self,
+        ordinal: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<usize, Interrupted> {
+        let (mut left, mut right) = (0, self.rows.len());
+        while left < right {
+            control.check()?;
+            account.work(1);
+            let middle = left + (right - left) / 2;
+            if self.rows[middle].ordinal < ordinal {
+                left = middle + 1;
+            } else {
+                right = middle;
+            }
+        }
+        Ok(left)
+    }
     fn row(
         &self,
         sample: &EvaluatedSample<'_>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<usize, EvaluationError> {
-        let (mut left, mut right) = (0, self.rows.len());
-        while left < right {
-            control.check()?;
-            account.work(1);
-            let middle = left + (right - left) / 2;
-            if self.rows[middle].ordinal < sample.ordinal {
-                left = middle + 1;
-            } else {
-                right = middle;
-            }
-        }
+        let left = self.ordinal_position(sample.ordinal, control, account)?;
         for (position, row) in self.rows.iter().enumerate().skip(left) {
             control.check()?;
             account.work(1);
@@ -1488,6 +1569,177 @@ mod tests {
             kinds,
             heads: HeadSummary::default(),
         });
+    }
+
+    fn classic_routing_plan(variant: &str, control: &Control, account: &QueryAccounting) -> Plan {
+        let mut rows = AccountedVec::new(account, MemoryKind::Workspace);
+        for (ordinal, identity, bound) in [
+            (3, "z", "1"),
+            (8, "a", "2"),
+            (13, "z", "+Inf"),
+            (21, "a", "2.0"),
+            (34, "a", "+Inf"),
+        ] {
+            row(
+                &mut rows,
+                1,
+                &[(b"id", identity.as_bytes()), (b"le", bound.as_bytes())],
+                account,
+            );
+            rows.last_mut().unwrap().ordinal = ordinal;
+        }
+        match variant {
+            "normal" | "uncertified" => (),
+            "empty" => rows.clear(),
+            "native" => rows[0].kinds = 2,
+            "mixed" => rows[0].kinds = 3,
+            "duplicate" => rows[1].ordinal = 3,
+            "unordered" => rows[1].ordinal = 2,
+            "malformed" => rows[0]
+                .labels
+                .set(b"le", b"bad", account, MemoryKind::Workspace, control)
+                .unwrap(),
+            "multiple" => {
+                let mut counts = crate::evaluator_roster::PointCounts::default();
+                counts.push(1);
+                counts.push(1);
+                rows[0].heads.note(counts, 1000);
+            }
+            _ => unreachable!(),
+        }
+        let mut plan = Plan::new(rows, control, account).unwrap();
+        let mut cache = Cache::new(account);
+        for group in (0..plan.groups.len()).rev() {
+            cache.bindings.push(Binding {
+                key: BindingKey::Classic(group),
+                occurrence: 0,
+                labels: plan.groups[group]
+                    .labels
+                    .copy_checked(account, MemoryKind::Workspace, control)
+                    .unwrap(),
+            });
+        }
+        plan.finish(cache);
+        if variant != "uncertified" {
+            let mut outputs = AccountedVec::new(account, MemoryKind::Workspace);
+            for (ordinal, binding) in plan.bindings.iter().enumerate() {
+                outputs.push(Descriptor {
+                    labels: binding
+                        .labels
+                        .copy_checked(account, MemoryKind::Workspace, control)
+                        .unwrap(),
+                    ordinal,
+                    hash: label_hash::full(&binding.labels, control, account).unwrap(),
+                    drop_name: true,
+                    first_order: ordinal,
+                    sources: ordinal..ordinal + 1,
+                    kinds: 1,
+                    heads: HeadSummary::default(),
+                });
+            }
+            let sources: Vec<_> = (0..outputs.len()).collect();
+            plan.certify_ordered_streaming(&outputs, &sources, control, account)
+                .unwrap();
+        }
+        plan
+    }
+
+    #[test]
+    fn classic_discovery_routes_bucket_ordinals_not_histogram_bindings() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let plan = classic_routing_plan("normal", &control, &account);
+        assert!(plan.routes_classic_inputs());
+        assert_eq!(plan.classic_group(0), Some(1));
+        assert_eq!(plan.classic_group(1), Some(0));
+        assert_eq!(plan.classic_group(2), None);
+        let filter = crate::evaluator::RowFilter::HistogramBuckets(&plan, 1);
+        assert_eq!(filter.singleton(), None);
+        let mut visited = Vec::new();
+        filter
+            .visit_ordinals(&control, &account, |ordinal| {
+                visited.push(ordinal);
+                Ok(())
+            })
+            .unwrap();
+        // Equal numeric bounds retain both distinct textual bucket identities.
+        assert_eq!(visited, [8, 21, 34]);
+        for ordinal in 0..=35 {
+            assert_eq!(
+                filter.accepts(ordinal, &control, &account).unwrap(),
+                visited.contains(&ordinal)
+            );
+            assert_eq!(
+                plan.next_classic_ordinal(1, ordinal, &control, &account)
+                    .unwrap(),
+                visited.iter().copied().find(|value| *value >= ordinal)
+            );
+        }
+        assert!(!filter.accepts(usize::MAX, &control, &account).unwrap());
+        assert_eq!(
+            plan.next_classic_ordinal(1, usize::MAX, &control, &account)
+                .unwrap(),
+            None
+        );
+        let cancelled = Control::default();
+        cancelled.cancellation.cancel();
+        assert!(matches!(
+            filter.accepts(8, &cancelled, &account),
+            Err(Interrupted::Cancelled)
+        ));
+        assert!(matches!(
+            plan.next_classic_ordinal(1, 8, &cancelled, &account),
+            Err(Interrupted::Cancelled)
+        ));
+        assert!(matches!(
+            filter.visit_ordinals(&cancelled, &account, |_| panic!("cancelled visit")),
+            Err(Interrupted::Cancelled)
+        ));
+        let terminal = Control::default();
+        let mut visits = 0;
+        assert!(matches!(
+            filter.visit_ordinals(&terminal, &account, |ordinal| {
+                visits += 1;
+                if ordinal == 34 {
+                    terminal.cancellation.cancel();
+                }
+                Ok(())
+            }),
+            Err(Interrupted::Cancelled)
+        ));
+        assert_eq!(visits, 3);
+        drop(plan);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn classic_discovery_requires_both_input_and_output_certification() {
+        for variant in [
+            "empty",
+            "native",
+            "mixed",
+            "duplicate",
+            "unordered",
+            "malformed",
+            "multiple",
+            "uncertified",
+        ] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let plan = classic_routing_plan(variant, &control, &account);
+            assert!(!plan.routes_classic_inputs(), "{variant}");
+            assert_eq!(plan.classic_group(0), None, "{variant}");
+            if !matches!(variant, "empty" | "uncertified") {
+                assert!(
+                    plan.streams_ordered(),
+                    "input proof must independently reject {variant}"
+                );
+            }
+            drop(plan);
+            account.snapshot().assert_memory_released();
+        }
     }
 
     #[test]

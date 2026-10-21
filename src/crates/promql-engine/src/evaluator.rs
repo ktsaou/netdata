@@ -631,6 +631,7 @@ pub(crate) enum RowFilter<'a> {
     Ordinals(&'a [usize]),
     One(usize),
     Contributors(&'a crate::aggregate_replay::Plan),
+    HistogramBuckets(&'a crate::histogram_call::Plan, usize),
 }
 impl RowFilter<'_> {
     pub(crate) fn singleton(self) -> Option<usize> {
@@ -662,6 +663,9 @@ impl RowFilter<'_> {
                 }
             }
             Self::Contributors(plan) => plan.visit_members(control, account, visit)?,
+            Self::HistogramBuckets(plan, group) => {
+                plan.visit_classic_ordinals(group, control, account, visit)?;
+            }
         }
         control.check()
     }
@@ -682,6 +686,9 @@ impl RowFilter<'_> {
             Self::Contributors(plan) => {
                 Ok(plan.next_ordinal(ordinal, control, account)? == Some(ordinal))
             }
+            Self::HistogramBuckets(plan, group) => {
+                plan.accepts_classic_ordinal(group, ordinal, control, account)
+            }
         }
     }
     fn next_ordinal(
@@ -694,6 +701,9 @@ impl RowFilter<'_> {
             Self::All => Ok(Some(start)),
             Self::One(value) => Ok((value >= start).then_some(value)),
             Self::Contributors(plan) => plan.next_ordinal(start, control, account),
+            Self::HistogramBuckets(plan, group) => {
+                plan.next_classic_ordinal(group, start, control, account)
+            }
             Self::Ordinals(values) => {
                 let mut next = None;
                 for value in values {
@@ -2674,36 +2684,67 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 self.control,
                 self.account,
             )?;
-            let mut child = *edge;
-            loop {
-                self.control.check()?;
-                self.account.work(1);
-                if self.invariants[child.0]
-                    || self.prepared.flags().boundaries[child.0]
-                    || self.rosters.matrix(child).is_some()
-                {
-                    return Ok(None);
-                }
-                if let Expr::Paren(next) = self.expression.arena[child].expression {
-                    child = self.prepared.preprocessing.child(
-                        self.expression,
-                        child,
-                        next,
-                        self.control,
-                        self.account,
-                    )?;
-                } else if self
-                    .rosters
-                    .group_replay(child)
-                    .is_some_and(|plan| plan.supports_interval())
-                {
-                    break;
-                } else {
-                    return Ok(None);
-                }
+            if self.interval_group_node(*edge)?.is_none() {
+                return Ok(None);
             }
         }
         Ok(Some(pair))
+    }
+
+    fn interval_group_node(&self, mut child: NodeId) -> Result<Option<NodeId>, Interrupted> {
+        loop {
+            self.control.check()?;
+            self.account.work(1);
+            if self.invariants[child.0]
+                || self.prepared.flags().boundaries[child.0]
+                || self.rosters.matrix(child).is_some()
+            {
+                return Ok(None);
+            }
+            if let Expr::Paren(next) = self.expression.arena[child].expression {
+                child = self.prepared.preprocessing.child(
+                    self.expression,
+                    child,
+                    next,
+                    self.control,
+                    self.account,
+                )?;
+            } else {
+                return Ok(self
+                    .rosters
+                    .group_replay(child)
+                    .is_some_and(|plan| plan.supports_interval())
+                    .then_some(child));
+            }
+        }
+    }
+
+    fn grouped_histogram_child(
+        &self,
+        node: NodeId,
+    ) -> Result<Option<(NodeId, NodeId)>, Interrupted> {
+        if self
+            .histogram_preparation
+            .is_some_and(|value| value.node == node)
+            || !self
+                .rosters
+                .histogram(node)
+                .is_some_and(|plan| plan.routes_classic_inputs())
+        {
+            return Ok(None);
+        }
+        let Some(child) = crate::scheduled_expression::fixed_quantile_vector(self.expression, node)
+        else {
+            return Ok(None);
+        };
+        let child = self.prepared.preprocessing.child(
+            self.expression,
+            node,
+            child,
+            self.control,
+            self.account,
+        )?;
+        Ok(self.interval_group_node(child)?.map(|group| (child, group)))
     }
 
     fn direct_range_child(
@@ -2761,6 +2802,15 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         return Ok(false);
                     }
                     // Group completion never certifies its sibling or the enclosing pair.
+                    grouped_operand = false;
+                }
+                State::Histogram(_) if grouped_operand => {
+                    if !self
+                        .grouped_histogram_child(parent.node)?
+                        .is_some_and(|(edge, _)| edge == child.node)
+                    {
+                        return Ok(false);
+                    }
                     grouped_operand = false;
                 }
                 _ => return Ok(false),
@@ -3392,7 +3442,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             match self.frames[index].filter {
                                 RowFilter::All => None,
                                 RowFilter::Ordinals(values) => Some(values),
-                                RowFilter::One(_) | RowFilter::Contributors(_) => None,
+                                RowFilter::One(_)
+                                | RowFilter::Contributors(_)
+                                | RowFilter::HistogramBuckets(_, _) => None,
                             },
                             self.account,
                         ),
@@ -4339,10 +4391,35 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                 unreachable!()
                             };
                             let child = arguments[argument];
-                            let filter = ordinal.map_or(RowFilter::All, |value| {
+                            let mut child_filter = ordinal.map_or(RowFilter::All, |value| {
                                 RowFilter::Ordinals(std::slice::from_ref(value))
                             });
-                            self.push_filtered(child, filter, false, OutputMode::Vector)?;
+                            if ordinal.is_none()
+                                && argument == 1
+                                && let RowFilter::Ordinals([binding]) = filter
+                                && self.direct_range_child(index, false)?
+                                && let Some((_, group)) = self.grouped_histogram_child(node)?
+                                && self
+                                    .rosters
+                                    .group_replay(group)
+                                    .expect("qualified histogram group")
+                                    .completed_interval(
+                                        crate::vector_matching::ReplayKey::new(
+                                            options,
+                                            self.step_index,
+                                            self.prepared.lookback_ns(options.lookback_ms),
+                                            self.data_bounds,
+                                        ),
+                                        self.control,
+                                        self.account,
+                                    )?
+                                && let Some(plan) = self.rosters.histogram(node)
+                                && let Some(group) = plan.classic_group(*binding)
+                            {
+                                // Only an exhausted child clock may omit other histograms' buckets.
+                                child_filter = RowFilter::HistogramBuckets(plan, group);
+                            }
+                            self.push_filtered(child, child_filter, false, OutputMode::Vector)?;
                         }
                         crate::histogram_call::Action::Sample(sample) => {
                             if filter.accepts(sample.ordinal, self.control, self.account)?

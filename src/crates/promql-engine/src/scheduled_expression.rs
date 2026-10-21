@@ -12,6 +12,23 @@ use crate::{
     storage::{Control, Interrupted},
 };
 
+pub(crate) fn fixed_quantile_vector(expression: &ParsedExpression, node: NodeId) -> Option<NodeId> {
+    let Expr::Call {
+        function: Some(function),
+        arguments,
+    } = &expression.arena[node].expression
+    else {
+        return None;
+    };
+    (function.name == "histogram_quantile"
+        && arguments.len() == 2
+        && matches!(
+            expression.arena[arguments[0]].expression,
+            Expr::Number { .. }
+        ))
+    .then(|| arguments[1])
+}
+
 pub(crate) fn unique_ratio_operands(
     expression: &ParsedExpression,
     node: NodeId,

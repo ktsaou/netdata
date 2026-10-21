@@ -107,6 +107,21 @@ impl Plan {
     pub(crate) fn supports_interval(&self) -> bool {
         self.allow_interval
     }
+    pub(crate) fn completed_interval(
+        &self,
+        key: ReplayKey,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        control.check()?;
+        account.work(1);
+        Ok(self.allow_interval
+            && self
+                .interval
+                .borrow()
+                .as_ref()
+                .is_some_and(|interval| interval.contains(key)))
+    }
     pub(crate) fn activate_interval(
         &self,
         filter: RowFilter<'_>,
@@ -114,14 +129,7 @@ impl Plan {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<bool, Interrupted> {
-        control.check()?;
-        account.work(1);
-        if !self.allow_interval
-            || !self
-                .interval
-                .borrow()
-                .as_ref()
-                .is_some_and(|interval| interval.contains(key))
+        if !self.completed_interval(key, control, account)?
             || self.groups.is_empty()
             || matches!(filter, RowFilter::All)
         {

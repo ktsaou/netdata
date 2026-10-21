@@ -73909,5 +73909,11 @@
     "report_sha256": "4d11bc66224f261f4fe5757c9a574c1da650a4c2398bc45203f7743fc0e3e9ef",
     "status": "finite_qualification_pass",
     "scope": "Compose existing grouped rate-family and pair completed-clock proofs for direct grouped ratio subqueries."
+  },
+  "histogram_discovery": {
+    "report": "histogram-discovery-qualification.json",
+    "report_sha256": "b318cf50291e60a2633c2b80060ee86db2bed748bb2497b69d42bda0739a9cf1",
+    "status": "finite_qualification_pass",
+    "scope": "Reuse completed grouped bucket discovery in consumed classic histogram_quantile subqueries."
   }
 }
