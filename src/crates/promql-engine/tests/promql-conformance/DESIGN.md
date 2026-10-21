@@ -2603,3 +2603,17 @@ changing membership, special literals, complete original comparisons and proport
   mapping table or value cache; raw samples stay paged across time and series.
 - **Evidence:** the [qualification](grouped-comparison-clocks-qualification.json) records complete before/original
   outcomes, causal failure/completion tests, C/ARM execution and distinct query-memory/compiled costs.
+
+
+## Completed grouped arithmetic clocks
+
+- **Choice:** extend the existing literal binary-vector proof to the seven ordinary arithmetic operators,
+  preserving comparisons. Preparation and runtime use the same resolved edge and eligible group/ratio owner.
+- **Scope:** keep the immediate-number requirement, one-wrapper restriction and all clock/boundary/fallback checks.
+  Rename private comparison-specific predicates; retain historical comparison tests and reports.
+- **Semantics:** leave arithmetic kernels, scalar-first/left order, source slices, metadata and diagnostics unchanged.
+  Nonfinite arithmetic results remain samples. Rate producers already remove reserved labels before grouping.
+- **Ownership:** retain separate Group/Pair completion and final clearing; no new fields, owners or value cache.
+  Raw samples stay paged across time and series, with existing series-dependent metadata and output storage.
+- **Evidence:** the [qualification](grouped-arithmetic-clocks-qualification.json) retains independent numeric bits,
+  complete baseline/original outcomes, causal failure/completion checks, C/ARM execution and all measured costs.

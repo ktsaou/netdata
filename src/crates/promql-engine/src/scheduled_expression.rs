@@ -95,7 +95,7 @@ pub(crate) fn vector_child(
     }
 }
 
-pub(crate) fn literal_comparison_vector(
+pub(crate) fn literal_binary_vector(
     expression: &ParsedExpression,
     prepared: &Prepared,
     node: NodeId,
@@ -111,7 +111,18 @@ pub(crate) fn literal_comparison_vector(
     else {
         return Ok(None);
     };
-    if !operator.is_comparison() {
+    if !operator.is_comparison()
+        && !matches!(
+            operator,
+            TokenKind::ADD
+                | TokenKind::SUB
+                | TokenKind::MUL
+                | TokenKind::DIV
+                | TokenKind::MOD
+                | TokenKind::POW
+                | TokenKind::ATAN2
+        )
+    {
         return Ok(None);
     }
     let child = match (

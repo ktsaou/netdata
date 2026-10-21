@@ -10181,3 +10181,68 @@ the full native suites and focused ARM owner checks. Build the existing direct/r
 archive; their added expressions cover left/right filtering, boolean values and a false inner comparison. Retain
 explicit raw-pair/histogram/shared-gate fallback checks when changing the ancestry helper. Never infer original
 source ordinal identity from a filtered output position, or grant completion merely because a comparison returned.
+
+
+## Completed grouped arithmetic clocks
+
+The literal-wrapper path described above now also admits `+`, `-`, `*`, `/`, `%`, `^` and `atan2`.
+A consumed subquery may place one of these operations around an existing interval-qualified grouped
+rate/increase/delta producer or certified grouped ratio, with one immediate-number operand on either side.
+Preparation and runtime use the same resolved vector edge and retain the existing clock, producer and single-wrapper
+checks. Arithmetic runs normally for each selected value; no values are cached. Existing comparison behavior remains.
+
+Scalar-first order, scalar-left operands, source ordinals, complete merged source slices, diagnostics and logical
+sample ownership are unchanged. Arithmetic NaN/infinity results remain present samples. Eligible rate producers
+already remove reserved metadata before grouping; the label-result controls do not claim a new duplicate-error case.
+Group and Pair completion remain distinct, and preparation progress clears before final delivery. Computed scalars,
+nested wrappers, arithmetic inside ratio operands, raw pairs and histogram producers retain their existing paths.
+
+The [finite qualification](grouped-arithmetic-clocks-qualification.json) records 2,352 exact baseline pairs and
+2,352 comparisons with 392 fresh pinned Go outcomes. There are no numerical-bit differences; all 1,770 strict
+instant-order failures remain recorded separately from approved unspecified-order matches. Both native profiles
+pass 910 units with two existing ignored tests. Four new tests cover 168 complete-result queries using 56 independent
+Go numeric expectations, 24 nonfinite-result queries, 120 required-read failures and completion/clearing controls.
+The nonfinite NaN unit assertions check classification; the original panels retain bit diagnostics.
+Each ARM target passes 15 focused units. Actual C/C++ consumers execute 10,368 affected cases, 2,592 per outcome,
+and both complete native C suites pass. Strict lint, formatting and the installed MSRV compile check pass.
+
+The frozen 24-case, five-block timing panel retains 960 complete-result pairs. Ratios below 1 favor the change:
+
+| Profile | Group | Ratio | Increase | Delta | Controls |
+|---|---:|---:|---:|---:|---:|
+| release | 0.4119 | 0.3799 | 0.3959 | 0.4004 | 0.9914 |
+| release-min | 0.4177 | 0.3789 | 0.3955 | 0.3946 | 0.9986 |
+
+Every slower individual primary case and its predefined follow-up remain in the report. Follow-up measurements
+do not replace primary results or gates. Representative release observations are:
+
+| Case | Fetched entries | Workspace peak, bytes | Work units |
+|---|---:|---:|---:|
+| g16-group-percent | 388608→61248 | 56455→56567 | 2385993→624582 |
+| g16-ratio-percent | 788480→133760 | 116331→115324 | 9132971→1700563 |
+| g1-singleton-group | 3168→3168 | 20602→20602 | 22034→22061 |
+
+All 36 increasing-time cases retain exact analytical results. At four groups, direct/ratio producers and both
+percentage/inverse wrappers keep constant workspace across windows 8/32/64 and pages 1/17/1024. Borrowed samples
+remain page-bounded. There are no new production fields, owners or raw/value arrays. Metadata and returned results
+can still grow with series cardinality; these observations do not establish a total-query or process-RSS bound.
+
+Default C executable deltas, bytes:
+
+| Profile | Text | Data | BSS | Total |
+|---|---:|---:|---:|---:|
+| release | 16 | 0 | 0 | 16 |
+| release-min | 0 | 0 | 0 | 0 |
+| arm32 | 24 | 0 | 0 | 24 |
+| arm64 | 12320 | 0 | 0 | 12320 |
+
+The report also records relative and cumulative compiled costs, separately from query memory. Timings are finite
+synthetic native measurements, not live-provider or ARM throughput. The initial baseline fixture invocation stopped
+after an auxiliary dataset changed its active identity. The corrected stream explicitly reloads the original dataset;
+all query packets and dataset contents are unchanged, and the failed capture remains retained.
+
+To repeat the focused checks, select `grouped_arithmetic_clocks` and retain `grouped_comparison_clocks`, aggregate
+and Pair ownership checks, and the existing numerical-loop interruption test. The latter tests actual POW/MOD
+callbacks; together with mapped results, completion controls and C cancellation it does not claim a new mapped-loop
+interruption phase. The existing C direct/ratio fixtures include multiplication, scalar-left subtraction, power and
+modulo through all four callback outcomes. Preserve every old helper caller when changing wrapper qualification.

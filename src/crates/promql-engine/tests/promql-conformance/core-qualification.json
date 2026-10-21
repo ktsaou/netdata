@@ -73933,5 +73933,11 @@
     "report": "grouped-comparison-clocks-qualification.json",
     "report_sha256": "ee941e3e705927e3e71fbb576c0c8ae31f10f1b15f4686de5e6de9b52191c90e",
     "summary": "One literal comparison reuses existing grouped/ratio completion with fresh comparison outcomes and original source identities."
+  },
+  "grouped_arithmetic_clocks": {
+    "status": "finite_qualification_pass",
+    "report": "grouped-arithmetic-clocks-qualification.json",
+    "report_sha256": "e2c4fe6268eda95f42f9a6d54d88003eff4662d3f1f39e323ecc800513275834",
+    "summary": "One literal arithmetic wrapper reuses existing group/ratio completion, preserving ordinary arithmetic and source identities."
   }
 }

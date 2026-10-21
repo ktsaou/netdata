@@ -1465,7 +1465,7 @@ impl CompiledQuery {
         }
     }
 
-    fn grouped_comparison_child(
+    fn grouped_literal_child(
         &self,
         mut node: NodeId,
         prepared: &Prepared,
@@ -1491,7 +1491,7 @@ impl CompiledQuery {
                 )?;
                 continue;
             }
-            let Some(child) = crate::scheduled_expression::literal_comparison_vector(
+            let Some(child) = crate::scheduled_expression::literal_binary_vector(
                 &self.expression,
                 prepared,
                 node,
@@ -2271,7 +2271,7 @@ impl CompiledQuery {
                                 .grouped_histogram_child(child, prepared, control, account)?
                                 .is_some()
                             || self
-                                .grouped_comparison_child(child, prepared, control, account)?
+                                .grouped_literal_child(child, prepared, control, account)?
                                 .is_some()
                     } else {
                         false
@@ -2416,9 +2416,9 @@ impl CompiledQuery {
                         } else {
                             None
                         };
-                    let grouped_comparison =
+                    let grouped_literal =
                         if contributor_demand && matches!(demand, Demand::GroupedSubquery) {
-                            self.grouped_comparison_child(node, prepared, control, account)?
+                            self.grouped_literal_child(node, prepared, control, account)?
                         } else {
                             None
                         };
@@ -2443,7 +2443,7 @@ impl CompiledQuery {
                                 && matches!(expression, Expr::Paren(_)))
                                 || grouped_pair.is_some_and(|pair| pair.contains(&child))
                                 || Some(child) == grouped_histogram
-                                || Some(child) == grouped_comparison
+                                || Some(child) == grouped_literal
                             {
                                 Demand::GroupedSubquery
                             } else if Some(child) == contributor_child
@@ -10656,30 +10656,372 @@ mod tests {
         provider
     }
 
-    fn grouped_comparison_test_expression(expression: String, comparison: bool) -> String {
-        if !comparison {
+    fn grouped_binary_test_expression(expression: String, suffix: Option<&str>) -> String {
+        let Some(suffix) = suffix else {
             return expression;
-        }
+        };
         let child = expression
             .strip_prefix("max_over_time((")
             .unwrap()
             .strip_suffix(")[4s:1s])")
             .unwrap();
-        format!("max_over_time((({child}) > bool 0)[4s:1s])")
+        format!("max_over_time((({child}) {suffix})[4s:1s])")
+    }
+
+    #[test]
+    fn grouped_arithmetic_clocks_failures() {
+        grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
+            "sum",
+            false,
+            Some("* 100"),
+        );
+        grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
+            "sum",
+            false,
+            Some("* 100"),
+        );
+    }
+
+    #[test]
+    fn grouped_arithmetic_clocks_completion() {
+        grouped_subquery_clocks_do_not_credit_truncated_endpoints_case("sum", false, Some("* 100"));
+        grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(
+            "sum",
+            false,
+            Some("* 100"),
+        );
+    }
+
+    #[test]
+    fn grouped_arithmetic_clocks_results() {
+        // Pinned Go final-value results for direct 6/12 and quadratic-ratio 45/180.
+        let cases: &[(&str, bool, [u64; 4])] = &[
+            (
+                "+",
+                true,
+                [
+                    0x4020000000000000,
+                    0x402c000000000000,
+                    0x4047800000000000,
+                    0x4066c00000000000,
+                ],
+            ),
+            (
+                "+",
+                false,
+                [
+                    0x4020000000000000,
+                    0x402c000000000000,
+                    0x4047800000000000,
+                    0x4066c00000000000,
+                ],
+            ),
+            (
+                "-",
+                true,
+                [
+                    0xc010000000000000,
+                    0xc024000000000000,
+                    0xc045800000000000,
+                    0xc066400000000000,
+                ],
+            ),
+            (
+                "-",
+                false,
+                [
+                    0x4010000000000000,
+                    0x4024000000000000,
+                    0x4045800000000000,
+                    0x4066400000000000,
+                ],
+            ),
+            (
+                "*",
+                true,
+                [
+                    0x4028000000000000,
+                    0x4038000000000000,
+                    0x4056800000000000,
+                    0x4076800000000000,
+                ],
+            ),
+            (
+                "*",
+                false,
+                [
+                    0x4028000000000000,
+                    0x4038000000000000,
+                    0x4056800000000000,
+                    0x4076800000000000,
+                ],
+            ),
+            (
+                "/",
+                true,
+                [
+                    0x3fd5555555555555,
+                    0x3fc5555555555555,
+                    0x3fa6c16c16c16c17,
+                    0x3f86c16c16c16c17,
+                ],
+            ),
+            (
+                "/",
+                false,
+                [
+                    0x4008000000000000,
+                    0x4018000000000000,
+                    0x4036800000000000,
+                    0x4056800000000000,
+                ],
+            ),
+            (
+                "%",
+                true,
+                [
+                    0x4000000000000000,
+                    0x4000000000000000,
+                    0x4000000000000000,
+                    0x4000000000000000,
+                ],
+            ),
+            (
+                "%",
+                false,
+                [
+                    0x0000000000000000,
+                    0x0000000000000000,
+                    0x3ff0000000000000,
+                    0x0000000000000000,
+                ],
+            ),
+            (
+                "^",
+                true,
+                [
+                    0x4050000000000000,
+                    0x40b0000000000000,
+                    0x42c0000000000000,
+                    0x4b30000000000000,
+                ],
+            ),
+            (
+                "^",
+                false,
+                [
+                    0x4042000000000000,
+                    0x4062000000000000,
+                    0x409fa40000000000,
+                    0x40dfa40000000000,
+                ],
+            ),
+            (
+                "atan2",
+                true,
+                [
+                    0x3fd4978fa3269ee1,
+                    0x3fc52397843c9add,
+                    0x3fa6bd9751dc4e01,
+                    0x3f86c12eb904e9c8,
+                ],
+            ),
+            (
+                "atan2",
+                false,
+                [
+                    0x3ff3fc176b7a8560,
+                    0x3ff67d8863bc99bc,
+                    0x3ff86c0e99b54aa8,
+                    0x3ff8f478f6d22344,
+                ],
+            ),
+        ];
+        for page in [1, 17, 1024] {
+            for count in [4, 16] {
+                for ratio in [false, true] {
+                    for &(operator, scalar_left, expected) in cases {
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let group = "sum by(id)(rate(m_total[3s]))";
+                        let child = if ratio {
+                            format!("{group}/sum by(id)(rate(n_total[3s]))")
+                        } else {
+                            group.to_owned()
+                        };
+                        let body = if scalar_left {
+                            format!("2 {operator} ({child})")
+                        } else {
+                            format!("({child}) {operator} 2")
+                        };
+                        let expression = format!("last_over_time(({body})[8s:1s])");
+                        let query = engine
+                            .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                            .unwrap();
+                        let provider = if ratio {
+                            grouped_ratio_provider(page, count)
+                        } else {
+                            grouped_subquery_provider(page, count)
+                        };
+                        let report = query.collect_reported(
+                            &provider,
+                            QueryRequest::Instant { time_ms: 16000 },
+                            &control,
+                        );
+                        let result = report.result.as_ref().unwrap();
+                        assert!(report.annotations.is_empty());
+                        assert_eq!(result.series.len(), count);
+                        let mut rows = result.series.iter().collect::<Vec<_>>();
+                        rows.sort_by(|a, b| a.labels.0[0].value.cmp(&b.labels.0[0].value));
+                        for (identity, row) in rows.into_iter().enumerate() {
+                            let id = format!("{identity:06}");
+                            assert_eq!(
+                                row.labels
+                                    .0
+                                    .iter()
+                                    .map(|label| (&*label.name, &*label.value))
+                                    .collect::<Vec<_>>(),
+                                [(b"id".as_slice(), id.as_bytes())]
+                            );
+                            assert_eq!(row.points.len(), 1);
+                            assert_eq!(row.points[0].time_ms, 16000);
+                            assert_eq!(
+                                float_bits(&row.points[0]),
+                                expected[usize::from(ratio) * 2 + identity % 2],
+                                "{expression}"
+                            );
+                        }
+                        assert_eq!(
+                            report
+                                .observations
+                                .statistics
+                                .samples
+                                .total_queryable_samples,
+                            (count * 8) as u64
+                        );
+                        assert_eq!(report.observations.output_samples, count as u64);
+                        assert_eq!(
+                            report.observations.memory[MemoryKind::Workspace as usize].current,
+                            0
+                        );
+                        assert!(
+                            provider.series.iter().all(|series| series
+                                .source
+                                .counters
+                                .peak
+                                .load(Ordering::Relaxed)
+                                == 1)
+                        );
+                        if count == 16 && page == 17 {
+                            assert!(
+                                report.observations.samples_fetched
+                                    < if ratio { 200_000 } else { 100_000 },
+                                "{expression}: {}",
+                                report.observations.samples_fetched
+                            );
+                        }
+                        provider.assert_closed();
+                        drop((report, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn grouped_arithmetic_clocks_nonfinite_samples_remain_present() {
+        for page in [1, 17, 1024] {
+            for ratio in [false, true] {
+                for (operator, scalar_left, expected) in [
+                    ("/", false, f64::INFINITY),
+                    ("%", false, f64::NAN),
+                    ("*", false, 0.0),
+                    ("/", true, 0.0),
+                ] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let group = "sum by(id)(rate(m_total[3s]))";
+                    let child = if ratio {
+                        format!("{group}/sum by(id)(rate(n_total[3s]))")
+                    } else {
+                        group.to_owned()
+                    };
+                    let body = if scalar_left {
+                        format!("0 {operator} ({child})")
+                    } else {
+                        format!("({child}) {operator} 0")
+                    };
+                    let expression = format!("last_over_time(({body})[8s:1s])");
+                    let query = engine
+                        .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                        .unwrap();
+                    let provider = if ratio {
+                        grouped_ratio_provider(page, 4)
+                    } else {
+                        grouped_subquery_provider(page, 4)
+                    };
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 16000 },
+                        &control,
+                    );
+                    let result = report.result.as_ref().unwrap();
+                    assert!(report.annotations.is_empty());
+                    assert_eq!(result.series.len(), 4);
+                    for row in &result.series {
+                        assert_eq!(row.points.len(), 1);
+                        assert_eq!(row.points[0].time_ms, 16000);
+                        let value = f64::from_bits(float_bits(&row.points[0]));
+                        if expected.is_nan() {
+                            assert!(value.is_nan());
+                        } else {
+                            assert_eq!(value.to_bits(), expected.to_bits());
+                        }
+                    }
+                    assert_eq!(
+                        report
+                            .observations
+                            .statistics
+                            .samples
+                            .total_queryable_samples,
+                        32
+                    );
+                    assert_eq!(report.observations.output_samples, 4);
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
     }
 
     #[test]
     fn grouped_comparison_clocks_failures() {
         grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
-            "sum", false, true,
+            "sum",
+            false,
+            Some("> bool 0"),
         );
-        grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case("sum", false, true);
+        grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
+            "sum",
+            false,
+            Some("> bool 0"),
+        );
     }
 
     #[test]
     fn grouped_comparison_clocks_completion() {
-        grouped_subquery_clocks_do_not_credit_truncated_endpoints_case("sum", false, true);
-        grouped_ratio_clocks_keep_group_and_pair_completion_separate_case("sum", false, true);
+        grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(
+            "sum",
+            false,
+            Some("> bool 0"),
+        );
+        grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(
+            "sum",
+            false,
+            Some("> bool 0"),
+        );
     }
 
     #[test]
@@ -10836,10 +11178,10 @@ mod tests {
                 aggregate, false,
             );
             grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
-                aggregate, false, false,
+                aggregate, false, None,
             );
             grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
-                aggregate, false, false,
+                aggregate, false, None,
             );
         }
     }
@@ -10851,9 +11193,9 @@ mod tests {
                 aggregate, false,
             );
             grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(
-                aggregate, false, false,
+                aggregate, false, None,
             );
-            grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(aggregate, false, false);
+            grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(aggregate, false, None);
         }
     }
 
@@ -11372,7 +11714,7 @@ mod tests {
     fn grouped_ratio_clocks_preserve_every_required_delivery_read_failure() {
         for aggregate in ["sum", "avg"] {
             grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
-                aggregate, true, false,
+                aggregate, true, None,
             );
         }
     }
@@ -11380,7 +11722,7 @@ mod tests {
     fn grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
         aggregate: &str,
         full_matrix: bool,
-        comparison: bool,
+        suffix: Option<&str>,
     ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             let request = QueryRequest::Instant { time_ms: 8000 };
@@ -11389,7 +11731,7 @@ mod tests {
                 let control = Control::default();
                 let query = engine
                     .compile(
-                        grouped_comparison_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[4s:1s])"), comparison)
+                        grouped_binary_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[4s:1s])"), suffix)
                             .as_bytes(),
                         EngineOptions::default(),
                         &control,
@@ -11606,7 +11948,7 @@ mod tests {
     fn grouped_subquery_clocks_preserve_every_required_delivery_read_failure() {
         for aggregate in ["sum", "avg"] {
             grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
-                aggregate, true, false,
+                aggregate, true, None,
             );
         }
     }
@@ -11614,7 +11956,7 @@ mod tests {
     fn grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
         aggregate: &str,
         full_matrix: bool,
-        comparison: bool,
+        suffix: Option<&str>,
     ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             let request = QueryRequest::Instant { time_ms: 8000 };
@@ -11623,7 +11965,7 @@ mod tests {
                 let control = Control::default();
                 let query = engine
                     .compile(
-                        grouped_comparison_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])"), comparison)
+                        grouped_binary_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])"), suffix)
                             .as_bytes(),
                         EngineOptions::default(),
                         &control,
@@ -11690,7 +12032,7 @@ mod tests {
     fn grouped_ratio_clocks_keep_group_and_pair_completion_separate() {
         for aggregate in ["sum", "avg"] {
             grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(
-                aggregate, true, false,
+                aggregate, true, None,
             );
         }
     }
@@ -11698,7 +12040,7 @@ mod tests {
     fn grouped_ratio_clocks_keep_group_and_pair_completion_separate_case(
         aggregate: &str,
         full_matrix: bool,
-        comparison: bool,
+        suffix: Option<&str>,
     ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             for (page, fault) in grouped_clock_pages(full_matrix)
@@ -11710,7 +12052,7 @@ mod tests {
                 let control = Control::default();
                 let compiled = engine
                     .compile(
-                        grouped_comparison_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[4s:1s])"), comparison)
+                        grouped_binary_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[4s:1s])"), suffix)
                             .as_bytes(),
                         EngineOptions::default(),
                         &control,
@@ -11893,14 +12235,14 @@ mod tests {
     #[test]
     fn grouped_subquery_clocks_do_not_credit_truncated_endpoints() {
         for aggregate in ["sum", "avg"] {
-            grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(aggregate, true, false);
+            grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(aggregate, true, None);
         }
     }
 
     fn grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(
         aggregate: &str,
         full_matrix: bool,
-        comparison: bool,
+        suffix: Option<&str>,
     ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             for &page in grouped_clock_pages(full_matrix) {
@@ -11908,7 +12250,7 @@ mod tests {
                 let control = Control::default();
                 let compiled = engine
                     .compile(
-                        grouped_comparison_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])"), comparison)
+                        grouped_binary_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])"), suffix)
                             .as_bytes(),
                         EngineOptions::default(),
                         &control,

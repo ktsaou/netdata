@@ -2747,8 +2747,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         Ok(self.interval_group_node(child)?.map(|group| (child, group)))
     }
 
-    fn grouped_comparison_child(&self, node: NodeId) -> Result<Option<NodeId>, Interrupted> {
-        let Some(edge) = crate::scheduled_expression::literal_comparison_vector(
+    fn grouped_literal_child(&self, node: NodeId) -> Result<Option<NodeId>, Interrupted> {
+        let Some(edge) = crate::scheduled_expression::literal_binary_vector(
             self.expression,
             self.prepared,
             node,
@@ -2801,7 +2801,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             )
         };
         let key = key_for(&self.frames[index]);
-        let mut comparison = false;
+        let mut literal_binary = false;
         while index > 0 {
             self.control.check()?;
             self.account.work(1);
@@ -2838,12 +2838,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 State::Map {
                     operation: MapOperation::Binary { .. },
                     ..
-                } if !comparison => {
-                    if self.grouped_comparison_child(parent.node)? != Some(child.node) {
+                } if !literal_binary => {
+                    if self.grouped_literal_child(parent.node)? != Some(child.node) {
                         return Ok(false);
                     }
-                    // A comparison preserves source identities, not group or pair completion.
-                    comparison = true;
+                    // A literal map preserves source identities, not group or pair completion.
+                    literal_binary = true;
                 }
                 State::Binary(_) if grouped_operand => {
                     if !self
