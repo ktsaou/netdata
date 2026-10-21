@@ -73957,5 +73957,11 @@
     "report": "grouped-ratio-prefix-qualification.json",
     "report_sha256": "4d2069e9f7cb51add8966a5aef7c9092ae49dd13fe2214be1894f663e68a94a5",
     "summary": "Reuse successful discovery and physical pair prefixes through one fixed Float map over a qualified grouped DIV ratio."
+  },
+  "unary_float_group_clocks": {
+    "status": "finite_qualification_pass",
+    "report": "unary-float-group-clocks-qualification.json",
+    "report_sha256": "09f4167e549737cbe8cf9167ba5be1f9efa2c1939585099250e44f6267c569fb",
+    "summary": "Reuse actual completed group scans through one outer unary operator over one fixed Float map."
   }
 }

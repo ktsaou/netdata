@@ -177,6 +177,62 @@ pub(crate) fn fixed_map_vector(
     Ok(Some(child))
 }
 
+// Unary consumes a complete matrix; a second Float map alone consumes only a vector row.
+pub(crate) fn unary_float_group(
+    expression: &ParsedExpression,
+    prepared: &Prepared,
+    node: NodeId,
+    control: &Control,
+    account: &QueryAccounting,
+    available: impl Fn(NodeId) -> bool,
+) -> Result<Option<(NodeId, NodeId)>, Interrupted> {
+    if !matches!(
+        expression.arena[node].expression,
+        Expr::Unary {
+            operator: TokenKind::ADD | TokenKind::SUB,
+            ..
+        }
+    ) {
+        return Ok(None);
+    }
+    let eligible = |node: NodeId| {
+        !prepared.flags().invariants[node.0]
+            && !prepared.flags().boundaries[node.0]
+            && available(node)
+    };
+    if !eligible(node) {
+        return Ok(None);
+    }
+    let Some(edge) = fixed_map_vector(expression, prepared, node, control, account)? else {
+        return Ok(None);
+    };
+    let mut call = edge;
+    loop {
+        control.check()?;
+        account.work(1);
+        if !eligible(call) {
+            return Ok(None);
+        }
+        if let Expr::Paren(child) = expression.arena[call].expression {
+            call = prepared
+                .preprocessing
+                .child(expression, call, child, control, account)?;
+        } else {
+            break;
+        }
+    }
+    if !matches!(expression.arena[call].expression, Expr::Call { .. }) {
+        return Ok(None);
+    }
+    let Some(group) = fixed_map_vector(expression, prepared, call, control, account)? else {
+        return Ok(None);
+    };
+    Ok(
+        (eligible(group) && matches!(expression.arena[group].expression, Expr::Aggregate { .. }))
+            .then_some((edge, group)),
+    )
+}
+
 pub(crate) fn literal_scalar_child(
     expression: &ParsedExpression,
     prepared: &Prepared,

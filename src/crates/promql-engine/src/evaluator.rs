@@ -2784,12 +2784,30 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 )?;
                 continue;
             }
-            return Ok((self
+            if self
                 .rosters
                 .group_replay(producer)
                 .is_some_and(|plan| plan.supports_interval())
-                || self.grouped_ratio_children(producer)?.is_some())
-            .then_some(edge));
+                || self.grouped_ratio_children(producer)?.is_some()
+            {
+                return Ok(Some(edge));
+            }
+            let Some((edge, group)) = crate::scheduled_expression::unary_float_group(
+                self.expression,
+                self.prepared,
+                node,
+                self.control,
+                self.account,
+                |node| self.rosters.matrix(node).is_none(),
+            )?
+            else {
+                return Ok(None);
+            };
+            return Ok(self
+                .rosters
+                .group_replay(group)
+                .is_some_and(|plan| plan.supports_interval())
+                .then_some(edge));
         }
     }
 
@@ -2807,7 +2825,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             )
         };
         let key = key_for(&self.frames[index]);
-        let mut fixed_map = false;
+        let mut fixed_maps = 0;
         let mut path = RangePath::Completed;
         while index > 0 {
             self.control.check()?;
@@ -2848,12 +2866,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         | MapOperation::Unary(_)
                         | MapOperation::Pointwise(PointwiseFunction::Float(..)),
                     ..
-                } if !fixed_map => {
+                } if fixed_maps == 0 => {
                     if self.grouped_map_child(parent.node)? != Some(child.node) {
                         return Ok(None);
                     }
                     // A fixed map preserves source identities, not group or pair completion.
-                    fixed_map = true;
+                    fixed_maps = 1;
                     if matches!(
                         parent.state,
                         State::Map {
@@ -2863,6 +2881,16 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     ) {
                         path = RangePath::FloatMap;
                     }
+                }
+                State::Map {
+                    operation: MapOperation::Unary(_),
+                    ..
+                } if fixed_maps == 1 && matches!(path, RangePath::FloatMap) => {
+                    if self.grouped_map_child(parent.node)? != Some(child.node) {
+                        return Ok(None);
+                    }
+                    // Only Unary -> fixed Float -> Group may cross this second map.
+                    fixed_maps = 2;
                 }
                 State::Binary(_) if grouped_operand => {
                     if !self

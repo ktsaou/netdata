@@ -330,3 +330,6 @@ Fixed-map grouped reuse follows
 trace resolved Call edges and actual Group/Pair completion separately.
 The ratio-prefix extension follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#successful-prefixes-in-grouped-ratios`.
+
+Unary/Float group composition follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-through-unary-float-groups`.

@@ -1501,13 +1501,30 @@ impl CompiledQuery {
             else {
                 return Ok(None);
             };
-            return Ok((self
+            if self
                 .grouped_rate_child(child, prepared, control, account)?
                 .is_some()
                 || self
                     .grouped_ratio_children(child, prepared, control, account)?
-                    .is_some())
-            .then_some(child));
+                    .is_some()
+            {
+                return Ok(Some(child));
+            }
+            let Some((edge, group)) = crate::scheduled_expression::unary_float_group(
+                &self.expression,
+                prepared,
+                node,
+                control,
+                account,
+                |_| true,
+            )?
+            else {
+                return Ok(None);
+            };
+            return Ok(self
+                .grouped_rate_child(group, prepared, control, account)?
+                .is_some()
+                .then_some(edge));
         }
     }
 
@@ -10699,6 +10716,98 @@ mod tests {
     }
 
     #[test]
+    fn grouped_unary_float_clocks_failures() {
+        for wrapper in ["-round({child},1)", "+(clamp_min(({child}),10))"] {
+            grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
+                "sum",
+                false,
+                Some(wrapper),
+            );
+        }
+    }
+
+    #[test]
+    fn grouped_unary_float_clocks_completion() {
+        for wrapper in ["-round({child},1)", "+(clamp_min(({child}),10))"] {
+            grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(
+                "sum",
+                false,
+                Some(wrapper),
+            );
+        }
+    }
+
+    #[test]
+    fn grouped_unary_float_clocks_admission() {
+        for (body, admitted) in [
+            ("-round({group},1)", true),
+            ("+(clamp_min(({group}),10))", true),
+            ("abs(round({group},1))", false),
+            ("100*round({group},1)", false),
+            ("-(-round({group},1))", false),
+            ("-round({group}/{group},1)", false),
+            ("-round({group},scalar(m_total))", false),
+            ("-round(rate(m_total[3s]),1)", false),
+            ("-round(sum by(id)(rate(m_total[3s] @ 8)),1)", false),
+        ] {
+            for delayed_name_removal in [false, true] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let body = body.replace("{group}", "sum by(id)(rate(m_total[3s]))");
+                let expression = format!("max_over_time(({body})[4s:1s])");
+                let compiled = engine
+                    .compile(
+                        expression.as_bytes(),
+                        EngineOptions {
+                            delayed_name_removal,
+                            ..EngineOptions::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let account = compiled.execution_accounting();
+                let header = compiled
+                    .header(QueryRequest::Instant { time_ms: 8000 })
+                    .unwrap();
+                {
+                    let prepared = Prepared::new(
+                        &compiled.expression,
+                        &compiled.preprocessing,
+                        header,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let child = compiled
+                        .expression
+                        .arena
+                        .nodes
+                        .iter()
+                        .find_map(|node| {
+                            if let Expr::Subquery { expression, .. } = node.expression {
+                                Some(expression)
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap();
+                    assert_eq!(
+                        compiled
+                            .grouped_map_child(child, &prepared, &control, &account)
+                            .unwrap()
+                            .is_some(),
+                        admitted && !delayed_name_removal,
+                        "{body}"
+                    );
+                }
+                drop((account, compiled));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
     fn grouped_fixed_map_clocks_failures() {
         for wrapper in ["round({child},1)", "-({child})"] {
             grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
@@ -10745,6 +10854,8 @@ mod tests {
                 for (template, empty) in [
                     ("clamp({child},10,2)", true),
                     ("clamp({child},NaN,100)", false),
+                    ("-clamp({child},10,2)", true),
+                    ("+(clamp(({child}),NaN,100))", false),
                 ] {
                     let engine = Engine::default();
                     let control = Control::default();

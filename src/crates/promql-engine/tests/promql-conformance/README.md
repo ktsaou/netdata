@@ -10324,6 +10324,7 @@ Repeat with `grouped_fixed_map_clocks`, retaining arithmetic/comparison and Grou
 Trace resolved Call edges when checking completion: source parentheses may have been removed. Check actual
 full completion independently for each owner. Retain dynamic, nested and nonordinary aggregate fallbacks; the
 Float-ratio cases now exercise the separate prefix extension below. Paged C fixtures cover all four callback outcomes.
+The later [unary/Float composition](#completed-clocks-through-unary-float-groups) covers one exact nested group shape.
 
 
 ## Successful prefixes in grouped ratios
@@ -10381,3 +10382,57 @@ Repeat `prefix_interval_` and `grouped_fixed_map_clocks` tests alongside existin
 and Group/Pair controls. Distinguish discovery-clock coverage from common-prefix advancement and from
 full Pair completion. Keep fresh selected reads, absent-target suffix work and preparation clearing in
 scope; the paged C consumers cover success, read failure, cancellation and deadline outcomes.
+
+
+## Completed clocks through unary Float groups
+
+One outer unary `+` or `-` around one fixed Float function over a qualified group can reuse completed scans
+across subquery clocks. Examples include `-round(sum by(id)(rate(m_total[3s])),1)` inside a subquery.
+[Qualification](unary-float-group-clocks-qualification.json) records the results and every measured cost.
+
+The shared recognizer keeps the immediate evaluation edge through parentheses. Preparation propagates demand
+through each real edge, and runtime checks the same shape and clock. Only actual Group completion earns credit;
+an emitted sample and the truncated final endpoint do not. Preparation clears the existing proof. There is no
+new owner, raw/value cache, numerical operation or evaluation mode.
+
+The second crossing is limited to Unary → fixed Float → qualified Group. Additional wrappers, an outer Float
+or scalar binary map, dynamic parameters and unary-over-Float-ratio keep their existing paths.
+
+| Profile | Rate targets | Increase targets | Delta targets | Controls |
+|---|---:|---:|---:|---:|
+| release | 0.3673 | 0.3726 | 0.3637 | 1.0103 |
+| release-min | 0.3690 | 0.3652 | 0.3631 | 0.9844 |
+
+These candidate/baseline time ratios come from 1,920 complete query pairs. Both profiles passed the frozen
+target/control criteria; no individual primary ratio exceeded 1.05. No follow-up timing was needed.
+
+| Representative 16-group instant case | Fetched entries | Workspace peak, bytes |
+|---|---:|---:|
+| g16-instant-rate-0 | 388608→61248 | 56583→56695 |
+| g16-instant-rate-1 | 394240→66880 | 56903→57015 |
+| g16-instant-control-0 | 49984→49984 | 52058→52058 |
+| g16-instant-control-5 | 788480→788480 | 116475→116475 |
+
+The 36 time/page cases retain analytical outcomes and constant workspace at four groups as windows grow
+from 8 to 64 steps. Metadata and output still depend on series cardinality; this is not a process-memory bound.
+
+Validation: 921 native tests plus two ignored per profile, 25 focused tests per ARM target, 12,096 C/C++ cases,
+1,080 exact baseline comparisons and 1,080 agreed-order original comparisons. The 258 strict row-order failures
+remain separate; numeric-bit differences are zero. Three new causal tests cover admission, actual completion,
+truncated endpoints, clearing and 80 required provider-read failures; existing controls add 256 failures.
+Filtering tests include empty and NaN output. Paged C callers cover success, failure, cancellation and deadline.
+
+| Default C executable | Total change, bytes | Relative change |
+|---|---:|---:|
+| release | -18996 | -0.239% |
+| release-min | +2184 | 0.039% |
+| arm32 | +3596 | 0.054% |
+| arm64 | +24268 | 0.350% |
+
+Compiled text/data/BSS and cumulative costs are separate from query workspace in the report. The query
+fixtures and native release units precede only the addition of two C fixture expressions; Rust source is
+identical. These are synthetic native timings, not live-provider or ARM performance measurements.
+
+Repeat `grouped_unary_float_clocks` and the existing fixed-map/Group/Pair controls. Preserve immediate edges,
+transparent-parenthesis checks, exact clocks and actual Group Done. Keep nested Vector consumers, ratios and
+third wrappers as negative-admission controls; emitted samples cannot replace completion evidence.

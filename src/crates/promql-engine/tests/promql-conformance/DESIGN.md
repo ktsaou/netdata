@@ -2655,3 +2655,16 @@ changing membership, special literals, complete original comparisons and proport
   Other operators and nested maps keep existing behavior.
 - **Evidence:** [ratio-prefix qualification](grouped-ratio-prefix-qualification.json) separates clock discovery,
   common-prefix advancement, full Done, sparse suffix cancellation, actual provider faults and measured costs.
+
+
+## Unary over a fixed Float group map
+
+- **Choice:** extend completed grouped-clock reuse through exactly Unary → fixed Float → qualified Group.
+- **Reason:** Unary consumes Matrix, so the inner Float can finish its Group. An outer Float or scalar binary
+  consumes Vector and cannot use the same completion argument.
+- **Ownership:** reuse existing Group completion; return immediate resolved edges and preserve every intermediate
+  clock/boundary check. No new owner, raw/value cache or evaluation mode.
+- **Limits:** literal parameters, actual qualified Group and exactly two maps; ratio producers and further wrappers
+  retain their existing paths. Final endpoint truncation and preparation clearing remain unchanged.
+- **Evidence:** [unary/Float group qualification](unary-float-group-clocks-qualification.json) records causal tests,
+  complete outcomes, all slower/cost observations, source phases and native/ARM caller checks.
