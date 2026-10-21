@@ -2653,7 +2653,64 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         })
     }
 
-    fn direct_range_child(&self, mut index: usize) -> Result<bool, Interrupted> {
+    fn grouped_ratio_children(&self, node: NodeId) -> Result<Option<[NodeId; 2]>, Interrupted> {
+        if !self
+            .rosters
+            .binary(node)
+            .is_some_and(|plan| plan.has_pair_discovery())
+        {
+            return Ok(None);
+        }
+        let Some(mut pair) =
+            crate::scheduled_expression::unique_ratio_operands(self.expression, node)
+        else {
+            return Ok(None);
+        };
+        for edge in &mut pair {
+            *edge = self.prepared.preprocessing.child(
+                self.expression,
+                node,
+                *edge,
+                self.control,
+                self.account,
+            )?;
+            let mut child = *edge;
+            loop {
+                self.control.check()?;
+                self.account.work(1);
+                if self.invariants[child.0]
+                    || self.prepared.flags().boundaries[child.0]
+                    || self.rosters.matrix(child).is_some()
+                {
+                    return Ok(None);
+                }
+                if let Expr::Paren(next) = self.expression.arena[child].expression {
+                    child = self.prepared.preprocessing.child(
+                        self.expression,
+                        child,
+                        next,
+                        self.control,
+                        self.account,
+                    )?;
+                } else if self
+                    .rosters
+                    .group_replay(child)
+                    .is_some_and(|plan| plan.supports_interval())
+                {
+                    break;
+                } else {
+                    return Ok(None);
+                }
+            }
+        }
+        Ok(Some(pair))
+    }
+
+    fn direct_range_child(
+        &self,
+        mut index: usize,
+        mut grouped_operand: bool,
+    ) -> Result<bool, Interrupted> {
         let key_for = |frame: &Frame| {
             crate::vector_matching::ReplayKey::new(
                 frame.options,
@@ -2695,6 +2752,16 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     {
                         return Ok(false);
                     }
+                }
+                State::Binary(_) if grouped_operand => {
+                    if !self
+                        .grouped_ratio_children(parent.node)?
+                        .is_some_and(|pair| pair.contains(&child.node))
+                    {
+                        return Ok(false);
+                    }
+                    // Group completion never certifies its sibling or the enclosing pair.
+                    grouped_operand = false;
                 }
                 _ => return Ok(false),
             }
@@ -3091,7 +3158,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     );
                     let interval = plan.supports_interval()
                         && !(node == self.diagnostic_node && self.annotations.is_some())
-                        && self.direct_range_child(index)?;
+                        && self.direct_range_child(index, true)?;
                     let active = if interval {
                         plan.activate_interval(filter, key, self.control, self.account)?
                     } else {
@@ -3216,9 +3283,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         let raw_pair = [left, right].into_iter().all(|child| {
                             matches!(self.expression.arena[*child].expression, Expr::Selector(_))
                         });
-                        let interval = raw_pair
+                        let interval = (raw_pair || self.grouped_ratio_children(node)?.is_some())
                             && step.has_pair_discovery()
-                            && self.direct_range_child(index)?
+                            && self.direct_range_child(index, false)?
                             && step.enable_interval(target, key, self.control, self.account)?;
                         if !interval {
                             if step.has_pair_discovery() {

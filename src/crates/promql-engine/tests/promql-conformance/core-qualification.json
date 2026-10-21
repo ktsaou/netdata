@@ -73903,5 +73903,11 @@
     "report_sha256": "06a45df22f5a5ed035b0961d504ee509384e914ccfb83ac0a5cc31c020826f1d",
     "status": "finite_qualification_pass",
     "scope": "Admit direct increase and delta beside rate in existing grouped SUM subquery completed-clock reuse."
+  },
+  "grouped_ratio_clocks": {
+    "report": "grouped-ratio-clocks-qualification.json",
+    "report_sha256": "4d11bc66224f261f4fe5757c9a574c1da650a4c2398bc45203f7743fc0e3e9ef",
+    "status": "finite_qualification_pass",
+    "scope": "Compose existing grouped rate-family and pair completed-clock proofs for direct grouped ratio subqueries."
   }
 }

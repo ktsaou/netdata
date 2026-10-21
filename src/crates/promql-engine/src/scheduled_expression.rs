@@ -12,6 +12,26 @@ use crate::{
     storage::{Control, Interrupted},
 };
 
+pub(crate) fn unique_ratio_operands(
+    expression: &ParsedExpression,
+    node: NodeId,
+) -> Option<[NodeId; 2]> {
+    let Expr::Binary {
+        operator: TokenKind::DIV,
+        left,
+        right,
+        matching: Some(matching),
+        ..
+    } = &expression.arena[node].expression
+    else {
+        return None;
+    };
+    (matching.cardinality == crate::frontend::ast::Cardinality::OneToOne
+        && matching.fill_left.is_none()
+        && matching.fill_right.is_none())
+    .then_some([*left, *right])
+}
+
 pub(crate) fn vector_child(
     expression: &ParsedExpression,
     prepared: &Prepared,

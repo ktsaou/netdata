@@ -9794,7 +9794,7 @@ matching, comparison filtering and arithmetic. The engine retains a constant-siz
 or membership arrays across time. The [qualification report](derived-binary-clocks-qualification.json) binds inputs,
 binaries, complete outputs, failures and finite measurements.
 
-Admission requires bare selectors, an existing immutable unique Float-pair proof and an actual range consumer,
+The original direct-selector path requires bare selectors, an immutable unique Float-pair proof and an actual range consumer,
 through only transparent parentheses/ordering frames. It excludes fills, delayed-name removal and unproved shapes.
 Only unrestricted successful binary Done earns credit; endpoint truncation cannot certify an unread suffix.
 Restricted reads cannot publish partial global membership. Ancestors may consume already-frozen child plans during
@@ -9888,6 +9888,7 @@ Direct grouped `sum(rate(...))` subqueries can reuse completed child-scan interv
 `max_over_time((sum by(id)(rate(m_total[3s])))[8s:1s])` no longer scans unrelated groups at every replayed clock.
 Selected contributors still supply fresh values and execute ordinary rate and SUM arithmetic. The
 [qualification report](grouped-subquery-clocks-qualification.json) records the actual scope and evidence.
+For division of two grouped operands, follow the additional [composition procedure](#completed-clocks-in-grouped-ratio-subqueries).
 
 Admission requires a complete Float-output rate roster and unambiguous heads, through transparent parentheses.
 Both `by` and `without` grouping and existing selector offsets are covered. Float outputs do not prove Float-only
@@ -9955,3 +9956,48 @@ A shared evaluator does not establish equivalent arithmetic or diagnostic behavi
 
 When comparing enabled and disabled feature profiles, exclude only the deliberately different request ID from
 the complete result comparison. A changed ID alone does not establish that the feature affected the outcome.
+
+
+## Completed clocks in grouped ratio subqueries
+
+A consumed expression such as `max_over_time((sum by(id)(rate(m_total[3s])) /
+sum by(id)(rate(n_total[3s])))[8s:1s])` now composes the existing grouped and binary completed-clock paths.
+Direct increase/delta leaves use the same admission, keeping their original arithmetic. Both sides must have
+qualified Float-output group plans; division must be one-to-one without fills. Parentheses are transparent.
+Native outputs, delayed-name removal, nested aggregates and unsupported clocks keep their existing evaluators.
+
+Each group records only its own full child scan and selected-group finalization. The division records only
+actual unrestricted binary completion. A completed left group before a right-side failure does not certify the
+pair. At a truncated final endpoint, both operand groups may have finished while the pair has not. Every reused
+clock has the same ReplayKey; all progress clears between preparation and final delivery. Selected values are
+fresh and no metric-by-time value buffer is introduced.
+
+The [qualification report](grouped-ratio-clocks-qualification.json) retains complete comparisons and all measured
+costs. At 16 groups/two contributors per side/page 17, fetched entries fall 765,952→111,232, work 8,724,560→1,258,975,
+and peak workspace 98,357→97,350 B. Four-group workspace rises 38,878→39,222 B (+344 B), and remains 39,222 B across
+all 27 function/page/window cases at 8/32/64 seconds. Borrowed raw residency stays page-bounded. These counters are
+not disk-read counts or process RSS.
+
+The fixed 1,200-pair whole-query pilot records rate/increase/delta/control median ratios 0.3211/0.1533/0.1514/1.0012 in release
+and 0.3130/0.1491/0.1520/0.9993 in release-min. Every slower individual case and its one predefined follow-up remain
+in the report; the follow-up does not replace the frozen family gates.
+
+There are 1,716 exact baseline comparisons plus 20 structural pairs. Fresh 286 pinned Go outcomes yield 1,716
+comparisons with no numeric-bit difference or approved-order-policy failure. The retained strict reports include
+558 instant-order differences; these are not counted as strict passes. Histories include changing presence,
+unmatched groups, changing finite ratios, zero denominators, resets, gaps, stale/mixed/native samples and enabled
+start timestamps. Expected matching errors are included as error comparisons, not successful query executions.
+
+Reproduce focused Rust checks with fixtures and either release profile, selecting `grouped_ratio_clocks`,
+`grouped_subquery_clocks`, `aggregate_replay::tests`, `derived_binary_completed_clocks` and
+`vector_matching::tests::completed_interval`. The three new Engine tests cover 144 complete results with varying
+finite values and statistics, 720 required delivery-read failures, and 27 separate-completion/failure-priority/clearing
+cases. Both profiles pass 895 units with two pre-existing ignored; each ARM target executes 15 focused units under QEMU.
+Build `grouped_ratio_clocks.c` against the default archive/include directory as for `c_embedding.c`. Its 72 cases per
+consumer produce 432 native C/C++ and ARM C executions: 108 each success, provider failure, cancellation and output error.
+Both complete native C suites, strict lint, formatting and installed Rust 1.91 compile checks pass.
+
+Retain separate group and pair completion tests whenever changing the shared ancestry gate. Constant-ratio
+fixtures alone do not prove fresh values; use the quadratic numerator fixture and changing RHS panel. Keep actual
+original profile/options and compare all labels, timestamps, values, diagnostics and errors under the stated
+ordering policy. Preserve previously recorded original order differences and rejected intermediate attempts.

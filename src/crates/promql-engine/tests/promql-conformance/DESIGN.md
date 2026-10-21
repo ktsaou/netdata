@@ -2526,3 +2526,17 @@ individual slower cases and unfinished checks.
 - **Validation:** explicit enabled-start profiles, complete baseline and pinned-original outcomes, required-read
   failures and actual C consumers. Source, timing and proportional executable costs are in the
   [qualification](grouped-rate-family-qualification.json).
+
+
+## Composed grouped ratio clocks
+
+- **Choice:** compose existing grouped rate-family and unique pair intervals for direct one-to-one DIV subqueries.
+  Reuse a shared static operand predicate and existing proven contributor plans; do not add a numerical cache.
+- **Completion:** group exhaustion/finalization and binary Done remain independent. Exact resolved edges and clocks
+  permit one binary parent crossing for group consumers; binary consumers still require direct range ancestry.
+- **Values and diagnostics:** both operands execute fresh ordinary kernels. Complete preparation retains mixed and
+  absent-series diagnostics; unsupported shapes keep fallback. Preparation-to-final clearing removes both credits.
+- **Costs:** existing metadata becomes active without new fields. The measured larger case reduces both reads and
+  workspace; the smaller case adds 344 B. Finite timings, per-target executable costs, original-order differences and
+  all slower controls remain in the [qualification](grouped-ratio-clocks-qualification.json) and
+  [procedure](README.md#completed-clocks-in-grouped-ratio-subqueries).

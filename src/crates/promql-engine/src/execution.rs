@@ -1415,6 +1415,56 @@ impl CompiledQuery {
         }
     }
 
+    fn grouped_ratio_children(
+        &self,
+        mut node: NodeId,
+        prepared: &Prepared,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<[NodeId; 2]>, Interrupted> {
+        if self.options.delayed_name_removal {
+            return Ok(None);
+        }
+        loop {
+            control.check()?;
+            account.work(1);
+            if prepared.flags().invariants[node.0] || prepared.flags().boundaries[node.0] {
+                return Ok(None);
+            }
+            if let Expr::Paren(child) = self.expression.arena[node].expression {
+                node = prepared.preprocessing.child(
+                    &self.expression,
+                    node,
+                    child,
+                    control,
+                    account,
+                )?;
+                continue;
+            }
+            let Some(mut pair) =
+                crate::scheduled_expression::unique_ratio_operands(&self.expression, node)
+            else {
+                return Ok(None);
+            };
+            for child in &mut pair {
+                *child = prepared.preprocessing.child(
+                    &self.expression,
+                    node,
+                    *child,
+                    control,
+                    account,
+                )?;
+                if self
+                    .grouped_rate_child(*child, prepared, control, account)?
+                    .is_none()
+                {
+                    return Ok(None);
+                }
+            }
+            return Ok(Some(pair));
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn group_replay_selector(
         &self,
@@ -2127,6 +2177,9 @@ impl CompiledQuery {
                         )?;
                         self.grouped_rate_child(child, prepared, control, account)?
                             .is_some()
+                            || self
+                                .grouped_ratio_children(child, prepared, control, account)?
+                                .is_some()
                     } else {
                         false
                     };
@@ -2258,6 +2311,12 @@ impl CompiledQuery {
                     } else {
                         None
                     };
+                    let grouped_pair =
+                        if contributor_demand && matches!(demand, Demand::GroupedSubquery) {
+                            self.grouped_ratio_children(node, prepared, control, account)?
+                        } else {
+                            None
+                        };
                     for child in children(&self.expression, prepared, node, control, account)?.rev()
                     {
                         let child = child?;
@@ -2274,9 +2333,10 @@ impl CompiledQuery {
                             child_primary && Some(child) != consumed,
                             if Some(child) == consumed && subquery_contributors {
                                 Demand::SubqueryContributors
-                            } else if Some(child) == contributor_child
+                            } else if (Some(child) == contributor_child
                                 && matches!(demand, Demand::GroupedSubquery)
-                                && matches!(expression, Expr::Paren(_))
+                                && matches!(expression, Expr::Paren(_)))
+                                || grouped_pair.is_some_and(|pair| pair.contains(&child))
                             {
                                 Demand::GroupedSubquery
                             } else if Some(child) == contributor_child
@@ -10434,6 +10494,172 @@ mod tests {
         provider
     }
 
+    fn grouped_ratio_provider(page: usize, groups: usize) -> FixtureProvider {
+        let mut provider = local_grouped_operand_provider(page, groups);
+        for series in &mut provider.series {
+            series.source.count = 16;
+        }
+        provider
+    }
+
+    #[test]
+    fn grouped_ratio_clocks_preserve_results_statistics_and_paged_reads() {
+        for rate_function in ["rate", "increase", "delta"] {
+            for page in [1, 17, 1024] {
+                for count in [4, 16] {
+                    for delayed in [false, true] {
+                        for (function, factor) in [
+                            ("max_over_time", 1.0),
+                            ("min_over_time", 8.0 / 15.0),
+                            ("avg_over_time", 11.5 / 15.0),
+                            ("sum_over_time", 92.0 / 15.0),
+                        ] {
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let expression = format!(
+                                "{function}((sum by(id)({rate_function}(m_total[3s])) / sum by(id)({rate_function}(n_total[3s])))[8s:1s])"
+                            );
+                            let query = engine
+                                .compile(expression.as_bytes(), options(delayed), &control)
+                                .unwrap();
+                            let provider = grouped_ratio_provider(page, count);
+                            let report = query.collect_reported(
+                                &provider,
+                                QueryRequest::Instant { time_ms: 16000 },
+                                &control,
+                            );
+                            let result = report.result.as_ref().unwrap();
+                            assert!(report.annotations.is_empty());
+                            assert_eq!(result.series.len(), count);
+                            // Instant group order follows discovery; compare every label/value pair.
+                            let mut rows = result.series.iter().collect::<Vec<_>>();
+                            rows.sort_by(|a, b| a.labels.0[0].value.cmp(&b.labels.0[0].value));
+                            for (identity, row) in rows.into_iter().enumerate() {
+                                let id = format!("{identity:06}");
+                                assert_eq!(
+                                    row.labels
+                                        .0
+                                        .iter()
+                                        .map(|label| (&*label.name, &*label.value))
+                                        .collect::<Vec<_>>(),
+                                    [(b"id".as_slice(), id.as_bytes())]
+                                );
+                                assert_eq!(row.points.len(), 1);
+                                assert_eq!(row.points[0].time_ms, 16000);
+                                let value: f64 = if identity.is_multiple_of(2) {
+                                    45.0
+                                } else {
+                                    180.0
+                                };
+                                assert_eq!(float_bits(&row.points[0]), (value * factor).to_bits());
+                            }
+                            assert_eq!(report.observations.output_samples, count as u64);
+                            assert_eq!(
+                                report
+                                    .observations
+                                    .statistics
+                                    .samples
+                                    .total_queryable_samples,
+                                (8 * count) as u64
+                            );
+                            assert_eq!(
+                                report.observations.memory[MemoryKind::Workspace as usize].current,
+                                0
+                            );
+                            assert!(
+                                provider.series.iter().all(|row| row
+                                    .source
+                                    .counters
+                                    .peak
+                                    .load(Ordering::Relaxed)
+                                    == 1)
+                            );
+                            if !delayed && count == 16 && page == 17 && function == "max_over_time"
+                            {
+                                assert!(report.observations.samples_fetched < 200_000);
+                            }
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn grouped_ratio_clocks_preserve_every_required_delivery_read_failure() {
+        for rate_function in ["rate", "increase", "delta"] {
+            let request = QueryRequest::Instant { time_ms: 8000 };
+            for page in [1, 17, 1024] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        format!("max_over_time((sum by(id)({rate_function}(m_total[3s])) / sum by(id)({rate_function}(n_total[3s])))[4s:1s])")
+                            .as_bytes(),
+                        EngineOptions::default(),
+                        &control,
+                    )
+                    .unwrap();
+                let calibration = grouped_ratio_provider(page, 2);
+                let (rows, prepared, pairs) = float_map_join_preparation_with_discovery(
+                    &query,
+                    &calibration,
+                    request,
+                    &control,
+                );
+                assert_eq!((rows, pairs), (2, 1));
+                let provider = grouped_ratio_provider(page, 2);
+                let mut sink = RecordingSink::default();
+                let report = query.execute_reported(&provider, request, &control, &mut sink);
+                assert!(report.result.is_ok());
+                assert!(sink.begun && sink.committed && !sink.aborted);
+                let last = provider
+                    .series
+                    .iter()
+                    .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
+                    .collect::<Vec<_>>();
+                provider.assert_closed();
+                drop(report);
+                let mut faults = 0;
+                for (position, (&first, &last)) in prepared.iter().zip(&last).enumerate() {
+                    assert!(last > first);
+                    for acquisition in first + 1..=last {
+                        let mut provider = grouped_ratio_provider(page, 2);
+                        provider.series[position].source.fail_acquisition = Some(acquisition);
+                        let mut sink = RecordingSink::default();
+                        let report =
+                            query.execute_reported(&provider, request, &control, &mut sink);
+                        assert!(
+                            matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
+                            if &**bytes == b"injected page failure")
+                        );
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        assert_eq!(
+                            provider.series[position]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            acquisition
+                        );
+                        assert!(report.annotations.is_empty());
+                        report.assert_retained_callback_error_memory();
+                        provider.assert_closed();
+                        faults += 1;
+                    }
+                }
+                println!(
+                    "grouped-ratio-clocks function={rate_function} page={page} required-delivery-faults={faults}"
+                );
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
     #[test]
     fn grouped_subquery_clocks_preserve_results_statistics_and_paged_reads() {
         for (rate_function, rate_factor) in [("rate", 1.0), ("increase", 3.0), ("delta", 3.0)] {
@@ -10590,6 +10816,197 @@ mod tests {
                     "grouped-subquery-clocks function={rate_function} page={page} required-delivery-faults={faults}"
                 );
                 drop(query);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn grouped_ratio_clocks_keep_group_and_pair_completion_separate() {
+        for rate_function in ["rate", "increase", "delta"] {
+            for (page, fault) in [1, 17, 1024]
+                .into_iter()
+                .flat_map(|page| [(page, "none"), (page, "right"), (page, "both")])
+            {
+                let engine = Engine::default();
+                let control = Control::default();
+                let compiled = engine
+                    .compile(
+                        format!("max_over_time((sum by(id)({rate_function}(m_total[3s])) / sum by(id)({rate_function}(n_total[3s])))[4s:1s])")
+                            .as_bytes(),
+                        EngineOptions::default(),
+                        &control,
+                    )
+                    .unwrap();
+                let calibration = grouped_ratio_provider(page, 2);
+                let (_, baseline, pairs) = float_map_join_preparation_with_discovery(
+                    &compiled,
+                    &calibration,
+                    QueryRequest::Instant { time_ms: 8000 },
+                    &control,
+                );
+                assert_eq!(pairs, 1);
+                let mut provider = grouped_ratio_provider(page, 2);
+                if fault != "none" {
+                    provider.series[4].source.fail_acquisition = Some(baseline[4] + 1);
+                }
+                if fault == "both" {
+                    provider.series[0].source.fail_acquisition = Some(baseline[0] + 1);
+                }
+                let account = compiled.execution_accounting();
+                {
+                    let header = compiled
+                        .header(QueryRequest::Instant { time_ms: 8000 })
+                        .unwrap();
+                    let prepared = Prepared::new(
+                        &compiled.expression,
+                        &compiled.preprocessing,
+                        header,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let header = prepared.evaluator_header();
+                    prepared.activate(header, &control, &account).unwrap();
+                    let options = compiled.evaluation_options(header, header.start_ms, &prepared);
+                    let bounds = crate::query_bounds::find(
+                        &compiled.expression,
+                        options,
+                        &prepared,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let scope = provider.open(bounds, &control).unwrap();
+                    let catalog = Catalog::new(
+                        &scope,
+                        &compiled.expression,
+                        &prepared,
+                        options,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let rosters = compiled
+                        .prepare_rosters(
+                            &catalog,
+                            &prepared,
+                            bounds,
+                            &control,
+                            &account,
+                            &mut Annotations::default(),
+                        )
+                        .unwrap();
+                    let (binary, left, right) = compiled
+                        .expression
+                        .arena
+                        .nodes
+                        .iter()
+                        .enumerate()
+                        .find_map(|(index, node)| match node.expression {
+                            Expr::Binary {
+                                operator: TokenKind::DIV,
+                                left,
+                                right,
+                                ..
+                            } => Some((NodeId(index), left, right)),
+                            _ => None,
+                        })
+                        .unwrap();
+                    let left = rosters.group_replay(left).unwrap();
+                    let right = rosters.group_replay(right).unwrap();
+                    let binary = rosters.binary(binary).unwrap();
+                    assert!(left.supports_interval() && right.supports_interval());
+                    assert!(
+                        !left.has_interval()
+                            && !right.has_interval()
+                            && !binary.has_completed_interval()
+                    );
+                    let mut machine = Machine::new(
+                        &catalog,
+                        &compiled.expression,
+                        compiled.expression.root,
+                        options,
+                        &control,
+                        &account,
+                        EvaluationMetadata {
+                            prepared: &prepared,
+                            rosters: &rosters,
+                            timestamp_selectors: &compiled.timestamp_selectors,
+                            data_bounds: bounds,
+                            annotations: None,
+                            binary_preparation: None,
+                            histogram_preparation: None,
+                            info_preparation: None,
+                            count_preparation: None,
+                        },
+                    );
+                    if fault != "none" {
+                        assert!(
+                            matches!(machine.next(), Err(EvaluationError::Storage(StorageError::Provider(bytes))) if &*bytes == b"injected page failure")
+                        );
+                        assert_eq!(left.has_interval(), fault == "right", "{fault}");
+                        assert!(!right.has_interval() && !binary.has_completed_interval());
+                        assert_eq!(
+                            provider.series[4]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            baseline[4] + usize::from(fault == "right")
+                        );
+                    } else {
+                        let mut rows = 0;
+                        while machine.next().unwrap().is_some() {
+                            rows += 1;
+                        }
+                        assert_eq!(rows, 2);
+                        let subquery = compiled
+                            .expression
+                            .arena
+                            .nodes
+                            .iter()
+                            .position(|node| matches!(node.expression, Expr::Subquery { .. }))
+                            .unwrap();
+                        let grid = prepared
+                            .subquery_scope(NodeId(subquery), &control, &account)
+                            .unwrap();
+                        assert_eq!(grid.end_ms, 8000);
+                        for index in 0..grid.steps().unwrap() {
+                            let time_ms = grid.start_ms + index * grid.interval_ms;
+                            let key = crate::vector_matching::ReplayKey::new(
+                                compiled.evaluation_options(
+                                    grid.header(header),
+                                    time_ms,
+                                    &prepared,
+                                ),
+                                index,
+                                prepared.lookback_ns(compiled.options.lookback_ms),
+                                bounds,
+                            );
+                            assert!(
+                                left.interval_contains(key) && right.interval_contains(key),
+                                "completed operands at {time_ms}"
+                            );
+                            assert_eq!(
+                                binary.completed_interval_contains(key),
+                                time_ms < grid.end_ms,
+                                "only actual binary completion earns clock {time_ms}"
+                            );
+                        }
+                    }
+                    drop(machine);
+                    rosters.clear_replay_progress(&control, &account).unwrap();
+                    assert!(!left.has_interval() && !left.has_completion());
+                    assert!(!right.has_interval() && !right.has_completion());
+                    assert!(
+                        !binary.has_completed_interval() && !binary.has_completed_pair_discovery()
+                    );
+                }
+                provider.assert_closed();
+                drop((account, compiled));
                 engine.accounting.snapshot().assert_memory_released();
             }
         }

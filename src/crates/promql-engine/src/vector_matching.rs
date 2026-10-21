@@ -470,6 +470,16 @@ impl Plan {
             .is_some_and(|replay| replay.interval.borrow().is_some())
     }
     #[cfg(test)]
+    pub(crate) fn completed_interval_contains(&self, key: ReplayKey) -> bool {
+        self.replay.as_ref().is_some_and(|replay| {
+            replay
+                .interval
+                .borrow()
+                .as_ref()
+                .is_some_and(|interval| interval.contains(key))
+        })
+    }
+    #[cfg(test)]
     pub(crate) fn has_completed_pair_discovery(&self) -> bool {
         self.has_pair_discovery()
             && self
