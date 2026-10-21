@@ -1365,9 +1365,10 @@ impl CompiledQuery {
         )
     }
 
-    fn grouped_rate_child(
+    fn grouped_interval_child(
         &self,
         mut node: NodeId,
+        allow_selector: bool,
         prepared: &Prepared,
         control: &Control,
         account: &QueryAccounting,
@@ -1404,11 +1405,13 @@ impl CompiledQuery {
                         control,
                         account,
                     )?;
-                    return Ok(matches!(&self.expression.arena[child].expression,
-                        Expr::Call { function: Some(function), arguments, .. }
-                            if matches!(function.name, "rate" | "increase" | "delta") && arguments.len() == 1
-                                && matches!(self.expression.arena[arguments[0]].expression, Expr::Matrix { .. })
-                    ).then_some(child));
+                    let eligible = (allow_selector
+                        && matches!(self.expression.arena[child].expression, Expr::Selector(_)))
+                        || matches!(&self.expression.arena[child].expression,
+                            Expr::Call { function: Some(function), arguments, .. }
+                                if matches!(function.name, "rate" | "increase" | "delta") && arguments.len() == 1
+                                    && matches!(self.expression.arena[arguments[0]].expression, Expr::Matrix { .. }));
+                    return Ok(eligible.then_some(child));
                 }
                 _ => return Ok(None),
             }
@@ -1455,7 +1458,7 @@ impl CompiledQuery {
                     account,
                 )?;
                 if self
-                    .grouped_rate_child(*child, prepared, control, account)?
+                    .grouped_interval_child(*child, false, prepared, control, account)?
                     .is_none()
                 {
                     return Ok(None);
@@ -1502,7 +1505,7 @@ impl CompiledQuery {
                 return Ok(None);
             };
             if self
-                .grouped_rate_child(child, prepared, control, account)?
+                .grouped_interval_child(child, false, prepared, control, account)?
                 .is_some()
                 || self
                     .grouped_ratio_children(child, prepared, control, account)?
@@ -1522,7 +1525,7 @@ impl CompiledQuery {
                 return Ok(None);
             };
             return Ok(self
-                .grouped_rate_child(group, prepared, control, account)?
+                .grouped_interval_child(group, false, prepared, control, account)?
                 .is_some()
                 .then_some(edge));
         }
@@ -1564,7 +1567,7 @@ impl CompiledQuery {
                     .preprocessing
                     .child(&self.expression, node, child, control, account)?;
             return Ok(self
-                .grouped_rate_child(child, prepared, control, account)?
+                .grouped_interval_child(child, false, prepared, control, account)?
                 .map(|_| child));
         }
     }
@@ -2279,7 +2282,7 @@ impl CompiledQuery {
                             control,
                             account,
                         )?;
-                        self.grouped_rate_child(child, prepared, control, account)?
+                        self.grouped_interval_child(child, true, prepared, control, account)?
                             .is_some()
                             || self
                                 .grouped_ratio_children(child, prepared, control, account)?
@@ -2602,9 +2605,9 @@ impl CompiledQuery {
                 if subquery_demand
                     && replay_selector.is_some()
                     && let Some(child) =
-                        self.grouped_rate_child(node, prepared, control, account)?
+                        self.grouped_interval_child(node, true, prepared, control, account)?
                 {
-                    // Output kinds do not describe raw history; rate diagnostics are already complete.
+                    // Delivered kinds cover the child grid; they need not describe all raw history.
                     let rows = rosters.descriptors(child);
                     interval = !rows.is_empty();
                     for row in rows {
@@ -10733,6 +10736,251 @@ mod tests {
                 "sum",
                 false,
                 Some(wrapper),
+            );
+        }
+    }
+
+    #[test]
+    fn grouped_selector_clocks_admission() {
+        fn selected_native(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            if index == 7 {
+                sample.value = crate::value::SampleValue::FloatHistogram(Default::default());
+            }
+            sample
+        }
+        fn unselected_native(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            if index == 6 {
+                sample.value = crate::value::SampleValue::FloatHistogram(Default::default());
+            }
+            sample
+        }
+        for (body, admitted) in [
+            ("sum by(id)(m_total)", true),
+            ("((avg without(member)(m_total)))", true),
+            ("sum by(__name__,id)(m_total)", true),
+            ("count by(id)(m_total offset 1s)", true),
+            ("sum by(id)(m_total @ 8)", false),
+            ("sum by(id)(sum by(id,member)(m_total))", false),
+            ("abs(sum by(id)(m_total))", false),
+            ("sum by(id)(m_total)+1", false),
+            ("sum by(id)(m_total)/sum by(id)(m_total)", false),
+            ("histogram_quantile(0.5,sum by(id,le)(m_total))", false),
+            ("topk(1,m_total)", false),
+        ] {
+            for delayed in [false, true] {
+                for shape in ["float", "selected-native", "unselected-native", "empty"] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let expression = format!("max_over_time(({body})[4s:2s])");
+                    let compiled = engine
+                        .compile(expression.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let mut provider = grouped_subquery_provider(1, 2);
+                    for series in &mut provider.series {
+                        match shape {
+                            "selected-native" => series.source.sample = selected_native,
+                            "unselected-native" => series.source.sample = unselected_native,
+                            "empty" => series.source.count = 0,
+                            _ => {}
+                        }
+                    }
+                    let account = compiled.execution_accounting();
+                    {
+                        let header = compiled
+                            .header(QueryRequest::Instant { time_ms: 8000 })
+                            .unwrap();
+                        let prepared = Prepared::new(
+                            &compiled.expression,
+                            &compiled.preprocessing,
+                            header,
+                            compiled.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let header = prepared.evaluator_header();
+                        prepared.activate(header, &control, &account).unwrap();
+                        let options =
+                            compiled.evaluation_options(header, header.start_ms, &prepared);
+                        let bounds = crate::query_bounds::find(
+                            &compiled.expression,
+                            options,
+                            &prepared,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let scope = provider.open(bounds, &control).unwrap();
+                        let catalog = Catalog::new(
+                            &scope,
+                            &compiled.expression,
+                            &prepared,
+                            options,
+                            compiled.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let rosters = compiled
+                            .prepare_rosters(
+                                &catalog,
+                                &prepared,
+                                bounds,
+                                &control,
+                                &account,
+                                &mut Annotations::default(),
+                            )
+                            .unwrap();
+                        let intervals = (0..compiled.expression.arena.nodes.len())
+                            .filter_map(|index| rosters.group_replay(NodeId(index)))
+                            .filter(|plan| plan.supports_interval())
+                            .count();
+                        // Offset moves the selected native tick onto the child grid.
+                        let float_only = shape == "float"
+                            || shape == "unselected-native" && !body.contains("offset")
+                            || shape == "selected-native" && body.contains("offset");
+                        assert_eq!(
+                            intervals,
+                            usize::from(admitted && !delayed && float_only),
+                            "{body} delayed={delayed} shape={shape}"
+                        );
+                    }
+                    provider.assert_closed();
+                    drop((account, compiled));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn grouped_selector_clocks_results() {
+        for aggregate in [
+            "sum", "avg", "count", "group", "min", "max", "stdvar", "stddev",
+        ] {
+            for page in [1, 17, 1024] {
+                for count in [4, 16] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let expression = format!("max_over_time(({aggregate} by(id)(m_total))[8s:1s])");
+                    let query = engine
+                        .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                        .unwrap();
+                    let provider = grouped_subquery_provider(page, count);
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 16000 },
+                        &control,
+                    );
+                    let result = report.result.as_ref().unwrap();
+                    assert!(report.annotations.is_empty());
+                    assert_eq!(result.series.len(), count);
+                    let mut rows = result.series.iter().collect::<Vec<_>>();
+                    rows.sort_by(|a, b| a.labels.0[0].value.cmp(&b.labels.0[0].value));
+                    for (identity, row) in rows.into_iter().enumerate() {
+                        assert_eq!(row.labels.0.len(), 1);
+                        assert_eq!(&*row.labels.0[0].name, b"id");
+                        assert_eq!(&*row.labels.0[0].value, format!("{identity:06}").as_bytes());
+                        let even = identity.is_multiple_of(2);
+                        let value: f64 = match aggregate {
+                            "sum" => {
+                                if even {
+                                    96.0
+                                } else {
+                                    192.0
+                                }
+                            }
+                            "avg" => {
+                                if even {
+                                    48.0
+                                } else {
+                                    96.0
+                                }
+                            }
+                            "count" => 2.0,
+                            "group" => 1.0,
+                            "min" => {
+                                if even {
+                                    32.0
+                                } else {
+                                    64.0
+                                }
+                            }
+                            "max" => {
+                                if even {
+                                    64.0
+                                } else {
+                                    128.0
+                                }
+                            }
+                            "stdvar" => {
+                                if even {
+                                    256.0
+                                } else {
+                                    1024.0
+                                }
+                            }
+                            "stddev" => {
+                                if even {
+                                    16.0
+                                } else {
+                                    32.0
+                                }
+                            }
+                            _ => unreachable!(),
+                        };
+                        assert_eq!(row.points.len(), 1);
+                        assert_eq!(row.points[0].time_ms, 16000);
+                        assert_eq!(float_bits(&row.points[0]), value.to_bits());
+                    }
+                    assert_eq!(report.observations.output_samples, count as u64);
+                    assert_eq!(
+                        report
+                            .observations
+                            .statistics
+                            .samples
+                            .total_queryable_samples,
+                        (8 * count) as u64
+                    );
+                    if count == 16 && page == 17 {
+                        assert!(report.observations.samples_fetched < 100_000);
+                    }
+                    assert!(
+                        provider.series.iter().all(|series| series
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed)
+                            == 1)
+                    );
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn grouped_selector_clocks_failures() {
+        for body in ["sum by(id)(m_total)", "avg without(member)(m_total)"] {
+            grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
+                "sum",
+                false,
+                Some(body),
+            );
+        }
+    }
+
+    #[test]
+    fn grouped_selector_clocks_completion() {
+        for body in ["sum by(id)(m_total)", "avg without(member)(m_total)"] {
+            grouped_subquery_clocks_do_not_credit_truncated_endpoints_case(
+                "sum",
+                false,
+                Some(body),
             );
         }
     }

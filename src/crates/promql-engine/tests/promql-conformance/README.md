@@ -10489,3 +10489,63 @@ QEMU checks correctness. There is no live-provider, ARM-throughput or process-RS
 For maintenance, run `instant_mixed_probe` plus the existing acquisition, stale-history, endpoint-ownership
 and long paged rate owners. Preserve the distinction between delivered histograms and mere allocation flags;
 test a middle histogram followed by a later failed page before changing endpoint lifetime.
+
+
+## Completed clocks in grouped selector subqueries
+
+Consumed subqueries such as `avg_over_time((sum by(job)(up))[8s:1s])` reuse completed group clocks.
+After a complete cold traversal, later requests for the same clock read the requested group’s contributors.
+Values stay fresh through ordinary selector reads; this stores group metadata, not raw history.
+
+Only direct ordinary aggregates over instant selectors enter this extension. Existing schedule, Float-only
+delivered descriptors and single-head checks remain required. Selected native samples, delayed name removal,
+invariant or nested inputs and nonordinary aggregates keep their existing fallbacks. Physical histograms
+between selected clock ticks need not disqualify an otherwise Float-only result. Existing map, ratio and
+histogram compositions remain rate-only; this change does not expand those optimizations.
+
+[Qualification](grouped-selector-clocks-qualification.json) retains results, costs and source identities.
+
+| Native profile | Target time ratio | Control time ratio |
+|---|---:|---:|
+| release | 0.3448 | 0.9796 |
+| release-min | 0.3118 | 0.9393 |
+
+The 480 complete before/after pairs use five alternating blocks, four repeats with the first discarded,
+page size 17, four or sixteen groups, and instant/range requests. This is about 66–69% less target time
+in this synthetic panel. No control exceeds the predefined 5% follow-up threshold; individual slower cases
+remain in the report. These numbers do not establish live-provider or ARM throughput.
+
+For the sixteen-group three-step range example, fetched sample entries fall from 1,058,048 to 187,988,
+and cumulative Workspace allocations from 32,114,132 to 6,456,192 bytes. Workspace peak rises from 28,762
+to 29,578 bytes (+816 bytes, 2.84%). Four-group target peaks rise by 544 bytes. All other category peaks
+are unchanged across 756 measured pairs. Metadata depends on series/groups; these are not per-query
+universal bounds. At fixed four groups/eight series, nine cases retain 15,209 bytes of Workspace across
+8/32/128 ticks and pages 1/17/1024. Borrowed pages and output memory are separate categories.
+
+All 756 complete baseline-result pairs and 756 comparisons under the agreed original ordering policy pass,
+with no numerical-bit differences. The 126 original requests cover eight reducers, changing presence,
+stale/lookback/gap behavior, labels, selected/unselected native samples and excluded compositions. One
+instant grouped-ratio case per panel retains a strict row-order failure; it is not a strict pass.
+
+The initial reference adapter fixed lookback at five minutes despite twelve requests specifying 1.5 seconds.
+Those failed captures are retained. Only those twelve originals were recaptured using the unchanged
+standalone oracle with the pinned Go 1.27.1 toolchain; complete Rust captures were reused by request identity.
+
+Both native profiles pass 927 unit tests with two ignored. Focused ARM tests run under QEMU. The four new
+owners check 88 admission combinations, 48 full analytical reducer results, 92 calibrated provider failures,
+and completion/truncation/clearing for two bodies. `grouped_selector_clocks.c` adds 192 cases per consumer:
+eight reducers, both name modes, three page widths, and success/provider-failure/cancellation/output-failure
+arms. Four C and two native C++ consumers give 1,152 cases, alongside both full native C suites. Boolean C
+outputs exercise composed results and lifecycle; Rust/original comparisons establish reducer arithmetic.
+
+| Default C executable | Text/data/BSS change, bytes | Relative change |
+|---|---:|---:|
+| release | +128 | 0.0016% |
+| release-min | +144 | 0.0026% |
+| arm32 | +376 | 0.0056% |
+| arm64 | -16256 | -0.2343% |
+
+Cumulative compiled costs are recorded separately from runtime memory. For maintenance, run
+`grouped_selector_clocks`, existing group interval/composition owners and the C fixture. Preserve actual
+Group Done before credit, fresh requested values, exact clock keys, preparation clearing and required
+failure phases. Check effective original lookback settings before reusing a capture adapter.

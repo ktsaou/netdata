@@ -336,3 +336,6 @@ Unary/Float group composition follows
 
 Mixed-history instant-rate probes follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#mixed-history-instant-rate-probes`.
+
+Direct grouped selectors follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-in-grouped-selector-subqueries`.

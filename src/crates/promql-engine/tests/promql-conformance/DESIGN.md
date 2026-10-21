@@ -2681,3 +2681,18 @@ changing membership, special literals, complete original comparisons and proport
   persistent owner, raw array, public interface or fixed query cap.
 - **Evidence:** [mixed instant probe qualification](mixed-instant-probe-qualification.json) separates complete
   results, causal ownership/failure checks, native/ARM callers, query-memory observations and compiled costs.
+
+
+## Completed grouped selector clocks
+
+- **Choice:** extend the private ordinary-group recognizer to allow direct instant selectors only at consumed
+  subquery demand and Group interval qualification. Four composition callers remain rate-only.
+- **Proof:** delivered Float-only/single-head descriptors cover the actual child clock grid. Raw history can
+  contain unselected histograms. Existing replay schedule and successful Group Done establish exact-key credit.
+- **Ownership:** reuse existing grouping metadata; cold traversal remains complete and warm selected values
+  are read fresh. No raw-value array, public contract, retained-data change or new query cap.
+- **Cost:** measured Workspace grows 544B at four groups and 816B at sixteen groups while repeated reads and
+  allocation traffic fall. Time-extent observations are at fixed cardinality, not a universal memory bound.
+- **Evidence:** [grouped selector qualification](grouped-selector-clocks-qualification.json) separates strict
+  and agreed-order results, actual C callback controls, native/ARM checks and compiled/runtime costs. Reference
+  capture options must match requests; a fixed-lookback adapter does not qualify custom-lookback inputs.

@@ -73969,5 +73969,11 @@
     "report": "mixed-instant-probe-qualification.json",
     "report_sha256": "d8e4d24fa441945f434aa920739d25a7cae378654919c0088d470bdde0ef229b",
     "summary": "Stop replacing provisional Float endpoints after a native histogram is delivered during an eligible instant-rate probe."
+  },
+  "grouped_selector_clocks": {
+    "status": "finite_qualification_pass",
+    "report": "grouped-selector-clocks-qualification.json",
+    "report_sha256": "79aa94e7a148aefb5b331fbbd78dde495857be7fc035d5256db39f0491d394ed",
+    "summary": "Reuse completed Group clocks for consumed subqueries directly over ordinary grouped instant selectors."
   }
 }
