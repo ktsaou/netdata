@@ -10132,3 +10132,52 @@ To repeat the causal checks, run the full fixture-enabled native suites in both 
 `ordinary_grouped_clocks`, `aggregate_replay::tests` and `vector_matching::tests::completed_interval`, then run
 the three affected C fixtures. Keep exact source/compiler/binary identities and compare complete varied results
 at pages 1/17/1024. Variance fixtures deliberately exercise zero and NaN; do not reuse SUM/AVG numeric expectations.
+
+
+## Completed grouped comparison clocks
+
+A consumed subquery can now reuse completed grouped scans through one comparison against a literal scalar.
+This covers either operand side, filtering or `bool`, and supported direct grouped rate/increase/delta and grouped
+ratio producers. Selected values and comparisons are recomputed. The engine retains original source ordinals and
+complete merged source slices; filtered absence remains distinct from a zero-valued boolean sample.
+
+Preparation and runtime share the literal-comparison recognizer. The live map edge must lead to an existing
+interval-qualified group or certified grouped ratio, with matching clocks and boundaries. Only one comparison
+crossing is admitted. Dynamic scalars, nested maps, comparisons inside ratio operands, raw-selector pairs and
+histogram wrappers retain their prior paths. A passing or failing comparison does not certify its child: Group
+and Pair completion remain independent, and preparation credit clears before final delivery.
+
+The [finite qualification](grouped-comparison-clocks-qualification.json) records 1,980 exact baseline pairs and
+1,980 comparisons with 330 fresh pinned Go outcomes. Numerical bits match. The 954 strict instant-order failures
+remain recorded separately from approved order-policy matches. A supplemental excluded-histogram-wrapper panel
+adds 36 exact baseline pairs and 36 original comparisons from six fresh outcomes. Both native profiles pass 906 units, with two
+existing ignored tests. Three new tests cover 48 full results, 120 required-read failures and actual incomplete/
+completed/cleared ownership. Each ARM target passes ten focused tests. There are 9,216 affected C/C++ executions,
+2,304 per success/provider-error/cancellation/output-error outcome, plus both complete native C suites. Strict
+lint, formatting and the installed MSRV compile check pass.
+
+The preselected 24-case, five-block timing panel preserves 960 complete result pairs. Ratios below 1 favor the change:
+
+| Profile | Group | Ratio | Increase | Delta | Controls |
+|---|---:|---:|---:|---:|---:|
+| release | 0.4579 | 0.4299 | 0.3980 | 0.4009 | 1.0142 |
+| release-min | 0.4600 | 0.4272 | 0.4042 | 0.4083 | 1.0094 |
+
+No individual primary ratio exceeds 1.05, so the predefined follow-up is empty. Primary samples and gates remain
+recorded. Its structural cases include all observed read/work/peak/traffic costs. The 36 increasing-time cases use
+four groups, both boolean and filtering comparisons, pages 1/17/1024 and windows 8/32/64 seconds. Each shape's
+workspace stays constant as time grows; borrowed samples remain page-bounded. The larger boolean-group case reads
+388,608→61,248 entries and uses 56,455→56,567 bytes of workspace (+112 bytes). Its ratio counterpart reads
+788,480→133,760 entries and uses 116,331→115,324 bytes. The singleton retains its reads and peak, with 20 more work units. No runtime fields or raw/value
+cache are added. Series-dependent metadata and result storage remain; this is not a total-query or process-RSS bound.
+
+Default C executable total changes are +34,672 bytes for release, +2,712 for release-min, −6,200 for ARM32 and
++24,636 for ARM64. Data grows by 104/288/144/248 bytes respectively; BSS is unchanged. Text/data/BSS, relative and
+cumulative costs are reported separately from query memory.
+These are finite synthetic native timings, not live-provider or ARM throughput measurements.
+
+To repeat the causal checks, select `grouped_comparison_clocks` with fixtures in both release profiles, retaining
+the full native suites and focused ARM owner checks. Build the existing direct/ratio C fixtures against the matching
+archive; their added expressions cover left/right filtering, boolean values and a false inner comparison. Retain
+explicit raw-pair/histogram/shared-gate fallback checks when changing the ancestry helper. Never infer original
+source ordinal identity from a filtered output position, or grant completion merely because a comparison returned.

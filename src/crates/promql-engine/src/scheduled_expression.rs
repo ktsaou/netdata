@@ -95,6 +95,48 @@ pub(crate) fn vector_child(
     }
 }
 
+pub(crate) fn literal_comparison_vector(
+    expression: &ParsedExpression,
+    prepared: &Prepared,
+    node: NodeId,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<Option<NodeId>, Interrupted> {
+    let Expr::Binary {
+        operator,
+        left,
+        right,
+        ..
+    } = expression.arena[node].expression
+    else {
+        return Ok(None);
+    };
+    if !operator.is_comparison() {
+        return Ok(None);
+    }
+    let child = match (
+        expression.arena[left].value_type,
+        expression.arena[right].value_type,
+    ) {
+        (ValueType::Vector, ValueType::Scalar)
+            if matches!(expression.arena[right].expression, Expr::Number { .. }) =>
+        {
+            left
+        }
+        (ValueType::Scalar, ValueType::Vector)
+            if matches!(expression.arena[left].expression, Expr::Number { .. }) =>
+        {
+            right
+        }
+        _ => return Ok(None),
+    };
+    Ok(Some(
+        prepared
+            .preprocessing
+            .child(expression, node, child, control, account)?,
+    ))
+}
+
 pub(crate) fn literal_scalar_child(
     expression: &ParsedExpression,
     prepared: &Prepared,

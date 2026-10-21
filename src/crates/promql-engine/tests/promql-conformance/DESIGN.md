@@ -2589,3 +2589,17 @@ changing membership, special literals, complete original comparisons and proport
 - **Evidence:** complete before/original comparisons, reducer-specific numerical cases, actual required-read
   failures, C callbacks and native/ARM execution are recorded in the
   [qualification](ordinary-grouped-clocks-qualification.json). Native synthetic timing is separate from live data.
+
+
+## Completed grouped comparison clocks
+
+- **Choice:** recognize one literal scalar comparison around an existing interval group or certified grouped ratio.
+  Preparation propagates contributor demand through the exact vector edge; runtime admits the same live map edge.
+- **Scope:** keep parenthesis, clock, invariant and matrix checks. Limit comparison crossings with local traversal
+  state, independently of the existing group-to-ratio allowance. Raw pairs and histogram wrappers stay excluded.
+- **Semantics:** retain fresh comparison values, source-ordinal slices, scalar-first order, names/duplicates and
+  logical statistics. Filtering removes samples; boolean comparisons retain zero. No comparison result earns credit.
+- **Ownership:** existing Group/Pair completion and final clearing remain authoritative. No new retained owner,
+  mapping table or value cache; raw samples stay paged across time and series.
+- **Evidence:** the [qualification](grouped-comparison-clocks-qualification.json) records complete before/original
+  outcomes, causal failure/completion tests, C/ARM execution and distinct query-memory/compiled costs.

@@ -2747,6 +2747,46 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         Ok(self.interval_group_node(child)?.map(|group| (child, group)))
     }
 
+    fn grouped_comparison_child(&self, node: NodeId) -> Result<Option<NodeId>, Interrupted> {
+        let Some(edge) = crate::scheduled_expression::literal_comparison_vector(
+            self.expression,
+            self.prepared,
+            node,
+            self.control,
+            self.account,
+        )?
+        else {
+            return Ok(None);
+        };
+        let mut producer = edge;
+        loop {
+            self.control.check()?;
+            self.account.work(1);
+            if self.invariants[producer.0]
+                || self.prepared.flags().boundaries[producer.0]
+                || self.rosters.matrix(producer).is_some()
+            {
+                return Ok(None);
+            }
+            if let Expr::Paren(child) = self.expression.arena[producer].expression {
+                producer = self.prepared.preprocessing.child(
+                    self.expression,
+                    producer,
+                    child,
+                    self.control,
+                    self.account,
+                )?;
+                continue;
+            }
+            return Ok((self
+                .rosters
+                .group_replay(producer)
+                .is_some_and(|plan| plan.supports_interval())
+                || self.grouped_ratio_children(producer)?.is_some())
+            .then_some(edge));
+        }
+    }
+
     fn direct_range_child(
         &self,
         mut index: usize,
@@ -2761,6 +2801,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             )
         };
         let key = key_for(&self.frames[index]);
+        let mut comparison = false;
         while index > 0 {
             self.control.check()?;
             self.account.work(1);
@@ -2793,6 +2834,16 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     {
                         return Ok(false);
                     }
+                }
+                State::Map {
+                    operation: MapOperation::Binary { .. },
+                    ..
+                } if !comparison => {
+                    if self.grouped_comparison_child(parent.node)? != Some(child.node) {
+                        return Ok(false);
+                    }
+                    // A comparison preserves source identities, not group or pair completion.
+                    comparison = true;
                 }
                 State::Binary(_) if grouped_operand => {
                     if !self

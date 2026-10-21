@@ -6,6 +6,11 @@
 
 int main(void) {
     const char *expressions[] = {
+        "max_over_time(((sum by(zone)(rate(m_total[3s])) / sum by(zone)(rate(m_total[3s]))) > bool 0)[2s:1s]) > bool 0",
+        "max_over_time((0 < bool (sum by(zone)(rate(m_total[3s])) / sum by(zone)(rate(m_total[3s]))))[2s:1s]) > bool 0",
+        "max_over_time(((sum by(zone)(rate(m_total[3s])) / sum by(zone)(rate(m_total[3s]))) > 0)[2s:1s]) > bool 0",
+        "max_over_time((0 < (sum by(zone)(rate(m_total[3s])) / sum by(zone)(rate(m_total[3s]))))[2s:1s]) > bool 0",
+        "max_over_time(((sum by(zone)(rate(m_total[3s])) / sum by(zone)(rate(m_total[3s]))) < bool 0)[2s:1s]) == bool 0",
         "max_over_time((sum by(zone)(rate(m_total[3s])) / sum by(zone)(rate(m_total[3s])))[2s:1s]) > bool 0",
         "max_over_time((sum by(zone)(increase(m_total[3s])) / sum by(zone)(increase(m_total[3s])))[2s:1s]) > bool 0",
         "max_over_time((sum by(zone)(delta(m_total[3s])) / sum by(zone)(delta(m_total[3s])))[2s:1s]) > bool 0",

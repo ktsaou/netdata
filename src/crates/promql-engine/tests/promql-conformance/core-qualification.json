@@ -73927,5 +73927,11 @@
     "report": "ordinary-grouped-clocks-qualification.json",
     "report_sha256": "9fd15d9db97ff4c64ae517167f6e9baa75a49b712b6268b319cdf1af04945354",
     "summary": "All ordinary reducers share completed grouped rate-family clocks with fresh arithmetic and existing paged ownership."
+  },
+  "grouped_comparison_clocks": {
+    "status": "finite_qualification_pass",
+    "report": "grouped-comparison-clocks-qualification.json",
+    "report_sha256": "ee941e3e705927e3e71fbb576c0c8ae31f10f1b15f4686de5e6de9b52191c90e",
+    "summary": "One literal comparison reuses existing grouped/ratio completion with fresh comparison outcomes and original source identities."
   }
 }
