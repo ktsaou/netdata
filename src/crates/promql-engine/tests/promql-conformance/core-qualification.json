@@ -73867,5 +73867,11 @@
     "report_sha256": "d87b19ae3619b33560732cb95f586b4e5e8e972fca165bfd51c26b5a720ebf19",
     "status": "finite_qualification_pass",
     "scope": "Completed aggregate reuse through immediate Number-sided scalar Binary; ordinary arithmetic preserved."
+  },
+  "output_label_descriptor_capacity": {
+    "report": "output-label-capacity-qualification.json",
+    "report_sha256": "38302b9960f580ea185d25a53a669ad122060633042adbebbcea30aa1cbbbaca",
+    "status": "finite_qualification_pass",
+    "scope": "Existing lazy capacity hint at both C metadata and Series output label-descriptor loops. No preallocation before the first label check and no label-byte copying or ownership change."
   }
 }

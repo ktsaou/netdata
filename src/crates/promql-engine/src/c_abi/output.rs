@@ -148,10 +148,13 @@ impl Sink {
         for value in values {
             control.check()?;
             account.work(1);
-            labels.push(types::Label {
-                name: types::Bytes::of(value.name),
-                value: types::Bytes::of(value.value),
-            });
+            labels.push_with_capacity_hint(
+                types::Label {
+                    name: types::Bytes::of(value.name),
+                    value: types::Bytes::of(value.value),
+                },
+                values.len(),
+            );
         }
         let row = types::Chunk {
             kind: types::CHUNK_SERIES,
@@ -329,10 +332,13 @@ impl OutputSink for Sink {
                 for value in source_labels {
                     control.check()?;
                     account.work(1);
-                    labels.push(types::Label {
-                        name: types::Bytes::of(value.name),
-                        value: types::Bytes::of(value.value),
-                    });
+                    labels.push_with_capacity_hint(
+                        types::Label {
+                            name: types::Bytes::of(value.name),
+                            value: types::Bytes::of(value.value),
+                        },
+                        source_labels.len(),
+                    );
                 }
                 let point_view = if let [point] = source_points
                     && let SampleValueRef::Float(value) = point.value

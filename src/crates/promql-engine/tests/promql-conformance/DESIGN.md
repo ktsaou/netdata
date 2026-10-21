@@ -2399,7 +2399,7 @@ separately rejected under their original criteria.
 - Known-length output descriptor hints preserved lazy check/work/allocation order in the source trial, but failed
   the early ARM64 linked-size gate. [Evidence](output-label-capacity-rejected-qualification.json) separates
   24,480 bytes of additional linker padding from the two 12-byte function increases.
-- Runtime allocation savings remain a prediction. The exact owned diff was reversed; no compiler workaround,
+- At that rejection, runtime allocation savings remained a prediction. The exact owned diff was reversed; no compiler workaround,
   acceptance threshold, public interface or accepted runtime behavior changed.
 
 ## Proportional compiled-footprint review
@@ -2440,3 +2440,14 @@ individual slower cases and unfinished checks.
   Native/absent values remain uncached. No new state or buffer is added.
 - Finite results, errors, callback phases and costs are recorded in
   [the qualification](README.md#literal-scalar-arithmetic). Historical scalar-only evidence retains its original scope.
+
+## C output label descriptor capacity
+
+- Both known-length C output-label loops reuse `AccountedVec::push_with_capacity_hint`; capacity is bounded by
+  the final count only when another allocation is needed. Required growth and old/new allocation overlap remain accounted.
+- Per-label cancellation and work precede the push. No eager allocation, copied label bytes, metadata owner,
+  retained descriptor cache or output table change is introduced. Metadata END and query callback errors keep their semantics.
+- Measured savings concern transient descriptor capacity and allocation traffic. Whole-query peaks can remain unchanged
+  because other owned state dominates. Timing and cumulative fixed-binary costs remain separate measurements.
+- [Finite qualification](README.md#c-output-label-descriptor-capacity) records actual C calls, all slower primary cases,
+  their bounded follow-up, native/ARM ownership checks and precise retained-versus-current evidence attribution.

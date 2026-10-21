@@ -1,0 +1,1321 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "3a43f65666ef43c92e8a5e68fe1097a2b9669020",
+  "change": "Existing lazy capacity hint at both C metadata and Series output label-descriptor loops. No preallocation before the first label check and no label-byte copying or ownership change.",
+  "preserved": "All per-label work/control polls, required capacity, replacement overlap accounting, synchronous callback lifetimes, metadata END, query status handling and cleanup. No expression algorithm, storage, contexts or ABI change.",
+  "source_phases": {
+    "base-source.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/base-source.json",
+      "sha256": "3ba7bd6b318bf7cd09b2b4dee1c717429bb6c7f32a81bfa5d52d0e00d7b7ec63"
+    },
+    "accepted-source.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/accepted-source.json",
+      "sha256": "c775386d358c0ab39d1b12b294d69bb1b33884996e43d177d3635219d207e47d"
+    },
+    "candidate-source.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/candidate-source.json",
+      "sha256": "6045695c4998358a4281515a2673eaa02087f588bb728a82ae2d2baeccc900c2"
+    }
+  },
+  "baseline_attribution": "Verified immutable142 archives already qualified for identical146 runtime inputs. New C fixtures are linked to both actual before/current archives. All candidate archives, C callers and focused units are rebuilt here; no historical145 runtime result is reused.",
+  "measurement": {
+    "paired_calls_including_warmups": 1200,
+    "cases_per_profile": 50,
+    "blocks": 3,
+    "warmups_per_block": 1,
+    "measurements_per_block": 3,
+    "method": "Serial alternating before/current processes pinned to one CPU; actual execute/discover calls timed. Fixture setup, compilation and report release are outside the timed interval.",
+    "profiles": {
+      "release": {
+        "families": [
+          {
+            "family": [
+              "metadata",
+              1,
+              "control"
+            ],
+            "median_ratio": 1.0033952629291611
+          },
+          {
+            "family": [
+              "query",
+              1,
+              "control"
+            ],
+            "median_ratio": 0.9963315662922645
+          },
+          {
+            "family": [
+              "metadata",
+              1,
+              "target"
+            ],
+            "median_ratio": 1.0192118226600986
+          },
+          {
+            "family": [
+              "query",
+              1,
+              "target"
+            ],
+            "median_ratio": 0.9949799196787149
+          },
+          {
+            "family": [
+              "metadata",
+              512,
+              "target"
+            ],
+            "median_ratio": 1.0146073004919107
+          },
+          {
+            "family": [
+              "query",
+              512,
+              "target"
+            ],
+            "median_ratio": 0.9952408137275353
+          },
+          {
+            "family": [
+              "metadata",
+              2048,
+              "target"
+            ],
+            "median_ratio": 1.0084956978787891
+          },
+          {
+            "family": [
+              "query",
+              2048,
+              "target"
+            ],
+            "median_ratio": 1.0012424065717591
+          },
+          {
+            "family": [
+              "metadata",
+              512,
+              "control"
+            ],
+            "median_ratio": 1.0049024104121307
+          },
+          {
+            "family": [
+              "query",
+              512,
+              "control"
+            ],
+            "median_ratio": 1.027484577241085
+          },
+          {
+            "family": [
+              "metadata",
+              2048,
+              "control"
+            ],
+            "median_ratio": 1.0002473864526351
+          },
+          {
+            "family": [
+              "query",
+              2048,
+              "control"
+            ],
+            "median_ratio": 1.004712739544551
+          }
+        ],
+        "primary_gate_pass": true,
+        "individual_ratios_over_1_05": [
+          {
+            "case": [
+              "query",
+              3,
+              1
+            ],
+            "before_ns": 11100,
+            "current_ns": 11670,
+            "ratio": 1.0513513513513513,
+            "before": [
+              14770,
+              11230,
+              10280,
+              14299,
+              10930,
+              10200,
+              15590,
+              11100,
+              10180
+            ],
+            "current": [
+              15610,
+              10920,
+              10230,
+              16600,
+              11670,
+              10350,
+              14610,
+              16790,
+              10260
+            ]
+          },
+          {
+            "case": [
+              "query",
+              9,
+              1
+            ],
+            "before_ns": 17229,
+            "current_ns": 19620,
+            "ratio": 1.1387776423472054,
+            "before": [
+              32140,
+              16680,
+              15350,
+              19390,
+              16139,
+              15629,
+              35680,
+              30480,
+              17229
+            ],
+            "current": [
+              19620,
+              16220,
+              15310,
+              28259,
+              22859,
+              26590,
+              20510,
+              16490,
+              15250
+            ]
+          }
+        ]
+      },
+      "release-min": {
+        "families": [
+          {
+            "family": [
+              "metadata",
+              1,
+              "control"
+            ],
+            "median_ratio": 1.016080122615579
+          },
+          {
+            "family": [
+              "query",
+              1,
+              "control"
+            ],
+            "median_ratio": 0.9788144094457938
+          },
+          {
+            "family": [
+              "metadata",
+              1,
+              "target"
+            ],
+            "median_ratio": 1.0163170163170163
+          },
+          {
+            "family": [
+              "query",
+              1,
+              "target"
+            ],
+            "median_ratio": 1.0066856220702374
+          },
+          {
+            "family": [
+              "metadata",
+              512,
+              "target"
+            ],
+            "median_ratio": 1.0138960283757632
+          },
+          {
+            "family": [
+              "query",
+              512,
+              "target"
+            ],
+            "median_ratio": 1.0325687426969303
+          },
+          {
+            "family": [
+              "metadata",
+              2048,
+              "target"
+            ],
+            "median_ratio": 1.0386169678832158
+          },
+          {
+            "family": [
+              "query",
+              2048,
+              "target"
+            ],
+            "median_ratio": 0.974697719943788
+          },
+          {
+            "family": [
+              "metadata",
+              512,
+              "control"
+            ],
+            "median_ratio": 0.9929906994133534
+          },
+          {
+            "family": [
+              "query",
+              512,
+              "control"
+            ],
+            "median_ratio": 0.9741062024221505
+          },
+          {
+            "family": [
+              "metadata",
+              2048,
+              "control"
+            ],
+            "median_ratio": 1.0014487878566347
+          },
+          {
+            "family": [
+              "query",
+              2048,
+              "control"
+            ],
+            "median_ratio": 0.9807416463830931
+          }
+        ],
+        "primary_gate_pass": true,
+        "individual_ratios_over_1_05": [
+          {
+            "case": [
+              "query",
+              1,
+              1
+            ],
+            "before_ns": 23710,
+            "current_ns": 27009,
+            "ratio": 1.139139603542809,
+            "before": [
+              29210,
+              20350,
+              19410,
+              41300,
+              49710,
+              38709,
+              23710,
+              19330,
+              18380
+            ],
+            "current": [
+              27009,
+              34430,
+              21670,
+              39759,
+              35049,
+              33870,
+              23730,
+              19350,
+              18640
+            ]
+          },
+          {
+            "case": [
+              "query",
+              1,
+              512
+            ],
+            "before_ns": 5105677,
+            "current_ns": 8725427,
+            "ratio": 1.7089657257989488,
+            "before": [
+              5092208,
+              5698093,
+              5105677,
+              8733117,
+              8756686,
+              8765477,
+              5000628,
+              5010108,
+              4852049
+            ],
+            "current": [
+              9189333,
+              9372872,
+              9342381,
+              8653438,
+              8804946,
+              8725427,
+              4871069,
+              4851730,
+              4798990
+            ]
+          },
+          {
+            "case": [
+              "metadata",
+              3,
+              512
+            ],
+            "before_ns": 892893,
+            "current_ns": 943562,
+            "ratio": 1.0567470010404383,
+            "before": [
+              892893,
+              897272,
+              887773,
+              921692,
+              895603,
+              883442,
+              1001921,
+              892812,
+              876462
+            ],
+            "current": [
+              971842,
+              940202,
+              936552,
+              943562,
+              968122,
+              994151,
+              940272,
+              1006401,
+              940842
+            ]
+          },
+          {
+            "case": [
+              "metadata",
+              3,
+              2048
+            ],
+            "before_ns": 3569690,
+            "current_ns": 3769599,
+            "ratio": 1.0560017816673157,
+            "before": [
+              3890107,
+              3858178,
+              3943977,
+              3680319,
+              3569690,
+              3461211,
+              3484481,
+              3486121,
+              3534210
+            ],
+            "current": [
+              3874318,
+              4023397,
+              3834488,
+              3744539,
+              3747069,
+              3748718,
+              3769599,
+              3729448,
+              3790179
+            ]
+          },
+          {
+            "case": [
+              "query",
+              17,
+              512
+            ],
+            "before_ns": 20831746,
+            "current_ns": 31012170,
+            "ratio": 1.488697586846537,
+            "before": [
+              20812136,
+              21083083,
+              20831746,
+              34816459,
+              35009787,
+              34769028,
+              19364938,
+              19108000,
+              19007731
+            ],
+            "current": [
+              20491008,
+              21351721,
+              20441619,
+              31776184,
+              31012170,
+              32717486,
+              24791523,
+              33178562,
+              33134383
+            ]
+          },
+          {
+            "case": [
+              "metadata",
+              17,
+              2048
+            ],
+            "before_ns": 15515020,
+            "current_ns": 16995877,
+            "ratio": 1.0954466703877919,
+            "before": [
+              14478628,
+              14496099,
+              15515020,
+              16700160,
+              13188670,
+              13114250,
+              23644992,
+              23736301,
+              22939318
+            ],
+            "current": [
+              15773788,
+              15980146,
+              19862014,
+              24584555,
+              24046408,
+              24067379,
+              14650747,
+              16995877,
+              13291059
+            ]
+          }
+        ]
+      }
+    },
+    "followup": [
+      {
+        "case": [
+          "release",
+          "query",
+          3,
+          1
+        ],
+        "before_ns": 11089,
+        "current_ns": 11450,
+        "ratio": 1.0325547840202003,
+        "before": [
+          15160,
+          11089,
+          10191,
+          17730,
+          11389,
+          10429,
+          15510,
+          11430,
+          10230,
+          16230,
+          10940,
+          10090,
+          15389,
+          10980,
+          10200,
+          16820,
+          11060,
+          10610,
+          18600,
+          12179,
+          11020
+        ],
+        "current": [
+          14790,
+          11080,
+          10380,
+          15860,
+          11450,
+          10230,
+          15610,
+          10930,
+          10370,
+          15930,
+          11540,
+          10520,
+          16860,
+          12240,
+          10570,
+          15320,
+          11240,
+          10419,
+          16920,
+          11760,
+          11189
+        ]
+      },
+      {
+        "case": [
+          "release",
+          "query",
+          9,
+          1
+        ],
+        "before_ns": 16280,
+        "current_ns": 16760,
+        "ratio": 1.0294840294840295,
+        "before": [
+          19910,
+          16200,
+          15490,
+          19770,
+          15710,
+          15091,
+          22500,
+          16280,
+          15660,
+          21620,
+          15820,
+          14820,
+          22550,
+          17640,
+          15610,
+          20700,
+          16640,
+          15240,
+          25310,
+          18020,
+          15670
+        ],
+        "current": [
+          20100,
+          16799,
+          15889,
+          20740,
+          16760,
+          15880,
+          20760,
+          16810,
+          15460,
+          19759,
+          16580,
+          15190,
+          20069,
+          16500,
+          15130,
+          19060,
+          15829,
+          14969,
+          24320,
+          17379,
+          15929
+        ]
+      },
+      {
+        "case": [
+          "release-min",
+          "query",
+          1,
+          1
+        ],
+        "before_ns": 19800,
+        "current_ns": 20110,
+        "ratio": 1.0156565656565657,
+        "before": [
+          25940,
+          19800,
+          18910,
+          30369,
+          20980,
+          18780,
+          26990,
+          19420,
+          18329,
+          23920,
+          19090,
+          18130,
+          25710,
+          20700,
+          19309,
+          23300,
+          19130,
+          18179,
+          26010,
+          20590,
+          19300
+        ],
+        "current": [
+          25430,
+          20719,
+          19759,
+          24470,
+          19740,
+          18740,
+          28109,
+          21010,
+          19410,
+          24310,
+          18980,
+          18370,
+          26220,
+          20110,
+          18150,
+          24820,
+          19880,
+          18690,
+          26339,
+          21040,
+          19490
+        ]
+      },
+      {
+        "case": [
+          "release-min",
+          "query",
+          1,
+          512
+        ],
+        "before_ns": 4974117,
+        "current_ns": 4816229,
+        "ratio": 0.9682580848017849,
+        "before": [
+          5054607,
+          5161895,
+          4993947,
+          4971638,
+          5001307,
+          5039126,
+          5047657,
+          4974117,
+          4894138,
+          4849188,
+          4758299,
+          4746919,
+          4823799,
+          4895318,
+          4944938,
+          4975957,
+          4926228,
+          4736770,
+          5017517,
+          5155696,
+          5116446
+        ],
+        "current": [
+          5303494,
+          4796479,
+          4702970,
+          4816229,
+          4831588,
+          4883768,
+          4745050,
+          4776539,
+          4675830,
+          4695840,
+          4781269,
+          5034126,
+          4761959,
+          4843588,
+          4886918,
+          4687460,
+          4819799,
+          4825778,
+          4812919,
+          4822358,
+          4873308
+        ]
+      },
+      {
+        "case": [
+          "release-min",
+          "metadata",
+          3,
+          512
+        ],
+        "before_ns": 937781,
+        "current_ns": 939192,
+        "ratio": 1.0015046156831926,
+        "before": [
+          1061211,
+          925672,
+          930912,
+          1014981,
+          1014111,
+          1066151,
+          915882,
+          913022,
+          926122,
+          1008361,
+          1005561,
+          999071,
+          927892,
+          915962,
+          937781,
+          959582,
+          1011941,
+          947472,
+          921862,
+          891322,
+          890242
+        ],
+        "current": [
+          933022,
+          985112,
+          937342,
+          1043101,
+          957241,
+          944642,
+          923332,
+          923552,
+          921302,
+          939192,
+          937772,
+          935202,
+          987452,
+          938543,
+          932141,
+          947682,
+          942512,
+          943352,
+          959302,
+          954792,
+          918382
+        ]
+      },
+      {
+        "case": [
+          "release-min",
+          "metadata",
+          3,
+          2048
+        ],
+        "before_ns": 3719588,
+        "current_ns": 3835447,
+        "ratio": 1.031148342235753,
+        "before": [
+          4067945,
+          4056425,
+          4032796,
+          3903267,
+          3821547,
+          3719588,
+          3657868,
+          3756438,
+          3779868,
+          3594859,
+          3753468,
+          3666968,
+          3547819,
+          3566810,
+          3563509,
+          3648738,
+          3576480,
+          3598489,
+          3910366,
+          3848617,
+          3693699
+        ],
+        "current": [
+          3747238,
+          3826227,
+          3871486,
+          3768408,
+          4080275,
+          4148754,
+          3734838,
+          3732968,
+          3876077,
+          3819227,
+          3826167,
+          3957976,
+          3775288,
+          3729568,
+          3985056,
+          3809007,
+          3930196,
+          3835447,
+          3888266,
+          3904007,
+          4007186
+        ]
+      },
+      {
+        "case": [
+          "release-min",
+          "query",
+          17,
+          512
+        ],
+        "before_ns": 18961026,
+        "current_ns": 19486063,
+        "ratio": 1.0276903264622916,
+        "before": [
+          19255025,
+          18842088,
+          18731729,
+          18987477,
+          18892097,
+          19017417,
+          18961026,
+          18900928,
+          18826948,
+          19131576,
+          19239875,
+          19324524,
+          18956597,
+          18917658,
+          18984357,
+          18869088,
+          18532871,
+          18572480,
+          19453483,
+          19601961,
+          20352375
+        ],
+        "current": [
+          18995307,
+          19166285,
+          19092966,
+          19093506,
+          18924617,
+          18919587,
+          19169216,
+          19133076,
+          19219774,
+          19921609,
+          20161667,
+          19486063,
+          19377134,
+          19511202,
+          21908771,
+          26963308,
+          32579230,
+          21811342,
+          20737192,
+          21954131,
+          22164809
+        ]
+      },
+      {
+        "case": [
+          "release-min",
+          "metadata",
+          17,
+          2048
+        ],
+        "before_ns": 13841951,
+        "current_ns": 13934820,
+        "ratio": 1.0067092420714392,
+        "before": [
+          13841951,
+          13809541,
+          13911650,
+          13671263,
+          13651852,
+          13711652,
+          13852210,
+          14714753,
+          13011238,
+          14206868,
+          13553943,
+          13553833,
+          13602863,
+          13430685,
+          13339065,
+          13870131,
+          13877951,
+          13883930,
+          23558618,
+          22910234,
+          21708604
+        ],
+        "current": [
+          13640433,
+          13732172,
+          13265136,
+          13615583,
+          13667812,
+          13576753,
+          14191818,
+          13936830,
+          14758053,
+          13971180,
+          13603073,
+          13583194,
+          14265607,
+          13869281,
+          13934820,
+          14299987,
+          13631713,
+          14006709,
+          15592196,
+          15476577,
+          16204010
+        ]
+      }
+    ],
+    "followup_complete_pairs": 224,
+    "followup_policy": "All8primary cases above1.05 were selected before follow-up. Seven fixed alternating blocks,21measured samples per side; original results are retained and not replaced. Builds and other task tests finished before this follow-up.",
+    "speedup_claim": false,
+    "scope": "Finite synthetic serial C API timing and tracked allocation bytes. Not HTTP/live-dbengine throughput, concurrent-load performance, process RSS or physical ARM timing."
+  },
+  "memory": {
+    "compared_rows": 2720,
+    "increased_categories_or_fields": 0,
+    "examples": [
+      {
+        "profile": "release",
+        "mode": "metadata",
+        "labels": 9,
+        "rows": 2048,
+        "workspace_before_current_peak_acquired_released": [
+          0,
+          1744,
+          5046448,
+          5046448
+        ],
+        "workspace_after_current_peak_acquired_released": [
+          0,
+          1520,
+          4587696,
+          4587696
+        ],
+        "workspace_traffic_saved": 458752
+      },
+      {
+        "profile": "release",
+        "mode": "metadata",
+        "labels": 17,
+        "rows": 2048,
+        "workspace_before_current_peak_acquired_released": [
+          0,
+          3280,
+          10813616,
+          10813616
+        ],
+        "workspace_after_current_peak_acquired_released": [
+          0,
+          2800,
+          9830576,
+          9830576
+        ],
+        "workspace_traffic_saved": 983040
+      },
+      {
+        "profile": "release",
+        "mode": "query",
+        "labels": 9,
+        "rows": 2048,
+        "workspace_before_current_peak_acquired_released": [
+          0,
+          3226896,
+          20789296,
+          20789296
+        ],
+        "workspace_after_current_peak_acquired_released": [
+          0,
+          3226896,
+          20330544,
+          20330544
+        ],
+        "workspace_traffic_saved": 458752
+      },
+      {
+        "profile": "release",
+        "mode": "query",
+        "labels": 17,
+        "rows": 2048,
+        "workspace_before_current_peak_acquired_released": [
+          0,
+          5438736,
+          42514480,
+          42514480
+        ],
+        "workspace_after_current_peak_acquired_released": [
+          0,
+          5438736,
+          41531440,
+          41531440
+        ],
+        "workspace_traffic_saved": 983040
+      },
+      {
+        "profile": "release-min",
+        "mode": "metadata",
+        "labels": 9,
+        "rows": 2048,
+        "workspace_before_current_peak_acquired_released": [
+          0,
+          1744,
+          5046448,
+          5046448
+        ],
+        "workspace_after_current_peak_acquired_released": [
+          0,
+          1520,
+          4587696,
+          4587696
+        ],
+        "workspace_traffic_saved": 458752
+      },
+      {
+        "profile": "release-min",
+        "mode": "metadata",
+        "labels": 17,
+        "rows": 2048,
+        "workspace_before_current_peak_acquired_released": [
+          0,
+          3280,
+          10813616,
+          10813616
+        ],
+        "workspace_after_current_peak_acquired_released": [
+          0,
+          2800,
+          9830576,
+          9830576
+        ],
+        "workspace_traffic_saved": 983040
+      },
+      {
+        "profile": "release-min",
+        "mode": "query",
+        "labels": 9,
+        "rows": 2048,
+        "workspace_before_current_peak_acquired_released": [
+          0,
+          3226896,
+          20789296,
+          20789296
+        ],
+        "workspace_after_current_peak_acquired_released": [
+          0,
+          3226896,
+          20330544,
+          20330544
+        ],
+        "workspace_traffic_saved": 458752
+      },
+      {
+        "profile": "release-min",
+        "mode": "query",
+        "labels": 17,
+        "rows": 2048,
+        "workspace_before_current_peak_acquired_released": [
+          0,
+          5438736,
+          42514480,
+          42514480
+        ],
+        "workspace_after_current_peak_acquired_released": [
+          0,
+          5438736,
+          41531440,
+          41531440
+        ],
+        "workspace_traffic_saved": 983040
+      }
+    ],
+    "interpretation": "Traffic sums allocation bytes over the query; it is not concurrent RAM. At17labels/2048rows,983040Workspace bytes are avoided. Metadata peak3280to2800; query-wide peak unchanged in that case."
+  },
+  "qualification": {
+    "focused_tests_per_target": {
+      "release": 53,
+      "release-min": 53,
+      "arm32": 53,
+      "arm64": 53
+    },
+    "preexisting_ignored_per_target": 1,
+    "ignored_scope": "Explicit streamed-point timing test remains ignored; required payload/interruption/ownership tests run.",
+    "legacy_C_pairs": 1248,
+    "foreign_wide_C_pairs": 272,
+    "metadata_control_cases_per_side_per_target": 7,
+    "physical_and_logical_observations": "Physical calls/pages/fetched/work and emitted sample statistics match in both native timed panels and foreign wide panels. Legacy C panel asserts full expected labels/values and available statistics, error and cleanup behavior.",
+    "failure_scope": "C metadata controls exercise END, error/cancel priority, cancellation before begin and retained output. Owned/scheduled C label panels exercise provider errors and retained/streamed output. All C ABI units cover delivery failures, cancellation, complete point/histogram payloads and accounting ownership.",
+    "wide_fixture_scope": "Asserts label bytes/order, row IDs, header type/start/end/step, point time/type/bits, metadata zero sample statistics, callbacks and terminal balance. It does not separately assert every reserved field or point start_time_ms; unchanged payload fields are covered by existing output_points units.",
+    "static": "Strict default/fixtures Clippy, formatting and installed Rust1.91 compile-only.",
+    "new_PromQL_original_executions": 0
+  },
+  "compiled_C_sizes": {
+    "release": {
+      "kind": "default-C",
+      "before": [
+        7371058,
+        506824,
+        400
+      ],
+      "current": [
+        7371238,
+        506824,
+        400
+      ],
+      "growth": 180,
+      "before_total": 7878282,
+      "current_total": 7878462,
+      "growth_percent": 0.002284762083916265,
+      "cumulative_baseline_text_data_bss": [
+        7370378,
+        506744,
+        400
+      ],
+      "cumulative_growth_bytes": 940,
+      "cumulative_growth_percent": 0.011932686446321571
+    },
+    "release-min": {
+      "kind": "default-C",
+      "before": [
+        5104735,
+        462184,
+        400
+      ],
+      "current": [
+        5104711,
+        462168,
+        400
+      ],
+      "growth": -40,
+      "before_total": 5567319,
+      "current_total": 5567279,
+      "growth_percent": -0.0007184786788757749,
+      "cumulative_baseline_text_data_bss": [
+        5103967,
+        462056,
+        400
+      ],
+      "cumulative_growth_bytes": 856,
+      "cumulative_growth_percent": 0.015377918638235002
+    },
+    "arm32": {
+      "kind": "default-C",
+      "before": [
+        6390129,
+        292660,
+        244
+      ],
+      "current": [
+        6390125,
+        292660,
+        244
+      ],
+      "growth": -4,
+      "before_total": 6683033,
+      "current_total": 6683029,
+      "growth_percent": -5.98530637212176e-05,
+      "cumulative_baseline_text_data_bss": [
+        6382697,
+        292596,
+        244
+      ],
+      "cumulative_growth_bytes": 7492,
+      "cumulative_growth_percent": 0.1122306714800622
+    },
+    "arm64": {
+      "kind": "default-C",
+      "before": [
+        6383290,
+        497104,
+        384
+      ],
+      "current": [
+        6399722,
+        497104,
+        384
+      ],
+      "growth": 16432,
+      "before_total": 6880778,
+      "current_total": 6897210,
+      "growth_percent": 0.23881020431119854,
+      "cumulative_baseline_text_data_bss": [
+        6374470,
+        497032,
+        384
+      ],
+      "cumulative_growth_bytes": 25324,
+      "cumulative_growth_percent": 0.3685160085600954
+    }
+  },
+  "cumulative_compiled_baseline": "51862635936717f6bcc9ab018b994d0ac205b0ea",
+  "compiled_scope": "Actual linked default C test consumer code/data/BSS, not complete Netdata size or per-query memory. Decision66 proportional policy; compiler flags and CPU workarounds unchanged.",
+  "historical_failure": "output-label-capacity-rejected-qualification.json remains unchanged with its actual old linked cost and no candidate runtime execution.",
+  "receipts": {
+    "measurement-plan.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/measurement-plan.json",
+      "sha256": "18ed1f4f864767a42d5929bff622cb52e1745914780ffe38f5759b37fdce42ec"
+    },
+    "before-builds.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/before-builds.json",
+      "sha256": "07ab7644ec8668ec707b773754d27076f98a06fa4b32d7d7d8b2a74f4cdc0e08"
+    },
+    "current-static.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/current-static.json",
+      "sha256": "b8c36bdca5af642e00494fa129b84575274c07cbcd9b7354922fe524f71c1e52"
+    },
+    "timing-followup-plan.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/timing-followup-plan.json",
+      "sha256": "a7c1db9fcef658d49cae1d67e0794948c02ee09a96daad2edca21cf904ac563a"
+    },
+    "timing-followup.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/timing-followup.json",
+      "sha256": "42027725ccadb3ae7d7b5c0eb8b6c93a695a7a36d20a9cc522b0a0f812c424c8"
+    },
+    "build-release.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/build-release.json",
+      "sha256": "793d4689eb57b0ad38b3497520e131fcc2d10f7001f474e88faad432b39fbfdd"
+    },
+    "qualification-release.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/qualification-release.json",
+      "sha256": "53c085347d749655be42655fd0b487daa97d24535065ddc0c2f30dab883fb5f8"
+    },
+    "callers-release.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/callers-release.json",
+      "sha256": "258608d49abda66e6fc273d95e1f15d50313f52bd117ab53a61f870d881ed90f"
+    },
+    "build-release-min.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/build-release-min.json",
+      "sha256": "6bd350fc2099a714b523337ef644cef220ccd89f0fe9721be12a7ac75f57dcae"
+    },
+    "qualification-release-min.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/qualification-release-min.json",
+      "sha256": "215e475d45b99f15b79c7f25aed98c947d2ae51c081f83fc14b69aeb4cfc9276"
+    },
+    "callers-release-min.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/callers-release-min.json",
+      "sha256": "7a9c489320c77212356874a4600d7f30b77266a7c303eabc75fb965baaa489c0"
+    },
+    "build-arm32.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/build-arm32.json",
+      "sha256": "4970287be88b9a51d40228f24d21600aabc36968537b5bc27b7c2967af76201a"
+    },
+    "qualification-arm32.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/qualification-arm32.json",
+      "sha256": "be005e1c67ddbf963eb6db748744b025fdb11c995c62466e0b645fc0e7fb0480"
+    },
+    "callers-arm32.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/callers-arm32.json",
+      "sha256": "e2b9457bfeaf2ac0bdd6696a74350f87693de544bdaba8548f81892b6c6ecf46"
+    },
+    "build-arm64.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/build-arm64.json",
+      "sha256": "ec446367b74dd83f4599e708df4127d4bfc05e87685a1cba6d3565cebe306137"
+    },
+    "qualification-arm64.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/qualification-arm64.json",
+      "sha256": "a6531275cbde29fa72f0c75fe960b17af1f233c0eac27bbaeccacd5c22c55a5b"
+    },
+    "callers-arm64.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/callers-arm64.json",
+      "sha256": "8d38665d534d30f2af1d8a7888fb8b07bbc1af59dc34ba6c3c5857d41ff1879e"
+    },
+    "baseline-panel-release.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/baseline-panel-release.json",
+      "sha256": "19dfa8222e024466d18e2b96c7a5a8d922ae468b24a97809c3340d7d11e43583"
+    },
+    "panel-release.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/panel-release.json",
+      "sha256": "2b8f98e3a85a6b5a4a2accf419a224229990ce9e71bc8495d6b6b16b6575a2b8"
+    },
+    "baseline-panel-release-min.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/baseline-panel-release-min.json",
+      "sha256": "4151429812d193cb5c1d96268cdecd8caa7b3972608b6ec7858f7ede187f08d6"
+    },
+    "panel-release-min.json": {
+      "path": ".tmp/output-label-resume-bhqhad6_/panel-release-min.json",
+      "sha256": "aec9776b2e846520227b2b573298e4297858d0c1b988f563149367be02b0a430"
+    }
+  },
+  "scope": "Private adapter memory optimization; no claim of universal language proof or completion of further independent opportunities."
+}

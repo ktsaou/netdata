@@ -9734,3 +9734,37 @@ change is 0, while the independently owned cached sample can add 1 live sample u
 This extends the previously rejected trial under the subsequent footprint policy; the negative record is preserved.
 Default C executable growth is 760/896/7496/8892 bytes
 for release/release-min/ARM32/ARM64. No structure fields, raw-history storage or public interfaces change.
+
+## C output label descriptor capacity
+
+Both metadata discovery and ordinary Series output use the known label count as a lazy capacity hint.
+The existing per-label control check and work charge still precede each push. Label bytes remain borrowed
+for the synchronous callback. Empty labels allocate no descriptor payload; callback status and cleanup are unchanged.
+
+The [qualification](output-label-capacity-qualification.json) records 1,200 paired C calls, including warmups,
+across both native profiles. Fifty cases per profile cover metadata/query output, label widths
+0/1/3/4/5/8/9/16/17 and 1/512/2,048 rows (empty labels use one row). All measured memory fields are nonincreasing.
+At 17 labels and 2,048 rows, both paths avoid 983,040 bytes of cumulative Workspace allocation traffic.
+Metadata peak falls from 3,280 to 2,800 bytes; the corresponding query-wide peak is unchanged.
+Allocation traffic is not concurrent RAM savings.
+
+All frozen timing-family criteria pass. Eight primary individual cases exceed a 1.05 ratio; the report retains
+their complete samples and one fixed follow-up of every such case. Follow-up median ratios range from
+0.968 to 1.033; the larger initial slowdowns did not repeat. Neither panel establishes a general speedup.
+Measurements cover the actual C execute/discover call, excluding fixture setup, compilation and report release.
+
+Each native profile and each ARM target passes 53 focused accounting/C ABI tests, with one pre-existing timing
+test ignored. Actual C callers add 1,248 owned/scheduled-label comparison pairs, 272 foreign wide-label pairs
+and seven metadata-control cases per side/target. These cover labels, callback errors, cancellation, END and cleanup;
+the report distinguishes native timing, foreign execution and complete payload-unit coverage.
+
+`output_label_capacity.c` includes the existing C embedding fixture. Link it with the default engine archive and
+header include directory. Its arguments are LABEL_COUNT ROW_COUNT MODE, where MODE is `metadata` or `query`;
+`--metadata-controls` runs the existing seven-case metadata owner. Each successful invocation prints four calls,
+the first a warmup. The fixture asserts exact labels (including zero and non-UTF8 bytes) and its documented
+sample/header fields; the existing output-points units check the unchanged complete payload descriptors.
+
+Default C executable changes are +180/-40/-4/+16,432 bytes for release/release-min/ARM32/ARM64.
+The ARM64 increase is about 0.24% of that consumer. Before/after and cumulative costs are in the report.
+The earlier rejected label trial remains historical; this continuation is measured against the later scalar-arithmetic
+baseline under the proportional fixed-footprint policy. No compiler workaround or public interface changes.
