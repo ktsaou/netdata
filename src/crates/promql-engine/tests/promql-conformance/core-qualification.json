@@ -73939,5 +73939,11 @@
     "report": "grouped-arithmetic-clocks-qualification.json",
     "report_sha256": "e2c4fe6268eda95f42f9a6d54d88003eff4662d3f1f39e323ecc800513275834",
     "summary": "One literal arithmetic wrapper reuses existing group/ratio completion, preserving ordinary arithmetic and source identities."
+  },
+  "grouped_fixed_maps_rejected": {
+    "status": "rejected_per_frozen_ratio_runtime_criterion",
+    "report": "grouped-fixed-maps-rejected-qualification.json",
+    "report_sha256": "0d0a1161c9bf098f975653f7e6a1489bc911d1eac42212c3efb74b83024897f4",
+    "summary": "Entire candidate rejected. Exactly five owned runtime/test file changes reversed; no accepted runtime change."
   }
 }

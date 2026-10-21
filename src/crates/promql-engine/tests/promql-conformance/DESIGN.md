@@ -2617,3 +2617,14 @@ changing membership, special literals, complete original comparisons and proport
   Raw samples stay paged across time and series, with existing series-dependent metadata and output storage.
 - **Evidence:** the [qualification](grouped-arithmetic-clocks-qualification.json) retains independent numeric bits,
   complete baseline/original outcomes, causal failure/completion checks, C/ARM execution and all measured costs.
+
+
+## Rejected broad fixed-map admission
+
+- **Outcome:** fixed Float/unary admission over both groups and ratios failed its frozen ratio-family speed target;
+  all runtime/test changes were reversed. See the [negative report](grouped-fixed-maps-rejected-qualification.json).
+- **Finding:** Float Vector consumption truncates a ratio before Pair Done. Group completion cannot replace Pair
+  completion or authorize skipping its unfiltered discovery. Parenthesized Call arguments resolve identically.
+- **Implication:** preserve evaluation modes and independent completion proofs. A separately measured admission
+  refinement may retain useful group/unary cases without enabling ineffective Float-over-ratio bookkeeping.
+- **Limits:** positive subfamily results and passing finite semantics do not override the failed frozen gate.

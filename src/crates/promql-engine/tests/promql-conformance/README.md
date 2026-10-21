@@ -10246,3 +10246,25 @@ and Pair ownership checks, and the existing numerical-loop interruption test. Th
 callbacks; together with mapped results, completion controls and C cancellation it does not claim a new mapped-loop
 interruption phase. The existing C direct/ratio fixtures include multiplication, scalar-left subtraction, power and
 modulo through all four callback outcomes. Preserve every old helper caller when changing wrapper qualification.
+
+
+## Rejected broad fixed-map grouped reuse
+
+The [rejected experiment](grouped-fixed-maps-rejected-qualification.json) admitted Float-function and unary
+wrappers over both grouped rate-family expressions and their ratios. Its frozen target required each target-family
+median to be at most 0.95 of baseline time in both profiles. The ratio family measured **0.998 / 1.022** and failed.
+All five runtime/test changes were reversed to the accepted arithmetic-wrapper baseline; no part was shipped.
+
+Groups and unary ratios did improve, but Float-over-ratio fetched the same 777,216 entries in the larger fixture
+and added work. A Float call consumes Vector rows and truncates the Pair before actual Done. Pair discovery asks
+for all rows, which cannot use a selected Group's completion interval. Call argument preprocessing removes outer
+parentheses, so `round(L/R,1)` and `round((L/R),1)` have the same limitation. Group and Pair proof are distinct.
+
+Before rejection, 2,700 exact baseline pairs and 2,700 approved-order original comparisons passed; 1,566 strict
+row-order failures remain recorded, with no numeric-bit differences. Actual qualification includes 914 native
+release tests plus two ignored, 18 focused tests per ARM target, 7,872 C/C++ cases, and 36 time-extent cases.
+The full release-min unit/C suite was not run. All results describe the rejected candidate, not a shipped change.
+The initial incorrect parenthesized-call completion assertion and its corrected rerun remain retained.
+
+A refined experiment can retain Float-over-group and unary gains while measuring Float-over-ratio as an unchanged
+fallback. It must preserve this failed gate and use a new prospective scope; these measurements do not qualify it.
