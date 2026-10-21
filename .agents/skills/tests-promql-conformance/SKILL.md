@@ -333,3 +333,6 @@ The ratio-prefix extension follows
 
 Unary/Float group composition follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-through-unary-float-groups`.
+
+Mixed-history instant-rate probes follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#mixed-history-instant-rate-probes`.

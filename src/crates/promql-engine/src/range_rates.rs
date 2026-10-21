@@ -666,11 +666,19 @@ impl InstantStep {
                 self.receive(sample, control, account)
             });
         };
+        let mut histogram_delivered = false;
         let acquisition =
             crate::matrix_reader::probe(series, bounds, window, control, account, |sample| {
                 if matches!(sample.value, SampleValueRef::Float(_)) {
-                    self.receive(sample, control, account)
+                    if histogram_delivered {
+                        control.check()?;
+                        Ok(())
+                    } else {
+                        self.receive(sample, control, account)
+                    }
                 } else {
+                    // A delivered histogram guarantees consumption will replace tentative floats.
+                    histogram_delivered = true;
                     Ok(())
                 }
             })?;
@@ -1810,6 +1818,219 @@ mod tests {
         };
         histogram.sum = f64::from_bits(crate::value::STALE_NAN_BITS);
         sample
+    }
+
+    #[test]
+    fn instant_mixed_probe_stops_unused_float_ownership_after_histogram_delivery() {
+        type Shape = (&'static str, usize, fn(usize) -> Sample);
+        let shapes: [Shape; 4] = [
+            ("first", 0, interior_native_acquisition),
+            ("middle", 8, |index| {
+                if index == 8 {
+                    native(index)
+                } else {
+                    crate::test_storage::counter(index)
+                }
+            }),
+            ("last", 15, |index| {
+                if index == 15 {
+                    native(index)
+                } else {
+                    crate::test_storage::counter(index)
+                }
+            }),
+            ("stale", 15, interior_stale_native_acquisition),
+        ];
+        let mut guards = Vec::new();
+        for page in [1, 17, 1024] {
+            for counter in [false, true] {
+                for start_timestamps in [false, true] {
+                    for (name, provisional, sample) in shapes {
+                        let source = GeneratedSeries::new(16, page, sample);
+                        let reference = GeneratedSeries::new(16, page, sample);
+                        let account = EngineAccounting::default().query();
+                        let reference_account = EngineAccounting::default().query();
+                        let control = Control::default();
+                        let mut input = window(16);
+                        input.start_timestamps = start_timestamps;
+                        let matrix = acquisition_window(input.end_ms);
+                        let function = RateFunction::Instant { counter };
+                        let (expected, old_owners) = crate::test_storage::observe_sample_owners(
+                            &reference_account,
+                            &control,
+                            false,
+                            || {
+                                generic_instant_reference(
+                                    &reference,
+                                    input.into(),
+                                    function,
+                                    matrix,
+                                    &control,
+                                    &reference_account,
+                                )
+                            },
+                        );
+                        let (output, owners) = crate::test_storage::observe_sample_owners(
+                            &account,
+                            &control,
+                            false,
+                            || evaluate(&source, input, function, Some(matrix), &control, &account),
+                        );
+                        let expected = expected.unwrap();
+                        let output = output.unwrap();
+                        assert_instant_outputs_equal(&output, &expected);
+                        assert_eq!(
+                            account.snapshot().statistics.samples.samples_read,
+                            reference_account.snapshot().statistics.samples.samples_read
+                        );
+                        assert_eq!(source.counters.opened.load(Ordering::Relaxed), 2);
+                        assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                        assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+                        guards.push((name, provisional, owners, old_owners));
+                        drop((output, expected));
+                        account.snapshot().assert_memory_released();
+                        reference_account.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+        assert_eq!(guards.len(), 48);
+        println!("mixed instant probe: 48 complete output/progress/read/release comparisons");
+        for (name, provisional, owners, reference) in guards {
+            assert_eq!(
+                owners.released,
+                reference.released + provisional as u64,
+                "discarded provisional Float replacements: {name}"
+            );
+            assert_eq!(
+                owners.created,
+                reference.created + provisional.min(2) as u64
+            );
+        }
+    }
+
+    #[test]
+    fn instant_mixed_probe_preserves_late_failure_and_cancellation() {
+        let mut failures = 0;
+        let mut cancellations = 0;
+        for page in [1, 17, 1024] {
+            for counter in [false, true] {
+                let control = Control::default();
+                let source = AcquisitionSeries {
+                    source: GeneratedSeries::new(16, page, interior_native_acquisition),
+                    failure: None,
+                    cancel_at: None,
+                    cancellation: control.cancellation.clone(),
+                    operations: RefCell::new(Vec::new()),
+                };
+                let account = EngineAccounting::default().query();
+                let output = evaluate(
+                    &source,
+                    window(16),
+                    RateFunction::Instant { counter },
+                    Some(acquisition_window(16000)),
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                drop(output);
+                source.assert_closed(&account);
+                let operations = source.operations.into_inner();
+                if page == 1 {
+                    assert!(operations.contains(&AcquisitionOperation::Next(1, 12)));
+                    assert!(operations.contains(&AcquisitionOperation::Next(2, 12)));
+                }
+                for operation in operations
+                    .into_iter()
+                    .filter(|operation| !matches!(operation, AcquisitionOperation::Close(_)))
+                {
+                    for cancel in [false, true] {
+                        let control = Control::default();
+                        let source = AcquisitionSeries {
+                            source: GeneratedSeries::new(16, page, interior_native_acquisition),
+                            failure: (!cancel).then_some(operation),
+                            cancel_at: cancel.then_some(operation),
+                            cancellation: control.cancellation.clone(),
+                            operations: RefCell::new(Vec::new()),
+                        };
+                        let account = EngineAccounting::default().query();
+                        let result = evaluate(
+                            &source,
+                            window(16),
+                            RateFunction::Instant { counter },
+                            Some(acquisition_window(16000)),
+                            &control,
+                            &account,
+                        );
+                        if cancel {
+                            assert!(matches!(result, Err(StorageError::Interrupted(_))));
+                            cancellations += 1;
+                        } else {
+                            assert!(matches!(&result, Err(StorageError::Provider(message))
+                                if message.as_ref() == b"rate acquisition failed"));
+                            failures += 1;
+                        }
+                        if matches!(
+                            operation,
+                            AcquisitionOperation::Open(1)
+                                | AcquisitionOperation::Next(1, _)
+                                | AcquisitionOperation::Seek(1, _)
+                        ) {
+                            assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+                        }
+                        drop(result);
+                        source.assert_closed(&account);
+                    }
+                }
+            }
+        }
+        assert!(failures >= 72);
+        assert_eq!(failures, cancellations);
+        println!(
+            "mixed instant probe: {failures} provider failures and {cancellations} cancellations"
+        );
+
+        let control = Control::default();
+        let source = AcquisitionSeries {
+            source: GeneratedSeries::new(16, 1, |index| {
+                if index == 8 {
+                    native(index)
+                } else {
+                    crate::test_storage::counter(index)
+                }
+            }),
+            failure: Some(AcquisitionOperation::Next(1, 12)),
+            cancel_at: None,
+            cancellation: control.cancellation.clone(),
+            operations: RefCell::new(Vec::new()),
+        };
+        let account = EngineAccounting::default().query();
+        let mut step = InstantStep {
+            counter: true,
+            start_timestamps: false,
+            floats: [None, None],
+            histograms: [None, None],
+        };
+        let result = step.scan(
+            &source,
+            RateInput::from(window(16)).bounds(),
+            Some(acquisition_window(16000)),
+            &control,
+            &account,
+        );
+        assert!(matches!(&result, Err(StorageError::Provider(message))
+            if message.as_ref() == b"rate acquisition failed"));
+        assert_eq!(
+            step.floats
+                .each_ref()
+                .map(|point| point.as_ref().map(|point| point.time)),
+            [Some(7000), Some(8000)]
+        );
+        assert!(step.histograms.iter().all(Option::is_none));
+        assert_eq!(account.current_samples(), 2);
+        assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+        drop((result, step));
+        source.assert_closed(&account);
     }
 
     #[test]

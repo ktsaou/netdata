@@ -8882,7 +8882,8 @@ both complete C suites. Strict Clippy, formatting and installed Rust 1.91 compil
 
 The causal 120-case owner uses monotonic Floats; preserved broader owners carry native/stale/NaN/derived
 coverage. The clone control checks attribution, without a separate clone-wrapper acquisition-count guard.
-Existing mixed-histogram acquisition costs and provisional Float copies remain. This finite panel does
+That historical panel retains mixed-histogram acquisition costs and provisional Float copies. The later
+[mixed-history probe](#mixed-history-instant-rate-probes) removes a proven subset of those copies. This finite panel does
 not establish traffic-weighted, concurrent, live, physical-device, whole-Agent or Cloud performance.
 Raw histories remain paged across both axes and implicit limits stay disabled.
 
@@ -10436,3 +10437,55 @@ identical. These are synthetic native timings, not live-provider or ARM performa
 Repeat `grouped_unary_float_clocks` and the existing fixed-map/Group/Pair controls. Preserve immediate edges,
 transparent-parenthesis checks, exact clocks and actual Group Done. Keep nested Vector consumers, ratios and
 third wrappers as negative-admission controls; emitted samples cannot replace completion evidence.
+
+
+## Mixed-history instant-rate probes
+
+`irate` and `idelta` stop replacing tentative Float endpoints after the initial scan delivers a native
+histogram. A successful scan must then run the original consuming pass, which discards those tentative
+values. The initial scan still validates every reached page and polls controls. Earlier endpoints remain
+alive until the existing post-scan clearing point, including when a later provider read fails.
+
+Stale, out-of-bounds and undelivered histograms do not trigger this shortcut. Native copies, final arithmetic,
+annotations and useful-read credit keep their original phases. This adds one local Boolean and no persistent
+buffer, raw-history cache, provider change or query limit.
+
+[Qualification](mixed-instant-probe-qualification.json) retains complete results, resource effects and costs.
+
+| Native profile | Mixed irate time ratio | Mixed idelta time ratio | Control ratio |
+|---|---:|---:|---:|
+| release | 0.7089 | 0.7442 | 0.7385 |
+| release-min | 0.9312 | 0.9434 | 1.0055 |
+
+These candidate/baseline medians use 960 complete pairs in five alternating blocks. The frozen targets use
+eight series and 128-point windows, with histograms first or in the middle; controls include Float-only,
+stale, all-native and late-histogram histories, instant and range queries. Both profiles pass the prospective
+criteria, and no control needs the prescribed slower-case follow-up. Regular release also improves controls
+whose work is unchanged, so its entire timing gain cannot be assigned to the eliminated copies. The
+size-optimized Float-only controls are 1.7–3.2% slower in this panel; all remain below the frozen 5%
+follow-up threshold. Individual timings, including every slower case, remain in the report.
+
+All 3,636 baseline comparisons and 1,860 retained Prometheus-original comparisons pass, with no strict
+row-order or numerical-bit failures in this panel. Work falls in 252 rows; every other serialized nonelapsed
+observation is unchanged, including physical reads and all eight memory categories. Eighteen analytical
+cases at 8/128/4,096 points and pages 1/17/1,024 retain a 7,187-byte Workspace peak at fixed cardinality.
+
+Validation includes 923 native tests plus two ignored per profile, 22 ARM32 and 22 ARM64 rate tests,
+960 paired C lifecycle outcomes, 480 C++ comparisons and both complete native C suites. The C rate panel uses
+Float inputs; mixed native histories are covered by Rust units and query fixtures. The new owners establish
+48 complete semantic comparisons, 108 provider failures, 108 operation cancellations and a separate late
+failure with two earlier Float endpoints still held. The baseline passes semantics before failing the copy guard.
+
+| Default C executable | Text/data/BSS change, bytes | Relative change |
+|---|---:|---:|
+| release | -400 | -0.005% |
+| release-min | +128 | 0.002% |
+| arm32 | +3768 | 0.056% |
+| arm64 | -11860 | -0.171% |
+
+The report keeps cumulative compiled costs separate from runtime memory. These are synthetic native timings;
+QEMU checks correctness. There is no live-provider, ARM-throughput or process-RSS claim.
+
+For maintenance, run `instant_mixed_probe` plus the existing acquisition, stale-history, endpoint-ownership
+and long paged rate owners. Preserve the distinction between delivered histograms and mere allocation flags;
+test a middle histogram followed by a later failed page before changing endpoint lifetime.

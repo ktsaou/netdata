@@ -2668,3 +2668,16 @@ changing membership, special literals, complete original comparisons and proport
   retain their existing paths. Final endpoint truncation and preparation clearing remain unchanged.
 - **Evidence:** [unary/Float group qualification](unary-float-group-clocks-qualification.json) records causal tests,
   complete outcomes, all slower/cost observations, source phases and native/ARM caller checks.
+
+
+## Delivered histogram in an instant-rate probe
+
+- **Choice:** stop provisional Float endpoint updates only after a histogram reaches the eligible probe callback.
+- **Reason:** successful delivery proves the original consuming fallback will discard these tentative values.
+  Allocation alone is insufficient because it includes stale and undelivered history.
+- **Lifetime:** keep earlier endpoints until the established post-probe clearing point; continue validation and
+  skipped-Float control polling. Native copies and final arithmetic remain in consumption.
+- **Accounting:** count actual eliminated copy work honestly; failed-probe sample peaks can decrease. No new
+  persistent owner, raw array, public interface or fixed query cap.
+- **Evidence:** [mixed instant probe qualification](mixed-instant-probe-qualification.json) separates complete
+  results, causal ownership/failure checks, native/ARM callers, query-memory observations and compiled costs.

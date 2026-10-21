@@ -73963,5 +73963,11 @@
     "report": "unary-float-group-clocks-qualification.json",
     "report_sha256": "09f4167e549737cbe8cf9167ba5be1f9efa2c1939585099250e44f6267c569fb",
     "summary": "Reuse actual completed group scans through one outer unary operator over one fixed Float map."
+  },
+  "mixed_instant_probe": {
+    "status": "finite_qualification_pass",
+    "report": "mixed-instant-probe-qualification.json",
+    "report_sha256": "d8e4d24fa441945f434aa920739d25a7cae378654919c0088d470bdde0ef229b",
+    "summary": "Stop replacing provisional Float endpoints after a native histogram is delivered during an eligible instant-rate probe."
   }
 }
