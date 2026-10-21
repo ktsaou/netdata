@@ -2714,3 +2714,21 @@ changing membership, special literals, complete original comparisons and proport
 - **Evidence:** [comparison-set qualification](comparison-set-discovery-qualification.json) separates complete
   baseline and original-policy checks, strict ordering differences, malformed-storage exclusions, actual callback
   phases and portable tests. Single-tick and other computed operand classes keep their existing fallbacks.
+
+
+## Completed ordinary-window set discovery
+
+- **Choice:** admit direct ordinary per-series Rate/Fold calls, optionally under one literal comparison, on
+  multi-step grids. Reuse the existing direct-Matrix/Selector validator and common source/scope/producer clocks.
+  Global absence, Numeric reducers and unsupported geometry retain their existing evaluation paths.
+- **Proof:** both actual discovery streams complete at the exact key; original uniqueness and final Float,
+  single-head descriptors remain mandatory. Zero bool outputs are present. Completed preparation owns native
+  suppression diagnostics even when final descriptors contain only floats.
+- **Ownership:** reuse the current membership bitmap and serial Plan lifecycle. Selected original expressions
+  preserve existing window evaluation, including same-clock fold reuse. No new raw history or values cache.
+  Direct label-wrapped windows remain excluded, while independently qualified nested set plans may compose.
+- **Cost:** measured target Workspace increases280B; a nested-set control increases560B. Time/read reductions,
+  all individual controls and proportional/cumulative compiled costs are reported separately, without new caps.
+- **Evidence:** [window-set qualification](window-set-discovery-qualification.json) records complete baseline and
+  original comparisons, strict ordering differences, calibrated failures, C read boundaries and portable checks.
+  C tests must observe actual required reads: an output callback does not imply the next row must read storage.

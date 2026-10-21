@@ -73981,5 +73981,11 @@
     "report": "comparison-set-discovery-qualification.json",
     "report_sha256": "8ffd66f29ce04440fe6ebb0bb9b99c11d1470981c34ea708f3f1f064d35ef63a",
     "summary": "Reuse completed set-input discovery for multistep literal scalar comparisons over direct selectors."
+  },
+  "window_set_discovery": {
+    "status": "finite_qualification_pass",
+    "report": "window-set-discovery-qualification.json",
+    "report_sha256": "8363b61cc35b99c658d1cf6163316d9360f020b54c0e8a4f080cfa0c1e939833",
+    "summary": "Reuse completed set-input discovery for multistep ordinary per-series window operands and their literal comparisons."
   }
 }

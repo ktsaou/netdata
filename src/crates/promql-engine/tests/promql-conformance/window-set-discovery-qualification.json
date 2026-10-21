@@ -1,0 +1,1582 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "4c174558ce6e5986b2966932c58b42dd427b96e7",
+  "change": "Reuse completed set-input discovery for multistep ordinary per-series window operands and their literal comparisons.",
+  "proof": "Existing ordinary direct-Matrix/Selector validator for five Rate and sixteen per-series Fold functions; common resolved source/scope/producer clocks, pre-copy uniqueness and final Float/single-head certification remain authoritative.",
+  "preserved": "Both actual discovery streams complete at the exact key; suppressed/zero-valued membership, diagnostics and original selected expression evaluation remain. Existing same-clock fold reuse is preserved; this change does not require a new raw read for every output.",
+  "ownership": "Existing set membership bitmap only; no new replay owner, raw history/value cache, ABI, provider, metadata authority, numerical contract or implicit cap.",
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/window-set-fkk_6gxl/baseline-source.json",
+      "sha256": "822554af943085559cea326c6e62c4bccfc2dab8d3679100600b118497de5c81"
+    },
+    "candidate": {
+      "path": ".tmp/window-set-fkk_6gxl/candidate-source.json",
+      "sha256": "e23dfa6be76027179abc8062445a581aae1a7b84813e9dba182a62e35681ec60"
+    },
+    "candidate-v2": {
+      "path": ".tmp/window-set-fkk_6gxl/candidate-v2-source.json",
+      "sha256": "fa361ca3143827da08e29706c77cb1688f868be705cf32fd4af798f3cf29cb96"
+    },
+    "candidate-v3": {
+      "path": ".tmp/window-set-fkk_6gxl/candidate-v3-source.json",
+      "sha256": "c8c5293ca95b9886d0631e9e23b94b49166292aa9499ad3e62fc335d88d19fb0"
+    }
+  },
+  "tests_only_v2": {
+    "changed": [
+      "src/crates/promql-engine/src/execution.rs",
+      "src/crates/promql-engine/tests/promql-conformance/comparison_sets.c"
+    ],
+    "production_prefix_sha256": "9d6e8b5c5d89af3774c0c32a3d5514af4dbb00a12985dcacf2d11b5ac7d706f5",
+    "production_prefix_equal": true,
+    "v1_execution_sha256": "cd2aeef2f30b863dd4e384e04f74da3ca01845aa09a226dfe7f92e68e87ff46f",
+    "v2_execution_sha256": "84e1849c5dde5335699fe6e563372ecd016d4e9a198a1288bfe3469f7149424d",
+    "scope": "Additional causal tests and C scenarios only; previously measured production bytes unchanged."
+  },
+  "C_only_v3": {
+    "status": "pass",
+    "changed": [
+      "src/crates/promql-engine/tests/promql-conformance/comparison_sets.c"
+    ],
+    "before": "231f077ee8b4521768c96898ca6bd8d085092b75b79af7bc792919776c339e60",
+    "after": "7676e421ecbeba0682bd93eb955183aa8b7c6798aaf077ce46658c0783a99e66",
+    "rust_and_build_inputs_unchanged": true,
+    "reason": "Existing same-clock fold results can emit four valid rows before the next required read; preserve read-boundary causal failure assertion."
+  },
+  "qualification": {
+    "units": {
+      "release": [
+        {
+          "filter": "",
+          "passed": 933,
+          "ignored": 2
+        }
+      ],
+      "release-min": [
+        {
+          "filter": "",
+          "passed": 933,
+          "ignored": 2
+        }
+      ],
+      "arm32": [
+        {
+          "filter": "window_set_discovery",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "comparison_set_discovery",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "vector_matching::tests::set_",
+          "passed": 17,
+          "ignored": 0
+        },
+        {
+          "filter": "completed_set_preparation",
+          "passed": 1,
+          "ignored": 0
+        }
+      ],
+      "arm64": [
+        {
+          "filter": "window_set_discovery",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "comparison_set_discovery",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "vector_matching::tests::set_",
+          "passed": 17,
+          "ignored": 0
+        },
+        {
+          "filter": "completed_set_preparation",
+          "passed": 1,
+          "ignored": 0
+        }
+      ]
+    },
+    "new_causal_tests": 3,
+    "admission_combinations": 448,
+    "analytical_value_queries": 24,
+    "new_calibrated_final_acquisition_failures": 192,
+    "new_failures_after_output": 96,
+    "retained_comparison_failures": 135,
+    "baseline_pairs": 3792,
+    "original_policy_passes": 3792,
+    "unique_original_requests": 632,
+    "original_exclusions": 0,
+    "strict_original_failures": 24,
+    "numeric_bit_differences": 0,
+    "resource_pairs": 3768,
+    "construction_error_responses_without_observations": 24,
+    "callers": {
+      "release": [
+        {
+          "language": "C",
+          "cases": 396,
+          "binary_sha256": "f48535f583c8c67e7352c0b6baaec4f10e2363b40a9a117c01dc13475a483886"
+        },
+        {
+          "language": "CPP",
+          "cases": 396,
+          "binary_sha256": "28f08009d114db8a8a3bb1077227018e48b39c862156f9eec629fc32fc06ec20"
+        }
+      ],
+      "release-min": [
+        {
+          "language": "C",
+          "cases": 396,
+          "binary_sha256": "57e5519bbb0283cd3cec0f804750bb74ee91d5ee87d9a8fe144f243d853e221e"
+        },
+        {
+          "language": "CPP",
+          "cases": 396,
+          "binary_sha256": "14584110ba4e5c7594b71670938cd83b9cef723a8a36d7932264660180acb3da"
+        }
+      ],
+      "arm32": [
+        {
+          "language": "C",
+          "cases": 396,
+          "binary_sha256": "8daa46925808e71262af397e16136a7429f276ca2d995a7c42fddd5c794d9c2b"
+        }
+      ],
+      "arm64": [
+        {
+          "language": "C",
+          "cases": 396,
+          "binary_sha256": "72abee1b0fd4088de43fb3b7b3cd0200104dd263866d3295b96607691bfd0e68"
+        }
+      ]
+    },
+    "C_and_CPP_cases": 2376,
+    "complete_native_C_suites": 2,
+    "strict_lint_variants": 2,
+    "format": true,
+    "MSRV_compile_only": "1.91.0"
+  },
+  "measurement": {
+    "plan": {
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "blocks": 5,
+      "repeats": 4,
+      "discard_first": true,
+      "page": 17,
+      "target_shapes": [
+        "compared-rate-set-range",
+        "rate-set-range"
+      ],
+      "target_median_max": 0.9,
+      "control_median_max": 1.05,
+      "individual_control_followup": {
+        "threshold": 1.05,
+        "blocks": 6,
+        "max_rounds": 1
+      },
+      "compiled_policy": "Decision66 absolute/relative/cumulative; runtime memory separate",
+      "scope": "Multistep ordinary per-series Rate/Fold direct terminals or one literal comparison. Existing selector and standalone rate plus instant controls; each target family must pass."
+    },
+    "profiles": {
+      "release": {
+        "target": 0.4680907075662969,
+        "families": {
+          "compared-rate-set-range": 0.471189490119419,
+          "rate-set-range": 0.46026527719699134
+        },
+        "controls": 0.99755507869479,
+        "complete_pairs": 320,
+        "cases": [
+          {
+            "id": "n4-compared-rate-set-instant",
+            "target": false,
+            "before_median_ns": 154968,
+            "candidate_median_ns": 153808,
+            "ratio": 0.9925145836559806
+          },
+          {
+            "id": "n4-compared-rate-set-range",
+            "target": true,
+            "before_median_ns": 644723,
+            "candidate_median_ns": 426206,
+            "ratio": 0.6610683968153765
+          },
+          {
+            "id": "n4-rate-set-instant",
+            "target": false,
+            "before_median_ns": 108419,
+            "candidate_median_ns": 108679,
+            "ratio": 1.0023981036534186
+          },
+          {
+            "id": "n4-rate-set-range",
+            "target": true,
+            "before_median_ns": 423285,
+            "candidate_median_ns": 277197,
+            "ratio": 0.6548708317091322
+          },
+          {
+            "id": "n4-compared-selector-set-instant",
+            "target": false,
+            "before_median_ns": 151789,
+            "candidate_median_ns": 150438,
+            "ratio": 0.9910994867875801
+          },
+          {
+            "id": "n4-compared-selector-set-range",
+            "target": false,
+            "before_median_ns": 397765,
+            "candidate_median_ns": 401125,
+            "ratio": 1.008447198722864
+          },
+          {
+            "id": "n4-compared-rate-instant",
+            "target": false,
+            "before_median_ns": 54670,
+            "candidate_median_ns": 54739,
+            "ratio": 1.0012621181635266
+          },
+          {
+            "id": "n4-compared-rate-range",
+            "target": false,
+            "before_median_ns": 132968,
+            "candidate_median_ns": 132528,
+            "ratio": 0.9966909331568498
+          },
+          {
+            "id": "n16-compared-rate-set-instant",
+            "target": false,
+            "before_median_ns": 514364,
+            "candidate_median_ns": 500634,
+            "ratio": 0.9733068410697483
+          },
+          {
+            "id": "n16-compared-rate-set-range",
+            "target": true,
+            "before_median_ns": 6073753,
+            "candidate_median_ns": 1708611,
+            "ratio": 0.28131058342346155
+          },
+          {
+            "id": "n16-rate-set-instant",
+            "target": false,
+            "before_median_ns": 365096,
+            "candidate_median_ns": 355346,
+            "ratio": 0.9732946950938931
+          },
+          {
+            "id": "n16-rate-set-range",
+            "target": true,
+            "before_median_ns": 4278093,
+            "candidate_median_ns": 1136517,
+            "ratio": 0.2656597226848505
+          },
+          {
+            "id": "n16-compared-selector-set-instant",
+            "target": false,
+            "before_median_ns": 517665,
+            "candidate_median_ns": 518084,
+            "ratio": 1.000809403764983
+          },
+          {
+            "id": "n16-compared-selector-set-range",
+            "target": false,
+            "before_median_ns": 1619582,
+            "candidate_median_ns": 1634592,
+            "ratio": 1.0092678234260446
+          },
+          {
+            "id": "n16-compared-rate-instant",
+            "target": false,
+            "before_median_ns": 172759,
+            "candidate_median_ns": 171498,
+            "ratio": 0.9927008144293495
+          },
+          {
+            "id": "n16-compared-rate-range",
+            "target": false,
+            "before_median_ns": 480144,
+            "candidate_median_ns": 479385,
+            "ratio": 0.9984192242327302
+          }
+        ]
+      },
+      "release-min": {
+        "target": 0.461740684530648,
+        "families": {
+          "compared-rate-set-range": 0.48092223820958424,
+          "rate-set-range": 0.45637804258778364
+        },
+        "controls": 1.0056932495314852,
+        "complete_pairs": 320,
+        "cases": [
+          {
+            "id": "n4-compared-rate-set-instant",
+            "target": false,
+            "before_median_ns": 224978,
+            "candidate_median_ns": 246417,
+            "ratio": 1.0952937620567345
+          },
+          {
+            "id": "n4-compared-rate-set-range",
+            "target": true,
+            "before_median_ns": 1002079,
+            "candidate_median_ns": 689763,
+            "ratio": 0.6883319578596099
+          },
+          {
+            "id": "n4-rate-set-instant",
+            "target": false,
+            "before_median_ns": 157298,
+            "candidate_median_ns": 158258,
+            "ratio": 1.0061030655189513
+          },
+          {
+            "id": "n4-rate-set-range",
+            "target": true,
+            "before_median_ns": 672563,
+            "candidate_median_ns": 437145,
+            "ratio": 0.6499688505017374
+          },
+          {
+            "id": "n4-compared-selector-set-instant",
+            "target": false,
+            "before_median_ns": 214978,
+            "candidate_median_ns": 220677,
+            "ratio": 1.0265096893635628
+          },
+          {
+            "id": "n4-compared-selector-set-range",
+            "target": false,
+            "before_median_ns": 610994,
+            "candidate_median_ns": 620164,
+            "ratio": 1.0150083306873716
+          },
+          {
+            "id": "n4-compared-rate-instant",
+            "target": false,
+            "before_median_ns": 79509,
+            "candidate_median_ns": 80020,
+            "ratio": 1.006426945377253
+          },
+          {
+            "id": "n4-compared-rate-range",
+            "target": false,
+            "before_median_ns": 206867,
+            "candidate_median_ns": 205938,
+            "ratio": 0.9955091918962425
+          },
+          {
+            "id": "n16-compared-rate-set-instant",
+            "target": false,
+            "before_median_ns": 770311,
+            "candidate_median_ns": 765102,
+            "ratio": 0.9932377961628485
+          },
+          {
+            "id": "n16-compared-rate-set-range",
+            "target": true,
+            "before_median_ns": 10103958,
+            "candidate_median_ns": 2763559,
+            "ratio": 0.27351251855955855
+          },
+          {
+            "id": "n16-rate-set-instant",
+            "target": false,
+            "before_median_ns": 555804,
+            "candidate_median_ns": 549604,
+            "ratio": 0.9888449885211333
+          },
+          {
+            "id": "n16-rate-set-range",
+            "target": true,
+            "before_median_ns": 6976743,
+            "candidate_median_ns": 1833399,
+            "ratio": 0.2627872346738299
+          },
+          {
+            "id": "n16-compared-selector-set-instant",
+            "target": false,
+            "before_median_ns": 774072,
+            "candidate_median_ns": 775541,
+            "ratio": 1.0018977562810694
+          },
+          {
+            "id": "n16-compared-selector-set-range",
+            "target": false,
+            "before_median_ns": 2558942,
+            "candidate_median_ns": 2572462,
+            "ratio": 1.0052834335440193
+          },
+          {
+            "id": "n16-compared-rate-instant",
+            "target": false,
+            "before_median_ns": 262787,
+            "candidate_median_ns": 264746,
+            "ratio": 1.0074547066635717
+          },
+          {
+            "id": "n16-compared-rate-range",
+            "target": false,
+            "before_median_ns": 769701,
+            "candidate_median_ns": 770712,
+            "ratio": 1.0013134970592477
+          }
+        ]
+      }
+    },
+    "complete_pairs": 640,
+    "followup": {
+      "release": {
+        "selected": [],
+        "pairs": 0
+      },
+      "release-min": {
+        "pairs": 24,
+        "selected": [
+          {
+            "id": "n4-compared-rate-set-instant",
+            "primary_ratio": 1.0952937620567345,
+            "before_ns": [
+              223298,
+              217948,
+              232307,
+              230407,
+              221988,
+              303447,
+              229117,
+              242098,
+              222487,
+              226877,
+              220237,
+              219228,
+              234837,
+              246688,
+              223697,
+              228577,
+              224728,
+              241507
+            ],
+            "candidate_ns": [
+              227947,
+              226298,
+              223378,
+              229207,
+              221818,
+              221767,
+              306837,
+              258037,
+              228947,
+              384446,
+              370866,
+              361156,
+              243567,
+              221458,
+              217758,
+              229608,
+              221688,
+              239627
+            ],
+            "ratio": 1.0059281508121567
+          }
+        ]
+      }
+    },
+    "followup_complete_pairs": 24,
+    "extent_workspace_peak": 28861,
+    "extent_cases": 9
+  },
+  "resources": {
+    "peak_deltas": [
+      {
+        "profile": "release",
+        "page": 1,
+        "changed_rows": 285,
+        "categories": [
+          {
+            "kind": 0,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 1,
+            "minimum_delta": 0,
+            "maximum_delta": 560,
+            "maximum_case": "boundary-upstream-tests-13-range",
+            "before": 36407,
+            "candidate": 36967
+          },
+          {
+            "kind": 2,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 1616,
+            "candidate": 1616
+          },
+          {
+            "kind": 3,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 4,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 272,
+            "candidate": 272
+          },
+          {
+            "kind": 5,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 6,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 7,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 888,
+            "candidate": 888
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page": 17,
+        "changed_rows": 285,
+        "categories": [
+          {
+            "kind": 0,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 1,
+            "minimum_delta": 0,
+            "maximum_delta": 560,
+            "maximum_case": "boundary-upstream-tests-13-range",
+            "before": 36407,
+            "candidate": 36967
+          },
+          {
+            "kind": 2,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 1616,
+            "candidate": 1616
+          },
+          {
+            "kind": 3,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 4,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 1632,
+            "candidate": 1632
+          },
+          {
+            "kind": 5,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 6,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 7,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 888,
+            "candidate": 888
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "page": 1024,
+        "changed_rows": 285,
+        "categories": [
+          {
+            "kind": 0,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 1,
+            "minimum_delta": 0,
+            "maximum_delta": 560,
+            "maximum_case": "boundary-upstream-tests-13-range",
+            "before": 36407,
+            "candidate": 36967
+          },
+          {
+            "kind": 2,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 1616,
+            "candidate": 1616
+          },
+          {
+            "kind": 3,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 4,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 1632,
+            "candidate": 1632
+          },
+          {
+            "kind": 5,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 6,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 7,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 888,
+            "candidate": 888
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "page": 1,
+        "changed_rows": 285,
+        "categories": [
+          {
+            "kind": 0,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 1,
+            "minimum_delta": 0,
+            "maximum_delta": 560,
+            "maximum_case": "boundary-upstream-tests-13-range",
+            "before": 36407,
+            "candidate": 36967
+          },
+          {
+            "kind": 2,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 1616,
+            "candidate": 1616
+          },
+          {
+            "kind": 3,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 4,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 272,
+            "candidate": 272
+          },
+          {
+            "kind": 5,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 6,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 7,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 888,
+            "candidate": 888
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "page": 17,
+        "changed_rows": 285,
+        "categories": [
+          {
+            "kind": 0,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 1,
+            "minimum_delta": 0,
+            "maximum_delta": 560,
+            "maximum_case": "boundary-upstream-tests-13-range",
+            "before": 36407,
+            "candidate": 36967
+          },
+          {
+            "kind": 2,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 1616,
+            "candidate": 1616
+          },
+          {
+            "kind": 3,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 4,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 1632,
+            "candidate": 1632
+          },
+          {
+            "kind": 5,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 6,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 7,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 888,
+            "candidate": 888
+          }
+        ]
+      },
+      {
+        "profile": "release-min",
+        "page": 1024,
+        "changed_rows": 285,
+        "categories": [
+          {
+            "kind": 0,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 1,
+            "minimum_delta": 0,
+            "maximum_delta": 560,
+            "maximum_case": "boundary-upstream-tests-13-range",
+            "before": 36407,
+            "candidate": 36967
+          },
+          {
+            "kind": 2,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 1616,
+            "candidate": 1616
+          },
+          {
+            "kind": 3,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 4,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 1632,
+            "candidate": 1632
+          },
+          {
+            "kind": 5,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 6,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 0,
+            "candidate": 0
+          },
+          {
+            "kind": 7,
+            "minimum_delta": 0,
+            "maximum_delta": 0,
+            "maximum_case": "state-zero-upstream-tests-5-range",
+            "before": 888,
+            "candidate": 888
+          }
+        ]
+      }
+    ],
+    "representative_ranges": [
+      {
+        "id": "n16-compared-rate-set-range",
+        "before": {
+          "cancellation_references": {
+            "engine_owned": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "external": {
+              "acquired": 1073,
+              "current": 0,
+              "overflowed": false,
+              "peak": 2,
+              "released": 1073
+            }
+          },
+          "counter_overflowed": false,
+          "elapsed_ns": "6158812",
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1464520,
+              "current": 0,
+              "overflowed": false,
+              "peak": 51034,
+              "released": 1464520
+            },
+            {
+              "acquired": 6038,
+              "current": 4790,
+              "overflowed": false,
+              "peak": 4790,
+              "released": 1248
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 3307520,
+              "current": 0,
+              "overflowed": false,
+              "peak": 2720,
+              "released": 3307520
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 888,
+              "current": 888,
+              "overflowed": false,
+              "peak": 888,
+              "released": 0
+            }
+          ],
+          "output_samples": 48,
+          "pages": 1312,
+          "provider_calls": 2695,
+          "samples_fetched": 12160,
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          },
+          "work": 313392
+        },
+        "candidate": {
+          "cancellation_references": {
+            "engine_owned": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "external": {
+              "acquired": 353,
+              "current": 0,
+              "overflowed": false,
+              "peak": 2,
+              "released": 353
+            }
+          },
+          "counter_overflowed": false,
+          "elapsed_ns": "1685261",
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 615474,
+              "current": 0,
+              "overflowed": false,
+              "peak": 51314,
+              "released": 615474
+            },
+            {
+              "acquired": 6038,
+              "current": 4790,
+              "overflowed": false,
+              "peak": 4790,
+              "released": 1248
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1349120,
+              "current": 0,
+              "overflowed": false,
+              "peak": 2720,
+              "released": 1349120
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 888,
+              "current": 888,
+              "overflowed": false,
+              "peak": 888,
+              "released": 0
+            }
+          ],
+          "output_samples": 48,
+          "pages": 592,
+          "provider_calls": 1255,
+          "samples_fetched": 4960,
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          },
+          "work": 85988
+        }
+      },
+      {
+        "id": "n16-rate-set-range",
+        "before": {
+          "cancellation_references": {
+            "engine_owned": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "external": {
+              "acquired": 977,
+              "current": 0,
+              "overflowed": false,
+              "peak": 2,
+              "released": 977
+            }
+          },
+          "counter_overflowed": false,
+          "elapsed_ns": "4212273",
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1213828,
+              "current": 0,
+              "overflowed": false,
+              "peak": 38597,
+              "released": 1213828
+            },
+            {
+              "acquired": 6038,
+              "current": 4790,
+              "overflowed": false,
+              "peak": 4790,
+              "released": 1248
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 2889728,
+              "current": 0,
+              "overflowed": false,
+              "peak": 2720,
+              "released": 2889728
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 888,
+              "current": 888,
+              "overflowed": false,
+              "peak": 888,
+              "released": 0
+            }
+          ],
+          "output_samples": 48,
+          "pages": 1120,
+          "provider_calls": 2311,
+          "samples_fetched": 10624,
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          },
+          "work": 235370
+        },
+        "candidate": {
+          "cancellation_references": {
+            "engine_owned": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "external": {
+              "acquired": 257,
+              "current": 0,
+              "overflowed": false,
+              "peak": 2,
+              "released": 257
+            }
+          },
+          "counter_overflowed": false,
+          "elapsed_ns": "1155337",
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 454062,
+              "current": 0,
+              "overflowed": false,
+              "peak": 38877,
+              "released": 454062
+            },
+            {
+              "acquired": 6038,
+              "current": 4790,
+              "overflowed": false,
+              "peak": 4790,
+              "released": 1248
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 931328,
+              "current": 0,
+              "overflowed": false,
+              "peak": 2720,
+              "released": 931328
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 888,
+              "current": 888,
+              "overflowed": false,
+              "peak": 888,
+              "released": 0
+            }
+          ],
+          "output_samples": 48,
+          "pages": 400,
+          "provider_calls": 871,
+          "samples_fetched": 3424,
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          },
+          "work": 62534
+        }
+      }
+    ],
+    "scope": "Engine-accounted categories, not RSS or simultaneous total peaks. Metadata depends on cardinality; fixed-cardinality extent is finite evidence, not a universal bound."
+  },
+  "compiled_C_sizes": {
+    "release": {
+      "kind": "default-C",
+      "before": [
+        7424030,
+        508512,
+        400
+      ],
+      "current": [
+        7424286,
+        508512,
+        400
+      ],
+      "growth": 256,
+      "before_total": 7932942,
+      "current_total": 7933198,
+      "growth_percent": 0.0032270499393541514,
+      "cumulative_baseline_text_data_bss": [
+        7370378,
+        506744,
+        400
+      ],
+      "cumulative_growth_bytes": 55676,
+      "cumulative_growth_percent": 0.70677047934617
+    },
+    "release-min": {
+      "kind": "default-C",
+      "before": [
+        5128267,
+        464048,
+        400
+      ],
+      "current": [
+        5128459,
+        464048,
+        400
+      ],
+      "growth": 192,
+      "before_total": 5592715,
+      "current_total": 5592907,
+      "growth_percent": 0.003433037442458627,
+      "cumulative_baseline_text_data_bss": [
+        5103967,
+        462056,
+        400
+      ],
+      "cumulative_growth_bytes": 26484,
+      "cumulative_growth_percent": 0.47578130515772876
+    },
+    "arm32": {
+      "kind": "default-C",
+      "before": [
+        6403753,
+        293660,
+        244
+      ],
+      "current": [
+        6403849,
+        293660,
+        244
+      ],
+      "growth": 96,
+      "before_total": 6697657,
+      "current_total": 6697753,
+      "growth_percent": 0.001433337061005065,
+      "cumulative_baseline_text_data_bss": [
+        6382697,
+        292596,
+        244
+      ],
+      "cumulative_growth_bytes": 22216,
+      "cumulative_growth_percent": 0.3327971966899442
+    },
+    "arm64": {
+      "kind": "default-C",
+      "before": [
+        6451598,
+        498760,
+        384
+      ],
+      "current": [
+        6435406,
+        498760,
+        384
+      ],
+      "growth": -16192,
+      "before_total": 6950742,
+      "current_total": 6934550,
+      "growth_percent": -0.23295354654222528,
+      "cumulative_baseline_text_data_bss": [
+        6374470,
+        497032,
+        384
+      ],
+      "cumulative_growth_bytes": 62664,
+      "cumulative_growth_percent": 0.911889399795049
+    }
+  },
+  "cumulative_compiled_baseline": "51862635936717f6bcc9ab018b994d0ac205b0ea",
+  "receipts": {
+    "release-focused": {
+      "path": ".tmp/window-set-fkk_6gxl/release-focused.json",
+      "sha256": "b732f9d9d99eb0ae4b205ebdf1e476e70655407f922e24493a4501df9b986290"
+    },
+    "release-v2-focused": {
+      "path": ".tmp/window-set-fkk_6gxl/release-v2-focused.json",
+      "sha256": "3adc834aaef5b37a616ff6f8419caf56ee0946f1a99c214432a4df29ff181b7d"
+    },
+    "pilot": {
+      "path": ".tmp/window-set-fkk_6gxl/pilot.json",
+      "sha256": "31798ae794491d14acdbbee484df92b9003877f80fd5b981ad5acd2ab169ba19"
+    },
+    "slower-followup": {
+      "path": ".tmp/window-set-fkk_6gxl/slower-followup.json",
+      "sha256": "de05ad1df92d6bbdd7fac95c52f71cf2de04d75aa539a0c7fd0f20706f3003e2"
+    },
+    "original-capture": {
+      "path": ".tmp/window-set-fkk_6gxl/original-capture.json",
+      "sha256": "248cf11f68a1c8d56b85e66279e125594fbf302089a42ce9462615386b9ef02f"
+    },
+    "fractional-original": {
+      "path": ".tmp/window-set-fkk_6gxl/fractional-original.json",
+      "sha256": "4c6fda90c1a576e42dcb14c8d9742d44dae64ccac563dae6ed5c5b0dd39c8840"
+    },
+    "controls-v2-comparison-both": {
+      "path": ".tmp/window-set-fkk_6gxl/controls-v2-comparison-both.json",
+      "sha256": "b14c94af761417b33de3b2b95a57c624ef24a1f477df7c8741f26a49e38a2c5e"
+    },
+    "extent": {
+      "path": ".tmp/window-set-fkk_6gxl/extent.json",
+      "sha256": "e63619ae0b3460a1e85833a060dc4b51ae7596801e20410b1727fef3efcdf7dd"
+    },
+    "resource-analysis": {
+      "path": ".tmp/window-set-fkk_6gxl/resource-analysis.json",
+      "sha256": "0ecb84df33375b5c81465f5cf1f44db30e156b9712c2a0d9c357e89e9ec91050"
+    },
+    "candidate-static": {
+      "path": ".tmp/window-set-fkk_6gxl/candidate-static.json",
+      "sha256": "4c0bfbcf82bce36b0dcfa9d3dc9e7b76a009700db6a0023fc6cd2a64954c61a1"
+    },
+    "C-fixture-correction": {
+      "path": ".tmp/window-set-fkk_6gxl/C-fixture-correction.json",
+      "sha256": "c06b2faa636b2bf1e4bb7976bb52fda9a4e7fd4e27fe983243dea78e89a63215"
+    },
+    "perf-release-builds": {
+      "path": ".tmp/window-set-fkk_6gxl/perf-release-builds.json",
+      "sha256": "5d575847d22ba30611d9cdbeb203aa6b8534e137dcf0cf18d73f1d224d331b4a"
+    },
+    "perf-release-min-builds": {
+      "path": ".tmp/window-set-fkk_6gxl/perf-release-min-builds.json",
+      "sha256": "80fa0e6ec5d320ba4082f7cefb46d50eb187c43820fe60c7feacb32a8c6db78c"
+    },
+    "build-release": {
+      "path": ".tmp/window-set-fkk_6gxl/build-release.json",
+      "sha256": "7620544c403350698089ad65322425a3c9921f4a5cf44863c4ac06a842a4e403"
+    },
+    "build-release-min": {
+      "path": ".tmp/window-set-fkk_6gxl/build-release-min.json",
+      "sha256": "291e54062eb34ca8f1fcf2d97cff1ae5c3d66ae33da87c197fcf972df97a0563"
+    },
+    "build-arm32": {
+      "path": ".tmp/window-set-fkk_6gxl/build-arm32.json",
+      "sha256": "008ee536d11a14145247a5f8c8411c448534f295cc6514c3772f61ff33fe8bdd"
+    },
+    "build-arm64": {
+      "path": ".tmp/window-set-fkk_6gxl/build-arm64.json",
+      "sha256": "9c5d6390626e3c2344d81c8b2b6f8ae6880a1d91e5faff6783d4f520275bce84"
+    },
+    "qualification-release": {
+      "path": ".tmp/window-set-fkk_6gxl/qualification-release.json",
+      "sha256": "2ec380eb2457844b657511f52c06b2355355648577baa42b48e3cfb36eaa88ca"
+    },
+    "qualification-release-min": {
+      "path": ".tmp/window-set-fkk_6gxl/qualification-release-min.json",
+      "sha256": "d0459c08d2aa5bcbf0aee636a80c150029ddda8a6c306e7f54336226ecd701c0"
+    },
+    "qualification-arm32": {
+      "path": ".tmp/window-set-fkk_6gxl/qualification-arm32.json",
+      "sha256": "f0faf6df59e67f66883ff7226ba233685c8c659f61f539cb621e50599c760176"
+    },
+    "qualification-arm64": {
+      "path": ".tmp/window-set-fkk_6gxl/qualification-arm64.json",
+      "sha256": "44585b8555f821da3713db9b96609d4a0317dfabdf4430e166dd7c52c77aab1b"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/window-set-fkk_6gxl/artifact-integrity.json",
+      "sha256": "32fb3d217b8574db953d69222c4f9513cbdae3fc61fe58e322269c694a7882fb"
+    },
+    "baseline-binding": {
+      "path": ".tmp/window-set-fkk_6gxl/baseline-binding.json",
+      "sha256": "9b0172e0c24f13bad98cd806a3eba4c9ad7d19b6ffd173fa1c081d4735f0202a"
+    },
+    "before-builds": {
+      "path": ".tmp/window-set-fkk_6gxl/before-builds.json",
+      "sha256": "9a2d9eb31322feb25061baa21b26866e99027fdcd2230ca0baf3c83e7e94c73f"
+    },
+    "baseline-source-equivalence": {
+      "path": ".tmp/window-set-fkk_6gxl/baseline-source-equivalence.json",
+      "sha256": "f23d3f5e47b135cb97ff40867c52b87a3510c1dd020d4bd1be3e35c56f17d774"
+    },
+    "tests-only-v2-binding": {
+      "path": ".tmp/window-set-fkk_6gxl/tests-only-v2-binding.json",
+      "sha256": "1b9ad83f63bf489eb8dfd3d370ee047c654530518b541a184c4c9223357b4349"
+    },
+    "C-only-v3-binding": {
+      "path": ".tmp/window-set-fkk_6gxl/C-only-v3-binding.json",
+      "sha256": "c35183ac93cbebcd151d3b5bdcfe7159beb242a641cfcad3c19febf2d186ab84"
+    },
+    "control-generator-correction": {
+      "path": ".tmp/window-set-fkk_6gxl/control-generator-correction.json",
+      "sha256": "7baf1b64c8de3f98481ef491da48cc5cf6bb77e547516467fd563a03a5a19db6"
+    }
+  },
+  "limitations": [
+    "Finite synthetic checks; no universal expression equivalence, production-weighted throughput, live-provider or ARM-throughput claim.",
+    "Direct one-tick scopes, global absence, Numeric reducers, derived windows, dynamic scalars, extra arithmetic/comparison wrappers and fixed/extended geometry retain existing fallback. These are optimization boundaries, not missing language features.",
+    "Direct label-wrapped windows are excluded; an existing label wrapper may delegate to a separately certified nested set.",
+    "Target Workspace increases280B; a nested-set control increases560B. Other seven category peaks match in3768measuredpairs. Four construction-error inputs per panel have no execution observations.",
+    "Four instant consumed-subquery cases per panel retain strict row-order differences from Go; approved ordering-policy comparisons pass with no numeric-bit differences.",
+    "Thirty-two optional ts-function requests use the retained original adapter with delayed-name-removal disabled and exact matching fixed lookback/subquery options; remaining originals use the request-honoring adapter.",
+    "Rust fault tests enumerate all calibrated final acquisitions without independently labeling every cold/suffix/selected phase. C tests independently record actual read/output boundaries and cleanup.",
+    "Query fixtures were built at candidate phase; candidate-v2 adds Rust/C tests, candidate-v3 corrects only the C fixture. Explicit unchanged-production and C-only bindings preserve attribution of reused binaries.",
+    "Failed helper/fixture assumptions are retained: base64 case decoding, expected rate-name diagnostic, construction-error observation handling, and same-clock fold reuse before provider failure. No failed capture is counted as final qualification.",
+    "Every individual timing ratio and proportional compiled cost is retained, including slower controls. Compiled text/data/BSS is separate from query memory."
+  ]
+}

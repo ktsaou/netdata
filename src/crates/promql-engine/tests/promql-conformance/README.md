@@ -10606,3 +10606,68 @@ Cumulative compiled costs are retained in the report separately from query memor
 the actual C fixture. Preserve cold both-side completion, exact keys, fresh selected operands, suppressed
 membership, diagnostics and required errors. Calibrate the actual C cursor and series; do not assume the
 first output follows a particular input series. Rate/window terminals receive no eligibility from this change.
+
+
+## Completed ordinary-window set discovery
+
+`rate(m_total[5m]) and on(id) n` and equivalent per-series window operands can reuse completed input
+membership in multi-step queries. Five Rate and sixteen per-series Fold functions qualify through the existing
+ordinary-window validator, optionally under one literal-scalar comparison. Both discovery streams must finish
+successfully at the exact clock. Original and final uniqueness, Float output and single-head checks remain.
+
+Selected original expressions still execute with their existing window evaluation and same-clock fold-cache
+semantics. The new optimization retains membership only; it adds no raw history or result-value cache. False
+`bool` values remain present set members. Native-suppression diagnostics survive completed preparation.
+
+Single-tick scopes, global absence, Numeric reducers, derived windows, dynamic scalars, extra arithmetic or
+comparison wrappers and fixed/extended geometry retain their existing paths. Direct label-wrapped windows are
+excluded; an existing label wrapper can still delegate to a separately qualified nested set. These boundaries
+limit this optimization, not PromQL support.
+
+[Qualification](window-set-discovery-qualification.json) retains complete results, sources and measured costs.
+
+| Native profile | Compared-rate target ratio | Direct-rate target ratio | Control ratio |
+|---|---:|---:|---:|
+| release | 0.4712 | 0.4603 | 0.9976 |
+| release-min | 0.4809 | 0.4564 | 1.0057 |
+
+The 640 paired queries cover four/sixteen series per side, page 17 and instant/range controls, using five
+alternating blocks and four repeats with the first discarded. Target family times fall about 52–54%. One
+release-min instant control exceeded the 5% primary threshold; its predefined six-block, 24-pair follow-up
+ratio is 1.0059. Both original and follow-up timings remain in the report.
+
+At sixteen series per side, compared-rate sample entries fall 12,160 → 4,960 and direct-rate entries fall
+10,624 → 3,424. Their Workspace peaks are 51,034 → 51,314 bytes and 38,597 → 38,877 bytes (+280 bytes).
+The largest nested-set control increases 36,407 → 36,967 bytes (+560 bytes). The other seven category peaks
+match across 3,768 measured pairs. Nine fixed-cardinality cases retain 28,861 Workspace bytes across
+8/32/128 ticks and pages 1/17/1024. These category measurements are neither RSS nor a universal query bound.
+
+All 3,792 exact baseline comparisons and 3,792 original-policy comparisons pass, with zero numeric-bit
+differences. The 632 original requests include all 21 function names, all three set operators, scalar
+orientations, bool/filter behavior, sparse/stale/nonfinite/native/mixed values, names, offsets and fallback
+boundaries. Four instant consumed-subquery cases per panel retain strict row-order differences. Four invalid
+construction inputs per panel produce complete matching errors but no execution observations. Optional
+`ts_of_*` cases use explicitly matching original options; they do not qualify default feature availability.
+
+Both native profiles pass 933 unit tests with two ignored. New tests cover 448 admission combinations,
+24 analytical result queries and 192 calibrated final-read failures, including 96 after output. The prior
+135 comparison failure cases remain. Each ARM target passes 24 focused tests under QEMU. Actual C/C++
+consumers execute 396 cases each: eleven expressions, two name modes, three page widths and six lifecycle
+arms. Four C and two C++ consumers total 2,376 cases, alongside both complete native C suites.
+
+The C failure test records the number of outputs at the actual failed read. Existing same-clock folds can
+emit several valid results before that read, so an assumption of exactly one provisional output was wrong.
+The corrected test requires the recorded count, provider error, no commit, one abort and released resources;
+the failed original assertions and their source snapshot are retained separately.
+
+| Default C executable | Text/data/BSS change, bytes | Relative change |
+|---|---:|---:|
+| release | +256 | 0.0032% |
+| release-min | +192 | 0.0034% |
+| arm32 | +96 | 0.0014% |
+| arm64 | -16192 | -0.2330% |
+
+Cumulative compiled costs are retained separately from query memory. Maintenance should exercise
+`window_set_discovery`, `comparison_set_discovery`, the existing set and preparation-clearing owners, and
+`comparison_sets.c`. Preserve complete discovery, exact keys, original selected evaluation, diagnostics and
+required errors. Qualify callbacks at their actual read boundary, including pre-existing fold reuse.

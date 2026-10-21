@@ -342,3 +342,6 @@ Direct grouped selectors follow
 
 Literal-comparison set operands follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#completed-comparison-set-discovery`.
+
+Ordinary-window set operands and actual callback read boundaries follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#completed-ordinary-window-set-discovery`.

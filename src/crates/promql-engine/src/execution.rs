@@ -1797,8 +1797,9 @@ impl CompiledQuery {
         account: &QueryAccounting,
     ) -> Result<bool, Interrupted> {
         let grid = crate::query_scopes::Grid::from(header);
-        let mut allow_comparison = grid.steps().is_ok_and(|steps| steps > 1);
-        let mut selector_only = false;
+        let mut allow_window = grid.steps().is_ok_and(|steps| steps > 1);
+        let mut allow_comparison = allow_window;
+        let mut terminal_only = false;
         loop {
             control.check()?;
             account.work(1);
@@ -1819,13 +1820,23 @@ impl CompiledQuery {
                 }
                 Expr::Paren(child) => *child,
                 Expr::Call { arguments, .. }
-                    if !selector_only
+                    if !terminal_only
                         && label_functions::is_label_call(
                             &self.expression.arena[node].expression,
                         ) =>
                 {
                     allow_comparison = false;
+                    allow_window = false;
                     arguments[0]
+                }
+                Expr::Call {
+                    function: Some(function),
+                    ..
+                } if allow_window && Self::is_replay_window_function(function.name) => {
+                    // Membership is reused; selected values still evaluate the original window.
+                    return Ok(self
+                        .binary_replay_selector(node, header, prepared, rosters)
+                        .is_some());
                 }
                 Expr::Binary { operator, .. } if allow_comparison && operator.is_comparison() => {
                     let Some(child) = crate::scheduled_expression::fixed_map_vector(
@@ -1838,13 +1849,13 @@ impl CompiledQuery {
                     else {
                         return Ok(false);
                     };
-                    // Only the direct selector comparison has completed-input qualification.
+                    // A single comparison may resolve only a selector or ordinary window terminal.
                     allow_comparison = false;
-                    selector_only = true;
+                    terminal_only = true;
                     node = child;
                     continue;
                 }
-                Expr::Binary { operator, .. } if !selector_only && operator.is_set() => {
+                Expr::Binary { operator, .. } if !terminal_only && operator.is_set() => {
                     return Ok(rosters
                         .binary(node)
                         .is_some_and(|plan| plan.has_set_discovery()));
@@ -17421,7 +17432,7 @@ mod tests {
             ("0 < bool ((counter_total))", true),
             ("counter_total > scalar(vector(0))", false),
             ("counter_total + 1", false),
-            ("rate(counter_total[2s]) > 0", false),
+            ("rate(counter_total[2s]) > 0", true),
             ("abs(counter_total) > 0", false),
             ("(counter_total > 0) > 0", false),
             (
@@ -17460,6 +17471,111 @@ mod tests {
                     let multiple = matches!(request, QueryRequest::Range { start_ms: 2000, .. });
                     assert_eq!(
                         count,
+                        usize::from(admitted && multiple),
+                        "{body} {request:?} delayed={delayed}"
+                    );
+                    drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn window_set_discovery_admission() {
+        let mut bodies = Vec::new();
+        for function in [
+            "rate",
+            "increase",
+            "delta",
+            "irate",
+            "idelta",
+            "count_over_time",
+            "present_over_time",
+            "first_over_time",
+            "last_over_time",
+            "min_over_time",
+            "max_over_time",
+            "sum_over_time",
+            "avg_over_time",
+            "stdvar_over_time",
+            "stddev_over_time",
+            "ts_of_first_over_time",
+            "ts_of_last_over_time",
+            "ts_of_min_over_time",
+            "ts_of_max_over_time",
+            "changes",
+            "resets",
+        ] {
+            let call = format!("{function}(counter_total[2s])");
+            bodies.push((call.clone(), true));
+            bodies.push((format!("0 < bool (({call}))"), true));
+        }
+        for (body, admitted) in [
+            ("rate(counter_total[2s] offset 1s)", true),
+            ("rate(counter_total[2s] @ 3)", false),
+            ("rate(counter_total[2s] anchored)", false),
+            ("rate(counter_total[2s] smoothed)", false),
+            ("rate(counter_total[2s:1s])", false),
+            ("absent_over_time(counter_total[2s])", false),
+            ("deriv(counter_total[2s])", false),
+            ("quantile_over_time(0.5,counter_total[2s])", false),
+            ("rate(counter_total[2s]) > scalar(vector(0))", false),
+            ("abs(rate(counter_total[2s]))", false),
+            ("rate(counter_total[2s]) + 1", false),
+            ("(rate(counter_total[2s]) > 0) > 0", false),
+            (
+                "label_join(rate(counter_total[2s]),\"branch\",\"\",\"instance\")",
+                false,
+            ),
+            (
+                "label_join(rate(counter_total[2s]) > 0,\"branch\",\"\",\"instance\")",
+                false,
+            ),
+        ] {
+            bodies.push((body.to_string(), admitted));
+        }
+        for (body, admitted) in bodies {
+            for (request, multiple) in [
+                (QueryRequest::Instant { time_ms: 4000 }, false),
+                (
+                    QueryRequest::Range {
+                        start_ms: 4000,
+                        end_ms: 4000,
+                        step_ms: 1000,
+                    },
+                    false,
+                ),
+                (
+                    QueryRequest::Range {
+                        start_ms: 4000,
+                        end_ms: 4001,
+                        step_ms: 1000,
+                    },
+                    false,
+                ),
+                (
+                    QueryRequest::Range {
+                        start_ms: 2000,
+                        end_ms: 4000,
+                        step_ms: 1000,
+                    },
+                    true,
+                ),
+            ] {
+                for delayed in [false, true] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut options = options(delayed);
+                    options.parser.experimental_functions = true;
+                    options.parser.extended_range_selectors = true;
+                    let expression = format!("({body}) and on(instance) counter_total");
+                    let compiled = engine
+                        .compile(expression.as_bytes(), options, &control)
+                        .unwrap();
+                    let provider = FixtureProvider::new(4, 1, 4);
+                    assert_eq!(
+                        prepared_set_discovery_count(&compiled, &provider, request, &control),
                         usize::from(admitted && multiple),
                         "{body} {request:?} delayed={delayed}"
                     );
@@ -17556,6 +17672,20 @@ mod tests {
 
     #[test]
     fn comparison_set_discovery_keeps_required_final_acquisitions() {
+        set_discovery_final_acquisitions("(m_total > bool 0) and on(instance) n_total");
+    }
+
+    #[test]
+    fn window_set_discovery_keeps_required_final_acquisitions() {
+        for expression in [
+            "(rate(m_total[3s]) > bool 0) and on(instance) n_total",
+            "sum_over_time(m_total[2s]) and on(instance) n_total",
+        ] {
+            set_discovery_final_acquisitions(expression);
+        }
+    }
+
+    fn set_discovery_final_acquisitions(expression: &str) {
         let request = QueryRequest::Range {
             start_ms: 1000,
             end_ms: 3000,
@@ -17565,11 +17695,7 @@ mod tests {
             let engine = Engine::default();
             let control = Control::default();
             let query = engine
-                .compile(
-                    b"(m_total > bool 0) and on(instance) n_total",
-                    EngineOptions::default(),
-                    &control,
-                )
+                .compile(expression.as_bytes(), EngineOptions::default(), &control)
                 .unwrap();
             let (count, prepared) = float_map_join_preparation(
                 &query,
@@ -17621,10 +17747,96 @@ mod tests {
             }
             assert!(faults >= 16 && after_output > 0);
             println!(
-                "comparison set page={page}: {faults} final acquisition failures, {after_output} after output"
+                "set {expression} page={page}: {faults} final acquisition failures, {after_output} after output"
             );
             drop(query);
             engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn window_set_discovery_preserves_sparse_values_and_zero_members() {
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for (expression, ticks, values) in [
+                    (
+                        "sum_over_time(m_total[2s]) and on(instance) n_total",
+                        &[1, 2, 4, 5][..],
+                        &[1.0_f64, 1.0, 4.0, 9.0][..],
+                    ),
+                    (
+                        "(rate(m_total[2s]) > bool 0) and on(instance) n_total",
+                        &[5][..],
+                        &[1.0][..],
+                    ),
+                    (
+                        "resets(m_total[2s]) unless on(instance) (n_total < 0)",
+                        &[1, 2, 4, 5][..],
+                        &[0.0, 0.0, 0.0, 0.0][..],
+                    ),
+                    (
+                        "(resets(m_total[2s]) > bool 0) or on(instance) (n_total < 0)",
+                        &[1, 2, 4, 5][..],
+                        &[0.0, 0.0, 0.0, 0.0][..],
+                    ),
+                ] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(expression.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let mut provider = comparison_set_provider(page);
+                    for row in &mut provider.series[..4] {
+                        row.source.sample = |index| {
+                            let mut sample = crate::test_storage::counter(index);
+                            if matches!(index, 1 | 2) {
+                                sample.value = crate::value::SampleValue::Float(f64::from_bits(
+                                    0x7ff0000000000002,
+                                ));
+                            }
+                            sample
+                        };
+                    }
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 5000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    );
+                    let result = report.result.as_ref().unwrap();
+                    assert!(report.annotations.is_empty());
+                    assert_eq!(result.series.len(), 4);
+                    for (index, row) in result.series.iter().enumerate() {
+                        let identity = index.to_string();
+                        assert_eq!(
+                            row.labels
+                                .0
+                                .iter()
+                                .map(|label| (&*label.name, &*label.value))
+                                .collect::<Vec<_>>(),
+                            vec![
+                                (b"instance".as_slice(), identity.as_bytes()),
+                                (b"job".as_slice(), b"worker".as_slice())
+                            ]
+                        );
+                        assert_eq!(row.points.len(), ticks.len(), "{expression}");
+                        for ((point, tick), value) in row.points.iter().zip(ticks).zip(values) {
+                            assert_eq!(point.time_ms, tick * 1000);
+                            assert_eq!(
+                                float_bits(point),
+                                value.to_bits(),
+                                "{expression} tick={tick}"
+                            );
+                        }
+                    }
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
         }
     }
 

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Exercise comparison-set discovery with the existing paged callback owner. */
+/* Exercise selector/window set discovery with the existing paged callback owner. */
 #define main retained_embedding_main
 #include "c_embedding.c"
 #undef main
@@ -8,6 +8,27 @@ typedef struct {
     join_delivery output;
     uint32_t arm, first_series;
 } comparison_set_delivery;
+
+typedef struct {
+    join_fixture input;
+    uint32_t *output_chunks;
+    uint32_t failed_read_chunks;
+    int failed_read;
+} comparison_set_fixture;
+
+static uint32_t comparison_set_cursor_next(void *context, void *handle,
+                                           const netdata_promql_callback_control_t *control,
+                                           netdata_promql_page_t *out, netdata_promql_resources_t *resources,
+                                           netdata_promql_bytes_t *error) {
+    comparison_set_fixture *f = (comparison_set_fixture *)context;
+    uint32_t status = instant_set_cursor_next(&f->input, handle, control, out, resources, error);
+    if (status == NETDATA_PROMQL_PROVIDER_ERROR) {
+        assert(!f->failed_read);
+        f->failed_read = 1;
+        f->failed_read_chunks = *f->output_chunks;
+    }
+    return status;
+}
 
 static uint32_t comparison_set_chunk(void *context, const netdata_promql_chunk_t *chunk,
                                      const netdata_promql_callback_control_t *control,
@@ -26,25 +47,26 @@ static void comparison_set_cases(netdata_promql_engine_t *engine, const char *ex
         uint64_t first_output = 0;
         uint32_t first_series = 0;
         for (unsigned arm = 0; arm < 6; arm++) {
-            join_fixture source;
-            memset(&source, 0, sizeof(source));
-            init_fixture(&source.source, 2, pages[page]);
-            source.source.labels[0].value = text("m_total");
+            comparison_set_fixture fixture;
+            memset(&fixture, 0, sizeof(fixture));
+            join_fixture *source = &fixture.input;
+            init_fixture(&source->source, 2, pages[page]);
+            source->source.labels[0].value = text("m_total");
             static const uint8_t zones[] = {'0', '1', '2', '3'};
             for (unsigned row = 0; row < 4; row++) {
-                source.labels[row][0] = source.source.labels[0];
-                source.labels[row][1].name = text("zone");
-                source.labels[row][1].value = bytes(&zones[row], 1);
+                source->labels[row][0] = source->source.labels[0];
+                source->labels[row][1].name = text("zone");
+                source->labels[row][1].value = bytes(&zones[row], 1);
             }
-            netdata_promql_provider_t input = provider(&source.source);
-            input.context = &source;
+            netdata_promql_provider_t input = provider(&source->source);
+            input.context = &fixture;
             input.selection_next = join_selection_next;
             input.cursor_open = join_cursor_open;
-            input.cursor_next = instant_set_cursor_next;
-            if (arm == 1) source.fail_on_cursor = 1;
+            input.cursor_next = comparison_set_cursor_next;
+            if (arm == 1) source->fail_on_cursor = 1;
             if (arm == 2) {
                 assert(first_output > 4);
-                source.fail_on_cursor = first_output;
+                source->fail_on_cursor = first_output;
             }
             netdata_promql_query_t *query = compile(engine, expression);
             netdata_promql_request_t request = instant(2000);
@@ -53,7 +75,8 @@ static void comparison_set_cases(netdata_promql_engine_t *engine, const char *ex
             request.step_ms = 1000;
             comparison_set_delivery output;
             memset(&output, 0, sizeof(output));
-            output.output.input = &source;
+            output.output.input = source;
+            fixture.output_chunks = &output.output.output.calls[1];
             output.output.query_kind = FOUR_SERIES_RATE;
             output.arm = arm;
             if (arm == 4) {
@@ -72,11 +95,17 @@ static void comparison_set_cases(netdata_promql_engine_t *engine, const char *ex
                                 arm == 5 ? NETDATA_PROMQL_OUTPUT_ERROR : NETDATA_PROMQL_PROVIDER_ERROR;
             assert(status == expected && report);
             delivery *d = &output.output.output;
-            assert(d->calls[0] == 1 && d->calls[1] == (!arm ? 8u : arm < 3 ? 0u : 1u));
+            assert(d->calls[0] == 1);
+            if (arm == 3) {
+                // Same-clock folds may emit more rows before the next required read.
+                assert(fixture.failed_read && fixture.failed_read_chunks >= 1 && fixture.failed_read_chunks < 8);
+                assert(d->calls[1] == fixture.failed_read_chunks);
+            }
+            else assert(d->calls[1] == (!arm ? 8u : arm < 3 ? 0u : 1u));
             assert(d->calls[2] == (!arm ? 1u : 0u) && d->calls[3] == (arm ? 1u : 0u));
             if (!arm) { first_output = output.output.first_output_cursors; first_series = output.first_series; }
-            if (arm == 2) assert(source.failed_cursor == first_output && source.latest_series == first_series);
-            released(&source.source);
+            if (arm == 2) assert(source->failed_cursor == first_output && source->latest_series == first_series);
+            released(&source->source);
             netdata_promql_query_observations_t observations;
             assert(netdata_promql_report_observations(report, &observations) == NETDATA_PROMQL_OK);
             assert(observations.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
@@ -84,8 +113,9 @@ static void comparison_set_cases(netdata_promql_engine_t *engine, const char *ex
             fputs("{\"comparison_set_case\":\"pass\",\"expression\":", stdout);
             print_json_string(expression);
             printf(",\"page\":%" PRIu64 ",\"arm\":%u,\"status\":%u,\"first_output_cursor\":%" PRIu64
-                   ",\"first_series\":%u,\"fetched\":%" PRIu64 ",\"work\":%" PRIu64 "}\n",
-                   pages[page], arm, status, first_output, first_series, observations.samples_fetched, observations.work);
+                   ",\"first_series\":%u,\"failed_read_chunks\":%u,\"fetched\":%" PRIu64 ",\"work\":%" PRIu64 "}\n",
+                   pages[page], arm, status, first_output, first_series, fixture.failed_read_chunks,
+                   observations.samples_fetched, observations.work);
             assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
             if (d->control) assert(netdata_promql_control_release(d->control) == NETDATA_PROMQL_OK);
             assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
@@ -101,6 +131,12 @@ int main(void) {
         "(m_total > bool 0) unless on(zone) (m_total < 0)",
         "(m_total > bool 0) and on(zone) (m_total == bool 1)",
         "((m_total > bool 0) and on(zone) m_total) or on(zone) (m_total < 0)",
+        "present_over_time(m_total[3s]) and on(zone) m_total",
+        "(rate(m_total[3s]) > bool 0) and on(zone) m_total",
+        "(0 < bool sum_over_time(m_total[3s])) or on(zone) (m_total < 0)",
+        "(resets(m_total[3s]) == bool 0) unless on(zone) (m_total < 0)",
+        "(rate(m_total[3s]) > bool 0) and on(zone) (resets(m_total[3s]) > bool 0)",
+        "label_join((rate(m_total[3s]) > bool 0) or on(zone) (m_total < 0),\"zone\",\"\",\"zone\") and on(zone) m_total",
     };
     for (unsigned delayed = 0; delayed < 2; delayed++) {
         netdata_promql_engine_options_t options;
