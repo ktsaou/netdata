@@ -2400,3 +2400,28 @@ separately rejected under their original criteria.
   24,480 bytes of additional linker padding from the two 12-byte function increases.
 - Runtime allocation savings remain a prediction. The exact owned diff was reversed; no compiler workaround,
   acceptance threshold, public interface or accepted runtime behavior changed.
+
+## Proportional compiled-footprint review
+
+The user revised the footprint policy on 2026-10-21. Minor fixed executable growth must not stop a useful
+improvement merely because it crosses an experimental absolute-byte threshold. The blanket 8,192-byte veto
+is retired for subsequent qualification decisions; it is not replaced by another arbitrary hard cutoff.
+
+- Report compiled code, data and BSS separately from measured runtime allocations and RSS. A linked test
+  executable's size is neither the complete Netdata executable's size nor a per-query memory charge.
+- Report the before/after sizes, absolute and percentage changes, target/profile, and measured benefit.
+  Track cumulative growth against an identified baseline as well as the immediate predecessor.
+- Continue through minor fixed growth without requesting another exception when the change provides useful
+  coverage or a demonstrated performance or memory benefit and satisfies the other qualification requirements.
+  Discuss material resource trade-offs, target constraints or regressions with the user.
+- Evaluate runtime memory separately, including costs that scale with concurrent queries, series or samples.
+  This policy does not relax correctness, ownership, paging, accounting, throughput or query-memory requirements.
+  It changes no configured query limit or compiler/CPU-workaround option.
+- Preserve historical failed gates and their actual source/binary measurements. A later policy change permits
+  renewed qualification; it does not retroactively turn an incomplete or failed experiment into a passing one.
+
+For the retained scalar arithmetic trial, the ARM64 C consumer's code + data + BSS grew from 6,871,886 to
+6,880,778 bytes: 8,892 bytes, approximately 0.13%. The user accepts this fixed increase. Its remaining
+qualification must still pass before the optimization is accepted. The earlier
+[negative record](scalar-arithmetic-rejected-qualification.json) retains the measured target benefits,
+individual slower cases and unfinished checks.
