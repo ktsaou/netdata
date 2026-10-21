@@ -2732,3 +2732,20 @@ changing membership, special literals, complete original comparisons and proport
 - **Evidence:** [window-set qualification](window-set-discovery-qualification.json) records complete baseline and
   original comparisons, strict ordering differences, calibrated failures, C read boundaries and portable checks.
   C tests must observe actual required reads: an output callback does not imply the next row must read storage.
+
+
+## Completed clocks in nested grouped subqueries
+
+- **Choice:** qualify exactly two ordinary aggregate levels under a direct consumed range, with an existing
+  selector/rate/increase/delta terminal. Keep one-level map, ratio and histogram composition admission unchanged.
+- **Preparation:** propagate grouped demand through the outer aggregate only for this shape. Require prepared
+  inner interval support and outer Float/single-head descriptors; syntax alone cannot qualify the outer plan.
+- **Completion:** preserve separate existing plans and child output ordinals. Runtime ancestry permits one
+  collecting aggregate edge, requiring both prepared plans and exact clocks. Each level earns its own interval;
+  completed inner work can coexist with an uncredited truncated outer endpoint. Failure and clearing retain
+  their existing ownership, including ordinary selected evaluation and same-clock fold reuse.
+- **Cost:** add no state fields or raw/value cache. Finite targets take about 64–69% less time; measured maximum
+  Workspace increase is 1,248 bytes. Read/work, individual controls, fixed-cardinality extent and proportional/
+  cumulative compiled sizes are recorded separately in [qualification](nested-grouped-clocks-qualification.json).
+- **Boundary:** third-level and wrapped nested groups remain valid generic expressions. Their optimization is
+  independent work, not omitted support or a reason to broaden the direct ancestry proof implicitly.

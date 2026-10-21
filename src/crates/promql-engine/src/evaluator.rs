@@ -2826,6 +2826,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         };
         let key = key_for(&self.frames[index]);
         let mut fixed_maps = 0;
+        let mut nested_group = false;
         let mut path = RangePath::Completed;
         while index > 0 {
             self.control.check()?;
@@ -2866,7 +2867,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         | MapOperation::Unary(_)
                         | MapOperation::Pointwise(PointwiseFunction::Float(..)),
                     ..
-                } if fixed_maps == 0 => {
+                } if fixed_maps == 0 && !nested_group => {
                     if self.grouped_map_child(parent.node)? != Some(child.node) {
                         return Ok(None);
                     }
@@ -2891,6 +2892,32 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                     // Only Unary -> fixed Float -> Group may cross this second map.
                     fixed_maps = 2;
+                }
+                State::Aggregate {
+                    collecting: true, ..
+                } if grouped_operand && !nested_group && fixed_maps == 0 => {
+                    let Expr::Aggregate {
+                        expression: Some(next),
+                        ..
+                    } = self.expression.arena[parent.node].expression
+                    else {
+                        return Ok(None);
+                    };
+                    if self.prepared.preprocessing.child(
+                        self.expression,
+                        parent.node,
+                        next,
+                        self.control,
+                        self.account,
+                    )? != child.node
+                        || self.interval_group_node(child.node)?.is_none()
+                        || self.interval_group_node(parent.node)? != Some(parent.node)
+                    {
+                        return Ok(None);
+                    }
+                    // Each level earns its own completion; only a direct range may enclose them.
+                    nested_group = true;
+                    grouped_operand = false;
                 }
                 State::Binary(_) if grouped_operand => {
                     if !self

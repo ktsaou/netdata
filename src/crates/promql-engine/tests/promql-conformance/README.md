@@ -9894,7 +9894,8 @@ For division of two grouped operands, follow the additional [composition procedu
 Admission requires a complete Float-output rate roster and unambiguous heads, through transparent parentheses.
 Both `by` and `without` grouping and existing selector offsets are covered. Float outputs do not prove Float-only
 raw history: mixed-window warnings, including absent nonmembers, remain owned by complete rate preparation.
-Native outputs, nested aggregates, unsupported clocks and own diagnostic preparation retain their existing path.
+Native outputs, unsupported clocks and own diagnostic preparation retain their existing path.
+Direct two-level aggregates additionally follow [nested group completion](#completed-clocks-in-nested-grouped-subqueries).
 
 Credit is published only after the unrestricted child scan and selected-group finalization. This does not claim
 that unselected groups were finalized. Failed and truncated endpoints cannot earn credit, and the existing
@@ -10499,7 +10500,8 @@ Values stay fresh through ordinary selector reads; this stores group metadata, n
 
 Only direct ordinary aggregates over instant selectors enter this extension. Existing schedule, Float-only
 delivered descriptors and single-head checks remain required. Selected native samples, delayed name removal,
-invariant or nested inputs and nonordinary aggregates keep their existing fallbacks. Physical histograms
+invariant inputs and nonordinary aggregates keep their existing fallbacks. Direct two-level aggregates
+additionally follow [nested group completion](#completed-clocks-in-nested-grouped-subqueries). Physical histograms
 between selected clock ticks need not disqualify an otherwise Float-only result. Existing map, ratio and
 histogram compositions remain rate-only; this change does not expand those optimizations.
 
@@ -10671,3 +10673,66 @@ Cumulative compiled costs are retained separately from query memory. Maintenance
 `window_set_discovery`, `comparison_set_discovery`, the existing set and preparation-clearing owners, and
 `comparison_sets.c`. Preserve complete discovery, exact keys, original selected evaluation, diagnostics and
 required errors. Qualify callbacks at their actual read boundary, including pre-existing fold reuse.
+
+
+## Completed clocks in nested grouped subqueries
+
+Directly consumed two-level aggregates can reuse completed group scans. For example,
+`max_over_time((sum by(job)(max by(job,instance)(rate(m_total[3s]))))[8s:1s])`
+reuses the existing inner and outer group plans. Each level earns its own interval after actual successful
+completion. A completed inner scan does not certify a truncated outer endpoint. Selected values retain
+ordinary selector/window evaluation and existing same-clock fold reuse; no raw history or value cache is added.
+
+Both reducers must be ordinary, with a direct selector, rate, increase or delta terminal. Preparation requires
+inner interval support and outer Float/single-head descriptors. Transparent parentheses are resolved; actual
+runtime ancestry must cross exactly one collecting aggregate parent before its direct range. Three-level,
+map/ratio/histogram-wrapped nested forms, nonordinary reducers and unsupported clocks retain existing paths.
+These boundaries restrict the optimization, not the language. Earlier one-level map/ratio proofs are unchanged.
+
+[Qualification](nested-grouped-clocks-qualification.json) records complete results and actual source identities.
+
+| Native profile | Nested selector time ratio | Nested rate time ratio | Control ratio |
+|---|---:|---:|---:|
+| release | 0.3625 | 0.3099 | 1.0217 |
+| release-min | 0.3529 | 0.3077 | 0.9931 |
+
+The 960 paired whole queries cover four/sixteen outer groups, two instances/two replicas, instant/range
+requests and page 17. Five alternating blocks use four repeats with the first discarded. Target-family times
+fall about 64–69%. Two release controls exceed 1.05 in the primary panel (1.0560 and 1.0528); the predefined
+48-pair follow-up yields 1.0278 and 0.9854. Both panels remain recorded. Separately, 384 complete pilot results
+match independent analytical values, including varied replica contributions.
+
+At sixteen outer groups, instant selector sample entries fall 343,680 → 83,280 and rate entries 696,320 → 101,120.
+Their Workspace peaks are 53,856 → 53,856 and 92,485 → 92,513 bytes. Across all 2,640 resource pairs, the maximum
+Workspace increase is 1,248 bytes (21,040 → 22,288); the other seven category peaks are unchanged. Eighteen
+fixed-cardinality cases retain 22,288 selector / 36,496 rate Workspace bytes across 8/32/128 ticks and pages 1/17/1024.
+These category peaks are neither RSS nor simultaneous total memory, and the finite extent is no universal bound.
+
+All 2,640 exact baseline comparisons and 2,640 agreed-order original comparisons pass, with zero numeric-bit
+differences. The 440 fresh originals cover all eight inner/outer reducers, four terminals, unequal varied
+contributors, source order, by/without, reset/sparse/stale/nonfinite/native/mixed/empty inputs, offsets,
+explicit clocks, short lookback and valid fallback shapes. Seven instant cases per panel retain strict
+row-order differences from Go. No original request is excluded or delegated to the optional timestamp adapter.
+
+Both native profiles pass 938 unit tests with two ignored. New owners cover 128 admission combinations,
+60 analytical queries, 86 calibrated required-read failures, 20 completion/cancellation cases and two first-read
+failures that earn neither interval. Inner completion and outer truncation are asserted separately, and both
+plans clear their completion state. The unequal-member unit uses identical replica values; the varied-value
+pilot and differential controls supply independent arithmetic coverage. Each ARM target passes 11 focused
+tests under QEMU. Actual C/C++ consumers run 192 lifecycle cases each (eight expressions, two name modes,
+three page widths and success/provider/cancellation/output arms): 1,152 total, plus both complete native C suites.
+Two strict lint variants, formatting and installed MSRV 1.91 compile checks pass.
+
+| Default C executable | Text/data/BSS change, bytes | Relative change |
+|---|---:|---:|
+| release | +2944 | 0.0371% |
+| release-min | +1320 | 0.0236% |
+| arm32 | +2500 | 0.0373% |
+| arm64 | +10864 | 0.1567% |
+
+Cumulative compiled costs remain in the report, separate from query memory. Preserve distinct inner/outer
+owners, child output ordinals, exact clock keys, source order, preparation diagnostics and required failures.
+Exercise `nested_grouped_clocks`, `grouped_selector_clocks_admission`, `aggregate_replay::tests`, the existing
+truncation owner and `nested_grouped_clocks.c`. Query fixtures were built before test-only additions; explicit
+full-file reconstruction and production-prefix bindings preserve their attribution. Private driver corrections
+did not change runtime code, and their failed captures remain available beside the successful qualification.

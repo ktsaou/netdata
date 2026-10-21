@@ -73987,5 +73987,11 @@
     "report": "window-set-discovery-qualification.json",
     "report_sha256": "8363b61cc35b99c658d1cf6163316d9360f020b54c0e8a4f080cfa0c1e939833",
     "summary": "Reuse completed set-input discovery for multistep ordinary per-series window operands and their literal comparisons."
+  },
+  "nested_grouped_clocks": {
+    "status": "finite_qualification_pass",
+    "report": "nested-grouped-clocks-qualification.json",
+    "report_sha256": "ce867d649db79dbf80faa891a7ed0297664d6aa56d149e6b3ec2298ab1902324",
+    "summary": "Reuse independently completed inner and outer aggregate clocks in directly consumed two-level grouped subqueries."
   }
 }

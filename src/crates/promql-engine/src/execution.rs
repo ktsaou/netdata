@@ -1418,6 +1418,55 @@ impl CompiledQuery {
         }
     }
 
+    fn nested_grouped_interval_child(
+        &self,
+        mut node: NodeId,
+        prepared: &Prepared,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<NodeId>, Interrupted> {
+        let mut outer = true;
+        loop {
+            control.check()?;
+            account.work(1);
+            if prepared.flags().invariants[node.0] || prepared.flags().boundaries[node.0] {
+                return Ok(None);
+            }
+            match &self.expression.arena[node].expression {
+                Expr::Paren(child) => {
+                    node = prepared.preprocessing.child(
+                        &self.expression,
+                        node,
+                        *child,
+                        control,
+                        account,
+                    )?;
+                }
+                Expr::Aggregate {
+                    operator,
+                    expression: Some(child),
+                    parameter: None,
+                    ..
+                } if outer && crate::aggregation::ordinary(*operator) => {
+                    outer = false;
+                    node = prepared.preprocessing.child(
+                        &self.expression,
+                        node,
+                        *child,
+                        control,
+                        account,
+                    )?;
+                }
+                _ if !outer => {
+                    return Ok(self
+                        .grouped_interval_child(node, true, prepared, control, account)?
+                        .map(|_| node));
+                }
+                _ => return Ok(None),
+            }
+        }
+    }
+
     fn grouped_ratio_children(
         &self,
         mut node: NodeId,
@@ -2319,6 +2368,9 @@ impl CompiledQuery {
                         self.grouped_interval_child(child, true, prepared, control, account)?
                             .is_some()
                             || self
+                                .nested_grouped_interval_child(child, prepared, control, account)?
+                                .is_some()
+                            || self
                                 .grouped_ratio_children(child, prepared, control, account)?
                                 .is_some()
                             || self
@@ -2476,6 +2528,11 @@ impl CompiledQuery {
                         } else {
                             None
                         };
+                    let nested_group = contributor_demand
+                        && matches!(demand, Demand::GroupedSubquery)
+                        && self
+                            .nested_grouped_interval_child(node, prepared, control, account)?
+                            .is_some();
                     for child in children(&self.expression, prepared, node, control, account)?.rev()
                     {
                         let child = child?;
@@ -2494,7 +2551,7 @@ impl CompiledQuery {
                                 Demand::SubqueryContributors
                             } else if (Some(child) == contributor_child
                                 && matches!(demand, Demand::GroupedSubquery)
-                                && matches!(expression, Expr::Paren(_)))
+                                && (matches!(expression, Expr::Paren(_)) || nested_group))
                                 || grouped_pair.is_some_and(|pair| pair.contains(&child))
                                 || Some(child) == grouped_histogram
                                 || Some(child) == grouped_map
@@ -2636,11 +2693,21 @@ impl CompiledQuery {
                 )?;
                 let mut interval = false;
                 let subquery_demand = matches!(task, Task::Finish(_, _, Demand::GroupedSubquery));
-                if subquery_demand
-                    && replay_selector.is_some()
-                    && let Some(child) =
-                        self.grouped_interval_child(node, true, prepared, control, account)?
-                {
+                let interval_child = if subquery_demand && replay_selector.is_some() {
+                    match self.grouped_interval_child(node, true, prepared, control, account)? {
+                        Some(child) => Some(child),
+                        None => self
+                            .nested_grouped_interval_child(node, prepared, control, account)?
+                            .filter(|child| {
+                                rosters
+                                    .group_replay(*child)
+                                    .is_some_and(|plan| plan.supports_interval())
+                            }),
+                    }
+                } else {
+                    None
+                };
+                if let Some(child) = interval_child {
                     // Delivered kinds cover the child grid; they need not describe all raw history.
                     let rows = rosters.descriptors(child);
                     interval = !rows.is_empty();
@@ -10791,17 +10858,28 @@ mod tests {
             sample
         }
         for (body, admitted) in [
-            ("sum by(id)(m_total)", true),
-            ("((avg without(member)(m_total)))", true),
-            ("sum by(__name__,id)(m_total)", true),
-            ("count by(id)(m_total offset 1s)", true),
-            ("sum by(id)(m_total @ 8)", false),
-            ("sum by(id)(sum by(id,member)(m_total))", false),
-            ("abs(sum by(id)(m_total))", false),
-            ("sum by(id)(m_total)+1", false),
-            ("sum by(id)(m_total)/sum by(id)(m_total)", false),
-            ("histogram_quantile(0.5,sum by(id,le)(m_total))", false),
-            ("topk(1,m_total)", false),
+            ("sum by(id)(m_total)", 1),
+            ("((avg without(member)(m_total)))", 1),
+            ("sum by(__name__,id)(m_total)", 1),
+            ("count by(id)(m_total offset 1s)", 1),
+            ("sum by(id)(m_total @ 8)", 0),
+            ("sum by(id)(sum by(id,member)(m_total))", 2),
+            ("((sum by(id)(((max by(id,member)(m_total))))))", 2),
+            (
+                "sum by(id)(max by(id,member)(sum by(id,member)(m_total)))",
+                0,
+            ),
+            ("abs(sum by(id)(max by(id,member)(m_total)))", 0),
+            ("sum by(id)(max by(id,member)(m_total))+1", 0),
+            (
+                "sum by(id)(max by(id,member)(m_total))/sum by(id)(m_total)",
+                0,
+            ),
+            ("abs(sum by(id)(m_total))", 0),
+            ("sum by(id)(m_total)+1", 0),
+            ("sum by(id)(m_total)/sum by(id)(m_total)", 0),
+            ("histogram_quantile(0.5,sum by(id,le)(m_total))", 0),
+            ("topk(1,m_total)", 0),
         ] {
             for delayed in [false, true] {
                 for shape in ["float", "selected-native", "unselected-native", "empty"] {
@@ -10877,7 +10955,7 @@ mod tests {
                             || shape == "selected-native" && body.contains("offset");
                         assert_eq!(
                             intervals,
-                            usize::from(admitted && !delayed && float_only),
+                            if !delayed && float_only { admitted } else { 0 },
                             "{body} delayed={delayed} shape={shape}"
                         );
                     }
@@ -10891,6 +10969,71 @@ mod tests {
 
     #[test]
     fn grouped_selector_clocks_results() {
+        grouped_selector_clocks_results_case(false);
+    }
+
+    #[test]
+    fn nested_grouped_clocks_unequal_members() {
+        fn point(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            sample.value = crate::value::SampleValue::Float((index + 1) as f64);
+            sample
+        }
+        for page in [1, 17, 1024] {
+            for groups in [4, 16] {
+                for leaf in ["m_total", "rate(m_total[3s])"] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let expression =
+                        format!("max_over_time((sum by(id)(sum by(id,member)({leaf})))[8s:1s])");
+                    let query = engine
+                        .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                        .unwrap();
+                    let mut provider = FixtureProvider::new(16, page, groups * 3);
+                    provider.filter_selectors = true;
+                    for (position, series) in provider.series.iter_mut().enumerate() {
+                        series.source.sample = point;
+                        series.labels = vec![
+                            (b"__name__".to_vec(), b"m_total".to_vec()),
+                            (b"id".to_vec(), format!("{:06}", position / 3).into_bytes()),
+                            (
+                                b"member".to_vec(),
+                                if position % 3 == 0 { b"a" } else { b"b" }.to_vec(),
+                            ),
+                            (b"replica".to_vec(), (position % 3).to_string().into_bytes()),
+                        ];
+                    }
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 16000 },
+                        &control,
+                    );
+                    let result = report.result.as_ref().unwrap();
+                    assert!(report.annotations.is_empty());
+                    assert_eq!(result.series.len(), groups);
+                    for (identity, row) in result.series.iter().enumerate() {
+                        assert_eq!(row.labels.0.len(), 1);
+                        assert_eq!(&*row.labels.0[0].name, b"id");
+                        assert_eq!(&*row.labels.0[0].value, format!("{identity:06}").as_bytes());
+                        assert_eq!(row.points.len(), 1);
+                        assert_eq!(row.points[0].time_ms, 16000);
+                        let expected: f64 = if leaf == "m_total" { 48.0 } else { 3.0 };
+                        assert_eq!(float_bits(&row.points[0]), expected.to_bits());
+                    }
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn nested_grouped_clocks_results() {
+        grouped_selector_clocks_results_case(true);
+    }
+
+    fn grouped_selector_clocks_results_case(nested: bool) {
         for aggregate in [
             "sum", "avg", "count", "group", "min", "max", "stdvar", "stddev",
         ] {
@@ -10898,7 +11041,12 @@ mod tests {
                 for count in [4, 16] {
                     let engine = Engine::default();
                     let control = Control::default();
-                    let expression = format!("max_over_time(({aggregate} by(id)(m_total))[8s:1s])");
+                    let child = if nested {
+                        "max by(id,member)(m_total)"
+                    } else {
+                        "m_total"
+                    };
+                    let expression = format!("max_over_time(({aggregate} by(id)({child}))[8s:1s])");
                     let query = engine
                         .compile(expression.as_bytes(), EngineOptions::default(), &control)
                         .unwrap();
@@ -12964,19 +13112,91 @@ mod tests {
         full_matrix: bool,
         wrapper: Option<&str>,
     ) {
+        grouped_clocks_completion_case(aggregate, full_matrix, wrapper, false, false, false);
+    }
+
+    #[test]
+    fn nested_grouped_clocks_completion() {
+        for cancel in [false, true] {
+            grouped_clocks_completion_case("sum", true, None, true, cancel, false);
+            grouped_clocks_completion_case(
+                "sum",
+                false,
+                Some("sum by(id)(max by(id,member)(m_total))"),
+                true,
+                cancel,
+                false,
+            );
+        }
+    }
+
+    #[test]
+    fn nested_grouped_clocks_first_failure_has_no_credit() {
+        grouped_clocks_completion_case("sum", false, None, true, false, true);
+        grouped_clocks_completion_case(
+            "sum",
+            false,
+            Some("sum by(id)(max by(id,member)(m_total))"),
+            true,
+            false,
+            true,
+        );
+    }
+
+    #[test]
+    fn nested_grouped_clocks_failures() {
+        for body in [
+            "sum by(id)(max by(id,member)(m_total))",
+            "sum by(id)(max by(id,member)(rate(m_total[3s])))",
+        ] {
+            grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
+                "sum",
+                false,
+                Some(body),
+            );
+        }
+    }
+
+    fn grouped_clocks_completion_case(
+        aggregate: &str,
+        full_matrix: bool,
+        wrapper: Option<&str>,
+        nested: bool,
+        cancel: bool,
+        fault: bool,
+    ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             for &page in grouped_clock_pages(full_matrix) {
                 let engine = Engine::default();
                 let control = Control::default();
+                let leaf = format!("{rate_function}(m_total[3s])");
+                let leaf = if nested {
+                    format!("max by(id,member)({leaf})")
+                } else {
+                    leaf
+                };
                 let compiled = engine
                     .compile(
-                        grouped_map_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])"), wrapper)
-                            .as_bytes(),
+                        grouped_map_test_expression(
+                            format!("max_over_time(({aggregate} by(id)({leaf}))[4s:1s])"),
+                            wrapper,
+                        )
+                        .as_bytes(),
                         EngineOptions::default(),
                         &control,
                     )
                     .unwrap();
-                let provider = grouped_subquery_provider(page, 2);
+                let mut provider = grouped_subquery_provider(page, 2);
+                if fault {
+                    let calibration = grouped_subquery_provider(page, 2);
+                    let (_, prepared) = float_map_join_preparation(
+                        &compiled,
+                        &calibration,
+                        QueryRequest::Instant { time_ms: 8000 },
+                        &control,
+                    );
+                    provider.series[0].source.fail_acquisition = Some(prepared[0] + 1);
+                }
                 let account = compiled.execution_accounting();
                 {
                     let header = compiled
@@ -13023,9 +13243,33 @@ mod tests {
                             &mut Annotations::default(),
                         )
                         .unwrap();
-                    let plan = (0..compiled.expression.arena.nodes.len())
-                        .find_map(|index| rosters.group_replay(NodeId(index)))
-                        .unwrap();
+                    let pair = nested.then(|| {
+                        (0..compiled.expression.arena.nodes.len())
+                            .find_map(|index| {
+                                compiled
+                                    .nested_grouped_interval_child(
+                                        NodeId(index),
+                                        &prepared,
+                                        &control,
+                                        &account,
+                                    )
+                                    .unwrap()
+                                    .and_then(|inner| {
+                                        rosters.group_replay(NodeId(index)).map(|outer| {
+                                            (outer, rosters.group_replay(inner).unwrap())
+                                        })
+                                    })
+                            })
+                            .unwrap()
+                    });
+                    let plan = pair.map(|pair| pair.0).unwrap_or_else(|| {
+                        (0..compiled.expression.arena.nodes.len())
+                            .find_map(|index| rosters.group_replay(NodeId(index)))
+                            .unwrap()
+                    });
+                    if let Some((_, inner)) = pair {
+                        assert!(inner.supports_interval() && !inner.has_interval());
+                    }
                     assert!(plan.supports_interval());
                     assert!(!plan.has_interval());
                     let mut machine = Machine::new(
@@ -13048,10 +13292,38 @@ mod tests {
                         },
                     );
                     let mut rows = 0;
-                    while machine.next().unwrap().is_some() {
-                        rows += 1;
+                    if fault {
+                        assert!(matches!(machine.next(),
+                            Err(EvaluationError::Storage(StorageError::Provider(bytes)))
+                                if &*bytes == b"injected page failure"));
+                        assert!(!plan.has_completion() && !plan.has_interval());
+                        let inner = pair.unwrap().1;
+                        assert!(!inner.has_completion() && !inner.has_interval());
                     }
-                    assert_eq!(rows, 2);
+                    while !fault && machine.next().unwrap().is_some() {
+                        rows += 1;
+                        if cancel {
+                            control.cancellation.cancel();
+                            assert!(matches!(
+                                machine.next(),
+                                Err(EvaluationError::Interrupted(
+                                    crate::storage::Interrupted::Cancelled
+                                ))
+                            ));
+                            break;
+                        }
+                    }
+                    assert_eq!(
+                        rows,
+                        if fault {
+                            0
+                        } else if cancel {
+                            1
+                        } else {
+                            2
+                        }
+                    );
+                    let inspection = Control::default();
                     let subquery = compiled
                         .expression
                         .arena
@@ -13060,7 +13332,7 @@ mod tests {
                         .position(|node| matches!(node.expression, Expr::Subquery { .. }))
                         .unwrap();
                     let grid = prepared
-                        .subquery_scope(NodeId(subquery), &control, &account)
+                        .subquery_scope(NodeId(subquery), &inspection, &account)
                         .unwrap();
                     assert_eq!(grid.end_ms, 8000);
                     for index in 0..grid.steps().unwrap() {
@@ -13073,13 +13345,25 @@ mod tests {
                         );
                         assert_eq!(
                             plan.interval_contains(key),
-                            time_ms < grid.end_ms,
+                            !fault && time_ms < grid.end_ms,
                             "only actual child completion earns clock {time_ms}"
                         );
+                        if let Some((_, inner)) = pair {
+                            assert_eq!(
+                                inner.interval_contains(key),
+                                !fault,
+                                "inner completed clock {time_ms}"
+                            );
+                        }
                     }
                     drop(machine);
-                    rosters.clear_replay_progress(&control, &account).unwrap();
+                    rosters
+                        .clear_replay_progress(&inspection, &account)
+                        .unwrap();
                     assert!(!plan.has_interval() && !plan.has_completion());
+                    if let Some((_, inner)) = pair {
+                        assert!(!inner.has_interval() && !inner.has_completion());
+                    }
                 }
                 provider.assert_closed();
                 drop((account, compiled));

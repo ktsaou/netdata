@@ -345,3 +345,6 @@ Literal-comparison set operands follow
 
 Ordinary-window set operands and actual callback read boundaries follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#completed-ordinary-window-set-discovery`.
+
+Independent inner/outer grouped completion follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-in-nested-grouped-subqueries`.
