@@ -171,6 +171,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Unchanged provider resource batches MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#unchanged-provider-resource-snapshots` for ownership
   rejection, exact counters, transfer peaks and actual callback phases.
+- Completed grouped subquery clocks MUST follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-in-grouped-subqueries` for selected-group
+  completion, mixed-history diagnostics, common-plan costs and actual failure/truncation boundaries.
 - Completed binary subquery clocks MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-in-binary-subqueries` for actual
   Done/phase clearing, fresh both-side discovery, effective original options and separate strict/order-policy reports.

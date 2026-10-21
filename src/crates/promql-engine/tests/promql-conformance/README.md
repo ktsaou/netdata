@@ -9880,3 +9880,42 @@ sizes: callbacks can transfer ownership on success, failure, EOF and close. Keep
 any no-op return, and retain actual C consumers and both ARM targets when changing shared accounting code.
 The temporary owner clone is omitted only on an unchanged batch; its internal reference-count trace and artificial
 maximum-alias assertion are not an additional public accounting guarantee. Saturating memory counters remain exact.
+
+
+## Completed clocks in grouped subqueries
+
+Direct grouped `sum(rate(...))` subqueries can reuse completed child-scan intervals. For example,
+`max_over_time((sum by(id)(rate(m_total[3s])))[8s:1s])` no longer scans unrelated groups at every replayed clock.
+Selected contributors still supply fresh values and execute ordinary rate and SUM arithmetic. The
+[qualification report](grouped-subquery-clocks-qualification.json) records the actual scope and evidence.
+
+Admission requires a complete Float-output rate roster and unambiguous heads, through transparent parentheses.
+Both `by` and `without` grouping and existing selector offsets are covered. Float outputs do not prove Float-only
+raw history: mixed-window warnings, including absent nonmembers, remain owned by complete rate preparation.
+Native outputs, nested aggregates, unsupported clocks and own diagnostic preparation retain their existing path.
+
+Credit is published only after the unrestricted child scan and selected-group finalization. This does not claim
+that unselected groups were finalized. Failed and truncated endpoints cannot earn credit, and the existing
+preparation-to-final reset clears it. Contributor membership filters preserve input order; they never pre-sum values.
+
+The fixed 720-pair whole-query pilot gives target-family time ratios 0.3632/0.3652 for release/release-min,
+about 64% less time. Control-family ratios are 1.0082/1.0002; no individual ratio exceeds 1.05, so no follow-up
+timing case is selected. At 16 groups/two members, fetched entries fall from 377,344 to 49,984 and workspace peak
+rises from 51,242 to 52,058 B (+816 B). Four-group workspace stays 25,250 B as the subquery window grows through 8/32/64 seconds,
+with raw borrowed residency bounded by the page size. Existing contributor-plan controls add 48 B across two plans,
+with unchanged fetched counts. These are synthetic query observations, not live disk throughput or process RSS.
+
+Qualification includes 648 complete baseline comparisons, 72 structural pairs, 216 new pinned Go outcomes replayed
+1,296 times across pages 1/17/1024 and both native profiles, with no strict or numeric-bit difference. A separate
+768 shared-binary comparison panel retains 336 strict instant-order differences under the established order policy.
+There are 892 passing native units/profile (two pre-existing ignored), 12 focused units on each ARM target under QEMU,
+both complete native C suites, and 432 new C/C++ executions: 108 each success, provider error, cancellation and output error.
+Strict lint, formatting and installed Rust 1.91 compile-only checks pass. Fixed executable costs are reported separately.
+
+Reproduce focused Rust checks with fixtures and either release profile, filtering on `grouped_subquery_clocks`,
+`aggregate_replay::tests`, `derived_binary_completed_clocks` and `vector_matching::tests::completed_interval`.
+The new Engine checks cover 48 complete results, 120 required delivery-read failures and truncated endpoints at all
+three page sizes. Build `grouped_subquery_clocks.c` against the default archive and include directory as for
+`c_embedding.c`; it reuses complete labels/values/timestamps, callback ordering, error bytes and ownership checks.
+Retain mixed-history, absent-output, without-grouping, inner-offset and native fallback cases when changing admission.
+The fixture called numeric cancellation is distinct from cancellation-token tests.

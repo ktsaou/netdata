@@ -2498,3 +2498,19 @@ individual slower cases and unfinished checks.
 - **Evidence:** [qualification](unchanged-resource-snapshots-qualification.json) and
   [procedure](README.md#unchanged-provider-resource-snapshots). This is separate from the rejected generic zero-count
   experiment; `MemoryLease::resize` and provider callback frequency remain unchanged.
+
+
+## Completed grouped subquery clocks
+
+- **Choice:** reuse the existing checked clock interval for direct Float-output SUM(rate) subqueries, with existing
+  grouping membership. Selected contributors always read fresh values and run ordinary arithmetic.
+- **Completion:** full child exhaustion plus selected-group finalization; no claim about unselected groups.
+  Truncation, failure, own diagnostic preparation and preparation-to-final transitions cannot retain new credit.
+- **Kinds and diagnostics:** emitted Float-only is not a raw-history certificate. Complete rate preparation owns
+  mixed-window warnings, including absent nonmembers; native outputs retain fallback.
+- **Memory:** lazy accounted constant-size interval, existing group/member metadata, no raw-history or value cache.
+  Existing contributor plans carry the optional fields even when this optimization is not admitted.
+- **Trade-off:** about 64% lower target-family time in the finite panel, with 512–816 B extra target workspace.
+  Existing two-plan controls add 48 B; longer tested time extents keep workspace flat. Compiled costs and limits
+  remain separate in the [qualification](grouped-subquery-clocks-qualification.json) and
+  [procedure](README.md#completed-clocks-in-grouped-subqueries).

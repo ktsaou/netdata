@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Query-owned contributor identities; raw values continue through the ordinary evaluator.
 use crate::{
-    accounting::{AccountedVec, MemoryKind, QueryAccounting},
+    accounting::{AccountedBox, AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
     evaluator::RowFilter,
     frontend::ast::NodeId,
     storage::{Control, Interrupted},
-    vector_matching::ReplayKey,
+    vector_matching::{CompletedInterval, ReplayKey},
 };
 use std::{
     cell::{Cell, RefCell},
@@ -77,6 +77,8 @@ impl Builder {
             groups,
             members,
             completed: Cell::new(None),
+            allow_interval: false,
+            interval: RefCell::new(None),
             active: RefCell::new(Active {
                 single: None,
                 union: AccountedVec::new(account, MemoryKind::Workspace),
@@ -90,6 +92,8 @@ pub(crate) struct Plan {
     groups: AccountedVec<Range<usize>>,
     members: AccountedVec<usize>,
     completed: Cell<Option<ReplayKey>>,
+    allow_interval: bool,
+    interval: RefCell<Option<AccountedBox<CompletedInterval>>>,
     active: RefCell<Active>,
 }
 struct Active {
@@ -97,9 +101,70 @@ struct Active {
     union: AccountedVec<usize>,
 }
 impl Plan {
+    pub(crate) fn allow_interval(&mut self) {
+        self.allow_interval = true;
+    }
+    pub(crate) fn supports_interval(&self) -> bool {
+        self.allow_interval
+    }
+    pub(crate) fn activate_interval(
+        &self,
+        filter: RowFilter<'_>,
+        key: ReplayKey,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        control.check()?;
+        account.work(1);
+        if !self.allow_interval
+            || !self
+                .interval
+                .borrow()
+                .as_ref()
+                .is_some_and(|interval| interval.contains(key))
+            || self.groups.is_empty()
+            || matches!(filter, RowFilter::All)
+        {
+            return Ok(false);
+        }
+        self.activate_members(filter, control, account)
+    }
+    pub(crate) fn complete_interval(
+        &self,
+        key: ReplayKey,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        control.check()?;
+        account.work(1);
+        if !self.allow_interval || !CompletedInterval::valid(key) {
+            return Ok(());
+        }
+        let mut interval = self.interval.borrow_mut();
+        if let Some(interval) = interval.as_mut() {
+            interval.record(key);
+        } else {
+            *interval = Some(AccountedBox::new(
+                CompletedInterval::new(key),
+                &AllocationContext::new(account, MemoryKind::Workspace),
+            ));
+        }
+        Ok(())
+    }
     #[cfg(test)]
     pub(crate) fn has_completion(&self) -> bool {
         self.completed.get().is_some()
+    }
+    #[cfg(test)]
+    pub(crate) fn has_interval(&self) -> bool {
+        self.interval.borrow().is_some()
+    }
+    #[cfg(test)]
+    pub(crate) fn interval_contains(&self, key: ReplayKey) -> bool {
+        self.interval
+            .borrow()
+            .as_ref()
+            .is_some_and(|interval| interval.contains(key))
     }
     pub(crate) fn selector(&self) -> NodeId {
         self.selector
@@ -119,6 +184,14 @@ impl Plan {
         {
             return Ok(false);
         }
+        self.activate_members(filter, control, account)
+    }
+    fn activate_members(
+        &self,
+        filter: RowFilter<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
         if matches!(filter, RowFilter::Contributors(plan) if std::ptr::eq(plan, self)) {
             return Ok(false);
         }
@@ -224,6 +297,7 @@ impl Plan {
     }
     pub(crate) fn clear(&self) {
         self.completed.set(None);
+        self.interval.borrow_mut().take();
         let mut active = self.active.borrow_mut();
         active.single = None;
         active.union.clear();
@@ -256,6 +330,96 @@ mod tests {
                 end_ms: 3000,
             },
         )
+    }
+    #[test]
+    fn grouped_intervals_require_success_preserve_domains_and_release() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut builder = Builder::new(NodeId(7), true, &account);
+        for (group, ordinal) in [(0, 0), (1, 1), (0, 2), (1, 3)] {
+            builder.record(group, ordinal, &control, &account).unwrap();
+        }
+        let mut plan = builder.finish(2, &control, &account).unwrap();
+        let clock = |index| {
+            ReplayKey::new(
+                EvaluationOptions {
+                    time_ms: 1000 + index * 1000,
+                    ..options()
+                },
+                index,
+                300000000000,
+                TimeBounds {
+                    start_ms: 0,
+                    end_ms: 3000,
+                },
+            )
+        };
+        plan.complete_interval(clock(0), &control, &account)
+            .unwrap();
+        assert!(!plan.has_interval());
+        plan.allow_interval();
+        plan.complete(clock(0), &control, &account).unwrap();
+        assert!(
+            !plan
+                .activate_interval(RowFilter::One(0), clock(0), &control, &account)
+                .unwrap()
+        );
+        for index in [0, 2, 1, 0] {
+            plan.complete_interval(clock(index), &control, &account)
+                .unwrap();
+            assert!(
+                plan.activate_interval(RowFilter::One(1), clock(index), &control, &account)
+                    .unwrap()
+            );
+            plan.with_members(|members| assert_eq!(members, &[1, 3]));
+            if index == 2 {
+                assert!(
+                    !plan
+                        .activate_interval(RowFilter::One(0), clock(0), &control, &account)
+                        .unwrap()
+                );
+                assert!(
+                    !plan
+                        .activate_interval(RowFilter::One(0), clock(1), &control, &account)
+                        .unwrap()
+                );
+            }
+        }
+        for index in 0..3 {
+            assert!(
+                plan.activate_interval(RowFilter::One(0), clock(index), &control, &account)
+                    .unwrap()
+            );
+        }
+        let changed = key(EvaluationOptions {
+            lookback_ms: 1,
+            ..options()
+        });
+        assert!(
+            !plan
+                .activate_interval(RowFilter::One(0), changed, &control, &account)
+                .unwrap()
+        );
+        assert!(
+            !plan
+                .activate_interval(RowFilter::All, clock(0), &control, &account)
+                .unwrap()
+        );
+        assert!(
+            plan.activate(RowFilter::One(0), clock(0), &control, &account)
+                .unwrap()
+        );
+        plan.clear();
+        assert!(!plan.has_interval() && !plan.has_completion());
+        control.cancellation.cancel();
+        assert!(matches!(
+            plan.complete_interval(clock(0), &control, &account),
+            Err(Interrupted::Cancelled)
+        ));
+        assert!(!plan.has_interval());
+        drop((plan, account));
+        engine.snapshot().assert_memory_released();
     }
     #[test]
     fn aliases_form_ordinal_unions_only_after_complete_exact_clock() {

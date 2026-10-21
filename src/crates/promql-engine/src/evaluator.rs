@@ -499,6 +499,7 @@ enum State<'a> {
         groups: AccountedVec<Group<'a>>,
         lookup: Option<AccountedBox<crate::position_index::PositionIndex>>,
         collecting: bool,
+        interval_cold: bool,
     },
     Scalar {
         count: usize,
@@ -3080,26 +3081,36 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 } else {
                     None
                 };
+                let mut interval_cold = false;
+                let child_filter = if let Some(plan) = self.rosters.group_replay(node) {
+                    let key = crate::vector_matching::ReplayKey::new(
+                        self.options,
+                        self.step_index,
+                        self.prepared.lookback_ns(self.options.lookback_ms),
+                        self.data_bounds,
+                    );
+                    let interval = plan.supports_interval()
+                        && !(node == self.diagnostic_node && self.annotations.is_some())
+                        && self.direct_range_child(index)?;
+                    let active = if interval {
+                        plan.activate_interval(filter, key, self.control, self.account)?
+                    } else {
+                        plan.activate(filter, key, self.control, self.account)?
+                    };
+                    interval_cold = interval && !active;
+                    if active {
+                        RowFilter::Contributors(plan)
+                    } else {
+                        RowFilter::All
+                    }
+                } else {
+                    RowFilter::All
+                };
                 self.frames[index].state = State::Aggregate {
                     groups,
                     lookup,
                     collecting: true,
-                };
-                let child_filter = if let Some(plan) = self.rosters.group_replay(node)
-                    && plan.activate(
-                        filter,
-                        crate::vector_matching::ReplayKey::new(
-                            self.options,
-                            self.step_index,
-                            self.prepared.lookback_ns(self.options.lookback_ms),
-                            self.data_bounds,
-                        ),
-                        self.control,
-                        self.account,
-                    )? {
-                    RowFilter::Contributors(plan)
-                } else {
-                    RowFilter::All
+                    interval_cold,
                 };
                 self.push_filtered(*child, child_filter, false, OutputMode::Vector)?;
                 Ok(None)
@@ -3730,6 +3741,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     groups,
                     lookup,
                     collecting: true,
+                    ..
                 } => {
                     let Expr::Aggregate {
                         operator,
@@ -4561,6 +4573,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     groups,
                     lookup,
                     collecting,
+                    interval_cold,
                 } => {
                     if *collecting {
                         if let Some(plan) = self.rosters.group_replay(node) {
@@ -4646,6 +4659,22 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             return Ok(Some(sample));
                         }
                     } else {
+                        if *interval_cold {
+                            // The child scan and selected group finished; unselected groups were not finalized.
+                            self.rosters
+                                .group_replay(node)
+                                .expect("interval group plan")
+                                .complete_interval(
+                                    crate::vector_matching::ReplayKey::new(
+                                        self.options,
+                                        self.step_index,
+                                        self.prepared.lookback_ns(self.options.lookback_ms),
+                                        self.data_bounds,
+                                    ),
+                                    self.control,
+                                    self.account,
+                                )?;
+                        }
                         self.frames.pop();
                     }
                 }

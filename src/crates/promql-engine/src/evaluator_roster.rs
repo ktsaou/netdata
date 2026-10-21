@@ -1238,6 +1238,11 @@ impl Rosters {
     pub(crate) fn group_selector(&self, node: NodeId) -> Option<NodeId> {
         self.nodes[node.0].proof.group_selector()
     }
+    pub(crate) fn allow_group_interval(&mut self, node: NodeId) {
+        if let SeriesProof::Group(plan) = &mut self.nodes[node.0].proof {
+            plan.allow_interval();
+        }
+    }
     pub(crate) fn finish_group_flags(
         &mut self,
         node: NodeId,

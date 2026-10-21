@@ -73891,5 +73891,11 @@
     "report_sha256": "1a9a91e0bfdb51319b154c19f0c17034cb6f93b44239f50430dbb90d43f28f9d",
     "status": "finite_qualification_pass",
     "scope": "Validate same-query ownership, then skip ledger mutation for an entirely unchanged batch of provider resource sizes. Borrow owner for validation; clone only for the existing changed-batch body."
+  },
+  "grouped_subquery_clocks": {
+    "report": "grouped-subquery-clocks-qualification.json",
+    "report_sha256": "101cd593e90869c0b02025e4334d37b244d5889d4f73b54b22272287fc51011a",
+    "status": "finite_qualification_pass",
+    "scope": "Reuse complete child-scan intervals for direct Float-output SUM(rate(selector)) subqueries consumed by range functions; selected contributors keep fresh values and ordinary arithmetic."
   }
 }

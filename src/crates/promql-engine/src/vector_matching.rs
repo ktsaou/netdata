@@ -114,12 +114,12 @@ struct CompletedStep {
     key: ReplayKey,
     members: AccountedVec<u64>,
 }
-struct CompletedInterval {
+pub(crate) struct CompletedInterval {
     first: ReplayKey,
     last_index: i64,
 }
 impl CompletedInterval {
-    fn valid(key: ReplayKey) -> bool {
+    pub(crate) fn valid(key: ReplayKey) -> bool {
         let [time, start, end, step, _, index, ..] = key.clock;
         step > 0
             && index >= 0
@@ -136,20 +136,20 @@ impl CompletedInterval {
         key == self.first
     }
 
-    fn contains(&self, key: ReplayKey) -> bool {
+    pub(crate) fn contains(&self, key: ReplayKey) -> bool {
         Self::valid(key)
             && self.same_domain(key)
             && (self.first.clock[5]..=self.last_index).contains(&key.clock[5])
     }
 
-    fn new(key: ReplayKey) -> Self {
+    pub(crate) fn new(key: ReplayKey) -> Self {
         Self {
             first: key,
             last_index: key.clock[5],
         }
     }
 
-    fn record(&mut self, key: ReplayKey) {
+    pub(crate) fn record(&mut self, key: ReplayKey) {
         let index = key.clock[5];
         if !self.same_domain(key)
             || index < self.first.clock[5].saturating_sub(1)
