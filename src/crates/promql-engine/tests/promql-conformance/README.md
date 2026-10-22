@@ -11295,3 +11295,25 @@ Default C linked section totals (text, data and BSS) are:
 | arm64 | 6,952,682 B | 6,960,934 B | +8,252 B (0.119%) |
 
 The report retains proportional cumulative compiled costs separately from per-query memory.
+
+
+## Rejected descriptor hash reuse
+
+The [experiment](descriptor-hash-rejection.json) reused a descriptor's full hash after an exact ordinal-and-label
+match. It retained first-miss field validation and allocation order, and introduced no persistent query state.
+The accepted runtime was restored exactly after the candidate failed its predefined timing gate.
+
+- All 1,152 complete baseline comparisons matched. All original-policy comparisons passed without numeric-bit
+  differences; 12 strict instant-order disagreements remain separately recorded.
+- Target median time ratios were 0.9749 in release and 0.9766 in release-min: approximately 2–3% lower overall.
+  Individual family ratios were rate 0.9707/0.9851, fold 0.9802/0.9786, scheduled maps 0.9595/0.9377 and generic
+  aggregation 1.0151/0.9861. The pre-change gate required every family to be at most 0.97.
+- The 1,920 timing pairs showed no individual control above the predefined 1.05 follow-up threshold.
+  All eight measured memory-category peaks, fetched-sample counts, page counts and output counts were unchanged.
+- Five focused tests passed, covering exact identities, genuine collisions, current versus accumulated kinds,
+  long-label interruption, first-field rejection and retained ownership. Full native/ARM suites, actual C/C++
+  execution and compiled-cost qualification were not run after rejection; no candidate implementation ships.
+
+`descriptor_hash_cases.py` reproduces the 192 functional and 48 timing inputs. Removing accounted work alone
+does not establish a useful whole-query improvement. These are finite native fixture results, not live-provider
+or RSS measurements. A narrower future experiment must retain this result and establish its own measured scope.

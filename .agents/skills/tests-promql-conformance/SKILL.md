@@ -379,3 +379,7 @@ The rejected Float Resets prefix experiment and native/mixed follow-up costs are
 
 Float predecessor owner reuse MUST preserve checked-copy phases, query affinity, overlap and output lifetime; see
 `src/crates/promql-engine/tests/promql-conformance/README.md#reused-float-predecessor-ownership`.
+
+
+The rejected descriptor-hash reuse experiment is recorded in
+`src/crates/promql-engine/tests/promql-conformance/README.md#rejected-descriptor-hash-reuse`.

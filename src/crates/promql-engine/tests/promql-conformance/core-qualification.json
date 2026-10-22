@@ -74065,5 +74065,14 @@
     "report": "literal-rate-preparation-qualification.json",
     "report_sha256": "f287b6f9219545e3fdf996b3c71b3cdcb54e668539bf86d50445cc31f0430d2d",
     "summary": "Reuse completed ordinary Float Rate/Increase metadata for root instant literal scalar arithmetic."
+  },
+  "rejected_descriptor_hash_reuse": {
+    "status": "rejected_not_shipped",
+    "report": "descriptor-hash-rejection.json",
+    "report_sha256": "20596e1e70652fe0802cf5935c6ef978c76c4257489f1bd961ab8af2bcd3633e",
+    "baseline_commit": "9eab5ac4903ba0097c585118f9f778190505a03c",
+    "complete_pairs": 1152,
+    "timing_pairs": 1920,
+    "reason": "The pre-change timing gate required each target family median <=0.97; both profiles failed despite modest pooled gains. No memory peak was saved. Accepted runtime restored exactly."
   }
 }
