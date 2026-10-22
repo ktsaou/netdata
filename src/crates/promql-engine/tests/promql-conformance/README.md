@@ -11350,3 +11350,37 @@ measured source hash; source phases remain separately attributed. Runtime arithm
 those phases. The report retains per-target compiled text/data/BSS and cumulative costs; these fixed
 executable sizes are separate from per-query memory. Use the existing `native_endpoints.c` panel and the
 `instant_native_final_owner_` Rust filter when changing this ownership boundary.
+
+
+## Prepared native endpoint retirement
+
+`rate()`, `increase()` and `delta()` release their second native histogram after successful endpoint
+preparation when a separate final endpoint exists. Two-point windows keep the second as their final value;
+singleton and unsuccessful preparation paths retain their behavior. The zero histogram created for an
+initial reset owns independent custom bounds. Subsequent reads and arithmetic remain unchanged.
+
+[Qualification](native-second-owner-qualification.json) records 288 fresh original outcomes and 1,728 exact
+baseline comparisons over both release profiles and pages 1/17/1024. All original comparisons pass the
+approved unspecified-order policy, with no numeric-bit differences or exclusions. The 24 strict ordering
+failures remain recorded: four instant derived results per profile/page. The generator
+`native_second_cases.native_second_cases()` reproduces the complete inputs; its
+`native_second_performance_cases()` reproduces the 144 timing inputs. A separate supplemental original
+confirms the custom first-reset unit expectation against both measured binaries; it is excluded from the
+primary counts above.
+
+For the four-series, four-point, 4,096-bucket reset query at page17, peak Workspace falls from 274,268 to
+241,156 bytes. No category peak grows. Allocation traffic, work, fetched entries and pages remain unchanged.
+This reduces simultaneous ownership, not total allocation traffic. Category peaks are not additive or RSS.
+The report retains all 5,760 primary timing pairs and the prescribed follow-up, including slower controls;
+these are synthetic native measurements, not live-provider or concurrent throughput.
+
+Both native profiles pass 992 tests with two existing ignored checks. The `native_second_owner_` tests
+exercise two-point fallback, completed output, custom zero ownership, preparation cancellation, later
+schema/reset read failures and cancellation triggered by retirement. Focused ARM32/ARM64 tests run under
+QEMU. The extended `native_endpoints.c` panel retains its previous 72 cases and adds 108 rate/increase/delta
+cases: 1,080 actual C/C++ cases pass across six consumers, plus 180 against the accepted baseline archive.
+Full native C suites, strict lint, formatting and installed Rust1.91 compile checks also pass.
+
+The production source is identical between measured and final qualification phases; only C coverage is
+extended afterward. Per-target text/data/BSS and cumulative compiled costs are retained separately from
+query memory. No public interface, cache or raw-history buffer is introduced.

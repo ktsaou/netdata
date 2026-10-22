@@ -387,3 +387,7 @@ The rejected descriptor-hash reuse experiment is recorded in
 
 Consuming final native ownership follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#consumed-final-native-endpoint`.
+
+
+Prepared native endpoint retirement follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#prepared-native-endpoint-retirement`.

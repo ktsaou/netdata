@@ -2933,3 +2933,15 @@ changing membership, special literals, complete original comparisons and proport
   must release every owner exactly once. No new history buffer or persistent state is needed.
 - The [finite qualification](native-final-owner-qualification.json) binds originals, resource observations,
   native timing, actual callers, cancellation/error cleanup and proportional compiled costs.
+
+
+## Prepared native endpoint ownership
+
+- After successful first-pair reset/start preparation, release the second native endpoint only when a
+  separate final endpoint exists. Keep the second as the last fallback for two-point input.
+- Preparation must finish before retirement: the optional zero histogram owns independent custom bounds,
+  while preparation errors and mixed-schema exits preserve their previous phase and ownership.
+- Preserve first/zero/last owners and all schema/reset replay, checked arithmetic and finalization. Continue
+  cursor validation and control polling; no additional history or metadata state is needed.
+- The [finite qualification](native-second-owner-qualification.json) records full results, actual ownership
+  and callback failures, all memory categories, native timings and proportional compiled costs.

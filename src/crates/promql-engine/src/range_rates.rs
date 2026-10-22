@@ -533,6 +533,10 @@ impl NativeStep {
                     if !self.prepare_endpoints(control, account)? {
                         return Ok(Some(std::mem::take(&mut self.output)));
                     }
+                    // First-pair reset preparation is complete; keep only a required last fallback.
+                    if self.last.is_some() {
+                        self.second = None;
+                    }
                     if self.kind != RateKind::Delta {
                         self.phase = NativePass::Schemas;
                         self.index = 0;
@@ -913,6 +917,213 @@ mod tests {
         value::{Sample, SampleValue},
     };
     use std::{cell::RefCell, sync::atomic::Ordering};
+
+    #[test]
+    fn native_second_owner_retirement_preserves_endpoint_results() {
+        for count in [2, 3, 4] {
+            for kind in [RateKind::Rate, RateKind::Increase, RateKind::Delta] {
+                let account = EngineAccounting::default().query();
+                let control = Control::default();
+                let samples: Vec<_> = (0..count)
+                    .map(|index| {
+                        let mut sample = native(index);
+                        if kind == RateKind::Delta {
+                            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                                unreachable!()
+                            };
+                            histogram.reset_hint = GAUGE;
+                        }
+                        sample
+                    })
+                    .collect();
+                let mut step = NativeStep::new(window(count).into(), kind);
+                for sample in &samples {
+                    step.receive(sample.as_ref(), &control, &account).unwrap();
+                }
+                let (mut output, owners) =
+                    crate::test_storage::observe_sample_owners(&account, &control, false, || {
+                        step.finish_pass(&control, &account).unwrap()
+                    });
+                assert_eq!(owners.released, u64::from(count > 2));
+                assert_eq!(owners.created, u64::from(kind == RateKind::Delta));
+                assert_eq!(step.second.is_some(), count == 2);
+                assert_eq!(step.first.as_ref().unwrap().time, 1000);
+                assert_eq!(step.last().time, count as i64 * 1000);
+                assert_eq!(step.last().value.as_ref().count, 3.0 * count as f64);
+                for _ in 0..2 {
+                    if output.is_some() {
+                        break;
+                    }
+                    for sample in &samples {
+                        step.receive(sample.as_ref(), &control, &account).unwrap();
+                    }
+                    output = step.finish_pass(&control, &account).unwrap();
+                }
+                let output = output.expect("completed native rate");
+                let Some(OwnedValue::Histogram(histogram)) = &output.value else {
+                    panic!("native rate result required")
+                };
+                let interval = (count - 1) as f64;
+                let mut factor = (interval + 1.0) / interval;
+                if kind == RateKind::Rate {
+                    factor /= count as f64;
+                }
+                let value = histogram.as_ref();
+                assert_eq!(value.count.to_bits(), (3.0 * interval * factor).to_bits());
+                assert_eq!(value.sum.to_bits(), (5.0 * interval * factor).to_bits());
+                assert_eq!(
+                    value.positive_buckets.unwrap(),
+                    &[interval * factor, 2.0 * interval * factor]
+                );
+                assert_eq!(value.reset_hint, GAUGE);
+                assert!(output.annotations.iter().all(Option::is_none));
+                drop((step, output));
+                assert_eq!(account.current_samples(), 0);
+                account.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn native_second_owner_keeps_custom_zero_and_preparation_error_ownership() {
+        for interrupted in [false, true] {
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let mut step = NativeStep::new(window(3).into(), RateKind::Increase);
+            let samples: Vec<_> = (0..3)
+                .map(|index| {
+                    let mut sample = native(index);
+                    let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                        unreachable!()
+                    };
+                    histogram.schema = CUSTOM_BUCKETS_SCHEMA;
+                    histogram.custom_values = Some(vec![1.0].into());
+                    if index == 1 {
+                        histogram.reset_hint = crate::histogram::COUNTER_RESET;
+                    }
+                    sample
+                })
+                .collect();
+            for sample in &samples {
+                step.receive(sample.as_ref(), &control, &account).unwrap();
+            }
+            let second = step.second.as_ref().unwrap().value.as_ref();
+            let old_bounds = second.custom_values.unwrap().as_ptr();
+            let old_weight = crate::statistics::weight(SampleValueRef::FloatHistogram(second));
+            let before = account.current_samples();
+            if interrupted {
+                control.cancellation.cancel();
+            }
+            let (result, owners) =
+                crate::test_storage::observe_sample_owners(&account, &control, false, || {
+                    step.finish_pass(&control, &account)
+                });
+            if interrupted {
+                assert!(matches!(result, Err(StorageError::Interrupted(_))));
+                assert!(step.second.is_some());
+                assert_eq!(owners.created, 0);
+                assert_eq!(owners.released, 0);
+            } else {
+                assert!(result.unwrap().is_none());
+                assert!(step.second.is_none());
+                assert_eq!(owners.created, 1);
+                assert_eq!(owners.released, 1);
+                let zero = step.zero.as_ref().unwrap().as_ref();
+                assert_eq!(zero.custom_values, Some(&[1.0][..]));
+                assert_ne!(zero.custom_values.unwrap().as_ptr(), old_bounds);
+                assert_eq!(
+                    account.current_samples(),
+                    before - old_weight
+                        + crate::statistics::weight(SampleValueRef::FloatHistogram(zero))
+                );
+                for sample in &samples {
+                    step.receive(sample.as_ref(), &control, &account).unwrap();
+                }
+                assert!(step.finish_pass(&control, &account).unwrap().is_none());
+                for sample in &samples {
+                    step.receive(sample.as_ref(), &control, &account).unwrap();
+                }
+                let output = step.finish_pass(&control, &account).unwrap().unwrap();
+                let Some(OwnedValue::Histogram(value)) = &output.value else {
+                    panic!("custom result required")
+                };
+                assert_eq!(value.as_ref().custom_values, Some(&[1.0][..]));
+                // Counter extrapolation stops at the estimated zero crossing.
+                assert_eq!(value.as_ref().positive_buckets, Some(&[4.0, 8.0][..]));
+                assert!(output.annotations.iter().all(Option::is_none));
+            }
+            drop(step);
+            assert_eq!(account.current_samples(), 0);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn native_second_owner_replay_faults_and_retirement_cancellation_release_owners() {
+        for kind in [RateKind::Rate, RateKind::Increase] {
+            for page in [1, 17, 1024] {
+                for pass in [3, 4] {
+                    for cancel in [false, true] {
+                        let control = Control::default();
+                        let operation = AcquisitionOperation::Next(pass, 0);
+                        let source = AcquisitionSeries {
+                            source: GeneratedSeries::new(3, page, native),
+                            failure: (!cancel).then_some(operation),
+                            cancel_at: cancel.then_some(operation),
+                            cancellation: control.cancellation.clone(),
+                            operations: RefCell::new(Vec::new()),
+                        };
+                        let account = EngineAccounting::default().query();
+                        let result = evaluate(
+                            &source,
+                            window(3),
+                            RateFunction::Extrapolated(kind),
+                            None,
+                            &control,
+                            &account,
+                        );
+                        if cancel {
+                            assert!(matches!(result, Err(StorageError::Interrupted(_))));
+                        } else {
+                            assert!(
+                                matches!(result, Err(StorageError::Provider(ref message)) if message.as_ref() == b"rate acquisition failed")
+                            );
+                        }
+                        assert!(source.operations.borrow().contains(&operation));
+                        drop(result);
+                        source.assert_closed(&account);
+                    }
+                }
+            }
+        }
+        for kind in [RateKind::Rate, RateKind::Increase, RateKind::Delta] {
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let mut step = NativeStep::new(window(3).into(), kind);
+            for index in 0..3 {
+                step.receive(native(index).as_ref(), &control, &account)
+                    .unwrap();
+            }
+            let (result, owners) =
+                crate::test_storage::observe_sample_owners(&account, &control, true, || {
+                    step.finish_pass(&control, &account)
+                });
+            assert_eq!(owners.released, 1);
+            assert!(step.second.is_none());
+            if kind == RateKind::Delta {
+                assert!(matches!(result, Err(StorageError::Interrupted(_))));
+            } else {
+                assert!(result.unwrap().is_none());
+                assert!(matches!(
+                    step.receive(native(0).as_ref(), &control, &account),
+                    Err(StorageError::Interrupted(_))
+                ));
+            }
+            drop(step);
+            assert_eq!(account.current_samples(), 0);
+            account.snapshot().assert_memory_released();
+        }
+    }
 
     #[test]
     fn instant_native_final_owner_preserves_normalization_and_allocation_identity() {

@@ -74083,5 +74083,16 @@
     "exact_pairs": 1200,
     "timing_pairs": 4000,
     "maximum_peak_change_bytes": 0
+  },
+  "prepared_native_endpoint_retirement": {
+    "status": "finite_qualification_pass",
+    "report": "native-second-owner-qualification.json",
+    "report_sha256": "018b2c1a879e0e755d341ee5124bb9ecbee1fb10ebf89177e281e192d41121c6",
+    "baseline_commit": "063a1f63a06c1e11b568160b3afbbdd55cf36a98",
+    "exact_baseline_pairs": 1728,
+    "original_policy_pairs": 1728,
+    "strict_original_order_failures": 24,
+    "timing_pairs": 5760,
+    "maximum_peak_change_bytes": 0
   }
 }

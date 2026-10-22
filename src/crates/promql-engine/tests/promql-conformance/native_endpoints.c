@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Exercise expired native endpoint ownership through actual C callbacks. */
+/* Exercise native rate endpoint ownership through actual C callbacks. */
 #define main retained_embedding_main
 #include "c_embedding.c"
 #undef main
@@ -46,7 +46,8 @@ static uint32_t native_next(void *context, void *handle,
 }
 
 int main(void) {
-    const char *expressions[] = {"irate(m_total[4s])", "idelta(m_total[4s])"};
+    const char *expressions[] = {"irate(m_total[4s])", "idelta(m_total[4s])",
+                                 "rate(m_total[4s])", "increase(m_total[4s])", "delta(m_total[4s])"};
     const uint64_t pages[] = {1, 17, 1024};
     unsigned cases = 0;
     for (unsigned delayed = 0; delayed < 2; delayed++) {
@@ -56,7 +57,7 @@ int main(void) {
         netdata_promql_engine_t *engine = NULL;
         assert(netdata_promql_engine_create(&options, &engine) == NETDATA_PROMQL_OK);
         netdata_promql_engine_observations_t idle = engine_observations(engine);
-        for (unsigned expression = 0; expression < 2; expression++) {
+        for (unsigned expression = 0; expression < 5; expression++) {
             for (unsigned two = 0; two < 2; two++) {
                 for (unsigned page = 0; page < 3; page++) {
                     for (unsigned arm = 0; arm < 3; arm++) {
@@ -65,7 +66,7 @@ int main(void) {
                         init_fixture(&source.source, 4, pages[page]);
                         source.source.labels[0].value = text("m_total");
                         source.width = two ? 8 : 2;
-                        source.reset_hint = expression ? 3 : 0; /* idelta consumes gauge histograms. */
+                        source.reset_hint = (expression == 1 || expression == 4) ? 3 : 0;
                         source.source.failure = arm == 1 ? 6 : 0;
                         if (arm == 2) {
                             source.source.cancel_at = 6;
@@ -106,15 +107,16 @@ int main(void) {
                             assert(point.time_ms == 4000 && point.value_kind == NETDATA_PROMQL_VALUE_FLOAT_HISTOGRAM);
                             netdata_promql_float_histogram_t histogram;
                             assert(netdata_promql_result_histogram(result, 0, 0, &histogram) == NETDATA_PROMQL_OK);
-                            assert(histogram.sum_bits == netdata_promql_double_bits(5.0));
-                            assert(histogram.count_bits == netdata_promql_double_bits(source.width));
+                            double increment = expression >= 3 ? 4.0 : 1.0;
+                            assert(histogram.sum_bits == netdata_promql_double_bits(5.0 * increment));
+                            assert(histogram.count_bits == netdata_promql_double_bits(source.width * increment));
                             assert(histogram.schema == 0 && histogram.reset_hint == 3);
                             assert(histogram.positive_spans.present && histogram.positive_spans.len == 1);
                             assert(histogram.positive_spans.data[0].offset == 0);
                             assert(histogram.positive_spans.data[0].length == source.width);
                             assert(histogram.positive_buckets.present && histogram.positive_buckets.len == source.width);
                             for (unsigned bucket = 0; bucket < source.width; bucket++)
-                                assert(netdata_promql_double_bits(histogram.positive_buckets.data[bucket]) == netdata_promql_double_bits(1.0));
+                                assert(netdata_promql_double_bits(histogram.positive_buckets.data[bucket]) == netdata_promql_double_bits(increment));
                             assert(observed.statistics.samples.total_queryable_samples == 4 * ((176 + 8 + 8 * source.width) / 16));
                             assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
                         }
@@ -128,7 +130,7 @@ int main(void) {
         }
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
     }
-    assert(cases == 72);
+    assert(cases == 180);
     printf("{\"native_endpoints\":\"pass\",\"cases\":%u}\n", cases);
     return 0;
 }
