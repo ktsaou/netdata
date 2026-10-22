@@ -74094,5 +74094,14 @@
     "strict_original_order_failures": 24,
     "timing_pairs": 5760,
     "maximum_peak_change_bytes": 0
+  },
+  "rejected_terminal_native_predecessor": {
+    "status": "rejected_timing_gate_runtime_restored",
+    "report": "native-terminal-predecessor-rejection.json",
+    "report_sha256": "8d23602de2abf167500c2b5048276afa77327039087b093a03e1c62eec43bdd7",
+    "baseline_commit": "3234d383622501eb78066724f7341cf46fe34504",
+    "exact_baseline_pairs": 1464,
+    "timing_pairs": 4880,
+    "runtime_restored": true
   }
 }

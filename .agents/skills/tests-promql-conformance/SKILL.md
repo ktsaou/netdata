@@ -391,3 +391,7 @@ Consuming final native ownership follows
 
 Prepared native endpoint retirement follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#prepared-native-endpoint-retirement`.
+
+
+The rejected terminal native predecessor experiment is recorded in
+`src/crates/promql-engine/tests/promql-conformance/README.md#rejected-terminal-native-predecessor-retirement`.

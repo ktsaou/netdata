@@ -11384,3 +11384,30 @@ Full native C suites, strict lint, formatting and installed Rust1.91 compile che
 The production source is identical between measured and final qualification phases; only C coverage is
 extended afterward. Per-target text/data/BSS and cumulative compiled costs are retained separately from
 query memory. No public interface, cache or raw-history buffer is introduced.
+
+
+## Rejected terminal native predecessor retirement
+
+The [experiment](native-terminal-predecessor-rejection.json) retired the native reset predecessor after the
+last correction, avoiding the final Float histogram copy and releasing the required Integer conversion.
+It preserved conversion/arithmetic order, checked interruption and cursor draining. The accepted runtime
+and trial-only tests were restored exactly after the candidate failed its predefined timing gate.
+
+- All 1,464 complete baseline comparisons matched; original-policy comparisons passed without numeric-bit
+  differences. The 18 strict instant derived-order disagreements remain recorded separately.
+- The 4,880 primary timing pairs measured target median ratios of 0.7769 in release and 1.0013 in release-min.
+  The two-bucket reset `increase()` range case remained slower after its prescribed follow-up: 690,054 to
+  738,454 ns, ratio 1.0701 against the fixed 1.05 limit. All primary and follow-up cases remain retained.
+- No memory-category peak or allocation total grew. For the four-series, two-point, 4,096-bucket `rate()`
+  query at page17, Workspace peak fell from 240,780 to 207,860 bytes; allocation traffic fell from
+  1,369,136 to 1,104,240 bytes. Reads, pages and output counts were unchanged. Float copy work
+  decreased; Integer conversion remained and terminal dispatch added accounted work.
+- Three focused candidate tests covered both histogram kinds, wide-to-narrow ownership, error/control priority
+  and trailing stale/END callbacks. Strict lint, formatting, installed Rust1.91 compilation and 180 baseline
+  C cases passed. Full native units, ARM, candidate C/C++ and compiled-size qualification were not run after
+  rejection. The initial test-only corrections and failed captures are preserved.
+
+`native_terminal_cases.native_terminal_cases()` reproduces the 244 functional inputs;
+`native_terminal_performance_cases()` reproduces the 122 timing inputs. These are finite synthetic measurements,
+not live-provider or concurrent throughput. Accounted category peaks are separate and are not process RSS.
+A future experiment must retain this result and qualify its own implementation; no terminal-retirement code ships.
