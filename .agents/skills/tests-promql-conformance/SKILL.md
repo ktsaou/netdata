@@ -348,3 +348,6 @@ Ordinary-window set operands and actual callback read boundaries follow
 
 Independent inner/outer grouped completion follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-in-nested-grouped-subqueries`.
+
+Nonmerging label projections over completed groups follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-through-projected-groups`.

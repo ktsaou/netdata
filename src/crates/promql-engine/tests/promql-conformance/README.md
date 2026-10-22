@@ -10736,3 +10736,66 @@ Exercise `nested_grouped_clocks`, `grouped_selector_clocks_admission`, `aggregat
 truncation owner and `nested_grouped_clocks.c`. Query fixtures were built before test-only additions; explicit
 full-file reconstruction and production-prefix bindings preserve their attribution. Private driver corrections
 did not change runtime code, and their failed captures remain available beside the successful qualification.
+
+
+## Completed clocks through projected groups
+
+A directly consumed subquery can reuse completed group scans through one nonmerging `label_join` or
+`label_replace`. For example, `max_over_time((label_join(sum by(id)(rate(m_total[3s])),"service","","id"))[8s:1s])`
+keeps the existing group plan and label-projection bindings. Preparation retains label validation before child
+preparation, duplicate checks and annotations. Runtime requires the exact child and clock ancestry, with one
+binding per output descriptor. Actual successful group traversal earns interval credit; a prepared capability
+alone does not. Truncation, required failures, cancellation and final clearing preserve their existing owners.
+
+Both selector and rate/increase/delta leaves qualify under an ordinary reducer. Merged aliases, two label calls,
+map/ratio/histogram-wrapped or nested groups and unsupported clocks keep their existing valid paths. These are
+optimization boundaries. No state fields, raw history/value cache, provider or public contract are added.
+All-Float ordinary groups have contiguous source ordinals; a nonmerging projection preserves their order.
+Time-disjoint groups exercise sparse per-tick membership, not nonidentity bindings. Existing generic translation
+remains unchanged.
+
+[Qualification](projected-grouped-clocks-qualification.json) retains the complete source and measurement evidence.
+
+| Native profile | Join selector ratio | Join rate ratio | Replace selector ratio | Replace rate ratio | Control ratio |
+|---|---:|---:|---:|---:|---:|
+| release | 0.3741 | 0.3207 | 0.3837 | 0.3197 | 0.9687 |
+| release-min | 0.4084 | 0.3460 | 0.4066 | 0.3457 | 1.0273 |
+
+The 1,600 paired queries cover four/sixteen groups, two unequal-value members, instant/three-step range
+requests and page 17. Five alternating blocks use four repeats, discarding the first. Target-family times fall
+about 59–68%; no individual control exceeds the 1.05 follow-up threshold. Another 640 complete pilot outcomes
+match independent analytical values. These are whole synthetic query timings, not production-weighted results.
+
+At sixteen groups, instant selector fetched entries fall 174,240 → 44,040 and rate entries 348,160 → 50,560.
+Across 3,240 resource pairs, Workspace peak changes range from -432 to +112 bytes. The largest increase is
+26,910 → 27,022 bytes; all other seven category peaks match. Across 36 fixed-cardinality extent cases, Workspace
+stays at 25,010 selector / 29,170 rate bytes as history increases from 8 to 128 steps, for both label operations
+and pages 1/17/1024. Category peaks are not additive, RSS or a universal bound. Runtime error messages retain
+94 or 48 Workspace bytes until their report is released, equally on both sides; actual post-release checks pass.
+
+All 3,264 complete baseline comparisons and agreed-order original comparisons pass, without numeric-bit
+differences. The 544 fresh originals cover eight reducers, four terminals, by/without, aliases and collisions,
+label errors, reset/sparse/stale/nonfinite/native/mixed/empty histories, offsets, explicit clocks, short lookback
+and generic paths. Eight instant cases per panel differ only under strict Go row-order comparison. Four
+fractional duration token requests fail construction identically, yielding 24 pairs without execution observations;
+separately, eight valid 4500ms/750ms requests pass 48 additional complete baseline/original comparisons.
+
+Both native profiles pass 943 unit tests with two ignored. Five new owners cover 24 exact analytical queries,
+172 calibrated required-read faults, 12 completion/cancel/first-fault cases, six sparse/merged cases and two
+validation-error cases; the expanded admission owner checks 176 combinations. Each ARM target passes 16 focused
+tests under QEMU, including existing nested-group regressions. C/C++ callers pass 192 lifecycle/output cases each,
+1,152 total, plus two complete native C suites. Their numerical check is boolean >=0; the Rust and differential
+panels supply exact aggregate-value evidence. Strict default/fixture lint, formatting and MSRV 1.91 compilation pass.
+
+| Default C executable | Text/data/BSS change, bytes | Relative change |
+|---|---:|---:|
+| release | +1032 | 0.0130% |
+| release-min | +1408 | 0.0252% |
+| arm32 | +2644 | 0.0395% |
+| arm64 | -6828 | -0.0983% |
+
+The report records cumulative compiled costs separately from query memory. Preserve the one-label/one-group
+shape, nonmerging binding proof, exact clock/child ancestry, validation order and actual completion. Exercise
+`projected_grouped_clocks`, the admission and aggregate-replay owners, existing nested/truncation controls and
+`projected_grouped_clocks.c`. Retained v1 query binaries are bound to the v2 test additions through exact production
+prefix equality. Private harness corrections and their original captures remain retained; none changed runtime code.

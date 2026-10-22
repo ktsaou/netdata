@@ -73993,5 +73993,11 @@
     "report": "nested-grouped-clocks-qualification.json",
     "report_sha256": "ce867d649db79dbf80faa891a7ed0297664d6aa56d149e6b3ec2298ab1902324",
     "summary": "Reuse independently completed inner and outer aggregate clocks in directly consumed two-level grouped subqueries."
+  },
+  "projected_grouped_clocks": {
+    "status": "finite_qualification_pass",
+    "report": "projected-grouped-clocks-qualification.json",
+    "report_sha256": "49e5d22eadd814234e0e84ce8626d51010c7473e5b8c6d23187a9cc884848d4d",
+    "summary": "Reuse completed group scans through one nonmerging label_join or label_replace in directly consumed subqueries."
   }
 }

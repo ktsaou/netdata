@@ -2826,7 +2826,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         };
         let key = key_for(&self.frames[index]);
         let mut fixed_maps = 0;
-        let mut nested_group = false;
+        let mut terminal_group_wrapper = false;
         let mut path = RangePath::Completed;
         while index > 0 {
             self.control.check()?;
@@ -2867,7 +2867,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         | MapOperation::Unary(_)
                         | MapOperation::Pointwise(PointwiseFunction::Float(..)),
                     ..
-                } if fixed_maps == 0 && !nested_group => {
+                } if fixed_maps == 0 && !terminal_group_wrapper => {
                     if self.grouped_map_child(parent.node)? != Some(child.node) {
                         return Ok(None);
                     }
@@ -2895,7 +2895,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 }
                 State::Aggregate {
                     collecting: true, ..
-                } if grouped_operand && !nested_group && fixed_maps == 0 => {
+                } if grouped_operand && !terminal_group_wrapper && fixed_maps == 0 => {
                     let Expr::Aggregate {
                         expression: Some(next),
                         ..
@@ -2916,7 +2916,32 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         return Ok(None);
                     }
                     // Each level earns its own completion; only a direct range may enclose them.
-                    nested_group = true;
+                    terminal_group_wrapper = true;
+                    grouped_operand = false;
+                }
+                State::Labels {
+                    descriptors,
+                    bindings,
+                } if grouped_operand && !terminal_group_wrapper && fixed_maps == 0 => {
+                    let Expr::Call { arguments, .. } =
+                        &self.expression.arena[parent.node].expression
+                    else {
+                        return Ok(None);
+                    };
+                    // Every output owns a source; equal counts exclude merged aliases.
+                    if bindings.len() != descriptors.len()
+                        || self.prepared.preprocessing.child(
+                            self.expression,
+                            parent.node,
+                            arguments[0],
+                            self.control,
+                            self.account,
+                        )? != child.node
+                        || self.interval_group_node(child.node)?.is_none()
+                    {
+                        return Ok(None);
+                    }
+                    terminal_group_wrapper = true;
                     grouped_operand = false;
                 }
                 State::Binary(_) if grouped_operand => {

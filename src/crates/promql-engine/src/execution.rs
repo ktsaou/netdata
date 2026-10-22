@@ -1418,6 +1418,48 @@ impl CompiledQuery {
         }
     }
 
+    fn projected_grouped_interval_child(
+        &self,
+        mut node: NodeId,
+        prepared: &Prepared,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<NodeId>, Interrupted> {
+        loop {
+            control.check()?;
+            account.work(1);
+            if prepared.flags().invariants[node.0] || prepared.flags().boundaries[node.0] {
+                return Ok(None);
+            }
+            match &self.expression.arena[node].expression {
+                Expr::Paren(child) => {
+                    node = prepared.preprocessing.child(
+                        &self.expression,
+                        node,
+                        *child,
+                        control,
+                        account,
+                    )?;
+                }
+                Expr::Call { arguments, .. }
+                    if label_functions::is_label_call(&self.expression.arena[node].expression) =>
+                {
+                    let child = prepared.preprocessing.child(
+                        &self.expression,
+                        node,
+                        arguments[0],
+                        control,
+                        account,
+                    )?;
+                    return Ok(self
+                        .grouped_interval_child(child, true, prepared, control, account)?
+                        .map(|_| child));
+                }
+                _ => return Ok(None),
+            }
+        }
+    }
+
     fn nested_grouped_interval_child(
         &self,
         mut node: NodeId,
@@ -2320,6 +2362,11 @@ impl CompiledQuery {
                     let Expr::Call { arguments, .. } = expression else {
                         unreachable!()
                     };
+                    let grouped = contributor_demand
+                        && matches!(demand, Demand::GroupedSubquery)
+                        && self
+                            .projected_grouped_interval_child(node, prepared, control, account)?
+                            .is_some();
                     tasks.push(Task::Visit(
                         prepared.preprocessing.child(
                             &self.expression,
@@ -2331,7 +2378,11 @@ impl CompiledQuery {
                         header,
                         child_primary,
                         // Projected rows repeatedly select groups at this consumer's clock.
-                        Demand::Contributors,
+                        if grouped {
+                            Demand::GroupedSubquery
+                        } else {
+                            Demand::Contributors
+                        },
                     ));
                     continue;
                 }
@@ -2367,6 +2418,11 @@ impl CompiledQuery {
                         )?;
                         self.grouped_interval_child(child, true, prepared, control, account)?
                             .is_some()
+                            || self
+                                .projected_grouped_interval_child(
+                                    child, prepared, control, account,
+                                )?
+                                .is_some()
                             || self
                                 .nested_grouped_interval_child(child, prepared, control, account)?
                                 .is_some()
@@ -10864,6 +10920,27 @@ mod tests {
             ("count by(id)(m_total offset 1s)", 1),
             ("sum by(id)(m_total @ 8)", 0),
             ("sum by(id)(sum by(id,member)(m_total))", 2),
+            ("label_join(sum by(id)(m_total),\"service\",\"\",\"id\")", 1),
+            (
+                "label_replace((sum by(id)(m_total)),\"service\",\"$1\",\"id\",\"(.*)\")",
+                1,
+            ),
+            (
+                "abs(label_join(sum by(id)(m_total),\"service\",\"\",\"id\"))",
+                0,
+            ),
+            (
+                "label_join(abs(sum by(id)(m_total)),\"service\",\"\",\"id\")",
+                0,
+            ),
+            (
+                "label_join(label_join(sum by(id)(m_total),\"service\",\"\",\"id\"),\"zone\",\"\",\"id\")",
+                0,
+            ),
+            (
+                "label_join(sum by(id)(max by(id,member)(m_total)),\"service\",\"\",\"id\")",
+                0,
+            ),
             ("((sum by(id)(((max by(id,member)(m_total))))))", 2),
             (
                 "sum by(id)(max by(id,member)(sum by(id,member)(m_total)))",
@@ -11023,6 +11100,65 @@ mod tests {
                     provider.assert_closed();
                     drop((report, query));
                     engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn projected_grouped_clocks_results() {
+        for page in [1, 17, 1024] {
+            for count in [4, 16] {
+                for (leaf, scale) in [("m_total", 16.0), ("rate(m_total[3s])", 1.0)] {
+                    for call in [
+                        "label_join({group},\"service\",\"\",\"id\")",
+                        "label_replace({group},\"service\",\"$1\",\"id\",\"(.*)\")",
+                    ] {
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let body = call.replace("{group}", &format!("sum by(id)({leaf})"));
+                        let expression = format!("max_over_time(({body})[8s:1s])");
+                        let query = engine
+                            .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                            .unwrap();
+                        let provider = grouped_subquery_provider(page, count);
+                        let report = query.collect_reported(
+                            &provider,
+                            QueryRequest::Instant { time_ms: 16000 },
+                            &control,
+                        );
+                        let result = report.result.as_ref().unwrap();
+                        assert!(report.annotations.is_empty());
+                        assert_eq!(result.series.len(), count);
+                        let mut rows = result.series.iter().collect::<Vec<_>>();
+                        rows.sort_by(|a, b| a.labels.0[0].value.cmp(&b.labels.0[0].value));
+                        for (identity, row) in rows.into_iter().enumerate() {
+                            let id = format!("{identity:06}");
+                            assert_eq!(
+                                row.labels
+                                    .0
+                                    .iter()
+                                    .map(|v| (&*v.name, &*v.value))
+                                    .collect::<Vec<_>>(),
+                                vec![
+                                    (b"id".as_slice(), id.as_bytes()),
+                                    (b"service".as_slice(), id.as_bytes())
+                                ]
+                            );
+                            assert_eq!(row.points.len(), 1);
+                            assert_eq!(row.points[0].time_ms, 16000);
+                            let expected: f64 = scale
+                                * if identity.is_multiple_of(2) {
+                                    6.0
+                                } else {
+                                    12.0
+                                };
+                            assert_eq!(float_bits(&row.points[0]), expected.to_bits());
+                        }
+                        provider.assert_closed();
+                        drop((report, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
                 }
             }
         }
@@ -13116,6 +13252,254 @@ mod tests {
     }
 
     #[test]
+    fn projected_grouped_clocks_completion() {
+        for wrapper in [
+            "label_join({child},\"service\",\"\",\"id\")",
+            "label_replace({child},\"service\",\"$1\",\"id\",\"(.*)\")",
+            "label_join(sum by(id)(m_total),\"service\",\"\",\"id\")",
+            "label_replace(sum by(id)(m_total),\"service\",\"$1\",\"id\",\"(.*)\")",
+        ] {
+            for (cancel, fault) in [(false, false), (true, false), (false, true)] {
+                grouped_clocks_completion_case("sum", false, Some(wrapper), false, cancel, fault);
+            }
+        }
+    }
+
+    #[test]
+    fn projected_grouped_clocks_failures() {
+        for wrapper in [
+            "label_join({child},\"service\",\"\",\"id\")",
+            "label_replace({child},\"service\",\"$1\",\"id\",\"(.*)\")",
+            "label_join(sum by(id)(m_total),\"service\",\"\",\"id\")",
+            "label_replace(sum by(id)(m_total),\"service\",\"$1\",\"id\",\"(.*)\")",
+        ] {
+            grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case(
+                "sum",
+                false,
+                Some(wrapper),
+            );
+        }
+    }
+
+    #[test]
+    fn projected_grouped_clocks_aliases_and_ordinals() {
+        fn point<const EARLY: bool>(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            if (index < 6) != EARLY {
+                sample.value = crate::value::SampleValue::Float(f64::from_bits(0x7ff0000000000002));
+            }
+            sample
+        }
+        for page in [1, 17, 1024] {
+            for merged in [false, true] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let body = if merged {
+                    "label_replace(sum by(id)(m_total),\"id\",\"merged\",\"id\",\".*\")"
+                } else {
+                    "label_join(sum by(id)(m_total),\"service\",\"\",\"id\")"
+                };
+                let expression = format!("max_over_time(({body})[4s:1s])");
+                let compiled = engine
+                    .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let mut provider = grouped_subquery_provider(page, 2);
+                for (position, row) in provider.series.iter_mut().enumerate() {
+                    row.source.sample = if position % 2 == 0 {
+                        point::<false>
+                    } else {
+                        point::<true>
+                    };
+                }
+                let account = compiled.execution_accounting();
+                {
+                    let header = compiled
+                        .header(QueryRequest::Instant { time_ms: 8000 })
+                        .unwrap();
+                    let prepared = Prepared::new(
+                        &compiled.expression,
+                        &compiled.preprocessing,
+                        header,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let header = prepared.evaluator_header();
+                    prepared.activate(header, &control, &account).unwrap();
+                    let options = compiled.evaluation_options(header, header.start_ms, &prepared);
+                    let bounds = crate::query_bounds::find(
+                        &compiled.expression,
+                        options,
+                        &prepared,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let scope = provider.open(bounds, &control).unwrap();
+                    let catalog = Catalog::new(
+                        &scope,
+                        &compiled.expression,
+                        &prepared,
+                        options,
+                        compiled.options.no_step_subquery_interval_ms,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    let rosters = compiled
+                        .prepare_rosters(
+                            &catalog,
+                            &prepared,
+                            bounds,
+                            &control,
+                            &account,
+                            &mut Annotations::default(),
+                        )
+                        .unwrap();
+                    let plan = (0..compiled.expression.arena.nodes.len())
+                        .find_map(|index| rosters.group_replay(NodeId(index)))
+                        .unwrap();
+                    assert!(
+                        plan.supports_interval() && !plan.has_interval() && !plan.has_completion()
+                    );
+                    let projection = (0..compiled.expression.arena.nodes.len())
+                        .find_map(|index| rosters.projection(NodeId(index)))
+                        .unwrap();
+                    assert_eq!(projection.bindings.len(), 2);
+                    assert_eq!(projection.descriptors.len(), if merged { 1 } else { 2 });
+                    if !merged {
+                        assert_eq!(projection.bindings, &[(0, 0), (1, 1)]);
+                    }
+                    let mut machine = Machine::new(
+                        &catalog,
+                        &compiled.expression,
+                        compiled.expression.root,
+                        options,
+                        &control,
+                        &account,
+                        EvaluationMetadata {
+                            prepared: &prepared,
+                            rosters: &rosters,
+                            timestamp_selectors: &compiled.timestamp_selectors,
+                            data_bounds: bounds,
+                            annotations: None,
+                            binary_preparation: None,
+                            histogram_preparation: None,
+                            info_preparation: None,
+                            count_preparation: None,
+                        },
+                    );
+                    let mut actual = Vec::new();
+                    while let Some(sample) = machine.next().unwrap() {
+                        let labels = sample
+                            .labels
+                            .0
+                            .iter()
+                            .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                            .collect::<Vec<_>>();
+                        let OwnedValue::Float(value) = sample.value else {
+                            panic!("expected float")
+                        };
+                        actual.push((labels, value.to_bits()));
+                    }
+                    actual.sort();
+                    let expected = if merged {
+                        vec![(
+                            vec![(b"id".to_vec(), b"merged".to_vec())],
+                            16.0f64.to_bits(),
+                        )]
+                    } else {
+                        vec![
+                            (
+                                vec![
+                                    (b"id".to_vec(), b"000000".to_vec()),
+                                    (b"service".to_vec(), b"000000".to_vec()),
+                                ],
+                                12.0f64.to_bits(),
+                            ),
+                            (
+                                vec![
+                                    (b"id".to_vec(), b"000001".to_vec()),
+                                    (b"service".to_vec(), b"000001".to_vec()),
+                                ],
+                                16.0f64.to_bits(),
+                            ),
+                        ]
+                    };
+                    assert_eq!(actual, expected);
+                    assert_eq!(plan.has_interval(), !merged);
+                    drop(machine);
+                    rosters.clear_replay_progress(&control, &account).unwrap();
+                    assert!(!plan.has_interval() && !plan.has_completion());
+                }
+                provider.assert_closed();
+                drop((account, compiled));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn projected_grouped_clocks_validation_errors() {
+        for (body, invalid_pattern) in [
+            (
+                "label_replace(sum by(id)(m_total),\"id\",\"merged\",\"id\",\".*\")",
+                false,
+            ),
+            (
+                "label_replace(sum by(id)(m_total),\"service\",\"$1\",\"id\",\"[\")",
+                true,
+            ),
+        ] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let expression = format!("max_over_time(({body})[4s:1s])");
+            let compiled = engine
+                .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                .unwrap();
+            let mut provider = grouped_subquery_provider(17, 2);
+            if invalid_pattern {
+                for row in &mut provider.series {
+                    row.source.fail_acquisition = Some(1);
+                }
+            }
+            let mut sink = RecordingSink::default();
+            let report = compiled.execute_reported(
+                &provider,
+                QueryRequest::Instant { time_ms: 8000 },
+                &control,
+                &mut sink,
+            );
+            if invalid_pattern {
+                assert!(
+                    matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Runtime(bytes)))
+                    if &**bytes == b"invalid regular expression in label_replace(): [")
+                );
+                assert!(
+                    provider.series.iter().all(|row| row
+                        .source
+                        .counters
+                        .opened
+                        .load(Ordering::Relaxed)
+                        == 0)
+                );
+            } else {
+                assert!(matches!(
+                    &report.result,
+                    Err(ExecutionError::Evaluation(EvaluationError::Invalid(
+                        "vector cannot contain metrics with the same labelset"
+                    )))
+                ));
+            }
+            assert!(sink.begun && sink.aborted && !sink.committed);
+            provider.assert_closed();
+            drop((report, compiled));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
     fn nested_grouped_clocks_completion() {
         for cancel in [false, true] {
             grouped_clocks_completion_case("sum", true, None, true, cancel, false);
@@ -13297,8 +13681,9 @@ mod tests {
                             Err(EvaluationError::Storage(StorageError::Provider(bytes)))
                                 if &*bytes == b"injected page failure"));
                         assert!(!plan.has_completion() && !plan.has_interval());
-                        let inner = pair.unwrap().1;
-                        assert!(!inner.has_completion() && !inner.has_interval());
+                        if let Some((_, inner)) = pair {
+                            assert!(!inner.has_completion() && !inner.has_interval());
+                        }
                     }
                     while !fault && machine.next().unwrap().is_some() {
                         rows += 1;

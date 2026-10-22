@@ -2749,3 +2749,19 @@ changing membership, special literals, complete original comparisons and proport
   cumulative compiled sizes are recorded separately in [qualification](nested-grouped-clocks-qualification.json).
 - **Boundary:** third-level and wrapped nested groups remain valid generic expressions. Their optimization is
   independent work, not omitted support or a reason to broaden the direct ancestry proof implicitly.
+
+
+## Completed clocks through projected groups
+
+- **Choice:** allow one nonmerging label_join/label_replace over one ordinary selector/rate/increase/delta
+  group under a directly consumed subquery. Keep the existing projection and group owners.
+- **Proof:** preparation preserves grouped demand only for this shape. Runtime requires equal binding/output
+  counts, exact resolved child and clock ancestry, and an existing interval-capable group. Each output has a
+  source; equal counts rule out merged aliases. A merged prepared plan does not earn runtime interval credit.
+- **Ownership:** preserve label validation, duplicate detection, diagnostics, ordered source translation,
+  actual completed traversal, ordinary selected evaluation and final clearing. Add no fields or raw/value cache.
+- **Cost:** finite target families take about 59–68% less time, with measured maximum Workspace growth112bytes.
+  Read/work, all category peaks, individual controls, extent and proportional/cumulative compiled costs remain
+  separate in [qualification](projected-grouped-clocks-qualification.json).
+- **Boundary:** broader compositions and merged aliases keep their valid generic evaluation. All-Float ordinary
+  groups retain contiguous ordinals; sparse clock membership does not imply reordered whole-query bindings.
