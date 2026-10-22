@@ -74011,5 +74011,11 @@
     "report": "variance-acquisition-qualification.json",
     "report_sha256": "f8d5256abec8416ed3ff26e07c4de245683c262b0fa2469382b58a328a23e93b",
     "summary": "Reuse completed ordinary acquisition for stdvar_over_time and stddev_over_time."
+  },
+  "endpoint_acquisition": {
+    "status": "finite_qualification_pass",
+    "report": "endpoint-acquisition-qualification.json",
+    "report_sha256": "98eb11f9e390b6200611be308c62b16447295027e79ba19e01d867ca1e99c08e",
+    "summary": "Reuse completed ordinary acquisition for first_over_time and last_over_time."
   }
 }

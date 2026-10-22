@@ -357,3 +357,6 @@ Ordinary Min/Max acquisition follows
 
 Ordinary variance/deviation acquisition follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#validated-variance-acquisition-reuse`.
+
+Ordinary First/Last acquisition and provisional native copying follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#validated-endpoint-acquisition-reuse`.

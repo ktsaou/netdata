@@ -811,6 +811,8 @@ pub(crate) fn fold<S: Series>(
             | FoldKind::Max
             | FoldKind::Stdvar
             | FoldKind::Stddev
+            | FoldKind::First
+            | FoldKind::Last
     ) && options.anchor_start_ms.is_none()
         && options
             .matrix
@@ -1520,6 +1522,130 @@ mod tests {
         }
     }
 
+    fn check_endpoint_value(value: Option<&OwnedValue>, histogram: bool, expected: f64) {
+        match (histogram, value) {
+            (false, Some(OwnedValue::Float(value))) => {
+                assert_eq!(value.to_bits(), expected.to_bits());
+            }
+            (true, Some(OwnedValue::Histogram(value))) => {
+                assert_eq!(value.as_ref().count.to_bits(), expected.to_bits());
+                assert_eq!(value.as_ref().sum.to_bits(), expected.to_bits());
+            }
+            _ => panic!("endpoint output kind"),
+        }
+    }
+
+    #[test]
+    fn endpoint_acquisition_preserves_complete_results() {
+        for kind in [FoldKind::First, FoldKind::Last] {
+            check_fold_complete_acquisition(kind);
+            check_entirely_stale_histograms(kind);
+        }
+    }
+
+    #[test]
+    fn endpoint_acquisition_failures_and_cancellation_release_owners() {
+        for kind in [FoldKind::First, FoldKind::Last] {
+            check_fold_acquisition_failures(kind);
+            check_fold_acquisition_cancellation(kind);
+            check_histogram_consumption_cancellation(kind);
+        }
+    }
+
+    #[test]
+    fn endpoint_acquisition_keeps_fallback_geometry() {
+        for kind in [FoldKind::First, FoldKind::Last] {
+            check_wider_fold_bounds(kind);
+            check_anchored_fold(kind);
+            check_fold_fallbacks(kind);
+        }
+    }
+
+    #[test]
+    fn endpoint_acquisition_keeps_long_histories_page_bounded() {
+        for kind in [FoldKind::First, FoldKind::Last] {
+            check_fold_bounded_history(kind);
+        }
+    }
+
+    #[test]
+    fn endpoint_acquisition_discards_partial_native_copies_and_late_failures() {
+        fn float_then_large(index: usize) -> Sample {
+            if index == 0 {
+                average_pair(index)
+            } else {
+                large_native_sample(index)
+            }
+        }
+        for kind in [FoldKind::First, FoldKind::Last] {
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let sample = if kind == FoldKind::First {
+                large_native_sample as fn(usize) -> Sample
+            } else {
+                float_then_large
+            };
+            let source = GeneratedSeries::new(2, 1, sample);
+            let result = interrupt_during(&account, &control, || {
+                fold(
+                    &source,
+                    TimeBounds {
+                        start_ms: 1,
+                        end_ms: 2000,
+                    },
+                    kind,
+                    average_options(),
+                    &control,
+                    &account,
+                )
+            });
+            assert!(matches!(
+                result,
+                Err(StorageError::Interrupted(Interrupted::Cancelled))
+            ));
+            assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+            assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+            // Page bookkeeping is small; the reserved bucket destination proves copy progress.
+            assert!(
+                account.snapshot().memory[MemoryKind::Workspace as usize].peak
+                    >= (16_384 * std::mem::size_of::<f64>()) as u64
+            );
+            assert_eq!(
+                account.snapshot().statistics.samples.peak_samples,
+                u64::from(kind == FoldKind::Last)
+            );
+            drop(result);
+            assert_average_closed(&source, &account);
+
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let source = AverageSeries {
+                source: GeneratedSeries::new(2, 1, average_native),
+                failure: Some(AverageOperation::Next(1, 2)),
+                cancel_at: None,
+                cancellation: control.cancellation.clone(),
+                operations: RefCell::new(Vec::new()),
+            };
+            let result = fold(
+                &source,
+                TimeBounds {
+                    start_ms: 1,
+                    end_ms: 2000,
+                },
+                kind,
+                average_options(),
+                &control,
+                &account,
+            );
+            assert!(matches!(&result, Err(StorageError::Provider(message))
+                if message.as_ref() == b"average operation failed"));
+            assert_eq!(account.snapshot().statistics.samples.peak_samples, 11);
+            assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+            drop(result);
+            assert_average_closed(&source.source, &account);
+        }
+    }
+
     fn check_extrema_acquisition_values(kind: FoldKind) {
         const STALE: u64 = crate::value::STALE_NAN_BITS;
         const NAN1: u64 = 0x7ff8_0000_0000_1234;
@@ -1917,7 +2043,7 @@ mod tests {
                     selected_float_bits(output.value.as_ref()),
                     Some(
                         (match kind {
-                            FoldKind::Max => 3.0f64,
+                            FoldKind::Max | FoldKind::Last => 3.0f64,
                             FoldKind::Stdvar => 0.25,
                             FoldKind::Stddev => 0.5,
                             _ => 2.0,
@@ -1977,7 +2103,9 @@ mod tests {
                     kind,
                     FoldKind::Min | FoldKind::Max | FoldKind::Stdvar | FoldKind::Stddev
                 );
-                let expected = if float_only && mode == 4 {
+                let native_endpoint = matches!(kind, FoldKind::First | FoldKind::Last)
+                    && (mode == 4 || mode == 3 && kind == FoldKind::Last);
+                let expected = if native_endpoint || float_only && mode == 4 {
                     None
                 } else {
                     Some(
@@ -1985,14 +2113,22 @@ mod tests {
                             FoldKind::Stdvar | FoldKind::Stddev if mode == 3 => 0.0f64,
                             FoldKind::Stdvar => 0.25,
                             FoldKind::Stddev => 0.5,
-                            FoldKind::Min => 1.0,
+                            FoldKind::Min | FoldKind::First => 1.0,
                             FoldKind::Max if mode == 3 => 1.0,
                             _ => 2.0,
                         })
                         .to_bits(),
                     )
                 };
-                assert_eq!(selected_float_bits(output.value.as_ref()), expected);
+                if native_endpoint {
+                    check_endpoint_value(
+                        output.value.as_ref(),
+                        true,
+                        if kind == FoldKind::First { 1.0 } else { 2.0 },
+                    );
+                } else {
+                    assert_eq!(selected_float_bits(output.value.as_ref()), expected);
+                }
                 assert!(output.nonempty);
                 assert_eq!(
                     output.annotations,
@@ -2003,7 +2139,14 @@ mod tests {
                     ]
                 );
                 assert_eq!(output.progress.is_some(), mode < 3);
-                assert_eq!(account.current_samples(), u64::from(expected.is_some()));
+                assert_eq!(
+                    account.current_samples(),
+                    if native_endpoint {
+                        11
+                    } else {
+                        u64::from(expected.is_some())
+                    }
+                );
                 assert_eq!(
                     account.snapshot().statistics.samples.samples_read,
                     expected_read
@@ -2067,8 +2210,8 @@ mod tests {
                                 FoldKind::Sum => (count * (count + 1) / 2) as f64,
                                 FoldKind::Present => 1.0,
                                 FoldKind::Count => count as f64,
-                                FoldKind::Min => 1.0,
-                                FoldKind::Max => count as f64,
+                                FoldKind::Min | FoldKind::First => 1.0,
+                                FoldKind::Max | FoldKind::Last => count as f64,
                                 FoldKind::Stdvar | FoldKind::Stddev => {
                                     expected_counter_variance(kind, count)
                                 }
@@ -2162,13 +2305,24 @@ mod tests {
                         | FoldKind::Max
                         | FoldKind::Stdvar
                         | FoldKind::Stddev
+                        | FoldKind::First
+                        | FoldKind::Last
                 ) && expected_kind == 3
                 {
                     (2, 22)
                 } else {
                     (expected_cursors, expected_read)
                 };
-                if matches!(
+                if matches!(kind, FoldKind::First | FoldKind::Last) {
+                    let native = expected_kind == 3 || expected_kind == 2 && kind == FoldKind::Last;
+                    let expected = if kind == FoldKind::First || expected_kind == 1 {
+                        1.0
+                    } else {
+                        2.0
+                    };
+                    check_endpoint_value(output.value.as_ref(), native, expected);
+                    assert_eq!(output.annotations, [None, None]);
+                } else if matches!(
                     kind,
                     FoldKind::Min | FoldKind::Max | FoldKind::Stdvar | FoldKind::Stddev
                 ) {
@@ -2312,6 +2466,8 @@ mod tests {
                         | FoldKind::Max
                         | FoldKind::Stdvar
                         | FoldKind::Stddev
+                        | FoldKind::First
+                        | FoldKind::Last
                 ) {
                     48
                 } else {
@@ -2444,9 +2600,9 @@ mod tests {
                     2.0f64
                 } else if kind == FoldKind::Sum {
                     7.0f64
-                } else if kind == FoldKind::Min {
+                } else if matches!(kind, FoldKind::Min | FoldKind::First) {
                     3.0f64
-                } else if kind == FoldKind::Max {
+                } else if matches!(kind, FoldKind::Max | FoldKind::Last) {
                     4.0f64
                 } else if kind == FoldKind::Stdvar {
                     0.25f64
@@ -2629,9 +2785,9 @@ mod tests {
                         expected_counter_variance(kind, count)
                     } else if kind == FoldKind::Present {
                         1.0f64
-                    } else if matches!(kind, FoldKind::Count | FoldKind::Max) {
+                    } else if matches!(kind, FoldKind::Count | FoldKind::Max | FoldKind::Last) {
                         count as f64
-                    } else if kind == FoldKind::Min {
+                    } else if matches!(kind, FoldKind::Min | FoldKind::First) {
                         1.0f64
                     } else {
                         (count as f64 + 1.0) / 2.0

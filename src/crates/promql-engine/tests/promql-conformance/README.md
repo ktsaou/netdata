@@ -10896,3 +10896,50 @@ formatting and MSRV 1.91 compilation pass. C ratio cases check lifecycle; indepe
 | arm64 | +0 | 0.0000% |
 
 Cumulative compiled costs are recorded separately in the report; they are not query-memory increases.
+
+
+## Validated endpoint acquisition reuse
+
+`first_over_time` and `last_over_time` reuse completed ordinary acquisition while retaining their existing
+selected value. Float windows avoid repeated consuming reads; populated histogram windows retain mandatory
+consumption. Complete page validation, closure and terminal controls still precede publication and read credit.
+The same anchored/statistics/buffered/wider-bound exclusions apply. No new field or raw-history cache is added.
+
+Direct First/Last keep the metric name. Native and mixed histories retain the selected histogram or float,
+without a mixed-range warning. Histogram copying can now occur during validation: interruption must release
+partial buffers, and later cursor failures must discard the provisional value. To prove interruption reached
+copying, require the fixture's full reserved destination capacity; nonzero Workspace also counts page bookkeeping.
+Last continues to account for both values during replacement.
+
+[Qualification](endpoint-acquisition-qualification.json) records 1,920 main baseline/original-policy comparisons
+and 192 additional exact comparisons with wider and changing histogram sizes. No numeric-bit differences occur;
+22 instant requests per main panel differ only under strict original row ordering. Eight modifier errors are
+negative controls. Another 512 complete results match independent ascending-history expectations.
+
+| Native profile | First time ratio | Last time ratio | Min/Max control ratio |
+|---|---:|---:|---:|
+| release | 0.4183 | 0.4663 | 0.8065 |
+| release-min | 0.6057 | 0.6353 | 0.9948 |
+
+The frozen 1,280 timing pairs cover four/sixteen series, 32/256-sample windows, instant/three-step ranges and
+page 17. Five alternating blocks use four repeats, discarding the first. Target times fall about 36–58%.
+For sixteen series and 256 samples, three-step endpoint queries fetch 52,800 → 26,400 entries. These are
+synthetic whole-query measurements, not live dbengine or production-weighted throughput claims.
+
+All eight accounted memory peaks are unchanged across 2,112 comparisons, including 16/2,048-bucket histogram
+overlap cases. At fixed cardinality, 18 extent cases keep Workspace at 9,400 bytes as each of four histories
+grows from 32 to 2,048 to 100,000 samples, at pages 1/17/1024. Fixture inputs and process RSS are excluded.
+
+Both native profiles pass 956 units with two ignored; each ARM target passes all 53 fold tests under QEMU.
+Five new owners cover values, 140 injected operation failures, cancellation, fallback geometry, long histories,
+partial native copies and a late failure after native selection. Six C/C++ callers pass 48 lifecycle cases each,
+plus two complete native C suites. Strict lint, formatting and MSRV 1.91 compilation pass.
+
+| Default C executable | Text/data/BSS change, bytes | Relative change |
+|---|---:|---:|
+| release | +0 | 0.0000% |
+| release-min | +0 | 0.0000% |
+| arm32 | +0 | 0.0000% |
+| arm64 | +0 | 0.0000% |
+
+Cumulative compiled costs and full private evidence bindings remain in the report.

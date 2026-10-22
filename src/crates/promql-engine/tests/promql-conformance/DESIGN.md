@@ -2789,3 +2789,15 @@ changing membership, special literals, complete original comparisons and proport
 - **Evidence:** [qualification](variance-acquisition-qualification.json) and
   [measured scope](README.md#validated-variance-acquisition-reuse) retain original arithmetic edge cases,
   33–39% lower target query times, unchanged measured memory peaks and separate proportional compiled costs.
+
+
+## Validated endpoint acquisition reuse
+
+- **Choice:** First/Last join the existing ordinary acquisition gate; the existing selected value is retained earlier.
+- **Ownership:** preserve histogram copying/normalization and mandatory consumption. Partial-copy and later-cursor
+  failures release all owners; complete validation and controls precede result/read credit. No new persistent state.
+- **Names:** direct endpoint results retain the metric name, including mixed histories. Arithmetic consumers apply
+  their normal name rules. Geometry fallbacks and derived folds retain their established paths.
+- **Evidence:** [qualification](endpoint-acquisition-qualification.json) and
+  [measured scope](README.md#validated-endpoint-acquisition-reuse) record 36–58% lower target times,
+  unchanged measured peaks including wide histograms, and separate proportional compiled costs.
