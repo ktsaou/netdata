@@ -2055,8 +2055,8 @@
       "sha256": "d0ada65fb46230300ea9260e21f1b9349916278059c926a59375a2233cc75cad"
     },
     "artifact-integrity": {
-      "path": ".tmp/native-final-8bel5g4q/artifact-integrity.json",
-      "sha256": "aed4879dbd62880a7ad2457df2767221dc611e2c3092dfd093346230b65611ae"
+      "path": ".tmp/native-final-8bel5g4q/artifact-integrity-final.json",
+      "sha256": "4866a42ffe4b614fbe092d8def123b7cb4da866b97680aeb3f861dad0e0ba5b0"
     },
     "baseline-binding": {
       "path": ".tmp/native-final-8bel5g4q/baseline-binding.json",
@@ -2081,6 +2081,7 @@
     "One release timing case required the frozen follow-up; primary results remain retained.",
     "One test was added after measured query binaries were built. Removing only that test reconstructs the exact measured source hash; final native/ARM/C/static checks use the qualified phase.",
     "Less copying removes its work and polling events; identical cancellation work indices are not a contract.",
-    "Preparation first asserted164 timing cases; corrected100 before publishing inputs. The original failed preparation is retained."
+    "Preparation first asserted164 timing cases; corrected100 before publishing inputs. The original failed preparation is retained.",
+    "The preliminary artifact inventory captured an unexecuted commit script before a documentation-only phase adjustment. The final inventory explicitly supersedes that snapshot; measured binaries, inputs, outputs and validation receipts are unchanged."
   ]
 }
