@@ -360,3 +360,6 @@ Ordinary variance/deviation acquisition follows
 
 Ordinary First/Last acquisition and provisional native copying follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#validated-endpoint-acquisition-reuse`.
+
+Ordinary Deriv/PredictLinear acquisition, prediction clocks and calibrated interruption follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#validated-regression-acquisition-reuse`.

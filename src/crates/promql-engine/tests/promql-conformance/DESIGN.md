@@ -2801,3 +2801,14 @@ changing membership, special literals, complete original comparisons and proport
 - **Evidence:** [qualification](endpoint-acquisition-qualification.json) and
   [measured scope](README.md#validated-endpoint-acquisition-reuse) record 36–58% lower target times,
   unchanged measured peaks including wide histograms, and separate proportional compiled costs.
+
+
+## Validated regression acquisition reuse
+
+- **Choice:** ordinary Deriv/PredictLinear acquisition updates the existing scalar NumericStep provisionally.
+  Validation, required histogram consumption and final controls still precede completion and publication.
+- **Contracts:** retain exact compensated arithmetic, prediction evaluation time, mixed diagnostics, parameter
+  initialization, instant Numeric caching and shared/derived/fallback scanning. No new persistent storage.
+- **Evidence:** [finite qualification](regression-acquisition-qualification.json) and
+  [measured scope](README.md#validated-regression-acquisition-reuse) separate timing, accounted peaks,
+  actual failure/control witnesses, preserved test correction and proportional compiled costs.

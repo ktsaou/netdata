@@ -373,9 +373,41 @@ pub(crate) fn evaluate<S: Series, Q: crate::storage::QueryProvider>(
         );
     }
     let mut step = NumericStep::new(function, parameters, time_ms, account);
-    let progress = scan(series, input, control, account, |sample| {
-        step.receive(sample, control, account)
-    })?;
+    let progress = if matches!(
+        function,
+        NumericRangeFunction::Deriv | NumericRangeFunction::PredictLinear
+    ) && let Some(window) = input
+        .matrix
+        .filter(|window| window.can_reuse_acquisition(input.bounds))
+    {
+        let acquisition = crate::matrix_reader::probe::<_, StorageError>(
+            series,
+            input.bounds,
+            window,
+            control,
+            account,
+            |sample| step.receive(sample, control, account),
+        )?;
+        let progress = if acquisition.populated && acquisition.histograms_allocated {
+            crate::matrix_reader::consume::<_, StorageError>(
+                series,
+                input.bounds,
+                window.with_progress(Some(acquisition.progress)),
+                control,
+                account,
+                crate::matrix_reader::ignore_sample::<StorageError>,
+            )?
+            .progress
+        } else {
+            account.samples_read(acquisition.progress.sample_units);
+            acquisition.progress
+        };
+        Some(progress)
+    } else {
+        scan(series, input, control, account, |sample| {
+            step.receive(sample, control, account)
+        })?
+    };
     let mut output = step.finish(account)?;
     output.progress = progress;
     Ok(output)
@@ -440,6 +472,308 @@ mod tests {
         }
     }
 
+    fn acquisition_input(bounds: TimeBounds) -> NumericRangeInput {
+        NumericRangeInput {
+            bounds: Some(bounds),
+            seek_ms: bounds.start_ms - 1,
+            matrix: Some(MatrixWindow {
+                first_end_ms: bounds.end_ms,
+                end_ms: bounds.end_ms,
+                range_ms: bounds.end_ms - bounds.start_ms + 1,
+                buffer_ms: None,
+                step_ms: 1000,
+                data_bounds: bounds,
+                statistics: false,
+                reduce_delta: true,
+                resume: None,
+            }),
+        }
+    }
+
+    fn acquisition_linear(index: usize) -> Sample {
+        linear(index + 1)
+    }
+    fn acquisition_native(index: usize) -> Sample {
+        Sample {
+            value: SampleValue::FloatHistogram(FloatHistogram::default()),
+            ..acquisition_linear(index)
+        }
+    }
+    fn acquisition_last_native(index: usize) -> Sample {
+        if index == 2 {
+            acquisition_native(index)
+        } else {
+            acquisition_linear(index)
+        }
+    }
+    fn acquisition_one_float(index: usize) -> Sample {
+        if index == 0 {
+            acquisition_linear(index)
+        } else {
+            acquisition_native(index)
+        }
+    }
+    fn acquisition_stale(index: usize) -> Sample {
+        Sample {
+            value: SampleValue::Float(f64::from_bits(crate::value::STALE_NAN_BITS)),
+            ..acquisition_linear(index)
+        }
+    }
+    fn assert_acquisition_closed(source: &GeneratedSeries, account: &QueryAccounting) {
+        assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+        assert_eq!(
+            source.counters.opened.load(Ordering::Relaxed),
+            source.counters.closed.load(Ordering::Relaxed)
+        );
+        assert_eq!(account.current_samples(), 0);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn regression_acquisition_preserves_selection_warnings_and_time_origin() {
+        let bounds = TimeBounds {
+            start_ms: 1,
+            end_ms: 3000,
+        };
+        for function in [
+            NumericRangeFunction::Deriv,
+            NumericRangeFunction::PredictLinear,
+        ] {
+            for page in [1, 17, 1024] {
+                for (count, sample, populated, warning, value, cursors) in [
+                    (
+                        3,
+                        acquisition_linear as fn(usize) -> Sample,
+                        true,
+                        false,
+                        true,
+                        1,
+                    ),
+                    (1, acquisition_linear, true, false, false, 1),
+                    (0, acquisition_linear, false, false, false, 1),
+                    (3, acquisition_native, true, false, false, 2),
+                    (3, acquisition_last_native, true, true, true, 2),
+                    (3, acquisition_one_float, true, true, false, 2),
+                    (3, acquisition_stale, false, false, false, 1),
+                ] {
+                    let account = EngineAccounting::default().query();
+                    let source = GeneratedSeries::new(count, page, sample);
+                    let result = evaluate(
+                        &crate::test_storage::NoTemporary,
+                        &source,
+                        acquisition_input(bounds),
+                        function,
+                        [15.0, 0.0],
+                        5000,
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
+                    // Prediction uses evaluation time 5s, not the selector endpoint 3s.
+                    let expected: f64 = if function == NumericRangeFunction::Deriv {
+                        2.0
+                    } else {
+                        47.0
+                    };
+                    assert_eq!(
+                        result.value.map(f64::to_bits),
+                        value.then_some(expected.to_bits())
+                    );
+                    assert_eq!(result.nonempty, populated);
+                    assert_eq!(
+                        result.annotation,
+                        warning.then_some(AnnotationKind::HistogramIgnoredInMixedRange)
+                    );
+                    assert!(!result.invalid_quantile && result.progress.is_some());
+                    assert_eq!(source.counters.opened.load(Ordering::Relaxed), cursors);
+                    assert_eq!(account.current_samples(), u64::from(value));
+                    drop(result);
+                    assert_acquisition_closed(&source, &account);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn regression_acquisition_preserves_fallback_geometry() {
+        for function in [
+            NumericRangeFunction::Deriv,
+            NumericRangeFunction::PredictLinear,
+        ] {
+            for mode in 0..6 {
+                let mut input = acquisition_input(TimeBounds {
+                    start_ms: 1,
+                    end_ms: 3000,
+                });
+                match mode {
+                    0 => {}
+                    1 => input.matrix = None,
+                    2 => input.matrix.as_mut().unwrap().statistics = true,
+                    3 => input.matrix.as_mut().unwrap().buffer_ms = Some(5000),
+                    4 => input.matrix.as_mut().unwrap().reduce_delta = false,
+                    5 => input.bounds.as_mut().unwrap().start_ms = 0,
+                    _ => unreachable!(),
+                }
+                let account = EngineAccounting::default().query();
+                let source = GeneratedSeries::new(3, 1, acquisition_linear);
+                let result = evaluate(
+                    &crate::test_storage::NoTemporary,
+                    &source,
+                    input,
+                    function,
+                    [15.0, 0.0],
+                    5000,
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
+                assert_eq!(
+                    result.value,
+                    Some(if function == NumericRangeFunction::Deriv {
+                        2.0
+                    } else {
+                        47.0
+                    })
+                );
+                assert_eq!(result.annotation, None);
+                assert_eq!(result.progress.is_some(), mode != 1);
+                assert_eq!(
+                    source.counters.opened.load(Ordering::Relaxed),
+                    if mode < 2 { 1 } else { 2 }
+                );
+                drop(result);
+                assert_acquisition_closed(&source, &account);
+            }
+        }
+    }
+
+    #[test]
+    fn regression_acquisition_provider_failures_release_provisional_state() {
+        for function in [
+            NumericRangeFunction::Deriv,
+            NumericRangeFunction::PredictLinear,
+        ] {
+            for mode in 0..3 {
+                let account = EngineAccounting::default().query();
+                let mut source = GeneratedSeries::new(
+                    3,
+                    1,
+                    if mode == 2 {
+                        acquisition_last_native
+                    } else {
+                        acquisition_linear
+                    },
+                );
+                if mode == 2 {
+                    source.fail_acquisition = Some(2);
+                } else {
+                    source.fail_page = Some(if mode == 0 { 0 } else { 2 });
+                }
+                let result = evaluate(
+                    &crate::test_storage::NoTemporary,
+                    &source,
+                    acquisition_input(TimeBounds {
+                        start_ms: 1,
+                        end_ms: 3000,
+                    }),
+                    function,
+                    [15.0, 0.0],
+                    5000,
+                    &Control::default(),
+                    &account,
+                );
+                assert!(matches!(
+                    result,
+                    Err(NumericRangeError::Storage(StorageError::Provider(_)))
+                ));
+                assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+                assert_eq!(
+                    source.counters.opened.load(Ordering::Relaxed),
+                    if mode == 2 { 2 } else { 1 }
+                );
+                if mode > 0 {
+                    assert_eq!(
+                        account.snapshot().statistics.samples.peak_samples,
+                        1 + u64::from(function == NumericRangeFunction::PredictLinear)
+                    );
+                }
+                drop(result);
+                assert_acquisition_closed(&source, &account);
+            }
+        }
+    }
+
+    #[test]
+    fn regression_acquisition_cancellation_discards_unfinished_work() {
+        for function in [
+            NumericRangeFunction::Deriv,
+            NumericRangeFunction::PredictLinear,
+        ] {
+            for page in [1, 17, 1024] {
+                let account = EngineAccounting::default().query();
+                let source = GeneratedSeries::new(2048, page, acquisition_linear);
+                let completed = evaluate(
+                    &crate::test_storage::NoTemporary,
+                    &source,
+                    acquisition_input(TimeBounds {
+                        start_ms: 1,
+                        end_ms: 2_048_000,
+                    }),
+                    function,
+                    [15.0, 0.0],
+                    2_048_000,
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
+                assert!(completed.value.is_some());
+                let completed_work = account.snapshot().work;
+                println!(
+                    "regression cancellation function={function:?} page={page} completed_work={completed_work}"
+                );
+                drop(completed);
+                assert_acquisition_closed(&source, &account);
+                let account = EngineAccounting::default().query();
+                let control = Control::default();
+                let source = GeneratedSeries::new(2048, page, acquisition_linear);
+                let result = crate::test_storage::interrupt_after_work(
+                    &account,
+                    &control,
+                    completed_work / 2,
+                    || {
+                        evaluate(
+                            &crate::test_storage::NoTemporary,
+                            &source,
+                            acquisition_input(TimeBounds {
+                                start_ms: 1,
+                                end_ms: 2_048_000,
+                            }),
+                            function,
+                            [15.0, 0.0],
+                            2_048_000,
+                            &control,
+                            &account,
+                        )
+                    },
+                );
+                assert!(matches!(
+                    result,
+                    Err(NumericRangeError::Storage(StorageError::Interrupted(
+                        Interrupted::Cancelled
+                    )))
+                ));
+                assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+                assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+                assert_eq!(
+                    account.snapshot().statistics.samples.peak_samples,
+                    1 + u64::from(function == NumericRangeFunction::PredictLinear)
+                );
+                drop(result);
+                assert_acquisition_closed(&source, &account);
+            }
+        }
+    }
+
     #[test]
     fn prediction_nan_provenance_survives_paged_regression() {
         fn middle(index: usize) -> Sample {
@@ -501,73 +835,88 @@ mod tests {
                 NumericRangeFunction::PredictLinear,
                 NumericRangeFunction::Smoothing,
             ] {
-                let mut previous_peak = None;
-                for count in [2048, 100_000] {
-                    let sample = if function == NumericRangeFunction::Smoothing {
-                        constant
-                    } else {
-                        linear
-                    };
-                    let source = GeneratedSeries::new(count, page, sample);
-                    let engine = EngineAccounting::default();
-                    let account = engine.query();
-                    let parameters = if function == NumericRangeFunction::Smoothing {
-                        [0.5, 0.5]
-                    } else {
-                        [15.0, 0.0]
-                    };
-                    let result = evaluate(
-                        &crate::test_storage::NoTemporary,
-                        &source,
-                        window(count),
-                        function,
-                        parameters,
-                        count as i64 * 1000,
-                        &Control::default(),
-                        &account,
-                    )
-                    .unwrap();
-                    // Independent pinned-Go controls include the long regression's rounding.
-                    let expected_bits = match (function, count) {
-                        (NumericRangeFunction::Deriv, 2048) => 0x4000_0000_0000_0000,
-                        (NumericRangeFunction::Deriv, _) => 0x4000_0000_0000_0002,
-                        (NumericRangeFunction::PredictLinear, 2048) => 0x40b0_2500_0000_0000,
-                        (NumericRangeFunction::PredictLinear, _) => 0x4108_6b28_0000_0002,
-                        (NumericRangeFunction::Smoothing, _) => 0x401c_0000_0000_0000,
-                        (NumericRangeFunction::Mad | NumericRangeFunction::Quantile, _) => {
-                            unreachable!("regression test roster")
+                for matrix in [false, true] {
+                    let mut previous_peak = None;
+                    for count in [2048, 100_000] {
+                        let sample = if function == NumericRangeFunction::Smoothing {
+                            constant
+                        } else {
+                            linear
+                        };
+                        let source = GeneratedSeries::new(count, page, sample);
+                        let engine = EngineAccounting::default();
+                        let account = engine.query();
+                        let parameters = if function == NumericRangeFunction::Smoothing {
+                            [0.5, 0.5]
+                        } else {
+                            [15.0, 0.0]
+                        };
+                        let result = evaluate(
+                            &crate::test_storage::NoTemporary,
+                            &source,
+                            if matrix {
+                                acquisition_input(window(count))
+                            } else {
+                                window(count).into()
+                            },
+                            function,
+                            parameters,
+                            count as i64 * 1000,
+                            &Control::default(),
+                            &account,
+                        )
+                        .unwrap();
+                        // Independent pinned-Go controls include the long regression's rounding.
+                        let expected_bits = match (function, count) {
+                            (NumericRangeFunction::Deriv, 2048) => 0x4000_0000_0000_0000,
+                            (NumericRangeFunction::Deriv, _) => 0x4000_0000_0000_0002,
+                            (NumericRangeFunction::PredictLinear, 2048) => 0x40b0_2500_0000_0000,
+                            (NumericRangeFunction::PredictLinear, _) => 0x4108_6b28_0000_0002,
+                            (NumericRangeFunction::Smoothing, _) => 0x401c_0000_0000_0000,
+                            (NumericRangeFunction::Mad | NumericRangeFunction::Quantile, _) => {
+                                unreachable!("regression test roster")
+                            }
+                        };
+                        assert_eq!(result.value.unwrap().to_bits(), expected_bits);
+                        assert_eq!(result.annotation, None);
+                        assert_eq!(result.progress.is_some(), matrix);
+                        assert_eq!(
+                            source.counters.opened.load(Ordering::Relaxed),
+                            if matrix && function == NumericRangeFunction::Smoothing {
+                                2
+                            } else {
+                                1
+                            }
+                        );
+                        let snapshot = account.snapshot();
+                        assert_eq!(
+                            snapshot.statistics.samples.peak_samples,
+                            match function {
+                                NumericRangeFunction::Deriv => 1,
+                                NumericRangeFunction::PredictLinear => 2,
+                                NumericRangeFunction::Smoothing => 4,
+                                _ => unreachable!("regression test roster"),
+                            }
+                        );
+                        assert_eq!(account.current_samples(), 1);
+                        let peak = snapshot.memory[MemoryKind::Workspace as usize].peak;
+                        if let Some(previous) = previous_peak {
+                            assert_eq!(peak, previous);
                         }
-                    };
-                    assert_eq!(result.value.unwrap().to_bits(), expected_bits);
-                    assert_eq!(result.annotation, None);
-                    let snapshot = account.snapshot();
-                    assert_eq!(
-                        snapshot.statistics.samples.peak_samples,
-                        match function {
-                            NumericRangeFunction::Deriv => 1,
-                            NumericRangeFunction::PredictLinear => 2,
-                            NumericRangeFunction::Smoothing => 4,
-                            _ => unreachable!("regression test roster"),
-                        }
-                    );
-                    assert_eq!(account.current_samples(), 1);
-                    let peak = snapshot.memory[MemoryKind::Workspace as usize].peak;
-                    if let Some(previous) = previous_peak {
-                        assert_eq!(peak, previous);
+                        previous_peak = Some(peak);
+                        assert!(snapshot.work > snapshot.samples_fetched);
+                        assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+                        assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                        assert_eq!(
+                            source.counters.opened.load(Ordering::Relaxed),
+                            source.counters.closed.load(Ordering::Relaxed)
+                        );
+                        snapshot.assert_memory_released();
+                        drop(result);
+                        assert_eq!(account.current_samples(), 0);
+                        drop(account);
+                        engine.snapshot().assert_memory_released();
                     }
-                    previous_peak = Some(peak);
-                    assert!(snapshot.work > snapshot.samples_fetched);
-                    assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
-                    assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
-                    assert_eq!(
-                        source.counters.opened.load(Ordering::Relaxed),
-                        source.counters.closed.load(Ordering::Relaxed)
-                    );
-                    snapshot.assert_memory_released();
-                    drop(result);
-                    assert_eq!(account.current_samples(), 0);
-                    drop(account);
-                    engine.snapshot().assert_memory_released();
                 }
             }
         }

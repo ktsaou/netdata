@@ -1188,7 +1188,7 @@ static void four_series_float_query_members(netdata_promql_engine_t *engine, uin
             input.cursor_next = join_cursor_next;
             if (query_kind == FOUR_SERIES_RATE && arm == 1) {
                 assert(first_output_cursors > 4);
-                // Grouped inputs calibrate the last nonmember read before the first output.
+                // Parameter initialization may open another series after the last nonmember read.
                 source.fail_on_cursor = first_failure_cursor;
             }
             const char *expression = query_kind == FOUR_SERIES_NUMERIC ? "quantile_over_time(.5,m[2s])" :
@@ -1228,7 +1228,7 @@ static void four_series_float_query_members(netdata_promql_engine_t *engine, uin
             if (query_kind == FOUR_SERIES_RATE) {
                 if (!arm) {
                     first_output_cursors = output.first_output_cursors;
-                    first_failure_cursor = aggregate_members ? output.first_nonmember_cursor : first_output_cursors;
+                    first_failure_cursor = output.first_nonmember_cursor;
                     assert(first_failure_cursor > 0 && first_failure_cursor <= first_output_cursors);
                 }
                 if (arm == 1) {

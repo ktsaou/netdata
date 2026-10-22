@@ -10943,3 +10943,58 @@ plus two complete native C suites. Strict lint, formatting and MSRV 1.91 compila
 | arm64 | +0 | 0.0000% |
 
 Cumulative compiled costs and full private evidence bindings remain in the report.
+
+
+## Validated regression acquisition reuse
+
+`deriv` and `predict_linear` update their existing scalar regression state during ordinary acquisition.
+Completed validation, required histogram consumption and final controls precede publication and read credit.
+Shared scanning, smoothing, derived evaluation and statistics/buffered/wider-bound fallbacks retain their paths.
+No new state field or raw-history cache is introduced.
+
+Prediction retains the evaluation-time origin. For samples (1s,9), (2s,11), (3s,13), evaluation at 5s and a
+15-second horizon, both `offset` and `@` selectors ending at 3s produce 47. Using selector time would produce 43.
+Pinned originals independently confirm this result and slope 2. Long-history tests retain timestamp zero and
+upstream rounding, including the 100,000-point case; they do not substitute ideal real-number arithmetic.
+
+[Qualification](regression-acquisition-qualification.json) records 2,496 complete baseline/original-policy
+comparisons from 416 fresh originals and 512 independent linear-history results, across both profiles and
+pages 1/17/1024. Numeric bits agree. The report retains strict row-order disagreements and eight modifier errors.
+
+| Native profile | Deriv time ratio | PredictLinear time ratio | Min/Max control ratio |
+|---|---:|---:|---:|
+| release | 0.6998 | 0.7091 | 1.0131 |
+| release-min | 0.6703 | 0.6964 | 0.9837 |
+
+Target times fall about 29–33% in the separate 1,280-pair confirmation: four/sixteen series, 32/256 samples,
+instant/three-step ranges, page 17, five alternating blocks and four repeats with the first discarded.
+The primary 1,280-pair pass overlapped the separate extent test; it and all slower-control follow-ups remain
+retained. Confirmation uses the same frozen cases and thresholds without concurrent task builds/query panels.
+Both passes meet the gates; neither is production-weighted evidence. Existing parameter initialization and instant Numeric retention stay;
+equal total reads between different function families do not imply identical internal traversal.
+
+All eight measured category peaks are unchanged in 2,496 paired outcomes. Eighteen constant-history extent
+cases keep each function's Workspace independent of history length at 32/2,048/100,000 samples per four series;
+actual peaks are in the report. Fixture input allocation and process RSS are outside that claim.
+
+Both native profiles pass 960 units with two ignored; each ARM target passes all nine numeric owners under QEMU.
+Four new owners cover mixed membership/warnings, time origin, fallbacks, provider failures and cancellation.
+Required-consuming failure occurs at the initial read of acquisition 2. Cancellation uses half the measured
+completed work; the original failed fixed-threshold test is preserved. Existing exact long-history expectations
+now cover raw and eligible matrix inputs. Six C/C++ callers pass 48 lifecycle cases each; two complete native C
+suites, strict lint, formatting and MSRV 1.91 compilation also pass.
+The initial C failure-injection helper selected the last cursor opened, which can be a parameter-initialization
+cursor for prediction. The identical assertion reproduced with the unchanged predecessor. Calibration now selects
+the already recorded last series3 cursor; exact identity, error-before-output and cleanup checks remain.
+The corrected fixture passes on both libraries. The Rust sources, archives and previously passed units are unchanged.
+
+
+| Default C executable | Text/data/BSS change, bytes | Relative change |
+|---|---:|---:|
+| release | +60616 | 0.7637% |
+| release-min | +9076 | 0.1622% |
+| arm32 | +9240 | 0.1379% |
+| arm64 | +25024 | 0.3606% |
+
+Cumulative compiled costs are separate from query memory and retained in the finite report.
+Both sides use identical retained pre-correction default C harness bytes; corrected lifecycle callers are rebuilt separately.
