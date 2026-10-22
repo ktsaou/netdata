@@ -803,8 +803,10 @@ pub(crate) fn fold<S: Series>(
         options.matrix = options.matrix.map(|window| window.with_progress(progress));
     }
     let mut step = FoldStep::new(kind, options.start_timestamps);
-    let reuse_initial_fold = matches!(kind, FoldKind::Sum | FoldKind::Avg)
-        && options.anchor_start_ms.is_none()
+    let reuse_initial_fold = matches!(
+        kind,
+        FoldKind::Sum | FoldKind::Avg | FoldKind::Min | FoldKind::Max
+    ) && options.anchor_start_ms.is_none()
         && options
             .matrix
             .is_some_and(|window| window.can_reuse_acquisition(bounds));
@@ -1447,7 +1449,176 @@ mod tests {
             source.counters.closed.load(Ordering::Relaxed)
         );
         assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+        assert_eq!(account.current_samples(), 0);
         account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn extrema_acquisition_preserves_results_and_value_order() {
+        for kind in [FoldKind::Min, FoldKind::Max] {
+            check_fold_complete_acquisition(kind);
+            check_entirely_stale_histograms(kind);
+            check_extrema_acquisition_values(kind);
+        }
+    }
+
+    fn check_extrema_acquisition_values(kind: FoldKind) {
+        const STALE: u64 = crate::value::STALE_NAN_BITS;
+        const NAN1: u64 = 0x7ff8_0000_0000_1234;
+        const NAN2: u64 = 0x7ff8_0000_0000_5678;
+        const INPUTS: [[u64; 2]; 12] = [
+            [f64::MAX.to_bits(), f64::MAX.to_bits()],
+            [(-0.0f64).to_bits(), (-0.0f64).to_bits()],
+            [0.0f64.to_bits(), (-0.0f64).to_bits()],
+            [(-0.0f64).to_bits(), 0.0f64.to_bits()],
+            [NAN1, 1.0f64.to_bits()],
+            [1.0f64.to_bits(), NAN2],
+            [NAN1, NAN2],
+            [f64::INFINITY.to_bits(), f64::NEG_INFINITY.to_bits()],
+            [STALE, 1.0f64.to_bits()],
+            [STALE, STALE],
+            [0x7ff0_0000_0000_1234, 1.0f64.to_bits()],
+            [(-1.0f64).to_bits(), 1.0f64.to_bits()],
+        ];
+        fn sample<const CASE: usize>(index: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float(f64::from_bits(INPUTS[CASE][index])),
+                ..average_pair(index)
+            }
+        }
+        let samples: [fn(usize) -> Sample; 12] = [
+            sample::<0>,
+            sample::<1>,
+            sample::<2>,
+            sample::<3>,
+            sample::<4>,
+            sample::<5>,
+            sample::<6>,
+            sample::<7>,
+            sample::<8>,
+            sample::<9>,
+            sample::<10>,
+            sample::<11>,
+        ];
+        let expected = [
+            Some(f64::MAX.to_bits()),
+            Some((-0.0f64).to_bits()),
+            Some(0.0f64.to_bits()),
+            Some((-0.0f64).to_bits()),
+            Some(1.0f64.to_bits()),
+            Some(1.0f64.to_bits()),
+            Some(NAN2),
+            Some(
+                if kind == FoldKind::Min {
+                    f64::NEG_INFINITY
+                } else {
+                    f64::INFINITY
+                }
+                .to_bits(),
+            ),
+            Some(1.0f64.to_bits()),
+            None,
+            Some(1.0f64.to_bits()),
+            Some(
+                if kind == FoldKind::Min {
+                    -1.0f64
+                } else {
+                    1.0f64
+                }
+                .to_bits(),
+            ),
+        ];
+        for page in [1, 17, 1024] {
+            for (index, sample) in samples.into_iter().enumerate() {
+                let source = GeneratedSeries::new(2, page, sample);
+                let account = EngineAccounting::default().query();
+                let output = fold(
+                    &source,
+                    TimeBounds {
+                        start_ms: 1,
+                        end_ms: 2000,
+                    },
+                    kind,
+                    average_options(),
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
+                assert_eq!(selected_float_bits(output.value.as_ref()), expected[index]);
+                assert_eq!(output.nonempty, expected[index].is_some());
+                assert_eq!(output.annotations, [None, None]);
+                assert!(output.progress.is_some());
+                assert_eq!(
+                    account.snapshot().statistics.samples.samples_read,
+                    if index == 8 {
+                        1
+                    } else if index == 9 {
+                        0
+                    } else {
+                        2
+                    }
+                );
+                assert_eq!(
+                    account.current_samples(),
+                    u64::from(expected[index].is_some())
+                );
+                assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+                drop(output);
+                assert_average_closed(&source, &account);
+            }
+        }
+    }
+
+    #[test]
+    fn extrema_acquisition_failures_cancel_and_release_early_values() {
+        for kind in [FoldKind::Min, FoldKind::Max] {
+            check_fold_acquisition_failures(kind);
+            check_fold_acquisition_cancellation(kind);
+            check_histogram_consumption_cancellation(kind);
+            let control = Control::default();
+            let source = AverageSeries {
+                source: GeneratedSeries::new(2, 1, average_pair),
+                failure: Some(AverageOperation::Next(1, 2)),
+                cancel_at: None,
+                cancellation: control.cancellation.clone(),
+                operations: RefCell::new(Vec::new()),
+            };
+            let account = EngineAccounting::default().query();
+            let output = fold(
+                &source,
+                TimeBounds {
+                    start_ms: 1,
+                    end_ms: 2000,
+                },
+                kind,
+                average_options(),
+                &control,
+                &account,
+            );
+            assert!(matches!(&output, Err(StorageError::Provider(message))
+                if message.as_ref() == b"average operation failed"));
+            // The first value was held, but acquisition never completed.
+            assert_eq!(account.snapshot().statistics.samples.peak_samples, 1);
+            assert_eq!(account.snapshot().statistics.samples.samples_read, 0);
+            drop(output);
+            assert_average_closed(&source.source, &account);
+        }
+    }
+
+    #[test]
+    fn extrema_acquisition_keeps_fallback_geometry() {
+        for kind in [FoldKind::Min, FoldKind::Max] {
+            check_wider_fold_bounds(kind);
+            check_anchored_fold(kind);
+            check_fold_fallbacks(kind);
+        }
+    }
+
+    #[test]
+    fn extrema_acquisition_keeps_long_histories_page_bounded() {
+        for kind in [FoldKind::Min, FoldKind::Max] {
+            check_fold_bounded_history(kind);
+        }
     }
 
     #[test]
@@ -1654,6 +1825,10 @@ mod tests {
 
     #[test]
     fn count_anchored_window_keeps_only_anchor_and_later_values() {
+        check_anchored_fold(FoldKind::Count);
+    }
+
+    fn check_anchored_fold(kind: FoldKind) {
         for page in [1, 17, 1024] {
             for matrix in [false, true] {
                 let source = GeneratedSeries::new(3, page, average_pair);
@@ -1674,7 +1849,7 @@ mod tests {
                 let output = fold(
                     &source,
                     bounds,
-                    FoldKind::Count,
+                    kind,
                     options,
                     &Control::default(),
                     &account,
@@ -1682,7 +1857,14 @@ mod tests {
                 .unwrap();
                 assert_eq!(
                     selected_float_bits(output.value.as_ref()),
-                    Some(2.0f64.to_bits())
+                    Some(
+                        (if kind == FoldKind::Max {
+                            3.0f64
+                        } else {
+                            2.0f64
+                        })
+                        .to_bits()
+                    )
                 );
                 assert!(output.nonempty);
                 assert_eq!(output.annotations, [None, None]);
@@ -1700,6 +1882,10 @@ mod tests {
 
     #[test]
     fn count_fallbacks_preserve_consumed_values_and_credits() {
+        check_fold_fallbacks(FoldKind::Count);
+    }
+
+    fn check_fold_fallbacks(kind: FoldKind) {
         for page in [1, 17, 1024] {
             for mode in 0..5 {
                 let (sample, expected_read) = match mode {
@@ -1722,20 +1908,37 @@ mod tests {
                         start_ms: 1,
                         end_ms: 2000,
                     },
-                    FoldKind::Count,
+                    kind,
                     options,
                     &Control::default(),
                     &account,
                 )
                 .unwrap();
-                assert_eq!(
-                    selected_float_bits(output.value.as_ref()),
-                    Some(2.0f64.to_bits())
-                );
+                let extrema = matches!(kind, FoldKind::Min | FoldKind::Max);
+                let expected = if extrema && mode == 4 {
+                    None
+                } else {
+                    Some(
+                        (if kind == FoldKind::Min || extrema && mode == 3 {
+                            1.0f64
+                        } else {
+                            2.0f64
+                        })
+                        .to_bits(),
+                    )
+                };
+                assert_eq!(selected_float_bits(output.value.as_ref()), expected);
                 assert!(output.nonempty);
-                assert_eq!(output.annotations, [None, None]);
+                assert_eq!(
+                    output.annotations,
+                    [
+                        (extrema && mode == 3)
+                            .then_some(AnnotationKind::HistogramIgnoredInMixedRange),
+                        None,
+                    ]
+                );
                 assert_eq!(output.progress.is_some(), mode < 3);
-                assert_eq!(account.current_samples(), 1);
+                assert_eq!(account.current_samples(), u64::from(expected.is_some()));
                 assert_eq!(
                     account.snapshot().statistics.samples.samples_read,
                     expected_read
@@ -1799,6 +2002,8 @@ mod tests {
                                 FoldKind::Sum => (count * (count + 1) / 2) as f64,
                                 FoldKind::Present => 1.0,
                                 FoldKind::Count => count as f64,
+                                FoldKind::Min => 1.0,
+                                FoldKind::Max => count as f64,
                                 _ => unreachable!(),
                             })
                             .to_bits()
@@ -1881,13 +2086,34 @@ mod tests {
                 )
                 .unwrap();
                 assert!(output.nonempty);
-                let (expected_cursors, expected_read) =
-                    if matches!(kind, FoldKind::Count | FoldKind::Present) && expected_kind == 3 {
-                        (2, 22)
-                    } else {
-                        (expected_cursors, expected_read)
-                    };
-                if matches!(kind, FoldKind::Count | FoldKind::Present) {
+                let (expected_cursors, expected_read) = if matches!(
+                    kind,
+                    FoldKind::Count | FoldKind::Present | FoldKind::Min | FoldKind::Max
+                ) && expected_kind == 3
+                {
+                    (2, 22)
+                } else {
+                    (expected_cursors, expected_read)
+                };
+                if matches!(kind, FoldKind::Min | FoldKind::Max) {
+                    let expected = (expected_kind != 3).then_some(
+                        (if kind == FoldKind::Max && expected_kind == 0 {
+                            2.0f64
+                        } else {
+                            1.0f64
+                        })
+                        .to_bits(),
+                    );
+                    assert_eq!(selected_float_bits(output.value.as_ref()), expected);
+                    assert_eq!(
+                        output.annotations,
+                        [
+                            (expected_kind == 2)
+                                .then_some(AnnotationKind::HistogramIgnoredInMixedRange),
+                            None,
+                        ]
+                    );
+                } else if matches!(kind, FoldKind::Count | FoldKind::Present) {
                     assert_eq!(
                         selected_float_bits(output.value.as_ref()),
                         Some(
@@ -2000,7 +2226,10 @@ mod tests {
         println!("{kind:?} acquisition operation failures: {failures}");
         assert!(
             failures
-                >= if matches!(kind, FoldKind::Count | FoldKind::Present) {
+                >= if matches!(
+                    kind,
+                    FoldKind::Count | FoldKind::Present | FoldKind::Min | FoldKind::Max
+                ) {
                     48
                 } else {
                     72
@@ -2132,6 +2361,10 @@ mod tests {
                     2.0f64
                 } else if kind == FoldKind::Sum {
                     7.0f64
+                } else if kind == FoldKind::Min {
+                    3.0f64
+                } else if kind == FoldKind::Max {
+                    4.0f64
                 } else {
                     3.5f64
                 })
@@ -2307,8 +2540,10 @@ mod tests {
                     value.to_bits(),
                     (if kind == FoldKind::Present {
                         1.0f64
-                    } else if kind == FoldKind::Count {
+                    } else if matches!(kind, FoldKind::Count | FoldKind::Max) {
                         count as f64
+                    } else if kind == FoldKind::Min {
+                        1.0f64
                     } else {
                         (count as f64 + 1.0) / 2.0
                     })

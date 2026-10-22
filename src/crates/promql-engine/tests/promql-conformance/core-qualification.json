@@ -73999,5 +73999,11 @@
     "report": "projected-grouped-clocks-qualification.json",
     "report_sha256": "49e5d22eadd814234e0e84ce8626d51010c7473e5b8c6d23187a9cc884848d4d",
     "summary": "Reuse completed group scans through one nonmerging label_join or label_replace in directly consumed subqueries."
+  },
+  "extrema_acquisition": {
+    "status": "finite_qualification_pass",
+    "report": "extrema-acquisition-qualification.json",
+    "report_sha256": "484dfd4c5fc37528dc57316527284a8a161552f1d9b3cd3bfc267c6bc6bc6b57",
+    "summary": "Reuse completed ordinary acquisition for min_over_time and max_over_time."
   }
 }

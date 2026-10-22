@@ -2765,3 +2765,16 @@ changing membership, special literals, complete original comparisons and proport
   separate in [qualification](projected-grouped-clocks-qualification.json).
 - **Boundary:** broader compositions and merged aliases keep their valid generic evaluation. All-Float ordinary
   groups retain contiguous ordinals; sparse clock membership does not imply reordered whole-query bindings.
+
+
+## Validated extrema acquisition reuse
+
+- **Choice:** ordinary Min/Max joins the existing Sum/Avg acquisition gate, using the same window proof and
+  original selection order. No new storage, state field or public contract is introduced.
+- **Ownership:** retain the existing extremum earlier; complete validation, closure and controls precede
+  publication/credit. Histogram allocation still requires consumption. Late failures release provisional values.
+- **Boundaries:** anchored/statistics/buffered/wider geometry and derived folds remain unchanged. Timestamp
+  extrema and variance are separate opportunities, not unsupported expressions.
+- **Evidence:** [qualification](extrema-acquisition-qualification.json) and
+  [measured scope](README.md#validated-extrema-acquisition-reuse) retain exact comparisons, early-lease failures,
+  38–45% target time reductions, unchanged measured category peaks and separate proportional compiled costs.

@@ -10799,3 +10799,54 @@ shape, nonmerging binding proof, exact clock/child ancestry, validation order an
 `projected_grouped_clocks`, the admission and aggregate-replay owners, existing nested/truncation controls and
 `projected_grouped_clocks.c`. Retained v1 query binaries are bound to the v2 test additions through exact production
 prefix equality. Private harness corrections and their original captures remain retained; none changed runtime code.
+
+
+## Validated extrema acquisition reuse
+
+`min_over_time` and `max_over_time` reuse the existing Sum/Avg acquisition path for ordinary raw windows.
+The one existing extremum is selected during validation; no field, value cache or raw-history array is added.
+Complete page validation, cursor closure and terminal controls precede result publication and read credit.
+Populated histogram allocations, including stale histogram history, retain consuming validation. Anchored,
+statistics, buffered, wider-bound and derived evaluation keeps its existing path.
+
+Equal extrema preserve the first signed zero; ordinary NaNs preserve the original replacement order.
+The lease can exist earlier during acquisition. A page-one fault must occur after the `SeekInitial` landing
+to test that lifetime: the first repeated page fetch precedes emission. Failed acquisition releases the
+extremum and all page owners without crediting unfinished reads.
+
+[Qualification](extrema-acquisition-qualification.json) records 1,728 complete baseline and original-policy
+comparisons across both profiles and pages 1/17/1024, with no numeric-bit differences. The 288 original
+requests include negative/zero/nonfinite/stale/sparse/native/mixed/empty histories, offsets, fixed clocks,
+derived ranges and eight upstream modifier errors. Twenty-one instant requests per panel differ only under
+strict original row-order comparison. Error controls are not counted as successful modifier support.
+
+| Native profile | Min time ratio | Max time ratio | Sum/Avg control ratio |
+|---|---:|---:|---:|
+| release | 0.5524 | 0.5962 | 0.9809 |
+| release-min | 0.6228 | 0.6103 | 1.0120 |
+
+The 1,280 paired queries use four/sixteen series, 32/256-sample windows, instant/three-step ranges and page 17.
+Five alternating blocks use four repeats, discarding the first. Target times fall about 38–45%; a slower
+regular Sum primary control (1.0569) has one prescribed follow-up (0.9833). Both are retained. Another 512
+complete results match analytical extrema and arithmetic-series values. These are synthetic whole queries.
+
+For sixteen series and 256 samples, three-step Min/Max fetched entries fall 52,800 → 26,400. All eight accounted
+memory peaks remain unchanged in 1,728 pairs. Eighteen fixed-cardinality queries keep Workspace at 9,373 bytes
+while each of four series grows from 32 to 2,048 to 100,000 samples, for pages 1/17/1024. Fixture input allocation
+and process RSS are outside this claim; cardinality-dependent metadata and owned output can still grow.
+
+Both native profiles pass 947 units with two ignored; each ARM target runs all 44 fold tests under QEMU.
+Four new owners cover acquisition results and special values, 140 injected operation failures, cancellation,
+early leases, fallback geometry and bounded histories. Six C/C++ consumers pass 48 cases each, plus two
+complete native C suites. Their established binary ratio checks lifecycle and result one; Rust and original
+panels provide independent extrema values. Strict lint, formatting and MSRV 1.91 compilation pass.
+
+| Default C executable | Text/data/BSS change, bytes | Relative change |
+|---|---:|---:|
+| release | +0 | 0.0000% |
+| release-min | +0 | 0.0000% |
+| arm32 | +0 | 0.0000% |
+| arm64 | +0 | 0.0000% |
+
+Cumulative compiled costs are retained separately in the report. Keep failed initial test receipts with their
+actual source identities: correcting the early-fault position and C fixture shape changed no runtime code.

@@ -351,3 +351,6 @@ Independent inner/outer grouped completion follows
 
 Nonmerging label projections over completed groups follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#completed-clocks-through-projected-groups`.
+
+Ordinary Min/Max acquisition follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#validated-extrema-acquisition-reuse`.
