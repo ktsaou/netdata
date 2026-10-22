@@ -74121,5 +74121,14 @@
     "exact_baseline_pairs": 1992,
     "timing_pairs": 6640,
     "memory_growth_bytes": 0
+  },
+  "rejected_lazy_calendar_dispatch": {
+    "status": "rejected_timing_gate_runtime_restored",
+    "report": "calendar-dispatch-rejection.json",
+    "report_sha256": "3ffb1e7cc3a7bec1b57dfc3b003e684b2345636cdc6aeb9c29c997ee34d683ab",
+    "baseline_commit": "1913ee845aced90c8bc060b2a68e57eaa8fe53f8",
+    "exact_baseline_pairs": 504,
+    "timing_pairs": 1560,
+    "runtime_restored": true
   }
 }

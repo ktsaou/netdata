@@ -1,0 +1,816 @@
+{
+  "schema_version": 1,
+  "status": "rejected_timing_gate_runtime_restored",
+  "baseline_commit": "1913ee845aced90c8bc060b2a68e57eaa8fe53f8",
+  "candidate": "Move full date decomposition into only the five consuming calendar match arms; hour, minute and day_of_week use unchanged absolute-second/day formulas.",
+  "rejection": [
+    {
+      "profile": "release",
+      "gate": "overall_target_median",
+      "value": 1.0343908699629798,
+      "limit": 0.98
+    },
+    {
+      "profile": "release",
+      "gate": "target_family",
+      "family": "day_of_week",
+      "value": 1.0842155499174813
+    },
+    {
+      "profile": "release",
+      "gate": "persistent_individual",
+      "id": "hour-clock-1",
+      "primary": 1.266304347826087,
+      "value": 1.1700960219478738
+    },
+    {
+      "profile": "release-min",
+      "gate": "overall_target_median",
+      "value": 0.9893773058037663,
+      "limit": 0.98
+    }
+  ],
+  "qualification": {
+    "fresh_complete_query_originals": 78,
+    "reused_public_hour_originals": 6,
+    "exact_baseline_query_pairs": 504,
+    "exact_original_query_comparisons": 504,
+    "query_profiles": [
+      "release",
+      "release-min"
+    ],
+    "page_sizes": [
+      1,
+      17,
+      1024
+    ],
+    "reused_calendar_kernel_originals": 112,
+    "exact_kernel_original_comparisons": 448,
+    "exact_kernel_baseline_pairs": 224,
+    "numeric_bit_differences": 0,
+    "query_order_failures": 0,
+    "unsupported": 0
+  },
+  "measurement": {
+    "plan": {
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "blocks": 5,
+      "repeats": 4,
+      "discard_first": true,
+      "page": 17,
+      "target_shapes": [
+        "hour",
+        "minute",
+        "day_of_week"
+      ],
+      "target_median_max": 1.05,
+      "overall_target_median_max": 0.98,
+      "control_median_max": 1.05,
+      "individual_control_followup": {
+        "threshold": 1.05,
+        "blocks": 6,
+        "max_rounds": 1,
+        "include_targets": true
+      },
+      "acceptance": "All exact outputs and nonelapsed observations unchanged; target overall<=0.98, family/control<=1.05; reject any persistent individual>1.05 after one fixed followup.",
+      "compiled_policy": "Decision66 proportional fixed costs, query memory separate."
+    },
+    "profiles": {
+      "release": {
+        "target": 1.0343908699629798,
+        "families": {
+          "hour": 1.02910671170586,
+          "minute": 1.0176304118796629,
+          "day_of_week": 1.0842155499174813
+        },
+        "controls": 1.0285653461967375,
+        "complete_pairs": 780,
+        "cases": [
+          {
+            "id": "hour-clock-1",
+            "target": true,
+            "ratio": 1.266304347826087,
+            "before_median_ns": 7360,
+            "candidate_median_ns": 9320
+          },
+          {
+            "id": "hour-clock-1024",
+            "target": true,
+            "ratio": 1.0343908699629798,
+            "before_median_ns": 1102909,
+            "candidate_median_ns": 1140839
+          },
+          {
+            "id": "hour-values-1",
+            "target": true,
+            "ratio": 0.9982196663050014,
+            "before_median_ns": 297697,
+            "candidate_median_ns": 297167
+          },
+          {
+            "id": "hour-values-64",
+            "target": true,
+            "ratio": 1.0238225534487402,
+            "before_median_ns": 7470148,
+            "candidate_median_ns": 7648106
+          },
+          {
+            "id": "minute-clock-1",
+            "target": true,
+            "ratio": 1.0451388888888888,
+            "before_median_ns": 8640,
+            "candidate_median_ns": 9030
+          },
+          {
+            "id": "minute-clock-1024",
+            "target": true,
+            "ratio": 1.0176304118796629,
+            "before_median_ns": 1119089,
+            "candidate_median_ns": 1138819
+          },
+          {
+            "id": "minute-values-1",
+            "target": true,
+            "ratio": 0.8763478983097772,
+            "before_median_ns": 353977,
+            "candidate_median_ns": 310207
+          },
+          {
+            "id": "minute-values-64",
+            "target": true,
+            "ratio": 1.0166046920442828,
+            "before_median_ns": 7411098,
+            "candidate_median_ns": 7534157
+          },
+          {
+            "id": "day_of_week-clock-1",
+            "target": true,
+            "ratio": 0.9860365198711063,
+            "before_median_ns": 9310,
+            "candidate_median_ns": 9180
+          },
+          {
+            "id": "day_of_week-clock-1024",
+            "target": true,
+            "ratio": 1.1082012259564573,
+            "before_median_ns": 1040820,
+            "candidate_median_ns": 1153438
+          },
+          {
+            "id": "day_of_week-values-1",
+            "target": true,
+            "ratio": 1.0602298738785052,
+            "before_median_ns": 287897,
+            "candidate_median_ns": 305237
+          },
+          {
+            "id": "day_of_week-values-64",
+            "target": true,
+            "ratio": 0.9872011553970554,
+            "before_median_ns": 7483488,
+            "candidate_median_ns": 7387708
+          },
+          {
+            "id": "days_in_month-clock-1",
+            "target": false,
+            "ratio": 0.9765460910151692,
+            "before_median_ns": 8570,
+            "candidate_median_ns": 8369
+          },
+          {
+            "id": "days_in_month-clock-1024",
+            "target": false,
+            "ratio": 1.0176078105894488,
+            "before_median_ns": 1171128,
+            "candidate_median_ns": 1191749
+          },
+          {
+            "id": "days_in_month-values-1",
+            "target": false,
+            "ratio": 0.9999967056281049,
+            "before_median_ns": 303548,
+            "candidate_median_ns": 303547
+          },
+          {
+            "id": "days_in_month-values-64",
+            "target": false,
+            "ratio": 1.0067218644768081,
+            "before_median_ns": 7473968,
+            "candidate_median_ns": 7524207
+          },
+          {
+            "id": "day_of_month-clock-1",
+            "target": false,
+            "ratio": 0.9422268907563025,
+            "before_median_ns": 9520,
+            "candidate_median_ns": 8970
+          },
+          {
+            "id": "day_of_month-clock-1024",
+            "target": false,
+            "ratio": 1.030546258671437,
+            "before_median_ns": 1105209,
+            "candidate_median_ns": 1138969
+          },
+          {
+            "id": "day_of_month-values-1",
+            "target": false,
+            "ratio": 1.0593245521892967,
+            "before_median_ns": 289408,
+            "candidate_median_ns": 306577
+          },
+          {
+            "id": "day_of_month-values-64",
+            "target": false,
+            "ratio": 1.0059593247877383,
+            "before_median_ns": 7383219,
+            "candidate_median_ns": 7427218
+          },
+          {
+            "id": "day_of_year-clock-1",
+            "target": false,
+            "ratio": 1.0293706293706293,
+            "before_median_ns": 7150,
+            "candidate_median_ns": 7360
+          },
+          {
+            "id": "day_of_year-clock-1024",
+            "target": false,
+            "ratio": 1.0313166078810634,
+            "before_median_ns": 1054680,
+            "candidate_median_ns": 1087709
+          },
+          {
+            "id": "day_of_year-values-1",
+            "target": false,
+            "ratio": 1.047430843635413,
+            "before_median_ns": 290718,
+            "candidate_median_ns": 304507
+          },
+          {
+            "id": "day_of_year-values-64",
+            "target": false,
+            "ratio": 1.0131978167205002,
+            "before_median_ns": 7287569,
+            "candidate_median_ns": 7383749
+          },
+          {
+            "id": "month-clock-1",
+            "target": false,
+            "ratio": 1.066425120772947,
+            "before_median_ns": 8280,
+            "candidate_median_ns": 8830
+          },
+          {
+            "id": "month-clock-1024",
+            "target": false,
+            "ratio": 1.0325683976580793,
+            "before_median_ns": 1118569,
+            "candidate_median_ns": 1154999
+          },
+          {
+            "id": "month-values-1",
+            "target": false,
+            "ratio": 1.0277600630228458,
+            "before_median_ns": 293227,
+            "candidate_median_ns": 301367
+          },
+          {
+            "id": "month-values-64",
+            "target": false,
+            "ratio": 0.980881796573838,
+            "before_median_ns": 7530467,
+            "candidate_median_ns": 7386498
+          },
+          {
+            "id": "year-clock-1",
+            "target": false,
+            "ratio": 1.0081244993706373,
+            "before_median_ns": 8739,
+            "candidate_median_ns": 8810
+          },
+          {
+            "id": "year-clock-1024",
+            "target": false,
+            "ratio": 1.0609130438919494,
+            "before_median_ns": 1050990,
+            "candidate_median_ns": 1115009
+          },
+          {
+            "id": "year-values-1",
+            "target": false,
+            "ratio": 1.1119638889968106,
+            "before_median_ns": 283127,
+            "candidate_median_ns": 314827
+          },
+          {
+            "id": "year-values-64",
+            "target": false,
+            "ratio": 1.0219035151988176,
+            "before_median_ns": 7338959,
+            "candidate_median_ns": 7499708
+          },
+          {
+            "id": "hour-timestamps",
+            "target": true,
+            "ratio": 1.0224319811540552,
+            "before_median_ns": 12361280,
+            "candidate_median_ns": 12638568
+          },
+          {
+            "id": "minute-timestamps",
+            "target": true,
+            "ratio": 1.114654863047244,
+            "before_median_ns": 12269231,
+            "candidate_median_ns": 13675958
+          },
+          {
+            "id": "day_of_week-timestamps",
+            "target": true,
+            "ratio": 1.550270247557914,
+            "before_median_ns": 12375690,
+            "candidate_median_ns": 19185664
+          },
+          {
+            "id": "abs-control-1",
+            "target": false,
+            "ratio": 1.6662785481169973,
+            "before_median_ns": 292007,
+            "candidate_median_ns": 486565
+          },
+          {
+            "id": "abs-control-64",
+            "target": false,
+            "ratio": 1.4075745681803733,
+            "before_median_ns": 7235660,
+            "candidate_median_ns": 10184731
+          },
+          {
+            "id": "hour-business",
+            "target": true,
+            "ratio": 1.4147307392053907,
+            "before_median_ns": 10770376,
+            "candidate_median_ns": 15237182
+          },
+          {
+            "id": "weekday-business",
+            "target": true,
+            "ratio": 1.6997772661606931,
+            "before_median_ns": 10808865,
+            "candidate_median_ns": 18372663
+          }
+        ],
+        "followup": [
+          {
+            "id": "hour-clock-1",
+            "primary_ratio": 1.266304347826087,
+            "ratio": 1.1700960219478738,
+            "before_median_ns": 7290.0,
+            "candidate_median_ns": 8530.0
+          },
+          {
+            "id": "day_of_week-clock-1024",
+            "primary_ratio": 1.1082012259564573,
+            "ratio": 1.0040478828077162,
+            "before_median_ns": 1069695.0,
+            "candidate_median_ns": 1074025.0
+          },
+          {
+            "id": "day_of_week-values-1",
+            "primary_ratio": 1.0602298738785052,
+            "ratio": 1.0026680231895244,
+            "before_median_ns": 285042.5,
+            "candidate_median_ns": 285803.0
+          },
+          {
+            "id": "day_of_month-values-1",
+            "primary_ratio": 1.0593245521892967,
+            "ratio": 1.0206901151032974,
+            "before_median_ns": 277403.0,
+            "candidate_median_ns": 283142.5
+          },
+          {
+            "id": "month-clock-1",
+            "primary_ratio": 1.066425120772947,
+            "ratio": 1.039832285115304,
+            "before_median_ns": 7155.0,
+            "candidate_median_ns": 7440.0
+          },
+          {
+            "id": "year-clock-1024",
+            "primary_ratio": 1.0609130438919494,
+            "ratio": 1.0100521111536376,
+            "before_median_ns": 1069924.5,
+            "candidate_median_ns": 1080679.5
+          },
+          {
+            "id": "year-values-1",
+            "primary_ratio": 1.1119638889968106,
+            "ratio": 0.9721089441544996,
+            "before_median_ns": 283962.0,
+            "candidate_median_ns": 276042.0
+          },
+          {
+            "id": "minute-timestamps",
+            "primary_ratio": 1.114654863047244,
+            "ratio": 0.9791766618188329,
+            "before_median_ns": 11828651.0,
+            "candidate_median_ns": 11582339.0
+          },
+          {
+            "id": "day_of_week-timestamps",
+            "primary_ratio": 1.550270247557914,
+            "ratio": 0.9798759914429457,
+            "before_median_ns": 11814346.0,
+            "candidate_median_ns": 11576594.0
+          },
+          {
+            "id": "abs-control-1",
+            "primary_ratio": 1.6662785481169973,
+            "ratio": 0.9867996563056399,
+            "before_median_ns": 282227.5,
+            "candidate_median_ns": 278502.0
+          },
+          {
+            "id": "abs-control-64",
+            "primary_ratio": 1.4075745681803733,
+            "ratio": 0.9889714914933669,
+            "before_median_ns": 6960098.0,
+            "candidate_median_ns": 6883338.5
+          },
+          {
+            "id": "hour-business",
+            "primary_ratio": 1.4147307392053907,
+            "ratio": 0.9887118233012175,
+            "before_median_ns": 10353665.0,
+            "candidate_median_ns": 10236791.0
+          },
+          {
+            "id": "weekday-business",
+            "primary_ratio": 1.6997772661606931,
+            "ratio": 1.0063378087087829,
+            "before_median_ns": 10315000.5,
+            "candidate_median_ns": 10380375.0
+          }
+        ]
+      },
+      "release-min": {
+        "target": 0.9893773058037663,
+        "families": {
+          "hour": 0.9891859281130653,
+          "minute": 0.9843167287028193,
+          "day_of_week": 1.0020833983696518
+        },
+        "controls": 0.9957033538747755,
+        "complete_pairs": 780,
+        "cases": [
+          {
+            "id": "hour-clock-1",
+            "target": true,
+            "ratio": 0.988255033557047,
+            "before_median_ns": 11920,
+            "candidate_median_ns": 11780
+          },
+          {
+            "id": "hour-clock-1024",
+            "target": true,
+            "ratio": 1.0049131137625302,
+            "before_median_ns": 1858292,
+            "candidate_median_ns": 1867422
+          },
+          {
+            "id": "hour-values-1",
+            "target": true,
+            "ratio": 0.9678037939206797,
+            "before_median_ns": 508445,
+            "candidate_median_ns": 492075
+          },
+          {
+            "id": "hour-values-64",
+            "target": true,
+            "ratio": 0.9644066378819559,
+            "before_median_ns": 12564309,
+            "candidate_median_ns": 12117103
+          },
+          {
+            "id": "minute-clock-1",
+            "target": true,
+            "ratio": 0.978161965423112,
+            "before_median_ns": 10990,
+            "candidate_median_ns": 10750
+          },
+          {
+            "id": "minute-clock-1024",
+            "target": true,
+            "ratio": 1.009741474561455,
+            "before_median_ns": 1820053,
+            "candidate_median_ns": 1837783
+          },
+          {
+            "id": "minute-values-1",
+            "target": true,
+            "ratio": 0.8761345561301933,
+            "before_median_ns": 550105,
+            "candidate_median_ns": 481966
+          },
+          {
+            "id": "minute-values-64",
+            "target": true,
+            "ratio": 0.9843167287028193,
+            "before_median_ns": 12232652,
+            "candidate_median_ns": 12040804
+          },
+          {
+            "id": "day_of_week-clock-1",
+            "target": true,
+            "ratio": 0.8599827139152982,
+            "before_median_ns": 11570,
+            "candidate_median_ns": 9950
+          },
+          {
+            "id": "day_of_week-clock-1024",
+            "target": true,
+            "ratio": 1.0172971461764497,
+            "before_median_ns": 1702593,
+            "candidate_median_ns": 1732043
+          },
+          {
+            "id": "day_of_week-values-1",
+            "target": true,
+            "ratio": 0.9539132269179382,
+            "before_median_ns": 497735,
+            "candidate_median_ns": 474796
+          },
+          {
+            "id": "day_of_week-values-64",
+            "target": true,
+            "ratio": 1.010265653116057,
+            "before_median_ns": 11945465,
+            "candidate_median_ns": 12068093
+          },
+          {
+            "id": "days_in_month-clock-1",
+            "target": false,
+            "ratio": 0.962205466540999,
+            "before_median_ns": 10610,
+            "candidate_median_ns": 10209
+          },
+          {
+            "id": "days_in_month-clock-1024",
+            "target": false,
+            "ratio": 1.0177645708970369,
+            "before_median_ns": 1823292,
+            "candidate_median_ns": 1855682
+          },
+          {
+            "id": "days_in_month-values-1",
+            "target": false,
+            "ratio": 0.9813290124116829,
+            "before_median_ns": 486316,
+            "candidate_median_ns": 477236
+          },
+          {
+            "id": "days_in_month-values-64",
+            "target": false,
+            "ratio": 1.019058067700533,
+            "before_median_ns": 12042564,
+            "candidate_median_ns": 12272072
+          },
+          {
+            "id": "day_of_month-clock-1",
+            "target": false,
+            "ratio": 0.8625751072961373,
+            "before_median_ns": 11650,
+            "candidate_median_ns": 10049
+          },
+          {
+            "id": "day_of_month-clock-1024",
+            "target": false,
+            "ratio": 1.0110145399905297,
+            "before_median_ns": 1754953,
+            "candidate_median_ns": 1774283
+          },
+          {
+            "id": "day_of_month-values-1",
+            "target": false,
+            "ratio": 0.9851154326080017,
+            "before_median_ns": 482446,
+            "candidate_median_ns": 475265
+          },
+          {
+            "id": "day_of_month-values-64",
+            "target": false,
+            "ratio": 1.008517798701394,
+            "before_median_ns": 11924325,
+            "candidate_median_ns": 12025894
+          },
+          {
+            "id": "day_of_year-clock-1",
+            "target": false,
+            "ratio": 0.9605662285136501,
+            "before_median_ns": 9890,
+            "candidate_median_ns": 9500
+          },
+          {
+            "id": "day_of_year-clock-1024",
+            "target": false,
+            "ratio": 1.020181234041892,
+            "before_median_ns": 1737753,
+            "candidate_median_ns": 1772823
+          },
+          {
+            "id": "day_of_year-values-1",
+            "target": false,
+            "ratio": 0.9786664742684573,
+            "before_median_ns": 485105,
+            "candidate_median_ns": 474756
+          },
+          {
+            "id": "day_of_year-values-64",
+            "target": false,
+            "ratio": 1.0162890804032636,
+            "before_median_ns": 11777706,
+            "candidate_median_ns": 11969554
+          },
+          {
+            "id": "month-clock-1",
+            "target": false,
+            "ratio": 0.9954086317722681,
+            "before_median_ns": 10890,
+            "candidate_median_ns": 10840
+          },
+          {
+            "id": "month-clock-1024",
+            "target": false,
+            "ratio": 1.0215450958682624,
+            "before_median_ns": 1820832,
+            "candidate_median_ns": 1860062
+          },
+          {
+            "id": "month-values-1",
+            "target": false,
+            "ratio": 0.9872351199911072,
+            "before_median_ns": 485786,
+            "candidate_median_ns": 479585
+          },
+          {
+            "id": "month-values-64",
+            "target": false,
+            "ratio": 0.9959980759772828,
+            "before_median_ns": 12028964,
+            "candidate_median_ns": 11980825
+          },
+          {
+            "id": "year-clock-1",
+            "target": false,
+            "ratio": 0.9488117001828154,
+            "before_median_ns": 10940,
+            "candidate_median_ns": 10380
+          },
+          {
+            "id": "year-clock-1024",
+            "target": false,
+            "ratio": 1.037014250765687,
+            "before_median_ns": 1791202,
+            "candidate_median_ns": 1857502
+          },
+          {
+            "id": "year-values-1",
+            "target": false,
+            "ratio": 0.9862210053841691,
+            "before_median_ns": 491255,
+            "candidate_median_ns": 484486
+          },
+          {
+            "id": "year-values-64",
+            "target": false,
+            "ratio": 1.0092654733297002,
+            "before_median_ns": 12081304,
+            "candidate_median_ns": 12193243
+          },
+          {
+            "id": "hour-timestamps",
+            "target": true,
+            "ratio": 0.9901168226690835,
+            "before_median_ns": 20905018,
+            "candidate_median_ns": 20698410
+          },
+          {
+            "id": "minute-timestamps",
+            "target": true,
+            "ratio": 0.9893773058037663,
+            "before_median_ns": 20738430,
+            "candidate_median_ns": 20518132
+          },
+          {
+            "id": "day_of_week-timestamps",
+            "target": true,
+            "ratio": 0.9963270489905066,
+            "before_median_ns": 20549961,
+            "candidate_median_ns": 20474482
+          },
+          {
+            "id": "abs-control-1",
+            "target": false,
+            "ratio": 0.9816858910702009,
+            "before_median_ns": 471276,
+            "candidate_median_ns": 462645
+          },
+          {
+            "id": "abs-control-64",
+            "target": false,
+            "ratio": 1.0031612401335928,
+            "before_median_ns": 11429059,
+            "candidate_median_ns": 11465189
+          },
+          {
+            "id": "hour-business",
+            "target": true,
+            "ratio": 1.0158091229429078,
+            "before_median_ns": 18880048,
+            "candidate_median_ns": 19178525
+          },
+          {
+            "id": "weekday-business",
+            "target": true,
+            "ratio": 1.0078397477487968,
+            "before_median_ns": 18444471,
+            "candidate_median_ns": 18589071
+          }
+        ],
+        "followup": []
+      }
+    },
+    "primary_pairs": 1560,
+    "followup_pairs": 312
+  },
+  "resources": "All nonelapsed observations match across 504 query pairs, including eight memory categories, allocation totals, work, samples, pages and output counts. No new state or buffers.",
+  "code_generation": {
+    "release": {
+      "before": {
+        "start": 3293744,
+        "bytes": 615
+      },
+      "candidate": {
+        "start": 3575872,
+        "bytes": 864
+      }
+    },
+    "release-min": {
+      "before": {
+        "start": 2100119,
+        "bytes": 311
+      },
+      "candidate": {
+        "start": 2100103,
+        "bytes": 355
+      }
+    }
+  },
+  "restoration": {
+    "status": "pass",
+    "verified_source_files": 194,
+    "runtime_source_restored": true,
+    "candidate_sha256": "e0746e6897632f75f3527a67bed3d1419c1129127f0c7e658b53e64cd705712a",
+    "restored_sha256": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31"
+  },
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/calendar-dispatch-efo5yimq/baseline-source.json",
+      "sha256": "a8a6a9df00d7a621a472c3efe041d10855c53254780b70bdcc38d757256c98bf"
+    },
+    "candidate": {
+      "path": ".tmp/calendar-dispatch-efo5yimq/candidate-source.json",
+      "sha256": "a8a6211770ef81b1b8d30ac2bb42fe7cfbc82e24d4f3948919a12eec3317ce03"
+    }
+  },
+  "receipts": {
+    ".tmp/calendar-dispatch-efo5yimq/baseline-binding.json": "4b4b541d1c1a2d52e400dcae33b2703e3e838982172fc6e875cb5b7586089d2e",
+    ".tmp/calendar-dispatch-efo5yimq/inputs-prepared.json": "3f16bcf2eef7b8580bb261331b46cfe2e1e056b3e406c34302a331c976770bac",
+    ".tmp/calendar-dispatch-efo5yimq/original-capture.json": "1419f4bbf3324ff9ee1302f5e08d2cb048ce9d1d9e254c49dcf6dc8f315f6e6c",
+    ".tmp/calendar-dispatch-efo5yimq/historical-source-verification.json": "49f889bae34e0ba3eb35adf218e41b3d4cac32c0ef91357d09dd2b3f19733da3",
+    ".tmp/calendar-dispatch-efo5yimq/perf-release-builds.json": "3a81e26849333ad8b6c39049b116479e7910e90fdf162ac330278dc46f6a89ad",
+    ".tmp/calendar-dispatch-efo5yimq/perf-release-min-builds.json": "dc84fa2260fa1e14fb47d245b4af471d81aafff33224d64d79ad3df99f494556",
+    ".tmp/calendar-dispatch-efo5yimq/candidate-kernel-builds.json": "3ffef51bf27d616d0bc048d019bb0d5a6fa15be092ff7521c9efd603ae862196",
+    ".tmp/calendar-dispatch-efo5yimq/comparison.json": "5bb5e41099422baaabcda2f31bf8ea03171b697ee35218b42bfbbac9b1d25a38",
+    ".tmp/calendar-dispatch-efo5yimq/codegen.json": "829fa511c25baab55e5fa81c040ed9cdfd6438675172c8c461d51e7609d4c15e",
+    ".tmp/calendar-dispatch-efo5yimq/pilot.json": "3565e65964c617252c87f8a5bda0c31630d31d0d151fc857aa46a463bfe03a62",
+    ".tmp/calendar-dispatch-efo5yimq/slower-followup.json": "8cf3e5499aef37fefe24389e575498799a8fb5f20df80722013ef03f058433e0",
+    ".tmp/calendar-dispatch-efo5yimq/acceptance.json": "acba5b47863320f16134808e54cf2f30eac32d67166fa1b7e415540c4346b20c",
+    ".tmp/calendar-dispatch-efo5yimq/restoration.json": "3032a0f422e9be649eb7b5fb680e63a2a09a504b34e77746d28cfe9512c1c7b3",
+    ".tmp/calendar-dispatch-efo5yimq/baseline-calendar-run-status.json": "bb59c5a829beed92fe42b42b1be8342ebe353373fdc19d195b42d3b18b246f59",
+    ".tmp/calendar-dispatch-efo5yimq/baseline-calendar-run.stderr": "9e27d8ca0e6af37a82bbdad5bf7bb6df398e8d37f80fef47d2db71c293e5d9d6"
+  },
+  "limitations": [
+    "Finite synthetic single-query results; no live-provider, concurrent or physical ARM throughput claim.",
+    "Normal release target median regressed3.4%; size-optimized median improved1.1%, below the frozen2% goal.",
+    "The compiled dispatch moves ahead of date decomposition in both profiles; code layout and other causes of measured end-to-end costs were not isolated.",
+    "A proposed baseline C wrapper failed its existing fixed chunk/series assertion before candidate qualification; this is retained as an incompatible test setup, not a passing C case or candidate regression.",
+    "No candidate C/C++, complete native units, ARM, strict lint/MSRV or linked C footprint qualification was run after the cheap rejection. Function-symbol sizes are not linked executable growth.",
+    "Original calendar kernel outputs are verified historical captures, not fresh Go executions.",
+    "The unrelated optional baseline review probe remains separately tracked under decision67."
+  ]
+}

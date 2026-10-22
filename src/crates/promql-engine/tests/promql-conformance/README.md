@@ -11472,3 +11472,31 @@ installed Rust1.91 compilation pass. Fixed executable text/data/BSS costs are re
 `aligned_merge_cases.aligned_merge_cases()` reproduces all 332 functional inputs;
 `aligned_merge_performance_cases()` reproduces the 166 timing inputs. New arithmetic captures explicitly use
 the installed pinned Go1.27.1. The rejected predecessor-retirement and dense-compaction versions remain absent.
+
+
+## Calendar dispatch trial (rejected)
+
+The trial moved full date decomposition into the five calendar functions that need date fields. `hour()`,
+`minute()` and `day_of_week()` then used only their existing absolute-second/day formulas. The compiled
+dispatch changed as intended, but complete-query measurements missed the frozen acceptance criteria.
+The runtime was restored exactly; this optimization does not ship.
+
+[Rejection evidence](calendar-dispatch-rejection.json) records 78 fresh pinned Go query originals, six reused
+public hour examples and 112 historical calendar kernel originals. Both release profiles at pages 1/17/1024
+pass 504 exact baseline and original query comparisons with no order or numeric differences. The kernels
+pass 448 exact original comparisons and 224 baseline pairs, including extreme timestamps and conversion cases.
+All nonelapsed query observations, including work and all eight memory categories, remain unchanged.
+
+Across 1,560 primary timing pairs, target median ratios are 1.0344 in release and 0.9894 in release-min;
+both miss the required 0.98 ratio. Release's weekday family also exceeds 1.05. One prescribed follow-up
+of 312 pairs leaves the tiny `hour()` clock case at 1.1701. All cases and controls remain in the report;
+the underlying cause of the whole-query regression was not isolated.
+
+A proposed C wrapper failed an existing fixed chunk/series assertion against the unchanged baseline and
+is excluded from passing counts. Candidate C/C++, complete native units, ARM and linked-size qualification
+were not pursued after rejection. These finite synthetic measurements do not establish live or concurrent
+throughput. Function-symbol sizes in the report are distinct from executable footprint.
+
+`calendar_dispatch_cases.calendar_cases()` reproduces the 78 functional pilot inputs;
+`calendar_performance_cases()` reproduces the 39 timing inputs. Future trials must retain this negative
+evidence and qualify their own costs.
