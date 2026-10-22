@@ -2875,7 +2875,7 @@ changing membership, special literals, complete original comparisons and proport
 
 ## Instant Boolean rate descriptor ownership
 
-- A completed ordinary Float Rate/Increase child has the same presence, kinds, already-dropped name and
+- A completed ordinary Float Rate/Increase child has the same presence, kinds, metric-name removal state and
   source ordinals as its literal Boolean parent. Reuse only at a root genuine instant request with matching
   source/scope/producer clocks and no invariant, boundary, ordered child or selector clock modifiers.
 - Check each descriptor and terminal cancellation before taking completed output. Float-only descriptors
