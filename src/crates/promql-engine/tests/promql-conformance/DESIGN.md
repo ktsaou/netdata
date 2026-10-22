@@ -2920,3 +2920,16 @@ changing membership, special literals, complete original comparisons and proport
   not identical work indices. Separately test fresh final reads and actual root Map arithmetic interruption.
 - The [finite qualification](literal-rate-preparation-qualification.json) owns exact all-page results,
   explicit C outcomes/lifetimes, native timing, all resource observations and proportional compiled costs.
+
+
+## Final native endpoint ownership
+
+- Consume the final instant-rate native owner only when same-schema copying is identity: non-custom schema,
+  absent custom bounds and absent-or-nonempty optional span/bucket arrays. Keep normalizing copies otherwise.
+- Preserve the checked dispatch boundary before transfer. Reset detection must see original fields; retain
+  fallback original ownership through subtraction, compaction and division. Preserve arithmetic/warning order.
+- A partial move must leave Float endpoint sample leases alive through output accounting. Native result
+  ownership is independent of endpoint slots; successful transfer, partial errors and warning-only exits
+  must release every owner exactly once. No new history buffer or persistent state is needed.
+- The [finite qualification](native-final-owner-qualification.json) binds originals, resource observations,
+  native timing, actual callers, cancellation/error cleanup and proportional compiled costs.

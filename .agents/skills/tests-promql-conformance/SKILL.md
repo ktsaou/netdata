@@ -383,3 +383,7 @@ Float predecessor owner reuse MUST preserve checked-copy phases, query affinity,
 
 The rejected descriptor-hash reuse experiment is recorded in
 `src/crates/promql-engine/tests/promql-conformance/README.md#rejected-descriptor-hash-reuse`.
+
+
+Consuming final native ownership follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#consumed-final-native-endpoint`.

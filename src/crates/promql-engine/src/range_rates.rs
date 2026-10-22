@@ -806,15 +806,15 @@ impl InstantStep {
             return Ok(RateOutput::default());
         }
         let mut output = RateOutput::default();
-        output.value = match (&first.value, &last.value) {
+        output.value = match (&first.value, last.value) {
             (OwnedValue::Float(first_value), OwnedValue::Float(last_value)) => {
                 let reset = counter
-                    && (*last_value < *first_value
+                    && (last_value < *first_value
                         || start_timestamp_reset(first.start, first.time, last.start, last.time));
                 let mut value = if reset {
-                    *last_value
+                    last_value
                 } else {
-                    crate::numerical::source_sub(*last_value, *first_value)
+                    crate::numerical::source_sub(last_value, *first_value)
                 };
                 if counter {
                     value = crate::numerical::source_div(
@@ -827,9 +827,32 @@ impl InstantStep {
             (OwnedValue::Histogram(first_value), OwnedValue::Histogram(last_value)) => {
                 let first_h = first_value.as_ref();
                 let last_h = last_value.as_ref();
-                let mut value = last_value
-                    .copy_to_schema_checked(last_h.schema, control, account)
-                    .map_err(|error| arithmetic_error(error, control, account))?;
+                // Same-schema copying normalizes custom and present-empty fields.
+                let identity = last_h.schema != crate::histogram::CUSTOM_BUCKETS_SCHEMA
+                    && last_h.custom_values.is_none()
+                    && last_h
+                        .positive_spans
+                        .is_none_or(|values| !values.is_empty())
+                    && last_h
+                        .negative_spans
+                        .is_none_or(|values| !values.is_empty())
+                    && last_h
+                        .positive_buckets
+                        .is_none_or(|values| !values.is_empty())
+                    && last_h
+                        .negative_buckets
+                        .is_none_or(|values| !values.is_empty());
+                let (mut value, original) = if identity {
+                    HistogramWork::new(control, account).step(1)?;
+                    (last_value, None)
+                } else {
+                    let copied = last_value
+                        .copy_to_schema_checked(last_h.schema, control, account)
+                        .map_err(|error| arithmetic_error(error, control, account))?;
+                    (copied, Some(last_value))
+                };
+                // Reset detection needs the original fields before normalization or subtraction.
+                let last_h = original.as_ref().unwrap_or(&value).as_ref();
                 if counter && (first_h.reset_hint == GAUGE || last_h.reset_hint == GAUGE) {
                     output.note(AnnotationKind::NativeHistogramNotCounter);
                 } else if !counter && (first_h.reset_hint != GAUGE || last_h.reset_hint != GAUGE) {
@@ -890,6 +913,192 @@ mod tests {
         value::{Sample, SampleValue},
     };
     use std::{cell::RefCell, sync::atomic::Ordering};
+
+    #[test]
+    fn instant_native_final_owner_preserves_normalization_and_allocation_identity() {
+        for shape in ["ordinary", "custom", "empty", "extra-custom"] {
+            for (counter, reset) in [(false, false), (true, false), (true, true)] {
+                let account = EngineAccounting::default().query();
+                let control = Control::default();
+                let mut step = InstantStep {
+                    counter,
+                    start_timestamps: true,
+                    floats: [None, None],
+                    histograms: [None, None],
+                };
+                for index in 0..2 {
+                    let mut sample = native(index);
+                    if reset && index == 1 {
+                        sample.start_time_ms = 1500;
+                    }
+                    let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                        unreachable!()
+                    };
+                    histogram.reset_hint = if counter { NOT_RESET } else { GAUGE };
+                    match shape {
+                        "custom" => {
+                            histogram.schema = crate::histogram::CUSTOM_BUCKETS_SCHEMA;
+                            histogram.custom_values = Some(vec![1.0].into());
+                        }
+                        "empty" => {
+                            histogram.negative_spans = Some(Vec::new().into());
+                            histogram.negative_buckets = Some(Vec::new().into());
+                        }
+                        "extra-custom" => histogram.custom_values = Some(vec![1.0].into()),
+                        _ => {}
+                    }
+                    step.receive(sample.as_ref(), &control, &account).unwrap();
+                }
+                let OwnedValue::Histogram(last) = &step.histograms[1].as_ref().unwrap().value
+                else {
+                    unreachable!()
+                };
+                let pointer = last.as_ref().positive_buckets.unwrap().as_ptr();
+                let (output, owners) =
+                    crate::test_storage::observe_sample_owners(&account, &control, false, || {
+                        step.finish(&control, &account).unwrap()
+                    });
+                assert_eq!(owners.created, u64::from(shape != "ordinary"));
+                assert_eq!(owners.released, 1 + u64::from(shape != "ordinary"));
+                let Some(OwnedValue::Histogram(value)) = &output.value else {
+                    unreachable!()
+                };
+                let value = value.as_ref();
+                let factor = if reset { 2.0 } else { 1.0 };
+                assert_eq!(value.count.to_bits(), (3.0_f64 * factor).to_bits());
+                assert_eq!(value.sum.to_bits(), (5.0_f64 * factor).to_bits());
+                assert_eq!(value.positive_buckets.unwrap(), &[factor, 2.0 * factor]);
+                assert_eq!(value.reset_hint, GAUGE);
+                assert!(value.negative_spans.is_none());
+                assert!(value.negative_buckets.is_none());
+                assert_eq!(
+                    value.custom_values,
+                    (shape == "custom").then_some(&[1.0][..])
+                );
+                assert!(output.annotations.iter().all(Option::is_none));
+                if shape == "ordinary" && reset {
+                    assert_eq!(value.positive_buckets.unwrap().as_ptr(), pointer);
+                }
+                drop((output, step));
+                account.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn instant_native_final_owner_observes_entry_and_bucket_interruption() {
+        for counter in [false, true] {
+            for budget in [None, Some(1), Some(3), Some(1024), Some(4096)] {
+                let account = EngineAccounting::default().query();
+                let control = Control::default();
+                let mut step = InstantStep {
+                    counter,
+                    start_timestamps: false,
+                    floats: [None, None],
+                    histograms: [None, None],
+                };
+                for index in 0..2 {
+                    let mut sample = native(index);
+                    let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                        unreachable!()
+                    };
+                    histogram.reset_hint = if counter { 0 } else { GAUGE };
+                    histogram.positive_spans.as_mut().unwrap()[0].length = 4096;
+                    histogram.positive_buckets = Some(vec![index as f64 + 1.0; 4096].into());
+                    step.receive(sample.as_ref(), &control, &account).unwrap();
+                }
+                let (result, owners) =
+                    crate::test_storage::observe_sample_owners(&account, &control, false, || {
+                        if let Some(budget) = budget {
+                            crate::test_storage::interrupt_after_work(
+                                &account,
+                                &control,
+                                budget,
+                                || step.finish(&control, &account),
+                            )
+                        } else {
+                            control.cancellation.cancel();
+                            step.finish(&control, &account)
+                        }
+                    });
+                assert!(
+                    matches!(
+                        result,
+                        Err(StorageError::Interrupted(
+                            crate::storage::Interrupted::Cancelled
+                        ))
+                    ),
+                    "{counter}/{budget:?}"
+                );
+                assert_eq!(owners.created, 0);
+                assert_eq!(owners.released, 2);
+                assert!(step.histograms.iter().all(Option::is_none));
+                drop((result, step));
+                account.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn instant_native_final_owner_releases_partial_errors_and_schema_warnings() {
+        for mode in ["error", "custom-first", "custom-last"] {
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let mut step = InstantStep {
+                counter: false,
+                start_timestamps: false,
+                floats: [None, None],
+                histograms: [None, None],
+            };
+            for index in 0..2 {
+                let mut sample = native(index);
+                let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                    unreachable!()
+                };
+                histogram.reset_hint = GAUGE;
+                if mode == "error" && index == 0 {
+                    histogram.positive_buckets = Some(vec![1.0].into());
+                } else if (mode == "custom-first" && index == 0)
+                    || (mode == "custom-last" && index == 1)
+                {
+                    histogram.schema = crate::histogram::CUSTOM_BUCKETS_SCHEMA;
+                    histogram.custom_values = Some(vec![1.0].into());
+                }
+                step.receive(sample.as_ref(), &control, &account).unwrap();
+            }
+            let (result, owners) =
+                crate::test_storage::observe_sample_owners(&account, &control, false, || {
+                    step.finish(&control, &account)
+                });
+            assert_eq!(owners.created, u64::from(mode == "custom-last"));
+            assert_eq!(owners.released, 2 + u64::from(mode == "custom-last"));
+            if mode == "error" {
+                let Err(StorageError::Runtime { wrapped, message }) = &result else {
+                    panic!("expected checked subtraction error")
+                };
+                assert!(*wrapped);
+                assert_eq!(
+                    &message[..],
+                    b"unexpected error: runtime error: index out of range [1] with length 1"
+                );
+            } else {
+                let output = result.as_ref().unwrap();
+                assert!(output.value.is_none());
+                assert_eq!(
+                    output
+                        .annotations
+                        .iter()
+                        .flatten()
+                        .copied()
+                        .collect::<Vec<_>>(),
+                    vec![AnnotationKind::MixedExponentialCustomHistograms]
+                );
+            }
+            assert!(step.histograms.iter().all(Option::is_none));
+            drop((result, step));
+            account.snapshot().assert_memory_released();
+        }
+    }
 
     #[test]
     fn instant_native_expired_owners_preserve_values_and_reduce_allocations() {

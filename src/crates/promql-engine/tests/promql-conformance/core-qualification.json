@@ -74074,5 +74074,14 @@
     "complete_pairs": 1152,
     "timing_pairs": 1920,
     "reason": "The pre-change timing gate required each target family median <=0.97; both profiles failed despite modest pooled gains. No memory peak was saved. Accepted runtime restored exactly."
+  },
+  "consumed_final_native_endpoint": {
+    "status": "finite_qualification_pass",
+    "report": "native-final-owner-qualification.json",
+    "report_sha256": "6f2cc6b4488628c3b213996ea3782e9ff52fbe613fb27bdf6b98e0b4e52c5917",
+    "baseline_commit": "cdbf200ec01f0a4b9495ebe84a5ace047fe2d056",
+    "exact_pairs": 1200,
+    "timing_pairs": 4000,
+    "maximum_peak_change_bytes": 0
   }
 }

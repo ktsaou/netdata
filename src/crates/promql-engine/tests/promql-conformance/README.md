@@ -11317,3 +11317,36 @@ The accepted runtime was restored exactly after the candidate failed its predefi
 `descriptor_hash_cases.py` reproduces the 192 functional and 48 timing inputs. Removing accounted work alone
 does not establish a useful whole-query improvement. These are finite native fixture results, not live-provider
 or RSS measurements. A narrower future experiment must retain this result and establish its own measured scope.
+
+
+## Consumed final native endpoint
+
+`irate()` and `idelta()` transfer the final owned native histogram into the result when same-schema copying
+would leave its fields unchanged. Custom schemas, present-empty arrays and extra custom bounds keep the
+normalizing copy. Reset detection uses original fields; subtraction, compaction, division and diagnostics
+retain their order. Float endpoint leases survive until output accounting. No buffer, cache or public
+interface is added.
+
+[Qualification](native-final-owner-qualification.json) records 200 fresh pinned Prometheus outcomes and
+1,200 exact baseline/original comparisons across both release profiles and pages 1/17/1024. There are no
+order failures, exclusions or numeric-bit differences. `native_final_cases.native_final_cases()` reproduces
+these inputs; `native_final_performance_cases()` reproduces the 100 timing inputs.
+
+- The 4,000-pair native timing panel measures target median ratios of 0.9476/0.9592, about 4–5% less time.
+  One release case initially exceeds the 5% slowdown threshold; its prescribed 24-pair follow-up measures
+  0.9756. Primary results are retained. These are synthetic native measurements, not live-provider throughput.
+- Every targeted case reduces Workspace allocation traffic; no measured category peak grows. For the
+  four-series, two-point, 4,096-bucket reset case at page 17, Workspace allocations fall from 1,085,808 to
+  820,912 bytes and peak falls from 207,668 to 175,359 bytes. Fetched entries remain 64 and pages 32.
+  Allocation totals are cumulative; category peaks are not additive and are not process RSS.
+- Both native profiles pass 989 tests with two existing ignored checks. Focused native tests prove unchanged
+  float credit, source insertion order, normalization, exact owner transfer, interrupted cleanup, an error
+  after partial subtraction and warning-only exits in both mixed-schema directions. Final ARM32/ARM64
+  tests execute under QEMU. Actual C/C++ consumers pass 432 cases; the unchanged C panel also passes 72
+  against the accepted baseline. Full native C suites, strict lint, format and installed Rust 1.91 checks pass.
+
+The final source adds one test after the measured binaries. Removing that test reconstructs the exact
+measured source hash; source phases remain separately attributed. Runtime arithmetic is unchanged between
+those phases. The report retains per-target compiled text/data/BSS and cumulative costs; these fixed
+executable sizes are separate from per-query memory. Use the existing `native_endpoints.c` panel and the
+`instant_native_final_owner_` Rust filter when changing this ownership boundary.
