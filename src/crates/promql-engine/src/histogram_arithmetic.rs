@@ -664,6 +664,42 @@ fn merge_buckets(
         .and_then(|value| value.as_mut())
         .unwrap_or(&mut new_correction);
     let buckets_b = other_buckets.unwrap_or(&[]);
+    // Complete matching spans need no sparse navigation or insertion.
+    if let ([left], [right]) = (&spans_a[..], other_spans.unwrap_or(&[]))
+        && left == right
+        && left.length > 1
+        && left.length as usize == buckets_a.len()
+        && buckets_a.len() == buckets_b.len()
+        && (!paired || comp_a.len() == buckets_a.len())
+        && other_correction.is_none_or(|values| values.len() == buckets_b.len())
+        && i32::try_from(left.length)
+            .ok()
+            .and_then(|length| left.offset.checked_add(length))
+            .is_some()
+        && (!(-4..=8).contains(&schema) || bucket_bound(left.offset, schema, None) > threshold)
+    {
+        work.step(1)?;
+        for (index, (bucket, &incoming)) in buckets_a.iter_mut().zip(buckets_b).enumerate() {
+            work.step(1)?;
+            let mut value = incoming;
+            let mut comp = other_correction.map_or(0.0, |values| values[index]);
+            if negative {
+                value = source_neg(value);
+                comp = source_neg(comp);
+            }
+            accumulate(
+                bucket,
+                if paired {
+                    Some(&mut comp_a[index])
+                } else {
+                    None
+                },
+                value,
+                comp,
+            );
+        }
+        return work.step(1).map_err(HistogramEvaluationError::from);
+    }
     let (mut span_a, mut bucket_a, mut in_span) = (-1isize, -1i64, 0i32);
     let (mut index_a, mut index_b, mut bucket_b, mut lower_than_threshold) =
         (0i32, 0i32, 0usize, true);
@@ -1288,5 +1324,328 @@ mod tests {
             correction.positive_buckets.as_ref().unwrap().as_ptr(),
             comp_ptr
         );
+    }
+
+    #[test]
+    fn aligned_merge_reuses_owners_and_avoids_sparse_navigation() {
+        for count in [2, 4, 2048] {
+            for schema in [0, CUSTOM_BUCKETS_SCHEMA] {
+                for offset in [-3, 0, 3] {
+                    for negative in [false, true] {
+                        for paired in [false, true] {
+                            let engine = EngineAccounting::default();
+                            let account = engine.query();
+                            let control = Control::default();
+                            let context = AllocationContext::new(&account, MemoryKind::Workspace);
+                            let span = Span {
+                                offset,
+                                length: count as u32,
+                            };
+                            let mut spans =
+                                Some(AccountedVec::from_slice_in(&[span], Some(&context)));
+                            let mut buckets = Some(AccountedVec::from_slice_in(
+                                &vec![1.0; count],
+                                Some(&context),
+                            ));
+                            let mut correction = Some(AccountedVec::from_slice_in(
+                                &vec![0.5; count],
+                                Some(&context),
+                            ));
+                            let source = vec![2.0; count];
+                            let source_comp = vec![0.25; count];
+                            let pointers = (
+                                spans.as_ref().unwrap().as_ptr(),
+                                buckets.as_ref().unwrap().as_ptr(),
+                                correction.as_ref().unwrap().as_ptr(),
+                            );
+                            let capacities = (
+                                spans.as_ref().unwrap().capacity(),
+                                buckets.as_ref().unwrap().capacity(),
+                                correction.as_ref().unwrap().capacity(),
+                            );
+                            let before = account.snapshot();
+                            merge_buckets(
+                                schema,
+                                0.0,
+                                negative,
+                                &mut spans,
+                                &mut buckets,
+                                paired.then_some(&mut correction),
+                                Some(&[span]),
+                                Some(&source),
+                                paired.then_some(&source_comp),
+                                Some(&context),
+                                HistogramWork::new(&control, &account),
+                            )
+                            .unwrap();
+                            let expected = if negative {
+                                if paired { -1.25 } else { -1.0 }
+                            } else if paired {
+                                3.25
+                            } else {
+                                3.0
+                            };
+                            assert_eq!(buckets.as_deref(), Some(vec![expected; count].as_slice()));
+                            assert_eq!(correction.as_deref(), Some(vec![0.5; count].as_slice()));
+                            assert_eq!(spans.as_deref(), Some(&[span][..]));
+                            assert_eq!(
+                                (
+                                    spans.as_ref().unwrap().as_ptr(),
+                                    buckets.as_ref().unwrap().as_ptr(),
+                                    correction.as_ref().unwrap().as_ptr()
+                                ),
+                                pointers
+                            );
+                            assert_eq!(
+                                (
+                                    spans.as_ref().unwrap().capacity(),
+                                    buckets.as_ref().unwrap().capacity(),
+                                    correction.as_ref().unwrap().capacity()
+                                ),
+                                capacities
+                            );
+                            assert_eq!(account.snapshot().memory, before.memory);
+                            assert_eq!(
+                                account.snapshot().work - before.work,
+                                count as u64 + 3,
+                                "count={count}, schema={schema}, offset={offset}, negative={negative}, paired={paired}"
+                            );
+                            drop((spans, buckets, correction, context));
+                            account.snapshot().assert_memory_released();
+                            drop(account);
+                            engine.snapshot().assert_memory_released();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn aligned_merge_preserves_general_layouts_and_source_errors() {
+        for threshold in [1.0, f64::NAN] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let span = Span {
+                offset: 0,
+                length: 4,
+            };
+            let mut spans = Some(vec![span].into());
+            let mut buckets = Some(vec![1.0; 4].into());
+            merge_buckets(
+                0,
+                threshold,
+                false,
+                &mut spans,
+                &mut buckets,
+                None,
+                Some(&[span]),
+                Some(&[2.0; 4]),
+                None,
+                None,
+                HistogramWork::new(&control, &account),
+            )
+            .unwrap();
+            let expected = if threshold.is_nan() {
+                [3.0; 4]
+            } else {
+                [1.0, 3.0, 3.0, 3.0]
+            };
+            assert_eq!(buckets.as_deref(), Some(&expected[..]));
+            assert_eq!(spans.as_deref(), Some(&[span][..]));
+            assert_eq!(account.snapshot().work, 10);
+        }
+        let source_spans = [
+            Span {
+                offset: 0,
+                length: 1,
+            },
+            Span {
+                offset: 0,
+                length: 1,
+            },
+        ];
+        let mut spans = Some(source_spans.to_vec().into());
+        let mut buckets = Some(vec![1.0; 2].into());
+        merge_buckets(
+            0,
+            0.0,
+            false,
+            &mut spans,
+            &mut buckets,
+            None,
+            Some(&source_spans),
+            Some(&[2.0; 2]),
+            None,
+            None,
+            HistogramWork::default(),
+        )
+        .unwrap();
+        assert_eq!(buckets.as_deref(), Some(&[3.0; 2][..]));
+        assert_eq!(spans.as_deref(), Some(&source_spans[..]));
+        // Extra array entries are not members of the declared span.
+        let span = Span {
+            offset: 0,
+            length: 2,
+        };
+        let mut spans = Some(vec![span].into());
+        let mut buckets = Some(vec![1.0; 3].into());
+        merge_buckets(
+            0,
+            0.0,
+            false,
+            &mut spans,
+            &mut buckets,
+            None,
+            Some(&[span]),
+            Some(&[2.0; 3]),
+            None,
+            None,
+            HistogramWork::default(),
+        )
+        .unwrap();
+        assert_eq!(buckets.as_deref(), Some(&[3.0, 3.0, 1.0][..]));
+        assert_eq!(spans.as_deref(), Some(&[span][..]));
+        let span = Span {
+            offset: i32::MAX,
+            length: 2,
+        };
+        let mut spans = Some(vec![span].into());
+        let mut buckets = Some(vec![1.0; 2].into());
+        merge_buckets(
+            0,
+            0.0,
+            false,
+            &mut spans,
+            &mut buckets,
+            None,
+            Some(&[span]),
+            Some(&[2.0; 2]),
+            None,
+            None,
+            HistogramWork::default(),
+        )
+        .unwrap();
+        assert_eq!(buckets.as_deref(), Some(&[2.0, 3.0, 1.0][..]));
+        assert_eq!(
+            spans.as_deref(),
+            Some(
+                &[
+                    Span {
+                        offset: i32::MIN,
+                        length: 1
+                    },
+                    Span {
+                        offset: -2,
+                        length: 2
+                    }
+                ][..]
+            )
+        );
+        for short in 0..3 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let context = AllocationContext::new(&account, MemoryKind::Workspace);
+            let span = Span {
+                offset: 0,
+                length: 2,
+            };
+            let mut spans = Some(AccountedVec::from_slice_in(&[span], Some(&context)));
+            let mut buckets = Some(AccountedVec::from_slice_in(&[1.0; 2], Some(&context)));
+            let mut correction = Some(AccountedVec::from_slice_in(
+                if short == 1 { &[0.5] } else { &[0.5; 2] },
+                Some(&context),
+            ));
+            let source: &[f64] = if short == 0 { &[2.0] } else { &[2.0; 2] };
+            let source_comp: &[f64] = if short == 2 { &[0.25] } else { &[0.25; 2] };
+            let result = merge_buckets(
+                0,
+                0.0,
+                false,
+                &mut spans,
+                &mut buckets,
+                Some(&mut correction),
+                Some(&[span]),
+                Some(source),
+                Some(source_comp),
+                Some(&context),
+                HistogramWork::new(&control, &account),
+            );
+            let Err(HistogramEvaluationError::Source(crate::storage::StorageError::Runtime {
+                wrapped: true,
+                message,
+            })) = result
+            else {
+                panic!("expected original second-slot diagnostic")
+            };
+            assert_eq!(
+                &*message,
+                b"unexpected error: runtime error: index out of range [1] with length 1"
+            );
+            assert_eq!(buckets.as_deref(), Some(&[3.25, 1.0][..]));
+            assert_eq!(spans.as_deref(), Some(&[span][..]));
+            drop((spans, buckets, correction, message, context));
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn aligned_merge_checks_initial_bucket_and_final_control() {
+        let count = 4096;
+        for stop in [1, 2, 3, 128, count as u64 + 2] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let context = AllocationContext::new(&account, MemoryKind::Workspace);
+            let span = Span {
+                offset: 0,
+                length: count as u32,
+            };
+            let mut spans = Some(AccountedVec::from_slice_in(&[span], Some(&context)));
+            let mut buckets = Some(AccountedVec::from_slice_in(
+                &vec![1.0; count],
+                Some(&context),
+            ));
+            let source = vec![2.0; count];
+            let memory = account.snapshot().memory;
+            let result =
+                crate::test_storage::interrupt_after_work(&account, &control, stop, || {
+                    merge_buckets(
+                        0,
+                        0.0,
+                        false,
+                        &mut spans,
+                        &mut buckets,
+                        None,
+                        Some(&[span]),
+                        Some(&source),
+                        None,
+                        Some(&context),
+                        HistogramWork::new(&control, &account),
+                    )
+                });
+            assert!(matches!(
+                result,
+                Err(HistogramEvaluationError::Interrupted(
+                    Interrupted::Cancelled
+                ))
+            ));
+            assert!(account.snapshot().work <= stop);
+            assert_eq!(account.snapshot().memory, memory);
+            let values = buckets.as_ref().unwrap();
+            let changed = values.iter().take_while(|&&v| v == 3.0).count();
+            assert!(values[changed..].iter().all(|&v| v == 1.0));
+            assert!(changed as u64 <= stop.saturating_sub(2));
+            assert_eq!(changed == 0, stop <= 2);
+            assert_eq!(spans.as_deref(), Some(&[span][..]));
+            drop((spans, buckets, context));
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
     }
 }

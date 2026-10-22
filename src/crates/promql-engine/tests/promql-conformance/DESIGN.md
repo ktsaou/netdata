@@ -2945,3 +2945,15 @@ changing membership, special literals, complete original comparisons and proport
   cursor validation and control polling; no additional history or metadata state is needed.
 - The [finite qualification](native-second-owner-qualification.json) records full results, actual ownership
   and callback failures, all memory categories, native timings and proportional compiled costs.
+
+
+## Aligned histogram arithmetic
+
+- Pair slots directly only for identical complete single spans with more than one bucket, exact participating
+  array lengths, nonwrapping signed index progression and no threshold-skipped first bucket.
+- Preserve existing incoming-value negation and the ordinary/compensated accumulation helpers, including their
+  NaN operand priority. Do not rewrite arithmetic or generalize admission to sparse or malformed layouts.
+- Keep initial, span, each-bucket and completion control checks. Account the actual removed navigation work;
+  do not add buffers, retained state or memory allowances.
+- The [finite qualification](aligned-merge-qualification.json) records exact original kernels and full queries,
+  ownership/error/control checks, native timing, ARM correctness, C consumers and proportional compiled costs.

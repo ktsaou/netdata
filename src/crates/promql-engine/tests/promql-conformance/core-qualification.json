@@ -74112,5 +74112,14 @@
     "exact_baseline_pairs": 1992,
     "timing_pairs": 6640,
     "runtime_restored": true
+  },
+  "aligned_histogram_bucket_merge": {
+    "status": "finite_qualification_pass",
+    "report": "aligned-merge-qualification.json",
+    "report_sha256": "1a9e29b3e1d0ccb2b18ff3a4ecc7b4052c0df1635d8425da968c00c6c4318cc6",
+    "baseline_commit": "39e066f00580cddbe44dc2e885adf7e6f5960d04",
+    "exact_baseline_pairs": 1992,
+    "timing_pairs": 6640,
+    "memory_growth_bytes": 0
   }
 }

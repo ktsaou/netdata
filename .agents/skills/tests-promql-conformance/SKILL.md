@@ -399,3 +399,7 @@ The rejected terminal native predecessor experiment is recorded in
 
 The rejected dense single-span compaction experiment is recorded in
 `src/crates/promql-engine/tests/promql-conformance/README.md#rejected-dense-single-span-histogram-compaction`.
+
+
+Aligned histogram merging follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#aligned-histogram-bucket-merging`.

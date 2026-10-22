@@ -11440,3 +11440,35 @@ The candidate predicate and trial-only tests were reversed exactly after the fro
 `dense_compaction_performance_cases()` reproduces the 166 timing inputs. These are finite synthetic results,
 not live-provider or concurrent throughput. Memory categories are not process RSS. No trial runtime ships;
 a future implementation must preserve this negative evidence and qualify its own costs.
+
+
+## Aligned histogram bucket merging
+
+Histogram addition, subtraction and compensated addition now pair bucket slots directly when both operands
+have identical complete single-span layouts. This removes sparse-index navigation. The same arithmetic helpers
+and operand order remain. Admission requires exact bucket and correction lengths, nonwrapping signed indices
+and no threshold-skipped prefix. Unequal, multiple, empty, one-bucket, malformed and threshold-skipped layouts
+retain the general merge path. No buffer, cache or retained state is added.
+
+[Qualification](aligned-merge-qualification.json) records 1,992 exact baseline comparisons across both release
+profiles and pages 1/17/1024. All pass the original ordering policy without numerical differences; 30 strict
+unspecified-order failures remain recorded separately. The 332 query originals were verified and reused from
+the prior experiment. A further 216 fresh arithmetic originals supplement 6,440 retained histogram requests:
+26,624 original comparisons and 13,312 baseline/candidate pairs pass exactly, including NaN payloads, infinities,
+signed zero, compensated sums, operand reversal, both bucket sides and threshold controls.
+
+Across 6,640 primary timing pairs, target median candidate/baseline ratios are
+0.9048 for release and 0.9147 for release-min.
+The report retains every control and the prescribed slower-case follow-up. All eight memory categories,
+allocation totals, reads, pages and output counts are unchanged; accounted work is nonincreasing. These are
+finite synthetic query measurements, not live-provider or concurrent throughput; category peaks are not RSS.
+
+Both native profiles pass 995 unit tests with two existing ignored checks. Three causal tests cover exact
+values, owners, capacities, accounting, malformed fallback behavior, partial mutation and cancellation.
+Focused ARM32/ARM64 tests execute under QEMU. The actual C/C++ endpoint panel passes 1,080 cases across six
+callers, plus 180 against the accepted baseline. Complete native C suites, strict lint, formatting and
+installed Rust1.91 compilation pass. Fixed executable text/data/BSS costs are recorded separately from RAM.
+
+`aligned_merge_cases.aligned_merge_cases()` reproduces all 332 functional inputs;
+`aligned_merge_performance_cases()` reproduces the 166 timing inputs. New arithmetic captures explicitly use
+the installed pinned Go1.27.1. The rejected predecessor-retirement and dense-compaction versions remain absent.
