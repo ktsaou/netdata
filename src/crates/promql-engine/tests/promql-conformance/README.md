@@ -11368,7 +11368,7 @@ failures remain recorded: four instant derived results per profile/page. The gen
 confirms the custom first-reset unit expectation against both measured binaries; it is excluded from the
 primary counts above.
 
-For the four-series, four-point, 4,096-bucket reset query at page17, peak Workspace falls from 274,268 to
+For the four-series, four-point, 4,096-bucket reset query at page1, peak Workspace falls from 274,268 to
 241,156 bytes. No category peak grows. Allocation traffic, work, fetched entries and pages remain unchanged.
 This reduces simultaneous ownership, not total allocation traffic. Category peaks are not additive or RSS.
 The report retains all 5,760 primary timing pairs and the prescribed follow-up, including slower controls;
