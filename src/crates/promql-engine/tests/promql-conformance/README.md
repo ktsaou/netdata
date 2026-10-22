@@ -10998,3 +10998,49 @@ The corrected fixture passes on both libraries. The Rust sources, archives and p
 
 Cumulative compiled costs are separate from query memory and retained in the finite report.
 Both sides use identical retained pre-correction default C harness bytes; corrected lifecycle callers are rebuilt separately.
+
+
+## Validated Changes acquisition reuse
+
+`changes()` updates its existing one-predecessor state during ordinary acquisition. Full validation,
+required histogram consumption and final controls still precede completion and read credit. Raw duplicate
+timestamps still fail storage validation; derived equal-time merge handling and `resets()` retain their paths.
+Anchored, statistics, buffered, wider-window and non-matrix fallbacks also retain their existing behavior.
+
+[Qualification](changes-acquisition-qualification.json) records 2,400 complete baseline/original-policy
+comparisons from 400 fresh Prometheus outcomes, across both native profiles and pages 1/17/1024. Numeric bits
+agree. Strict instant-row order differences and four smoothed-modifier errors remain separately reported; four anchored requests succeed.
+Another 512 complete linear-history outcomes have independently calculated values, labels and timestamps.
+
+| Native profile | Changes time ratio | Resets/Min/Max control ratio |
+|---|---:|---:|
+| release | 0.6716 | 0.9836 |
+| release-min | 0.6907 | 0.9882 |
+
+Measured target times fall about 31–33% in 1,280 paired complete queries:
+four/sixteen series, 32/256 samples, instant/three-step ranges, page 17, five alternating blocks and four repeats
+with the first discarded. Measurement runs separately from task builds and other query panels. Every slower
+control receives the prescribed single follow-up; primary and follow-up results remain in the report.
+
+Across all 2,400 resource pairs, the largest Workspace increase is 192 bytes: 24,238 to 24,430 bytes in a mixed
+histogram range. The earlier predecessor copy overlaps input ownership; the other seven category peaks are
+unchanged. Category peaks are separate observations, not a simultaneous total. Eighteen extent checks keep
+Workspace at 9,373 bytes for four series with 32/2,048/100,000 samples each, across pages 1/17/1024.
+Fixture input allocations and process RSS are outside that claim. No new state fields or raw-history cache.
+
+Both native profiles pass 966 units with two ignored. Each ARM target executes 59 fold owners and the existing
+derived-timestamp owner under QEMU. Six new owners cover special values, native/mixed membership, fallbacks,
+provider failures, cancellation inside partial native copies, bounded histories and actual raw timestamp ties.
+Six C/C++ callers pass 24 lifecycle cases each; both complete native C suites, strict lint, formatting and
+MSRV 1.91 compilation pass. The C lifecycle fixture uses the already corrected series-specific calibration.
+
+| Default C executable | Text/data/BSS change, bytes | Relative change |
+|---|---:|---:|
+| release | +64 | 0.0008% |
+| release-min | +64 | 0.0011% |
+| arm32 | +32 | 0.0005% |
+| arm64 | +8220 | 0.1180% |
+
+Both sides use identical current C harness bytes. The preceding report used the older calibration helper;
+its separate harness adjustment is -32/-32/-24/0 bytes for release/release-min/ARM32/ARM64. Cumulative compiled
+costs include that disclosed adjustment and remain separate from query memory.

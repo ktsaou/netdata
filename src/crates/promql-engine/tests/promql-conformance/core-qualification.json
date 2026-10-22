@@ -74023,5 +74023,11 @@
     "report": "regression-acquisition-qualification.json",
     "report_sha256": "59a6856282b093e2f8ac4f68af1a1f22d09260ee14869e63065c944de8ced4f3",
     "summary": "Reuse validated ordinary acquisition for deriv and predict_linear."
+  },
+  "changes_acquisition": {
+    "status": "finite_qualification_pass",
+    "report": "changes-acquisition-qualification.json",
+    "report_sha256": "1318d19dd3948104241e6509e99dc6bf8bdedd1e523f7ffc5a8c88e7477fd9a4",
+    "summary": "Reuse validated ordinary acquisition for changes."
   }
 }

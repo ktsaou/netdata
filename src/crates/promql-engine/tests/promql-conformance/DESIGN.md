@@ -2812,3 +2812,14 @@ changing membership, special literals, complete original comparisons and proport
 - **Evidence:** [finite qualification](regression-acquisition-qualification.json) and
   [measured scope](README.md#validated-regression-acquisition-reuse) separate timing, accounted peaks,
   actual failure/control witnesses, preserved test correction and proportional compiled costs.
+
+
+## Validated Changes acquisition reuse
+
+- **Choice:** admit ordinary Changes to the existing acquisition proof and one-predecessor accumulator.
+  Complete validation, required native consumption and terminal controls precede results and read credit.
+- **Contracts:** preserve native equality, raw strict timestamps, derived merge errors and all fallback paths.
+  Resets remains separate because its native operation can return additional errors during evaluation.
+- **Cost:** earlier predecessor ownership can modestly increase native-buffer overlap. Retain actual peak
+  changes, failed preparation records, complete reference comparisons and proportional compiled costs in the
+  [finite report](changes-acquisition-qualification.json) and [measured scope](README.md#validated-changes-acquisition-reuse).

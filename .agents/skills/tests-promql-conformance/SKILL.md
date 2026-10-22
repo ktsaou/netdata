@@ -363,3 +363,6 @@ Ordinary First/Last acquisition and provisional native copying follow
 
 Ordinary Deriv/PredictLinear acquisition, prediction clocks and calibrated interruption follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#validated-regression-acquisition-reuse`.
+
+Ordinary Changes acquisition, predecessor ownership and raw/derived timestamp controls follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#validated-changes-acquisition-reuse`.
