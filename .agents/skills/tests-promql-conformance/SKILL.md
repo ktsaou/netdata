@@ -276,6 +276,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   Instant-rate acquisition also follows
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-rate-float-windows` for native
   fallback, terminal validation and provisional endpoint ownership.
+  Expired native ownership follows
+  `src/crates/promql-engine/tests/promql-conformance/README.md#reused-native-instant-rate-endpoints`.
 - Histogram constructor lookup MUST preserve encoded-key identity, separate passes and tiny-set cost; see
   `src/crates/promql-engine/tests/promql-conformance/README.md#histogram-constructor-key-lookup` for collision,
   ordering and terminal interruption controls.

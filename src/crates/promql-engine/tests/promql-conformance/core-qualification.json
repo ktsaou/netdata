@@ -74053,5 +74053,11 @@
     "report": "boolean-rate-preparation-qualification.json",
     "report_sha256": "43b7981f2bce0c3487c9ca2a92449a2c18f776a1b35d54e86363e78d7d995b87",
     "summary": "Transfer completed ordinary Float Rate/Increase metadata into root instant literal Boolean comparisons."
+  },
+  "native_endpoint_reuse": {
+    "status": "finite_qualification_pass",
+    "report": "native-endpoint-reuse-qualification.json",
+    "report_sha256": "5d3a74a6f345214eaac4b73a31256d85153fb38173469bbc588ae2b1e6faedce",
+    "summary": "Reuse expired FloatHistogram endpoint ownership in irate/idelta only at exact fresh buffer capacities."
   }
 }

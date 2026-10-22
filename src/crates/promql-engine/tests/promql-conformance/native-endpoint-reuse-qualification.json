@@ -1,0 +1,827 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "ae8453fe2d7741d2c1db3c4256127fa352583cde",
+  "change": "Reuse expired FloatHistogram endpoint ownership in irate/idelta only at exact fresh buffer capacities.",
+  "proof": "The two existing endpoint slots suffice. An expired same-query native owner can receive a FloatHistogram when all four optional buffers have matching presence and exact fresh capacity, with no custom bounds on either value. Zero expired sample credit, run the unchanged checked field-copy loop, and credit only completed replacement. The consuming owner drops partial storage with zero replacement credit on failure; shared HistogramMutation remains unchanged.",
+  "preserved": [
+    "Float lease reuse and all acquisition/probe/consume phases",
+    "integer-input,custom-bounds,different-layout and different-query fresh copying",
+    "all scalar/buffer bits and absent-versus-empty fields",
+    "work polls,read counts,logical samples and independent output ownership",
+    "equal-time typed-tail insertion and final native arithmetic",
+    "public ABI,provider,storage,contexts,HTTP,configuration and paged input contracts"
+  ],
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/native-endpoint-xtb94obs/baseline-source.json",
+      "sha256": "18142dbaae52d1e96352fdfa4bf999cad41048b624ba3dc0e450f8ed28cc6621"
+    },
+    "candidate": {
+      "path": ".tmp/native-endpoint-xtb94obs/candidate-source.json",
+      "sha256": "39b48763670712bf9efabf972250a12ce9fd81c1fd526a4e8d75e8ac0c51d417"
+    },
+    "candidate-tests": {
+      "path": ".tmp/native-endpoint-xtb94obs/candidate-tests-source.json",
+      "sha256": "5d2ea74bf2aefd5807c940edf3540033a2c79f09e55756444c02d1c5dc5eccfb"
+    },
+    "candidate-v2": {
+      "path": ".tmp/native-endpoint-xtb94obs/candidate-v2-source.json",
+      "sha256": "fc6b09b38d80255ebae9e97ddf65176fb4dd5365a35e9782691951bf12545379"
+    },
+    "candidate-v3": {
+      "path": ".tmp/native-endpoint-xtb94obs/candidate-v3-source.json",
+      "sha256": "adbf512f60ec8bdbe103f42650e68555f52dd769e0c6a0829dfbdde9eb7593ca"
+    },
+    "qualified": {
+      "path": ".tmp/native-endpoint-xtb94obs/qualified-source.json",
+      "sha256": "24082bbc259983f089ebe71a3e8f8d9fd2ab1b66c2547317d924f6c28b427ebc"
+    },
+    "qualified-corrected": {
+      "path": ".tmp/native-endpoint-xtb94obs/qualified-corrected-source.json",
+      "sha256": "fc36e7795f458b3ccd2bc56beff070b7391941f23e5efa4c88f4ee1af70c82fb"
+    },
+    "final-tested": {
+      "path": ".tmp/native-endpoint-xtb94obs/final-tested-source.json",
+      "sha256": "9298aa1adb8dcbc5dd1009b4c077ccd6e97702fb6197018c2f596cf75cf9d130"
+    }
+  },
+  "qualification": {
+    "units": {
+      "release": [
+        {
+          "filter": "",
+          "passed": 984,
+          "ignored": 2
+        }
+      ],
+      "release-min": [
+        {
+          "filter": "",
+          "passed": 984,
+          "ignored": 2
+        }
+      ],
+      "arm32": [
+        {
+          "filter": "instant_native_expired_owners_",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "instant_acquisition_native_and_uncertified_windows_keep_complete_behavior",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "instant_typed_tails_preserve_source_equal_time_insertion",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "instant_equal_selected_times_finish_before_histogram_warnings",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "instant_mixed_probe_preserves_late_failure_and_cancellation",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "statistics::tests",
+          "passed": 12,
+          "ignored": 0
+        }
+      ],
+      "arm64": [
+        {
+          "filter": "instant_native_expired_owners_",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "instant_acquisition_native_and_uncertified_windows_keep_complete_behavior",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "instant_typed_tails_preserve_source_equal_time_insertion",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "instant_equal_selected_times_finish_before_histogram_warnings",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "instant_mixed_probe_preserves_late_failure_and_cancellation",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "statistics::tests",
+          "passed": 12,
+          "ignored": 0
+        }
+      ]
+    },
+    "new_unit_owners": 4,
+    "unique_original_requests": 66,
+    "baseline_pairs": 396,
+    "strict_original_passes": 396,
+    "strict_original_failures": 0,
+    "numeric_bit_differences": 0,
+    "original_exclusions": 0,
+    "callers": {
+      "release": [
+        {
+          "language": "C",
+          "cases": 72,
+          "binary_sha256": "b5eca7dd41294e22fb35b7c3a5c105c8dd822fb3b9a9a350e810d346ec06c0ed"
+        },
+        {
+          "language": "CPP",
+          "cases": 72,
+          "binary_sha256": "c71617926ae963c649b58fb40b49c3ae4c8815a97c0f6626382103ca85ec5b3b"
+        }
+      ],
+      "release-min": [
+        {
+          "language": "C",
+          "cases": 72,
+          "binary_sha256": "9222f66a6553c434d426f9c5efa8ee41f8e12ffdb0735057622794f7b23d02a1"
+        },
+        {
+          "language": "CPP",
+          "cases": 72,
+          "binary_sha256": "48a79b311d275db4b1937a1ee65427bb12c55d3db75fabfd132b5284c7bfd5fd"
+        }
+      ],
+      "arm32": [
+        {
+          "language": "C",
+          "cases": 72,
+          "binary_sha256": "7e047d98214e20d0ac42e03c17bdb47600cf97bf2438bce6c578527a34c851f4"
+        }
+      ],
+      "arm64": [
+        {
+          "language": "C",
+          "cases": 72,
+          "binary_sha256": "0c3723ac9b53358a66b1bc4b1ae1b90f53ee251253d071faf3178875ce6922c8"
+        }
+      ]
+    },
+    "C_and_CPP_cases": 432,
+    "complete_native_C_suites": 2,
+    "strict_lint_variants": 2,
+    "format": true,
+    "MSRV_compile_only": "1.91.0"
+  },
+  "measurement": {
+    "plan": {
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "blocks": 5,
+      "repeats": 4,
+      "discard_first": true,
+      "page": 17,
+      "target_shapes": [
+        "irate",
+        "idelta"
+      ],
+      "target_median_max": 0.95,
+      "control_median_max": 1.05,
+      "individual_control_followup": {
+        "threshold": 1.05,
+        "blocks": 6,
+        "max_rounds": 1
+      },
+      "memory": "No peak growth in fixed/varying layouts; allocation traffic must fall for targets.",
+      "compiled_policy": "Decision66 proportional absolute/relative/cumulative; query memory separate."
+    },
+    "profiles": {
+      "release": {
+        "target": 0.7224050890303298,
+        "families": {
+          "irate": 0.7224050890303298,
+          "idelta": 0.7305500917288159
+        },
+        "controls": 0.9761263150290862,
+        "complete_pairs": 440,
+        "cases": [
+          {
+            "id": "target-irate-32-8",
+            "target": true,
+            "before_median_ns": 377877,
+            "candidate_median_ns": 284578,
+            "ratio": 0.7530969071946692
+          },
+          {
+            "id": "target-idelta-32-8",
+            "target": true,
+            "before_median_ns": 374307,
+            "candidate_median_ns": 293867,
+            "ratio": 0.7850961910944759
+          },
+          {
+            "id": "target-irate-32-256",
+            "target": true,
+            "before_median_ns": 664385,
+            "candidate_median_ns": 564225,
+            "ratio": 0.8492440377190936
+          },
+          {
+            "id": "target-idelta-32-256",
+            "target": true,
+            "before_median_ns": 506305,
+            "candidate_median_ns": 409177,
+            "ratio": 0.8081630637659118
+          },
+          {
+            "id": "target-irate-256-8",
+            "target": true,
+            "before_median_ns": 1822144,
+            "candidate_median_ns": 1188080,
+            "ratio": 0.6520231112359945
+          },
+          {
+            "id": "target-idelta-256-8",
+            "target": true,
+            "before_median_ns": 1901733,
+            "candidate_median_ns": 1221089,
+            "ratio": 0.642092764862365
+          },
+          {
+            "id": "target-irate-256-256",
+            "target": true,
+            "before_median_ns": 2530709,
+            "candidate_median_ns": 1750525,
+            "ratio": 0.6917132708659905
+          },
+          {
+            "id": "target-idelta-256-256",
+            "target": true,
+            "before_median_ns": 2414610,
+            "candidate_median_ns": 1632286,
+            "ratio": 0.676003992363156
+          },
+          {
+            "id": "control-irate-float",
+            "target": false,
+            "before_median_ns": 111469,
+            "candidate_median_ns": 113419,
+            "ratio": 1.0174936529438678
+          },
+          {
+            "id": "control-idelta-float",
+            "target": false,
+            "before_median_ns": 111119,
+            "candidate_median_ns": 111219,
+            "ratio": 1.0008999361045365
+          },
+          {
+            "id": "control-irate-integer",
+            "target": false,
+            "before_median_ns": 1444747,
+            "candidate_median_ns": 1491227,
+            "ratio": 1.032171722799909
+          },
+          {
+            "id": "control-idelta-integer",
+            "target": false,
+            "before_median_ns": 1340269,
+            "candidate_median_ns": 1333948,
+            "ratio": 0.995283782583944
+          },
+          {
+            "id": "control-irate-mixed-kinds",
+            "target": false,
+            "before_median_ns": 1044501,
+            "candidate_median_ns": 1047042,
+            "ratio": 1.0024327406101095
+          },
+          {
+            "id": "control-idelta-mixed-kinds",
+            "target": false,
+            "before_median_ns": 930072,
+            "candidate_median_ns": 881683,
+            "ratio": 0.9479728451130666
+          },
+          {
+            "id": "control-irate-mixed",
+            "target": false,
+            "before_median_ns": 606935,
+            "candidate_median_ns": 511896,
+            "ratio": 0.8434115679603252
+          },
+          {
+            "id": "control-idelta-mixed",
+            "target": false,
+            "before_median_ns": 438756,
+            "candidate_median_ns": 364777,
+            "ratio": 0.8313892003756074
+          },
+          {
+            "id": "control-irate-custom",
+            "target": false,
+            "before_median_ns": 629764,
+            "candidate_median_ns": 610624,
+            "ratio": 0.9696076625529564
+          },
+          {
+            "id": "control-idelta-custom",
+            "target": false,
+            "before_median_ns": 667184,
+            "candidate_median_ns": 655605,
+            "ratio": 0.9826449675052159
+          },
+          {
+            "id": "control-irate-varying",
+            "target": false,
+            "before_median_ns": 461946,
+            "candidate_median_ns": 442787,
+            "ratio": 0.9585254553562538
+          },
+          {
+            "id": "control-idelta-varying",
+            "target": false,
+            "before_median_ns": 434966,
+            "candidate_median_ns": 434117,
+            "ratio": 0.9980481233015914
+          },
+          {
+            "id": "control-irate-stale",
+            "target": false,
+            "before_median_ns": 621225,
+            "candidate_median_ns": 557155,
+            "ratio": 0.896865064992555
+          },
+          {
+            "id": "control-idelta-stale",
+            "target": false,
+            "before_median_ns": 479256,
+            "candidate_median_ns": 379626,
+            "ratio": 0.7921152786819571
+          }
+        ]
+      },
+      "release-min": {
+        "target": 0.7311577534994009,
+        "families": {
+          "irate": 0.7381672027341653,
+          "idelta": 0.7205768859228443
+        },
+        "controls": 1.0050480102913344,
+        "complete_pairs": 440,
+        "cases": [
+          {
+            "id": "target-irate-32-8",
+            "target": true,
+            "before_median_ns": 345137,
+            "candidate_median_ns": 271268,
+            "ratio": 0.7859719473716235
+          },
+          {
+            "id": "target-idelta-32-8",
+            "target": true,
+            "before_median_ns": 345977,
+            "candidate_median_ns": 267078,
+            "ratio": 0.7719530489020946
+          },
+          {
+            "id": "target-irate-32-256",
+            "target": true,
+            "before_median_ns": 637084,
+            "candidate_median_ns": 558986,
+            "ratio": 0.8774133395282254
+          },
+          {
+            "id": "target-idelta-32-256",
+            "target": true,
+            "before_median_ns": 468126,
+            "candidate_median_ns": 378766,
+            "ratio": 0.8091112221923158
+          },
+          {
+            "id": "target-irate-256-8",
+            "target": true,
+            "before_median_ns": 1905774,
+            "candidate_median_ns": 1247330,
+            "ratio": 0.6545004811693307
+          },
+          {
+            "id": "target-idelta-256-8",
+            "target": true,
+            "before_median_ns": 1907333,
+            "candidate_median_ns": 1250050,
+            "ratio": 0.6553915860523569
+          },
+          {
+            "id": "target-irate-256-256",
+            "target": true,
+            "before_median_ns": 2320820,
+            "candidate_median_ns": 1602207,
+            "ratio": 0.6903624580967072
+          },
+          {
+            "id": "target-idelta-256-256",
+            "target": true,
+            "before_median_ns": 2148992,
+            "candidate_median_ns": 1438107,
+            "ratio": 0.669200722943594
+          },
+          {
+            "id": "control-irate-float",
+            "target": false,
+            "before_median_ns": 84449,
+            "candidate_median_ns": 85609,
+            "ratio": 1.0137361010787576
+          },
+          {
+            "id": "control-idelta-float",
+            "target": false,
+            "before_median_ns": 83109,
+            "candidate_median_ns": 85719,
+            "ratio": 1.0314045410244377
+          },
+          {
+            "id": "control-irate-integer",
+            "target": false,
+            "before_median_ns": 1517027,
+            "candidate_median_ns": 1551207,
+            "ratio": 1.0225309107880083
+          },
+          {
+            "id": "control-idelta-integer",
+            "target": false,
+            "before_median_ns": 1344519,
+            "candidate_median_ns": 1375378,
+            "ratio": 1.0229517024303858
+          },
+          {
+            "id": "control-irate-mixed-kinds",
+            "target": false,
+            "before_median_ns": 1068331,
+            "candidate_median_ns": 1049001,
+            "ratio": 0.9819063567377526
+          },
+          {
+            "id": "control-idelta-mixed-kinds",
+            "target": false,
+            "before_median_ns": 905502,
+            "candidate_median_ns": 880493,
+            "ratio": 0.9723810659722453
+          },
+          {
+            "id": "control-irate-mixed",
+            "target": false,
+            "before_median_ns": 566335,
+            "candidate_median_ns": 538515,
+            "ratio": 0.9508771310266891
+          },
+          {
+            "id": "control-idelta-mixed",
+            "target": false,
+            "before_median_ns": 396966,
+            "candidate_median_ns": 348867,
+            "ratio": 0.8788334517313825
+          },
+          {
+            "id": "control-irate-custom",
+            "target": false,
+            "before_median_ns": 541686,
+            "candidate_median_ns": 560955,
+            "ratio": 1.035572268805175
+          },
+          {
+            "id": "control-idelta-custom",
+            "target": false,
+            "before_median_ns": 578315,
+            "candidate_median_ns": 593285,
+            "ratio": 1.0258855468040773
+          },
+          {
+            "id": "control-irate-varying",
+            "target": false,
+            "before_median_ns": 439276,
+            "candidate_median_ns": 437677,
+            "ratio": 0.996359919503911
+          },
+          {
+            "id": "control-idelta-varying",
+            "target": false,
+            "before_median_ns": 398897,
+            "candidate_median_ns": 404796,
+            "ratio": 1.014788278678456
+          },
+          {
+            "id": "control-irate-stale",
+            "target": false,
+            "before_median_ns": 600745,
+            "candidate_median_ns": 551825,
+            "ratio": 0.9185677783418922
+          },
+          {
+            "id": "control-idelta-stale",
+            "target": false,
+            "before_median_ns": 433727,
+            "candidate_median_ns": 376057,
+            "ratio": 0.8670361771344648
+          }
+        ]
+      }
+    },
+    "complete_pairs": 880,
+    "followup": {
+      "release": {
+        "selected": [],
+        "pairs": 0
+      },
+      "release-min": {
+        "selected": [],
+        "pairs": 0
+      }
+    }
+  },
+  "resources": {
+    "pairs": 396,
+    "categories": 8,
+    "maximum_peak_change_bytes": 0,
+    "minimum_peak_change_bytes": 0,
+    "observed_deltas_receipt": "resource-analysis",
+    "scope": "All nonelapsed observations retained. Only allocation traffic differs in this panel; all category peaks,work,reads,output/reference and temporary-store observations match. Category peaks are not additive simultaneous totals or process RSS. Query fixture omits basic sample statistics; direct Rust and actual C assertions own those checks.",
+    "example": {
+      "id": "target-irate-256-256",
+      "page": 17,
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "workspace_acquired_before": 5466096,
+      "workspace_acquired_candidate": 605552,
+      "workspace_peak_before": 23348,
+      "workspace_peak_candidate": 23348,
+      "fetched_before": 4368,
+      "fetched_candidate": 4368,
+      "work_before": 576103,
+      "work_candidate": 576103
+    },
+    "causal_ownership": "Four focused owners compare forced fresh-copy values/allocation/work, eligible2/3/4lengths within capacity4, expired/copy interruption with exact surviving credit, varying/custom/empty/different-query fallback, and Integer-origin ownership followed by Float replacement through cloned query handles. Incoming IntegerHistogram remains fresh-copy; origin kind is not retained in OwnedHistogram."
+  },
+  "compiled_C_sizes": {
+    "release": {
+      "kind": "default-C",
+      "before": [
+        7489034,
+        509336,
+        400
+      ],
+      "current": [
+        7488082,
+        509256,
+        400
+      ],
+      "growth": -1032,
+      "before_total": 7998770,
+      "current_total": 7997738,
+      "growth_percent": -0.012901983679990799,
+      "cumulative_baseline_text_data_bss": [
+        7370378,
+        506744,
+        400
+      ],
+      "cumulative_growth_bytes": 120216,
+      "cumulative_growth_percent": 1.5260636530116958
+    },
+    "release-min": {
+      "kind": "default-C",
+      "before": [
+        5144839,
+        464656,
+        400
+      ],
+      "current": [
+        5145935,
+        464656,
+        400
+      ],
+      "growth": 1096,
+      "before_total": 5609895,
+      "current_total": 5610991,
+      "growth_percent": 0.019536907553528184,
+      "cumulative_baseline_text_data_bss": [
+        5103967,
+        462056,
+        400
+      ],
+      "cumulative_growth_bytes": 44568,
+      "cumulative_growth_percent": 0.8006578012486655
+    },
+    "arm32": {
+      "kind": "default-C",
+      "before": [
+        6493493,
+        294116,
+        244
+      ],
+      "current": [
+        6497545,
+        294100,
+        244
+      ],
+      "growth": 4036,
+      "before_total": 6787853,
+      "current_total": 6791889,
+      "growth_percent": 0.059459154463127,
+      "cumulative_baseline_text_data_bss": [
+        6382697,
+        292596,
+        244
+      ],
+      "cumulative_growth_bytes": 116352,
+      "cumulative_growth_percent": 1.742960903370021
+    },
+    "arm64": {
+      "kind": "default-C",
+      "before": [
+        6457410,
+        499376,
+        384
+      ],
+      "current": [
+        6452946,
+        499352,
+        384
+      ],
+      "growth": -4488,
+      "before_total": 6957170,
+      "current_total": 6952682,
+      "growth_percent": -0.06450898856862776,
+      "cumulative_baseline_text_data_bss": [
+        6374470,
+        497032,
+        384
+      ],
+      "cumulative_growth_bytes": 80796,
+      "cumulative_growth_percent": 1.1757470947568105
+    }
+  },
+  "cumulative_compiled_baseline": "51862635936717f6bcc9ab018b994d0ac205b0ea",
+  "compiled_comparison_scope": "Same default C harness and installed toolchains/effective settings against accepted177. Actual native-endpoint callers are separately rebuilt. Fixed compiled sections are assessed proportionally under66, separately from query memory.",
+  "receipts": {
+    "focused-v3": {
+      "path": ".tmp/native-endpoint-xtb94obs/focused-v3.json",
+      "sha256": "f0f08ea996af50dc0a25f0dc36acc93b91c23ed4074f948b9d06b55bcc211973"
+    },
+    "original-capture": {
+      "path": ".tmp/native-endpoint-xtb94obs/original-capture.json",
+      "sha256": "650e618466f0f5d0ac26d1c601eb2ff7e7bdb8616f0f2fa07fbd5dfb15137cb6"
+    },
+    "baseline-original-check": {
+      "path": ".tmp/native-endpoint-xtb94obs/baseline-original-check.json",
+      "sha256": "905d4b74db657393a30abcd345899c5bc8bacb30be1e9077426698555cb98669"
+    },
+    "controls-final-comparison-release": {
+      "path": ".tmp/native-endpoint-xtb94obs/controls-final-comparison-release.json",
+      "sha256": "a78e464b9ac6f09e568cf1e6d81f29f70583321fb0a7976aed2a377f50112a40"
+    },
+    "controls-final-comparison-release-min": {
+      "path": ".tmp/native-endpoint-xtb94obs/controls-final-comparison-release-min.json",
+      "sha256": "caf43f132e37cd73844647b2c929f7e7311267178a182d3e6a9878676ec62367"
+    },
+    "resource-analysis": {
+      "path": ".tmp/native-endpoint-xtb94obs/resource-analysis.json",
+      "sha256": "80204ab26e45afde876e75df16d414017755de5f1215affbc37ac099f7fa5cc0"
+    },
+    "pilot": {
+      "path": ".tmp/native-endpoint-xtb94obs/pilot.json",
+      "sha256": "6b6b244e1d519775afe23a76016430d659485d73767df16b3e06cd8ee6bf1e60"
+    },
+    "slower-followup": {
+      "path": ".tmp/native-endpoint-xtb94obs/slower-followup.json",
+      "sha256": "7b7dbba8eaa81773cb828f5a0118f0993e25ddbccbe9add38cc1860a8069e8d2"
+    },
+    "candidate-static": {
+      "path": ".tmp/native-endpoint-xtb94obs/candidate-static.json",
+      "sha256": "60375fa4aa60a670a5c5605340a5734a5cd98549ab97b7aeb7148044da5b237d"
+    },
+    "reference-check": {
+      "path": ".tmp/native-endpoint-xtb94obs/reference-check.json",
+      "sha256": "b621e84e70fb73169188947cbd3db8d199a139d7e59dff827369d2663a83e0d4"
+    },
+    "corpus-reproduction": {
+      "path": ".tmp/native-endpoint-xtb94obs/corpus-reproduction.json",
+      "sha256": "3dfb5cd0e242600365b3fd0ea8350892324a60ae0e1b3650b1293a72916882db"
+    },
+    "development-review": {
+      "path": ".tmp/native-endpoint-xtb94obs/development-review.json",
+      "sha256": "46f5033639bdc28e91b7df8be0b573b29f0659dae46e5253f9ca57f926c41c7b"
+    },
+    "final-focused": {
+      "path": ".tmp/native-endpoint-xtb94obs/final-focused.json",
+      "sha256": "6cae231b29dc802bff15ab11fc47f8480cb5c0c5f1a0a0e6e7c2337383329669"
+    },
+    "test-lint-correction": {
+      "path": ".tmp/native-endpoint-xtb94obs/test-lint-correction.json",
+      "sha256": "6a77c3cb68e62ab08277809510567d86c73b8508555d8525b77c52bc0bb8f36b"
+    },
+    "C-fixture-correction": {
+      "path": ".tmp/native-endpoint-xtb94obs/C-fixture-correction.json",
+      "sha256": "d113110a1d136f48a9e92aea0f393306d9074b4829235c7cf8664688a3c95616"
+    },
+    "C-statistics-diagnosis-v2": {
+      "path": ".tmp/native-endpoint-xtb94obs/C-statistics-diagnosis-v2.json",
+      "sha256": "b56ab0d2abe33c949156edc03ac26d4fc1f9badb4571d2481b0d608b63b96aa2"
+    },
+    "final-perf-release-builds": {
+      "path": ".tmp/native-endpoint-xtb94obs/final-perf-release-builds.json",
+      "sha256": "dd64bc7ad73a4bace4c9bd903b695653aadc8e304d4b60d6cce2f1fc8a2954e5"
+    },
+    "final-perf-release-min-builds": {
+      "path": ".tmp/native-endpoint-xtb94obs/final-perf-release-min-builds.json",
+      "sha256": "5a564db0e0ee8e579ba605db43294c670e5748c9dd3b3c97cc98a09b0933520e"
+    },
+    "build-release": {
+      "path": ".tmp/native-endpoint-xtb94obs/build-release.json",
+      "sha256": "0316cb58e686ae895ec29c12c728277620c17b2a69c0f9380472d946c8079217"
+    },
+    "qualification-release": {
+      "path": ".tmp/native-endpoint-xtb94obs/qualification-release.json",
+      "sha256": "f262c89f782862a4e79d4bfd6f34eba25d9162bc77ffcf5f30f402528c5d4ae2"
+    },
+    "build-release-min": {
+      "path": ".tmp/native-endpoint-xtb94obs/build-release-min.json",
+      "sha256": "10be823267a374c6b99d0caac9b10989ae5aa7bb4d2dfc585e9b1ced77295eb2"
+    },
+    "qualification-release-min": {
+      "path": ".tmp/native-endpoint-xtb94obs/qualification-release-min.json",
+      "sha256": "6eb6562bac6d7b792b7dfe11e8fe64a94ee04177090e7f2c8778b84ea6dcf1ea"
+    },
+    "build-arm32": {
+      "path": ".tmp/native-endpoint-xtb94obs/build-arm32.json",
+      "sha256": "7ead12e4be3103c020529bbab04d13ad958f9ddbe87b43602f7d7511aac27740"
+    },
+    "qualification-arm32": {
+      "path": ".tmp/native-endpoint-xtb94obs/qualification-arm32.json",
+      "sha256": "905514af8e6fafb7103d308928b572aa0880db584cc17029c2314b4fe8d56db5"
+    },
+    "build-arm64": {
+      "path": ".tmp/native-endpoint-xtb94obs/build-arm64.json",
+      "sha256": "41ab2c7d794406ca1278d20139b87128495d5069b2c2093e18a061ccf1bf151d"
+    },
+    "qualification-arm64": {
+      "path": ".tmp/native-endpoint-xtb94obs/qualification-arm64.json",
+      "sha256": "2e05045122e27885439105bd9bc1b79bab49459d63365be63500a6c83b690db1"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/native-endpoint-xtb94obs/artifact-integrity.json",
+      "sha256": "f76a0a6da5e48e2567e53b44edc185cd64ca780996867c2e2a43e92327d7b47a"
+    },
+    "baseline-binding": {
+      "path": ".tmp/native-endpoint-xtb94obs/baseline-binding.json",
+      "sha256": "d6755f7281299bb8fad3993370e4e036af09c2e7dbf10a7baf8aa21df845e535"
+    },
+    "before-builds": {
+      "path": ".tmp/native-endpoint-xtb94obs/before-builds.json",
+      "sha256": "98b5d3bcb20597cb36246206f035384dbb350c6e2f2e734771c279c81b8848cb"
+    },
+    "implementation": {
+      "path": ".tmp/native-endpoint-xtb94obs/implementation.json",
+      "sha256": "ce8826285bbf82fe433128a3134e6a8120ec8af7c04e25c2719c8972fa407c5f"
+    },
+    "inputs-prepared": {
+      "path": ".tmp/native-endpoint-xtb94obs/inputs-prepared.json",
+      "sha256": "04d32cbce20db34c78a53d50205f7313562afe087f3ac28f579165d32e5642b0"
+    },
+    "qualification-prepared": {
+      "path": ".tmp/native-endpoint-xtb94obs/qualification-prepared.json",
+      "sha256": "3da528bad1c674efe6c953eb5262ff7460999008468e871963129f1683332dc7"
+    },
+    "C-cohort": {
+      "path": ".tmp/native-endpoint-xtb94obs/C-cohort.json",
+      "sha256": "8a6975a4682658694c585b433536628fe976a70fc3ed32c8f9544ce83e034191"
+    },
+    "test-import-correction": {
+      "path": ".tmp/native-endpoint-xtb94obs/test-import-correction.json",
+      "sha256": "4de9dd0c9dbfa28d4a2a4bbc2bbf76cfdf8d8539717090bb9e96182560e2a3a7"
+    },
+    "test-expansion": {
+      "path": ".tmp/native-endpoint-xtb94obs/test-expansion.json",
+      "sha256": "6daf8bfb7350ffa7aa0d7092eeda909c7e845c61cfcf08e6373741b7792c5e71"
+    }
+  },
+  "limitations": [
+    "Finite synthetic native timings; no universal,live-provider,concurrent,production-weighted or physical ARM throughput assertion.",
+    "No individual primary control exceeded1.05, so the prescribed follow-up selected no cases. All primary control timings remain retained.",
+    "Initial causal test compilation used an unimported enum; that failed attempt is retained. The correction and subsequent review-driven test expansion did not alter runtime code.",
+    "Strict lint identified two unnecessary Vec identity conversions in a new test. Removing them changed no runtime source or test semantics. Final lint/format/MSRV and four causal tests pass; optimized native/ARM suites retain their earlier source attribution.",
+    "The initial C fixture incorrectly assumed full bucket weight under histogram_sum and no idelta warning for counter inputs. Accepted and candidate engines reproduced the same behavior. Corrected raw histogram queries pass on both; unchanged Rust unit and performance evidence is retained.",
+    "The fresh-copy unit baseline is independent for successful output/allocation checks; cancellation phases are tested by injected actual work/release events.",
+    "Reuse is an optimization boundary, not a language restriction. Varying capacity,custom bounds and incoming integer histograms continue through existing supported paths."
+  ]
+}

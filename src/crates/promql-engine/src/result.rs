@@ -466,6 +466,55 @@ impl OwnedHistogram {
             SampleValueRef::Float(_) => unreachable!("classified histogram value"),
         }
     }
+    pub(crate) fn can_replace_expired(
+        &self,
+        source: crate::histogram::FloatHistogramRef<'_>,
+        account: &QueryAccounting,
+    ) -> bool {
+        fn same_capacity<T>(owned: &Option<AccountedVec<T>>, source: Option<&[T]>) -> bool {
+            match (owned, source) {
+                (None, None) => true,
+                (Some(owned), Some(source)) => {
+                    owned.capacity()
+                        == if source.is_empty() {
+                            0
+                        } else {
+                            source.len().max(4)
+                        }
+                }
+                _ => false,
+            }
+        }
+        let value = &self.payload.value;
+        self.payload.context.accounting().same_query(account)
+            && value.custom_values.is_none()
+            && source.custom_values.is_none()
+            && same_capacity(&value.positive_spans, source.positive_spans)
+            && same_capacity(&value.negative_spans, source.negative_spans)
+            && same_capacity(&value.positive_buckets, source.positive_buckets)
+            && same_capacity(&value.negative_buckets, source.negative_buckets)
+    }
+    pub(crate) fn replace_expired_checked(
+        mut self,
+        source: crate::histogram::FloatHistogramRef<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Self, Interrupted> {
+        let payload = &mut *self.payload;
+        // A failed fresh copy owns no completed sample; partial replacement must match it.
+        payload.samples.resize(0);
+        source.retain_fields_to_with(
+            &mut payload.value,
+            &payload.context,
+            HistogramWork::new(control, account),
+        )?;
+        payload
+            .samples
+            .resize(crate::statistics::weight(SampleValueRef::FloatHistogram(
+                payload.value.as_ref(),
+            )));
+        Ok(self)
+    }
     pub(crate) fn copy_to_schema_checked(
         &self,
         schema: i32,

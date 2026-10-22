@@ -716,7 +716,8 @@ impl InstantStep {
         } else {
             &mut self.histograms
         };
-        let mut float_samples = points[0].as_mut().and_then(|point| {
+        let mut expired = points[0].take();
+        let mut float_samples = expired.as_mut().and_then(|point| {
             point
                 .float_samples
                 .take_if(|samples| samples.accounting().same_query(account))
@@ -726,8 +727,22 @@ impl InstantStep {
             samples.resize(0);
         }
         points[0] = points[1].take();
-        let value =
-            OwnedValue::from_sample_checked(sample.value, control, account, MemoryKind::Workspace)?;
+        let value = match (expired.map(|point| point.value), sample.value) {
+            (Some(OwnedValue::Histogram(value)), SampleValueRef::FloatHistogram(source))
+                if value.can_replace_expired(source, account) =>
+            {
+                OwnedValue::Histogram(value.replace_expired_checked(source, control, account)?)
+            }
+            (expired, _) => {
+                drop(expired);
+                OwnedValue::from_sample_checked(
+                    sample.value,
+                    control,
+                    account,
+                    MemoryKind::Workspace,
+                )?
+            }
+        };
         if let Some(samples) = &mut float_samples {
             samples.resize(1);
         } else {
@@ -875,6 +890,250 @@ mod tests {
         value::{Sample, SampleValue},
     };
     use std::{cell::RefCell, sync::atomic::Ordering};
+
+    #[test]
+    fn instant_native_expired_owners_preserve_values_and_reduce_allocations() {
+        for (counter, varying) in [(false, false), (true, false), (false, true), (true, true)] {
+            let account = EngineAccounting::default().query();
+            let reference_account = EngineAccounting::default().query();
+            let control = Control::default();
+            let create = || InstantStep {
+                counter,
+                start_timestamps: false,
+                floats: [None, None],
+                histograms: [None, None],
+            };
+            let mut actual = create();
+            let mut reference = create();
+            let (_, owners) =
+                crate::test_storage::observe_sample_owners(&account, &control, false, || {
+                    for index in 0..32 {
+                        let mut sample = native(index);
+                        if varying {
+                            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                                unreachable!()
+                            };
+                            let width = 2 + index % 3;
+                            histogram.positive_spans.as_mut().unwrap()[0].length = width as u32;
+                            histogram.positive_buckets =
+                                Some(vec![index as f64 + 1.0; width].into());
+                        }
+                        actual.receive(sample.as_ref(), &control, &account).unwrap();
+                        // Force the pre-reuse fresh-copy path for an independent allocation baseline.
+                        drop(reference.histograms[0].take());
+                        reference
+                            .receive(sample.as_ref(), &control, &reference_account)
+                            .unwrap();
+                        assert_eq!(
+                            account.current_samples(),
+                            reference_account.current_samples()
+                        );
+                    }
+                });
+            assert_eq!(owners.created, 2);
+            let before = reference_account.snapshot();
+            let after = account.snapshot();
+            assert_eq!(after.work, before.work);
+            assert_eq!(after.statistics.samples, before.statistics.samples);
+            for (after, before) in after.memory.iter().zip(before.memory) {
+                assert!(after.peak <= before.peak);
+            }
+            let workspace = MemoryKind::Workspace as usize;
+            assert!(after.memory[workspace].acquired * 4 < before.memory[workspace].acquired);
+            let expected = reference.finish(&control, &reference_account).unwrap();
+            let output = actual.finish(&control, &account).unwrap();
+            assert_instant_outputs_equal(&output, &expected);
+            drop(actual);
+            drop(reference);
+            drop(expected);
+            drop(output);
+            account.snapshot().assert_memory_released();
+            reference_account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn instant_native_expired_owners_preserve_partial_copy_credit() {
+        for budget in [None, Some(1), Some(3), Some(1024), Some(2048)] {
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let mut step = InstantStep {
+                counter: true,
+                start_timestamps: false,
+                floats: [None, None],
+                histograms: [None, None],
+            };
+            let mut sample = native(0);
+            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.positive_spans.as_mut().unwrap()[0].length = 4096;
+            histogram.positive_buckets = Some(vec![1.0; 4096].into());
+            for index in 0..2 {
+                sample.time_ms = (index + 1) * 1000;
+                step.receive(sample.as_ref(), &control, &account).unwrap();
+            }
+            let peak = account.snapshot().statistics.samples.peak_samples;
+            let (result, owners) = crate::test_storage::observe_sample_owners(
+                &account,
+                &control,
+                budget.is_none(),
+                || {
+                    if let Some(budget) = budget {
+                        crate::test_storage::interrupt_after_work(
+                            &account,
+                            &control,
+                            budget,
+                            || step.receive(sample.as_ref(), &control, &account),
+                        )
+                    } else {
+                        step.receive(sample.as_ref(), &control, &account)
+                    }
+                },
+            );
+            assert!(matches!(
+                result,
+                Err(StorageError::Interrupted(
+                    crate::storage::Interrupted::Cancelled
+                ))
+            ));
+            assert_eq!(owners.created, 0);
+            assert_eq!(owners.released, 1);
+            assert_eq!(account.snapshot().statistics.samples.peak_samples, peak);
+            assert!(step.histograms[0].is_some());
+            assert!(step.histograms[1].is_none());
+            assert_eq!(
+                account.current_samples(),
+                crate::statistics::weight(step.histograms[0].as_ref().unwrap().value.as_ref())
+            );
+            drop(step);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn instant_native_expired_owners_reuse_integer_origin_with_cloned_query() {
+        let account = EngineAccounting::default().query();
+        let reference_account = EngineAccounting::default().query();
+        let control = Control::default();
+        let create = || InstantStep {
+            counter: false,
+            start_timestamps: false,
+            floats: [None, None],
+            histograms: [None, None],
+        };
+        let mut actual = create();
+        let mut reference = create();
+        for index in 0..4 {
+            let mut sample = native(index);
+            if index < 2 {
+                sample.value = SampleValue::IntegerHistogram(crate::histogram::IntegerHistogram {
+                    positive_spans: Some(vec![Span {
+                        offset: 0,
+                        length: 2,
+                    }]),
+                    positive_buckets: Some(vec![index as i64 + 1, index as i64 + 1]),
+                    count: 3 * (index as u64 + 1),
+                    sum: 5.0 * (index as f64 + 1.0),
+                    ..crate::histogram::IntegerHistogram::default()
+                });
+            }
+            let (_, owners) =
+                crate::test_storage::observe_sample_owners(&account, &control, false, || {
+                    actual
+                        .receive(sample.as_ref(), &control, &account.clone())
+                        .unwrap();
+                });
+            assert_eq!(owners.created, u64::from(index < 2));
+            drop(reference.histograms[0].take());
+            reference
+                .receive(sample.as_ref(), &control, &reference_account)
+                .unwrap();
+            assert_eq!(
+                account.current_samples(),
+                reference_account.current_samples()
+            );
+        }
+        let expected = reference.finish(&control, &reference_account).unwrap();
+        let output = actual.finish(&control, &account).unwrap();
+        assert_instant_outputs_equal(&output, &expected);
+        drop((actual, reference, expected, output));
+        account.snapshot().assert_memory_released();
+        reference_account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn instant_native_expired_owners_keep_varying_layouts_and_query_affinity() {
+        for shape in ["width", "custom", "empty", "query"] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let other = engine.query();
+            let reference_account = EngineAccounting::default().query();
+            let control = Control::default();
+            let create = || InstantStep {
+                counter: false,
+                start_timestamps: false,
+                floats: [None, None],
+                histograms: [None, None],
+            };
+            let mut actual = create();
+            let mut reference = create();
+            for index in 0..8 {
+                let mut sample = native(index);
+                let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                    unreachable!()
+                };
+                match shape {
+                    "width" => {
+                        let width = if index % 4 < 2 { 256 } else { 8 };
+                        histogram.positive_spans.as_mut().unwrap()[0].length = width;
+                        histogram.positive_buckets =
+                            Some(vec![index as f64 + 1.0; width as usize].into());
+                    }
+                    "custom" => {
+                        histogram.schema = crate::histogram::CUSTOM_BUCKETS_SCHEMA;
+                        histogram.custom_values = Some(vec![1.0].into());
+                    }
+                    "empty" => {
+                        histogram.negative_spans = (index % 4 < 2).then(|| Vec::new().into());
+                        histogram.negative_buckets = (index % 4 < 2).then(|| Vec::new().into());
+                    }
+                    _ => {}
+                }
+                let target = if shape == "query" && index % 4 >= 2 {
+                    &other
+                } else {
+                    &account
+                };
+                let (_, owners) =
+                    crate::test_storage::observe_sample_owners(target, &control, false, || {
+                        actual.receive(sample.as_ref(), &control, target).unwrap();
+                    });
+                assert_eq!(owners.created, 1, "{shape}/{index}");
+                drop(reference.histograms[0].take());
+                reference
+                    .receive(sample.as_ref(), &control, &reference_account)
+                    .unwrap();
+            }
+            if shape != "query" {
+                let before = reference_account.snapshot();
+                let after = account.snapshot();
+                assert_eq!(after.work, before.work);
+                assert_eq!(after.statistics.samples, before.statistics.samples);
+                assert_eq!(after.memory, before.memory);
+            }
+            let expected = reference.finish(&control, &reference_account).unwrap();
+            let output = actual.finish(&control, &account).unwrap();
+            assert_instant_outputs_equal(&output, &expected);
+            drop(actual);
+            drop(reference);
+            drop(expected);
+            drop(output);
+            account.snapshot().assert_memory_released();
+            other.snapshot().assert_memory_released();
+            reference_account.snapshot().assert_memory_released();
+        }
+    }
 
     fn native(index: usize) -> Sample {
         let value = index as f64 + 1.0;

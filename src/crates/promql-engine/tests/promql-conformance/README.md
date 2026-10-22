@@ -11203,3 +11203,51 @@ Default C linked section totals (text, data and BSS) are:
 ARM32's increase is mainly changed compiler inlining in unchanged histogram code. The preparation function
 itself grows 88 bytes; the new helper occupies 2,260 bytes. The report retains absolute and cumulative
 costs under the proportional compiled-footprint policy. Compiled sections and per-query memory are distinct.
+
+
+## Reused native instant-rate endpoints
+
+`irate()` and `idelta()` can now reuse an expired native endpoint's payload and buffers. Reuse requires
+an incoming FloatHistogram, the same query account, no custom bounds, matching optional-buffer presence
+and exact fresh-copy capacities. The two existing endpoint slots suffice; no spare owner or raw history
+cache is introduced. Integer inputs, custom bounds and different capacities keep fresh copying.
+
+Expired logical sample credit is removed before copying. The existing checked field-copy loop completes
+before the new sample receives credit. If copying fails or unwinds, the consumed owner releases partial
+storage with zero replacement credit. Shared mutation behavior is unchanged. An owner originally converted
+from an integer histogram can qualify for a later FloatHistogram replacement.
+
+[Qualification](native-endpoint-reuse-qualification.json) records 66 fresh pinned original outcomes and
+396 complete baseline/original comparisons across both profiles at pages 1/17/1024, with zero order or
+numeric-bit differences. All eight memory peaks, fetched entries and work counts are unchanged. In a
+four-series, 256-point, 256-bucket case, workspace allocation traffic falls from 5,466,096 to 605,552 bytes;
+peak workspace remains 23,348 bytes. Allocation traffic measures cumulative allocations, not simultaneous
+RAM usage or process RSS.
+
+`native_endpoint_cases.native_endpoint_cases()` reproduces all 66 inputs;
+`native_endpoint_performance_cases()` reproduces the 22 timing inputs. The 880-pair native panel measures
+about 27–28% less time for targeted queries. No individual control exceeds the prescribed 5% threshold,
+so no follow-up cases were selected. All observations are retained; this is not a production-wide or physical
+ARM throughput claim.
+
+Both native profiles pass 984 tests with two existing ignored checks. A subsequent test-only cleanup removes
+two identity conversions; final strict lint and four causal tests verify that source without reattributing
+the earlier optimized runs. Focused endpoint/statistics owners pass on ARM32 and ARM64 under QEMU. Actual C/C++ callers pass 432 cases using borrowed native pages,
+weighted logical totals, retained labels/results, and early callback errors/cancellation. The corrected
+C fixture also passes 72 cases against the accepted baseline. Its initial histogram_sum wrapper selected
+bucket-free inputs, and its counter-typed idelta input correctly warned; these test assumptions were
+corrected without changing engine code. Full native C suites, strict lint, formatting and installed
+Rust 1.91 compilation pass. Four new Rust owners additionally
+check changing logical weight within equal capacity, exact surviving credit after interrupted copying,
+query affinity, integer-origin replacement and varying/custom/empty fallback layouts.
+
+Default C linked section totals (text, data and BSS) are:
+
+| Target | Before | Current | Change |
+| --- | ---: | ---: | ---: |
+| release | 7,998,770 B | 7,997,738 B | -1,032 B (-0.013%) |
+| release-min | 5,609,895 B | 5,610,991 B | +1,096 B (0.020%) |
+| arm32 | 6,787,853 B | 6,791,889 B | +4,036 B (0.059%) |
+| arm64 | 6,957,170 B | 6,952,682 B | -4,488 B (-0.065%) |
+
+The report retains cumulative compiled costs separately from runtime allocation and memory measurements.

@@ -2889,3 +2889,20 @@ changing membership, special literals, complete original comparisons and proport
 - Generic range (including equal endpoints), nested, dynamic, non-Boolean, modified-clock and native-output
   paths remain valid. The [finite qualification](boolean-rate-preparation-qualification.json) binds complete
   original results, causal lifecycle checks, all slower controls, memory observations and compiled costs.
+
+
+## Expired native endpoint ownership
+
+- Instant-rate input owns at most two endpoints of each kind. Reuse the expired native owner only for
+  incoming FloatHistogram fields, same-query accounting, absent custom bounds and matching optional-buffer
+  presence/capacities. Fresh optional capacity is zero for empty input, otherwise max(length, 4).
+- Consume the expired owner and zero its sample lease before the unchanged checked field-copy loop. Credit
+  the replacement only after success. Failure/unwind drops partial storage with zero new sample credit;
+  ordinary HistogramMutation is unsuitable because it credits partial state when its guard drops.
+- Preserve endpoint rotation and drop ineligible expired ownership before fresh copying. Keep Float lease
+  handling, source-copy work/polls, acquired native kinds, typed equal-time insertion and final arithmetic.
+  Integer-origin owners may qualify for a later FloatHistogram; incoming integer histograms stay generic.
+- Exact capacities prevent retaining historical wide buffers for later small endpoints. Capacity4 can still
+  hold different logical lengths, so test changing sample weights independently of physical byte ownership.
+- The [finite qualification](native-endpoint-reuse-qualification.json) owns all-page original comparisons,
+  actual callback/lifetime checks, native timing, allocation traffic and proportional compiled costs.
