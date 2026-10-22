@@ -983,7 +983,7 @@ mod tests {
             (
                 "interior-reset",
                 |i| values(i, [100.0, 0.0, 150.0, 160.0]),
-                false,
+                true,
             ),
             ("reset-arithmetic", reset_sensitive, false),
             ("exceptional-reset", exceptional_float, false),
@@ -1000,7 +1000,7 @@ mod tests {
                         ],
                     )
                 },
-                false,
+                true,
             ),
             ("start-reset", start_reset, true),
             (
@@ -1015,14 +1015,14 @@ mod tests {
     }
 
     #[test]
-    fn completed_no_reset_windows_preserve_results_before_replay_guard() {
+    fn completed_single_reset_windows_preserve_results_before_replay_guard() {
         let shapes = acquisition_float_cases();
         let mut guarded = Vec::new();
         let mut completed = 0;
         for page in [1, 17, 1024] {
             for kind in [RateKind::Rate, RateKind::Increase, RateKind::Delta] {
                 for start_timestamps in [false, true] {
-                    for (name, sample, no_reset) in shapes {
+                    for (name, sample, replay_free) in shapes {
                         let source = GeneratedSeries::new(4, page, sample);
                         let original = GeneratedSeries::new(4, page, sample);
                         let account = EngineAccounting::default().query();
@@ -1077,7 +1077,7 @@ mod tests {
                         let walks = source.counters.opened.load(Ordering::Relaxed);
                         assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
                         assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
-                        let eligible = kind != RateKind::Delta && !start_timestamps && no_reset;
+                        let eligible = kind != RateKind::Delta && !start_timestamps && replay_free;
                         if eligible {
                             guarded.push((name, page, kind, walks, reads, live));
                         } else {
@@ -1101,23 +1101,401 @@ mod tests {
             }
         }
         assert_eq!(completed, 234);
-        assert_eq!(guarded.len(), 54);
+        assert_eq!(guarded.len(), 66);
         println!(
-            "no-reset complete234-values-annotations-progress-leases-release guarded54 float_step_bytes={} rate_step_bytes={}",
+            "single-reset complete234-values-annotations-progress-leases-release guarded66 float_step_bytes={} rate_step_bytes={}",
             std::mem::size_of::<FloatStep>(),
             std::mem::size_of::<Step>()
         );
         for &(name, page, kind, walks, reads, live) in &guarded {
             println!(
-                "no-reset acquisition name={name} page={page} kind={kind:?} walks={walks} reads={reads} live={live}"
+                "single-reset acquisition name={name} page={page} kind={kind:?} walks={walks} reads={reads} live={live}"
             );
         }
         for (name, page, kind, walks, reads, live) in guarded {
             assert_eq!(
                 walks, 1,
-                "completed no-reset acquisition replayed: {name}, {kind:?}, page={page}"
+                "completed single-reset acquisition replayed: {name}, {kind:?}, page={page}"
             );
             assert_eq!(reads, live, "removed reset reads must not be credited");
+        }
+    }
+
+    fn single_reset_sample(index: usize) -> Sample {
+        Sample {
+            value: SampleValue::Float(if index < 3 {
+                100.0 + index as f64
+            } else {
+                (index - 3) as f64
+            }),
+            ..crate::test_storage::counter(index)
+        }
+    }
+
+    #[test]
+    fn single_reset_acquisition_keeps_subtraction_before_correction() {
+        fn one(index: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float([18_014_398_509_481_984.0, 0.0, 1.0, 1.0][index]),
+                ..crate::test_storage::counter(index)
+            }
+        }
+        for page in [1, 17, 1024] {
+            for kind in [RateKind::Rate, RateKind::Increase] {
+                for (sample, single) in
+                    [(one as fn(usize) -> Sample, true), (reset_sensitive, false)]
+                {
+                    let account = EngineAccounting::default().query();
+                    let original_account = EngineAccounting::default().query();
+                    let source = GeneratedSeries::new(4, page, sample);
+                    let original = GeneratedSeries::new(4, page, sample);
+                    let expected = crate::range_float::rate(
+                        &original,
+                        window(4),
+                        kind,
+                        &Control::default(),
+                        &original_account,
+                    )
+                    .unwrap();
+                    let output = evaluate(
+                        &source,
+                        window(4),
+                        RateFunction::Extrapolated(kind),
+                        Some(acquisition_window(4000)),
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
+                    let (RateValue::Float(expected), Some(OwnedValue::Float(actual))) =
+                        (expected.value, &output.value)
+                    else {
+                        panic!("complete Float correction")
+                    };
+                    assert_eq!(actual.to_bits(), expected.to_bits());
+                    if single {
+                        assert_eq!(actual.to_bits(), 0.0_f64.to_bits());
+                    } else {
+                        assert!(*actual > 0.0);
+                    }
+                    assert!(output.annotations.iter().all(Option::is_none));
+                    assert!(output.nonempty);
+                    assert_eq!(output.progress.as_ref().unwrap().sample_units, 4);
+                    assert_eq!(account.current_samples(), 1);
+                    assert_eq!(account.snapshot().statistics.samples.peak_samples, 4);
+                    assert_eq!(
+                        account.snapshot().statistics.samples.samples_read,
+                        if single { 4 } else { 8 }
+                    );
+                    assert_eq!(
+                        source.counters.opened.load(Ordering::Relaxed),
+                        if single { 1 } else { 3 }
+                    );
+                    drop(output);
+                    assert_eq!(account.current_samples(), 0);
+                    assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                    account.snapshot().assert_memory_released();
+                    original_account.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn single_reset_predecessor_is_charged_before_receive_cancellation() {
+        fn two(index: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float([100.0, 0.0, 50.0, 0.0][index]),
+                ..crate::test_storage::counter(index)
+            }
+        }
+        for kind in [RateKind::Rate, RateKind::Increase] {
+            let account = EngineAccounting::default().query();
+            let source = GeneratedSeries::new(4, 1, two);
+            let mut step = FloatStep::new(window(4).into(), kind);
+            step.scan(
+                &source,
+                Some(acquisition_window(4000)),
+                &Control::default(),
+                &account,
+            )
+            .unwrap();
+            let work = account.snapshot().work;
+            drop(step);
+            assert_eq!(account.current_samples(), 0);
+            let mut first = Vec::new();
+            let mut second = Vec::new();
+            for budget in 1..=work {
+                let control = Control::default();
+                let account = EngineAccounting::default().query();
+                let source = GeneratedSeries::new(4, 1, two);
+                let mut step = FloatStep::new(window(4).into(), kind);
+                let result =
+                    crate::test_storage::interrupt_after_work(&account, &control, budget, || {
+                        step.scan(&source, Some(acquisition_window(4000)), &control, &account)
+                    });
+                let snapshot = account.snapshot();
+                if matches!(
+                    result,
+                    Err(StorageError::Interrupted(
+                        crate::storage::Interrupted::Cancelled
+                    ))
+                ) {
+                    assert_eq!(snapshot.statistics.samples.samples_read, 0);
+                    if snapshot.samples_fetched == 3 && account.current_samples() == 3 {
+                        assert_eq!(snapshot.statistics.samples.peak_samples, 3);
+                        first.push(budget);
+                    }
+                    if snapshot.samples_fetched == 5
+                        && account.current_samples() == 2
+                        && snapshot.statistics.samples.peak_samples == 3
+                    {
+                        second.push(budget);
+                    }
+                }
+                assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                drop(step);
+                assert_eq!(account.current_samples(), 0);
+                account.snapshot().assert_memory_released();
+            }
+            assert!(
+                !first.is_empty(),
+                "first correction must be charged before receive polls cancellation"
+            );
+            assert!(
+                second.contains(&(work - 1)),
+                "second reset must release the provisional correction before receive"
+            );
+            println!("single-reset cancellation kind={kind:?} first={first:?} second={second:?}");
+        }
+    }
+
+    #[test]
+    fn single_reset_acquisition_faults_preserve_required_consumption() {
+        fn one(index: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float([100.0, 0.0, 1.0, 2.0][index]),
+                ..crate::test_storage::counter(index)
+            }
+        }
+        fn mixed(index: usize) -> Sample {
+            if index == 3 {
+                native(index)
+            } else {
+                one(index)
+            }
+        }
+        fn stale_native(index: usize) -> Sample {
+            if index == 3 {
+                let mut sample = native(index);
+                let SampleValue::FloatHistogram(value) = &mut sample.value else {
+                    unreachable!()
+                };
+                value.sum = f64::from_bits(crate::value::STALE_NAN_BITS);
+                sample
+            } else {
+                one(index)
+            }
+        }
+        for page in [1, 17, 1024] {
+            for kind in [RateKind::Rate, RateKind::Increase] {
+                for (index, sample) in [
+                    one as fn(usize) -> Sample,
+                    reset_sensitive,
+                    mixed,
+                    stale_native,
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    let control = Control::default();
+                    let source = AcquisitionSeries {
+                        source: GeneratedSeries::new(4, page, sample),
+                        failure: None,
+                        cancel_at: None,
+                        cancellation: control.cancellation.clone(),
+                        operations: RefCell::new(Vec::new()),
+                    };
+                    let account = EngineAccounting::default().query();
+                    let output = evaluate(
+                        &source,
+                        window(4),
+                        RateFunction::Extrapolated(kind),
+                        Some(acquisition_window(4000)),
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    assert_eq!(output.value.is_none(), index == 2);
+                    if index == 0 {
+                        assert_eq!(source.source.counters.opened.load(Ordering::Relaxed), 1);
+                    } else {
+                        assert!(
+                            source
+                                .operations
+                                .borrow()
+                                .contains(&AcquisitionOperation::Open(2))
+                        );
+                    }
+                    drop(output);
+                    source.assert_closed(&account);
+                    for operation in source.operations.into_inner() {
+                        for cancellation in [false, true] {
+                            if !cancellation && matches!(operation, AcquisitionOperation::Close(_))
+                            {
+                                continue;
+                            }
+                            let control = Control::default();
+                            let account = EngineAccounting::default().query();
+                            let source = AcquisitionSeries {
+                                source: GeneratedSeries::new(4, page, sample),
+                                failure: (!cancellation).then_some(operation),
+                                cancel_at: cancellation.then_some(operation),
+                                cancellation: control.cancellation.clone(),
+                                operations: RefCell::new(Vec::new()),
+                            };
+                            let result = evaluate(
+                                &source,
+                                window(4),
+                                RateFunction::Extrapolated(kind),
+                                Some(acquisition_window(4000)),
+                                &control,
+                                &account,
+                            );
+                            if cancellation {
+                                assert!(
+                                    matches!(
+                                        result,
+                                        Err(StorageError::Interrupted(
+                                            crate::storage::Interrupted::Cancelled
+                                        ))
+                                    ),
+                                    "{operation:?}"
+                                );
+                            } else {
+                                assert!(
+                                    matches!(result, Err(StorageError::Provider(_))),
+                                    "{operation:?}"
+                                );
+                            }
+                            drop(result);
+                            source.assert_closed(&account);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn single_reset_acquisition_retains_uncertified_paths() {
+        for page in [1, 17, 1024] {
+            for kind in [RateKind::Rate, RateKind::Increase, RateKind::Delta] {
+                for mode in 0..6 {
+                    let source = GeneratedSeries::new(8, page, single_reset_sample);
+                    let original = GeneratedSeries::new(8, page, single_reset_sample);
+                    let account = EngineAccounting::default().query();
+                    let original_account = EngineAccounting::default().query();
+                    let mut input = window(8);
+                    input.start_timestamps = mode == 5;
+                    let mut matrix = acquisition_window(8000);
+                    match mode {
+                        1 => matrix.statistics = true,
+                        2 => matrix.buffer_ms = Some(8000),
+                        3 => matrix.reduce_delta = false,
+                        4 => input.start_ms = -1,
+                        _ => (),
+                    }
+                    let expected = crate::range_float::rate(
+                        &original,
+                        input,
+                        kind,
+                        &Control::default(),
+                        &original_account,
+                    )
+                    .unwrap();
+                    let output = evaluate(
+                        &source,
+                        input,
+                        RateFunction::Extrapolated(kind),
+                        (mode != 0).then_some(matrix),
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
+                    let (RateValue::Float(expected), Some(OwnedValue::Float(actual))) =
+                        (expected.value, &output.value)
+                    else {
+                        panic!("fallback Float")
+                    };
+                    assert_eq!(actual.to_bits(), expected.to_bits(), "mode={mode}");
+                    assert!(output.annotations.iter().all(Option::is_none));
+                    if kind != RateKind::Delta {
+                        assert!(source.counters.opened.load(Ordering::Relaxed) > 1);
+                    }
+                    drop(output);
+                    assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                    assert_eq!(account.current_samples(), 0);
+                    account.snapshot().assert_memory_released();
+                    original_account.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn single_reset_long_histories_keep_one_page_and_fixed_state() {
+        for page in [1, 17, 1024] {
+            for kind in [RateKind::Rate, RateKind::Increase] {
+                let mut peaks = None;
+                for count in [2048, 100000] {
+                    let source = GeneratedSeries::new(count, page, single_reset_sample);
+                    let original = GeneratedSeries::new(count, page, single_reset_sample);
+                    let account = EngineAccounting::default().query();
+                    let original_account = EngineAccounting::default().query();
+                    let expected = crate::range_float::rate(
+                        &original,
+                        window(count),
+                        kind,
+                        &Control::default(),
+                        &original_account,
+                    )
+                    .unwrap();
+                    let output = evaluate(
+                        &source,
+                        window(count),
+                        RateFunction::Extrapolated(kind),
+                        Some(acquisition_window(count as i64 * 1000)),
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
+                    let (RateValue::Float(expected), Some(OwnedValue::Float(actual))) =
+                        (expected.value, &output.value)
+                    else {
+                        panic!("long Float")
+                    };
+                    assert_eq!(actual.to_bits(), expected.to_bits());
+                    assert!(output.annotations.iter().all(Option::is_none));
+                    assert_eq!(output.progress.as_ref().unwrap().sample_units, count as u64);
+                    assert_eq!(
+                        account.snapshot().statistics.samples.samples_read,
+                        count as u64
+                    );
+                    assert_eq!(account.snapshot().statistics.samples.peak_samples, 4);
+                    assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+                    assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+                    let current = account.snapshot().memory.map(|value| value.peak);
+                    if let Some(previous) = peaks {
+                        assert_eq!(current, previous);
+                    }
+                    peaks = Some(current);
+                    drop(output);
+                    assert_eq!(account.current_samples(), 0);
+                    assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                    account.snapshot().assert_memory_released();
+                    original_account.snapshot().assert_memory_released();
+                }
+            }
         }
     }
 

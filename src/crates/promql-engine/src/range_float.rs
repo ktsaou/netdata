@@ -206,7 +206,7 @@ pub(crate) struct FloatStep {
     count: u64,
     histograms: bool,
     reset_pass: bool,
-    no_reset_acquisition: bool,
+    reset_correction_acquisition: bool,
     previous: Option<Point>,
     result: f64,
     overlap: bool,
@@ -219,7 +219,7 @@ impl FloatStep {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Option<Progress>, StorageError> {
-        self.no_reset_acquisition = false;
+        self.reset_correction_acquisition = false;
         let bounds = self.input.bounds();
         let Some(window) =
             matrix.filter(|window| !self.reset_pass && window.can_reuse_acquisition(bounds))
@@ -228,7 +228,7 @@ impl FloatStep {
                 self.receive(sample, control, account)
             });
         };
-        let mut no_reset = self.kind != RateKind::Delta
+        let mut reusable_correction = self.kind != RateKind::Delta
             && !self.input.window.start_timestamps
             && self.count == 0
             && self.first.is_none()
@@ -236,12 +236,22 @@ impl FloatStep {
             && !self.histograms;
         let acquisition =
             crate::matrix_reader::probe(series, bounds, window, control, account, |sample| {
-                if no_reset
+                if reusable_correction
                     && let (Some(previous), SampleValueRef::Float(value)) =
                         (self.last, sample.value)
                     && value < previous.value
                 {
-                    no_reset = false;
+                    if self.previous.is_some() {
+                        self.previous = None;
+                        reusable_correction = false;
+                    } else {
+                        self.previous = Some(previous);
+                    }
+                    // Account the correction before receive can observe cancellation.
+                    self.samples
+                        .as_mut()
+                        .expect("existing float endpoints")
+                        .resize(2 + u64::from(self.previous.is_some()));
                 }
                 self.receive(sample, control, account)
             })?;
@@ -259,8 +269,10 @@ impl FloatStep {
             .progress
         } else {
             // Only completed validation can eliminate the chronological reset replay.
-            self.no_reset_acquisition =
-                no_reset && self.count > 1 && !self.histograms && !acquisition.histograms_allocated;
+            self.reset_correction_acquisition = reusable_correction
+                && self.count > 1
+                && !self.histograms
+                && !acquisition.histograms_allocated;
             account.samples_read(acquisition.progress.sample_units);
             acquisition.progress
         };
@@ -280,7 +292,7 @@ impl FloatStep {
             count: 0,
             histograms: false,
             reset_pass: false,
-            no_reset_acquisition: false,
+            reset_correction_acquisition: false,
             previous: None,
             result: 0.0,
             overlap: false,
@@ -354,9 +366,15 @@ impl FloatStep {
             };
             // Source subtraction precedes every chronological reset addition.
             self.result = source_sub(last.value, first.value);
-            if self.kind != RateKind::Delta && self.count > 1 && !self.no_reset_acquisition {
+            if self.kind != RateKind::Delta && self.count > 1 && !self.reset_correction_acquisition
+            {
                 self.reset_pass = true;
                 return None;
+            }
+            if self.reset_correction_acquisition
+                && let Some(previous) = self.previous
+            {
+                self.result = source_add(self.result, previous.value);
             }
         }
         let first = self.first.expect("nonempty float endpoints");

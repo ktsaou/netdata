@@ -883,8 +883,8 @@ integration, and Alertmanager remains excluded.
 Current instant-rate acquisition is documented under
 [completed instant rate float windows](#completed-instant-rate-float-windows).
 
-This section records the earlier acquisition-only qualification. Current completed no-reset behavior
-is documented under [completed no-reset float windows](#completed-no-reset-float-windows).
+This section records the earlier acquisition-only qualification. Current zero-or-one-reset behavior
+is documented under [completed single-reset Float windows](#completed-single-reset-float-windows).
 
 - **Choice:** the initial ordinary `rate`, `increase` and `delta` float pass collects its existing endpoints/count
   during acquisition. After complete validation and terminal control, a pure-float acquisition can omit its
@@ -1956,6 +1956,9 @@ owns the measured trade-off, complete failed/slower evidence and candidate-speci
 
 ## Completed no-reset float windows
 
+Historical zero-reset design; the current [single-reset extension](#single-reset-correction-ownership)
+reuses the existing predecessor slot and retains separate qualification.
+
 - **Choice:** one private boolean certifies absence of a strict decrease between admitted consecutive floats
   during the existing eligible initial matrix probe. Require pristine Rate/Increase state and disabled start
   timestamps. Compare old `last` before `receive`; do not populate reset-pass `previous` or retain extra samples.
@@ -2853,3 +2856,18 @@ changing membership, special literals, complete original comparisons and proport
 - Use current proportional compiled-size review. The old stage 116 rejection and its then-fixed gate remain
   historical; they are not rewritten or treated as present performance evidence. See the current
   [qualification](previous-owner-reuse-qualification.json) and [measured scope](README.md#reused-float-predecessor-ownership).
+
+
+## Single-reset correction ownership
+
+- An eligible completed Float acquisition can certify zero or one decrease. Store the first reset predecessor
+  in the existing Point slot; a second decrease clears it and permanently disqualifies that acquisition.
+- Resize the existing sample lease at both transitions before `receive` can observe cancellation. Completed
+  validation and terminal control still precede reuse. Native/stale-native allocation discards tentative state.
+- Subtract last minus first before the single correction addition. Multiple resets retain chronological replay;
+  start-enabled, Delta, raw/derived, statistics, buffered and uncertified paths stay unchanged.
+- No field, raw history buffer, public option or new provider responsibility is introduced. Logical sample
+  ownership may occur earlier on failed prefixes while the measured byte peaks remain unchanged. Record real
+  read/work reductions; never equate a per-fold statistic with the total for a composed query.
+- The [finite qualification](single-reset-rate-qualification.json) records current-source results, both timing
+  runs, proportional compiled costs and test-harness corrections without replacing historical evidence.

@@ -262,14 +262,14 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   `src/crates/promql-engine/tests/promql-conformance/README.md#count-from-completed-acquisition-units`.
 - Present acquisition reuse and changing histogram replay membership are qualified by
   `src/crates/promql-engine/tests/promql-conformance/README.md#shared-present-acquisition`.
-- Float rate acquisition reuse MUST retain the separate chronological reset pass, full validation/terminal control
+- Float rate acquisition reuse MUST retain uncertified chronological reset passes, full validation/terminal control
   before credit, and fresh consuming state for any histogram allocation, including stale history. Failed probes
   can truthfully own earlier endpoint sample units. Check all three kinds, shared Avg eligibility, actual operation
   failures, empty/stale histories and page-bounded memory; the finite procedure and costs are in
   `src/crates/promql-engine/tests/promql-conformance/README.md#validated-float-rate-acquisition-reuse`.
-  Completed no-reset windows also follow
-  `src/crates/promql-engine/tests/promql-conformance/README.md#completed-no-reset-float-windows` for strict
-  adjacency, completed validation and honest read/reference reductions.
+  Completed zero-or-one-reset windows also follow
+  `src/crates/promql-engine/tests/promql-conformance/README.md#completed-single-reset-float-windows` for strict
+  adjacency, ordered correction, pre-cancellation accounting and honest read/reference reductions.
   Instant-rate acquisition also follows
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-rate-float-windows` for native
   fallback, terminal validation and provisional endpoint ownership.

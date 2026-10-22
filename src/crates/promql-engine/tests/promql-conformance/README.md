@@ -3312,8 +3312,8 @@ foreign whole-Agent execution, total RSS or production disk throughput.
 Current instant-rate acquisition is documented under
 [completed instant rate float windows](#completed-instant-rate-float-windows).
 
-This section records the earlier acquisition-only qualification. Current completed no-reset behavior
-is documented under [completed no-reset float windows](#completed-no-reset-float-windows).
+This section records the earlier acquisition-only qualification. Current zero-or-one-reset behavior
+is documented under [completed single-reset Float windows](#completed-single-reset-float-windows).
 
 Ordinary float `rate`, `increase` and `delta` collect first/last/count/start fields during the initial validation
 traversal. Their shared `FloatStep::scan` reuses a successfully completed pure-float acquisition and credits logical
@@ -8652,7 +8652,10 @@ language feature or query limit, and provides no live, concurrent, physical-devi
 
 ## Completed no-reset float windows
 
-Ordinary float `rate` and `increase` now avoid the chronological reset replay when their completed initial
+This section preserves the earlier zero-reset qualification. The current
+[single-reset extension](#completed-single-reset-float-windows) has separate measurements below.
+
+The earlier ordinary float `rate` and `increase` optimization avoids the chronological reset replay when their completed initial
 acquisition proves that no consecutive admitted float decreases. Only a pristine first pass, disabled start
 timestamps and the existing eligible matrix window can earn this proof. Compare against the previous `last`
 before replacing it; keep reset-pass `previous` untouched. Publish the proof only after full reached-page
@@ -11106,3 +11109,49 @@ Default C linked section sizes (text, data and BSS combined) are:
 | arm64 | 6,971,830 B | 6,952,574 B | -19,256 B |
 
 These are finite fixture measurements. Compiled costs, engine-accounted memory and process RSS are distinct.
+
+
+## Completed single-reset Float windows
+
+Ordinary `rate()` and `increase()` can now reuse an eligible initial acquisition containing zero or one
+counter reset. The first reset saves its predecessor in the existing slot; a second reset clears it and keeps
+chronological replay. The calculation still subtracts the first value from the last before adding the saved
+correction. For example, `[2^54, 0, 1, 1]` distinguishes this order from an incorrect reassociation.
+
+Reuse requires completed validation, cursor closure and terminal control. Native/stale-native allocation,
+start-enabled, raw/derived, statistics, buffered and uncertified paths retain their original behavior.
+The saved correction is accounted before cancellation can be observed. This can move a logical sample peak
+from two to three units in an interrupted prefix; it adds no field or raw-history buffer. The five causal
+owners include both correction transitions, actual callback errors, multiple resets, exact exceptional values,
+uncertified controls and 2,048/100,000-point histories at pages 1/17/1024.
+
+[Qualification](single-reset-rate-qualification.json) records 408 fresh pinned Prometheus outcomes and
+2,448 complete baseline/original comparisons across both profiles and all three pages. No order or numeric-bit
+difference occurred. All eight measured query-memory peaks are equal. A representative 16-series, 256-point
+single-reset query fetches 26,208 → 8,736 entries; zero-reset and two-reset controls keep their prior counts.
+The expression fixture does not serialize logical sample statistics; those are checked in Rust and C owners.
+
+`single_reset_cases.single_reset_cases()` reproduces all 408 cases;
+`single_reset_performance_cases()` reproduces the 100 timing cases exactly.
+
+The 100-case panel has 4,000 paired executions. Single-reset Rate, Increase and grouped Rate medians take
+about 55% less time in both profiles. Six release controls exceeded the 5% threshold in the primary run;
+the prescribed 144-pair follow-up placed every one below its baseline. All primary observations remain in
+the report. This finite panel does not establish a production-weighted gain or physical ARM throughput.
+
+Both native profiles pass 975 tests with two existing ignored checks. ARM32/ARM64 run focused Rate, Float and
+derived owners under QEMU. Actual C/C++ callers pass 432 lifecycle cases, including one/two-reset Boolean
+results, retained labels/results and early callback errors/cancellation. Their complete Boolean query reads
+are 12/24, reflecting three folds; the Rust units separately check cancellation after retaining a correction.
+Both full native C suites, strict lint, format and installed Rust 1.91 compilation pass.
+
+Default C linked section totals (text, data and BSS) are:
+
+| Target | Before | Current | Change |
+| --- | ---: | ---: | ---: |
+| release | 7,994,942 B | 7,995,454 B | +512 B |
+| release-min | 5,605,047 B | 5,605,367 B | +320 B |
+| arm32 | 6,712,545 B | 6,712,689 B | +144 B |
+| arm64 | 6,952,574 B | 6,949,142 B | -3,432 B |
+
+Compiled section costs, engine-accounted memory and process RSS are separate measurements.

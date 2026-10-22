@@ -74041,5 +74041,11 @@
     "report": "previous-owner-reuse-qualification.json",
     "report_sha256": "995c5e201818e83293726ea259ba6e742b2d11ac52950cbb2f3eaee49c7baef7",
     "summary": "Reuse the existing same-query Float predecessor sample owner in Changes and Resets."
+  },
+  "single_reset_rate": {
+    "status": "finite_qualification_pass",
+    "report": "single-reset-rate-qualification.json",
+    "report_sha256": "45c70c385f785f4e5e2801ea496d5a6285d6e0632eace11a1bcef36d786f3a20",
+    "summary": "Reuse completed zero-or-one-reset Float acquisition for ordinary Rate and Increase."
   }
 }
