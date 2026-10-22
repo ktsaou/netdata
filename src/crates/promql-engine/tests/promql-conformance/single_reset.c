@@ -86,7 +86,7 @@ int main(void) {
                             assert(point.time_ms == 4000 && point.value_kind == NETDATA_PROMQL_VALUE_FLOAT);
                             assert(point.value_bits == netdata_promql_double_bits((double)two));
                             assert(observed.statistics.samples.total_queryable_samples == 4);
-                            assert(observed.statistics.samples.samples_read == (two ? 24u : 12u));
+                            assert(observed.statistics.samples.samples_read == (two ? 16u : 8u));
                             assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
                         }
                         assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);

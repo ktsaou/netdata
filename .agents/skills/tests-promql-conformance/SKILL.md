@@ -270,6 +270,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   Completed zero-or-one-reset windows also follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-single-reset-float-windows` for strict
   adjacency, ordered correction, pre-cancellation accounting and honest read/reference reductions.
+  Root instant literal Boolean metadata transfer follows the same guide's
+  `#completed-instant-boolean-rate-preparation` section for sparse ordinals, completed-output ownership,
+  child diagnostics, logical totals and fresh final reads.
   Instant-rate acquisition also follows
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-rate-float-windows` for native
   fallback, terminal validation and provisional endpoint ownership.

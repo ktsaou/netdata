@@ -2871,3 +2871,21 @@ changing membership, special literals, complete original comparisons and proport
   read/work reductions; never equate a per-fold statistic with the total for a composed query.
 - The [finite qualification](single-reset-rate-qualification.json) records current-source results, both timing
   runs, proportional compiled costs and test-harness corrections without replacing historical evidence.
+
+
+## Instant Boolean rate descriptor ownership
+
+- A completed ordinary Float Rate/Increase child has the same presence, kinds, already-dropped name and
+  source ordinals as its literal Boolean parent. Reuse only at a root genuine instant request with matching
+  source/scope/producer clocks and no invariant, boundary, ordered child or selector clock modifiers.
+- Check each descriptor and terminal cancellation before taking completed output. Float-only descriptors
+  must have no repeated/sorted heads or source list. Missing output falls back; completed empty output is valid.
+- Transfer through ordinary roster output, preserving sparse ordinals and exact label ownership. Do not use
+  projection bindings, copy labels or retain sample values. Keep child-order annotation merge, normal root
+  statistics with zero local units, matrix preparation and normal child-output release.
+- Final values are freshly evaluated through existing paged reads and arithmetic. Existing early/delayed
+  duplicate phases and provisional output abort remain authoritative. Start-enabled folds still perform
+  their required consuming passes; logical sample totals must not count removed preparation replay.
+- Generic range (including equal endpoints), nested, dynamic, non-Boolean, modified-clock and native-output
+  paths remain valid. The [finite qualification](boolean-rate-preparation-qualification.json) binds complete
+  original results, causal lifecycle checks, all slower controls, memory observations and compiled costs.

@@ -11143,6 +11143,8 @@ Both native profiles pass 975 tests with two existing ignored checks. ARM32/ARM6
 derived owners under QEMU. Actual C/C++ callers pass 432 lifecycle cases, including one/two-reset Boolean
 results, retained labels/results and early callback errors/cancellation. Their complete Boolean query reads
 are 12/24, reflecting three folds; the Rust units separately check cancellation after retaining a correction.
+Those historical counts precede [instant Boolean preparation reuse](#completed-instant-boolean-rate-preparation),
+which reduces the current C counts to 8/16.
 Both full native C suites, strict lint, format and installed Rust 1.91 compilation pass.
 
 Default C linked section totals (text, data and BSS) are:
@@ -11155,3 +11157,49 @@ Default C linked section totals (text, data and BSS) are:
 | arm64 | 6,952,574 B | 6,949,142 B | -3,432 B |
 
 Compiled section costs, engine-accounted memory and process RSS are separate measurements.
+
+
+## Completed instant Boolean rate preparation
+
+An instant expression such as `rate(m_total[5m]) > bool 0` now transfers the completed Float child's
+metadata to the Boolean parent. This removes a redundant preparation traversal and its temporary metadata.
+Final values still read paged data and run the existing comparison. No raw sample cache is added.
+
+Admission requires a root genuine instant request, an actual numeric literal on either side, ordinary
+`rate()` or `increase()`, matching source/scope/producer clocks and completed Float-only descriptors.
+Sparse ordinals, labels and logical sample totals are retained. Empty completed output is valid; missing
+output is not evidence. Native-surviving, nested, dynamic, non-Boolean, range and modified-clock cases keep
+generic preparation. Mixed histories that suppress native output retain the child's warnings.
+
+[Qualification](boolean-rate-preparation-qualification.json) records 624 fresh pinned original outcomes and
+3,744 complete baseline/original comparisons across both profiles at pages 1/17/1024, with zero order or
+numeric-bit differences. Four default-profile construction errors per panel are compared as errors; the
+remaining 3,720 executions provide resource observations. All eight memory categories have no peak increase.
+A representative 16-series, 256-point query fetches 13,104 → 8,736 entries and reduces workspace peak from
+34,323 → 26,045 bytes. These are engine-accounted bytes, not process RSS.
+
+`boolean_rate_cases.boolean_rate_cases()` reproduces all 624 inputs;
+`boolean_rate_performance_cases()` reproduces the 64 timing inputs exactly. The 2,560-pair native panel
+measures about 29–30% less time for the targeted comparisons. Four primary controls exceeded 5% overhead;
+the prescribed 96-pair follow-up places all below 5%, with three still slightly above baseline. Both runs
+remain in the report. This does not establish a production-weighted or physical ARM throughput gain.
+
+Both native profiles pass 980 tests with two existing ignored checks. Ten focused owners pass on each ARM
+target under QEMU. Actual C/C++ callers pass 432 cases; full native C suites, strict lint, formatting and
+installed Rust 1.91 compilation pass. The five new Rust owners exercise metadata transfer, all comparisons,
+unequal thresholds, sparse/empty/native outputs, logical statistics, actual remaining read failures,
+cancellation and late-error precedence. Delayed duplicate errors can abort one provisional output chunk;
+no successful output is committed. C useful reads are now 8/16 for one/two-reset four-point histories.
+
+Default C linked section totals (text, data and BSS) are:
+
+| Target | Before | Current | Change |
+| --- | ---: | ---: | ---: |
+| release | 7,995,454 B | 7,998,770 B | +3,316 B (0.041%) |
+| release-min | 5,605,367 B | 5,609,895 B | +4,528 B (0.081%) |
+| arm32 | 6,712,689 B | 6,787,853 B | +75,164 B (1.120%) |
+| arm64 | 6,949,142 B | 6,957,170 B | +8,028 B (0.116%) |
+
+ARM32's increase is mainly changed compiler inlining in unchanged histogram code. The preparation function
+itself grows 88 bytes; the new helper occupies 2,260 bytes. The report retains absolute and cumulative
+costs under the proportional compiled-footprint policy. Compiled sections and per-query memory are distinct.

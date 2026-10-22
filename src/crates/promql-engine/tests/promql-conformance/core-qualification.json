@@ -74047,5 +74047,11 @@
     "report": "single-reset-rate-qualification.json",
     "report_sha256": "45c70c385f785f4e5e2801ea496d5a6285d6e0632eace11a1bcef36d786f3a20",
     "summary": "Reuse completed zero-or-one-reset Float acquisition for ordinary Rate and Increase."
+  },
+  "boolean_rate_preparation": {
+    "status": "finite_qualification_pass",
+    "report": "boolean-rate-preparation-qualification.json",
+    "report_sha256": "43b7981f2bce0c3487c9ca2a92449a2c18f776a1b35d54e86363e78d7d995b87",
+    "summary": "Transfer completed ordinary Float Rate/Increase metadata into root instant literal Boolean comparisons."
   }
 }
