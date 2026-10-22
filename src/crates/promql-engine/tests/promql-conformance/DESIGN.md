@@ -884,7 +884,7 @@ Current instant-rate acquisition is documented under
 [completed instant rate float windows](#completed-instant-rate-float-windows).
 
 This section records the earlier acquisition-only qualification. Current zero-or-one-reset behavior
-is documented under [completed single-reset Float windows](#completed-single-reset-float-windows).
+is documented under [single-reset correction ownership](#single-reset-correction-ownership).
 
 - **Choice:** the initial ordinary `rate`, `increase` and `delta` float pass collects its existing endpoints/count
   during acquisition. After complete validation and terminal control, a pure-float acquisition can omit its
