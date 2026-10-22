@@ -395,3 +395,7 @@ Prepared native endpoint retirement follows
 
 The rejected terminal native predecessor experiment is recorded in
 `src/crates/promql-engine/tests/promql-conformance/README.md#rejected-terminal-native-predecessor-retirement`.
+
+
+The rejected dense single-span compaction experiment is recorded in
+`src/crates/promql-engine/tests/promql-conformance/README.md#rejected-dense-single-span-histogram-compaction`.

@@ -74103,5 +74103,14 @@
     "exact_baseline_pairs": 1464,
     "timing_pairs": 4880,
     "runtime_restored": true
+  },
+  "rejected_dense_single_span_compaction": {
+    "status": "rejected_timing_gate_runtime_restored",
+    "report": "dense-compaction-rejection.json",
+    "report_sha256": "963b9efbeaea8222351d491117146ad3738c9165032fd0b893e85fcd20a98378",
+    "baseline_commit": "2aa3a98c7f05a9dc869ce80a7fc2b3c6aba45093",
+    "exact_baseline_pairs": 1992,
+    "timing_pairs": 6640,
+    "runtime_restored": true
   }
 }

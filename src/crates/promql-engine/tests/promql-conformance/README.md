@@ -11411,3 +11411,32 @@ and trial-only tests were restored exactly after the candidate failed its predef
 `native_terminal_performance_cases()` reproduces the 122 timing inputs. These are finite synthetic measurements,
 not live-provider or concurrent throughput. Accounted category peaks are separate and are not process RSS.
 A future experiment must retain this result and qualify its own implementation; no terminal-retirement code ships.
+
+
+## Rejected dense single-span histogram compaction
+
+The [experiment](dense-compaction-rejection.json) skipped a redundant compaction traversal after recognizing
+one complete, nonempty span with no zero buckets. Initial/scan/span checks and the paired-length assertion
+remained; zeros, multiple spans, empty arrays and incomplete layouts retained their existing paths.
+The candidate predicate and trial-only tests were reversed exactly after the frozen timing gate failed.
+
+- All 1,992 complete baseline comparisons matched. Original-policy results passed with no numeric-bit
+  differences; 30 strict unspecified-order failures remain separately recorded.
+- The shared histogram panel compared 6,440 retained requests plus 72 fresh dense ordinary/paired cases
+  against baseline and candidate in both profiles: 26,048 exact original comparisons, zero bit differences.
+  New cases include both bucket sides, signed offsets, negative/zero/positive parameters, NaNs and infinities.
+- Across 6,640 primary timing pairs, target median ratios were 0.9322 in release and 0.9551 in release-min.
+  Three release `idelta()` range controls remained slower after the prescribed follow-up: positive-offset
+  ratio 1.0671, zero-output 1.0848 and multiple-span 1.0960, against the fixed 1.05 ceiling. The cause of these
+  unchanged-path costs was not isolated. Primary results and all follow-up measurements remain retained.
+- All eight memory categories, allocation totals, reads, pages and output counts were unchanged; work was
+  nonincreasing. Three focused candidate tests checked exact values, buffer ownership, fallback mutations,
+  malformed arrays and interruption. The accepted baseline passed 180 C endpoint cases.
+- Complete native units, ARM, candidate C/C++, strict lint/MSRV and compiled-size qualification were not run
+  after rejection. The first fresh kernel capture rejected updated default Go1.27.2; its replacement used
+  the installed pinned Go1.27.1 explicitly. Both capture attempts remain retained.
+
+`dense_compaction_cases.dense_compaction_cases()` reproduces the 332 functional inputs;
+`dense_compaction_performance_cases()` reproduces the 166 timing inputs. These are finite synthetic results,
+not live-provider or concurrent throughput. Memory categories are not process RSS. No trial runtime ships;
+a future implementation must preserve this negative evidence and qualify its own costs.
