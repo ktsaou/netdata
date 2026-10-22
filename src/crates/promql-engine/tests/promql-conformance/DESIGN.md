@@ -2839,3 +2839,17 @@ changing membership, special literals, complete original comparisons and proport
   did not override the explicit requirement to examine material native/mixed costs.
 - **Disposition:** exact accepted runtime restored; failed candidate remains private evidence. No native
   error-phase relaxation or public contract change. Predecessor accounting is a separate future experiment.
+
+
+## Same-query Float predecessor ownership
+
+- Complete checked copying before taking any predecessor lease. Only a Float-to-Float replacement with a
+  one-unit same-query owner transfers it; other paths construct ownership normally.
+- Retain two units until the prior value is replaced, then return to one. Preserve saturation and output's
+  independent owner. The transferred Float comparison is infallible; native comparisons retain their phases.
+- This removes reference-count clone/drop operations without changing sample accounting updates or traversal.
+  All 2,934 measured nonelapsed observation pairs agree; direct Float timings improve about 4–6 percent.
+  Derived controls do not all improve. No new persistent fields, raw arrays, implicit limits or public contract.
+- Use current proportional compiled-size review. The old stage 116 rejection and its then-fixed gate remain
+  historical; they are not rewritten or treated as present performance evidence. See the current
+  [qualification](previous-owner-reuse-qualification.json) and [measured scope](README.md#reused-float-predecessor-ownership).

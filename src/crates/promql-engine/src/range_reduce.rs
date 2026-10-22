@@ -311,7 +311,7 @@ struct Previous {
     value: OwnedValue,
     time_ms: i64,
     start_time_ms: i64,
-    _float_samples: Option<crate::statistics::OwnedSamples>,
+    float_samples: Option<crate::statistics::OwnedSamples>,
 }
 impl Previous {
     fn copy(
@@ -319,13 +319,32 @@ impl Previous {
         use_start: bool,
         control: &Control,
         account: &QueryAccounting,
+        previous: Option<&mut Self>,
     ) -> Result<Self, Interrupted> {
-        let value = crate::statistics::ValueParts::new(
-            OwnedValue::from_sample_checked(sample.value, control, account, MemoryKind::Workspace)?,
-            account,
-        );
+        let value =
+            OwnedValue::from_sample_checked(sample.value, control, account, MemoryKind::Workspace)?;
+        let reused_samples = previous
+            .filter(|previous| {
+                matches!(value, OwnedValue::Float(_))
+                    && matches!(previous.value, OwnedValue::Float(_))
+            })
+            .and_then(|previous| {
+                previous.float_samples.take_if(|samples| {
+                    samples.units() == 1 && samples.accounting().same_query(account)
+                })
+            });
+        let value = if let Some(mut samples) = reused_samples {
+            // The old Float remains live until the caller commits this predecessor.
+            samples.resize(2);
+            crate::statistics::ValueParts {
+                value,
+                float_samples: Some(samples),
+            }
+        } else {
+            crate::statistics::ValueParts::new(value, account)
+        };
         Ok(Self {
-            _float_samples: value.float_samples,
+            float_samples: value.float_samples,
             value: value.value,
             time_ms: sample.time_ms,
             start_time_ms: if use_start { sample.start_time_ms } else { 0 },
@@ -518,6 +537,7 @@ impl FoldStep {
                 kind == Resets && self.start_timestamps,
                 control,
                 account,
+                self.previous.as_mut(),
             )?;
             if let Some(previous) = &self.previous {
                 let changed = match (current.value.as_ref(), previous.value.as_ref()) {
@@ -560,6 +580,14 @@ impl FoldStep {
                 }
             }
             self.previous = Some(current);
+            if let Some(samples) = self
+                .previous
+                .as_mut()
+                .and_then(|previous| previous.float_samples.as_mut())
+            {
+                // Release overlap only after the old predecessor has been dropped.
+                samples.resize(1);
+            }
         }
         Ok(())
     }
@@ -933,6 +961,362 @@ mod tests {
     }
 
     #[test]
+    fn previous_float_owners_preserve_complete_results() {
+        let mut guarded = Vec::new();
+        for page in [1, 17, 1024] {
+            for kind in [FoldKind::Changes, FoldKind::Resets] {
+                for start_timestamps in [false, true] {
+                    for matrix in [false, true] {
+                        for count in [0, 1, 2, 64, 4096] {
+                            let account = EngineAccounting::default().query();
+                            let control = Control::default();
+                            let source = GeneratedSeries::new(count, page, average_pair);
+                            let end_ms = count.max(1) as i64 * 1000;
+                            let bounds = TimeBounds {
+                                start_ms: 1,
+                                end_ms,
+                            };
+                            let (result, owners) = crate::test_storage::observe_sample_owners(
+                                &account,
+                                &control,
+                                false,
+                                || {
+                                    fold(
+                                        &source,
+                                        bounds,
+                                        kind,
+                                        FoldOptions {
+                                            start_timestamps,
+                                            anchor_start_ms: None,
+                                            matrix: matrix.then_some(MatrixWindow {
+                                                first_end_ms: end_ms,
+                                                end_ms,
+                                                range_ms: end_ms,
+                                                buffer_ms: None,
+                                                step_ms: 0,
+                                                data_bounds: bounds,
+                                                statistics: false,
+                                                reduce_delta: true,
+                                                resume: None,
+                                            }),
+                                        },
+                                        &control,
+                                        &account,
+                                    )
+                                },
+                            );
+                            let output = result.unwrap();
+                            let expected = (count != 0).then(|| {
+                                let value = if kind == FoldKind::Changes {
+                                    (count - 1) as f64
+                                } else {
+                                    0.0
+                                };
+                                value.to_bits()
+                            });
+                            assert_eq!(selected_float_bits(output.value.as_ref()), expected);
+                            assert!(output.annotations.iter().all(Option::is_none));
+                            assert_eq!(output.nonempty, count != 0);
+                            assert_eq!(output.progress.is_some(), matrix);
+                            if let Some(progress) = output.progress {
+                                assert_eq!(progress.sample_units, count as u64);
+                            }
+                            assert_eq!(
+                                account.snapshot().statistics.samples.samples_read,
+                                count as u64
+                            );
+                            assert_eq!(
+                                account.snapshot().statistics.samples.peak_samples,
+                                if count == 0 { 0 } else { 2 }
+                            );
+                            assert_eq!(account.current_samples(), u64::from(count != 0));
+                            assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                            assert_eq!(
+                                source.counters.opened.load(Ordering::Relaxed),
+                                source.counters.closed.load(Ordering::Relaxed)
+                            );
+                            drop(output);
+                            assert_eq!(account.current_samples(), 0);
+                            let observed = account.snapshot();
+                            observed.assert_memory_released();
+                            println!(
+                                "previous owner outcome page={page} kind={kind:?} start={start_timestamps} matrix={matrix} count={count} fold_bytes={} observations={observed:?}",
+                                std::mem::size_of::<FoldStep>()
+                            );
+                            guarded.push((
+                                count,
+                                page,
+                                kind,
+                                start_timestamps,
+                                matrix,
+                                owners.created,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(guarded.len(), 120);
+        println!("previous owners complete120-values-annotations-progress-observations-release");
+        for (count, page, kind, start, matrix, created) in guarded {
+            assert_eq!(
+                created,
+                if count == 0 { 0 } else { 2 },
+                "repeated Float predecessor ownership: count={count} page={page} kind={kind:?} start={start} matrix={matrix}"
+            );
+        }
+    }
+
+    #[test]
+    fn previous_copy_keeps_control_and_allocation_phases() {
+        for kind in [FoldKind::Changes, FoldKind::Resets] {
+            for budget in [1, 8192] {
+                let account = EngineAccounting::default().query();
+                let control = Control::default();
+                let mut step = FoldStep::new(kind, false);
+                step.receive(average_pair(0).as_ref(), &control, &account)
+                    .unwrap();
+                assert_eq!(
+                    account.snapshot().memory[MemoryKind::Workspace as usize].peak,
+                    0
+                );
+                let native = large_native_sample(1);
+                let (result, owners) =
+                    crate::test_storage::observe_sample_owners(&account, &control, false, || {
+                        crate::test_storage::interrupt_after_work(
+                            &account,
+                            &control,
+                            budget,
+                            || step.receive(native.as_ref(), &control, &account),
+                        )
+                    });
+                assert_eq!(result, Err(FoldError::Interrupted(Interrupted::Cancelled)));
+                let previous = step.previous.as_ref().unwrap();
+                assert_eq!(
+                    selected_float_bits(Some(&previous.value)),
+                    Some(1.0f64.to_bits())
+                );
+                assert_eq!((previous.time_ms, previous.start_time_ms), (1000, 0));
+                assert_eq!(account.current_samples(), 1);
+                assert_eq!(account.snapshot().statistics.samples.peak_samples, 1);
+                assert_eq!((owners.created, owners.released), (0, 0));
+                let workspace = account.snapshot().memory[MemoryKind::Workspace as usize];
+                assert_eq!(workspace.current, 0);
+                if budget == 8192 {
+                    assert!(workspace.peak >= (16_384 * std::mem::size_of::<f64>()) as u64);
+                }
+                account.snapshot().assert_memory_released();
+                drop(step);
+                assert_eq!(account.current_samples(), 0);
+                account.snapshot().assert_memory_released();
+            }
+
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let mut step = FoldStep::new(kind, false);
+            step.receive(average_pair(0).as_ref(), &control, &account)
+                .unwrap();
+            let result = crate::test_storage::interrupt_after_work(&account, &control, 1, || {
+                step.receive(average_pair(1).as_ref(), &control, &account)
+            });
+            assert_eq!(result, Ok(()));
+            assert_eq!(control.check(), Err(Interrupted::Cancelled));
+            let previous = step.previous.as_ref().unwrap();
+            assert_eq!(
+                selected_float_bits(Some(&previous.value)),
+                Some(2.0f64.to_bits())
+            );
+            assert_eq!((previous.time_ms, previous.start_time_ms), (2000, 0));
+            assert_eq!(step.changes, i64::from(kind == FoldKind::Changes));
+            assert_eq!(account.current_samples(), 1);
+            assert_eq!(account.snapshot().statistics.samples.peak_samples, 2);
+            drop(step);
+            assert_eq!(account.current_samples(), 0);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn previous_float_owners_follow_query_state_and_keep_output() {
+        let mut guarded = Vec::new();
+        for kind in [FoldKind::Changes, FoldKind::Resets] {
+            let engine = EngineAccounting::default();
+            let a = engine.query();
+            let alias_a = a.clone();
+            let b = engine.query();
+            let alias_b = b.clone();
+            let control = Control::default();
+            let mut step = FoldStep::new(kind, false);
+            step.receive(average_pair(0).as_ref(), &control, &a)
+                .unwrap();
+            let (result, cloned_a) =
+                crate::test_storage::observe_sample_owners(&a, &control, false, || {
+                    step.receive(average_pair(1).as_ref(), &control, &alias_a)
+                });
+            result.unwrap();
+            assert_eq!((a.current_samples(), b.current_samples()), (1, 0));
+            let (result, switched_b) =
+                crate::test_storage::observe_sample_owners(&b, &control, false, || {
+                    step.receive(average_pair(2).as_ref(), &control, &b)
+                });
+            result.unwrap();
+            assert_eq!((a.current_samples(), b.current_samples()), (0, 1));
+            let (result, cloned_b) =
+                crate::test_storage::observe_sample_owners(&b, &control, false, || {
+                    step.receive(average_pair(3).as_ref(), &control, &alias_b)
+                });
+            result.unwrap();
+            assert_eq!((a.current_samples(), b.current_samples()), (0, 1));
+            step.receive(average_pair(4).as_ref(), &control, &a)
+                .unwrap();
+            assert_eq!((a.current_samples(), b.current_samples()), (1, 0));
+            assert_eq!(step.previous.as_ref().unwrap().time_ms, 5000);
+            let expected = if kind == FoldKind::Changes {
+                4.0f64
+            } else {
+                0.0
+            };
+            let output = step.finish_pass(&control, &a).unwrap().unwrap();
+            assert_eq!(
+                selected_float_bits(output.value.as_ref()),
+                Some(expected.to_bits())
+            );
+            assert!(output.annotations.iter().all(Option::is_none));
+            assert!(output.nonempty);
+            assert_eq!((a.current_samples(), b.current_samples()), (2, 0));
+            step.receive(average_pair(5).as_ref(), &control, &a)
+                .unwrap();
+            assert_eq!(step.previous.as_ref().unwrap().time_ms, 6000);
+            assert_eq!(step.changes, if kind == FoldKind::Changes { 5 } else { 0 });
+            assert_eq!(
+                selected_float_bits(output.value.as_ref()),
+                Some(expected.to_bits())
+            );
+            assert_eq!((a.current_samples(), b.current_samples()), (2, 0));
+            assert_eq!(a.snapshot().statistics.samples.peak_samples, 3);
+            assert_eq!(b.snapshot().statistics.samples.peak_samples, 2);
+            drop(step);
+            assert_eq!((a.current_samples(), b.current_samples()), (1, 0));
+            assert_eq!(
+                selected_float_bits(output.value.as_ref()),
+                Some(expected.to_bits())
+            );
+            drop(output);
+            assert_eq!((a.current_samples(), b.current_samples()), (0, 0));
+            a.snapshot().assert_memory_released();
+            b.snapshot().assert_memory_released();
+            println!(
+                "previous affinity complete kind={kind:?} cloned_a={cloned_a:?} cloned_b={cloned_b:?}"
+            );
+            guarded.push((kind, cloned_a.created, cloned_b.created, switched_b.created));
+        }
+        for (kind, cloned_a, cloned_b, switched_b) in guarded {
+            assert_eq!(switched_b, 1);
+            assert_eq!(
+                cloned_a, 0,
+                "cloned A constructed a new predecessor owner for {kind:?}"
+            );
+            assert_eq!(
+                cloned_b, 0,
+                "cloned B constructed a new predecessor owner for {kind:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn previous_float_owners_preserve_special_values_and_saturation() {
+        let nan = f64::from_bits(0x7ff8_0000_0000_1234);
+        let other_nan = f64::from_bits(0x7ff8_0000_0000_4321);
+        for kind in [FoldKind::Changes, FoldKind::Resets] {
+            for start_timestamps in [false, true] {
+                for (first, last, changed, reset) in [
+                    (-0.0, 0.0, false, false),
+                    (nan, other_nan, false, false),
+                    (1.0, nan, true, false),
+                    (nan, 1.0, true, false),
+                    (f64::INFINITY, f64::NEG_INFINITY, true, true),
+                    (f64::NEG_INFINITY, f64::INFINITY, true, false),
+                ] {
+                    let account = EngineAccounting::default().query();
+                    let control = Control::default();
+                    let mut step = FoldStep::new(kind, start_timestamps);
+                    for (time_ms, start_time_ms, value) in [
+                        (1000, 100, first),
+                        (2000, 1500, last),
+                        (3000, 2500, f64::from_bits(crate::value::STALE_NAN_BITS)),
+                    ] {
+                        step.receive(
+                            SampleRef {
+                                time_ms,
+                                start_time_ms,
+                                value: SampleValueRef::Float(value),
+                            },
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                    }
+                    let previous = step.previous.as_ref().unwrap();
+                    assert_eq!(
+                        selected_float_bits(Some(&previous.value)),
+                        Some(last.to_bits())
+                    );
+                    assert_eq!(previous.time_ms, 2000);
+                    assert_eq!(
+                        previous.start_time_ms,
+                        if kind == FoldKind::Resets && start_timestamps {
+                            1500
+                        } else {
+                            0
+                        }
+                    );
+                    assert_eq!(step.count, 2);
+                    let expected = if kind == FoldKind::Changes {
+                        changed
+                    } else {
+                        reset || start_timestamps
+                    };
+                    let output = step.finish_pass(&control, &account).unwrap().unwrap();
+                    assert_eq!(
+                        selected_float_bits(output.value.as_ref()),
+                        Some(f64::from(u8::from(expected)).to_bits())
+                    );
+                    assert!(output.annotations.iter().all(Option::is_none));
+                    assert!(output.nonempty);
+                    assert_eq!(account.current_samples(), 2);
+                    assert_eq!(account.snapshot().statistics.samples.peak_samples, 2);
+                    drop(step);
+                    assert_eq!(account.current_samples(), 1);
+                    drop(output);
+                    assert_eq!(account.current_samples(), 0);
+                    account.snapshot().assert_memory_released();
+                }
+            }
+
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let held = crate::statistics::OwnedSamples::new(&account, u64::MAX - 1);
+            let mut step = FoldStep::new(kind, false);
+            step.receive(average_pair(0).as_ref(), &control, &account)
+                .unwrap();
+            assert_eq!(account.current_samples(), u64::MAX);
+            assert!(!account.snapshot().counter_overflowed);
+            step.receive(average_pair(1).as_ref(), &control, &account)
+                .unwrap();
+            assert_eq!(account.current_samples(), u64::MAX - 1);
+            assert_eq!(account.snapshot().statistics.samples.peak_samples, u64::MAX);
+            assert!(account.snapshot().counter_overflowed);
+            assert_eq!(
+                selected_float_bits(Some(&step.previous.as_ref().unwrap().value)),
+                Some(2.0f64.to_bits())
+            );
+            drop((step, held));
+            assert_eq!(account.current_samples(), 0);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
     fn last_float_owners_preserve_complete_results_before_acquisition_guard() {
         let mut guarded = Vec::new();
         for page in [1, 17, 1024] {
@@ -1290,6 +1674,7 @@ mod tests {
             false,
             &control,
             &account,
+            None,
         );
         assert!(matches!(outcome, Err(Interrupted::Cancelled)));
         assert_eq!(account.snapshot().statistics.samples.peak_samples, 0);

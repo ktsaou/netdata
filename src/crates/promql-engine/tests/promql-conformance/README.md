@@ -8932,7 +8932,8 @@ actual source identities; this finite result does not complete the continuous im
 ## Rejected Float predecessor ownership reuse
 
 [`previous-owner-reuse-rejected-qualification.json`](previous-owner-reuse-rejected-qualification.json) records a
-private `changes`/`resets` experiment that was rejected. The accepted engine remains byte-for-byte unchanged.
+private `changes`/`resets` experiment that was rejected. That trial left the accepted engine unchanged.
+The later [qualified retry](#reused-float-predecessor-ownership) has separate current-source measurements.
 
 The trial reused a same-query Float predecessor lease after successful checked copying, preserving the two-value
 overlap through comparison and replacement. Output retained its independent lease. Actual old-production tests
@@ -11069,3 +11070,39 @@ histogram consumption remained necessary. The accepted runtime was restored exac
 
 The next independent opportunity is predecessor-accounting overhead. This result does not establish that
 opportunity's benefit or authorize changing native error phases, input retention or public contracts.
+
+
+## Reused Float predecessor ownership
+
+`changes()` and `resets()` reuse their existing sample-accounting owner when a Float predecessor is replaced
+by another Float from the same query. Checked copying still comes first. Both values remain accounted through
+comparison and replacement; output keeps an independent owner. Native values, errors, start timestamps,
+acquisition and consumption retain their existing behavior. This avoids reference-count operations, not a
+per-sample heap allocation. No field, input buffer, cache, API or installation change is introduced.
+
+[Qualification](previous-owner-reuse-qualification.json) records 2,934 complete baseline/original-policy pairs
+from 489 fresh pinned Prometheus outcomes across pages 1/17/1024 and both profiles. Numeric bits agree;
+180 strict instant-order differences remain recorded. All serialized observations except elapsed time match,
+including eight memory categories, sample peaks, reads, work and allocation traffic.
+
+The 84-case timing panel contains 3,360 paired executions. Direct Changes median times are about 6% lower;
+direct Resets about 4–5% lower. Grouped medians are 3–6% lower. Derived release-min medians are approximately
+0.4% and 1.5% higher, so these measurements do not establish a gain for every query. No individual control
+exceeded the predefined 5% follow-up threshold. All case medians remain in the report.
+
+Both native profiles pass 970 tests with two existing tests ignored. Each ARM target passes 63 fold owners and
+the derived tie control under QEMU. Actual C/C++ callers pass 288 lifecycle cases across both operators;
+both native complete C suites, strict lint, format and installed MSRV compilation pass. Four new causal tests
+cover complete paged results, partial-copy interruption, account identity, retained output and saturation.
+The earlier rejected predecessor experiment remains historical evidence with its original source and size gate.
+
+Default C linked section sizes (text, data and BSS combined) are:
+
+| Target | Before | Current | Change |
+| --- | ---: | ---: | ---: |
+| release | 7,997,806 B | 7,994,942 B | -2,864 B |
+| release-min | 5,604,743 B | 5,605,047 B | +304 B |
+| arm32 | 6,712,153 B | 6,712,545 B | +392 B |
+| arm64 | 6,971,830 B | 6,952,574 B | -19,256 B |
+
+These are finite fixture measurements. Compiled costs, engine-accounted memory and process RSS are distinct.

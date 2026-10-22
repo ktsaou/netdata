@@ -74035,5 +74035,11 @@
     "report": "resets-acquisition-rejection.json",
     "report_sha256": "fd83630165eb3983419454d03837582913ccec6300a0bec62a1a3f2621265f22",
     "summary": "Restore the accepted runtime. Primary Float and pooled-control gates pass, but separately required individual native/mixed review shows repeated material regressions."
+  },
+  "previous_owner_reuse": {
+    "status": "finite_qualification_pass",
+    "report": "previous-owner-reuse-qualification.json",
+    "report_sha256": "995c5e201818e83293726ea259ba6e742b2d11ac52950cbb2f3eaee49c7baef7",
+    "summary": "Reuse the existing same-query Float predecessor sample owner in Changes and Resets."
   }
 }

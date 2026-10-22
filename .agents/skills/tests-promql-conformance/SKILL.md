@@ -369,3 +369,6 @@ Ordinary Changes acquisition, predecessor ownership and raw/derived timestamp co
 
 The rejected Float Resets prefix experiment and native/mixed follow-up costs are recorded in
 `src/crates/promql-engine/tests/promql-conformance/README.md#rejected-float-resets-acquisition`.
+
+Float predecessor owner reuse MUST preserve checked-copy phases, query affinity, overlap and output lifetime; see
+`src/crates/promql-engine/tests/promql-conformance/README.md#reused-float-predecessor-ownership`.
