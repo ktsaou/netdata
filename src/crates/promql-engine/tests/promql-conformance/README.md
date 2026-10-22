@@ -11168,8 +11168,8 @@ Final values still read paged data and run the existing comparison. No raw sampl
 Admission requires a root genuine instant request, an actual numeric literal on either side, ordinary
 `rate()` or `increase()`, matching source/scope/producer clocks and completed Float-only descriptors.
 Sparse ordinals, labels and logical sample totals are retained. Empty completed output is valid; missing
-output is not evidence. Native-surviving, nested, dynamic, non-Boolean, range and modified-clock cases keep
-generic preparation. Mixed histories that suppress native output retain the child's warnings.
+output is not evidence. Native-surviving, nested, dynamic, filtering, range and modified-clock cases keep
+generic preparation. Literal arithmetic now follows the [extension below](#completed-instant-literal-rate-arithmetic). Mixed histories that suppress native output retain the child's warnings.
 
 [Qualification](boolean-rate-preparation-qualification.json) records 624 fresh pinned original outcomes and
 3,744 complete baseline/original comparisons across both profiles at pages 1/17/1024, with zero order or
@@ -11251,3 +11251,47 @@ Default C linked section totals (text, data and BSS) are:
 | arm64 | 6,957,170 B | 6,952,682 B | -4,488 B (-0.065%) |
 
 The report retains cumulative compiled costs separately from runtime allocation and memory measurements.
+
+
+## Completed instant literal rate arithmetic
+
+Instant expressions such as `100 * rate(m_total[5m])` and `increase(m_total[5m]) / 1024` reuse
+the completed Float child's metadata. This extends the existing Boolean-comparison transfer to `+`,
+`-`, `*`, `/`, `^`, `%` and `atan2`, with a numeric literal on either side. Final values still read
+paged samples and perform the normal arithmetic. No new retained state or sample cache is added.
+
+The root must be a genuine instant request with an ordinary `rate()` or `increase()` child, matching
+clocks and completed Float-only descriptors. Sparse and empty results preserve identity; mixed histories
+retain child diagnostics. Native output, filters, trims, nested/dynamic expressions, modified clocks and
+range requests retain generic preparation. These are optimization boundaries, not language exclusions.
+
+[Qualification](literal-rate-preparation-qualification.json) records 844 fresh pinned original outcomes
+and 5,064 exact complete baseline/original comparisons across both profiles and pages 1/17/1024, with
+zero order or numeric-bit differences. Four construction errors per panel are compared as errors;
+5,040 executions supply resource observations. No measured memory-category peak increases. A representative
+16-series, 256-point multiply query reduces workspace peak from 34,323 to 26,621 bytes and fetched entries
+from 13,104 to 8,736. Engine-accounted peaks are separate from process RSS.
+
+`literal_rate_cases.literal_rate_cases()` reproduces all 844 inputs;
+`literal_rate_performance_cases()` reproduces the 100 timing inputs. The 4,000-pair native panel measures
+about 28–30% less time for targeted arithmetic. No individual control exceeds the 5% follow-up threshold.
+These finite synthetic timings do not establish production-weighted or physical ARM throughput.
+
+Both native profiles pass 986 tests, with two existing ignored checks. Focused owners pass on ARM32/ARM64
+under QEMU; actual C/C++ consumers pass 3,024 cases, plus 504 accepted-baseline C cases. Full native C
+suites, strict lint variants, formatting and installed Rust 1.91 compilation pass. Tests cover independent
+name-removal/start-timestamp flags, descriptor ownership, fresh final read failures, diagnostics and duplicate
+error precedence. The kernel test passes a freshly read child into reconstructed actual root Map propagation
+and interrupts the third power/modulo callback; whole-query acquisition tests separately prove fresh reads.
+Removing preparation work removes its polling events, while remaining work retains interruption and cleanup.
+
+Default C linked section totals (text, data and BSS) are:
+
+| Target | Before | Current | Change |
+| --- | ---: | ---: | ---: |
+| release | 7,997,738 B | 7,997,754 B | +16 B (0.000%) |
+| release-min | 5,610,991 B | 5,611,007 B | +16 B (0.000%) |
+| arm32 | 6,791,889 B | 6,791,913 B | +24 B (0.000%) |
+| arm64 | 6,952,682 B | 6,960,934 B | +8,252 B (0.119%) |
+
+The report retains proportional cumulative compiled costs separately from per-query memory.

@@ -74059,5 +74059,11 @@
     "report": "native-endpoint-reuse-qualification.json",
     "report_sha256": "5d3a74a6f345214eaac4b73a31256d85153fb38173469bbc588ae2b1e6faedce",
     "summary": "Reuse expired FloatHistogram endpoint ownership in irate/idelta only at exact fresh buffer capacities."
+  },
+  "literal_rate_preparation": {
+    "status": "finite_qualification_pass",
+    "report": "literal-rate-preparation-qualification.json",
+    "report_sha256": "f287b6f9219545e3fdf996b3c71b3cdcb54e668539bf86d50445cc31f0430d2d",
+    "summary": "Reuse completed ordinary Float Rate/Increase metadata for root instant literal scalar arithmetic."
   }
 }

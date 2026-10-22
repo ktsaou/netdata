@@ -2886,8 +2886,8 @@ changing membership, special literals, complete original comparisons and proport
 - Final values are freshly evaluated through existing paged reads and arithmetic. Existing early/delayed
   duplicate phases and provisional output abort remain authoritative. Start-enabled folds still perform
   their required consuming passes; logical sample totals must not count removed preparation replay.
-- Generic range (including equal endpoints), nested, dynamic, non-Boolean, modified-clock and native-output
-  paths remain valid. The [finite qualification](boolean-rate-preparation-qualification.json) binds complete
+- Generic range (including equal endpoints), nested, dynamic, filtering, modified-clock and native-output
+  paths remain valid. Literal arithmetic follows the extension below. The [finite qualification](boolean-rate-preparation-qualification.json) binds complete
   original results, causal lifecycle checks, all slower controls, memory observations and compiled costs.
 
 
@@ -2906,3 +2906,17 @@ changing membership, special literals, complete original comparisons and proport
   hold different logical lengths, so test changing sample weights independently of physical byte ownership.
 - The [finite qualification](native-endpoint-reuse-qualification.json) owns all-page original comparisons,
   actual callback/lifetime checks, native timing, allocation traffic and proportional compiled costs.
+
+
+## Instant literal rate arithmetic ownership
+
+- Extend the existing completed-child transfer to `binary_value::changes_metadata` operators. With
+  Float operands these preserve membership and output kind, including NaN/infinity results; POW/MOD
+  numerical-domain cases do not introduce evaluation errors beyond checked interruption.
+- Keep every existing root/instant/literal/ordinary-selector/clock and descriptor guard. Take completed
+  output only after descriptor and terminal control checks; retain ordinary statistics, annotation merge,
+  matrix preparation, final fresh reads and duplicate handling. No new owner or cache is needed.
+- Removed preparation arithmetic reduces work/polls; require bounded remaining interruption and release,
+  not identical work indices. Separately test fresh final reads and actual root Map arithmetic interruption.
+- The [finite qualification](literal-rate-preparation-qualification.json) owns exact all-page results,
+  explicit C outcomes/lifetimes, native timing, all resource observations and proportional compiled costs.

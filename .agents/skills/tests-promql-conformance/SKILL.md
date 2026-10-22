@@ -273,6 +273,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   Root instant literal Boolean metadata transfer follows the same guide's
   `#completed-instant-boolean-rate-preparation` section for sparse ordinals, completed-output ownership,
   child diagnostics, logical totals and fresh final reads.
+  Literal arithmetic follows
+  `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-literal-rate-arithmetic`.
   Instant-rate acquisition also follows
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-rate-float-windows` for native
   fallback, terminal validation and provisional endpoint ownership.

@@ -1352,6 +1352,74 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             last_diagnostic: None,
         }
     }
+    #[cfg(test)]
+    pub(crate) fn assert_literal_kernel_interruption(&mut self, sample: EvaluatedSample<'a>) {
+        let root = self.frames[0].node;
+        let Expr::Binary {
+            operator,
+            left,
+            right,
+            return_bool: false,
+            ..
+        } = self.expression.arena[root].expression
+        else {
+            panic!("arithmetic root")
+        };
+        let (scalar, scalar_left) =
+            if let Expr::Number { value, .. } = self.expression.arena[left].expression {
+                (value, true)
+            } else if let Expr::Number { value, .. } = self.expression.arena[right].expression {
+                (value, false)
+            } else {
+                panic!("literal operand")
+            };
+        let OwnedValue::Float(value) = &sample.value else {
+            panic!("Float child")
+        };
+        let (a, b) = if scalar_left {
+            (scalar, *value)
+        } else {
+            (*value, scalar)
+        };
+        let mut calls = 0;
+        let check = || {
+            calls += 1;
+            Ok::<(), ()>(())
+        };
+        match operator {
+            TokenKind::POW => crate::numerical::pow_with(a, b, check).unwrap(),
+            TokenKind::MOD => crate::numerical::modulo_with(a, b, check).unwrap(),
+            _ => panic!("checked arithmetic kernel"),
+        };
+        assert!(calls >= 3, "the actual operands must enter the kernel loop");
+        self.frames[0].state = self.map(MapOperation::Binary {
+            operator,
+            scalar,
+            scalar_left,
+            return_bool: false,
+        });
+        assert_eq!(self.frames.len(), 1);
+        let before = self.account.snapshot().work;
+        // Propagation and binary dispatch charge once each before the kernel callbacks.
+        let result =
+            crate::test_storage::interrupt_after_work(self.account, self.control, 5, || {
+                self.propagate(sample, 1)
+            });
+        assert_eq!(self.account.snapshot().work - before, 5);
+        assert!(matches!(
+            result,
+            Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+        ));
+        let State::Map {
+            seen,
+            last_diagnostic,
+            ..
+        } = &self.frames[0].state
+        else {
+            panic!("root map")
+        };
+        assert!(seen.entries.is_empty() && seen.lookup.is_none() && last_diagnostic.is_none());
+    }
     fn sample(&self, value: f64) -> EvaluatedSample<'a> {
         self.sample_owned(
             value,
