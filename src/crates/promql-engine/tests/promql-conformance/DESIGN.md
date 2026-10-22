@@ -2772,7 +2772,8 @@ changing membership, special literals, complete original comparisons and proport
 - **Choice:** ordinary Min/Max joins the existing Sum/Avg acquisition gate, using the same window proof and
   original selection order. No new storage, state field or public contract is introduced.
 - **Ownership:** retain the existing extremum earlier; complete validation, closure and controls precede
-  publication/credit. Histogram allocation still requires consumption. Late failures release provisional values.
+  publication and Float-only shortcut credit. Histogram allocation still requires consumption, which credits
+  each reached sample. Late failures release provisional values.
 - **Boundaries:** anchored/statistics/buffered/wider geometry and derived folds remain unchanged. Timestamp
   extrema and variance are separate opportunities, not unsupported expressions.
 - **Evidence:** [qualification](extrema-acquisition-qualification.json) and
@@ -2785,7 +2786,8 @@ changing membership, special literals, complete original comparisons and proport
 - **Choice:** ordinary Stdvar/Stddev join the established numeric acquisition gate under the same window proof.
   The existing scalar accumulator performs identical updates; final division and square root remain after acquisition.
 - **Ownership:** no new persistent field or buffer. Complete validation, closure and controls precede publication
-  and credit. Histogram allocation still requires consumption; unsupported geometry keeps the existing path.
+  and Float-only shortcut credit. Histogram allocation still requires consumption with per-sample credit;
+  unsupported geometry keeps the existing path.
 - **Evidence:** [qualification](variance-acquisition-qualification.json) and
   [measured scope](README.md#validated-variance-acquisition-reuse) retain original arithmetic edge cases,
   33–39% lower target query times, unchanged measured memory peaks and separate proportional compiled costs.
@@ -2795,7 +2797,8 @@ changing membership, special literals, complete original comparisons and proport
 
 - **Choice:** First/Last join the existing ordinary acquisition gate; the existing selected value is retained earlier.
 - **Ownership:** preserve histogram copying/normalization and mandatory consumption. Partial-copy and later-cursor
-  failures release all owners; complete validation and controls precede result/read credit. No new persistent state.
+  failures release all owners; complete validation and controls precede results and Float-only shortcut credit.
+  Required histogram consumption credits each reached sample. No new persistent state.
 - **Names:** direct endpoint results retain the metric name, including mixed histories. Arithmetic consumers apply
   their normal name rules. Geometry fallbacks and derived folds retain their established paths.
 - **Evidence:** [qualification](endpoint-acquisition-qualification.json) and
@@ -2817,7 +2820,9 @@ changing membership, special literals, complete original comparisons and proport
 ## Validated Changes acquisition reuse
 
 - **Choice:** admit ordinary Changes to the existing acquisition proof and one-predecessor accumulator.
-  Complete validation, required native consumption and terminal controls precede results and read credit.
+  Complete validation, required native consumption and terminal controls precede results. Float-only reuse
+  credits reads after successful acquisition; required histogram consumption credits each reached sample,
+  preserving reached credits on later cancellation or failure.
 - **Contracts:** preserve native equality, raw strict timestamps, derived merge errors and all fallback paths.
   Resets remains separate because its native operation can return additional errors during evaluation.
 - **Cost:** earlier predecessor ownership can modestly increase native-buffer overlap. Retain actual peak

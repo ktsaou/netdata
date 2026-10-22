@@ -10805,7 +10805,8 @@ prefix equality. Private harness corrections and their original captures remain 
 
 `min_over_time` and `max_over_time` reuse the existing Sum/Avg acquisition path for ordinary raw windows.
 The one existing extremum is selected during validation; no field, value cache or raw-history array is added.
-Complete page validation, cursor closure and terminal controls precede result publication and read credit.
+Complete page validation, cursor closure and terminal controls precede result publication. Float-only reuse
+credits reads after successful acquisition; required histogram consumption credits each reached sample.
 Populated histogram allocations, including stale histogram history, retain consuming validation. Anchored,
 statistics, buffered, wider-bound and derived evaluation keeps its existing path.
 
@@ -10857,7 +10858,8 @@ actual source identities: correcting the early-fault position and C fixture shap
 `stdvar_over_time` and `stddev_over_time` reuse the existing validated acquisition path for ordinary raw windows.
 Their existing scalar accumulators retain the original operation order; final division and square root remain
 after acquisition. No field, value cache or raw-history array is added. Complete validation, cursor closure and
-terminal controls precede publication and read credit. Populated histogram allocations, including stale history,
+terminal controls precede publication. Float-only reuse credits reads after successful acquisition; required
+histogram consumption credits each reached sample. Populated histogram allocations, including stale history,
 retain consuming validation. Anchored, statistics, buffered, wider-bound and derived evaluation is unchanged.
 
 [Qualification](variance-acquisition-qualification.json) records 1,728 main complete baseline/original-policy
@@ -10902,7 +10904,8 @@ Cumulative compiled costs are recorded separately in the report; they are not qu
 
 `first_over_time` and `last_over_time` reuse completed ordinary acquisition while retaining their existing
 selected value. Float windows avoid repeated consuming reads; populated histogram windows retain mandatory
-consumption. Complete page validation, closure and terminal controls still precede publication and read credit.
+consumption. Complete page validation, closure and terminal controls still precede publication. Float-only
+reuse credits reads after successful acquisition; required histogram consumption credits each reached sample.
 The same anchored/statistics/buffered/wider-bound exclusions apply. No new field or raw-history cache is added.
 
 Direct First/Last keep the metric name. Native and mixed histories retain the selected histogram or float,
@@ -10948,7 +10951,8 @@ Cumulative compiled costs and full private evidence bindings remain in the repor
 ## Validated regression acquisition reuse
 
 `deriv` and `predict_linear` update their existing scalar regression state during ordinary acquisition.
-Completed validation, required histogram consumption and final controls precede publication and read credit.
+Completed validation, required histogram consumption and final controls precede publication. Float-only reuse
+credits reads after successful acquisition; required histogram consumption credits each reached sample.
 Shared scanning, smoothing, derived evaluation and statistics/buffered/wider-bound fallbacks retain their paths.
 No new state field or raw-history cache is introduced.
 
@@ -11003,8 +11007,9 @@ Both sides use identical retained pre-correction default C harness bytes; correc
 ## Validated Changes acquisition reuse
 
 `changes()` updates its existing one-predecessor state during ordinary acquisition. Full validation,
-required histogram consumption and final controls still precede completion and read credit. Raw duplicate
-timestamps still fail storage validation; derived equal-time merge handling and `resets()` retain their paths.
+required histogram consumption and final controls still precede completion. Float-only reuse credits reads
+after successful acquisition; required histogram consumption credits each reached sample, including credits
+retained on later cancellation or failure. Raw duplicate timestamps still fail storage validation; derived equal-time merge handling and `resets()` retain their paths.
 Anchored, statistics, buffered, wider-window and non-matrix fallbacks also retain their existing behavior.
 
 [Qualification](changes-acquisition-qualification.json) records 2,400 complete baseline/original-policy

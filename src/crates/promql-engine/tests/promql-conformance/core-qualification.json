@@ -74027,7 +74027,7 @@
   "changes_acquisition": {
     "status": "finite_qualification_pass",
     "report": "changes-acquisition-qualification.json",
-    "report_sha256": "1318d19dd3948104241e6509e99dc6bf8bdedd1e523f7ffc5a8c88e7477fd9a4",
+    "report_sha256": "b44cab8e95899c55bc5ff4dadd58371308cd309b058a13035389705dea18e404",
     "summary": "Reuse validated ordinary acquisition for changes."
   }
 }

@@ -3,7 +3,7 @@
   "status": "finite_qualification_pass",
   "comparison_base": "88d4fecd4012d17f3eddeb23c5cc5fbfef6f62b5",
   "change": "Reuse validated ordinary acquisition for changes.",
-  "proof": "Add Changes to the existing reuse_initial_fold gate. Update the existing one-predecessor FoldStep provisionally; preserve full acquisition validation, required native consumption, controls and read credit before finish.",
+  "proof": "Add Changes to the existing reuse_initial_fold gate. Update the existing one-predecessor FoldStep provisionally. Full acquisition validation and required native consumption precede finish. Float-only reuse credits reads after successful acquisition; required histogram consumption credits each reached sample and retains those credits on later cancellation or failure.",
   "preserved": [
     "exact Float/native equality and stale membership",
     "raw strict timestamp validation",
