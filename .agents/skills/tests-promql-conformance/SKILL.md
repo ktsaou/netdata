@@ -366,3 +366,6 @@ Ordinary Deriv/PredictLinear acquisition, prediction clocks and calibrated inter
 
 Ordinary Changes acquisition, predecessor ownership and raw/derived timestamp controls follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#validated-changes-acquisition-reuse`.
+
+The rejected Float Resets prefix experiment and native/mixed follow-up costs are recorded in
+`src/crates/promql-engine/tests/promql-conformance/README.md#rejected-float-resets-acquisition`.

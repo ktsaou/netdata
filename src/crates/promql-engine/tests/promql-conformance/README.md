@@ -11049,3 +11049,23 @@ MSRV 1.91 compilation pass. The C lifecycle fixture uses the already corrected s
 Both sides use identical current C harness bytes. The preceding report used the older calibration helper;
 its separate harness adjustment is -32/-32/-24/0 bytes for release/release-min/ARM32/ARM64. Cumulative compiled
 costs include that disclosed adjustment and remain separate from query memory.
+
+
+## Rejected Float Resets acquisition
+
+The [rejected experiment](resets-acquisition-rejection.json) provisionally evaluated a Float prefix during
+`resets()` acquisition, then discarded it before mandatory native/mixed consumption. This preserved native
+operation-error order and all 2,742 complete baseline/original-policy results, but repeated Float work when
+histogram consumption remained necessary. The accepted runtime was restored exactly.
+
+- Float targets were about 31–33% faster in 2,080 complete-query timing pairs. Pooled controls passed.
+- Individual mixed/stale controls remained 8–23% slower in the prescribed 336-pair follow-up. For example,
+  release stale-last range rose from 234,108 to 288,608 ns. These regressions are not hidden by the pooled result.
+- All eight accounted memory-category peaks were unchanged in 2,742 pairs. This is not an RSS claim.
+- The candidate passed 67 release fold owners, the existing derived-timestamp owner and 832 independent
+  analytical outcomes. Native error precedence, reached consuming credits and start timestamps were exercised.
+- Full native/ARM qualification, C execution and compiled-cost builds were not run after rejection. Candidate
+  source, binaries, inputs, unexecuted C fixture and measurements remain separately bound; no candidate ships.
+
+The next independent opportunity is predecessor-accounting overhead. This result does not establish that
+opportunity's benefit or authorize changing native error phases, input retention or public contracts.

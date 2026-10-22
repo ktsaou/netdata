@@ -2828,3 +2828,14 @@ changing membership, special literals, complete original comparisons and proport
 - **Cost:** earlier predecessor ownership can modestly increase native-buffer overlap. Retain actual peak
   changes, failed preparation records, complete reference comparisons and proportional compiled costs in the
   [finite report](changes-acquisition-qualification.json) and [measured scope](README.md#validated-changes-acquisition-reuse).
+
+
+## Rejected Float Resets acquisition
+
+- **Decision:** retain the accepted Resets path. A Float-prefix acquisition candidate preserved results and
+  native error order but added repeated work on required native/mixed consumption.
+- **Evidence:** [negative qualification](resets-acquisition-rejection.json) records useful Float savings,
+  unchanged accounted peaks and persistent 8–23% individual mixed/stale regressions. Passing pooled controls
+  did not override the explicit requirement to examine material native/mixed costs.
+- **Disposition:** exact accepted runtime restored; failed candidate remains private evidence. No native
+  error-phase relaxation or public contract change. Predecessor accounting is a separate future experiment.

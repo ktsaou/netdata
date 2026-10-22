@@ -74029,5 +74029,11 @@
     "report": "changes-acquisition-qualification.json",
     "report_sha256": "b44cab8e95899c55bc5ff4dadd58371308cd309b058a13035389705dea18e404",
     "summary": "Reuse validated ordinary acquisition for changes."
+  },
+  "rejected_float_resets_acquisition": {
+    "status": "rejected_mixed_history_overhead",
+    "report": "resets-acquisition-rejection.json",
+    "report_sha256": "fd83630165eb3983419454d03837582913ccec6300a0bec62a1a3f2621265f22",
+    "summary": "Restore the accepted runtime. Primary Float and pooled-control gates pass, but separately required individual native/mixed review shows repeated material regressions."
   }
 }
