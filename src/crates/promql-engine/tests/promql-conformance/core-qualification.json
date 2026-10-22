@@ -74005,5 +74005,11 @@
     "report": "extrema-acquisition-qualification.json",
     "report_sha256": "484dfd4c5fc37528dc57316527284a8a161552f1d9b3cd3bfc267c6bc6bc6b57",
     "summary": "Reuse completed ordinary acquisition for min_over_time and max_over_time."
+  },
+  "variance_acquisition": {
+    "status": "finite_qualification_pass",
+    "report": "variance-acquisition-qualification.json",
+    "report_sha256": "f8d5256abec8416ed3ff26e07c4de245683c262b0fa2469382b58a328a23e93b",
+    "summary": "Reuse completed ordinary acquisition for stdvar_over_time and stddev_over_time."
   }
 }

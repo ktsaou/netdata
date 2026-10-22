@@ -805,7 +805,12 @@ pub(crate) fn fold<S: Series>(
     let mut step = FoldStep::new(kind, options.start_timestamps);
     let reuse_initial_fold = matches!(
         kind,
-        FoldKind::Sum | FoldKind::Avg | FoldKind::Min | FoldKind::Max
+        FoldKind::Sum
+            | FoldKind::Avg
+            | FoldKind::Min
+            | FoldKind::Max
+            | FoldKind::Stdvar
+            | FoldKind::Stddev
     ) && options.anchor_start_ms.is_none()
         && options
             .matrix
@@ -1462,6 +1467,59 @@ mod tests {
         }
     }
 
+    // Original Prometheus outcomes for ascending 1..=count inputs, including final sqrt bits.
+    fn expected_counter_variance(kind: FoldKind, count: usize) -> f64 {
+        let (variance, deviation): (u64, u64) = match count {
+            0 => (0, 0),
+            1 => (0x0000000000000000, 0x0000000000000000),
+            2 => (0x3fd0000000000000, 0x3fe0000000000000),
+            128 => (0x4095550000000000, 0x40427982521cb463),
+            1024 => (0x40f5555400000000, 0x407279a6b1c2f6a1),
+            2048 => (0x4115555500000000, 0x408279a7209ce46c),
+            100000 => (0x41c8d5d42aa00000, 0x40dc30e0dc7f1a2d),
+            _ => panic!("uncaptured counter extent"),
+        };
+        f64::from_bits(if kind == FoldKind::Stdvar {
+            variance
+        } else {
+            assert_eq!(kind, FoldKind::Stddev);
+            deviation
+        })
+    }
+
+    #[test]
+    fn variance_acquisition_preserves_complete_results() {
+        for kind in [FoldKind::Stdvar, FoldKind::Stddev] {
+            check_fold_complete_acquisition(kind);
+            check_entirely_stale_histograms(kind);
+        }
+    }
+
+    #[test]
+    fn variance_acquisition_failures_and_cancellation_release_owners() {
+        for kind in [FoldKind::Stdvar, FoldKind::Stddev] {
+            check_fold_acquisition_failures(kind);
+            check_fold_acquisition_cancellation(kind);
+            check_histogram_consumption_cancellation(kind);
+        }
+    }
+
+    #[test]
+    fn variance_acquisition_keeps_fallback_geometry() {
+        for kind in [FoldKind::Stdvar, FoldKind::Stddev] {
+            check_wider_fold_bounds(kind);
+            check_anchored_fold(kind);
+            check_fold_fallbacks(kind);
+        }
+    }
+
+    #[test]
+    fn variance_acquisition_keeps_long_histories_page_bounded() {
+        for kind in [FoldKind::Stdvar, FoldKind::Stddev] {
+            check_fold_bounded_history(kind);
+        }
+    }
+
     fn check_extrema_acquisition_values(kind: FoldKind) {
         const STALE: u64 = crate::value::STALE_NAN_BITS;
         const NAN1: u64 = 0x7ff8_0000_0000_1234;
@@ -1858,10 +1916,11 @@ mod tests {
                 assert_eq!(
                     selected_float_bits(output.value.as_ref()),
                     Some(
-                        (if kind == FoldKind::Max {
-                            3.0f64
-                        } else {
-                            2.0f64
+                        (match kind {
+                            FoldKind::Max => 3.0f64,
+                            FoldKind::Stdvar => 0.25,
+                            FoldKind::Stddev => 0.5,
+                            _ => 2.0,
                         })
                         .to_bits()
                     )
@@ -1914,15 +1973,21 @@ mod tests {
                     &account,
                 )
                 .unwrap();
-                let extrema = matches!(kind, FoldKind::Min | FoldKind::Max);
-                let expected = if extrema && mode == 4 {
+                let float_only = matches!(
+                    kind,
+                    FoldKind::Min | FoldKind::Max | FoldKind::Stdvar | FoldKind::Stddev
+                );
+                let expected = if float_only && mode == 4 {
                     None
                 } else {
                     Some(
-                        (if kind == FoldKind::Min || extrema && mode == 3 {
-                            1.0f64
-                        } else {
-                            2.0f64
+                        (match kind {
+                            FoldKind::Stdvar | FoldKind::Stddev if mode == 3 => 0.0f64,
+                            FoldKind::Stdvar => 0.25,
+                            FoldKind::Stddev => 0.5,
+                            FoldKind::Min => 1.0,
+                            FoldKind::Max if mode == 3 => 1.0,
+                            _ => 2.0,
                         })
                         .to_bits(),
                     )
@@ -1932,7 +1997,7 @@ mod tests {
                 assert_eq!(
                     output.annotations,
                     [
-                        (extrema && mode == 3)
+                        (float_only && mode == 3)
                             .then_some(AnnotationKind::HistogramIgnoredInMixedRange),
                         None,
                     ]
@@ -2004,6 +2069,9 @@ mod tests {
                                 FoldKind::Count => count as f64,
                                 FoldKind::Min => 1.0,
                                 FoldKind::Max => count as f64,
+                                FoldKind::Stdvar | FoldKind::Stddev => {
+                                    expected_counter_variance(kind, count)
+                                }
                                 _ => unreachable!(),
                             })
                             .to_bits()
@@ -2088,19 +2156,29 @@ mod tests {
                 assert!(output.nonempty);
                 let (expected_cursors, expected_read) = if matches!(
                     kind,
-                    FoldKind::Count | FoldKind::Present | FoldKind::Min | FoldKind::Max
+                    FoldKind::Count
+                        | FoldKind::Present
+                        | FoldKind::Min
+                        | FoldKind::Max
+                        | FoldKind::Stdvar
+                        | FoldKind::Stddev
                 ) && expected_kind == 3
                 {
                     (2, 22)
                 } else {
                     (expected_cursors, expected_read)
                 };
-                if matches!(kind, FoldKind::Min | FoldKind::Max) {
+                if matches!(
+                    kind,
+                    FoldKind::Min | FoldKind::Max | FoldKind::Stdvar | FoldKind::Stddev
+                ) {
                     let expected = (expected_kind != 3).then_some(
-                        (if kind == FoldKind::Max && expected_kind == 0 {
-                            2.0f64
-                        } else {
-                            1.0f64
+                        (match kind {
+                            FoldKind::Stdvar | FoldKind::Stddev if expected_kind != 0 => 0.0f64,
+                            FoldKind::Stdvar => 0.25,
+                            FoldKind::Stddev => 0.5,
+                            FoldKind::Max if expected_kind == 0 => 2.0,
+                            _ => 1.0,
                         })
                         .to_bits(),
                     );
@@ -2228,7 +2306,12 @@ mod tests {
             failures
                 >= if matches!(
                     kind,
-                    FoldKind::Count | FoldKind::Present | FoldKind::Min | FoldKind::Max
+                    FoldKind::Count
+                        | FoldKind::Present
+                        | FoldKind::Min
+                        | FoldKind::Max
+                        | FoldKind::Stdvar
+                        | FoldKind::Stddev
                 ) {
                     48
                 } else {
@@ -2365,6 +2448,10 @@ mod tests {
                     3.0f64
                 } else if kind == FoldKind::Max {
                     4.0f64
+                } else if kind == FoldKind::Stdvar {
+                    0.25f64
+                } else if kind == FoldKind::Stddev {
+                    0.5f64
                 } else {
                     3.5f64
                 })
@@ -2538,7 +2625,9 @@ mod tests {
                 };
                 assert_eq!(
                     value.to_bits(),
-                    (if kind == FoldKind::Present {
+                    (if matches!(kind, FoldKind::Stdvar | FoldKind::Stddev) {
+                        expected_counter_variance(kind, count)
+                    } else if kind == FoldKind::Present {
                         1.0f64
                     } else if matches!(kind, FoldKind::Count | FoldKind::Max) {
                         count as f64

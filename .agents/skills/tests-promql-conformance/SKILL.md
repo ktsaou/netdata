@@ -354,3 +354,6 @@ Nonmerging label projections over completed groups follow
 
 Ordinary Min/Max acquisition follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#validated-extrema-acquisition-reuse`.
+
+Ordinary variance/deviation acquisition follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#validated-variance-acquisition-reuse`.

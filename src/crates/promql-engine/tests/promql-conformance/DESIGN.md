@@ -2778,3 +2778,14 @@ changing membership, special literals, complete original comparisons and proport
 - **Evidence:** [qualification](extrema-acquisition-qualification.json) and
   [measured scope](README.md#validated-extrema-acquisition-reuse) retain exact comparisons, early-lease failures,
   38–45% target time reductions, unchanged measured category peaks and separate proportional compiled costs.
+
+
+## Validated variance acquisition reuse
+
+- **Choice:** ordinary Stdvar/Stddev join the established numeric acquisition gate under the same window proof.
+  The existing scalar accumulator performs identical updates; final division and square root remain after acquisition.
+- **Ownership:** no new persistent field or buffer. Complete validation, closure and controls precede publication
+  and credit. Histogram allocation still requires consumption; unsupported geometry keeps the existing path.
+- **Evidence:** [qualification](variance-acquisition-qualification.json) and
+  [measured scope](README.md#validated-variance-acquisition-reuse) retain original arithmetic edge cases,
+  33–39% lower target query times, unchanged measured memory peaks and separate proportional compiled costs.

@@ -10850,3 +10850,49 @@ panels provide independent extrema values. Strict lint, formatting and MSRV 1.91
 
 Cumulative compiled costs are retained separately in the report. Keep failed initial test receipts with their
 actual source identities: correcting the early-fault position and C fixture shape changed no runtime code.
+
+
+## Validated variance acquisition reuse
+
+`stdvar_over_time` and `stddev_over_time` reuse the existing validated acquisition path for ordinary raw windows.
+Their existing scalar accumulators retain the original operation order; final division and square root remain
+after acquisition. No field, value cache or raw-history array is added. Complete validation, cursor closure and
+terminal controls precede publication and read credit. Populated histogram allocations, including stale history,
+retain consuming validation. Anchored, statistics, buffered, wider-bound and derived evaluation is unchanged.
+
+[Qualification](variance-acquisition-qualification.json) records 1,728 main complete baseline/original-policy
+comparisons across both profiles and pages 1/17/1024. Another 288 comparisons cover 48 original requests with
+closely spaced large finite values in different orders, overflow, underflow and signaling NaNs. No numeric-bit
+differences occur. Seventeen instant requests per main panel differ only under strict original row ordering;
+all supplemental comparisons also pass strict ordering. Eight modifier errors are negative controls.
+
+| Native profile | Variance time ratio | Standard deviation time ratio | Sum/Avg control ratio |
+|---|---:|---:|---:|
+| release | 0.6658 | 0.6664 | 0.9990 |
+| release-min | 0.6070 | 0.6364 | 0.9918 |
+
+The frozen timing panel has 1,280 paired queries: four/sixteen series, 32/256-sample windows, instant/three-step
+ranges and page 17. Five alternating blocks use four repeats, discarding the first. Target family times fall
+about 33–39%. One release-min Avg control is 1.0858 initially and 1.0130 in the prescribed single follow-up.
+Both are retained. Another 512 complete results match analytical variance and arithmetic-series values.
+
+For sixteen series and 256 samples, three-step variance/deviation fetched entries fall 52,800 → 26,400.
+All eight accounted memory peaks are unchanged across 2,016 main and supplemental pairs. Eighteen queries
+at fixed cardinality keep Workspace at 9,373 bytes as each of four histories grows from 32 to 2,048 to 100,000
+samples, at pages 1/17/1024. Fixture inputs and process RSS are outside this claim; metadata and output can
+still grow with cardinality. No complete raw history is retained by the engine.
+
+Both native profiles pass 951 units with two ignored; each ARM target passes all 48 fold tests under QEMU.
+Four new owners cover exact values, 140 actual injected operation failures, cancellation, fallbacks and long
+histories. Twelve pinned original captures establish ascending-history unit expectations through 100,000
+samples. Six C/C++ callers pass 48 lifecycle cases each, plus two complete native C suites. Strict lint,
+formatting and MSRV 1.91 compilation pass. C ratio cases check lifecycle; independent panels check the values.
+
+| Default C executable | Text/data/BSS change, bytes | Relative change |
+|---|---:|---:|
+| release | -16 | -0.0002% |
+| release-min | +0 | 0.0000% |
+| arm32 | +8 | 0.0001% |
+| arm64 | +0 | 0.0000% |
+
+Cumulative compiled costs are recorded separately in the report; they are not query-memory increases.
