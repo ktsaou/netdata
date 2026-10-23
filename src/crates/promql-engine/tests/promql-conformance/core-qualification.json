@@ -74333,5 +74333,17 @@
     "strict_order_failures": 18,
     "numeric_bit_differences": 0,
     "timing_pairs": 1600
+  },
+  "frozen_pair_ordinal": {
+    "status": "finite_qualification_pass",
+    "report": "frozen-pair-ordinal-qualification.json",
+    "report_sha256": "8ab31255a3d1a9348d290cc28153233815d7c57c47d2f64c29bfecac3e729aab",
+    "baseline_commit": "5c499a1a3b7d3d351413171f1a143b5129f83123",
+    "exact_baseline_pairs": 11598,
+    "original_policy_pairs": 11598,
+    "strict_order_failures": 882,
+    "numeric_bit_differences": 0,
+    "timing_pairs": 960,
+    "shared_control_pairs": 320
   }
 }

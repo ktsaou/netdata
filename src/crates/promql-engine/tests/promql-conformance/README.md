@@ -4405,6 +4405,9 @@ public API, provider, storage, numerical, language or implicit-cap contract chan
 
 ## Borrowed binary-result labels
 
+The later [certified pair lookup](#certified-frozen-pair-label-lookup) avoids repeated operand hashing
+only in an active certified frontier; this section retains its original qualification scope.
+
 Set emission borrows exact immutable side-descriptor labels. Arithmetic and comparison emission borrows the
 matching frozen result-cache entry after complete-key lookup. Both use the existing SampleLabels representation;
 the mutable preparation cache still returns owned labels. No aggregate empty-value normalization is applied to
@@ -7397,6 +7400,9 @@ These shared-host fixture timings do not establish live/API, default-library or 
 speed or process RSS. No feature or numerical tolerance is dropped or widened; implicit limits remain disabled.
 
 ## Completed pair-metadata traversal
+
+The later [certified pair lookup](#certified-frozen-pair-label-lookup) avoids repeated operand hashing
+only in an active certified frontier; this section retains its original qualification scope.
 
 Eligible warm joins now consume their existing completed input bitmap directly. They avoid rebuilding active-row,
 signature, reservation and seen tables for each requested output, and avoid repeatedly walking the same processed
@@ -12171,3 +12177,42 @@ and run `delayed_nested_clocks`, `nested_grouped_clocks`, `grouped_selector_cloc
 and delayed-ratio controls. The existing C group/ratio/nested/projection consumers exercise actual adapters.
 The resource checker was strengthened before candidate measurements to cover all 17 syntactically declined
 functional cases; its initial bytes remain in the evidence. This changed enforcement, not the frozen rules.
+
+## Certified frozen pair label lookup
+
+An already-certified warm pair frontier can use its existing physical-row index to find the frozen result
+labels. It avoids hashing both operand label streams again. The indexed entry must still contain exactly the
+requested original-side row pair; otherwise the ordinary complete-key lookup runs. Mutable preparation,
+fills and unqualified requests retain that lookup. No field, cache, raw history or public option is added.
+
+The [qualification report](frozen-pair-ordinal-qualification.json) records 11,598 complete comparisons over
+1,933 retained-original cases: 1,644 binary/ownership cases, 280 delayed grouped-ratio cases and nine portable
+fill/numerical cases. Both native profiles run pages 1, 17 and 1024. Results match the accepted baseline exactly,
+with zero paired numerical-bit differences. The existing 147 strict instant-row permutations per panel remain
+recorded separately; the established ordering policy passes. These are reused authenticated Prometheus
+originals with fresh baseline and candidate executions, not newly captured originals.
+
+[frozen_pair_ordinal_cases.py](frozen_pair_ordinal_cases.py) reproduces the 24 timing shapes: eight or 32 pairs,
+eight timestamps, 16/256/1024-byte detail labels, grouped/root expressions and both name-removal settings.
+The four primary targets are early grouped queries with 256/1024-byte details. Five alternating blocks and
+four repeats produce 960 complete comparisons; only the first repeat is excluded from timing. Target medians
+are 0.968865 of baseline in release and 0.934108 in release-min; control medians are 0.980540 and 0.976438.
+Eight existing direct-group and early/delayed grouped-ratio controls add 320 comparisons, with medians
+0.975574 and 0.990730. No individual ratio triggered the prescribed follow-up.
+
+All measured category memory, allocation traffic, physical reads and other nonelapsed observations are identical,
+apart from reduced actual work. The 32-pair, 1024-byte grouped example keeps Workspace peak at 217,768 bytes
+and fetched entries at 25,088, while work falls from 10,028,233 to 8,974,681. This is accounted query memory,
+not process RSS. Longer labels were chosen to expose the affected operation; these timings do not represent
+all production workloads.
+
+The new causal unit constructs cache entries in physical order 2, 0, 1, exercises all three matching cardinalities,
+and checks exact borrowed addresses, encoded/unbound fallback, zero allocation and entry/return interruption.
+The existing complete-query owner now observes actual shortcut use: 16 of its 80 cases produce 624 hits.
+Early grouped and `abs(m+n)` cases reach it; tested root and delayed plain-selector cases do not. Existing
+delayed grouped-ratio frontiers are also eligible, so delayed removal is not a blanket exclusion.
+
+Full native suites, focused ARM32/ARM64 execution under QEMU, actual C/C++ grouped-ratio callers, complete native
+C suites, strict lint, formatting and the installed Rust 1.91 compile-only check are recorded with exact source
+and binary identities in the report. Fixed compiled costs are separate from query RAM. There is no claim about
+exhaustive equivalence, live-dbengine throughput, concurrent throughput, process RSS or physical ARM speed.

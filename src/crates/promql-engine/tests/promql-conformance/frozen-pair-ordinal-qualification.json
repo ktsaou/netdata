@@ -1,0 +1,1585 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "5c499a1a3b7d3d351413171f1a143b5129f83123",
+  "change": "Use the existing certified physical-pair index for frozen result-label lookup.",
+  "proof": "Active exact-key completed frontier, immutable previously validated operand descriptors, existing ordinal mapping and exact ordinary cache-row equality; generic lookup otherwise.",
+  "implementation": "One private wrapper, no fields/cache/raw history/API changes. Arithmetic, result hashing, reservation, suppression, credit and cleanup unchanged. Test-only restored hit observer is absent from shipping builds.",
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/baseline-source.json",
+      "sha256": "18f2774cb6e30abae93da7d752fd83a7b68f8b439c303f7650c03d6e3e7c57e6"
+    },
+    "candidate": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/candidate-source.json",
+      "sha256": "ed32de3e53788a890bea626cf3acd8af27a9f8818a96ca8e57dfcf78ec44496b"
+    },
+    "candidate-v2": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/candidate-v2-source.json",
+      "sha256": "23eea95514cdfb5a397a8119163067e46de6cae4ac6b8baaa57b3681b9e46ea5"
+    },
+    "candidate-v3": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/candidate-v3-source.json",
+      "sha256": "bcf134bad063b6a62487bfd3caf7dbd2cd4d0c0e999da64be916e2a4a6578e6f"
+    }
+  },
+  "qualification": {
+    "retained_original_cases": 1933,
+    "original_sources": {
+      "binary": 1644,
+      "delayed_ratio": 280,
+      "portable_coupled": 9
+    },
+    "fresh_originals": 0,
+    "exact_baseline_pairs": 11598,
+    "original_policy_pairs": 11598,
+    "strict_order_failures": 882,
+    "strict_order_ids": [
+      "delayed-ratio-core:sum:rate:False:instant",
+      "delayed-ratio-core:sum:rate:True:instant",
+      "delayed-ratio-core:sum:increase:False:instant",
+      "delayed-ratio-core:sum:increase:True:instant",
+      "delayed-ratio-core:sum:delta:False:instant",
+      "delayed-ratio-core:sum:delta:True:instant",
+      "delayed-ratio-core:avg:rate:False:instant",
+      "delayed-ratio-core:avg:rate:True:instant",
+      "delayed-ratio-core:avg:increase:False:instant",
+      "delayed-ratio-core:avg:increase:True:instant",
+      "delayed-ratio-core:avg:delta:False:instant",
+      "delayed-ratio-core:avg:delta:True:instant",
+      "delayed-ratio-core:count:rate:False:instant",
+      "delayed-ratio-core:count:rate:True:instant",
+      "delayed-ratio-core:count:increase:False:instant",
+      "delayed-ratio-core:count:increase:True:instant",
+      "delayed-ratio-core:count:delta:False:instant",
+      "delayed-ratio-core:count:delta:True:instant",
+      "delayed-ratio-core:min:rate:False:instant",
+      "delayed-ratio-core:min:rate:True:instant",
+      "delayed-ratio-core:min:increase:False:instant",
+      "delayed-ratio-core:min:increase:True:instant",
+      "delayed-ratio-core:min:delta:False:instant",
+      "delayed-ratio-core:min:delta:True:instant",
+      "delayed-ratio-core:max:rate:False:instant",
+      "delayed-ratio-core:max:rate:True:instant",
+      "delayed-ratio-core:max:increase:False:instant",
+      "delayed-ratio-core:max:increase:True:instant",
+      "delayed-ratio-core:max:delta:False:instant",
+      "delayed-ratio-core:max:delta:True:instant",
+      "delayed-ratio-core:group:rate:False:instant",
+      "delayed-ratio-core:group:rate:True:instant",
+      "delayed-ratio-core:group:increase:False:instant",
+      "delayed-ratio-core:group:increase:True:instant",
+      "delayed-ratio-core:group:delta:False:instant",
+      "delayed-ratio-core:group:delta:True:instant",
+      "delayed-ratio-core:stdvar:rate:False:instant",
+      "delayed-ratio-core:stdvar:rate:True:instant",
+      "delayed-ratio-core:stdvar:increase:False:instant",
+      "delayed-ratio-core:stdvar:increase:True:instant",
+      "delayed-ratio-core:stdvar:delta:False:instant",
+      "delayed-ratio-core:stdvar:delta:True:instant",
+      "delayed-ratio-core:stddev:rate:False:instant",
+      "delayed-ratio-core:stddev:rate:True:instant",
+      "delayed-ratio-core:stddev:increase:False:instant",
+      "delayed-ratio-core:stddev:increase:True:instant",
+      "delayed-ratio-core:stddev:delta:False:instant",
+      "delayed-ratio-core:stddev:delta:True:instant",
+      "delayed-ratio-state:stale:sum:instant",
+      "delayed-ratio-state:stale:count:instant",
+      "delayed-ratio-state:late:sum:instant",
+      "delayed-ratio-state:late:count:instant",
+      "delayed-ratio-state:empty:sum:instant",
+      "delayed-ratio-state:empty:count:instant",
+      "delayed-ratio-state:native:count:instant",
+      "delayed-ratio-state:mixed:sum:instant",
+      "delayed-ratio-state:mixed:count:instant",
+      "delayed-ratio-state:all-native:count:instant",
+      "delayed-ratio-state:nan:sum:instant",
+      "delayed-ratio-state:nan:count:instant",
+      "delayed-ratio-state:infinity:sum:instant",
+      "delayed-ratio-state:infinity:count:instant",
+      "delayed-ratio-state:zero:sum:instant",
+      "delayed-ratio-state:zero:count:instant",
+      "delayed-ratio-consumer:min_over_time:False",
+      "delayed-ratio-consumer:min_over_time:True",
+      "delayed-ratio-consumer:max_over_time:False",
+      "delayed-ratio-consumer:max_over_time:True",
+      "delayed-ratio-consumer:sum_over_time:False",
+      "delayed-ratio-consumer:sum_over_time:True",
+      "delayed-ratio-consumer:avg_over_time:False",
+      "delayed-ratio-consumer:avg_over_time:True",
+      "delayed-ratio-consumer:count_over_time:False",
+      "delayed-ratio-consumer:count_over_time:True",
+      "delayed-ratio-consumer:present_over_time:False",
+      "delayed-ratio-consumer:present_over_time:True",
+      "delayed-ratio-consumer:last_over_time:False",
+      "delayed-ratio-consumer:last_over_time:True",
+      "delayed-ratio-consumer:stdvar_over_time:False",
+      "delayed-ratio-consumer:stdvar_over_time:True",
+      "delayed-ratio-consumer:stddev_over_time:False",
+      "delayed-ratio-consumer:stddev_over_time:True",
+      "delayed-ratio-consumer:changes:False",
+      "delayed-ratio-consumer:changes:True",
+      "delayed-ratio-consumer:resets:False",
+      "delayed-ratio-consumer:resets:True",
+      "delayed-ratio-consumer:quantile_over_time:False",
+      "delayed-ratio-consumer:quantile_over_time:True",
+      "delayed-ratio-metadata:by(cluster,zone):False:instant",
+      "delayed-ratio-metadata:by(cluster,zone):True:instant",
+      "delayed-ratio-metadata:without(member,__type__,__unit__):False:instant",
+      "delayed-ratio-metadata:without(member,__type__,__unit__):True:instant",
+      "delayed-ratio-metadata:by(cluster,zone,__name__):False:instant",
+      "delayed-ratio-metadata:by(cluster,zone,__name__):True:instant",
+      "delayed-ratio-metadata:by(cluster,zone,__type__):False:instant",
+      "delayed-ratio-metadata:by(cluster,zone,__unit__):False:instant",
+      "delayed-ratio-metadata:without(member):False:instant",
+      "delayed-ratio-membership:right-missing:False:instant",
+      "delayed-ratio-membership:aliases:False:instant",
+      "delayed-ratio-membership:aliases:True:instant",
+      "delayed-ratio-matching:on(cluster,zone):False",
+      "delayed-ratio-matching:on(cluster,zone):True",
+      "delayed-ratio-matching:ignoring(member):False",
+      "delayed-ratio-matching:ignoring(member):True",
+      "delayed-ratio-composition:((sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s])))):False",
+      "delayed-ratio-composition:((sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s])))):True",
+      "delayed-ratio-composition:abs(sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s]))):False",
+      "delayed-ratio-composition:abs(sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s]))):True",
+      "delayed-ratio-composition:(sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s])))*2:False",
+      "delayed-ratio-composition:(sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s])))*2:True",
+      "delayed-ratio-composition:-(sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s]))):False",
+      "delayed-ratio-composition:-(sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s]))):True",
+      "delayed-ratio-composition:sum by(cluster,zone)(m_total)/sum by(cluster,zone)(n_total):False",
+      "delayed-ratio-composition:sum by(cluster,zone)(m_total)/sum by(cluster,zone)(n_total):True",
+      "delayed-ratio-upstream:False:instant",
+      "delayed-ratio-upstream:True:instant",
+      "delayed-ratio-perf:4:sum:rate:instant:False",
+      "delayed-ratio-perf:4:sum:rate:instant:True",
+      "delayed-ratio-perf:4:sum:increase:instant:False",
+      "delayed-ratio-perf:4:sum:increase:instant:True",
+      "delayed-ratio-perf:4:sum:delta:instant:False",
+      "delayed-ratio-perf:4:sum:delta:instant:True",
+      "delayed-ratio-perf:4:avg:rate:instant:False",
+      "delayed-ratio-perf:4:avg:rate:instant:True",
+      "delayed-ratio-perf:4:avg:increase:instant:False",
+      "delayed-ratio-perf:4:avg:increase:instant:True",
+      "delayed-ratio-perf:4:avg:delta:instant:False",
+      "delayed-ratio-perf:4:avg:delta:instant:True",
+      "delayed-ratio-perf:8:sum:rate:instant:False",
+      "delayed-ratio-perf:8:sum:rate:instant:True",
+      "delayed-ratio-perf:8:sum:increase:instant:False",
+      "delayed-ratio-perf:8:sum:increase:instant:True",
+      "delayed-ratio-perf:8:sum:delta:instant:False",
+      "delayed-ratio-perf:8:sum:delta:instant:True",
+      "delayed-ratio-perf:8:avg:rate:instant:False",
+      "delayed-ratio-perf:8:avg:rate:instant:True",
+      "delayed-ratio-perf:8:avg:increase:instant:False",
+      "delayed-ratio-perf:8:avg:increase:instant:True",
+      "delayed-ratio-perf:8:avg:delta:instant:False",
+      "delayed-ratio-perf:8:avg:delta:instant:True",
+      "delayed-ratio-perf:fallback:0",
+      "delayed-ratio-perf:fallback:1",
+      "delayed-ratio-perf:fallback:2",
+      "delayed-ratio-perf:fallback:3",
+      "delayed-ratio-perf:fallback:4",
+      "delayed-ratio-perf:fallback:5",
+      "delayed-ratio-perf:fallback:7"
+    ],
+    "numeric_bit_differences": 0,
+    "resource_pairs": 11598,
+    "work_reduced_pairs": 1644,
+    "timing_pairs": 960,
+    "shared_control_pairs": 320,
+    "followup_pairs": 0,
+    "focused": [
+      {
+        "filter": "frozen_ordinal_lookup",
+        "passed": 1,
+        "ignored": 0
+      },
+      {
+        "filter": "ordered_binary_consumers_check_complete_results_before_bounded_reads",
+        "passed": 1,
+        "ignored": 0
+      },
+      {
+        "filter": "vector_matching::tests::",
+        "passed": 45,
+        "ignored": 0
+      },
+      {
+        "filter": "ordered_binary_inner_machines_preserve_cold_warm_and_next_clock_failures",
+        "passed": 1,
+        "ignored": 0
+      }
+    ],
+    "focused_distinct_tests": 47,
+    "whole_query_hit_calibration": {
+      "queries": 80,
+      "positive_queries": 16,
+      "hits": 624
+    },
+    "units": {
+      "release": [
+        {
+          "filter": "",
+          "passed": 1017,
+          "ignored": 2
+        }
+      ],
+      "release-min": [
+        {
+          "filter": "",
+          "passed": 1017,
+          "ignored": 2
+        }
+      ],
+      "arm32": [
+        {
+          "filter": "vector_matching::tests::",
+          "passed": 45,
+          "ignored": 0
+        },
+        {
+          "filter": "pair_discovery::tests::",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "ordered_binary_",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "delayed_ratio_clocks",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "statistics::tests::",
+          "passed": 12,
+          "ignored": 0
+        },
+        {
+          "filter": "c_abi::tests::",
+          "passed": 52,
+          "ignored": 1
+        }
+      ],
+      "arm64": [
+        {
+          "filter": "vector_matching::tests::",
+          "passed": 45,
+          "ignored": 0
+        },
+        {
+          "filter": "pair_discovery::tests::",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "ordered_binary_",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "delayed_ratio_clocks",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "statistics::tests::",
+          "passed": 12,
+          "ignored": 0
+        },
+        {
+          "filter": "c_abi::tests::",
+          "passed": 52,
+          "ignored": 1
+        }
+      ]
+    },
+    "C_CPP_cases": 4032,
+    "callers": {
+      "release": [
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "12cb5c1267bd462cfd04017f53957d1a680987fd96115bad3de382f84e51786d"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "CPP",
+          "cases": 672,
+          "binary_sha256": "13eca20ab122a660846b47b9dbfa7507c1547279512a073f55989881e6548fcf"
+        }
+      ],
+      "release-min": [
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "958855e752f3f78a32df867e061e388956ee2536b5a3470e9b4bfabaf0c2ba32"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "CPP",
+          "cases": 672,
+          "binary_sha256": "3cdf13ef352343023937a8889df36cb5e49b27e2eaa2ceea4f4f6172a889107a"
+        }
+      ],
+      "arm32": [
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "e9bafe31219342bddbf7dab5b6906e4ab2c0c0f1d4669b0e08b951c6f5c81481"
+        }
+      ],
+      "arm64": [
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "d2c7cd2d7f688b5c6a5b8e826beaf150b39a9e1b45f3a7f9bdca39a51a3480ac"
+        }
+      ]
+    },
+    "complete_native_C_suites": 2,
+    "static": "Strict default/fixture lint, format, installed Rust1.91 compile-only."
+  },
+  "timing": {
+    "release": {
+      "target_median": 0.968865209758544,
+      "control_median": 0.9805401166124561,
+      "complete_pairs": 480,
+      "cases": [
+        {
+          "id": "n8-w16-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 0.948647553722078,
+          "before_median_ns": 2078382,
+          "candidate_median_ns": 1971652
+        },
+        {
+          "id": "n8-w16-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 0.9822363180255471,
+          "before_median_ns": 8014048,
+          "candidate_median_ns": 7871689
+        },
+        {
+          "id": "n8-w16-m+n-0",
+          "target": false,
+          "ratio": 0.9804465428515361,
+          "before_median_ns": 1707115,
+          "candidate_median_ns": 1673735
+        },
+        {
+          "id": "n8-w16-m+n-1",
+          "target": false,
+          "ratio": 0.9917254534278535,
+          "before_median_ns": 1734234,
+          "candidate_median_ns": 1719884
+        },
+        {
+          "id": "n8-w256-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.9781097719028518,
+          "before_median_ns": 2079421,
+          "candidate_median_ns": 2033902
+        },
+        {
+          "id": "n8-w256-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.046111658008629,
+          "before_median_ns": 8051478,
+          "candidate_median_ns": 8422745
+        },
+        {
+          "id": "n8-w256-m+n-0",
+          "target": false,
+          "ratio": 0.9893684533838016,
+          "before_median_ns": 1771144,
+          "candidate_median_ns": 1752314
+        },
+        {
+          "id": "n8-w256-m+n-1",
+          "target": false,
+          "ratio": 1.0037741937667695,
+          "before_median_ns": 1772564,
+          "candidate_median_ns": 1779254
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.9731413357788805,
+          "before_median_ns": 2172111,
+          "candidate_median_ns": 2113771
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 0.9908282330332338,
+          "before_median_ns": 8377775,
+          "candidate_median_ns": 8300936
+        },
+        {
+          "id": "n8-w1024-m+n-0",
+          "target": false,
+          "ratio": 0.9948257004311825,
+          "before_median_ns": 1820343,
+          "candidate_median_ns": 1810924
+        },
+        {
+          "id": "n8-w1024-m+n-1",
+          "target": false,
+          "ratio": 0.9875739940487922,
+          "before_median_ns": 1862143,
+          "candidate_median_ns": 1839004
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 0.9529185368777927,
+          "before_median_ns": 8138787,
+          "candidate_median_ns": 7755601
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 0.9714501673728996,
+          "before_median_ns": 113796499,
+          "candidate_median_ns": 110547628
+        },
+        {
+          "id": "n32-w16-m+n-0",
+          "target": false,
+          "ratio": 0.9762024514774387,
+          "before_median_ns": 7080057,
+          "candidate_median_ns": 6911569
+        },
+        {
+          "id": "n32-w16-m+n-1",
+          "target": false,
+          "ratio": 0.971184289081346,
+          "before_median_ns": 7227585,
+          "candidate_median_ns": 7019317
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.9645890837382075,
+          "before_median_ns": 8392525,
+          "candidate_median_ns": 8095338
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 0.9806336903733762,
+          "before_median_ns": 114940329,
+          "candidate_median_ns": 112714359
+        },
+        {
+          "id": "n32-w256-m+n-0",
+          "target": false,
+          "ratio": 0.9692399421841478,
+          "before_median_ns": 7034057,
+          "candidate_median_ns": 6817689
+        },
+        {
+          "id": "n32-w256-m+n-1",
+          "target": false,
+          "ratio": 0.9748813800124019,
+          "before_median_ns": 7200515,
+          "candidate_median_ns": 7019648
+        },
+        {
+          "id": "n32-w1024-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.9414182703374548,
+          "before_median_ns": 8710173,
+          "candidate_median_ns": 8199916
+        },
+        {
+          "id": "n32-w1024-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 0.9638670485309235,
+          "before_median_ns": 122434781,
+          "candidate_median_ns": 118010851
+        },
+        {
+          "id": "n32-w1024-m+n-0",
+          "target": false,
+          "ratio": 1.0206997850645159,
+          "before_median_ns": 7523653,
+          "candidate_median_ns": 7679391
+        },
+        {
+          "id": "n32-w1024-m+n-1",
+          "target": false,
+          "ratio": 0.9729317877861995,
+          "before_median_ns": 7648381,
+          "candidate_median_ns": 7441353
+        }
+      ]
+    },
+    "release-min": {
+      "target_median": 0.9341079383051623,
+      "control_median": 0.9764380941330602,
+      "complete_pairs": 480,
+      "cases": [
+        {
+          "id": "n8-w16-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 0.960148457135168,
+          "before_median_ns": 3255081,
+          "candidate_median_ns": 3125361
+        },
+        {
+          "id": "n8-w16-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.0069763976192203,
+          "before_median_ns": 12555047,
+          "candidate_median_ns": 12642636
+        },
+        {
+          "id": "n8-w16-m+n-0",
+          "target": false,
+          "ratio": 0.9887226726593193,
+          "before_median_ns": 2676166,
+          "candidate_median_ns": 2645986
+        },
+        {
+          "id": "n8-w16-m+n-1",
+          "target": false,
+          "ratio": 1.0018679358314304,
+          "before_median_ns": 2714226,
+          "candidate_median_ns": 2719296
+        },
+        {
+          "id": "n8-w256-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.972370885899449,
+          "before_median_ns": 3299020,
+          "candidate_median_ns": 3207871
+        },
+        {
+          "id": "n8-w256-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 0.9877252227207338,
+          "before_median_ns": 12814815,
+          "candidate_median_ns": 12657516
+        },
+        {
+          "id": "n8-w256-m+n-0",
+          "target": false,
+          "ratio": 0.9782955936187048,
+          "before_median_ns": 2774045,
+          "candidate_median_ns": 2713836
+        },
+        {
+          "id": "n8-w256-m+n-1",
+          "target": false,
+          "ratio": 0.9737152135132613,
+          "before_median_ns": 2839285,
+          "candidate_median_ns": 2764655
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.920356942540069,
+          "before_median_ns": 3653137,
+          "candidate_median_ns": 3362190
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 0.9649363302422984,
+          "before_median_ns": 13807026,
+          "candidate_median_ns": 13322901
+        },
+        {
+          "id": "n8-w1024-m+n-0",
+          "target": false,
+          "ratio": 0.9616645454390548,
+          "before_median_ns": 3051692,
+          "candidate_median_ns": 2934704
+        },
+        {
+          "id": "n8-w1024-m+n-1",
+          "target": false,
+          "ratio": 0.9582532379366897,
+          "before_median_ns": 3153011,
+          "candidate_median_ns": 3021383
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 0.9617391118403417,
+          "before_median_ns": 13000613,
+          "candidate_median_ns": 12503198
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 0.9820871358108157,
+          "before_median_ns": 179767008,
+          "candidate_median_ns": 176546866
+        },
+        {
+          "id": "n32-w16-m+n-0",
+          "target": false,
+          "ratio": 0.9836744079312529,
+          "before_median_ns": 10750483,
+          "candidate_median_ns": 10574975
+        },
+        {
+          "id": "n32-w16-m+n-1",
+          "target": false,
+          "ratio": 0.9831324640574758,
+          "before_median_ns": 11051881,
+          "candidate_median_ns": 10865463
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.9478589340702556,
+          "before_median_ns": 13106042,
+          "candidate_median_ns": 12422679
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 0.9839807854617911,
+          "before_median_ns": 180391741,
+          "candidate_median_ns": 177502007
+        },
+        {
+          "id": "n32-w256-m+n-0",
+          "target": false,
+          "ratio": 0.9786667917732158,
+          "before_median_ns": 11147831,
+          "candidate_median_ns": 10910012
+        },
+        {
+          "id": "n32-w256-m+n-1",
+          "target": false,
+          "ratio": 0.9665166959031442,
+          "before_median_ns": 11442897,
+          "candidate_median_ns": 11059751
+        },
+        {
+          "id": "n32-w1024-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.9136151887022574,
+          "before_median_ns": 14258282,
+          "candidate_median_ns": 13026583
+        },
+        {
+          "id": "n32-w1024-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 0.9603012340211547,
+          "before_median_ns": 194334756,
+          "candidate_median_ns": 186619906
+        },
+        {
+          "id": "n32-w1024-m+n-0",
+          "target": false,
+          "ratio": 0.9745805946474154,
+          "before_median_ns": 12166571,
+          "candidate_median_ns": 11857304
+        },
+        {
+          "id": "n32-w1024-m+n-1",
+          "target": false,
+          "ratio": 0.9665266585469747,
+          "before_median_ns": 12580937,
+          "candidate_median_ns": 12159811
+        }
+      ]
+    }
+  },
+  "shared_controls": {
+    "case_ids": [
+      "delayed-perf:4:sum:selector:instant:False",
+      "delayed-perf:4:sum:selector:instant:True",
+      "delayed-perf:4:sum:rate:instant:False",
+      "delayed-perf:4:sum:rate:instant:True",
+      "delayed-ratio-perf:4:sum:rate:instant:False",
+      "delayed-ratio-perf:4:sum:rate:instant:True",
+      "delayed-ratio-perf:4:sum:delta:instant:False",
+      "delayed-ratio-perf:4:sum:delta:instant:True"
+    ],
+    "sources": [
+      "delayed_group_cases.delayed_group_performance_cases",
+      "delayed_ratio_cases.delayed_ratio_performance_cases"
+    ],
+    "profiles": {
+      "release": {
+        "median": 0.9755735819275522,
+        "timings": [
+          {
+            "id": "delayed-perf:4:sum:selector:instant:False",
+            "before_ns": [
+              1774524,
+              1775685,
+              1777204,
+              1758034,
+              1777994,
+              1769804,
+              1858643,
+              1907463,
+              1862644,
+              1825704,
+              1777984,
+              1807273,
+              1821994,
+              1823214,
+              1833404
+            ],
+            "candidate_ns": [
+              1782704,
+              1795154,
+              1740595,
+              1717574,
+              1723245,
+              1726344,
+              1949172,
+              1753995,
+              1746255,
+              1748115,
+              1730835,
+              1732545,
+              1775774,
+              1761894,
+              1754974
+            ],
+            "ratio": 0.9672667051408392
+          },
+          {
+            "id": "delayed-perf:4:sum:selector:instant:True",
+            "before_ns": [
+              1789524,
+              1783495,
+              1785004,
+              1932963,
+              1761894,
+              1736284,
+              1838303,
+              1808643,
+              1815094,
+              1807704,
+              1810684,
+              1830274,
+              1818874,
+              1815484,
+              1831614
+            ],
+            "candidate_ns": [
+              1759644,
+              1754554,
+              1768024,
+              1717715,
+              1724895,
+              1712405,
+              1776424,
+              1744854,
+              1733254,
+              1740934,
+              1727085,
+              1715635,
+              1764144,
+              1780474,
+              1773024
+            ],
+            "ratio": 0.9636435733678543
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:False",
+            "before_ns": [
+              1926413,
+              1929692,
+              1922632,
+              1923633,
+              1976842,
+              1956503,
+              2014252,
+              2020761,
+              2024691,
+              1999252,
+              2005162,
+              1986732,
+              2004652,
+              2000002,
+              1999512
+            ],
+            "candidate_ns": [
+              1936543,
+              1931533,
+              1983263,
+              1929623,
+              1937283,
+              1928273,
+              1993642,
+              2008162,
+              1985802,
+              1911523,
+              1903862,
+              1909933,
+              2009472,
+              1997853,
+              1998582
+            ],
+            "ratio": 0.9690039074613905
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:True",
+            "before_ns": [
+              3253211,
+              3291691,
+              3242161,
+              3235091,
+              3234351,
+              3239611,
+              3356620,
+              3338400,
+              3336810,
+              3309951,
+              3276441,
+              3260911,
+              3362760,
+              3345920,
+              3377969
+            ],
+            "candidate_ns": [
+              3275750,
+              3301930,
+              3304411,
+              3246950,
+              3286030,
+              3246100,
+              3376560,
+              3384780,
+              3357420,
+              3259731,
+              3292390,
+              3274941,
+              3364829,
+              3334700,
+              3350120
+            ],
+            "ratio": 1.0031105592839669
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:rate:instant:False",
+            "before_ns": [
+              3004083,
+              2994283,
+              3368449,
+              2983373,
+              2991153,
+              2992993,
+              3071102,
+              3067873,
+              3056343,
+              3072213,
+              3122282,
+              3095413,
+              3129942,
+              3304450,
+              3122662
+            ],
+            "candidate_ns": [
+              3148292,
+              3013683,
+              2993083,
+              2962813,
+              2959983,
+              2975653,
+              3044843,
+              3059593,
+              3017523,
+              2955704,
+              2974953,
+              2957183,
+              3084122,
+              3073442,
+              3083233
+            ],
+            "ratio": 0.9813034539393352
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:rate:instant:True",
+            "before_ns": [
+              2955264,
+              2963243,
+              2939883,
+              2935614,
+              2938354,
+              2939134,
+              3008204,
+              2996204,
+              2989883,
+              3098652,
+              2992353,
+              3008203,
+              3064733,
+              3047383,
+              3049393
+            ],
+            "candidate_ns": [
+              2952424,
+              2954624,
+              3096322,
+              2901275,
+              2897894,
+              2906084,
+              2970973,
+              3030423,
+              2974973,
+              2924244,
+              2911414,
+              2923343,
+              3032972,
+              3033072,
+              3022473
+            ],
+            "ratio": 0.9873915276706993
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:delta:instant:False",
+            "before_ns": [
+              3000593,
+              2989253,
+              2997183,
+              3020133,
+              2975653,
+              2971674,
+              3085612,
+              3055672,
+              3036083,
+              3093282,
+              3081812,
+              3058053,
+              3110803,
+              3124312,
+              3103362
+            ],
+            "candidate_ns": [
+              2982733,
+              2986504,
+              2972073,
+              2957684,
+              2951913,
+              3019533,
+              3100972,
+              3028893,
+              3000283,
+              2952434,
+              2952424,
+              2957834,
+              3039752,
+              3034972,
+              3040822
+            ],
+            "ratio": 0.9773640626349949
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:delta:instant:True",
+            "before_ns": [
+              2948393,
+              2961424,
+              2966014,
+              2943374,
+              2945014,
+              2926104,
+              3039673,
+              3076543,
+              3069872,
+              3068513,
+              3052763,
+              3044563,
+              3217721,
+              3066993,
+              3072183
+            ],
+            "candidate_ns": [
+              3061663,
+              2956133,
+              3430559,
+              2899984,
+              2901194,
+              2898344,
+              2964744,
+              2979853,
+              2976273,
+              2920094,
+              2940574,
+              2926524,
+              3028993,
+              3038843,
+              3028703
+            ],
+            "ratio": 0.9737831012201095
+          }
+        ],
+        "followup_required": []
+      },
+      "release-min": {
+        "median": 0.9907302453976438,
+        "timings": [
+          {
+            "id": "delayed-perf:4:sum:selector:instant:False",
+            "before_ns": [
+              2673376,
+              2668667,
+              2663136,
+              2587676,
+              2617486,
+              2638766,
+              2586346,
+              2597707,
+              2571097,
+              2593476,
+              2621476,
+              2591376,
+              2641556,
+              2639486,
+              2653356
+            ],
+            "candidate_ns": [
+              2589687,
+              2606406,
+              2591276,
+              2522668,
+              2512347,
+              2525508,
+              2521457,
+              2529407,
+              2506388,
+              2673126,
+              2659256,
+              2661945,
+              2532377,
+              2527717,
+              2585117
+            ],
+            "ratio": 0.9660118955885921
+          },
+          {
+            "id": "delayed-perf:4:sum:selector:instant:True",
+            "before_ns": [
+              2681816,
+              2688386,
+              2669566,
+              2634726,
+              2618387,
+              2564557,
+              2588737,
+              2581727,
+              2580597,
+              2606867,
+              2604227,
+              2597916,
+              2646336,
+              2621057,
+              2632756
+            ],
+            "candidate_ns": [
+              2602527,
+              2628207,
+              2619337,
+              2519268,
+              2517277,
+              2493627,
+              2536087,
+              2541837,
+              2541007,
+              2515997,
+              2475597,
+              2489078,
+              2626386,
+              2479718,
+              2494427
+            ],
+            "ratio": 0.9621450152326604
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:False",
+            "before_ns": [
+              3031833,
+              3047563,
+              3059342,
+              3087392,
+              2948613,
+              2950264,
+              2960344,
+              2956703,
+              2959223,
+              2976523,
+              3022533,
+              2960903,
+              3003333,
+              3001443,
+              3002363
+            ],
+            "candidate_ns": [
+              3124852,
+              3087822,
+              3123212,
+              2949864,
+              2930243,
+              2945763,
+              3018412,
+              3017563,
+              3005203,
+              2925843,
+              2928543,
+              3014413,
+              2941504,
+              2944294,
+              2973173
+            ],
+            "ratio": 0.9905811971108563
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:True",
+            "before_ns": [
+              4960046,
+              4953666,
+              4958695,
+              4873157,
+              4877556,
+              4817077,
+              4825677,
+              4823436,
+              4828356,
+              4791307,
+              4895196,
+              4828496,
+              4819257,
+              4816387,
+              4812597
+            ],
+            "candidate_ns": [
+              5057125,
+              5063185,
+              5025375,
+              4795297,
+              4773707,
+              4762767,
+              4853887,
+              4851956,
+              4833586,
+              4738558,
+              4762007,
+              4722448,
+              4778868,
+              4799457,
+              4755097
+            ],
+            "ratio": 0.9931531560638859
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:rate:instant:False",
+            "before_ns": [
+              4849317,
+              4909707,
+              4906656,
+              4701418,
+              4710998,
+              4712988,
+              5011895,
+              4757307,
+              4727568,
+              4726377,
+              4764938,
+              4715337,
+              4712058,
+              4882676,
+              4954555
+            ],
+            "candidate_ns": [
+              4978015,
+              4961815,
+              4979216,
+              4636208,
+              4714758,
+              4641688,
+              4713917,
+              4718258,
+              4742708,
+              4640108,
+              4673078,
+              4642058,
+              4693208,
+              4717528,
+              4684128
+            ],
+            "ratio": 0.9908792936844312
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:rate:instant:True",
+            "before_ns": [
+              4735757,
+              4721097,
+              4714098,
+              4566359,
+              4512369,
+              4806567,
+              4593129,
+              4568999,
+              4540929,
+              4541849,
+              4539819,
+              4545690,
+              4551670,
+              4632598,
+              4536220
+            ],
+            "candidate_ns": [
+              4765547,
+              4780228,
+              4710267,
+              4518810,
+              4537709,
+              4537260,
+              4617469,
+              4576729,
+              4567169,
+              4497889,
+              4497989,
+              4504730,
+              4751078,
+              4549899,
+              4526840
+            ],
+            "ratio": 0.9963953775863877
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:delta:instant:False",
+            "before_ns": [
+              4897466,
+              4915666,
+              4932875,
+              8157327,
+              5870357,
+              4798697,
+              4699348,
+              4685657,
+              4706558,
+              4746058,
+              4719358,
+              4697318,
+              4686868,
+              4749157,
+              4727187
+            ],
+            "candidate_ns": [
+              4865486,
+              4910986,
+              4937055,
+              4774998,
+              4618219,
+              4636188,
+              4725067,
+              4878397,
+              4740457,
+              4674878,
+              4639669,
+              4637798,
+              4685318,
+              4681518,
+              4683228
+            ],
+            "ratio": 0.9872020105948979
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:delta:instant:True",
+            "before_ns": [
+              4768977,
+              4752417,
+              4757988,
+              4527620,
+              4534099,
+              4524980,
+              4553579,
+              4532370,
+              4791547,
+              4526879,
+              4556429,
+              4583329,
+              4519710,
+              4547929,
+              4567449
+            ],
+            "candidate_ns": [
+              4695157,
+              4696458,
+              4707667,
+              4471830,
+              4562029,
+              4477630,
+              4586819,
+              4554219,
+              4549839,
+              4486590,
+              4503790,
+              4505340,
+              4574010,
+              4547429,
+              4549359
+            ],
+            "ratio": 0.9991786680323324
+          }
+        ],
+        "followup_required": []
+      }
+    },
+    "complete_pairs": 320,
+    "scope": "Eight existing shared paths, including early/delayed grouped ratios; not additional originals."
+  },
+  "memory": {
+    "max_peak_growth_by_category": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "all_category_observations_exact": true,
+    "physical_observations_exact": true,
+    "work_nonincreasing": true,
+    "example": {
+      "id": "n32-w1024-sum by(job)(m+n)-0",
+      "workspace_peak": [
+        217768,
+        217768
+      ],
+      "workspace_acquired": [
+        6067434,
+        6067434
+      ],
+      "samples_fetched": [
+        25088,
+        25088
+      ],
+      "work": [
+        10028233,
+        8974681
+      ]
+    },
+    "scope": "Exact finite accounted observations, not process RSS or a universal memory bound."
+  },
+  "compiled_C_sizes": {
+    "release": {
+      "kind": "default-C",
+      "before": [
+        7392894,
+        509768,
+        400
+      ],
+      "current": [
+        7393282,
+        509768,
+        400
+      ],
+      "growth": 388,
+      "before_total": 7903062,
+      "current_total": 7903450,
+      "growth_percent": 0.004909489511786698,
+      "cumulative_baseline_text_data_bss": [
+        7370378,
+        506744,
+        400
+      ],
+      "cumulative_growth_bytes": 25928,
+      "cumulative_growth_percent": 0.32913903636194225
+    },
+    "release-min": {
+      "kind": "default-C",
+      "before": [
+        5156327,
+        465208,
+        400
+      ],
+      "current": [
+        5156583,
+        465208,
+        400
+      ],
+      "growth": 256,
+      "before_total": 5621935,
+      "current_total": 5622191,
+      "growth_percent": 0.0045535923129669765,
+      "cumulative_baseline_text_data_bss": [
+        5103967,
+        462056,
+        400
+      ],
+      "cumulative_growth_bytes": 55768,
+      "cumulative_growth_percent": 1.0018642133377216
+    },
+    "arm32": {
+      "kind": "default-C",
+      "before": [
+        6279765,
+        294524,
+        244
+      ],
+      "current": [
+        6280589,
+        294524,
+        244
+      ],
+      "growth": 824,
+      "before_total": 6574533,
+      "current_total": 6575357,
+      "growth_percent": 0.012533209583098906,
+      "cumulative_baseline_text_data_bss": [
+        6382697,
+        292596,
+        244
+      ],
+      "cumulative_growth_bytes": -100180,
+      "cumulative_growth_percent": -1.5007032393049429
+    },
+    "arm64": {
+      "kind": "default-C",
+      "before": [
+        6482326,
+        499736,
+        384
+      ],
+      "current": [
+        6458074,
+        499736,
+        384
+      ],
+      "growth": -24252,
+      "before_total": 6982446,
+      "current_total": 6958194,
+      "growth_percent": -0.3473281426021769,
+      "cumulative_baseline_text_data_bss": [
+        6374470,
+        497032,
+        384
+      ],
+      "cumulative_growth_bytes": 86308,
+      "cumulative_growth_percent": 1.25595797136332
+    }
+  },
+  "cost_review": "Small proportional fixed executable costs under66; unchanged data/BSS and query memory. Immediate and cumulative costs reported separately.",
+  "development_corrections": [
+    "A test-only tuple-drop borrow error was fixed; original compiler failure preserved.",
+    "Actual calibration confirmed early abs(m+n) reaches the path; corrected test expectation and added unbound-row fallback before measurements. Runtime unchanged across these test corrections."
+  ],
+  "scope_limits": [
+    "Finite synthetic evidence, not exhaustive compatibility or universal speedup.",
+    "Timing targets deliberately expose longer-label grouped matching; root/delayed/plain controls and shared ratios are separate.",
+    "Original outcomes are reused with authenticated historical source attribution; current baseline and candidate observations are fresh.",
+    "Existing strict instant-row permutations remain recorded failures; range ordering stays enforced.",
+    "No live-dbengine, concurrent-query, process-RSS or physical ARM throughput claim."
+  ],
+  "receipts": {
+    "explore": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/explore.json",
+      "sha256": "af14021bda1db4c420385ca0a15b98993ea84e8b5bfbb9235290c6755bd507b7"
+    },
+    "baseline-binding": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/baseline-binding.json",
+      "sha256": "6e1205ef4253e65d1e3fecdeb6a75dfa1540122800ee648d3f3a6b51368e6b88"
+    },
+    "focused": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/focused.json",
+      "sha256": "69019c7a928fcc4cdee020567ee14168f27c66667990337f2f938d7c396d1be4"
+    },
+    "candidate-static": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/candidate-static.json",
+      "sha256": "0dcdf0e79a1689c1bfc2ff7e02743d76863920075e94697005f42d639ab344d7"
+    },
+    "pilot": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/pilot.json",
+      "sha256": "2e23627098d221c142fd44bb91ded358164f25587b048d5f4ca9776709eeb2b1"
+    },
+    "shared-control-plan": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/shared-control-plan.json",
+      "sha256": "6ca7e38e17b6f5e51b75587ef5e9a2a7241af126889ff32f79c523248bfff2ca"
+    },
+    "shared-control-primary": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/shared-control-primary.json",
+      "sha256": "7fcd3ababb005f832aeccf9915e482d6d60a2f8646cb1d7e2d8d63465cdd3d7b"
+    },
+    "followup": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/followup.json",
+      "sha256": "0559a692818220b9e125e54c0919db96bbfcdf459d69d482eee3cbabe71dcfd8"
+    },
+    "early": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/early.json",
+      "sha256": "8f94db88338ae723d3d487d2ecdb67e7011c82934ebd7575093bcfe7c89ba732"
+    },
+    "functional-preparation": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/functional-preparation.json",
+      "sha256": "7d5279c08bcf14bfb42722961a8b4c1c2d3bfa7d3cb881b7725a5d068bf9193e"
+    },
+    "functional": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/functional.json",
+      "sha256": "61512c044a587cf9e85534b6f25882fd1a64670aff19414c835721cd6971c242"
+    },
+    "early-review": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/early-review.json",
+      "sha256": "9a77cf960b30d07d9f7b7819a28e1088ef81c77494899b4b7449e95f8c75fa5b"
+    },
+    "perf-release-builds": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/perf-release-builds.json",
+      "sha256": "5c208535367e7baedf4d4a88811094039a5cddd21b0217cefcb6f47ac6a055c1"
+    },
+    "perf-release-min-builds": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/perf-release-min-builds.json",
+      "sha256": "be58e111d639037543e3127b7e48cc625d1ec121e28a7f0d6090c141f84aa6bd"
+    },
+    "build-release": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/build-release.json",
+      "sha256": "e2c03feaee84297c00982bc41c22043de3b14de55c19ee9b07024a0194395f70"
+    },
+    "qualification-release": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/qualification-release.json",
+      "sha256": "54e24e0b013825ba03577487ecbda8288c54a7148e11d8a73ac5e871f9ae0e85"
+    },
+    "build-release-min": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/build-release-min.json",
+      "sha256": "a5c1fbd2f79adb685757871b20271f0f528d4aa8cd00c2091126019108cddd66"
+    },
+    "qualification-release-min": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/qualification-release-min.json",
+      "sha256": "3b355b5290f6362639282ba26abf31356ee11e412a01ac6332a7d8e4386dab35"
+    },
+    "build-arm32": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/build-arm32.json",
+      "sha256": "bd257b3d2dff874903c23728b2596eae14d9557f6e1704bd37d682283b837775"
+    },
+    "qualification-arm32": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/qualification-arm32.json",
+      "sha256": "ec6b53882e1ce2ce3d7f30f2f9dfacfacce1f9010e9b3565b4f3c346d500fc66"
+    },
+    "build-arm64": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/build-arm64.json",
+      "sha256": "bc0dedadc6730f77ba7ca48c554629736f6f992934bb839a8f2df0c527c02395"
+    },
+    "qualification-arm64": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/qualification-arm64.json",
+      "sha256": "412d7df3b286953042787cf23d2e18c5b47bcfbac069b3025c3fa5c8c016c6a8"
+    },
+    "historical-source-snapshots": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/historical-source-snapshots.json",
+      "sha256": "a85838e08d9bc3c698c206f6e3a4fd3806476cf56d6790cf9b5da4175ad1b283"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/pair-ordinal-rbexl4kj/artifact-integrity.json",
+      "sha256": "d629ffad7283f51c886645ce94df7ea3e62061d2340e88df46d18f828b6f776d"
+    }
+  }
+}

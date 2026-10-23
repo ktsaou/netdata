@@ -1193,6 +1193,9 @@ is documented under [single-reset correction ownership](#single-reset-correction
 
 ## Borrowed binary-result labels
 
+The later [certified pair lookup](#certified-frozen-pair-label-lookup) avoids repeated operand hashing
+only in an active certified frontier; this section retains its original qualification scope.
+
 - **Choice:** Set results borrow immutable side-descriptor labels; frozen Pair cache hits borrow the exact entry
   labels through existing SampleLabels. Mutable preparation hits/inserts retain owned labels. No new field,
   shared owner, representation or cache is added.
@@ -1633,6 +1636,9 @@ is documented under [single-reset correction ownership](#single-reset-correction
   are unchanged; no unrelated historical reducer corpus is reattributed to this source.
 
 ## Completed pair-metadata traversal
+
+The later [certified pair lookup](#certified-frozen-pair-label-lookup) avoids repeated operand hashing
+only in an active certified frontier; this section retains its original qualification scope.
 
 - **Choice:** extend the existing optional pair-discovery plan with direct traversal of completed operand
   membership. Eligible warm requests avoid rebuilding active-row, signature, reservation and seen tables and
@@ -3183,3 +3189,25 @@ qualifies direct ratios separately; this section retains its original direct-gro
   strict row-order failures, per-case timing/resources, causal interruption tests and actual C/ARM callers.
   The [procedure](README.md#completed-nested-groups-with-delayed-metadata-removal) distinguishes finite synthetic
   observations from universal compatibility, live-provider performance, concurrency and process RSS.
+
+## Certified frozen pair label lookup
+
+- **Choice:** a private frozen-result wrapper uses the existing `PairDiscovery::ordinal` lookup only while
+  `Step.frontier` is active. It verifies the indexed ordinary cache key equals both original-side row positions,
+  then borrows the existing result labels. Missing, encoded or different-row entries retain generic lookup.
+- **Proof:** certification validated the same immutable side descriptors and bound physical pairs to cache
+  insertion ordinals. Active frontier additionally requires completed exact-key membership and no fills.
+  Physical positions, sample ordinals and cache insertion ordinals are distinct; the new causal test permutes
+  insertion order and exercises both many-side orientations.
+- **Phases:** fresh values and arithmetic still precede lookup. Result-label hashing, reservation, false-result
+  suppression, seen tracking and successful completion credit remain unchanged. Entry and successful-return
+  control checks remain; actual skipped byte work is no longer charged. Mutable preparation still validates
+  complete operand streams. No validation assumption is imposed on the provider.
+- **Scope:** no expression admission changes. Existing grouped/mapped consumers and qualified delayed grouped
+  ratios may reach the path. Root replay and other unqualified forms continue normally. The restored test-only
+  hit observer is absent from production and fixture builds. No state field, retained label copy, shared owner,
+  raw page cache, ABI, dependency or default changes.
+- **Measured trade-off:** the selected longer-label grouped cases take about 3.1% less time in release and 6.6%
+  less in release-min, with exact observed memory and physical reads. The [qualification procedure](README.md#certified-frozen-pair-label-lookup)
+  separates the fixed compiled cost, current resource measurements, historical originals and existing row-order
+  policy. Finite measurements do not establish universal speedup or compatibility.

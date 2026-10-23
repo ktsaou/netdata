@@ -18,6 +18,23 @@ use crate::{
 };
 use std::cell::{Cell, RefCell};
 
+#[cfg(test)]
+thread_local! {
+    static FROZEN_ORDINAL_HITS: Cell<Option<usize>> = const { Cell::new(None) };
+}
+#[cfg(test)]
+pub(crate) fn observe_frozen_ordinal_hits<R>(operation: impl FnOnce() -> R) -> (R, usize) {
+    struct Restore(Option<usize>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            FROZEN_ORDINAL_HITS.set(self.0);
+        }
+    }
+    let _restore = Restore(FROZEN_ORDINAL_HITS.replace(Some(0)));
+    let value = operation();
+    (value, FROZEN_ORDINAL_HITS.get().unwrap())
+}
+
 pub(crate) struct Side {
     pub(crate) rows: AccountedVec<Descriptor>,
     signatures: AccountedVec<usize>,
@@ -1606,6 +1623,42 @@ impl<'a> Step<'a> {
             SampleLabels::Borrowed(labels)
         })
     }
+    fn frozen_result_labels(
+        &self,
+        operands: [&OwnedLabels; 2],
+        rows: Option<[usize; 2]>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(usize, SampleLabels<'a>), EvaluationError> {
+        let many = usize::from(self.swapped());
+        if self.frontier
+            && let Some(rows) = rows
+            && let Some(replay) = &self.plan.replay
+            && let ReplayRows::PairDiscovery(plan) = &replay.rows
+            && let Some(ordinal) = plan.ordinal(rows, many, control, account)?
+            && let Some(entry) = self.plan.cache.entries.get(ordinal)
+            && matches!(entry.key, CacheKey::Rows(stored) if stored == rows)
+        {
+            // Certification validated these same immutable operand descriptors.
+            control.check()?;
+            #[cfg(test)]
+            FROZEN_ORDINAL_HITS.with(|hits| {
+                if let Some(count) = hits.get() {
+                    hits.set(Some(count + 1));
+                }
+            });
+            return Ok((ordinal, SampleLabels::Borrowed(&entry.labels)));
+        }
+        frozen_labels(
+            &self.plan.cache,
+            &self.plan.sides,
+            operands,
+            rows,
+            many,
+            control,
+            account,
+        )
+    }
     fn result_labels(
         &self,
         cache: &mut Cache,
@@ -2180,12 +2233,9 @@ impl<'a> Step<'a> {
                                 )
                                 .map(|(ordinal, labels)| (ordinal, SampleLabels::Owned(labels)))?
                             } else {
-                                frozen_labels(
-                                    &self.plan.cache,
-                                    &self.plan.sides,
+                                self.frozen_result_labels(
                                     [left.as_ref(), right.as_ref()],
                                     rows,
-                                    usize::from(self.swapped()),
                                     control,
                                     account,
                                 )?
@@ -2356,6 +2406,143 @@ mod tests {
             .unwrap();
         assert!(plan.has_pair_discovery());
         plan
+    }
+
+    #[test]
+    fn frozen_ordinal_lookup_preserves_permuted_entries_and_controls() {
+        for cardinality in [
+            Cardinality::OneToOne,
+            Cardinality::ManyToOne,
+            Cardinality::OneToMany,
+        ] {
+            for encoded in [false, true] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let many = usize::from(cardinality == Cardinality::OneToMany);
+                let matching = VectorMatching {
+                    cardinality,
+                    on: cardinality != Cardinality::OneToOne,
+                    ..Default::default()
+                };
+                let counts = match cardinality {
+                    Cardinality::OneToOne => [3, 3],
+                    Cardinality::ManyToOne => [3, 1],
+                    _ => [1, 3],
+                };
+                let mut plan = discovery_plan_shape(counts, false, &matching, &control, &account);
+                let physical = |row| {
+                    if cardinality == Cardinality::OneToOne {
+                        [row, row]
+                    } else {
+                        let mut pair = [0; 2];
+                        pair[many] = row;
+                        pair
+                    }
+                };
+                let mut cache = Cache::new(&account);
+                for row in [2, 0, 1] {
+                    let pair = physical(row);
+                    Step::new(&plan, &matching, TokenKind::DIV, false, &account)
+                        .result_labels(
+                            &mut cache,
+                            [
+                                &plan.sides[many].rows[pair[many]].labels,
+                                &plan.sides[1 - many].rows[pair[1 - many]].labels,
+                            ],
+                            (!encoded).then_some(pair),
+                            false,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                }
+                plan.cache = cache;
+                plan.certify_replay(&[0, 1, 2], cardinality, &control, &account)
+                    .unwrap();
+                plan.certify_pair_discovery(cardinality, &control, &account)
+                    .unwrap();
+                let key = discovery_key();
+                let members: [Vec<_>; 2] = counts.map(|count| (0..count).collect());
+                let mut cold = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+                cold.enable_pair_discovery(key, &control, &account).unwrap();
+                assert!(!cold.frontier);
+                discovery_trace(&mut cold, [&members[0], &members[1]], &control, &account);
+                drop(cold);
+                let mut warm = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+                warm.enable_pair_discovery(key, &control, &account).unwrap();
+                assert!(warm.frontier);
+                for (row, ordinal) in [(0, 1), (1, 2), (2, 0)] {
+                    let pair = physical(row);
+                    let operands = [
+                        &plan.sides[many].rows[pair[many]].labels,
+                        &plan.sides[1 - many].rows[pair[1 - many]].labels,
+                    ];
+                    let before = account.snapshot();
+                    let ((position, labels), hits) = observe_frozen_ordinal_hits(|| {
+                        warm.frozen_result_labels(operands, Some(pair), &control, &account)
+                            .unwrap()
+                    });
+                    let work = account.snapshot().work - before.work;
+                    assert_eq!(position, ordinal);
+                    assert_eq!(hits, usize::from(!encoded));
+                    assert!(matches!(labels, SampleLabels::Borrowed(value)
+                        if std::ptr::eq(value, &plan.cache.entries[ordinal].labels)));
+                    assert_eq!(account.snapshot().memory, before.memory);
+                    let (generic_position, generic_labels) = frozen_labels(
+                        &plan.cache,
+                        &plan.sides,
+                        operands,
+                        Some(pair),
+                        many,
+                        &control,
+                        &account,
+                    )
+                    .unwrap();
+                    assert_eq!(generic_position, position);
+                    assert!(std::ptr::eq(generic_labels.as_ref(), labels.as_ref()));
+                    for unbound in [None, Some([usize::MAX; 2])] {
+                        let ((fallback_position, fallback_labels), hits) =
+                            observe_frozen_ordinal_hits(|| {
+                                warm.frozen_result_labels(operands, unbound, &control, &account)
+                                    .unwrap()
+                            });
+                        assert_eq!(hits, 0);
+                        assert_eq!(fallback_position, position);
+                        assert!(std::ptr::eq(fallback_labels.as_ref(), labels.as_ref()));
+                    }
+                    if !encoded {
+                        assert_eq!(work, 1);
+                    }
+                    for at_entry in [true, false] {
+                        let cancelled = Control::default();
+                        if at_entry {
+                            cancelled.cancellation.cancel();
+                        }
+                        let result = crate::test_storage::interrupt_after_work(
+                            &account,
+                            &cancelled,
+                            work,
+                            || {
+                                warm.frozen_result_labels(
+                                    operands,
+                                    Some(pair),
+                                    &cancelled,
+                                    &account,
+                                )
+                            },
+                        );
+                        assert!(matches!(
+                            result,
+                            Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                        ));
+                    }
+                }
+                drop(warm);
+                drop((plan, matching));
+                account.snapshot().assert_memory_released();
+            }
+        }
     }
 
     #[test]

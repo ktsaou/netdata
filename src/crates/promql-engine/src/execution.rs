@@ -16003,14 +16003,24 @@ mod tests {
                                 &control,
                             )
                             .unwrap();
-                        let report = query.collect_reported(
-                            &provider,
-                            QueryRequest::Range {
-                                start_ms: 1000,
-                                end_ms: 3000,
-                                step_ms: 1000,
-                            },
-                            &control,
+                        let (report, ordinal_hits) =
+                            crate::vector_matching::observe_frozen_ordinal_hits(|| {
+                                query.collect_reported(
+                                    &provider,
+                                    QueryRequest::Range {
+                                        start_ms: 1000,
+                                        end_ms: 3000,
+                                        step_ms: 1000,
+                                    },
+                                    &control,
+                                )
+                            });
+                        assert_eq!(
+                            ordinal_hits > 0,
+                            matches!(expression, "abs(m+n)" | "sum by(job)(m+n)") && !delayed
+                        );
+                        eprintln!(
+                            "frozen ordinal hits: {expression:?} delayed={delayed} count={count} page={page} hits={ordinal_hits}"
                         );
                         let result = report.result.as_ref().unwrap();
                         assert!(report.annotations.is_empty());
