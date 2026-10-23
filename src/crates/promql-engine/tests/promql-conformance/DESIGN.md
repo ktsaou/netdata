@@ -693,7 +693,10 @@ integration, and Alertmanager remains excluded.
   remain in original left/right order while frozen keys use many/one label order. Existing cold validation,
   successful Done, exact-clock membership and fresh selected reads remain the same owners; no state field is added.
 - **Deferred-name final roots:** use the structural predicate only for final-root non-prefix certification.
-  Keep the delayed-name wrapper for target discovery, grouped demand, nested PairCandidate and prefix paths.
+  Keep the delayed-name wrapper for general target discovery and prefix paths. Later
+  [direct-group](#completed-direct-groups-with-delayed-metadata-removal) and
+  [grouped-ratio](#completed-grouped-ratios-with-delayed-metadata-removal) proofs narrowly extend grouped demand
+  and nested PairCandidate admission without weakening the general wrapper.
   Reuse the same complete unique-Float, cache-binding and clock proof. Actual root Matrix children drain through
   Done before sharing membership; fresh selected values, next-clock discovery and final name/duplicate/identity
   owners remain. The option stays disabled by default. No persistent layout, raw value/history or reader is added.
@@ -3107,6 +3110,9 @@ throughput costs and finite compatibility evidence are recorded in
 
 ## Completed direct groups with delayed metadata removal
 
+The later [grouped-ratio extension](#completed-grouped-ratios-with-delayed-metadata-removal)
+qualifies direct ratios separately; this section retains its original direct-group scope and measurements.
+
 - **Choice:** allow delayed-mode completion reuse only at direct consumed-group discovery and matching Group
   preparation. Every composition caller retains its early-mode requirement.
 - **Identity:** the shared grouping predicate must exclude all of `__name__`, `__type__`, and `__unit__`.
@@ -3124,3 +3130,25 @@ throughput costs and finite compatibility evidence are recorded in
 - **Evidence:** [qualification](delayed-group-clocks-qualification.json) records complete originals/baselines,
   strict row-order differences, actual failure/control boundaries, portable callers and immediate/cumulative
   executable costs. No general throughput, RSS, physical ARM or exhaustive compatibility claim follows.
+
+## Completed grouped ratios with delayed metadata removal
+
+- **Admission:** direct consumed subqueries may request existing grouped ratio plans in delayed mode. Both ordinary
+  rate/increase/delta groups must remove name/type/unit and pass the existing Float/single-head checks. Division
+  stays one-to-one without fills; parentheses preserve the checked operand edges.
+- **Preparation:** one Finish-local proof requires the matching grouped demand and both prepared interval-capable
+  operands. It permits nested pair-candidate creation and final certification. Global binary replay admission stays
+  unchanged; exact grids, selector schedules, source bindings, unique signatures and candidate discard still apply.
+- **Completion:** runtime grouped provenance permits the delayed specialization only for a completed range path.
+  Prefix admission remains the false specialization. Group exhaustion and binary Done remain independent; fresh
+  selected values, diagnostics, cancellation, absent membership and preparation-to-delivery clearing keep their owners.
+- **Compiled paths:** private const allowances replace runtime arguments for ratio recognition and completed pair
+  intervals. A rejected first candidate and the unchanged acceptance gates remain in the evidence. Specialization
+  adds no retained field; its fixed compiled cost is measured separately from query memory under decision 66.
+- **Cost and scope:** the finite target panel uses about 81% less time, with maximum 2,312 bytes additional Workspace
+  peak and no other category peak growth. Raw samples remain paged. Metadata-retaining, native/multiple-head,
+  raw-selector-pair, nested, mapped and prefix fallbacks remain supported through their existing evaluation.
+- **Evidence:** [qualification](delayed-ratio-clocks-qualification.json) preserves both implementation revisions,
+  complete outputs/resources, pinned originals, strict ordering differences, individual timings, C/ARM owners,
+  static checks and executable costs. [Procedure](README.md#completed-grouped-ratios-with-delayed-metadata-removal)
+  distinguishes query profiles, build profiles, accounted memory and the limits of finite synthetic measurements.

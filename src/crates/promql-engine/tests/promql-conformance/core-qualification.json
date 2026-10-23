@@ -74311,5 +74311,16 @@
     "strict_order_failures": 18,
     "numeric_bit_differences": 0,
     "timing_pairs": 1624
+  },
+  "delayed_ratio_clocks": {
+    "status": "finite_qualification_pass",
+    "report": "delayed-ratio-clocks-qualification.json",
+    "report_sha256": "d581bdfba31b3fdef4ea09ce87e6f69f7e0e5198ad3212d6b79fa4ec09dcda9f",
+    "baseline_commit": "9fa9985f8c9317bf0d39e1d46d728d32a6ba9f65",
+    "exact_baseline_pairs": 1680,
+    "original_policy_pairs": 1680,
+    "strict_order_failures": 882,
+    "numeric_bit_differences": 0,
+    "timing_pairs": 2264
   }
 }

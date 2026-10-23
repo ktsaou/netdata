@@ -1,0 +1,1669 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "9fa9985f8c9317bf0d39e1d46d728d32a6ba9f65",
+  "change": "Reuse completed direct grouped rate-family ratios with delayed metadata removal.",
+  "proof": "Direct GroupedSubquery demand, reserved-metadata-eliminating Float/single-head group plans, exact clocks, unique pair certification and separate successful group/binary completion. Prefix and global binary delayed guards remain.",
+  "implementation": "Compile-time allowance specializations preserve ordinary entry arguments; existing runtime grouped+delayed proof selects the extension. No new retained state or raw history cache.",
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/baseline-source.json",
+      "sha256": "271a0ccae0fba093bddb5e5760e5e012ef930d0851829353b5a0950ce6b54c7e"
+    },
+    "candidate": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/candidate-source.json",
+      "sha256": "26e2b7f4c59ed52802cdf1a24fcaa03c5fee22c9e8d9ce818360e9929633eb9f"
+    }
+  },
+  "qualification": {
+    "functional_cases": 280,
+    "original_outcomes": 280,
+    "original_datasets": 18,
+    "original_reuse": "Fresh authenticated pinned captures made for candidate1, reused unchanged for candidate2.",
+    "exact_baseline_pairs": 1680,
+    "original_policy_pairs": 1680,
+    "strict_order_failures": 882,
+    "strict_order_ids": [
+      "delayed-ratio-core:sum:rate:False:instant",
+      "delayed-ratio-core:sum:rate:True:instant",
+      "delayed-ratio-core:sum:increase:False:instant",
+      "delayed-ratio-core:sum:increase:True:instant",
+      "delayed-ratio-core:sum:delta:False:instant",
+      "delayed-ratio-core:sum:delta:True:instant",
+      "delayed-ratio-core:avg:rate:False:instant",
+      "delayed-ratio-core:avg:rate:True:instant",
+      "delayed-ratio-core:avg:increase:False:instant",
+      "delayed-ratio-core:avg:increase:True:instant",
+      "delayed-ratio-core:avg:delta:False:instant",
+      "delayed-ratio-core:avg:delta:True:instant",
+      "delayed-ratio-core:count:rate:False:instant",
+      "delayed-ratio-core:count:rate:True:instant",
+      "delayed-ratio-core:count:increase:False:instant",
+      "delayed-ratio-core:count:increase:True:instant",
+      "delayed-ratio-core:count:delta:False:instant",
+      "delayed-ratio-core:count:delta:True:instant",
+      "delayed-ratio-core:min:rate:False:instant",
+      "delayed-ratio-core:min:rate:True:instant",
+      "delayed-ratio-core:min:increase:False:instant",
+      "delayed-ratio-core:min:increase:True:instant",
+      "delayed-ratio-core:min:delta:False:instant",
+      "delayed-ratio-core:min:delta:True:instant",
+      "delayed-ratio-core:max:rate:False:instant",
+      "delayed-ratio-core:max:rate:True:instant",
+      "delayed-ratio-core:max:increase:False:instant",
+      "delayed-ratio-core:max:increase:True:instant",
+      "delayed-ratio-core:max:delta:False:instant",
+      "delayed-ratio-core:max:delta:True:instant",
+      "delayed-ratio-core:group:rate:False:instant",
+      "delayed-ratio-core:group:rate:True:instant",
+      "delayed-ratio-core:group:increase:False:instant",
+      "delayed-ratio-core:group:increase:True:instant",
+      "delayed-ratio-core:group:delta:False:instant",
+      "delayed-ratio-core:group:delta:True:instant",
+      "delayed-ratio-core:stdvar:rate:False:instant",
+      "delayed-ratio-core:stdvar:rate:True:instant",
+      "delayed-ratio-core:stdvar:increase:False:instant",
+      "delayed-ratio-core:stdvar:increase:True:instant",
+      "delayed-ratio-core:stdvar:delta:False:instant",
+      "delayed-ratio-core:stdvar:delta:True:instant",
+      "delayed-ratio-core:stddev:rate:False:instant",
+      "delayed-ratio-core:stddev:rate:True:instant",
+      "delayed-ratio-core:stddev:increase:False:instant",
+      "delayed-ratio-core:stddev:increase:True:instant",
+      "delayed-ratio-core:stddev:delta:False:instant",
+      "delayed-ratio-core:stddev:delta:True:instant",
+      "delayed-ratio-state:stale:sum:instant",
+      "delayed-ratio-state:stale:count:instant",
+      "delayed-ratio-state:late:sum:instant",
+      "delayed-ratio-state:late:count:instant",
+      "delayed-ratio-state:empty:sum:instant",
+      "delayed-ratio-state:empty:count:instant",
+      "delayed-ratio-state:native:count:instant",
+      "delayed-ratio-state:mixed:sum:instant",
+      "delayed-ratio-state:mixed:count:instant",
+      "delayed-ratio-state:all-native:count:instant",
+      "delayed-ratio-state:nan:sum:instant",
+      "delayed-ratio-state:nan:count:instant",
+      "delayed-ratio-state:infinity:sum:instant",
+      "delayed-ratio-state:infinity:count:instant",
+      "delayed-ratio-state:zero:sum:instant",
+      "delayed-ratio-state:zero:count:instant",
+      "delayed-ratio-consumer:min_over_time:False",
+      "delayed-ratio-consumer:min_over_time:True",
+      "delayed-ratio-consumer:max_over_time:False",
+      "delayed-ratio-consumer:max_over_time:True",
+      "delayed-ratio-consumer:sum_over_time:False",
+      "delayed-ratio-consumer:sum_over_time:True",
+      "delayed-ratio-consumer:avg_over_time:False",
+      "delayed-ratio-consumer:avg_over_time:True",
+      "delayed-ratio-consumer:count_over_time:False",
+      "delayed-ratio-consumer:count_over_time:True",
+      "delayed-ratio-consumer:present_over_time:False",
+      "delayed-ratio-consumer:present_over_time:True",
+      "delayed-ratio-consumer:last_over_time:False",
+      "delayed-ratio-consumer:last_over_time:True",
+      "delayed-ratio-consumer:stdvar_over_time:False",
+      "delayed-ratio-consumer:stdvar_over_time:True",
+      "delayed-ratio-consumer:stddev_over_time:False",
+      "delayed-ratio-consumer:stddev_over_time:True",
+      "delayed-ratio-consumer:changes:False",
+      "delayed-ratio-consumer:changes:True",
+      "delayed-ratio-consumer:resets:False",
+      "delayed-ratio-consumer:resets:True",
+      "delayed-ratio-consumer:quantile_over_time:False",
+      "delayed-ratio-consumer:quantile_over_time:True",
+      "delayed-ratio-metadata:by(cluster,zone):False:instant",
+      "delayed-ratio-metadata:by(cluster,zone):True:instant",
+      "delayed-ratio-metadata:without(member,__type__,__unit__):False:instant",
+      "delayed-ratio-metadata:without(member,__type__,__unit__):True:instant",
+      "delayed-ratio-metadata:by(cluster,zone,__name__):False:instant",
+      "delayed-ratio-metadata:by(cluster,zone,__name__):True:instant",
+      "delayed-ratio-metadata:by(cluster,zone,__type__):False:instant",
+      "delayed-ratio-metadata:by(cluster,zone,__unit__):False:instant",
+      "delayed-ratio-metadata:without(member):False:instant",
+      "delayed-ratio-membership:right-missing:False:instant",
+      "delayed-ratio-membership:aliases:False:instant",
+      "delayed-ratio-membership:aliases:True:instant",
+      "delayed-ratio-matching:on(cluster,zone):False",
+      "delayed-ratio-matching:on(cluster,zone):True",
+      "delayed-ratio-matching:ignoring(member):False",
+      "delayed-ratio-matching:ignoring(member):True",
+      "delayed-ratio-composition:((sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s])))):False",
+      "delayed-ratio-composition:((sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s])))):True",
+      "delayed-ratio-composition:abs(sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s]))):False",
+      "delayed-ratio-composition:abs(sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s]))):True",
+      "delayed-ratio-composition:(sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s])))*2:False",
+      "delayed-ratio-composition:(sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s])))*2:True",
+      "delayed-ratio-composition:-(sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s]))):False",
+      "delayed-ratio-composition:-(sum by(cluster,zone)(rate(m_total[3s])) /  sum by(cluster,zone)(rate(n_total[3s]))):True",
+      "delayed-ratio-composition:sum by(cluster,zone)(m_total)/sum by(cluster,zone)(n_total):False",
+      "delayed-ratio-composition:sum by(cluster,zone)(m_total)/sum by(cluster,zone)(n_total):True",
+      "delayed-ratio-upstream:False:instant",
+      "delayed-ratio-upstream:True:instant",
+      "delayed-ratio-perf:4:sum:rate:instant:False",
+      "delayed-ratio-perf:4:sum:rate:instant:True",
+      "delayed-ratio-perf:4:sum:increase:instant:False",
+      "delayed-ratio-perf:4:sum:increase:instant:True",
+      "delayed-ratio-perf:4:sum:delta:instant:False",
+      "delayed-ratio-perf:4:sum:delta:instant:True",
+      "delayed-ratio-perf:4:avg:rate:instant:False",
+      "delayed-ratio-perf:4:avg:rate:instant:True",
+      "delayed-ratio-perf:4:avg:increase:instant:False",
+      "delayed-ratio-perf:4:avg:increase:instant:True",
+      "delayed-ratio-perf:4:avg:delta:instant:False",
+      "delayed-ratio-perf:4:avg:delta:instant:True",
+      "delayed-ratio-perf:8:sum:rate:instant:False",
+      "delayed-ratio-perf:8:sum:rate:instant:True",
+      "delayed-ratio-perf:8:sum:increase:instant:False",
+      "delayed-ratio-perf:8:sum:increase:instant:True",
+      "delayed-ratio-perf:8:sum:delta:instant:False",
+      "delayed-ratio-perf:8:sum:delta:instant:True",
+      "delayed-ratio-perf:8:avg:rate:instant:False",
+      "delayed-ratio-perf:8:avg:rate:instant:True",
+      "delayed-ratio-perf:8:avg:increase:instant:False",
+      "delayed-ratio-perf:8:avg:increase:instant:True",
+      "delayed-ratio-perf:8:avg:delta:instant:False",
+      "delayed-ratio-perf:8:avg:delta:instant:True",
+      "delayed-ratio-perf:fallback:0",
+      "delayed-ratio-perf:fallback:1",
+      "delayed-ratio-perf:fallback:2",
+      "delayed-ratio-perf:fallback:3",
+      "delayed-ratio-perf:fallback:4",
+      "delayed-ratio-perf:fallback:5",
+      "delayed-ratio-perf:fallback:7"
+    ],
+    "numeric_bit_differences": 0,
+    "resource_pairs": 1680,
+    "timing_pairs": 2264,
+    "focused": [
+      {
+        "filter": "delayed_ratio_clocks",
+        "passed": 3,
+        "ignored": 0
+      },
+      {
+        "filter": "delayed_group_clocks",
+        "passed": 2,
+        "ignored": 0
+      },
+      {
+        "filter": "aggregate_replay::tests::",
+        "passed": 4,
+        "ignored": 0
+      },
+      {
+        "filter": "completed_interval",
+        "passed": 3,
+        "ignored": 0
+      }
+    ],
+    "new_tests": 3,
+    "prepared_admission_shapes": 18,
+    "calibrated_delivery_failures": 1440,
+    "units": {
+      "release": [
+        {
+          "filter": "",
+          "passed": 1014,
+          "ignored": 2
+        }
+      ],
+      "release-min": [
+        {
+          "filter": "",
+          "passed": 1014,
+          "ignored": 2
+        }
+      ],
+      "arm32": [
+        {
+          "filter": "delayed_ratio_clocks",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "delayed_group_clocks",
+          "passed": 2,
+          "ignored": 0
+        },
+        {
+          "filter": "grouped_selector_clocks",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "aggregate_replay::tests::",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "completed_interval",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "statistics::tests::",
+          "passed": 12,
+          "ignored": 0
+        },
+        {
+          "filter": "c_abi::tests::",
+          "passed": 52,
+          "ignored": 1
+        }
+      ],
+      "arm64": [
+        {
+          "filter": "delayed_ratio_clocks",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "delayed_group_clocks",
+          "passed": 2,
+          "ignored": 0
+        },
+        {
+          "filter": "grouped_selector_clocks",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "aggregate_replay::tests::",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "completed_interval",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "statistics::tests::",
+          "passed": 12,
+          "ignored": 0
+        },
+        {
+          "filter": "c_abi::tests::",
+          "passed": 52,
+          "ignored": 1
+        }
+      ]
+    },
+    "C_CPP_cases": 12096,
+    "callers": {
+      "release": [
+        {
+          "consumer": "grouped_selector_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "a477672fdd641478e1024e1e30cd8cf37f0e5ac7f8908413ae59211b7532abd6"
+        },
+        {
+          "consumer": "grouped_selector_clocks",
+          "language": "CPP",
+          "cases": 192,
+          "binary_sha256": "67110c40b9fcc956f49f757446f31afb6aed44428666adae1d6773712fe78c48"
+        },
+        {
+          "consumer": "grouped_subquery_clocks",
+          "language": "C",
+          "cases": 768,
+          "binary_sha256": "269608e8a16c6cc4525a3832a752b63680563c498dc8dc27c3187a6934bd86e7"
+        },
+        {
+          "consumer": "grouped_subquery_clocks",
+          "language": "CPP",
+          "cases": 768,
+          "binary_sha256": "722417b21849333ad5f973ce59efc52fb005ffec86911f78d97eab4fbd4518dc"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "3fca1bdc9dc75e9e0c870ad1168b0307f938b92a66cd9afb2537de0c15343b85"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "CPP",
+          "cases": 672,
+          "binary_sha256": "b04a428e92ecff1c3d3f344a87cde0a7ae8b800d6e6e762dfe853b2634f9981a"
+        },
+        {
+          "consumer": "nested_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "b69773e8dad930b7f824167216ea4eeb12fbe7907439d5d729dc24a3f643c8c6"
+        },
+        {
+          "consumer": "nested_grouped_clocks",
+          "language": "CPP",
+          "cases": 192,
+          "binary_sha256": "489c210843bbf38d6934cfb565f8d08c9abd2788c6f9aca404bee94af1b16251"
+        },
+        {
+          "consumer": "projected_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "ab8ae03c1e8e30259f5a7d3ef992f0c2fb304183898e7ee8cec5f102c71734fe"
+        },
+        {
+          "consumer": "projected_grouped_clocks",
+          "language": "CPP",
+          "cases": 192,
+          "binary_sha256": "5401a81e07461c0dc03ec2fe30f5b5bf23a6b17c969b242b56550cb440033ef6"
+        }
+      ],
+      "release-min": [
+        {
+          "consumer": "grouped_selector_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "8a1d049450e59dc762642f2c01a32b21d71e29ae8b59010509f65ba563fcca97"
+        },
+        {
+          "consumer": "grouped_selector_clocks",
+          "language": "CPP",
+          "cases": 192,
+          "binary_sha256": "7b707188ac9ad69347ae22fa87e03aaae5dc8587e3ff310691acb3ca1f56f075"
+        },
+        {
+          "consumer": "grouped_subquery_clocks",
+          "language": "C",
+          "cases": 768,
+          "binary_sha256": "c409c30e2246424fcfed500f1be096f837907a143568c4cc1eaee39b6b842465"
+        },
+        {
+          "consumer": "grouped_subquery_clocks",
+          "language": "CPP",
+          "cases": 768,
+          "binary_sha256": "e39676b34db3a37fe422b513b01a5c4e499ff1dfe1437070525a67f5a0fb8c9c"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "e28e2a31f03ce40a205b4ede48870babae6232894fd5c206b710cb8f103d2fbb"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "CPP",
+          "cases": 672,
+          "binary_sha256": "a83208ca99c95107fedbaeebe9c08c174d2d7d39caeed1ad5004396995f92347"
+        },
+        {
+          "consumer": "nested_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "e793eb0d1067bf819ca7651bec1e6d82bd09ec85bf3c6ce93fbfa32e6ec12681"
+        },
+        {
+          "consumer": "nested_grouped_clocks",
+          "language": "CPP",
+          "cases": 192,
+          "binary_sha256": "eab4441566c7ce499e771cc9d4288cf82b8ebbb92418789d139d769ae55dc96e"
+        },
+        {
+          "consumer": "projected_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "9c008e4fd37fbfdcd8e1fe3d7c09e8cd5a36e1f4341e86f8d08daf97a2e0d538"
+        },
+        {
+          "consumer": "projected_grouped_clocks",
+          "language": "CPP",
+          "cases": 192,
+          "binary_sha256": "cff869468d4c920e9ea2ff0644ac3531dfa8250c07dfee13bcc8f0b9f152b23c"
+        }
+      ],
+      "arm32": [
+        {
+          "consumer": "grouped_selector_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "1891a9e0e821bee73e20dd90f4ca8ae377b335fdc41e894d002d6d098184688f"
+        },
+        {
+          "consumer": "grouped_subquery_clocks",
+          "language": "C",
+          "cases": 768,
+          "binary_sha256": "06a6d95bb5a8803cc06f371b1a9a7d618432c5ec4744ab9981d3077d20e34d69"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "63a1358e3b3dc7bd07995b86d05df7812e5e5a18283db47c8ba9ce09a5f7ba3c"
+        },
+        {
+          "consumer": "nested_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "9b8c300d8bf869ac36866afb7d5307c5504c36dbc1688b71b2d37e7960375ad9"
+        },
+        {
+          "consumer": "projected_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "94ca8fd4897b74935a719e234c08ee98aba00437cc5cd44cd4ec1240f4e488e0"
+        }
+      ],
+      "arm64": [
+        {
+          "consumer": "grouped_selector_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "d1705baa8d27d48555eda5709e85c56825878d7da8807156768a11c89aaefb4f"
+        },
+        {
+          "consumer": "grouped_subquery_clocks",
+          "language": "C",
+          "cases": 768,
+          "binary_sha256": "ca25eb1b7da457b07fb2e24e589ca0bdd3c8306cb5a592a778c19b17a4af3c3b"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "39607e4d8260696b28ac8a1da713057c992e45313a59a25490c919f430f0f57c"
+        },
+        {
+          "consumer": "nested_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "766c8b5055b2ca47aac56680ea781634d5369b16e7e8dba0a5c33ac037797435"
+        },
+        {
+          "consumer": "projected_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "7462e29222381a1ad026a243b0b3eee71dd420c430dd96bb5cf26d4f29bd2b12"
+        }
+      ]
+    },
+    "complete_native_C_suites": 2,
+    "static": "Strict default/fixture lint, format, installed MSRV1.91 compile-only."
+  },
+  "timing": {
+    "release": {
+      "target": 0.18714228590152296,
+      "families": {
+        "target-rate": 0.18802137962978524,
+        "target-increase": 0.18696629899280023,
+        "target-delta": 0.18827508934881998
+      },
+      "controls": 0.9681975172266242,
+      "complete_pairs": 1120,
+      "cases": [
+        {
+          "id": "delayed-ratio-perf:4:sum:rate:instant:False",
+          "target": false,
+          "ratio": 0.9589791612391418,
+          "before_median_ns": 3066929,
+          "candidate_median_ns": 2941121
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:rate:instant:True",
+          "target": true,
+          "ratio": 0.2607970511618102,
+          "before_median_ns": 11118684,
+          "candidate_median_ns": 2899720
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:rate:range:False",
+          "target": false,
+          "ratio": 0.9677726544645721,
+          "before_median_ns": 6925423,
+          "candidate_median_ns": 6702235
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:rate:range:True",
+          "target": true,
+          "ratio": 0.2774341460470771,
+          "before_median_ns": 23728568,
+          "candidate_median_ns": 6583115
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:increase:instant:False",
+          "target": false,
+          "ratio": 0.966504572506895,
+          "before_median_ns": 3031160,
+          "candidate_median_ns": 2929630
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:increase:instant:True",
+          "target": true,
+          "ratio": 0.2609336752879933,
+          "before_median_ns": 11160154,
+          "candidate_median_ns": 2912060
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:increase:range:False",
+          "target": false,
+          "ratio": 0.9699267996509602,
+          "before_median_ns": 6877153,
+          "candidate_median_ns": 6670335
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:increase:range:True",
+          "target": true,
+          "ratio": 0.27372293585685054,
+          "before_median_ns": 24033229,
+          "candidate_median_ns": 6578446
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:delta:instant:False",
+          "target": false,
+          "ratio": 0.9655776632427875,
+          "before_median_ns": 3040119,
+          "candidate_median_ns": 2935471
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:delta:instant:True",
+          "target": true,
+          "ratio": 0.2523403821313119,
+          "before_median_ns": 11530382,
+          "candidate_median_ns": 2909581
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:delta:range:False",
+          "target": false,
+          "ratio": 0.9733998022539451,
+          "before_median_ns": 6888633,
+          "candidate_median_ns": 6705394
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:delta:range:True",
+          "target": true,
+          "ratio": 0.2778918452642931,
+          "before_median_ns": 23811440,
+          "candidate_median_ns": 6617005
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:rate:instant:False",
+          "target": false,
+          "ratio": 0.9711379746165197,
+          "before_median_ns": 3040639,
+          "candidate_median_ns": 2952880
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:rate:instant:True",
+          "target": true,
+          "ratio": 0.2526555847631727,
+          "before_median_ns": 11561672,
+          "candidate_median_ns": 2921121
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:rate:range:False",
+          "target": false,
+          "ratio": 0.9743877683363051,
+          "before_median_ns": 6885343,
+          "candidate_median_ns": 6708994
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:rate:range:True",
+          "target": true,
+          "ratio": 0.2740311410795786,
+          "before_median_ns": 24210336,
+          "candidate_median_ns": 6634386
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:increase:instant:False",
+          "target": false,
+          "ratio": 0.9578646838793269,
+          "before_median_ns": 3071770,
+          "candidate_median_ns": 2942340
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:increase:instant:True",
+          "target": true,
+          "ratio": 0.25007477523671784,
+          "before_median_ns": 11598091,
+          "candidate_median_ns": 2900390
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:increase:range:False",
+          "target": false,
+          "ratio": 0.9686223799886763,
+          "before_median_ns": 6918243,
+          "candidate_median_ns": 6701165
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:increase:range:True",
+          "target": true,
+          "ratio": 0.28109413482531115,
+          "before_median_ns": 23529751,
+          "candidate_median_ns": 6614075
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:delta:instant:False",
+          "target": false,
+          "ratio": 0.974818364969415,
+          "before_median_ns": 3012910,
+          "candidate_median_ns": 2937040
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:delta:instant:True",
+          "target": true,
+          "ratio": 0.25490777973454276,
+          "before_median_ns": 11429863,
+          "candidate_median_ns": 2913561
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:delta:range:False",
+          "target": false,
+          "ratio": 0.9773657480696163,
+          "before_median_ns": 6857704,
+          "candidate_median_ns": 6702485
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:delta:range:True",
+          "target": true,
+          "ratio": 0.2696250861326567,
+          "before_median_ns": 24354874,
+          "candidate_median_ns": 6566685
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:rate:instant:False",
+          "target": false,
+          "ratio": 0.988228405538437,
+          "before_median_ns": 6064599,
+          "candidate_median_ns": 5993209
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:rate:instant:True",
+          "target": true,
+          "ratio": 0.0903690642578508,
+          "before_median_ns": 65507373,
+          "candidate_median_ns": 5919840
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:rate:range:False",
+          "target": false,
+          "ratio": 0.9735573272374765,
+          "before_median_ns": 18588363,
+          "candidate_median_ns": 18096837
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:rate:range:True",
+          "target": true,
+          "ratio": 0.12215249677348435,
+          "before_median_ns": 144614981,
+          "candidate_median_ns": 17665081
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:increase:instant:False",
+          "target": false,
+          "ratio": 0.9721996767109223,
+          "before_median_ns": 6148058,
+          "candidate_median_ns": 5977140
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:increase:instant:True",
+          "target": true,
+          "ratio": 0.08820839009143122,
+          "before_median_ns": 66643207,
+          "candidate_median_ns": 5878490
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:increase:range:False",
+          "target": false,
+          "ratio": 0.9622062782862123,
+          "before_median_ns": 18746103,
+          "candidate_median_ns": 18037618
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:increase:range:True",
+          "target": true,
+          "ratio": 0.12179478709459259,
+          "before_median_ns": 144930349,
+          "candidate_median_ns": 17651761
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:delta:instant:False",
+          "target": false,
+          "ratio": 0.9439609870608423,
+          "before_median_ns": 6379627,
+          "candidate_median_ns": 6022119
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:delta:instant:True",
+          "target": true,
+          "ratio": 0.08620989176948426,
+          "before_median_ns": 68327310,
+          "candidate_median_ns": 5890490
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:delta:range:False",
+          "target": false,
+          "ratio": 0.9652279512553439,
+          "before_median_ns": 18806082,
+          "candidate_median_ns": 18152156
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:delta:range:True",
+          "target": true,
+          "ratio": 0.12420979656632807,
+          "before_median_ns": 143795566,
+          "candidate_median_ns": 17860818
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:rate:instant:False",
+          "target": false,
+          "ratio": 0.9991727014754676,
+          "before_median_ns": 6188818,
+          "candidate_median_ns": 6183698
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:rate:instant:True",
+          "target": true,
+          "ratio": 0.08923324305002664,
+          "before_median_ns": 67336553,
+          "candidate_median_ns": 6008659
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:rate:range:False",
+          "target": false,
+          "ratio": 0.9873852818532868,
+          "before_median_ns": 18758802,
+          "candidate_median_ns": 18522165
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:rate:range:True",
+          "target": true,
+          "ratio": 0.12338717449639781,
+          "before_median_ns": 144912298,
+          "candidate_median_ns": 17880319
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:increase:instant:False",
+          "target": false,
+          "ratio": 0.9632844315973812,
+          "before_median_ns": 6213958,
+          "candidate_median_ns": 5985809
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:increase:instant:True",
+          "target": true,
+          "ratio": 0.0889481179271043,
+          "before_median_ns": 66755544,
+          "candidate_median_ns": 5937780
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:increase:range:False",
+          "target": false,
+          "ratio": 0.9693991316909953,
+          "before_median_ns": 18657183,
+          "candidate_median_ns": 18086257
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:increase:range:True",
+          "target": true,
+          "ratio": 0.12385782274888262,
+          "before_median_ns": 143253269,
+          "candidate_median_ns": 17743038
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:delta:instant:False",
+          "target": false,
+          "ratio": 0.9746088670423584,
+          "before_median_ns": 6167468,
+          "candidate_median_ns": 6010869
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:delta:instant:True",
+          "target": true,
+          "ratio": 0.08835682816799656,
+          "before_median_ns": 66839656,
+          "candidate_median_ns": 5905740
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:delta:range:False",
+          "target": false,
+          "ratio": 0.9505284458945935,
+          "before_median_ns": 18974601,
+          "candidate_median_ns": 18035898
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:delta:range:True",
+          "target": true,
+          "ratio": 0.12308300601103055,
+          "before_median_ns": 143819765,
+          "candidate_median_ns": 17701769
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:0",
+          "target": false,
+          "ratio": 0.9487912588191532,
+          "before_median_ns": 10723677,
+          "candidate_median_ns": 10174531
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:1",
+          "target": false,
+          "ratio": 0.9542940337235747,
+          "before_median_ns": 15409695,
+          "candidate_median_ns": 14705380
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:2",
+          "target": false,
+          "ratio": 0.9722122437316345,
+          "before_median_ns": 12262487,
+          "candidate_median_ns": 11921740
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:3",
+          "target": false,
+          "ratio": 0.9622616262975493,
+          "before_median_ns": 14550892,
+          "candidate_median_ns": 14001765
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:4",
+          "target": false,
+          "ratio": 0.9738689265837297,
+          "before_median_ns": 11503431,
+          "candidate_median_ns": 11202834
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:5",
+          "target": false,
+          "ratio": 0.9409919462585726,
+          "before_median_ns": 12418576,
+          "candidate_median_ns": 11685780
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:6",
+          "target": false,
+          "ratio": 0.9569515031441124,
+          "before_median_ns": 510796,
+          "candidate_median_ns": 488807
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:7",
+          "target": false,
+          "ratio": 0.9486705812056669,
+          "before_median_ns": 10515159,
+          "candidate_median_ns": 9975422
+        }
+      ],
+      "followup": {
+        "selected": [],
+        "pairs": 0
+      }
+    },
+    "release-min": {
+      "target": 0.18620514144376044,
+      "families": {
+        "target-rate": 0.18469464107887004,
+        "target-increase": 0.19430490415230364,
+        "target-delta": 0.18747860791061516
+      },
+      "controls": 1.0063348209889087,
+      "complete_pairs": 1120,
+      "cases": [
+        {
+          "id": "delayed-ratio-perf:4:sum:rate:instant:False",
+          "target": false,
+          "ratio": 1.022478506536994,
+          "before_median_ns": 4817046,
+          "candidate_median_ns": 4925326
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:rate:instant:True",
+          "target": true,
+          "ratio": 0.27169137409708194,
+          "before_median_ns": 17537167,
+          "candidate_median_ns": 4764697
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:rate:range:False",
+          "target": false,
+          "ratio": 1.041046487376367,
+          "before_median_ns": 10797684,
+          "candidate_median_ns": 11240891
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:rate:range:True",
+          "target": true,
+          "ratio": 0.28847322576629364,
+          "before_median_ns": 37529216,
+          "candidate_median_ns": 10826174
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:increase:instant:False",
+          "target": false,
+          "ratio": 1.0277306348442865,
+          "before_median_ns": 4721457,
+          "candidate_median_ns": 4852386
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:increase:instant:True",
+          "target": true,
+          "ratio": 0.2715978040531532,
+          "before_median_ns": 17438127,
+          "candidate_median_ns": 4736157
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:increase:range:False",
+          "target": false,
+          "ratio": 1.0311343336520342,
+          "before_median_ns": 10837746,
+          "candidate_median_ns": 11175172
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:increase:range:True",
+          "target": true,
+          "ratio": 0.2856949168125106,
+          "before_median_ns": 37851545,
+          "candidate_median_ns": 10813994
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:delta:instant:False",
+          "target": false,
+          "ratio": 0.9535099279262483,
+          "before_median_ns": 5095475,
+          "candidate_median_ns": 4858586
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:delta:instant:True",
+          "target": true,
+          "ratio": 0.24989370047517082,
+          "before_median_ns": 18838278,
+          "candidate_median_ns": 4707567
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:delta:range:False",
+          "target": false,
+          "ratio": 1.007087013804441,
+          "before_median_ns": 10960893,
+          "candidate_median_ns": 11038573
+        },
+        {
+          "id": "delayed-ratio-perf:4:sum:delta:range:True",
+          "target": true,
+          "ratio": 0.2640313507474269,
+          "before_median_ns": 40676287,
+          "candidate_median_ns": 10739815
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:rate:instant:False",
+          "target": false,
+          "ratio": 1.0159504677750468,
+          "before_median_ns": 4816097,
+          "candidate_median_ns": 4892916
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:rate:instant:True",
+          "target": true,
+          "ratio": 0.24734676754146143,
+          "before_median_ns": 18959609,
+          "candidate_median_ns": 4689598
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:rate:range:False",
+          "target": false,
+          "ratio": 1.0219368644852456,
+          "before_median_ns": 10827345,
+          "candidate_median_ns": 11064863
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:rate:range:True",
+          "target": true,
+          "ratio": 0.28528257259597967,
+          "before_median_ns": 37469327,
+          "candidate_median_ns": 10689346
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:increase:instant:False",
+          "target": false,
+          "ratio": 1.0125309809565908,
+          "before_median_ns": 4725887,
+          "candidate_median_ns": 4785107
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:increase:instant:True",
+          "target": true,
+          "ratio": 0.2641815942443217,
+          "before_median_ns": 17595007,
+          "candidate_median_ns": 4648277
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:increase:range:False",
+          "target": false,
+          "ratio": 1.0193730414205242,
+          "before_median_ns": 10790665,
+          "candidate_median_ns": 10999713
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:increase:range:True",
+          "target": true,
+          "ratio": 0.28158030058125916,
+          "before_median_ns": 37717255,
+          "candidate_median_ns": 10620436
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:delta:instant:False",
+          "target": false,
+          "ratio": 1.015215477653715,
+          "before_median_ns": 4770077,
+          "candidate_median_ns": 4842656
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:delta:instant:True",
+          "target": true,
+          "ratio": 0.26549196951104237,
+          "before_median_ns": 17709756,
+          "candidate_median_ns": 4701798
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:delta:range:False",
+          "target": false,
+          "ratio": 1.0256619327784682,
+          "before_median_ns": 10851404,
+          "candidate_median_ns": 11129872
+        },
+        {
+          "id": "delayed-ratio-perf:4:avg:delta:range:True",
+          "target": true,
+          "ratio": 0.28195682774794845,
+          "before_median_ns": 37614716,
+          "candidate_median_ns": 10605726
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:rate:instant:False",
+          "target": false,
+          "ratio": 0.9936429481011827,
+          "before_median_ns": 9869512,
+          "candidate_median_ns": 9806771
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:rate:instant:True",
+          "target": true,
+          "ratio": 0.08490945219494025,
+          "before_median_ns": 111725182,
+          "candidate_median_ns": 9486524
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:rate:range:False",
+          "target": false,
+          "ratio": 0.931589242640923,
+          "before_median_ns": 31398673,
+          "candidate_median_ns": 29250666
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:rate:range:True",
+          "target": true,
+          "ratio": 0.11741302562321786,
+          "before_median_ns": 242233354,
+          "candidate_median_ns": 28441351
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:increase:instant:False",
+          "target": false,
+          "ratio": 1.0069765910385087,
+          "before_median_ns": 9809662,
+          "candidate_median_ns": 9878100
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:increase:instant:True",
+          "target": true,
+          "ratio": 0.09021889810611697,
+          "before_median_ns": 104625574,
+          "candidate_median_ns": 9439204
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:increase:range:False",
+          "target": false,
+          "ratio": 1.0011521560595316,
+          "before_median_ns": 29541137,
+          "candidate_median_ns": 29575173
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:increase:range:True",
+          "target": true,
+          "ratio": 0.12347636146236486,
+          "before_median_ns": 242823587,
+          "candidate_median_ns": 29982973
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:delta:instant:False",
+          "target": false,
+          "ratio": 0.9554432436341243,
+          "before_median_ns": 10288608,
+          "candidate_median_ns": 9830181
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:delta:instant:True",
+          "target": true,
+          "ratio": 0.08687602325648189,
+          "before_median_ns": 109257798,
+          "candidate_median_ns": 9491883
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:delta:range:False",
+          "target": false,
+          "ratio": 0.980314215502337,
+          "before_median_ns": 30069363,
+          "candidate_median_ns": 29477424
+        },
+        {
+          "id": "delayed-ratio-perf:8:sum:delta:range:True",
+          "target": true,
+          "ratio": 0.12035345687998632,
+          "before_median_ns": 236301073,
+          "candidate_median_ns": 28439651
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:rate:instant:False",
+          "target": false,
+          "ratio": 1.0005795025930984,
+          "before_median_ns": 9820491,
+          "candidate_median_ns": 9826182
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:rate:instant:True",
+          "target": true,
+          "ratio": 0.08656379761233665,
+          "before_median_ns": 109009589,
+          "candidate_median_ns": 9436284
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:rate:range:False",
+          "target": false,
+          "ratio": 0.9837862969127885,
+          "before_median_ns": 29843275,
+          "candidate_median_ns": 29359405
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:rate:range:True",
+          "target": true,
+          "ratio": 0.12204251461627866,
+          "before_median_ns": 233795830,
+          "candidate_median_ns": 28533031
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:increase:instant:False",
+          "target": false,
+          "ratio": 1.0101530023053231,
+          "before_median_ns": 9748742,
+          "candidate_median_ns": 9847721
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:increase:instant:True",
+          "target": true,
+          "ratio": 0.08589941773908248,
+          "before_median_ns": 110623602,
+          "candidate_median_ns": 9502503
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:increase:range:False",
+          "target": false,
+          "ratio": 1.0213916520248474,
+          "before_median_ns": 28786837,
+          "candidate_median_ns": 29402635
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:increase:range:True",
+          "target": true,
+          "ratio": 0.1244282140602856,
+          "before_median_ns": 228219148,
+          "candidate_median_ns": 28396901
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:delta:instant:False",
+          "target": false,
+          "ratio": 1.005693050939309,
+          "before_median_ns": 9783682,
+          "candidate_median_ns": 9839381
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:delta:instant:True",
+          "target": true,
+          "ratio": 0.09090623367640104,
+          "before_median_ns": 106969364,
+          "candidate_median_ns": 9724182
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:delta:range:False",
+          "target": false,
+          "ratio": 1.0538756818141517,
+          "before_median_ns": 29663142,
+          "candidate_median_ns": 31261264
+        },
+        {
+          "id": "delayed-ratio-perf:8:avg:delta:range:True",
+          "target": true,
+          "ratio": 0.12506351534605947,
+          "before_median_ns": 240069935,
+          "candidate_median_ns": 30023990
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:0",
+          "target": false,
+          "ratio": 1.0202079255444718,
+          "before_median_ns": 17316968,
+          "candidate_median_ns": 17666908
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:1",
+          "target": false,
+          "ratio": 0.9673714568713394,
+          "before_median_ns": 24924864,
+          "candidate_median_ns": 24111602
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:2",
+          "target": false,
+          "ratio": 0.977043592386932,
+          "before_median_ns": 19542082,
+          "candidate_median_ns": 19093466
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:3",
+          "target": false,
+          "ratio": 0.9885689174988609,
+          "before_median_ns": 22271644,
+          "candidate_median_ns": 22017055
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:4",
+          "target": false,
+          "ratio": 0.9794670941287875,
+          "before_median_ns": 18962148,
+          "candidate_median_ns": 18572800
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:5",
+          "target": false,
+          "ratio": 0.9949658822575453,
+          "before_median_ns": 19534704,
+          "candidate_median_ns": 19436364
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:6",
+          "target": false,
+          "ratio": 0.9279740741906051,
+          "before_median_ns": 794575,
+          "candidate_median_ns": 737345
+        },
+        {
+          "id": "delayed-ratio-perf:fallback:7",
+          "target": false,
+          "ratio": 0.9611505031226302,
+          "before_median_ns": 17248280,
+          "candidate_median_ns": 16578193
+        }
+      ],
+      "followup": {
+        "pairs": 24,
+        "selected": [
+          {
+            "id": "delayed-ratio-perf:8:avg:delta:range:False",
+            "primary_ratio": 1.0538756818141517,
+            "before_ns": [
+              29205824,
+              28812507,
+              28597918,
+              28693327,
+              28554468,
+              29005785,
+              28892436,
+              28889096,
+              29270643,
+              29010995,
+              29125034,
+              29362272,
+              30890962,
+              30465125,
+              30605704,
+              29298303,
+              29182293,
+              29093225
+            ],
+            "candidate_ns": [
+              28405269,
+              28331630,
+              28665577,
+              28561098,
+              28395239,
+              28607988,
+              28440179,
+              28667117,
+              28212791,
+              28550648,
+              28938705,
+              28859545,
+              31055911,
+              30454145,
+              31047530,
+              28732947,
+              28666167,
+              28280560
+            ],
+            "ratio": 0.9837732351288623
+          }
+        ]
+      }
+    }
+  },
+  "memory": {
+    "max_peak_growth_by_category": [
+      0,
+      2312,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "maximum_added_recognition_work": 244,
+    "example": {
+      "id": "delayed-ratio-perf:8:sum:rate:instant:True",
+      "page": 17,
+      "workspace_peak": [
+        56463,
+        58279
+      ],
+      "workspace_acquired": [
+        28425792,
+        2614256
+      ],
+      "samples_fetched": [
+        64512,
+        17472
+      ],
+      "work": [
+        5224277,
+        355240
+      ]
+    },
+    "scope": "Accounted finite-query ownership; category peaks are not additive or process RSS. Early observations exact; other category peaks/current ownership do not grow."
+  },
+  "compiled_C_sizes": {
+    "release": {
+      "kind": "default-C",
+      "before": [
+        7383466,
+        509584,
+        400
+      ],
+      "current": [
+        7392774,
+        509768,
+        400
+      ],
+      "growth": 9492,
+      "before_total": 7893450,
+      "current_total": 7902942,
+      "growth_percent": 0.12025160101096478,
+      "cumulative_baseline_text_data_bss": [
+        7370378,
+        506744,
+        400
+      ],
+      "cumulative_growth_bytes": 25420,
+      "cumulative_growth_percent": 0.32269030794201525
+    },
+    "release-min": {
+      "kind": "default-C",
+      "before": [
+        5152883,
+        465072,
+        400
+      ],
+      "current": [
+        5156095,
+        465208,
+        400
+      ],
+      "growth": 3348,
+      "before_total": 5618355,
+      "current_total": 5621703,
+      "growth_percent": 0.05959039612128461,
+      "cumulative_baseline_text_data_bss": [
+        5103967,
+        462056,
+        400
+      ],
+      "cumulative_growth_bytes": 55280,
+      "cumulative_growth_percent": 0.9930973625252698
+    },
+    "arm32": {
+      "kind": "default-C",
+      "before": [
+        6278461,
+        294476,
+        244
+      ],
+      "current": [
+        6279921,
+        294524,
+        244
+      ],
+      "growth": 1508,
+      "before_total": 6573181,
+      "current_total": 6574689,
+      "growth_percent": 0.022941708131877094,
+      "cumulative_baseline_text_data_bss": [
+        6382697,
+        292596,
+        244
+      ],
+      "cumulative_growth_bytes": -100848,
+      "cumulative_growth_percent": -1.5107099249094118
+    },
+    "arm64": {
+      "kind": "default-C",
+      "before": [
+        6462706,
+        499728,
+        384
+      ],
+      "current": [
+        6457746,
+        499736,
+        384
+      ],
+      "growth": -4952,
+      "before_total": 6962818,
+      "current_total": 6957866,
+      "growth_percent": -0.07112062960715043,
+      "cumulative_baseline_text_data_bss": [
+        6374470,
+        497032,
+        384
+      ],
+      "cumulative_growth_bytes": 85980,
+      "cumulative_growth_percent": 1.251184900331583
+    }
+  },
+  "cost_review": "Immediate, relative and cumulative fixed executable costs reviewed under66, separately from query memory. No architecture-specific throughput inference.",
+  "previous_candidate": {
+    "status": "rejected_timing_gate",
+    "timing_pairs": 2672,
+    "failure": [
+      [
+        "release",
+        "persistent_individual",
+        "delayed-ratio-perf:8:avg:increase:instant:False",
+        1.0758948455844863
+      ],
+      [
+        "release",
+        "persistent_individual",
+        "delayed-ratio-perf:fallback:3",
+        1.1256005462394179
+      ],
+      [
+        "release",
+        "persistent_individual",
+        "delayed-ratio-perf:fallback:5",
+        1.056272026479608
+      ]
+    ],
+    "reason_for_revision": "Actual shared entry gained a runtime allowance argument/instructions. Const specialization isolates the compiled variants; this does not establish a causal explanation for whole-query timing.",
+    "receipts": {
+      "focused": {
+        "path": ".tmp/delayed-ratio-7hq7ubl0/focused.json",
+        "sha256": "fde637476bba6b691599818ca115f910db65cb6be40155f49e662027cfb4d13f"
+      },
+      "candidate-static": {
+        "path": ".tmp/delayed-ratio-7hq7ubl0/candidate-static.json",
+        "sha256": "c1fc7ec3c501492e6664fa23944081e21e9b7bb335a740a148d3fd6fad1820bf"
+      },
+      "pilot": {
+        "path": ".tmp/delayed-ratio-7hq7ubl0/pilot.json",
+        "sha256": "5d874ec9f054c6c4cdaa73588db3051c2e9f0ff7c0d9714ce9c08e8348670d09"
+      },
+      "slower-followup": {
+        "path": ".tmp/delayed-ratio-7hq7ubl0/slower-followup.json",
+        "sha256": "988604c3dd0a1419bc3ee2ce996d9843b6628e592f9448a209a09744b7aadeb2"
+      },
+      "acceptance-policy": {
+        "path": ".tmp/delayed-ratio-7hq7ubl0/acceptance-policy.json",
+        "sha256": "f57c6cfdb788ffc67c5b9ffef4674b26c9309d8ee411c5f63eea4cd17a7860cb"
+      },
+      "code-layout": {
+        "path": ".tmp/delayed-ratio-7hq7ubl0/code-layout.json",
+        "sha256": "f8de146298b9a860082512a5f91fbfe7830c38139c90184fbdf85b0dce165a0f"
+      },
+      "interval-assembly": {
+        "path": ".tmp/delayed-ratio-7hq7ubl0/interval-assembly.json",
+        "sha256": "7073475b0d9c6fc14633e0682f47314e301256404499c81fd154c343a22374dd"
+      },
+      "perf-release-builds": {
+        "path": ".tmp/delayed-ratio-7hq7ubl0/perf-release-builds.json",
+        "sha256": "351cdc349cbe35d8cdaa5f6724a549f74734aa00890881d75d55ccdd77be1ffb"
+      },
+      "perf-release-min-builds": {
+        "path": ".tmp/delayed-ratio-7hq7ubl0/perf-release-min-builds.json",
+        "sha256": "f11d3c93d85a86dde48438bc48d590090cfb33bf6ed3e75c2d57e4bbdefcfc67"
+      },
+      "probe-candidate-release-analysis": {
+        "path": ".tmp/delayed-ratio-7hq7ubl0/probe-candidate-release-analysis.json",
+        "sha256": "b689ccd7bd8fa46d8b002a3accdf209e3f78bf937de0c8c1cf25a3e8e3ddca8d"
+      },
+      "probe-candidate-release-min-analysis": {
+        "path": ".tmp/delayed-ratio-7hq7ubl0/probe-candidate-release-min-analysis.json",
+        "sha256": "36b184773d3e34d4a5ce04906093a6d9a206357c0a1dd44fbb6a71f542b9e09a"
+      }
+    },
+    "policy": "Same corpus, resource gates and timing thresholds; new candidate bytes, no unchanged retries or threshold relaxation."
+  },
+  "scope_limits": [
+    "Finite synthetic same-input qualification, not universal equivalence.",
+    "Timing targets use server-default options plus explicit delayed flag; controls include early mode and delayed fallbacks.",
+    "Strict whole-row ordering failures remain failures; the agreed deterministic-order policy is reported separately.",
+    "No live-dbengine, concurrent-query, process-RSS or physical ARM throughput claim.",
+    "Native/multiple-head, metadata-retaining, raw-selector-pair, mapped/prefix and nested delayed ratios retain existing fallback."
+  ],
+  "receipts": {
+    "baseline-measurement": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/baseline-measurement.json",
+      "sha256": "cb995f624bdcd4d0fe79bd29b6b00f2476e18269795153678352a88ce9ec01ed"
+    },
+    "input-freeze": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/input-freeze.json",
+      "sha256": "dbced87c4536adc3d0e39b61bdcc61efb1ffbd731128bff2c900d17583ec48fc"
+    },
+    "original-capture": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/original-capture.json",
+      "sha256": "e31d48dae19ff3e2f2c298010b3c901f8bd47346c754b4708ac5dfa5dd40df03"
+    },
+    "baseline-probe": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/baseline-probe.json",
+      "sha256": "bd1ad57aeb735cade349eb9f47484c20be15c62f9fc1a9ab47fcd7e50f09d540"
+    },
+    "previous-candidate": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/previous-candidate.json",
+      "sha256": "10b620356fb854062baae720c4f7a9c1d0fab94f3c37c3f0c88b1fa05a7c3fa3"
+    },
+    "focused": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/focused.json",
+      "sha256": "a4da728b82aabd350aad33221ac2c52f550506f67ada4c86f9c1c106db3d7e29"
+    },
+    "candidate-static": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/candidate-static.json",
+      "sha256": "c8da10e9bead9dc145ca81eb99eff1bc9d284b1ab0e37a8f0a5a6317f465e2a6"
+    },
+    "pilot": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/pilot.json",
+      "sha256": "4c47f34cd1c63fbcbaeb5485a1caadcb53c762b8041a6cede53fbdac8ce587a3"
+    },
+    "slower-followup": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/slower-followup.json",
+      "sha256": "a0cb8960b6bd3d35dce368051f9ab01f030a2ee8ab8414ec8fb57965cdac5317"
+    },
+    "acceptance-policy": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/acceptance-policy.json",
+      "sha256": "b51bd0a94aaab1aa42b71468460f80d311d586b696027abf9fe054244e3143e9"
+    },
+    "specialized-code": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/specialized-code.json",
+      "sha256": "4d2cb92966fe0d79c69f8bda3f2bb49646d8896da0c204d6e034ae42f2d24b05"
+    },
+    "perf-release-builds": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/perf-release-builds.json",
+      "sha256": "85e018f63ef766ee54a7184f5b547271b7c88609a3069ebb8c1581a329076a4a"
+    },
+    "perf-release-min-builds": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/perf-release-min-builds.json",
+      "sha256": "cd87365c01f80231331f91626552935b32d53a2026ee3f309fec9ea42e095fd4"
+    },
+    "probe-candidate-release-analysis": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/probe-candidate-release-analysis.json",
+      "sha256": "d1ce77daa67240e5817fc2ae878b2c467770187e3fa4a043526e07bb9b6fbae0"
+    },
+    "probe-candidate-release-min-analysis": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/probe-candidate-release-min-analysis.json",
+      "sha256": "418152b6c21958d79a48d35f4092883c8e7d478b867d637e045d0fbfa5cfed6b"
+    },
+    "build-release": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/build-release.json",
+      "sha256": "6cd564ea9824cfd258717901360d4c4c4837df67967d3e54f18b27a9f96e9aa6"
+    },
+    "qualification-release": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/qualification-release.json",
+      "sha256": "fd28e5b7f515737f687af7773cdb45fbe709af4f973ec291541f16675ae441e7"
+    },
+    "build-release-min": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/build-release-min.json",
+      "sha256": "b5fff9a80e712b31e3eead9eb5e71d292b49a74fbb3a56ce20690f7032f98b15"
+    },
+    "qualification-release-min": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/qualification-release-min.json",
+      "sha256": "920d326f2c4485eb37386bbb7c45381a0f9e2d2c584199a4627e96358d12d246"
+    },
+    "build-arm32": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/build-arm32.json",
+      "sha256": "9a672ba8861d33cdab05dab9e738a6bedf3f366409c7ad9ec12fe18a52fe381e"
+    },
+    "qualification-arm32": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/qualification-arm32.json",
+      "sha256": "2f5985700d8fcfb8ba03e36845ebf56f472e4e1385c83911e4ad1a27f4af05eb"
+    },
+    "build-arm64": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/build-arm64.json",
+      "sha256": "611edf8fc3739a946e2bd92ee4b1ef859759a8ad3047d8b8fd7836df78ac9f48"
+    },
+    "qualification-arm64": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/qualification-arm64.json",
+      "sha256": "f19d218598d30b04b0b4e09daf4546a2f8bd032c47ef8d3979f85757d9aff45b"
+    },
+    "historical-source-snapshots": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/historical-source-snapshots.json",
+      "sha256": "b43ff9c84a3830adff8f6780dac1ac67d475c048b0475f80e9d56505ac3dd9f5"
+    },
+    "corpus-reproduction": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/corpus-reproduction.json",
+      "sha256": "1d40a3cf7e7e86a92b8f7f1e4143184ec42b468436170e55f6697f29663fc840"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/delayed-ratio-v2-hi74b5km/artifact-integrity.json",
+      "sha256": "0f641057a677abdb722db6a3504d1446e4d4c3e872b4c15505544ce42328a6e1"
+    }
+  }
+}

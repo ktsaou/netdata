@@ -3565,7 +3565,21 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                 self.account,
                             )?,
                             Some(RangePath::Completed) => {
-                                step.enable_interval(target, key, self.control, self.account)?
+                                if grouped && frame.options.delayed_name_removal {
+                                    step.enable_interval::<true>(
+                                        target,
+                                        key,
+                                        self.control,
+                                        self.account,
+                                    )?
+                                } else {
+                                    step.enable_interval::<false>(
+                                        target,
+                                        key,
+                                        self.control,
+                                        self.account,
+                                    )?
+                                }
                             }
                             _ => false,
                         };

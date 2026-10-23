@@ -9970,7 +9970,9 @@ A consumed expression such as `max_over_time((sum by(id)(rate(m_total[3s])) /
 sum by(id)(rate(n_total[3s])))[8s:1s])` now composes the existing grouped and binary completed-clock paths.
 Direct increase/delta leaves use the same admission, keeping their original arithmetic. Both sides must have
 qualified Float-output group plans; division must be one-to-one without fills. Parentheses are transparent.
-Native outputs, delayed-name removal, nested aggregates and unsupported clocks keep their existing evaluators.
+Native outputs, nested aggregates and unsupported clocks keep their existing evaluators. The later
+[grouped-ratio extension](#completed-grouped-ratios-with-delayed-metadata-removal) separately qualifies delayed mode
+when both groups already remove name/type/unit; this section retains its original early-mode measurements.
 
 Each group records only its own full child scan and selected-group finalization. The division records only
 actual unrestricted binary completion. A completed left group before a right-side failure does not certify the
@@ -12017,6 +12019,9 @@ the public snapshot field and ABI remain unchanged.
 
 ## Completed direct groups with delayed metadata removal
 
+The later [grouped-ratio extension](#completed-grouped-ratios-with-delayed-metadata-removal)
+qualifies direct ratios separately; this section retains its original direct-group scope and measurements.
+
 Direct grouped subqueries can reuse completed work when delayed metric-name removal is enabled and grouping
 already excludes `__name__`, `__type__`, and `__unit__`. For example,
 `max_over_time((sum by(id)(rate(m_total[3s])))[8s:1s])` qualifies. All eight ordinary aggregate operators,
@@ -12061,3 +12066,48 @@ cleanup, and 2,508 calibrated required-delivery failures. Existing admission tes
 name/type/unit retention, selected/unselected native values and unchanged compositions. The report records
 actual full native, focused ARM, C/C++ and static checks; ARM execution uses QEMU, not physical ARM timing.
 No live-dbengine or concurrent-query throughput claim is made.
+
+## Completed grouped ratios with delayed metadata removal
+
+Direct grouped rate-family ratios can reuse completed work when delayed name removal is enabled. For example,
+`max_over_time((sum by(id)(rate(m_total[3s])) / sum by(id)(rate(n_total[3s])))[4s:1s])` qualifies.
+Both ordinary groups must already exclude `__name__`, `__type__`, and `__unit__`; rate, increase and delta retain
+their existing arithmetic. The division must have unique one-to-one matching without fills. Prepared Float-only,
+single-head, clock and source-binding checks remain required. This also serves other typed range consumers.
+
+Group and pair completion remain separate. A completed left operand does not certify the right operand or the
+division; cancelled, failed and truncated traversals cannot earn missing credit. Selected values are read freshly.
+Raw selector pairs, metadata-retaining groups, nested groups and mapped/prefix paths retain their existing delayed
+handling. There is no raw history cache, new retained state field, default-option change or implicit cap.
+
+The [qualification](delayed-ratio-clocks-qualification.json) and [corpus](delayed_ratio_cases.py) record 280 functional
+cases, 56 timing cases and all source, binary, compiler and capture identities. Timing targets use server-default
+options with only delayed name removal enabled. Early-mode controls and delayed fallbacks are measured separately.
+Both build profiles pass 1,680 complete baseline-result/resource comparisons and pinned-original comparisons under
+the agreed ordering policy. The 882 unchanged strict whole-row ordering differences remain strict failures;
+there are zero numerical-bit differences. The 280 original outcomes come from 18 authenticated pinned Go captures,
+reused unchanged between the two implementation revisions.
+
+Across 2,240 primary timing pairs, target median elapsed ratios are 0.1871/release and 0.1862/release-min: about
+81% less time. Control medians are 0.9682/1.0063. One size-optimized early-mode control required the single prescribed
+follow-up; its 24 pairs give a ratio of 0.9838. Complete outputs and resource observations are checked even for the
+warmup executions excluded from timing statistics.
+
+Maximum measured Workspace peak growth is 2,312 bytes; other category peaks do not grow. For the eight-group
+SUM/rate instant query at page17, peak Workspace changes from 56,463 to 58,279 bytes, cumulative Workspace
+acquisition falls from 28,425,792 to 2,614,256 bytes, fetched entries fall from 64,512 to 17,472 and counted work
+falls from 5,224,277 to 355,240. Early-mode observations remain exact; declined shapes can add a small amount of
+accounted recognition work. These are finite accounted-query observations, not process RSS or universal bounds.
+
+The first implementation was rejected despite large target improvements: three controls remained 5.6–12.6%
+slower after their prescribed follow-ups. Its source, binaries and 2,672 timing pairs remain preserved. The accepted
+revision specializes the new private allowances at compile time, preserving the same eligibility and ownership
+rules while removing the runtime allowance argument from ordinary entries. Both revisions use the same corpus
+and thresholds. Generated-code differences provide a reason for this refinement, not proof of the original
+whole-query slowdown's cause.
+
+Three new causal tests cover actual pair admission, independent completion, cancellation and 1,440 calibrated
+required-delivery failures. Existing interval tests additionally cover both delayed settings, either side becoming
+absent, fresh values, exact key domains and delayed-prefix rejection. The report records complete native units,
+focused ARM execution under QEMU, actual C/C++ consumers, static/MSRV checks and proportional compiled costs.
+No live-dbengine, concurrent-query or physical ARM throughput claim is made.

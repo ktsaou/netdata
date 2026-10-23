@@ -960,11 +960,15 @@ impl<'a> Step<'a> {
         }
     }
 
-    fn interval_pair(&self, target: usize, key: ReplayKey) -> Option<[usize; 2]> {
+    fn interval_pair<const ALLOW_DELAYED: bool>(
+        &self,
+        target: usize,
+        key: ReplayKey,
+    ) -> Option<[usize; 2]> {
         if self.matching.cardinality != Cardinality::OneToOne
             || self.matching.fill_left.is_some()
             || self.matching.fill_right.is_some()
-            || key.delayed_name_removal
+            || key.delayed_name_removal && !ALLOW_DELAYED
             || !CompletedInterval::valid(key)
             || !(self.operator.is_comparison()
                 || matches!(
@@ -997,7 +1001,7 @@ impl<'a> Step<'a> {
         if self.operator != TokenKind::DIV {
             return Ok(false);
         }
-        let Some(pair) = self.interval_pair(target, key) else {
+        let Some(pair) = self.interval_pair::<false>(target, key) else {
             return Ok(false);
         };
         control.check()?;
@@ -1027,14 +1031,14 @@ impl<'a> Step<'a> {
         Ok(restricted)
     }
 
-    pub(crate) fn enable_interval(
+    pub(crate) fn enable_interval<const ALLOW_DELAYED: bool>(
         &mut self,
         target: usize,
         key: ReplayKey,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<bool, Interrupted> {
-        let Some(pair) = self.interval_pair(target, key) else {
+        let Some(pair) = self.interval_pair::<ALLOW_DELAYED>(target, key) else {
             return Ok(false);
         };
         let replay = self.plan.replay.as_ref().expect("interval plan");
@@ -2305,6 +2309,9 @@ mod tests {
         changed = at(6);
         changed.delayed_name_removal = true;
         assert!(!span.contains(changed));
+        let delayed_span = CompletedInterval::new(changed);
+        assert!(delayed_span.contains(changed));
+        assert!(!delayed_span.contains(at(6)));
         let mut invalid = base;
         for step in [0, -1, i64::MAX] {
             invalid.clock[3] = step;
@@ -2636,144 +2643,209 @@ mod tests {
         account.snapshot().assert_memory_released();
     }
 
+    fn completed_interval_for_mode(
+        step: &mut Step<'_>,
+        target: usize,
+        key: ReplayKey,
+        delayed: bool,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        if delayed {
+            step.enable_interval::<true>(target, key, control, account)
+        } else {
+            step.enable_interval::<false>(target, key, control, account)
+        }
+    }
+
     #[test]
     fn completed_interval_requires_full_final_success_and_clears_with_discovery() {
-        let engine = EngineAccounting::default();
-        let account = engine.query();
-        let control = Control::default();
-        let matching = VectorMatching::default();
-        let plan = interval_plan(&control, &account);
-        let key = discovery_key();
-        {
-            let mut cold = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
-            assert!(!cold.enable_interval(0, key, &control, &account).unwrap());
-            cold.enable_pair_discovery(key, &control, &account).unwrap();
-            cold.complete_interval(&control, &account).unwrap();
+        for delayed in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let matching = VectorMatching::default();
+            let plan = interval_plan(&control, &account);
+            let mut key = discovery_key();
+            key.delayed_name_removal = delayed;
+            let options = EvaluationOptions {
+                delayed_name_removal: delayed,
+                ..discovery_options()
+            };
+            {
+                let mut cold = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+                assert!(
+                    !completed_interval_for_mode(&mut cold, 0, key, delayed, &control, &account)
+                        .unwrap()
+                );
+                cold.enable_pair_discovery(key, &control, &account).unwrap();
+                cold.complete_interval(&control, &account).unwrap();
+                assert!(plan.replay.as_ref().unwrap().interval.borrow().is_none());
+                discovery_trace_with_options(
+                    &mut cold,
+                    [&[0, 1, 2]; 2],
+                    None,
+                    None,
+                    Some(0),
+                    options,
+                    &control,
+                    &account,
+                );
+                cold.complete_interval(&control, &account).unwrap();
+                assert!(plan.replay.as_ref().unwrap().interval.borrow().is_none());
+                discovery_trace_with_options(
+                    &mut cold,
+                    [&[0, 1, 2]; 2],
+                    None,
+                    None,
+                    None,
+                    options,
+                    &control,
+                    &account,
+                );
+                let cancelled = Control::default();
+                cancelled.cancellation.cancel();
+                assert!(cold.complete_interval(&cancelled, &account).is_err());
+                assert!(plan.replay.as_ref().unwrap().interval.borrow().is_none());
+                cold.complete_interval(&control, &account).unwrap();
+                assert!(
+                    plan.replay
+                        .as_ref()
+                        .unwrap()
+                        .interval
+                        .borrow()
+                        .as_ref()
+                        .unwrap()
+                        .contains(key)
+                );
+            }
+            if delayed {
+                let mut declined = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+                assert!(
+                    !declined
+                        .enable_prefix_interval(0, key, &control, &account)
+                        .unwrap()
+                );
+                assert!(
+                    !declined
+                        .enable_interval::<false>(0, key, &control, &account)
+                        .unwrap()
+                );
+            }
+            plan.clear_discovery();
             assert!(plan.replay.as_ref().unwrap().interval.borrow().is_none());
-            discovery_trace_scoped(
-                &mut cold,
-                [&[0, 1, 2]; 2],
-                None,
-                Some(0),
-                &control,
-                &account,
-            );
-            cold.complete_interval(&control, &account).unwrap();
-            assert!(plan.replay.as_ref().unwrap().interval.borrow().is_none());
-            discovery_trace(&mut cold, [&[0, 1, 2]; 2], &control, &account);
-            let cancelled = Control::default();
-            cancelled.cancellation.cancel();
-            assert!(cold.complete_interval(&cancelled, &account).is_err());
-            assert!(plan.replay.as_ref().unwrap().interval.borrow().is_none());
-            cold.complete_interval(&control, &account).unwrap();
-            assert!(
-                plan.replay
-                    .as_ref()
-                    .unwrap()
-                    .interval
-                    .borrow()
-                    .as_ref()
-                    .unwrap()
-                    .contains(key)
-            );
+            drop(plan);
+            account.snapshot().assert_memory_released();
         }
-        plan.clear_discovery();
-        assert!(plan.replay.as_ref().unwrap().interval.borrow().is_none());
-        drop(plan);
-        account.snapshot().assert_memory_released();
     }
 
     #[test]
     fn completed_interval_rediscovers_both_sides_without_publishing_partial_membership() {
-        let engine = EngineAccounting::default();
-        let account = engine.query();
-        let control = Control::default();
-        let matching = VectorMatching::default();
-        let plan = interval_plan(&control, &account);
-        let key = discovery_key();
-        {
-            let mut cold = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
-            assert!(!cold.enable_interval(0, key, &control, &account).unwrap());
-            cold.enable_pair_discovery(key, &control, &account).unwrap();
-            discovery_trace(&mut cold, [&[0, 1, 2]; 2], &control, &account);
-            cold.complete_interval(&control, &account).unwrap();
-        }
-        let saved = plan
-            .replay
-            .as_ref()
-            .unwrap()
-            .completed
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .members
-            .to_vec();
-        for absent in [false, true] {
-            let mut step = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
-            assert!(step.enable_interval(1, key, &control, &account).unwrap());
-            assert!(!step.has_pair_discovery());
-            let mut trace = Vec::new();
-            let mut output = None;
-            loop {
-                match step
-                    .advance(
-                        NodeId(0),
-                        discovery_options(),
-                        None,
-                        None,
-                        &control,
-                        &account,
-                    )
-                    .unwrap()
-                {
-                    Action::Child { side, ordinal } => {
-                        let ordinal = *ordinal.expect("restricted discovery and replay");
-                        let row = plan.sides[side]
-                            .rows
-                            .iter()
-                            .position(|row| row.ordinal == ordinal)
-                            .unwrap();
-                        trace.push((side, row));
-                        assert_eq!(row, 1);
-                        if !(absent && side == 0) {
-                            let mut sample = discovery_sample(&plan, side, row, &control, &account);
-                            sample.value = OwnedValue::Float(if side == 0 { 9.0 } else { 3.0 });
-                            step.receive(sample, &control, &account).unwrap();
+        for delayed in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let matching = VectorMatching::default();
+            let plan = interval_plan(&control, &account);
+            let mut key = discovery_key();
+            key.delayed_name_removal = delayed;
+            let options = EvaluationOptions {
+                delayed_name_removal: delayed,
+                ..discovery_options()
+            };
+            {
+                let mut cold = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+                assert!(
+                    !completed_interval_for_mode(&mut cold, 0, key, delayed, &control, &account)
+                        .unwrap()
+                );
+                cold.enable_pair_discovery(key, &control, &account).unwrap();
+                discovery_trace_with_options(
+                    &mut cold,
+                    [&[0, 1, 2]; 2],
+                    None,
+                    None,
+                    None,
+                    options,
+                    &control,
+                    &account,
+                );
+                cold.complete_interval(&control, &account).unwrap();
+            }
+            let saved = plan
+                .replay
+                .as_ref()
+                .unwrap()
+                .completed
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .members
+                .to_vec();
+            for absent in [None, Some(0), Some(1)] {
+                let mut step = Step::new(&plan, &matching, TokenKind::DIV, false, &account);
+                assert!(
+                    completed_interval_for_mode(&mut step, 1, key, delayed, &control, &account)
+                        .unwrap()
+                );
+                assert!(!step.has_pair_discovery());
+                let mut trace = Vec::new();
+                let mut output = None;
+                loop {
+                    match step
+                        .advance(NodeId(0), options, None, None, &control, &account)
+                        .unwrap()
+                    {
+                        Action::Child { side, ordinal } => {
+                            let ordinal = *ordinal.expect("restricted discovery and replay");
+                            let row = plan.sides[side]
+                                .rows
+                                .iter()
+                                .position(|row| row.ordinal == ordinal)
+                                .unwrap();
+                            trace.push((side, row));
+                            assert_eq!(row, 1);
+                            if absent != Some(side) {
+                                let mut sample =
+                                    discovery_sample(&plan, side, row, &control, &account);
+                                sample.value = OwnedValue::Float(if side == 0 { 9.0 } else { 3.0 });
+                                step.receive(sample, &control, &account).unwrap();
+                            }
+                        }
+                        Action::Sample(sample) => {
+                            output = Some(sample.value);
+                        }
+                        Action::Done(note) => {
+                            assert!(note.is_none());
+                            break;
                         }
                     }
-                    Action::Sample(sample) => {
-                        output = Some(sample.value);
-                    }
-                    Action::Done(note) => {
-                        assert!(note.is_none());
-                        break;
-                    }
                 }
+                if absent.is_some() {
+                    assert!(output.is_none());
+                    assert_eq!(trace, [(0, 1), (1, 1)]);
+                } else {
+                    assert!(matches!(output, Some(OwnedValue::Float(value)) if value == 3.0));
+                    assert_eq!(trace, [(0, 1), (1, 1), (0, 1), (1, 1)]);
+                }
+                step.complete_replay(&control, &account).unwrap();
+                step.complete_interval(&control, &account).unwrap();
+                assert_eq!(
+                    &*plan
+                        .replay
+                        .as_ref()
+                        .unwrap()
+                        .completed
+                        .borrow()
+                        .as_ref()
+                        .unwrap()
+                        .members,
+                    &saved
+                );
             }
-            if absent {
-                assert!(output.is_none());
-                assert_eq!(trace, [(0, 1), (1, 1)]);
-            } else {
-                assert!(matches!(output, Some(OwnedValue::Float(value)) if value == 3.0));
-                assert_eq!(trace, [(0, 1), (1, 1), (0, 1), (1, 1)]);
-            }
-            step.complete_replay(&control, &account).unwrap();
-            step.complete_interval(&control, &account).unwrap();
-            assert_eq!(
-                &*plan
-                    .replay
-                    .as_ref()
-                    .unwrap()
-                    .completed
-                    .borrow()
-                    .as_ref()
-                    .unwrap()
-                    .members,
-                &saved
-            );
+            drop(plan);
+            account.snapshot().assert_memory_released();
         }
-        drop(plan);
-        account.snapshot().assert_memory_released();
     }
 
     fn labels(value: &[u8], account: &QueryAccounting) -> OwnedLabels {
@@ -3182,6 +3254,29 @@ mod tests {
         control: &Control,
         account: &QueryAccounting,
     ) -> DiscoveryTrace {
+        discovery_trace_with_options(
+            step,
+            members,
+            preparation,
+            progress,
+            stop_at,
+            discovery_options(),
+            control,
+            account,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn discovery_trace_with_options<'a>(
+        step: &mut Step<'a>,
+        members: [&[usize]; 2],
+        preparation: Option<Preparation<'a>>,
+        progress: Option<Progress<'_>>,
+        stop_at: Option<usize>,
+        options: EvaluationOptions,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> DiscoveryTrace {
         let mut trace = DiscoveryTrace {
             scans: 0,
             rereads: Vec::new(),
@@ -3189,14 +3284,7 @@ mod tests {
         };
         loop {
             match step
-                .advance(
-                    NodeId(0),
-                    discovery_options(),
-                    preparation,
-                    progress,
-                    control,
-                    account,
-                )
+                .advance(NodeId(0), options, preparation, progress, control, account)
                 .unwrap()
             {
                 Action::Child { side, ordinal } => {

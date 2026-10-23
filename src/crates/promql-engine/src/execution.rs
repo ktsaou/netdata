@@ -885,6 +885,7 @@ impl CompiledQuery {
             header,
             evaluator_header,
             false,
+            false,
             prepared,
             &mut rosters,
             control,
@@ -1182,6 +1183,7 @@ impl CompiledQuery {
         shape_header: OutputHeader,
         header: OutputHeader,
         prefix: bool,
+        delayed_grouped_pair: bool,
         prepared: &Prepared,
         rosters: &mut Rosters,
         control: &Control,
@@ -1189,11 +1191,12 @@ impl CompiledQuery {
     ) -> Result<(), EvaluationError> {
         // Final root Matrix children drain through Done; nested demand retains its separate gate.
         if (!prefix || rosters.replay_grid_matches(node, header, prepared))
-            && let Some((left, right, matching)) = (if !prefix && node == self.expression.root {
-                self.binary_pair_children(node, shape_header)
-            } else {
-                self.binary_replay_children(node, shape_header)
-            })
+            && let Some((left, right, matching)) =
+                (if !prefix && node == self.expression.root || delayed_grouped_pair {
+                    self.binary_pair_children(node, shape_header)
+                } else {
+                    self.binary_replay_children(node, shape_header)
+                })
             && [node, left, right].into_iter().all(|node| {
                 !prepared.flags().invariants[node.0]
                     && !prepared.flags().boundaries[node.0]
@@ -1525,14 +1528,14 @@ impl CompiledQuery {
         }
     }
 
-    fn grouped_ratio_children(
+    fn grouped_ratio_children<const ALLOW_DELAYED: bool>(
         &self,
         mut node: NodeId,
         prepared: &Prepared,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Option<[NodeId; 2]>, Interrupted> {
-        if self.options.delayed_name_removal {
+        if self.options.delayed_name_removal && !ALLOW_DELAYED {
             return Ok(None);
         }
         loop {
@@ -1565,7 +1568,14 @@ impl CompiledQuery {
                     account,
                 )?;
                 if self
-                    .grouped_interval_child(*child, false, false, prepared, control, account)?
+                    .grouped_interval_child(
+                        *child,
+                        false,
+                        ALLOW_DELAYED,
+                        prepared,
+                        control,
+                        account,
+                    )?
                     .is_none()
                 {
                     return Ok(None);
@@ -1573,6 +1583,53 @@ impl CompiledQuery {
             }
             return Ok(Some(pair));
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn delayed_grouped_pair(
+        &self,
+        node: NodeId,
+        header: OutputHeader,
+        prepared: &Prepared,
+        rosters: &Rosters,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        let Some(pair) = self.grouped_ratio_children::<true>(node, prepared, control, account)?
+        else {
+            return Ok(false);
+        };
+        for mut child in pair {
+            loop {
+                control.check()?;
+                account.work(1);
+                if prepared.flags().invariants[child.0]
+                    || prepared.flags().boundaries[child.0]
+                    || rosters.matrix(child).is_some()
+                    || !rosters.replay_grid_matches(child, header, prepared)
+                {
+                    return Ok(false);
+                }
+                if let Expr::Paren(next) = self.expression.arena[child].expression {
+                    child = prepared.preprocessing.child(
+                        &self.expression,
+                        child,
+                        next,
+                        control,
+                        account,
+                    )?;
+                } else {
+                    if !rosters
+                        .group_replay(child)
+                        .is_some_and(|plan| plan.supports_interval())
+                    {
+                        return Ok(false);
+                    }
+                    break;
+                }
+            }
+        }
+        Ok(true)
     }
 
     fn grouped_map_child(
@@ -1615,7 +1672,7 @@ impl CompiledQuery {
                 .grouped_interval_child(child, false, false, prepared, control, account)?
                 .is_some()
                 || self
-                    .grouped_ratio_children(child, prepared, control, account)?
+                    .grouped_ratio_children::<false>(child, prepared, control, account)?
                     .is_some()
             {
                 return Ok(Some(child));
@@ -2658,7 +2715,7 @@ impl CompiledQuery {
                                 .nested_grouped_interval_child(child, prepared, control, account)?
                                 .is_some()
                             || self
-                                .grouped_ratio_children(child, prepared, control, account)?
+                                .grouped_ratio_children::<true>(child, prepared, control, account)?
                                 .is_some()
                             || self
                                 .grouped_histogram_child(child, prepared, control, account)?
@@ -2799,7 +2856,7 @@ impl CompiledQuery {
                     };
                     let grouped_pair =
                         if contributor_demand && matches!(demand, Demand::GroupedSubquery) {
-                            self.grouped_ratio_children(node, prepared, control, account)?
+                            self.grouped_ratio_children::<true>(node, prepared, control, account)?
                         } else {
                             None
                         };
@@ -3162,6 +3219,10 @@ impl CompiledQuery {
             } else {
                 (None, None)
             };
+            // Both operands must already have earned metadata-eliminating group plans.
+            let delayed_grouped_pair = self.options.delayed_name_removal
+                && matches!(task, Task::Finish(_, _, Demand::GroupedSubquery))
+                && self.delayed_grouped_pair(node, header, prepared, &rosters, control, account)?;
             let binary_cache = std::cell::RefCell::new(crate::vector_matching::Cache::new(account));
             let binary_preparation = if let Expr::Binary {
                 left,
@@ -3201,7 +3262,8 @@ impl CompiledQuery {
                     matching,
                     set_discovery,
                     node != self.expression.root
-                        && (self.binary_replay_target(header, prepared, control, account)?
+                        && (delayed_grouped_pair
+                            || self.binary_replay_target(header, prepared, control, account)?
                             == Some(node)
                             // Ordered children select rows even when their parent consumes All.
                             || header.start_ms != header.end_ms
@@ -3970,6 +4032,7 @@ impl CompiledQuery {
                     header,
                     header,
                     true,
+                    delayed_grouped_pair,
                     prepared,
                     &mut rosters,
                     control,
@@ -14407,6 +14470,88 @@ mod tests {
     }
 
     #[test]
+    fn delayed_ratio_clocks_required_delivery_failures() {
+        for aggregate in ["sum", "avg"] {
+            grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case_with_delayed(
+                aggregate, true, None, true,
+            );
+        }
+    }
+
+    #[test]
+    fn delayed_ratio_clocks_completion() {
+        for aggregate in ["sum", "avg"] {
+            for cancel in [false, true] {
+                grouped_ratio_clocks_keep_group_and_pair_completion_separate_case_with_delayed(
+                    aggregate, true, None, true, true, cancel,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn delayed_ratio_clocks_admission() {
+        let left = "sum by(id)(rate(m_total[3s]))";
+        let right = "sum by(id)(rate(n_total[3s]))";
+        let ratio = format!("{left}/{right}");
+        let bodies = [
+            (ratio.clone(), 1),
+            (format!("(({left}))/(({right}))"), 1),
+            (format!("abs({ratio})"), 0),
+            (format!("({ratio})*2"), 0),
+            (format!("-({ratio})"), 0),
+            (format!("sum by(id)({left})/{right}"), 0),
+            (
+                format!("label_join({left},\"site\",\"/\",\"id\")/{right}"),
+                0,
+            ),
+            (format!("{left}/n_total"), 0),
+            ("m_total/n_total".to_string(), 0),
+            ("sum by(id)(m_total)/sum by(id)(n_total)".to_string(), 0),
+            (format!("{left}/on(id) group_left {right}"), 0),
+            (format!("sum by(id)(rate(m_total[3s] @ 6))/{right}"), 0),
+        ];
+        let retained = ["__name__", "__type__", "__unit__"]
+            .into_iter()
+            .flat_map(|name| {
+                [
+                    (
+                        format!("sum by(id,{name})(rate(m_total[3s])) / on(id) {right}"),
+                        0,
+                    ),
+                    (
+                        format!("{left} / on(id) sum by(id,{name})(rate(n_total[3s]))"),
+                        0,
+                    ),
+                ]
+            });
+        for (body, expected) in bodies.into_iter().chain(retained) {
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    format!("max_over_time(({body})[4s:1s])").as_bytes(),
+                    EngineOptions {
+                        delayed_name_removal: true,
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let provider = grouped_ratio_provider(17, 2);
+            let (_, _, pairs) = float_map_join_preparation_with_discovery(
+                &query,
+                &provider,
+                QueryRequest::Instant { time_ms: 8000 },
+                &control,
+            );
+            assert_eq!(pairs, expected, "{body}");
+            drop(query);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
     fn grouped_ratio_clocks_preserve_every_required_delivery_read_failure() {
         for aggregate in ["sum", "avg"] {
             grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case(
@@ -14420,6 +14565,20 @@ mod tests {
         full_matrix: bool,
         wrapper: Option<&str>,
     ) {
+        grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case_with_delayed(
+            aggregate,
+            full_matrix,
+            wrapper,
+            false,
+        );
+    }
+
+    fn grouped_ratio_clocks_preserve_every_required_delivery_read_failure_case_with_delayed(
+        aggregate: &str,
+        full_matrix: bool,
+        wrapper: Option<&str>,
+        delayed: bool,
+    ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             let request = QueryRequest::Instant { time_ms: 8000 };
             for &page in grouped_clock_pages(full_matrix) {
@@ -14429,7 +14588,7 @@ mod tests {
                     .compile(
                         grouped_map_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[4s:1s])"), wrapper)
                             .as_bytes(),
-                        EngineOptions::default(),
+                        EngineOptions { delayed_name_removal: delayed, ..EngineOptions::default() },
                         &control,
                     )
                     .unwrap();
@@ -14753,6 +14912,24 @@ mod tests {
         wrapper: Option<&str>,
         pair_intervals: bool,
     ) {
+        grouped_ratio_clocks_keep_group_and_pair_completion_separate_case_with_delayed(
+            aggregate,
+            full_matrix,
+            wrapper,
+            pair_intervals,
+            false,
+            false,
+        );
+    }
+
+    fn grouped_ratio_clocks_keep_group_and_pair_completion_separate_case_with_delayed(
+        aggregate: &str,
+        full_matrix: bool,
+        wrapper: Option<&str>,
+        pair_intervals: bool,
+        delayed: bool,
+        cancel: bool,
+    ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             for (page, fault) in grouped_clock_pages(full_matrix)
                 .iter()
@@ -14765,7 +14942,7 @@ mod tests {
                     .compile(
                         grouped_map_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])) / {aggregate} by(id)({rate_function}(n_total[3s])))[4s:1s])"), wrapper)
                             .as_bytes(),
-                        EngineOptions::default(),
+                        EngineOptions { delayed_name_removal: delayed, ..EngineOptions::default() },
                         &control,
                     )
                     .unwrap();
@@ -14900,8 +15077,18 @@ mod tests {
                         let mut rows = 0;
                         while machine.next().unwrap().is_some() {
                             rows += 1;
+                            if cancel {
+                                control.cancellation.cancel();
+                                assert!(matches!(
+                                    machine.next(),
+                                    Err(EvaluationError::Interrupted(
+                                        crate::storage::Interrupted::Cancelled
+                                    ))
+                                ));
+                                break;
+                            }
                         }
-                        assert_eq!(rows, 2);
+                        assert_eq!(rows, if cancel { 1 } else { 2 });
                         let subquery = compiled
                             .expression
                             .arena
@@ -14910,10 +15097,10 @@ mod tests {
                             .position(|node| matches!(node.expression, Expr::Subquery { .. }))
                             .unwrap();
                         let grid = prepared
-                            .subquery_scope(NodeId(subquery), &control, &account)
+                            .subquery_scope(NodeId(subquery), &Control::default(), &account)
                             .unwrap();
                         assert_eq!(grid.end_ms, 8000);
-                        for index in 0..grid.steps().unwrap() {
+                        for index in 0..if cancel { 0 } else { grid.steps().unwrap() } {
                             let time_ms = grid.start_ms + index * grid.interval_ms;
                             let key = crate::vector_matching::ReplayKey::new(
                                 compiled.evaluation_options(
@@ -14942,7 +15129,9 @@ mod tests {
                         }
                     }
                     drop(machine);
-                    rosters.clear_replay_progress(&control, &account).unwrap();
+                    rosters
+                        .clear_replay_progress(&Control::default(), &account)
+                        .unwrap();
                     assert!(
                         !left.is_some_and(|plan| plan.has_interval())
                             && !left.is_some_and(|plan| plan.has_completion())
@@ -15888,6 +16077,7 @@ mod tests {
                             root,
                             shape_header,
                             header,
+                            false,
                             false,
                             &prepared,
                             &mut rosters,
