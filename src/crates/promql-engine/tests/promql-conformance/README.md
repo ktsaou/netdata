@@ -12216,3 +12216,27 @@ Full native suites, focused ARM32/ARM64 execution under QEMU, actual C/C++ group
 C suites, strict lint, formatting and the installed Rust 1.91 compile-only check are recorded with exact source
 and binary identities in the report. Fixed compiled costs are separate from query RAM. There is no claim about
 exhaustive equivalence, live-dbengine throughput, concurrent throughput, process RSS or physical ARM speed.
+
+## Rejected certified result-hash omission
+
+The [finite experiment](certified-result-hash-rejected-qualification.json) omitted result-label hashing only
+for frozen borrowed labels inside an already certified pair frontier. Its two hash consumers ignore that
+value; mutable preparation and generic execution retained hashing. No fields, caches or raw history were added.
+
+The candidate failed the frozen target timing gate: release target/control median ratios were
+**1.010255 / 1.023196**, and release-min **0.990161 / 1.009060**. The required target ratio was at most 0.98
+in both profiles. No individual case exceeded 1.05, so no prescribed followup applied. All runtime and test
+changes were restored exactly to the accepted baseline. The cause of the timing outcome is unproven.
+
+The unchanged [24-case generator](frozen_pair_ordinal_cases.py) supplied 960 complete baseline/candidate
+comparisons. All results, category memory observations, allocation traffic and physical counts matched;
+work never increased. The 32-pair, 1024-byte-label grouped example kept Workspace peak 217,768 bytes and
+25,088 fetched entries, while accounted work fell from 8,974,681 to 8,453,385. These are finite query observations,
+not RSS measurements or a universal performance claim.
+
+Focused release execution passed 49 distinct tests (52 executions), including 64 emission combinations,
+128 early cancellation attempts and invalid cached-result name/value checks before certification. The first
+cold-state test failure and its correction remain recorded. The full 1,933-case retained-original panel was
+authenticated and prepared, but not executed against the candidate. No supplementary timing, full native,
+ARM, C/C++, static/MSRV or default-C size qualification ran after rejection. Prepared helpers do not count
+as execution evidence. The earlier accepted [pair lookup](#certified-frozen-pair-label-lookup) remains intact.

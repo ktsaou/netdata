@@ -74345,5 +74345,14 @@
     "numeric_bit_differences": 0,
     "timing_pairs": 960,
     "shared_control_pairs": 320
+  },
+  "certified_result_hash_rejected": {
+    "status": "rejected_candidate_runtime_restored",
+    "report": "certified-result-hash-rejected-qualification.json",
+    "report_sha256": "00727035b4051ccfa7969524f6fa320b52f59fb90d528fad533311240c361e45",
+    "baseline_commit": "e1bf4cd6453890893a18b9e3ccb490370ef97769",
+    "primary_timing_pairs": 960,
+    "original_differential_pairs": 0,
+    "runtime_restored": true
   }
 }

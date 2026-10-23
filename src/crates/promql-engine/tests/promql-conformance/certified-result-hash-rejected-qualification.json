@@ -1,0 +1,529 @@
+{
+  "schema_version": 1,
+  "status": "rejected_candidate_runtime_restored",
+  "comparison_base": "e1bf4cd6453890893a18b9e3ccb490370ef97769",
+  "candidate_change": "Omit the Pair result-label hash only for an active certified frontier with actual Borrowed frozen result labels; preserve generic and mutable preparation hashing.",
+  "rejection": {
+    "reason": "Both target medians exceed the frozen 0.98 improvement threshold.",
+    "decision": "Reject without retry or relaxed gates; restore all runtime and test hunks exactly to accepted 206.",
+    "cause": "Unproven. Reduced accounted byte work does not establish faster complete queries.",
+    "followup": "No individual primary case exceeds 1.05; no prescribed followup required."
+  },
+  "timing": {
+    "release": {
+      "target_median": 1.0102550193773545,
+      "control_median": 1.0231956093505155,
+      "complete_pairs": 480,
+      "cases": [
+        {
+          "id": "n8-w16-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 1.0434868092700609,
+          "before_median_ns": 1983590,
+          "candidate_median_ns": 2069850
+        },
+        {
+          "id": "n8-w16-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.0290073123649568,
+          "before_median_ns": 7780383,
+          "candidate_median_ns": 8006071
+        },
+        {
+          "id": "n8-w16-m+n-0",
+          "target": false,
+          "ratio": 1.0206174428377681,
+          "before_median_ns": 1675232,
+          "candidate_median_ns": 1709771
+        },
+        {
+          "id": "n8-w16-m+n-1",
+          "target": false,
+          "ratio": 1.0185456532852133,
+          "before_median_ns": 1697972,
+          "candidate_median_ns": 1729462
+        },
+        {
+          "id": "n8-w256-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 1.0148873809408039,
+          "before_median_ns": 1994911,
+          "candidate_median_ns": 2024610
+        },
+        {
+          "id": "n8-w256-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.036753181009942,
+          "before_median_ns": 7800903,
+          "candidate_median_ns": 8087611
+        },
+        {
+          "id": "n8-w256-m+n-0",
+          "target": false,
+          "ratio": 1.0190110177356246,
+          "before_median_ns": 1710061,
+          "candidate_median_ns": 1742571
+        },
+        {
+          "id": "n8-w256-m+n-1",
+          "target": false,
+          "ratio": 1.0258102609167046,
+          "before_median_ns": 1737681,
+          "candidate_median_ns": 1782531
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 1.020852388829425,
+          "before_median_ns": 2055400,
+          "candidate_median_ns": 2098260
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.0241201555929633,
+          "before_median_ns": 8070802,
+          "candidate_median_ns": 8265471
+        },
+        {
+          "id": "n8-w1024-m+n-0",
+          "target": false,
+          "ratio": 1.0232974174193776,
+          "before_median_ns": 1777021,
+          "candidate_median_ns": 1818421
+        },
+        {
+          "id": "n8-w1024-m+n-1",
+          "target": false,
+          "ratio": 1.0315931394291085,
+          "before_median_ns": 1814951,
+          "candidate_median_ns": 1872291
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 1.0173525540995443,
+          "before_median_ns": 7626543,
+          "candidate_median_ns": 7758883
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.0201863078986655,
+          "before_median_ns": 109578929,
+          "candidate_median_ns": 111790923
+        },
+        {
+          "id": "n32-w16-m+n-0",
+          "target": false,
+          "ratio": 1.0106537374756144,
+          "before_median_ns": 6726278,
+          "candidate_median_ns": 6797938
+        },
+        {
+          "id": "n32-w16-m+n-1",
+          "target": false,
+          "ratio": 1.0230938012816533,
+          "before_median_ns": 6829928,
+          "candidate_median_ns": 6987657
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.9992125109125185,
+          "before_median_ns": 7998841,
+          "candidate_median_ns": 7992542
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.0265489271530115,
+          "before_median_ns": 112728284,
+          "candidate_median_ns": 115721099
+        },
+        {
+          "id": "n32-w256-m+n-0",
+          "target": false,
+          "ratio": 1.0266170944714437,
+          "before_median_ns": 6854918,
+          "candidate_median_ns": 7037376
+        },
+        {
+          "id": "n32-w256-m+n-1",
+          "target": false,
+          "ratio": 1.0353730254347733,
+          "before_median_ns": 6906647,
+          "candidate_median_ns": 7150956
+        },
+        {
+          "id": "n32-w1024-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 1.0056226578139051,
+          "before_median_ns": 8149171,
+          "candidate_median_ns": 8194991
+        },
+        {
+          "id": "n32-w1024-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.018081258644981,
+          "before_median_ns": 116722350,
+          "candidate_median_ns": 118832837
+        },
+        {
+          "id": "n32-w1024-m+n-0",
+          "target": false,
+          "ratio": 1.018915719585572,
+          "before_median_ns": 7438205,
+          "candidate_median_ns": 7578904
+        },
+        {
+          "id": "n32-w1024-m+n-1",
+          "target": false,
+          "ratio": 1.0209065147153664,
+          "before_median_ns": 7594714,
+          "candidate_median_ns": 7753493
+        }
+      ]
+    },
+    "release-min": {
+      "target_median": 0.9901608607486894,
+      "control_median": 1.0090602362834877,
+      "complete_pairs": 480,
+      "cases": [
+        {
+          "id": "n8-w16-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 0.9979171967134005,
+          "before_median_ns": 3120794,
+          "candidate_median_ns": 3114294
+        },
+        {
+          "id": "n8-w16-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.0077625765947165,
+          "before_median_ns": 12329669,
+          "candidate_median_ns": 12425379
+        },
+        {
+          "id": "n8-w16-m+n-0",
+          "target": false,
+          "ratio": 1.0273378872777685,
+          "before_median_ns": 2601847,
+          "candidate_median_ns": 2672976
+        },
+        {
+          "id": "n8-w16-m+n-1",
+          "target": false,
+          "ratio": 1.0356183231524978,
+          "before_median_ns": 2636817,
+          "candidate_median_ns": 2730736
+        },
+        {
+          "id": "n8-w256-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.9935359134439095,
+          "before_median_ns": 3149865,
+          "candidate_median_ns": 3129504
+        },
+        {
+          "id": "n8-w256-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.0144665083648,
+          "before_median_ns": 12455528,
+          "candidate_median_ns": 12635716
+        },
+        {
+          "id": "n8-w256-m+n-0",
+          "target": false,
+          "ratio": 1.0205892506344885,
+          "before_median_ns": 2667897,
+          "candidate_median_ns": 2722827
+        },
+        {
+          "id": "n8-w256-m+n-1",
+          "target": false,
+          "ratio": 1.0201484024377498,
+          "before_median_ns": 2707907,
+          "candidate_median_ns": 2762467
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.9954499459284272,
+          "before_median_ns": 3307653,
+          "candidate_median_ns": 3292603
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.0116754615143002,
+          "before_median_ns": 13069205,
+          "candidate_median_ns": 13221794
+        },
+        {
+          "id": "n8-w1024-m+n-0",
+          "target": false,
+          "ratio": 1.014528504202988,
+          "before_median_ns": 2879856,
+          "candidate_median_ns": 2921696
+        },
+        {
+          "id": "n8-w1024-m+n-1",
+          "target": false,
+          "ratio": 1.007622874982642,
+          "before_median_ns": 2988505,
+          "candidate_median_ns": 3011286
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 1.0011822318914303,
+          "before_median_ns": 12070390,
+          "candidate_median_ns": 12084660
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.005400676420833,
+          "before_median_ns": 179659162,
+          "candidate_median_ns": 180629443
+        },
+        {
+          "id": "n32-w16-m+n-0",
+          "target": false,
+          "ratio": 1.0049922344582933,
+          "before_median_ns": 10660557,
+          "candidate_median_ns": 10713777
+        },
+        {
+          "id": "n32-w16-m+n-1",
+          "target": false,
+          "ratio": 1.0181533986967888,
+          "before_median_ns": 10694967,
+          "candidate_median_ns": 10889117
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.9867858080534694,
+          "before_median_ns": 12340520,
+          "candidate_median_ns": 12177450
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.010357895972259,
+          "before_median_ns": 179134064,
+          "candidate_median_ns": 180989516
+        },
+        {
+          "id": "n32-w256-m+n-0",
+          "target": false,
+          "ratio": 1.0038277211646265,
+          "before_median_ns": 10993225,
+          "candidate_median_ns": 11035304
+        },
+        {
+          "id": "n32-w256-m+n-1",
+          "target": false,
+          "ratio": 1.0142745115582048,
+          "before_median_ns": 11177125,
+          "candidate_median_ns": 11336673
+        },
+        {
+          "id": "n32-w1024-sum by(job)(m+n)-0",
+          "target": true,
+          "ratio": 0.9831766948346323,
+          "before_median_ns": 13165665,
+          "candidate_median_ns": 12944175
+        },
+        {
+          "id": "n32-w1024-sum by(job)(m+n)-1",
+          "target": false,
+          "ratio": 1.0040016559679923,
+          "before_median_ns": 188740363,
+          "candidate_median_ns": 189495637
+        },
+        {
+          "id": "n32-w1024-m+n-0",
+          "target": false,
+          "ratio": 0.9938877411526079,
+          "before_median_ns": 12208089,
+          "candidate_median_ns": 12133470
+        },
+        {
+          "id": "n32-w1024-m+n-1",
+          "target": false,
+          "ratio": 0.9994200108253846,
+          "before_median_ns": 12345058,
+          "candidate_median_ns": 12337898
+        }
+      ]
+    }
+  },
+  "qualification": {
+    "primary_timing_pairs": 960,
+    "primary_shapes": 24,
+    "focused_executions": 52,
+    "focused_distinct_tests": 49,
+    "focused": [
+      {
+        "filter": "pair_discovery_validates_frozen_result_fields_before_certification",
+        "passed": 1,
+        "ignored": 0
+      },
+      {
+        "filter": "certified_pair_emission_omits_unused_result_hash",
+        "passed": 1,
+        "ignored": 0
+      },
+      {
+        "filter": "frozen_ordinal_lookup",
+        "passed": 1,
+        "ignored": 0
+      },
+      {
+        "filter": "ordered_binary_consumers_check_complete_results_before_bounded_reads",
+        "passed": 1,
+        "ignored": 0
+      },
+      {
+        "filter": "vector_matching::tests::",
+        "passed": 47,
+        "ignored": 0
+      },
+      {
+        "filter": "ordered_binary_inner_machines_preserve_cold_warm_and_next_clock_failures",
+        "passed": 1,
+        "ignored": 0
+      }
+    ],
+    "new_emission_combinations": 64,
+    "new_early_interruption_attempts": 128,
+    "new_invalid_cached_result_cases": 2,
+    "complete_query_hit_controls": 80,
+    "retained_originals_authenticated_only": 1933,
+    "fresh_originals": 0,
+    "original_differential_pairs": 0,
+    "shared_control_pairs": 0,
+    "followup_pairs": 0,
+    "candidate_full_native_units": false,
+    "candidate_ARM_units": false,
+    "candidate_C_CPP_checks": false,
+    "candidate_static_checks": false,
+    "candidate_default_C_size_checks": false
+  },
+  "resources": {
+    "complete_pairs": 960,
+    "category_memory_and_physical_observations_exact": true,
+    "work_nonincreasing": true,
+    "example": {
+      "id": "n32-w1024-sum by(job)(m+n)-0",
+      "workspace_peak": [
+        217768,
+        217768
+      ],
+      "workspace_acquired": [
+        6067434,
+        6067434
+      ],
+      "samples_fetched": [
+        25088,
+        25088
+      ],
+      "work": [
+        8974681,
+        8453385
+      ]
+    },
+    "scope": "Finite exact accounted snapshots/traffic, not RSS or a universal memory guarantee."
+  },
+  "development_corrections": [
+    "The first unit failed because it reused warmed membership for later intended cold runs. The successor clears discovery before each cold attempt.",
+    "Lookup work is calibrated separately to test both encoded frozen and mutable preparation hashing; invalid result fields are checked before certification.",
+    "The first restore helper failed before any runtime mutation because its literal matcher did not allow rustfmt line wrapping; its successor validated retained files and removed only the explicit owned hunks."
+  ],
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/pair-result-hash-yblueqmi/baseline-source.json",
+      "sha256": "074544b8ae34a38f89b4172bd8ef6518bdd588129f87ba0e6c75ee0abd099053"
+    },
+    "candidate": {
+      "path": ".tmp/pair-result-hash-yblueqmi/candidate-source.json",
+      "sha256": "3fbaa0dd11ceec6cbe7e041143b2290f2b6ee5e2dcccb653e0a5054809dcf263"
+    },
+    "candidate-v2": {
+      "path": ".tmp/pair-result-hash-yblueqmi/candidate-v2-source.json",
+      "sha256": "4051c6f1f5f7328982fbb9b473cb2fb671aad2d0c5ed906b71ab570d486282f3"
+    }
+  },
+  "canonical_cases": {
+    "path": "src/crates/promql-engine/tests/promql-conformance/frozen_pair_ordinal_cases.py",
+    "sha256": "45891406e1aa9ab7aafcf4a979e0643d78b1312f127310e2df5a108653bbfebc",
+    "reused_unchanged": true
+  },
+  "scope_limits": [
+    "No runtime optimization ships.",
+    "No new full original differential, native complete suite, ARM, C/C++, lint/MSRV or default-C size qualification was run after the failed early gate.",
+    "Only primary timing comparisons ran; prepared shared controls and broad qualification helpers were not executed.",
+    "No universal compatibility/speedup, live-dbengine/concurrent throughput, process RSS or physical ARM performance claim."
+  ],
+  "receipts": {
+    "baseline-binding": {
+      "path": ".tmp/pair-result-hash-yblueqmi/baseline-binding.json",
+      "sha256": "7250c485d6e69081e16d87663cf3f2a31b91cf1d6069e9188b690e5e5c2c81a4"
+    },
+    "setup-binding": {
+      "path": ".tmp/pair-result-hash-yblueqmi/setup-binding.json",
+      "sha256": "eefb28ec666597c5571e530641ffc33824945b6b384f804daadafaca03907932"
+    },
+    "harness-review": {
+      "path": ".tmp/pair-result-hash-yblueqmi/harness-review.json",
+      "sha256": "2d4c9c82131fc92ada0c584b2ad3937daf411929ab00c9faefe5a0b39fb98c14"
+    },
+    "development-review": {
+      "path": ".tmp/pair-result-hash-yblueqmi/development-review.json",
+      "sha256": "ce6e63a9bd78c259ab288fa4846299dc9297988f76b72d2e3667cca514b39996"
+    },
+    "focused": {
+      "path": ".tmp/pair-result-hash-yblueqmi/focused.json",
+      "sha256": "63ae161d6820083bc85e00fee29ef7e633b0749ef3c79528b44d611aeeecd3b6"
+    },
+    "pilot": {
+      "path": ".tmp/pair-result-hash-yblueqmi/pilot.json",
+      "sha256": "f3caa19b546a451c32859aeffe54a5f04f2461093155cb8e8f7971fda3db7280"
+    },
+    "early": {
+      "path": ".tmp/pair-result-hash-yblueqmi/early.json",
+      "sha256": "a77f75161947e4ceca655d5148c0aafbee794fda561a180dcd37603b38b948ba"
+    },
+    "functional-preparation": {
+      "path": ".tmp/pair-result-hash-yblueqmi/functional-preparation.json",
+      "sha256": "6bc90e2bb8c01f665e046b776ea70e0c706caf2d860435a14e038f56e03914ac"
+    },
+    "restoration": {
+      "path": ".tmp/pair-result-hash-yblueqmi/restoration.json",
+      "sha256": "adf0e14c6ee7c7fcb92cab1682d72fb99341b77e749cad14b8ea333aa176e492"
+    },
+    "restoration-helper-correction": {
+      "path": ".tmp/pair-result-hash-yblueqmi/restoration-helper-correction.json",
+      "sha256": "c3c59cc050f4f6aebbf5b136c33964c9114e2345b0601e96b51874aae41f046e"
+    },
+    "perf-release-builds": {
+      "path": ".tmp/pair-result-hash-yblueqmi/perf-release-builds.json",
+      "sha256": "acf90599c56d0723ed2b4ad8bfcb6bd7a5b1a84ec967e98c8f1bc03272b83aad"
+    },
+    "perf-release-min-builds": {
+      "path": ".tmp/pair-result-hash-yblueqmi/perf-release-min-builds.json",
+      "sha256": "200445f4e0dad57b58871b50e593d2f619e1c17b4732c2a127ce816443229d37"
+    },
+    "historical-source-snapshots": {
+      "path": ".tmp/pair-result-hash-yblueqmi/historical-source-snapshots.json",
+      "sha256": "19cc56632647d4d3912306b4f46ede82922aa53475688dfcf26d7e9835ed8380"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/pair-result-hash-yblueqmi/artifact-integrity.json",
+      "sha256": "ac21fa049a12d273fe14b407a18900b7456d4c415251a0cd7c80bc7c758dc0b4"
+    }
+  }
+}
