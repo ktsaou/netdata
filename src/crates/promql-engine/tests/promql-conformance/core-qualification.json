@@ -74267,5 +74267,16 @@
     "strict_original_pairs": 1920,
     "timing_pairs": 2000,
     "runtime_restored": true
+  },
+  "physical_endpoint_keys_rejected": {
+    "status": "rejected_candidate_runtime_restored",
+    "report": "fold-endpoint-key-rejected-qualification.json",
+    "report_sha256": "b1db2a13b1e6175adf3e8df6e0c9fd0764dd65f0e286fa213fe4b6565d331369",
+    "baseline_commit": "a7d73832f04f809b4a2a05df538e9e85a3244a54",
+    "runtime_base": "f5c74d453d0a31e223df0e823ee107da149581e9",
+    "exact_baseline_pairs": 6438,
+    "original_policy_pairs": 6414,
+    "timing_pairs": 8528,
+    "runtime_restored": true
   }
 }

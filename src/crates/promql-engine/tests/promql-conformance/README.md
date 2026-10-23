@@ -11927,3 +11927,28 @@ timing miss. No new unit/ARM/C/static/compiled-cost qualification ran after this
 belong to the earlier candidate. [generated_label_cases.py](generated_label_cases.py) remains the unchanged corpus.
 This record closes the outlined variant without shipping label-buffer transfer or claiming that inlining caused
 the earlier slowdown. Function-size reduction alone did not establish sufficient throughput.
+
+
+## Rejected compact physical endpoint keys
+
+[fold-endpoint-key-rejected-qualification.json](fold-endpoint-key-rejected-qualification.json) records removal
+of two repeated physical endpoints from completed fold snapshots. Final window geometry determines them;
+the candidate checked that relationship and retained exact nanoseconds and independent extrapolation bounds.
+
+The actual native release shared allocation fell from 416 to 400 bytes. All 6,438 complete baseline comparisons
+passed, including 6,414 original comparisons under the existing ordering policy and 24 provider-error comparisons.
+Thirty previously established strict whole-row permutations remained; there were no numeric bit differences.
+All eight memory categories were nonincreasing and all other nonelapsed observations were exact. Median target
+Workspace peak fell about 1.47%; a 256-series Sum range case fell from 271,287 to 267,191 bytes.
+
+However, two release-min Deriv controls remained 9.15% and 6.09% slower in their prescribed follow-up, exceeding
+the frozen 5% individual allowance. The 8,480 primary pairs had target ratios 0.98969/1.01096 and control ratios
+0.99844/1.00155 for release/release-min; the follow-up added 48 pairs. The cause of the localized slowdown is
+unproven. Both runtime/test files were restored exactly; the smaller representation is not shipped.
+
+[fold_endpoint_key_cases.py](fold_endpoint_key_cases.py) retains the 1,073-expression corpus and 212 timing cases.
+Its 96 fresh original outcomes cover fractional ranges/offsets across ordinary, anchored and smoothed
+Rate/Increase/Delta on float and native data. Fourteen focused native cache tests passed, including separate
+fractional-lookback and wrapping witnesses. Candidate ARM containing allocations, full native units, C/C++,
+static checks and default executable sizes were not qualified after rejection. The three-target isolated enum
+layout result is distinct from actual containing allocations and whole-query memory.
