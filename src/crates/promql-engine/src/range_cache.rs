@@ -135,13 +135,13 @@ impl From<&Request> for Key {
     }
 }
 
-pub(crate) struct Folded {
+pub(crate) struct Folded<P = Progress> {
     float_samples: Option<crate::statistics::OwnedSamples>,
     pub(crate) value: Option<OwnedValue>,
     pub(crate) annotations: [Option<AnnotationKind>; 6],
     pub(crate) invalid_quantile: bool,
     pub(crate) nonempty: bool,
-    progress: Option<Progress>,
+    progress: Option<P>,
 }
 impl From<RateOutput> for Folded {
     fn from(output: RateOutput) -> Self {
@@ -196,6 +196,21 @@ impl Folded {
     pub(crate) fn sample_units(&self) -> u64 {
         self.progress.map_or(0, |progress| progress.sample_units)
     }
+}
+impl<P> Folded<P> {
+    fn map_progress<Q>(self, map: impl FnOnce(P) -> Q) -> Folded<Q> {
+        let progress = self.progress.map(map);
+        Folded {
+            float_samples: self.float_samples,
+            value: self.value,
+            annotations: self.annotations,
+            invalid_quantile: self.invalid_quantile,
+            nonempty: self.nonempty,
+            progress,
+        }
+    }
+}
+impl<P: Copy> Folded<P> {
     fn copy_checked(
         &self,
         control: &Control,
@@ -229,7 +244,26 @@ impl Folded {
 
 struct Snapshot {
     key: Key,
-    folded: Folded,
+    folded: Folded<Progress<()>>,
+}
+impl Snapshot {
+    fn progress(&self) -> Option<Progress> {
+        self.folded
+            .progress
+            .map(|progress| progress.with_geometry(self.key.geometry))
+    }
+
+    fn copy_checked(
+        &self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Folded, EvaluationError> {
+        // Replay must use the geometry of this snapshot, including for an older clock.
+        Ok(self
+            .folded
+            .copy_checked(control, account)?
+            .map_progress(|progress| progress.with_geometry(self.key.geometry)))
+    }
 }
 struct Record {
     identity: (usize, usize, usize),
@@ -468,7 +502,7 @@ impl Folds {
                         let progress = prior
                             .as_ref()
                             .filter(|snapshot| snapshot.key.scope == key.scope)
-                            .and_then(|snapshot| snapshot.folded.progress);
+                            .and_then(|snapshot| snapshot.progress());
                         (None, progress)
                     }
                 },
@@ -476,7 +510,7 @@ impl Folds {
             }
         };
         if let Some(cached) = cached {
-            return cached.folded.copy_checked(control, account);
+            return cached.copy_checked(control, account);
         }
         let mut folded = evaluate(request.window.with_progress(progress))?;
         if folded.float_samples.is_none() {
@@ -485,6 +519,7 @@ impl Folds {
                 .as_ref()
                 .and_then(|value| crate::statistics::hold_float(account, value.as_ref()));
         }
+        let folded = folded.map_progress(|progress| progress.without_geometry(key.geometry));
         let snapshot = Strong::new_in(
             Snapshot { key, folded },
             Some(&AllocationContext::new(account, MemoryKind::Workspace)),
@@ -511,7 +546,7 @@ impl Folds {
                 }
             }
         }
-        snapshot.folded.copy_checked(control, account)
+        snapshot.copy_checked(control, account)
     }
 }
 
@@ -757,6 +792,215 @@ mod tests {
         account.snapshot().assert_memory_released();
         drop(account);
         engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn cached_progress_shares_geometry_with_its_key() {
+        struct CompleteSnapshot {
+            _key: Key,
+            _folded: Folded,
+        }
+        println!(
+            "fold-geometry-layout geometry={} progress={} folded={} key={} snapshot={} complete_snapshot={} shared={} complete_shared={} folds={} state={} record={}",
+            size_of::<Geometry>(),
+            size_of::<Progress>(),
+            size_of::<Folded>(),
+            size_of::<Key>(),
+            size_of::<Snapshot>(),
+            size_of::<CompleteSnapshot>(),
+            Strong::<Snapshot>::allocation_bytes(),
+            Strong::<CompleteSnapshot>::allocation_bytes(),
+            size_of::<Folds>(),
+            size_of::<FoldState>(),
+            size_of::<Record>()
+        );
+        assert_eq!(
+            size_of::<Snapshot>() + size_of::<Geometry>(),
+            size_of::<CompleteSnapshot>()
+        );
+        assert_eq!(
+            Strong::<Snapshot>::allocation_bytes() + size_of::<Geometry>() as u64,
+            Strong::<CompleteSnapshot>::allocation_bytes()
+        );
+    }
+
+    fn progress_sample(index: usize) -> crate::value::Sample {
+        crate::value::Sample {
+            time_ms: [1200, 1800, 2100, 3200, 3800, 4100, 5200, 5800][index],
+            start_time_ms: 0,
+            value: crate::value::SampleValue::Float(index as f64),
+        }
+    }
+
+    fn progress_request(time_ms: i64) -> Request {
+        let mut result = request(time_ms, 0.0);
+        result.window.first_end_ms = 2000;
+        result
+    }
+
+    fn scan_progress(window: MatrixWindow, account: &QueryAccounting) -> Progress {
+        scan_progress_kind(window, account, false)
+    }
+
+    fn progress_native_sample(index: usize) -> crate::value::Sample {
+        let mut sample = progress_sample(index);
+        sample.value = crate::value::SampleValue::FloatHistogram(FloatHistogram {
+            count: 1.0,
+            sum: index as f64,
+            ..FloatHistogram::default()
+        });
+        sample
+    }
+
+    fn scan_progress_kind(
+        window: MatrixWindow,
+        account: &QueryAccounting,
+        native: bool,
+    ) -> Progress {
+        let source = crate::test_storage::GeneratedSeries::new(
+            8,
+            1,
+            if native {
+                progress_native_sample
+            } else {
+                progress_sample
+            },
+        );
+        crate::matrix_reader::scan::<_, crate::storage::StorageError>(
+            &source,
+            TimeBounds {
+                start_ms: window.end_ms - window.range_ms + 1,
+                end_ms: window.end_ms,
+            },
+            Some(window),
+            &Control::default(),
+            account,
+            |_| Ok(()),
+        )
+        .unwrap()
+        .unwrap()
+    }
+
+    #[test]
+    fn cached_progress_preserves_fields_and_prior_geometry() {
+        for native in [false, true] {
+            for absent in [false, true] {
+                for changed in [false, true] {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let folds = Folds::new(&account);
+                    let physical = progress_request(4000).window;
+                    let expected = scan_progress_kind(physical, &account, native);
+                    let next = progress_request(6000).window;
+                    assert!(expected.resume(next).is_some());
+                    for warm in [false, true] {
+                        let output = folds
+                            .evaluate(progress_request(4000), &control, &account, |window| {
+                                assert!(
+                                    !warm,
+                                    "completed fold must preserve progress without rereading"
+                                );
+                                let mut result =
+                                    completed((!absent).then_some(OwnedValue::Float(3.0)));
+                                result.progress =
+                                    Some(scan_progress_kind(window, &account, native));
+                                Ok(result)
+                            })
+                            .unwrap();
+                        assert_eq!(output.progress, Some(expected));
+                        assert_eq!(output.sample_units(), expected.sample_units);
+                        assert_eq!(output.value.is_none(), absent);
+                        assert!(output.nonempty && output.invalid_quantile);
+                        assert_eq!(
+                            output.annotations[0],
+                            Some(AnnotationKind::HistogramIgnoredInMixedRange)
+                        );
+                    }
+                    let mut next_request = progress_request(6000);
+                    next_request.window.statistics = changed;
+                    let next_output = folds
+                        .evaluate(next_request, &control, &account, |window| {
+                            assert_eq!(
+                                window.resume,
+                                if changed { None } else { expected.resume(next) }
+                            );
+                            let mut result = completed(None);
+                            result.progress = Some(scan_progress_kind(window, &account, native));
+                            Ok(result)
+                        })
+                        .unwrap();
+                    let mut warm_request = progress_request(6000);
+                    warm_request.window.statistics = changed;
+                    let warm = folds
+                        .evaluate(warm_request, &control, &account, |_| {
+                            panic!("adjacent fold must retain its progress")
+                        })
+                        .unwrap();
+                    let expected_next = scan_progress_kind(
+                        MatrixWindow {
+                            statistics: changed,
+                            ..next
+                        }
+                        .with_progress(Some(expected)),
+                        &account,
+                        native,
+                    );
+                    assert_eq!(next_output.progress, Some(expected_next));
+                    assert_eq!(warm.progress, Some(expected_next));
+                    drop(warm);
+                    drop(next_output);
+                    drop(folds);
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn mismatched_private_progress_releases_native_and_sample_owners() {
+        for native in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let folds = Folds::new(&account);
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                folds.evaluate(progress_request(4000), &control, &account, |mut window| {
+                    window.statistics = true;
+                    let histogram = FloatHistogram {
+                        schema: CUSTOM_BUCKETS_SCHEMA,
+                        custom_values: Some(vec![1.0, 2.0].into()),
+                        ..FloatHistogram::default()
+                    };
+                    let value = OwnedValue::from_sample_checked(
+                        if native {
+                            SampleValueRef::FloatHistogram(histogram.as_ref())
+                        } else {
+                            SampleValueRef::Float(2.0)
+                        },
+                        &control,
+                        &account,
+                        MemoryKind::Workspace,
+                    )?;
+                    let mut result = completed(Some(value));
+                    result.progress = Some(scan_progress(window, &account));
+                    Ok(result)
+                })
+            }));
+            let panicked = outcome.is_err();
+            drop(outcome);
+            drop(folds);
+            assert_eq!(account.current_samples(), 0);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+            assert!(
+                panicked,
+                "unrelated progress must not be stored under a different geometry"
+            );
+        }
     }
 
     #[test]

@@ -419,3 +419,6 @@ Literal Changes/Resets preparation and direct-window admission follow
 
 Literal Deriv preparation and empty mixed warnings follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-literal-deriv-preparation`.
+
+Cached progress geometry and owning-key reconstruction follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#compact-cached-window-geometry`.

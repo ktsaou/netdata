@@ -74213,5 +74213,16 @@
     "timing_pairs": 2240,
     "followup_pairs": 576,
     "runtime_restored": true
+  },
+  "compact_cached_window_geometry": {
+    "status": "finite_qualification_pass",
+    "report": "fold-geometry-qualification.json",
+    "report_sha256": "53561141a618ae743cbbcbd92e459515a9fa98a8fd661c5d54d32fa325cde2b9",
+    "baseline_commit": "e861ef9546ae556902a67f9f646d9f204bfdefa6",
+    "exact_baseline_pairs": 4458,
+    "resource_pairs": 4458,
+    "timing_pairs": 2480,
+    "retained_strict_order_failures": 30,
+    "maximum_measured_memory_growth_bytes": 0
   }
 }

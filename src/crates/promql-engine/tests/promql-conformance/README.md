@@ -11788,3 +11788,40 @@ The candidate and its new tests were restored after the timing gate failed.
 source bindings matched after reversing the sole edited source file. Full native/ARM/C, strict/MSRV and compiled-cost
 qualification were not run after rejection. This record demonstrates that fewer comparisons alone do not establish
 higher throughput; it does not ship a new cache mechanism or change PromQL support.
+
+## Compact cached window geometry
+
+Completed range folds now store one copy of their window geometry. The exact cache key owns it;
+stored cursor progress keeps its other fields and reconstructs geometry from that same key.
+This also applies when returning prior progress for a later clock. Reconstructing from the new
+request would incorrectly bypass the existing window-mismatch check.
+
+The [qualification report](fold-geometry-qualification.json) records the frozen corpus, source/binary
+identities, complete results, both-profile timing, layouts, C consumers and compiled costs.
+[fold_geometry_cases.py](fold_geometry_cases.py) reproduces the finite input panel. It covers all
+27 range-function names with Float, native, mixed, custom, stale and empty histories, modifiers,
+extended windows, subqueries, temporary-backed quantiles and actual provider errors. Optional
+functions use the explicit upstream-tests profile; this changes no default language admission.
+
+- 4,458 complete baseline comparisons and 4,434 original comparisons pass across both profiles and
+  pages 1/17/1024, plus 24 provider-error comparisons. Thirty strict original differences remain:
+  five previously proved complete-row permutations per panel under the existing ordering policy.
+  Numerical bits, complete rows and diagnostics agree; no original result was changed or excluded.
+- Native snapshot allocations decrease from 488 to 424 bytes. Full progress and value layouts remain
+  unchanged. Median peak Workspace on the 16 many-series targets decreases 5.51%; the 256-series
+  Sum range case decreases from 289,719 to 273,335 bytes. All eight memory categories are nonincreasing;
+  every other nonelapsed observation is identical, including work and provider/read counters.
+- Primary target timing ratios are 1.0206 (release) and 1.0432 (release-min); control ratios are
+  1.0134 and 1.0405. This is a memory improvement, with measured timing costs inside its frozen 5%
+  allowance. Ten initially slower release-min cases pass their one prescribed follow-up.
+- Causal checks cover cold/warm absent and native results, actual resumed progress, geometry changes,
+  all progress fields, private mismatch panic cleanup and independent output ownership. Complete native
+  units, focused ARM execution, C/C++ consumers, strict lint, formatting and MSRV checks are recorded
+  separately in the report. Compiled costs are fixed per binary, not charged once per query.
+
+For changes to this representation, retain exact key equality, prior-scope filtering, owning-key
+reconstruction, all progress fields and Some/None independently of whether a result exists. Verify the
+producer equality assertion before snapshot publication and cleanup of existing value/sample leases.
+Compare actual native/ARM layouts and all memory fields; raw history must remain paged on both axes.
+These finite synthetic measurements do not establish production-weighted speed, process RSS, live
+cache use, concurrent performance or physical ARM throughput.

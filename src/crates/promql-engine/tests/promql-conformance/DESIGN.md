@@ -3026,3 +3026,17 @@ changing membership, special literals, complete original comparisons and proport
 - The [finite qualification](literal-deriv-preparation-qualification.json) owns original outcomes, pre-change
   order-policy proof, causal read reductions, mixed empty warnings, native timings, C/ARM callers and compiled
   costs. Broader filters and numeric-function admission require their own proof and measured experiment.
+
+## Compact cached window geometry
+
+A completed fold snapshot keeps window geometry in its exact key. Stored progress uses the same field
+layout as ordinary progress with a zero-sized geometry parameter; consuming conversion transfers every
+other field and existing value/sample lease. A release-enabled assertion checks the producer geometry
+before discarding its duplicate. Snapshot copies and prior-progress delivery reconstruct the full type
+using the snapshot's own key, so the existing resume check still rejects a changed request geometry.
+
+Cache lifetimes, lookup and control phases, sample accounting, arithmetic and provider reads stay
+unchanged. Absent results may still carry meaningful progress. This adds no heap owner, raw history,
+public contract or query cap. Full progress users keep their ordinary representation. Layout, memory,
+throughput costs and finite compatibility evidence are recorded in
+[the qualification guide](README.md#compact-cached-window-geometry) and its linked report.

@@ -61,8 +61,8 @@ pub(crate) struct Resume {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct Progress {
-    geometry: Geometry,
+pub(crate) struct Progress<G = Geometry> {
+    geometry: G,
     end_ms: i64,
     last_time_ms: i64,
     current_time_ms: Option<i64>,
@@ -70,7 +70,27 @@ pub(crate) struct Progress {
     start: Option<Start>,
     pub(crate) sample_units: u64,
 }
+impl<G> Progress<G> {
+    pub(crate) fn with_geometry<H>(self, geometry: H) -> Progress<H> {
+        Progress {
+            geometry,
+            end_ms: self.end_ms,
+            last_time_ms: self.last_time_ms,
+            current_time_ms: self.current_time_ms,
+            histograms_allocated: self.histograms_allocated,
+            start: self.start,
+            sample_units: self.sample_units,
+        }
+    }
+}
 impl Progress {
+    pub(crate) fn without_geometry(self, geometry: Geometry) -> Progress<()> {
+        assert!(
+            self.geometry == geometry,
+            "fold progress must match its owning key"
+        );
+        self.with_geometry(())
+    }
     pub(crate) fn resume(self, window: MatrixWindow) -> Option<Resume> {
         if self.geometry != Geometry::from(window) || !window.prunable() {
             return None;
@@ -572,6 +592,47 @@ mod tests {
             statistics: false,
             reduce_delta: true,
             resume: None,
+        }
+    }
+
+    #[test]
+    fn compact_progress_preserves_full_layout_and_every_field() {
+        struct CompleteProgress {
+            _geometry: Geometry,
+            _end_ms: i64,
+            _last_time_ms: i64,
+            _current_time_ms: Option<i64>,
+            _histograms_allocated: bool,
+            _start: Option<Start>,
+            _sample_units: u64,
+        }
+        assert_eq!(size_of::<Progress>(), size_of::<CompleteProgress>());
+        assert_eq!(align_of::<Progress>(), align_of::<CompleteProgress>());
+        for current_time_ms in [None, Some(i64::MIN), Some(i64::MAX)] {
+            for start in [
+                None,
+                Some(Start {
+                    target_ms: -37,
+                    histograms_allocated: true,
+                }),
+            ] {
+                for histograms_allocated in [false, true] {
+                    let geometry = Geometry::from(window());
+                    let original = Progress {
+                        geometry,
+                        end_ms: -42,
+                        last_time_ms: 51,
+                        current_time_ms,
+                        histograms_allocated,
+                        start,
+                        sample_units: u64::MAX,
+                    };
+                    assert_eq!(
+                        original.without_geometry(geometry).with_geometry(geometry),
+                        original
+                    );
+                }
+            }
         }
     }
 
