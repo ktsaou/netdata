@@ -2688,6 +2688,9 @@ changing membership, special literals, complete original comparisons and proport
 
 ## Completed grouped selector clocks
 
+The later [direct delayed-group extension](#completed-direct-groups-with-delayed-metadata-removal)
+adds a separate identity proof; this section retains its original qualification scope.
+
 - **Choice:** extend the private ordinary-group recognizer to allow direct instant selectors only at consumed
   subquery demand and Group interval qualification. Four composition callers remain rate-only.
 - **Proof:** delivered Float-only/single-head descriptors cover the actual child clock grid. Raw history can
@@ -3101,3 +3104,23 @@ throughput costs and finite compatibility evidence are recorded in
 - **Evidence:** [atomic work qualification](atomic-work-qualification.json) binds complete outcomes/resources,
   boundary and concurrent snapshot tests, native/ARM/C consumers and timings. Concurrency tests are finite stress
   checks rather than exhaustive interleaving proof; physical ARM and concurrent-query throughput are not measured.
+
+## Completed direct groups with delayed metadata removal
+
+- **Choice:** allow delayed-mode completion reuse only at direct consumed-group discovery and matching Group
+  preparation. Every composition caller retains its early-mode requirement.
+- **Identity:** the shared grouping predicate must exclude all of `__name__`, `__type__`, and `__unit__`.
+  Deferred cleanup then cannot merge group identities. `by(id)` qualifies; a `without` clause must explicitly
+  exclude type/unit. Name- or metadata-retaining groups keep ordinary evaluation.
+- **Proof:** retain nonempty Float-only/single-head child certification, complete diagnostic traversal,
+  exact replay domains including delayed mode, and successful Group Done. Incomplete endpoints receive no
+  credit. Warm contributor evaluation reads current values in the original arithmetic order.
+- **Ownership:** existing group metadata and completion certificates; no new state fields, raw history/value
+  cache, public option, ABI change or implicit limit. All ordinary aggregate operators retain their existing
+  arithmetic and drop flags.
+- **Cost:** the finite target panel takes about 68–69% less time with at most 544 bytes additional Workspace
+  peak. Other category peaks do not grow. Recognition adds bounded measured work to some declined delayed
+  shapes; early-mode observations stay exact. Compiled section changes remain separately reported.
+- **Evidence:** [qualification](delayed-group-clocks-qualification.json) records complete originals/baselines,
+  strict row-order differences, actual failure/control boundaries, portable callers and immediate/cumulative
+  executable costs. No general throughput, RSS, physical ARM or exhaustive compatibility claim follows.

@@ -1369,11 +1369,12 @@ impl CompiledQuery {
         &self,
         mut node: NodeId,
         allow_selector: bool,
+        allow_delayed: bool,
         prepared: &Prepared,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Option<NodeId>, Interrupted> {
-        if self.options.delayed_name_removal {
+        if self.options.delayed_name_removal && !allow_delayed {
             return Ok(None);
         }
         loop {
@@ -1396,8 +1397,23 @@ impl CompiledQuery {
                     operator,
                     expression: Some(child),
                     parameter: None,
-                    ..
+                    grouping,
+                    without,
                 } if crate::aggregation::ordinary(*operator) => {
+                    // Deferred cleanup must not change a certified group's identity.
+                    if self.options.delayed_name_removal {
+                        for name in [b"__name__".as_slice(), b"__type__", b"__unit__"] {
+                            if crate::binary_labels::keep_name(
+                                name,
+                                grouping.as_deref(),
+                                *without,
+                                control,
+                                account,
+                            )? {
+                                return Ok(None);
+                            }
+                        }
+                    }
                     let child = prepared.preprocessing.child(
                         &self.expression,
                         node,
@@ -1452,7 +1468,7 @@ impl CompiledQuery {
                         account,
                     )?;
                     return Ok(self
-                        .grouped_interval_child(child, true, prepared, control, account)?
+                        .grouped_interval_child(child, true, false, prepared, control, account)?
                         .map(|_| child));
                 }
                 _ => return Ok(None),
@@ -1501,7 +1517,7 @@ impl CompiledQuery {
                 }
                 _ if !outer => {
                     return Ok(self
-                        .grouped_interval_child(node, true, prepared, control, account)?
+                        .grouped_interval_child(node, true, false, prepared, control, account)?
                         .map(|_| node));
                 }
                 _ => return Ok(None),
@@ -1549,7 +1565,7 @@ impl CompiledQuery {
                     account,
                 )?;
                 if self
-                    .grouped_interval_child(*child, false, prepared, control, account)?
+                    .grouped_interval_child(*child, false, false, prepared, control, account)?
                     .is_none()
                 {
                     return Ok(None);
@@ -1596,7 +1612,7 @@ impl CompiledQuery {
                 return Ok(None);
             };
             if self
-                .grouped_interval_child(child, false, prepared, control, account)?
+                .grouped_interval_child(child, false, false, prepared, control, account)?
                 .is_some()
                 || self
                     .grouped_ratio_children(child, prepared, control, account)?
@@ -1616,7 +1632,7 @@ impl CompiledQuery {
                 return Ok(None);
             };
             return Ok(self
-                .grouped_interval_child(group, false, prepared, control, account)?
+                .grouped_interval_child(group, false, false, prepared, control, account)?
                 .is_some()
                 .then_some(edge));
         }
@@ -1658,7 +1674,7 @@ impl CompiledQuery {
                     .preprocessing
                     .child(&self.expression, node, child, control, account)?;
             return Ok(self
-                .grouped_interval_child(child, false, prepared, control, account)?
+                .grouped_interval_child(child, false, false, prepared, control, account)?
                 .map(|_| child));
         }
     }
@@ -2631,7 +2647,7 @@ impl CompiledQuery {
                             control,
                             account,
                         )?;
-                        self.grouped_interval_child(child, true, prepared, control, account)?
+                        self.grouped_interval_child(child, true, true, prepared, control, account)?
                             .is_some()
                             || self
                                 .projected_grouped_interval_child(
@@ -2965,7 +2981,9 @@ impl CompiledQuery {
                 let mut interval = false;
                 let subquery_demand = matches!(task, Task::Finish(_, _, Demand::GroupedSubquery));
                 let interval_child = if subquery_demand && replay_selector.is_some() {
-                    match self.grouped_interval_child(node, true, prepared, control, account)? {
+                    match self
+                        .grouped_interval_child(node, true, true, prepared, control, account)?
+                    {
                         Some(child) => Some(child),
                         None => self
                             .nested_grouped_interval_child(node, prepared, control, account)?
@@ -12547,6 +12565,37 @@ mod tests {
     }
 
     #[test]
+    fn delayed_group_clocks_completion() {
+        for aggregate in ["sum", "avg"] {
+            for (cancel, fault) in [(false, false), (true, false), (false, true)] {
+                grouped_clocks_completion_case_with_delayed(
+                    aggregate, true, None, false, cancel, fault, true,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn delayed_group_clocks_required_delivery_failures() {
+        for aggregate in ["sum", "avg"] {
+            grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case_with_delayed(
+                aggregate, true, None, true,
+            );
+        }
+        for body in [
+            "sum by(id)(m_total)",
+            "avg without(member,__type__,__unit__)(m_total)",
+        ] {
+            grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case_with_delayed(
+                "sum",
+                true,
+                Some(body),
+                true,
+            );
+        }
+    }
+
+    #[test]
     fn grouped_selector_clocks_admission() {
         fn selected_native(index: usize) -> crate::value::Sample {
             let mut sample = crate::test_storage::counter(index);
@@ -12566,6 +12615,9 @@ mod tests {
             ("sum by(id)(m_total)", 1),
             ("((avg without(member)(m_total)))", 1),
             ("sum by(__name__,id)(m_total)", 1),
+            ("sum by(__type__,id)(m_total)", 1),
+            ("sum by(__unit__,id)(m_total)", 1),
+            ("avg without(member,__type__,__unit__)(m_total)", 1),
             ("count by(id)(m_total offset 1s)", 1),
             ("sum by(id)(m_total @ 8)", 0),
             ("sum by(id)(sum by(id,member)(m_total))", 2),
@@ -12681,7 +12733,20 @@ mod tests {
                             || shape == "selected-native" && body.contains("offset");
                         assert_eq!(
                             intervals,
-                            if !delayed && float_only { admitted } else { 0 },
+                            if !float_only {
+                                0
+                            } else if !delayed {
+                                admitted
+                            } else if matches!(
+                                body,
+                                "sum by(id)(m_total)"
+                                    | "count by(id)(m_total offset 1s)"
+                                    | "avg without(member,__type__,__unit__)(m_total)"
+                            ) {
+                                1
+                            } else {
+                                0
+                            },
                             "{body} delayed={delayed} shape={shape}"
                         );
                     }
@@ -14589,6 +14654,20 @@ mod tests {
         full_matrix: bool,
         wrapper: Option<&str>,
     ) {
+        grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case_with_delayed(
+            aggregate,
+            full_matrix,
+            wrapper,
+            false,
+        );
+    }
+
+    fn grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case_with_delayed(
+        aggregate: &str,
+        full_matrix: bool,
+        wrapper: Option<&str>,
+        delayed: bool,
+    ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             let request = QueryRequest::Instant { time_ms: 8000 };
             for &page in grouped_clock_pages(full_matrix) {
@@ -14598,7 +14677,7 @@ mod tests {
                     .compile(
                         grouped_map_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])"), wrapper)
                             .as_bytes(),
-                        EngineOptions::default(),
+                        options(delayed),
                         &control,
                     )
                     .unwrap();
@@ -15198,6 +15277,26 @@ mod tests {
         cancel: bool,
         fault: bool,
     ) {
+        grouped_clocks_completion_case_with_delayed(
+            aggregate,
+            full_matrix,
+            wrapper,
+            nested,
+            cancel,
+            fault,
+            false,
+        );
+    }
+
+    fn grouped_clocks_completion_case_with_delayed(
+        aggregate: &str,
+        full_matrix: bool,
+        wrapper: Option<&str>,
+        nested: bool,
+        cancel: bool,
+        fault: bool,
+        delayed: bool,
+    ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             for &page in grouped_clock_pages(full_matrix) {
                 let engine = Engine::default();
@@ -15215,7 +15314,7 @@ mod tests {
                             wrapper,
                         )
                         .as_bytes(),
-                        EngineOptions::default(),
+                        options(delayed),
                         &control,
                     )
                     .unwrap();

@@ -10503,8 +10503,9 @@ After a complete cold traversal, later requests for the same clock read the requ
 Values stay fresh through ordinary selector reads; this stores group metadata, not raw history.
 
 Only direct ordinary aggregates over instant selectors enter this extension. Existing schedule, Float-only
-delivered descriptors and single-head checks remain required. Selected native samples, delayed name removal,
-invariant inputs and nonordinary aggregates keep their existing fallbacks. Direct two-level aggregates
+delivered descriptors and single-head checks remain required. Selected native samples, invariant inputs and
+nonordinary aggregates keep their existing fallbacks. The later [direct delayed-group extension](#completed-direct-groups-with-delayed-metadata-removal)
+qualifies name/type/unit-eliminating groups; the measurements in this section retain their original early-mode scope. Direct two-level aggregates
 additionally follow [nested group completion](#completed-clocks-in-nested-grouped-subqueries). Physical histograms
 between selected clock ticks need not disqualify an otherwise Float-only result. Existing map, ratio and
 histogram compositions remain rate-only; this change does not expand those optimizations.
@@ -12013,3 +12014,50 @@ Concurrent snapshot tests provide scheduling-dependent stress coverage; they do 
 Future changes must retain the monotonicity argument and the mutex-held relationship between saturation,
 the overflow flag and complete snapshots. The private stored observation record is not the authority for work;
 the public snapshot field and ABI remain unchanged.
+
+## Completed direct groups with delayed metadata removal
+
+Direct grouped subqueries can reuse completed work when delayed metric-name removal is enabled and grouping
+already excludes `__name__`, `__type__`, and `__unit__`. For example,
+`max_over_time((sum by(id)(rate(m_total[3s])))[8s:1s])` qualifies. All eight ordinary aggregate operators,
+direct selectors and rate/increase/delta inputs follow the existing Float-only, single-head and clock checks.
+`without` must explicitly exclude type and unit as well; retaining any deferred metadata keeps the old path.
+
+Only direct subquery discovery and matching Group preparation enable this extension. Projected, nested,
+ratio, mapped and histogram compositions retain their previous delayed-mode handling. Cold traversal and
+required diagnostic scans remain complete; successful clock completion permits fresh reads of the selected
+group's contributors. Failed, cancelled and truncated traversals do not earn missing completion credit.
+No raw-value cache, state field, API/ABI change, default-option change or implicit limit is introduced.
+
+[Qualification](delayed-group-clocks-qualification.json) and the reproducible
+[corpus](delayed_group_cases.py) retain complete results, original comparisons, source/binary identities,
+individual timings, memory and fixed executable costs. The trial uses 436 functional cases and 40 timing
+cases. Delayed timing targets use the explicit upstream-test query profile; early-mode controls use the
+server-default query profile. Native build profiles are separately release and release-min. Actual C callers
+also exercise default engine options with only the delayed-name flag enabled.
+
+Across 1,600 primary before/after timing pairs, target median elapsed ratios are 0.3163 and 0.3073,
+about 68–69% less elapsed time. Selector-family ratios are 0.3437/0.3266 and rate-family ratios
+0.2720/0.2762. Control medians are 1.0110/0.9981. One size-optimized early-mode control exceeded 1.05;
+its single prescribed follow-up contributes 24 pairs and returns 0.9934. Both measurements are preserved.
+
+All 2,616 complete baseline-result comparisons and agreed-order original comparisons pass. Three unchanged
+instant fallback queries per panel retain strict whole-row-order differences: 18 strict failures overall,
+not strict passes. Numerical bits, labels, timestamps, values, warnings and errors otherwise agree exactly.
+The original captures are fresh pinned Go AMD64 outcomes for these inputs; finite tests do not prove universal
+compatibility. Early-mode observations remain exact. Declined delayed shapes can add a small amount of
+accounted recognition work; the initial contrary assumption was corrected from source review before any
+candidate query or timing measurement, with both plans retained.
+
+The maximum measured Workspace peak increase is 544 bytes; no other memory category peak grows.
+For example, the four-group SUM/selector instant target rises from 15,207 to 15,751 bytes.
+For the sixteen-group SUM/rate instant target, fetched entries fall from 1,132,032 to 149,952, work from
+4,009,644 to 784,653, and cumulative Workspace acquisition from 23,743,272 to 4,667,668 bytes.
+Its Workspace peak stays 51,919 bytes. These are accounted finite-fixture observations, not process RSS or
+universal per-query bounds. Group metadata still depends on cardinality; raw history remains paged.
+
+The new causal tests exercise successful completion, cancellation after first output, first-delivery failure,
+cleanup, and 2,508 calibrated required-delivery failures. Existing admission tests additionally discriminate
+name/type/unit retention, selected/unselected native values and unchanged compositions. The report records
+actual full native, focused ARM, C/C++ and static checks; ARM execution uses QEMU, not physical ARM timing.
+No live-dbengine or concurrent-query throughput claim is made.

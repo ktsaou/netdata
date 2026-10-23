@@ -74300,5 +74300,16 @@
     "provider_error_pairs": 24,
     "timing_pairs": 2896,
     "fixed_per_accounting_context_memory_growth_bytes": 8
+  },
+  "delayed_group_clocks": {
+    "status": "finite_qualification_pass",
+    "report": "delayed-group-clocks-qualification.json",
+    "report_sha256": "67c3926cd37a3634c93a49b38def17ced4521d304674bb1bfbbee78998980ced",
+    "baseline_commit": "18a4bdfafd26b55938d9a8779594200a5d33bfba",
+    "exact_baseline_pairs": 2616,
+    "original_policy_pairs": 2616,
+    "strict_order_failures": 18,
+    "numeric_bit_differences": 0,
+    "timing_pairs": 1624
   }
 }
