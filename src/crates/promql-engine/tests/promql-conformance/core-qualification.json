@@ -74202,5 +74202,16 @@
     "strict_original_comparisons": 144,
     "additional_scaling_error_pairs": 3,
     "runtime_restored": true
+  },
+  "fold_position_reuse_rejected": {
+    "status": "rejected_and_restored",
+    "report": "fold-position-reuse-rejected-qualification.json",
+    "report_sha256": "de5a23ffd1f9c3ac6ebb87534a631f45ec934711a76994bb1d6d52f3626bf9cb",
+    "baseline_commit": "eddc6ab25c3dbeac75a0e354dcad24ab65de019c",
+    "exact_baseline_pairs": 984,
+    "strict_original_comparisons": 960,
+    "timing_pairs": 2240,
+    "followup_pairs": 576,
+    "runtime_restored": true
   }
 }

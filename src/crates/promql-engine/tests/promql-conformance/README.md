@@ -11766,3 +11766,25 @@ were unchanged. The accepted runtime was restored exactly.
 [window_ratio_cases.py](window_ratio_cases.py) reproduces the 52 initial inputs and three scaling inputs. The probe
 stopped before timing acceptance, full native/ARM/C tests or compiled-cost qualification. Provider faults are baseline
 comparisons, not Prometheus originals. All 211 baseline source bindings matched after reversing the sole runtime edit.
+
+
+## Rejected fold-cache position reuse
+
+[fold-position-reuse-rejected-qualification.json](fold-position-reuse-rejected-qualification.json) records an
+experiment that reused a checked record position after computing a range-function value. It preserved exact keys,
+cache lifetimes and allocation sizes, and used the ordinary search if a nested callback invalidated the position.
+The candidate and its new tests were restored after the timing gate failed.
+
+- 160 fresh pinned Prometheus outcomes: 960 strict comparisons across both profiles and pages 1, 17 and 1024.
+  All 984 baseline comparisons matched, including 24 provider-error pairs; no numeric-bit or row-order exceptions.
+- All eight measured memory categories and provider/read counters were unchanged; normal query work decreased
+  or stayed equal. A focused changed-clock lookup fell from 14 comparison units to 8. All nine focused cache
+  tests passed, including callback mutations, cancellation publication phases and independent native ownership.
+- 2,240 timing pairs: target median ratios were 0.98237 in release and 1.03753 in release-min, against a frozen
+  0.98 target. Control medians were 0.98208 and 1.05330. The single prescribed follow-up covered 24 cases and
+  576 pairs; six release-min cases remained above 1.05. The runtime/compiler cause is unresolved.
+
+[fold_position_cases.py](fold_position_cases.py) reproduces the 56 timing and 164 functional inputs. All 213 baseline
+source bindings matched after reversing the sole edited source file. Full native/ARM/C, strict/MSRV and compiled-cost
+qualification were not run after rejection. This record demonstrates that fewer comparisons alone do not establish
+higher throughput; it does not ship a new cache mechanism or change PromQL support.

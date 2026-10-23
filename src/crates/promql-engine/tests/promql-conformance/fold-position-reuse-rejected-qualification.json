@@ -1,0 +1,309 @@
+{
+  "schema_version": 1,
+  "status": "rejected_and_restored",
+  "comparison_base": "eddc6ab25c3dbeac75a0e354dcad24ab65de019c",
+  "runtime_base": "d1994146b7166599682fe3832283714584dee8a3",
+  "candidate_change": "Remember the first fold-cache identity search result, validate the existing index or insertion neighbors after the callback, and reuse it instead of searching again. Invalid hints fall back to the original search. No cache lifetime or allocation changes.",
+  "rejection": {
+    "failed_gates": [
+      [
+        "release",
+        "target_median",
+        0.9823745089775295
+      ],
+      [
+        "release-min",
+        "target_median",
+        1.0375343295285426
+      ],
+      [
+        "release-min",
+        "control_median",
+        1.05329512133862
+      ],
+      [
+        "release-min",
+        "persistent_individual",
+        "position-64-4-sum_over_time-instant",
+        1.0600880004248192
+      ],
+      [
+        "release-min",
+        "persistent_individual",
+        "position-64-4-deriv-instant",
+        1.063413436669852
+      ],
+      [
+        "release-min",
+        "persistent_individual",
+        "position-16-256-sum_over_time-instant",
+        1.0526081884643432
+      ],
+      [
+        "release-min",
+        "persistent_individual",
+        "position-16-256-deriv-instant",
+        1.0615931858007803
+      ],
+      [
+        "release-min",
+        "persistent_individual",
+        "position-16-256-deriv-range",
+        1.0753161873933523
+      ],
+      [
+        "release-min",
+        "persistent_individual",
+        "position-native-rate-instant",
+        1.0548731813568772
+      ]
+    ],
+    "persistent_individuals": [
+      {
+        "profile": "release-min",
+        "id": "position-64-4-sum_over_time-instant",
+        "primary_ratio": 1.0562571328084065,
+        "followup_ratio": 1.0600880004248192
+      },
+      {
+        "profile": "release-min",
+        "id": "position-64-4-deriv-instant",
+        "primary_ratio": 1.0559229862317063,
+        "followup_ratio": 1.063413436669852
+      },
+      {
+        "profile": "release-min",
+        "id": "position-16-256-sum_over_time-instant",
+        "primary_ratio": 1.1705893560801162,
+        "followup_ratio": 1.0526081884643432
+      },
+      {
+        "profile": "release-min",
+        "id": "position-16-256-deriv-instant",
+        "primary_ratio": 1.0634738792686378,
+        "followup_ratio": 1.0615931858007803
+      },
+      {
+        "profile": "release-min",
+        "id": "position-16-256-deriv-range",
+        "primary_ratio": 1.053380467149043,
+        "followup_ratio": 1.0753161873933523
+      },
+      {
+        "profile": "release-min",
+        "id": "position-native-rate-instant",
+        "primary_ratio": 1.0737782606685469,
+        "followup_ratio": 1.0548731813568772
+      }
+    ],
+    "decision": "Reject under the frozen timing gates; do not replace primary measurements or relax thresholds. Restore runtime and new unit tests exactly.",
+    "cause": "The measured whole-query slowdown is established for this finite panel. Its runtime/compiler cause was not established; fewer accounted comparisons did not guarantee faster queries."
+  },
+  "qualification": {
+    "profiles": [
+      "release",
+      "release-min"
+    ],
+    "pages": [
+      1,
+      17,
+      1024
+    ],
+    "functional_cases": 164,
+    "fresh_pinned_originals": 160,
+    "strict_original_comparisons": 960,
+    "exact_baseline_pairs": 984,
+    "resource_pairs": 984,
+    "provider_error_pairs": 24,
+    "original_numeric_bit_differences": 0,
+    "original_order_exceptions": 0,
+    "original_engine": "Prometheus v0.315.0; pinned Go1.27.1 AMD64 FMA-on",
+    "causal_red": "Old changed-clock replacement across127identities performs14comparison work units; proposed bound8 fails. Eight other focused owners pass.",
+    "causal_green": "All9focused cache owners pass. Callback insertion/clearing/retention, exact values/identities, empty/nonempty cancellation publication, independent native copies and cleanup covered.",
+    "unit_scope": "Only focused cache owners ran; the added tests are preserved in rejected source snapshots, not shipped.",
+    "full_native_units_run": false,
+    "ARM_qualification_run": false,
+    "C_CPP_execution_run": false,
+    "strict_lint_and_MSRV_run": false,
+    "compiled_footprint_qualified": false
+  },
+  "measurement": {
+    "plan": {
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "pages": [
+        1,
+        17,
+        1024
+      ],
+      "page": 17,
+      "blocks": 5,
+      "repeats": 4,
+      "discard_first": true,
+      "target_shapes": [
+        "target"
+      ],
+      "target_median_max": 0.98,
+      "control_median_max": 1.05,
+      "individual_max": 1.05,
+      "followup": "Exactly one six-block, four-repeat follow-up for each individual ratio above1.05; no threshold changes.",
+      "target_rationale": "One removed metadata search, not a removed storage pass. Require measurable2percent median benefit and no slower controls.",
+      "initial_gate": "Release exact/resource probe precedes both-profile full qualification and timing. Normal memory/provider observations unchanged; work nonincreasing. Four provider faults use exact baseline outcomes only."
+    },
+    "profiles": {
+      "release": {
+        "target": 0.9823745089775295,
+        "controls": 0.9820775738686887,
+        "complete_pairs": 1120
+      },
+      "release-min": {
+        "target": 1.0375343295285426,
+        "controls": 1.05329512133862,
+        "complete_pairs": 1120
+      }
+    },
+    "timing_pairs": 2240,
+    "followup_cases": 24,
+    "followup_pairs": 576,
+    "scope": "Five alternating blocks and four repetitions, first repetition discarded; exactly one six-block follow-up for each individual above1.05."
+  },
+  "resources": {
+    "pairs": 984,
+    "memory_categories": 8,
+    "all_memory_fields_unchanged": true,
+    "provider_and_sample_counters_unchanged": true,
+    "normal_query_work_nonincreasing": true,
+    "representative": {
+      "id": "position-256-4-sum_over_time-range",
+      "profile": "release",
+      "page": 17,
+      "work_before": 239448,
+      "work_candidate": 231178
+    },
+    "private_callback_exception": "An invalid saved position after structural callback mutation can add guarded comparisons before fallback; no universal work-reduction claim for that private path.",
+    "layouts": {
+      "Folds": 64,
+      "FoldState": 56,
+      "Record": 32,
+      "scope": "Unchanged native unit layouts; not compiled executable size or total query stack memory."
+    }
+  },
+  "restoration": {
+    "matched_baseline_source_bindings": 213,
+    "paths": [
+      "src/crates/promql-engine/src/range_cache.rs"
+    ],
+    "method": "Preserve exact patch and baseline/red/candidate snapshots; reverse-check/reverse-apply only that patch and verify every baseline source hash. No checkout/reset/deletion/process signal."
+  },
+  "historical_source_snapshots": {
+    "src/crates/promql-engine/src/range_cache.rs": {
+      "d7aad164e55b912a53afa8831e7d31f21c9077201d3e91314db07395f19a344f": ".tmp/fold-position-3au1vls0/baseline-range_cache.rs",
+      "be6e6dee4a0c81e7af98aee6946cf7ea78173bc9fd7f8e7aae58e528fc4c945d": ".tmp/fold-position-3au1vls0/candidate-range_cache.rs",
+      "242e197e27cefe582b405ad0cb29b6f53c2d8c60e9bfa5b272b7f6d686b10267": ".tmp/fold-position-3au1vls0/red-range_cache.rs"
+    }
+  },
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/fold-position-3au1vls0/baseline-source.json",
+      "sha256": "32f17382b304ce826a256d989d1ff7c869c5835423b8c282cecf7c8ba9f932ad"
+    },
+    "red": {
+      "path": ".tmp/fold-position-3au1vls0/red-source.json",
+      "sha256": "48254ab5f32e9ea0e70a9e82675b5148369b94d3650baeb8458066cb25862a5d"
+    },
+    "candidate": {
+      "path": ".tmp/fold-position-3au1vls0/candidate-source.json",
+      "sha256": "019823a72543793a51142ec85867590d413cf6b867b96ea99f531b92a3519c34"
+    },
+    "restored": {
+      "path": ".tmp/fold-position-3au1vls0/restored-source.json",
+      "sha256": "32f17382b304ce826a256d989d1ff7c869c5835423b8c282cecf7c8ba9f932ad"
+    }
+  },
+  "receipts": {
+    "baseline-binding": {
+      "path": ".tmp/fold-position-3au1vls0/baseline-binding.json",
+      "sha256": "9f55b32444c2f5234a6082ab491e6f7bb4c08ca916ceb38f568a2f50f2ca4373"
+    },
+    "input-freeze": {
+      "path": ".tmp/fold-position-3au1vls0/input-freeze.json",
+      "sha256": "5a7a5cbcaff733c3604a0f482bfc908293630be6874540a2bb8f8b1341a9f978"
+    },
+    "original-capture": {
+      "path": ".tmp/fold-position-3au1vls0/original-capture.json",
+      "sha256": "34365f88b7f4027034d2e1bf37ba9f7aee6bfa58192a20a88e5a08e5b17e1933"
+    },
+    "probe-baseline-analysis": {
+      "path": ".tmp/fold-position-3au1vls0/probe-baseline-analysis.json",
+      "sha256": "ffe4d2c4665ab752b3729f19233a7679e911963e20da3dcd97c941dd318ca6f9"
+    },
+    "causal-red": {
+      "path": ".tmp/fold-position-3au1vls0/causal-red.json",
+      "sha256": "13e9c4dcc05c6ecc6830ff4dc63e0c64aaa6cef1936360e09df7844ccd853b41"
+    },
+    "implementation-source-review": {
+      "path": ".tmp/fold-position-3au1vls0/implementation-source-review.json",
+      "sha256": "68326e270a15f004120d832fcfb781a12a925aea02ab287c3b896894c2cc823a"
+    },
+    "implementation": {
+      "path": ".tmp/fold-position-3au1vls0/implementation.json",
+      "sha256": "ae0d997e585c4ccf656f69d1d309e5ea31d57074e140e634e156ea242f2b767e"
+    },
+    "causal-green": {
+      "path": ".tmp/fold-position-3au1vls0/causal-green.json",
+      "sha256": "939c44b9cf23dbe0c37fc617fa978d3d1561b94cb53d1597da37504591fad580"
+    },
+    "perf-release-builds": {
+      "path": ".tmp/fold-position-3au1vls0/perf-release-builds.json",
+      "sha256": "a9268ff458863b12f30561044f659a4c2f79d589c823b1eb93a436e342333b55"
+    },
+    "perf-release-min-builds": {
+      "path": ".tmp/fold-position-3au1vls0/perf-release-min-builds.json",
+      "sha256": "cd91e9bef05982a3c8a6826bfb1231fb6e440e25dbcad66f9ecfe6db3fbc54b4"
+    },
+    "probe-candidate-analysis": {
+      "path": ".tmp/fold-position-3au1vls0/probe-candidate-analysis.json",
+      "sha256": "b818c103d5233081dd0c6d170aa727c855a4537f259f16ec73f752565dac8c7b"
+    },
+    "probe-baseline-release-min-analysis": {
+      "path": ".tmp/fold-position-3au1vls0/probe-baseline-release-min-analysis.json",
+      "sha256": "4314e59e8fdb1d063fff2522cc61ac58331df5fcc23e8a0c92e043a5db6038f3"
+    },
+    "probe-candidate-release-min-analysis": {
+      "path": ".tmp/fold-position-3au1vls0/probe-candidate-release-min-analysis.json",
+      "sha256": "7a508bfd5c1534d2e3675bacb958c041dbc38d87fed0dfc595aca8f2e758d2c3"
+    },
+    "pilot": {
+      "path": ".tmp/fold-position-3au1vls0/pilot.json",
+      "sha256": "738dc95a6893ba14dcd5c3e434c711a0a2408f29b50e14c53bd4468f61d65ce5"
+    },
+    "slower-followup": {
+      "path": ".tmp/fold-position-3au1vls0/slower-followup.json",
+      "sha256": "83ecd64a6fdf3617e596a54e7488539e407a5587e1ddacfeb5f1224f86ebb067"
+    },
+    "acceptance-policy": {
+      "path": ".tmp/fold-position-3au1vls0/acceptance-policy.json",
+      "sha256": "4ce836200385e6aa3d75a0761e2a50e038eef9b6a75a1e43f4f5dfc022f50a1b"
+    },
+    "restoration": {
+      "path": ".tmp/fold-position-3au1vls0/restoration.json",
+      "sha256": "bb549497736e1ec69873cad5ffc7044df985190d6095a72b54bf2afd23fd045b"
+    },
+    "corpus-reproduction": {
+      "path": ".tmp/fold-position-3au1vls0/corpus-reproduction.json",
+      "sha256": "603da256f1c9b4afdead1d9f31ef00fba1cf665abaa899e526995dbe9b56e880"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/fold-position-3au1vls0/artifact-integrity.json",
+      "sha256": "d1dc3e0636e5f4a60822159cbd8d5ba887e85cbb7bf749805aad0c3f26d9078a"
+    }
+  },
+  "limitations": [
+    "Finite synthetic shared-host measurements; no production-weighted, concurrent, live dbengine or physical ARM throughput claim.",
+    "Accounted memory is not process RSS; independent category peaks are not additive.",
+    "No full native/ARM/C/static/MSRV/compiled-size qualification after the failed timing gate.",
+    "The branch runtime remains the previously accepted implementation."
+  ]
+}
