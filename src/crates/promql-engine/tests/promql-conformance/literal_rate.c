@@ -146,7 +146,21 @@ int main(void) {
         {"resets(m_total[4s]) % 2", 0x1.0000000000000p+0},
         {"2 % resets(m_total[4s])", 0x1.0000000000000p+1},
         {"resets(m_total[4s]) atan2 2", 0x1.f730bd281f69bp-1},
-        {"2 atan2 resets(m_total[4s])", 0x1.2d0ead6066395p-1}
+        {"2 atan2 resets(m_total[4s])", 0x1.2d0ead6066395p-1},
+        {"deriv(m_total[4s]) + 2", 0x1.8000000000000p+1},
+        {"2 + deriv(m_total[4s])", 0x1.8000000000000p+1},
+        {"deriv(m_total[4s]) - 2", -0x1.0000000000000p+0},
+        {"2 - deriv(m_total[4s])", 0x1.0000000000000p+0},
+        {"deriv(m_total[4s]) * 2", 0x1.0000000000000p+1},
+        {"2 * deriv(m_total[4s])", 0x1.0000000000000p+1},
+        {"deriv(m_total[4s]) / 2", 0x1.0000000000000p-1},
+        {"2 / deriv(m_total[4s])", 0x1.0000000000000p+1},
+        {"deriv(m_total[4s]) ^ 2", 0x1.0000000000000p+0},
+        {"2 ^ deriv(m_total[4s])", 0x1.0000000000000p+1},
+        {"deriv(m_total[4s]) % 2", 0x1.0000000000000p+0},
+        {"2 % deriv(m_total[4s])", 0x0.0p+0},
+        {"deriv(m_total[4s]) atan2 2", 0x1.dac670561bb4fp-2},
+        {"2 atan2 deriv(m_total[4s])", 0x1.1b6e192ebbe44p+0}
     };
     const uint64_t pages[] = {1, 17, 1024};
     unsigned cases = 0;
@@ -218,7 +232,7 @@ int main(void) {
         }
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
     }
-    assert(cases == 2268);
+    assert(cases == 2520);
     printf("{\"literal_rate\":\"pass\",\"cases\":%u}\n", cases);
     return 0;
 }

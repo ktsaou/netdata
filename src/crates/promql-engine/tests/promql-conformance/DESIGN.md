@@ -3009,3 +3009,20 @@ changing membership, special literals, complete original comparisons and proport
   this is not permission to ignore order for arbitrary results or to change original captures.
 - The [finite qualification](literal-predecessor-preparation-qualification.json) owns the original outcomes,
   causal tests, native timing, actual C/ARM callers, failed initial attempt and proportional compiled costs.
+
+
+## Instant literal Deriv ownership
+
+- Admit completed Deriv through the existing instant literal path and direct-Matrix guard. Its zero-parameter
+  Numeric preparation provides ordinary Float descriptors and a producer clock, including empty completion.
+  Preserve the actual selector, clock, ordering and descriptor checks; do not generalize from Numeric to
+  PredictLinear or smoothing. Parenthesized windows retain the generic path.
+- A singleton or histogram-only window has no slope. Mixed history with just one Float also has no slope,
+  but keeps `HistogramIgnoredInMixedRange`. Merge child diagnostics before transferring even an empty
+  descriptor set. Preserve sparse ordinals and histogram-weighted logical statistics separately from reads.
+- Keep regression arithmetic, fold clearing, error/duplicate priority and fresh final evaluation unchanged.
+  An entirely empty result skips final traversal; when an ordinary row survives, final traversal still reads
+  the mixed/native row. Test both cases, real arithmetic interruption, and empty/nonempty ownership cleanup.
+- The [finite qualification](literal-deriv-preparation-qualification.json) owns original outcomes, pre-change
+  order-policy proof, causal read reductions, mixed empty warnings, native timings, C/ARM callers and compiled
+  costs. Broader filters and numeric-function admission require their own proof and measured experiment.

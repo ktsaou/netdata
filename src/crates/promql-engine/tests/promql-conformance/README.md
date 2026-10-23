@@ -11665,3 +11665,56 @@ provider first-page failure checks remain. Those checks do not establish later c
 comparisons: their 160 suffix variants are precedence-sensitive controls, not uniformly outer arithmetic or
 direct optimization targets. Fresh original captures cover their exact strings and are reused unchanged
 between candidate attempts. Historical panels retain their actual source and binary identities.
+
+
+## Completed instant literal Deriv preparation
+
+Instant literal arithmetic and Boolean comparisons over `deriv` reuse completed child descriptors through
+`execution::literal_range_child`. Deriv has no scalar parameter, produces Float or empty output, and drops
+metric names. Its ordinary instant preparation supplies a producer clock without an ordered boundary,
+including when no row survives. Existing root, literal, direct-Matrix, selector, clock and descriptor guards
+remain. Parenthesized windows, ordinary alert filters, modifiers, ranges and dynamic/nested paths remain generic.
+The regression calculation and final fresh reads are unchanged; no new runtime buffer or cache is introduced.
+
+Empty output does not imply an empty diagnostic list. One Float plus one histogram cannot produce a slope,
+but still produces `HistogramIgnoredInMixedRange`. The causal tests preserve that warning when the entire
+root vector is empty. This fixture has 12 logical/read units alone; with an ordinary four-point row it has
+16 logical units and 32 reads, including fresh traversal of both rows. Histogram-only input has no warning;
+singletons are absent, while constant finite values with enough points produce positive zero.
+
+[Qualification](literal-deriv-preparation-qualification.json) records 1,248 fresh pinned Go1.27.1 outcomes
+and 7,488 exact baseline comparisons across both release profiles and pages 1/17/1024. There are no numerical
+bit differences or excluded outcomes. The 24 expected construction errors are separate from 7,464 executed
+resource pairs. Seven existing causal owners cover sparse identity, native weights, empty mixed warnings,
+parenthesized fallback, metadata ownership, final arithmetic interruption and late-error/duplicate priority.
+The unchanged engine reads 48 rather than 32 samples in the extended arithmetic and Boolean tests.
+
+Strict original reports retain 55 row-order differences per panel (330 total). All were first checked against
+the unchanged baseline, and are complete row permutations in four map-assembled instant subquery expressions,
+including an unchanged `predict_linear` control. Baseline and candidate agree exactly. The existing deterministic
+label-byte order policy applies only to those proven controls; all other outcomes remain strictly compared.
+
+Across 4,640 timing pairs, median target time falls by 32.6% in release and 30.3% in release-min. No individual
+case exceeds the frozen slower-case threshold, so no follow-up is needed. All eight measured memory categories,
+allocation traffic, references, physical reads, pages and work are nonincreasing. A 16-series case reduces
+workspace peak from 34,323 to 26,045 bytes and fetched entries from 13,104 to 8,736. These are finite synthetic
+observations, not concurrent/live-provider throughput or process RSS; category peaks are not additive.
+
+Both native profiles pass 995 units with two existing ignored checks. Each ARM target executes 19 focused
+units under QEMU. The extended arithmetic C/C++ caller passes 15,120 cases across six consumers, including
+values, labels, statistics, failures, cancellation and release. Its 14 new expressions use exact original Go
+constants on the existing ascending input; the decreasing Changes/Resets wrapper is unchanged. Complete native
+C suites, strict lint, formatting and installed Rust1.91 compilation pass. Absolute, relative and cumulative
+compiled costs are reported separately from query memory.
+
+Two pre-implementation helper corrections remain visible. The first baseline order check omitted the retained
+PredictLinear subquery shape; its successor verified the same capture without rerunning queries or editing
+originals. An edit helper expected one native-empty predicate but found two and stopped before writing source;
+its successor updates both. Neither correction changes runtime behavior or the frozen acceptance gates.
+
+`literal_deriv_cases.literal_deriv_cases()` reproduces all 1,248 functional inputs;
+`literal_deriv_performance_cases()` reproduces 116 timing inputs. The supplement preserves 32 historical timing
+and 384 control inputs using 27 deduplicated datasets, bound by the published regression capture. The 144 source
+Deriv controls also receive two explicitly parenthesized whole-expression compositions. Existing comparisons
+therefore retain precedence; compositions that do not fit the admission rules remain controls. Historical
+panels retain their actual source and binary identities.

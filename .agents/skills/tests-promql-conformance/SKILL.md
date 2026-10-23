@@ -415,3 +415,7 @@ Literal Count/Min/Max preparation and empty-descriptor checks follow
 
 Literal Changes/Resets preparation and direct-window admission follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-literal-changes-and-resets-preparation`.
+
+
+Literal Deriv preparation and empty mixed warnings follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-literal-deriv-preparation`.

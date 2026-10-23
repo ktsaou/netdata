@@ -2137,11 +2137,12 @@ impl CompiledQuery {
                 | "max_over_time"
                 | "changes"
                 | "resets"
+                | "deriv"
         ) {
             return Ok(None);
         }
-        // Keep new predecessor paths limited to syntactically direct windows.
-        if matches!(function.name, "changes" | "resets")
+        // Reject ineligible argument shapes before charged preprocessing.
+        if matches!(function.name, "changes" | "resets" | "deriv")
             && !matches!(
                 self.expression.arena[arguments[0]].expression,
                 Expr::Matrix { .. }
@@ -4886,6 +4887,7 @@ mod tests {
                     "123 % max_over_time(counter_total[4s])",
                     "123 % changes(counter_total[4s])",
                     "123 % resets(counter_total[4s])",
+                    "123 % deriv(counter_total[4s])",
                 ] {
                     let engine = Engine::default();
                     let control = Control::default();
@@ -5020,6 +5022,7 @@ mod tests {
                         "max_over_time",
                         "changes",
                         "resets",
+                        "deriv",
                     ] {
                         let value: f64 = match function {
                             "rate" => 1.0,
@@ -5027,12 +5030,13 @@ mod tests {
                             "sum_over_time" => 10.0,
                             "avg_over_time" => 2.5,
                             "count_over_time" | "max_over_time" => 4.0,
-                            "min_over_time" => 1.0,
+                            "min_over_time" | "deriv" => 1.0,
                             "changes" | "resets" => 3.0,
                             _ => unreachable!(),
                         };
                         for parenthesized in [false, true] {
-                            if parenthesized && !matches!(function, "changes" | "resets") {
+                            if parenthesized && !matches!(function, "changes" | "resets" | "deriv")
+                            {
                                 continue;
                             }
                             for operator in ["+", "-", "*", "/", "^", "%", "atan2"] {
@@ -5159,6 +5163,7 @@ mod tests {
                     "max_over_time",
                     "changes",
                     "resets",
+                    "deriv",
                 ] {
                     let value: f64 = match function {
                         "rate" => 1.0,
@@ -5166,7 +5171,7 @@ mod tests {
                         "sum_over_time" => 10.0,
                         "avg_over_time" => 2.5,
                         "count_over_time" | "max_over_time" => 4.0,
-                        "min_over_time" => 1.0,
+                        "min_over_time" | "deriv" => 1.0,
                         "changes" => 3.0,
                         "resets" => 0.0,
                         _ => unreachable!(),
@@ -5267,6 +5272,7 @@ mod tests {
                         ("max_over_time", 4.0),
                         ("changes", 3.0),
                         ("resets", 0.0),
+                        ("deriv", 1.0),
                     ] {
                         let engine = Engine::default();
                         let control = Control::default();
@@ -5293,11 +5299,12 @@ mod tests {
                             &control,
                         );
                         let result = report.result.as_ref().unwrap();
-                        let ordinals: &[usize] = if !matches!(function, "rate" | "increase") {
-                            &[0, 1, 3]
-                        } else {
-                            &[1, 3]
-                        };
+                        let ordinals: &[usize] =
+                            if !matches!(function, "rate" | "increase" | "deriv") {
+                                &[0, 1, 3]
+                            } else {
+                                &[1, 3]
+                            };
                         assert_eq!(result.series.len(), ordinals.len());
                         for (row, ordinal) in result.series.iter().zip(ordinals) {
                             assert_eq!(
@@ -5378,13 +5385,18 @@ mod tests {
                         "max_over_time",
                         "changes",
                         "resets",
+                        "deriv",
                     ] {
-                        for native in [false, true] {
+                        for (native, count) in [(false, 4), (true, 4), (false, 2)] {
+                            if count == 2 && function != "deriv" {
+                                continue;
+                            }
                             for ordinary in [false, true] {
                                 let engine = Engine::default();
                                 let control = Control::default();
                                 let mut provider =
                                     FixtureProvider::new(4, page, 1 + usize::from(ordinary));
+                                provider.series[0].source.count = count;
                                 provider.series[0].source.sample = if native {
                                     native_range_sample
                                 } else {
@@ -5400,7 +5412,7 @@ mod tests {
                                         "sum_over_time" => 12.0,
                                         "avg_over_time" => 4.5,
                                         "count_over_time" | "max_over_time" => 6.0,
-                                        "min_over_time" => 3.0,
+                                        "min_over_time" | "deriv" => 3.0,
                                         "changes" => 5.0,
                                         "resets" => 2.0,
                                         _ => unreachable!(),
@@ -5427,6 +5439,7 @@ mod tests {
                                         | "max_over_time"
                                         | "changes"
                                         | "resets"
+                                        | "deriv"
                                 );
                                 let survives =
                                     matches!(function, "count_over_time" | "changes" | "resets")
@@ -5434,14 +5447,17 @@ mod tests {
                                             && matches!(
                                                 function,
                                                 "min_over_time" | "max_over_time"
-                                            ));
+                                            ))
+                                        || (!native && function == "deriv" && count == 4);
                                 assert_eq!(
                                     result.series.len(),
                                     usize::from(ordinary) + usize::from(survives)
                                 );
                                 if survives {
                                     assert_eq!(result.series[0].labels.0[0].value.as_ref(), b"0");
-                                    let first: f64 = if matches!(function, "changes" | "resets") {
+                                    let first: f64 = if function == "deriv" {
+                                        if arithmetic { 2.0 } else { 0.0 }
+                                    } else if matches!(function, "changes" | "resets") {
                                         let value = if native && function == "resets" {
                                             0.0
                                         } else {
@@ -5473,7 +5489,10 @@ mod tests {
                                 }
                                 let annotation = if summary {
                                     (!native
-                                        && matches!(function, "min_over_time" | "max_over_time"))
+                                        && matches!(
+                                            function,
+                                            "min_over_time" | "max_over_time" | "deriv"
+                                        ))
                                     .then_some(AnnotationKind::HistogramIgnoredInMixedRange)
                                 } else if native {
                                     Some(AnnotationKind::IncompatibleBinaryTypes {
@@ -5499,7 +5518,13 @@ mod tests {
                                     );
                                 }
                                 if summary {
-                                    let first_units = if native { 52 } else { 24 };
+                                    let first_units = if native {
+                                        52
+                                    } else if count == 2 {
+                                        12
+                                    } else {
+                                        24
+                                    };
                                     let ordinary_units = if ordinary { 4 } else { 0 };
                                     assert_eq!(
                                         report
@@ -5510,10 +5535,7 @@ mod tests {
                                         first_units + ordinary_units,
                                         "{function}"
                                     );
-                                    let first_reads = if native
-                                        && matches!(function, "min_over_time" | "max_over_time")
-                                        && !ordinary
-                                    {
+                                    let first_reads = if !survives && !ordinary {
                                         first_units
                                     } else {
                                         first_units * 2
@@ -5638,7 +5660,8 @@ mod tests {
                     assert_eq!(account.snapshot().work, before);
                 }
                 let descriptors = rosters.descriptors(compiled.expression.root);
-                let empty = native && matches!(function, "min_over_time" | "max_over_time");
+                let empty =
+                    native && matches!(function, "min_over_time" | "max_over_time" | "deriv");
                 assert_eq!(descriptors.len(), if empty { 0 } else { 4 });
                 let kind =
                     if !native || matches!(function, "count_over_time" | "changes" | "resets") {
@@ -5673,10 +5696,11 @@ mod tests {
             "max_over_time",
             "changes",
             "resets",
+            "deriv",
         ] {
             let native_acquisitions = preparation_acquisitions(function, true, false);
             let float_acquisitions = preparation_acquisitions(function, false, false);
-            if matches!(function, "changes" | "resets") {
+            if matches!(function, "changes" | "resets" | "deriv") {
                 for native in [false, true] {
                     preparation_acquisitions(function, native, true);
                 }
@@ -5762,6 +5786,7 @@ mod tests {
                                     | "max_over_time"
                                     | "changes"
                                     | "resets"
+                                    | "deriv"
                             )
                         {
                             assert!(matches!(
@@ -5794,7 +5819,7 @@ mod tests {
                             };
                             let rows = rosters.take_output(root).unwrap();
                             let row_count = if native
-                                && matches!(function, "min_over_time" | "max_over_time")
+                                && matches!(function, "min_over_time" | "max_over_time" | "deriv")
                             {
                                 0
                             } else {
@@ -5899,6 +5924,7 @@ mod tests {
             "max_over_time",
             "changes",
             "resets",
+            "deriv",
         ] {
             for suffix in [
                 "> bool 0", "+ 2", "- 2", "* 2", "/ 2", "^ 123", "% 3", "atan2 2",

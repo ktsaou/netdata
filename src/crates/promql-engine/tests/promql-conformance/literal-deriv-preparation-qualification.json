@@ -1,0 +1,2096 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "8df2c259990d273a127bba0aacfb42c653c82207",
+  "baseline_runtime_attribution": "Accepted Changes/Resets binaries with their original source/build receipts; documentation additions do not reattribute binaries.",
+  "change": "Reuse completed Deriv descriptors beneath eligible instant literal arithmetic and Boolean comparisons.",
+  "proof": "Successful Deriv outputs are Float or empty and drop names. Zero-parameter Numeric preparation establishes ordinary descriptors and a producer clock, including empty results. Existing root/literal/raw-Matrix/selector/clock/descriptor guards remain. Annotation merge precedes transfer, folds are cleared and final values remain fresh.",
+  "preserved": [
+    "regression arithmetic, operation order, NaNs and signed zero",
+    "singleton/native-only absence and mixed-histogram warnings even with no surviving result",
+    "histogram-weighted logical counts, sparse identity and provider/control phases",
+    "ordinary filters, parenthesized windows, modifiers, range/nested queries and other numeric functions",
+    "paged history on both axes, disabled implicit caps, public interfaces and accounting ownership"
+  ],
+  "qualification": {
+    "fresh_query_originals": 1248,
+    "original_engine": "Prometheus v0.315.0 / pinned Go1.27.1 AMD64 FMA-on",
+    "original_capture_reuse": "Captured before tests/admission changed; unchanged fresh originals also checked against the unchanged baseline before implementation.",
+    "exact_baseline_pairs": 7488,
+    "original_passes_under_scoped_policy": 7488,
+    "retained_strict_original_failures": 330,
+    "unique_order_policy_controls": 55,
+    "order_policy": "Existing deterministic label-byte order only for55pre-implementation proven map-assembled instant controls across four queries, including an unchanged PredictLinear control. Complete rows/diagnostics match. Every other outcome remains strict; original captures remain unchanged.",
+    "numeric_bit_differences": 0,
+    "original_exclusions": 0,
+    "construction_error_comparisons": 24,
+    "construction_error_scope": "Default-profile anchored/smoothed requests are compared as errors, not resource cases.",
+    "extended_unit_owners": 7,
+    "new_unit_owners": 0,
+    "causal_red": "Unchanged engine reads48instead of32samples for Deriv arithmetic and Boolean expressions; late-error/duplicate owner passed before admission changed.",
+    "native_empty_discriminator": "OneFloat plus onehistogram yields no row but retains HistogramIgnoredInMixedRange. It has12logical/read units alone; with an ordinary4point row it has16logical/32read units. Native-only has52units and no warning, or56logical/112read units with the ordinary row.",
+    "units": {
+      "release": [
+        {
+          "filter": "",
+          "passed": 995,
+          "ignored": 2
+        }
+      ],
+      "release-min": [
+        {
+          "filter": "",
+          "passed": 995,
+          "ignored": 2
+        }
+      ],
+      "arm32": [
+        {
+          "filter": "execution::tests::literal_rate_",
+          "passed": 6,
+          "ignored": 0
+        },
+        {
+          "filter": "execution::tests::boolean_rate_preparation_",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "statistics::tests",
+          "passed": 12,
+          "ignored": 0
+        }
+      ],
+      "arm64": [
+        {
+          "filter": "execution::tests::literal_rate_",
+          "passed": 6,
+          "ignored": 0
+        },
+        {
+          "filter": "execution::tests::boolean_rate_preparation_",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "statistics::tests",
+          "passed": 12,
+          "ignored": 0
+        }
+      ]
+    },
+    "callers": {
+      "release": [
+        {
+          "language": "C",
+          "cases": 2520,
+          "binary_sha256": "d030fd764e1fe16051a6596b59ca49e3adc34991a83eeb71c002ef6cdbb0c158"
+        },
+        {
+          "language": "CPP",
+          "cases": 2520,
+          "binary_sha256": "a7c2dc0ff425e25e4c51e66379dbc866d6e5e5b8bf76cd95a67562758731355a"
+        }
+      ],
+      "release-min": [
+        {
+          "language": "C",
+          "cases": 2520,
+          "binary_sha256": "c02d8780905fe374d40754552bb163464785912d7816a41d16c28e8f9fc84330"
+        },
+        {
+          "language": "CPP",
+          "cases": 2520,
+          "binary_sha256": "cb71203c6defc65adab485b8d18e5a1f42af3e1a85a412e1cb5f75bd685d8f0f"
+        }
+      ],
+      "arm32": [
+        {
+          "language": "C",
+          "cases": 2520,
+          "binary_sha256": "228c0e9ee3db5d63746290a368656d5bb664ff8882775817477303db6f502281"
+        }
+      ],
+      "arm64": [
+        {
+          "language": "C",
+          "cases": 2520,
+          "binary_sha256": "69f63cf164bd760425b9627027e41ae6fe9bece67bad1433220cab3d0077782d"
+        }
+      ]
+    },
+    "C_CPP_cases": 15120,
+    "C_expectations": "14new expressions use independently captured exact Go constants on existing ascending1,2,3,4; the Changes/Resets decreasing wrapper is unchanged.",
+    "accepted_baseline_new_C_cases": 0,
+    "complete_native_C_suites": 2,
+    "strict_lint_variants": 2,
+    "format": true,
+    "MSRV_compile_only": "1.91.0"
+  },
+  "measurement": {
+    "plan": {
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "blocks": 5,
+      "repeats": 4,
+      "discard_first": true,
+      "page": 17,
+      "target_shapes": [
+        "deriv"
+      ],
+      "target_median_max": 0.9,
+      "overall_target_median_max": 0.9,
+      "control_median_max": 1.05,
+      "individual_control_followup": {
+        "threshold": 1.05,
+        "blocks": 6,
+        "max_rounds": 1,
+        "include_targets": true
+      },
+      "acceptance": "Exact outputs and logical counts; all8memory peaks/current/allocation traffic nonincreasing. Target family/overall<=0.90, controls<=1.05, no individual persistent>1.05. Keep final fresh reads and causal cancellation/error checks.",
+      "compiled_policy": "Decision66 proportional absolute/relative/cumulative fixed costs, query memory separate."
+    },
+    "profiles": {
+      "release": {
+        "target": 0.6741373692023607,
+        "families": {
+          "deriv": 0.6741373692023607
+        },
+        "controls": 0.9605072210710932,
+        "complete_pairs": 2320,
+        "cases": [
+          {
+            "id": "summary-target-deriv-+-False-4-32",
+            "target": true,
+            "ratio": 0.6950771416971173,
+            "before_median_ns": 98520,
+            "candidate_median_ns": 68479
+          },
+          {
+            "id": "summary-target-deriv-+-True-4-32",
+            "target": true,
+            "ratio": 0.7115620962405067,
+            "before_median_ns": 95199,
+            "candidate_median_ns": 67740
+          },
+          {
+            "id": "summary-target-deriv---False-4-32",
+            "target": true,
+            "ratio": 0.7165691924429856,
+            "before_median_ns": 93529,
+            "candidate_median_ns": 67020
+          },
+          {
+            "id": "summary-target-deriv---True-4-32",
+            "target": true,
+            "ratio": 0.7181520521271851,
+            "before_median_ns": 91929,
+            "candidate_median_ns": 66019
+          },
+          {
+            "id": "summary-target-deriv-*-False-4-32",
+            "target": true,
+            "ratio": 0.7174139616843417,
+            "before_median_ns": 93069,
+            "candidate_median_ns": 66769
+          },
+          {
+            "id": "summary-target-deriv-*-True-4-32",
+            "target": true,
+            "ratio": 0.7073165571880388,
+            "before_median_ns": 94539,
+            "candidate_median_ns": 66869
+          },
+          {
+            "id": "summary-target-deriv-/-False-4-32",
+            "target": true,
+            "ratio": 0.7229427792915532,
+            "before_median_ns": 91750,
+            "candidate_median_ns": 66330
+          },
+          {
+            "id": "summary-target-deriv-/-True-4-32",
+            "target": true,
+            "ratio": 0.7024963195966913,
+            "before_median_ns": 94419,
+            "candidate_median_ns": 66329
+          },
+          {
+            "id": "summary-target-deriv-^-False-4-32",
+            "target": true,
+            "ratio": 0.7128894318875992,
+            "before_median_ns": 93309,
+            "candidate_median_ns": 66519
+          },
+          {
+            "id": "summary-target-deriv-^-True-4-32",
+            "target": true,
+            "ratio": 0.7144181440866332,
+            "before_median_ns": 94929,
+            "candidate_median_ns": 67819
+          },
+          {
+            "id": "summary-target-deriv-%-False-4-32",
+            "target": true,
+            "ratio": 0.7155327952981342,
+            "before_median_ns": 92559,
+            "candidate_median_ns": 66229
+          },
+          {
+            "id": "summary-target-deriv-%-True-4-32",
+            "target": true,
+            "ratio": 0.7112813175701116,
+            "before_median_ns": 92959,
+            "candidate_median_ns": 66120
+          },
+          {
+            "id": "summary-target-deriv-atan2-False-4-32",
+            "target": true,
+            "ratio": 0.7149974981102748,
+            "before_median_ns": 93929,
+            "candidate_median_ns": 67159
+          },
+          {
+            "id": "summary-target-deriv-atan2-True-4-32",
+            "target": true,
+            "ratio": 0.7107616072390391,
+            "before_median_ns": 92830,
+            "candidate_median_ns": 65980
+          },
+          {
+            "id": "summary-control-deriv-plain-4-32",
+            "target": false,
+            "ratio": 0.983341045812124,
+            "before_median_ns": 43220,
+            "candidate_median_ns": 42500
+          },
+          {
+            "id": "summary-control-deriv-bool-4-32",
+            "target": true,
+            "ratio": 0.6993598658159853,
+            "before_median_ns": 94199,
+            "candidate_median_ns": 65879
+          },
+          {
+            "id": "summary-control-deriv-filter-4-32",
+            "target": false,
+            "ratio": 0.9956252095206168,
+            "before_median_ns": 59660,
+            "candidate_median_ns": 59399
+          },
+          {
+            "id": "summary-control-deriv-dynamic-4-32",
+            "target": false,
+            "ratio": 0.9853177730516361,
+            "before_median_ns": 92629,
+            "candidate_median_ns": 91269
+          },
+          {
+            "id": "summary-control-deriv-nested-4-32",
+            "target": false,
+            "ratio": 0.9817061665805298,
+            "before_median_ns": 121899,
+            "candidate_median_ns": 119669
+          },
+          {
+            "id": "summary-control-deriv-range-4-32",
+            "target": false,
+            "ratio": 0.9821153976055851,
+            "before_median_ns": 251669,
+            "candidate_median_ns": 247168
+          },
+          {
+            "id": "summary-control-deriv-equal-range-4-32",
+            "target": false,
+            "ratio": 0.9769941100661419,
+            "before_median_ns": 93889,
+            "candidate_median_ns": 91729
+          },
+          {
+            "id": "summary-control-deriv-offset-4-32",
+            "target": false,
+            "ratio": 0.9865134049570584,
+            "before_median_ns": 91869,
+            "candidate_median_ns": 90630
+          },
+          {
+            "id": "summary-target-deriv-+-False-16-256",
+            "target": true,
+            "ratio": 0.6552648648024652,
+            "before_median_ns": 1386009,
+            "candidate_median_ns": 908203
+          },
+          {
+            "id": "summary-target-deriv-+-True-16-256",
+            "target": true,
+            "ratio": 0.6443066007884317,
+            "before_median_ns": 1385789,
+            "candidate_median_ns": 892873
+          },
+          {
+            "id": "summary-target-deriv---False-16-256",
+            "target": true,
+            "ratio": 0.6602536429194955,
+            "before_median_ns": 1364359,
+            "candidate_median_ns": 900823
+          },
+          {
+            "id": "summary-target-deriv---True-16-256",
+            "target": true,
+            "ratio": 0.6629531738689926,
+            "before_median_ns": 1362060,
+            "candidate_median_ns": 902982
+          },
+          {
+            "id": "summary-target-deriv-*-False-16-256",
+            "target": true,
+            "ratio": 0.6604731297865046,
+            "before_median_ns": 1368039,
+            "candidate_median_ns": 903553
+          },
+          {
+            "id": "summary-target-deriv-*-True-16-256",
+            "target": true,
+            "ratio": 0.6586783414093786,
+            "before_median_ns": 1379388,
+            "candidate_median_ns": 908573
+          },
+          {
+            "id": "summary-target-deriv-/-False-16-256",
+            "target": true,
+            "ratio": 0.6459345055454428,
+            "before_median_ns": 1389339,
+            "candidate_median_ns": 897422
+          },
+          {
+            "id": "summary-target-deriv-/-True-16-256",
+            "target": true,
+            "ratio": 0.6508775112403686,
+            "before_median_ns": 1383629,
+            "candidate_median_ns": 900573
+          },
+          {
+            "id": "summary-target-deriv-^-False-16-256",
+            "target": true,
+            "ratio": 0.6567963044620033,
+            "before_median_ns": 1376579,
+            "candidate_median_ns": 904132
+          },
+          {
+            "id": "summary-target-deriv-^-True-16-256",
+            "target": true,
+            "ratio": 0.6476928629147052,
+            "before_median_ns": 1390988,
+            "candidate_median_ns": 900933
+          },
+          {
+            "id": "summary-target-deriv-%-False-16-256",
+            "target": true,
+            "ratio": 0.6498620871035683,
+            "before_median_ns": 1380219,
+            "candidate_median_ns": 896952
+          },
+          {
+            "id": "summary-target-deriv-%-True-16-256",
+            "target": true,
+            "ratio": 0.651558792582019,
+            "before_median_ns": 1375199,
+            "candidate_median_ns": 896023
+          },
+          {
+            "id": "summary-target-deriv-atan2-False-16-256",
+            "target": true,
+            "ratio": 0.6442043909240026,
+            "before_median_ns": 1397929,
+            "candidate_median_ns": 900552
+          },
+          {
+            "id": "summary-target-deriv-atan2-True-16-256",
+            "target": true,
+            "ratio": 0.6548761352185997,
+            "before_median_ns": 1378479,
+            "candidate_median_ns": 902733
+          },
+          {
+            "id": "summary-control-deriv-plain-16-256",
+            "target": false,
+            "ratio": 0.9528897446418989,
+            "before_median_ns": 506896,
+            "candidate_median_ns": 483016
+          },
+          {
+            "id": "summary-control-deriv-bool-16-256",
+            "target": true,
+            "ratio": 0.6661954198896276,
+            "before_median_ns": 1371539,
+            "candidate_median_ns": 913713
+          },
+          {
+            "id": "summary-control-deriv-filter-16-256",
+            "target": false,
+            "ratio": 0.986158108997173,
+            "before_median_ns": 890702,
+            "candidate_median_ns": 878373
+          },
+          {
+            "id": "summary-control-deriv-dynamic-16-256",
+            "target": false,
+            "ratio": 0.9695766141016515,
+            "before_median_ns": 1379498,
+            "candidate_median_ns": 1337529
+          },
+          {
+            "id": "summary-control-deriv-nested-16-256",
+            "target": false,
+            "ratio": 0.9897661851056646,
+            "before_median_ns": 1812716,
+            "candidate_median_ns": 1794165
+          },
+          {
+            "id": "summary-control-deriv-range-16-256",
+            "target": false,
+            "ratio": 0.9650038867236395,
+            "before_median_ns": 4102427,
+            "candidate_median_ns": 3958858
+          },
+          {
+            "id": "summary-control-deriv-equal-range-16-256",
+            "target": false,
+            "ratio": 0.9708433159888075,
+            "before_median_ns": 1386989,
+            "candidate_median_ns": 1346549
+          },
+          {
+            "id": "summary-control-deriv-offset-16-256",
+            "target": false,
+            "ratio": 0.97117732237834,
+            "before_median_ns": 1374959,
+            "candidate_median_ns": 1335329
+          },
+          {
+            "id": "summary-control-deriv-native",
+            "target": false,
+            "ratio": 0.5771329639889197,
+            "before_median_ns": 72200,
+            "candidate_median_ns": 41669
+          },
+          {
+            "id": "summary-control-deriv-native-first",
+            "target": false,
+            "ratio": 0.7048372001004422,
+            "before_median_ns": 131419,
+            "candidate_median_ns": 92629
+          },
+          {
+            "id": "summary-control-deriv-native-last",
+            "target": false,
+            "ratio": 0.7189404973836112,
+            "before_median_ns": 129759,
+            "candidate_median_ns": 93289
+          },
+          {
+            "id": "summary-control-deriv-alternating",
+            "target": false,
+            "ratio": 0.7103720422940588,
+            "before_median_ns": 132028,
+            "candidate_median_ns": 93789
+          },
+          {
+            "id": "summary-control-deriv-stale-first",
+            "target": false,
+            "ratio": 0.6959998092497953,
+            "before_median_ns": 125819,
+            "candidate_median_ns": 87570
+          },
+          {
+            "id": "summary-control-deriv-stale-last",
+            "target": false,
+            "ratio": 0.695377830002656,
+            "before_median_ns": 124249,
+            "candidate_median_ns": 86400
+          },
+          {
+            "id": "deriv-retained-summary-target-changes-*-True-4-32",
+            "target": false,
+            "ratio": 0.9752805516931418,
+            "before_median_ns": 71199,
+            "candidate_median_ns": 69439
+          },
+          {
+            "id": "deriv-retained-summary-target-changes-*-True-16-256",
+            "target": false,
+            "ratio": 0.9609594299441966,
+            "before_median_ns": 1008182,
+            "candidate_median_ns": 968822
+          },
+          {
+            "id": "deriv-retained-summary-target-resets-*-True-4-32",
+            "target": false,
+            "ratio": 0.974965095048867,
+            "before_median_ns": 93110,
+            "candidate_median_ns": 90779
+          },
+          {
+            "id": "deriv-retained-summary-target-resets-*-True-16-256",
+            "target": false,
+            "ratio": 0.9891503799048623,
+            "before_median_ns": 1486688,
+            "candidate_median_ns": 1470558
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-target-count_over_time-*-True-4-32",
+            "target": false,
+            "ratio": 0.9453648219950652,
+            "before_median_ns": 56740,
+            "candidate_median_ns": 53640
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-target-count_over_time-*-True-16-256",
+            "target": false,
+            "ratio": 0.9811961959706135,
+            "before_median_ns": 554675,
+            "candidate_median_ns": 544245
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-target-min_over_time-*-True-4-32",
+            "target": false,
+            "ratio": 0.9745300893710491,
+            "before_median_ns": 59639,
+            "candidate_median_ns": 58120
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-target-min_over_time-*-True-16-256",
+            "target": false,
+            "ratio": 0.9390131586521304,
+            "before_median_ns": 694904,
+            "candidate_median_ns": 652524
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-target-max_over_time-*-True-4-32",
+            "target": false,
+            "ratio": 0.9688806007426031,
+            "before_median_ns": 60059,
+            "candidate_median_ns": 58190
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-target-max_over_time-*-True-16-256",
+            "target": false,
+            "ratio": 0.9557147910191585,
+            "before_median_ns": 689824,
+            "candidate_median_ns": 659275
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-fold-target-sum_over_time-*-True-4-32",
+            "target": false,
+            "ratio": 0.9723195229638801,
+            "before_median_ns": 61379,
+            "candidate_median_ns": 59680
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-fold-target-avg_over_time-*-True-4-32",
+            "target": false,
+            "ratio": 0.9771001169706256,
+            "before_median_ns": 60699,
+            "candidate_median_ns": 59309
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-fold-target-sum_over_time-*-True-16-256",
+            "target": false,
+            "ratio": 0.9413819686103767,
+            "before_median_ns": 736804,
+            "candidate_median_ns": 693614
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-fold-target-avg_over_time-*-True-16-256",
+            "target": false,
+            "ratio": 0.9425958253456567,
+            "before_median_ns": 746984,
+            "candidate_median_ns": 704104
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-retained-target-rate-*-True-4-32",
+            "target": false,
+            "ratio": 0.9597088725338208,
+            "before_median_ns": 61279,
+            "candidate_median_ns": 58810
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-retained-target-increase-*-True-4-32",
+            "target": false,
+            "ratio": 0.9659128699700699,
+            "before_median_ns": 60140,
+            "candidate_median_ns": 58090
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-retained-target-rate-*-True-16-256",
+            "target": false,
+            "ratio": 0.9629081199882239,
+            "before_median_ns": 686134,
+            "candidate_median_ns": 660684
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-retained-target-increase-*-True-16-256",
+            "target": false,
+            "ratio": 0.9710556630792132,
+            "before_median_ns": 689254,
+            "candidate_median_ns": 669304
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-control-stddev_over_time-plain-16-256",
+            "target": false,
+            "ratio": 0.964894556742053,
+            "before_median_ns": 969052,
+            "candidate_median_ns": 935033
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-control-stddev_over_time-offset-16-256",
+            "target": false,
+            "ratio": 0.9580034780981627,
+            "before_median_ns": 1453668,
+            "candidate_median_ns": 1392619
+          },
+          {
+            "id": "deriv-history-timing-deriv-4-32-instant",
+            "target": false,
+            "ratio": 0.9848063962897654,
+            "before_median_ns": 41399,
+            "candidate_median_ns": 40770
+          },
+          {
+            "id": "deriv-history-literal-deriv-4-32-instant",
+            "target": true,
+            "ratio": 0.7018152785016467,
+            "before_median_ns": 90179,
+            "candidate_median_ns": 63289
+          },
+          {
+            "id": "deriv-history-timing-deriv-4-32-range",
+            "target": false,
+            "ratio": 0.9384561280112538,
+            "before_median_ns": 153549,
+            "candidate_median_ns": 144099
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-4-32-instant",
+            "target": false,
+            "ratio": 0.9579772850189292,
+            "before_median_ns": 55470,
+            "candidate_median_ns": 53139
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-4-32-range",
+            "target": false,
+            "ratio": 0.9447381362183428,
+            "before_median_ns": 178948,
+            "candidate_median_ns": 169059
+          },
+          {
+            "id": "deriv-history-timing-min-4-32-instant",
+            "target": false,
+            "ratio": 0.9478172507920062,
+            "before_median_ns": 50189,
+            "candidate_median_ns": 47570
+          },
+          {
+            "id": "deriv-history-timing-min-4-32-range",
+            "target": false,
+            "ratio": 0.936879438164504,
+            "before_median_ns": 128009,
+            "candidate_median_ns": 119929
+          },
+          {
+            "id": "deriv-history-timing-max-4-32-instant",
+            "target": false,
+            "ratio": 0.9718421052631578,
+            "before_median_ns": 49400,
+            "candidate_median_ns": 48009
+          },
+          {
+            "id": "deriv-history-timing-max-4-32-range",
+            "target": false,
+            "ratio": 0.930694846599911,
+            "before_median_ns": 128129,
+            "candidate_median_ns": 119249
+          },
+          {
+            "id": "deriv-history-timing-deriv-4-256-instant",
+            "target": false,
+            "ratio": 0.9605072210710932,
+            "before_median_ns": 128859,
+            "candidate_median_ns": 123770
+          },
+          {
+            "id": "deriv-history-literal-deriv-4-256-instant",
+            "target": true,
+            "ratio": 0.6482926528253833,
+            "before_median_ns": 356518,
+            "candidate_median_ns": 231128
+          },
+          {
+            "id": "deriv-history-timing-deriv-4-256-range",
+            "target": false,
+            "ratio": 0.9411628624305984,
+            "before_median_ns": 687304,
+            "candidate_median_ns": 646865
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-4-256-instant",
+            "target": false,
+            "ratio": 0.9531137878903991,
+            "before_median_ns": 143539,
+            "candidate_median_ns": 136809
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-4-256-range",
+            "target": false,
+            "ratio": 0.9547203630337214,
+            "before_median_ns": 702965,
+            "candidate_median_ns": 671135
+          },
+          {
+            "id": "deriv-history-timing-min-4-256-instant",
+            "target": false,
+            "ratio": 0.9287469144427367,
+            "before_median_ns": 171768,
+            "candidate_median_ns": 159529
+          },
+          {
+            "id": "deriv-history-timing-min-4-256-range",
+            "target": false,
+            "ratio": 0.933745654787044,
+            "before_median_ns": 492496,
+            "candidate_median_ns": 459866
+          },
+          {
+            "id": "deriv-history-timing-max-4-256-instant",
+            "target": false,
+            "ratio": 0.9344937005292492,
+            "before_median_ns": 170808,
+            "candidate_median_ns": 159619
+          },
+          {
+            "id": "deriv-history-timing-max-4-256-range",
+            "target": false,
+            "ratio": 0.9506204310536227,
+            "before_median_ns": 486436,
+            "candidate_median_ns": 462416
+          },
+          {
+            "id": "deriv-history-timing-deriv-16-32-instant",
+            "target": false,
+            "ratio": 0.9145652280478155,
+            "before_median_ns": 142799,
+            "candidate_median_ns": 130599
+          },
+          {
+            "id": "deriv-history-literal-deriv-16-32-instant",
+            "target": true,
+            "ratio": 0.6602817539323829,
+            "before_median_ns": 317937,
+            "candidate_median_ns": 209928
+          },
+          {
+            "id": "deriv-history-timing-deriv-16-32-range",
+            "target": false,
+            "ratio": 0.9541863730735103,
+            "before_median_ns": 580395,
+            "candidate_median_ns": 553805
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-16-32-instant",
+            "target": false,
+            "ratio": 0.9503872216844144,
+            "before_median_ns": 181808,
+            "candidate_median_ns": 172788
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-16-32-range",
+            "target": false,
+            "ratio": 0.9478713275299239,
+            "before_median_ns": 676384,
+            "candidate_median_ns": 641125
+          },
+          {
+            "id": "deriv-history-timing-min-16-32-instant",
+            "target": false,
+            "ratio": 0.950396072615229,
+            "before_median_ns": 173958,
+            "candidate_median_ns": 165329
+          },
+          {
+            "id": "deriv-history-timing-min-16-32-range",
+            "target": false,
+            "ratio": 0.9396218333381383,
+            "before_median_ns": 485606,
+            "candidate_median_ns": 456286
+          },
+          {
+            "id": "deriv-history-timing-max-16-32-instant",
+            "target": false,
+            "ratio": 0.9659148512197822,
+            "before_median_ns": 171629,
+            "candidate_median_ns": 165779
+          },
+          {
+            "id": "deriv-history-timing-max-16-32-range",
+            "target": false,
+            "ratio": 0.9622520887219495,
+            "before_median_ns": 477086,
+            "candidate_median_ns": 459077
+          },
+          {
+            "id": "deriv-history-timing-deriv-16-256-instant",
+            "target": false,
+            "ratio": 0.954035455461311,
+            "before_median_ns": 492336,
+            "candidate_median_ns": 469706
+          },
+          {
+            "id": "deriv-history-literal-deriv-16-256-instant",
+            "target": true,
+            "ratio": 0.6528106338935601,
+            "before_median_ns": 1366649,
+            "candidate_median_ns": 892163
+          },
+          {
+            "id": "deriv-history-timing-deriv-16-256-range",
+            "target": false,
+            "ratio": 0.954404974514351,
+            "before_median_ns": 2701128,
+            "candidate_median_ns": 2577970
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-16-256-instant",
+            "target": false,
+            "ratio": 0.951967445611368,
+            "before_median_ns": 539405,
+            "candidate_median_ns": 513496
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-16-256-range",
+            "target": false,
+            "ratio": 0.9596065536897692,
+            "before_median_ns": 2809837,
+            "candidate_median_ns": 2696338
+          },
+          {
+            "id": "deriv-history-timing-min-16-256-instant",
+            "target": false,
+            "ratio": 0.9517902727143424,
+            "before_median_ns": 667915,
+            "candidate_median_ns": 635715
+          },
+          {
+            "id": "deriv-history-timing-min-16-256-range",
+            "target": false,
+            "ratio": 0.964335629625566,
+            "before_median_ns": 1913955,
+            "candidate_median_ns": 1845695
+          },
+          {
+            "id": "deriv-history-timing-max-16-256-instant",
+            "target": false,
+            "ratio": 0.970270208745931,
+            "before_median_ns": 658935,
+            "candidate_median_ns": 639345
+          },
+          {
+            "id": "deriv-history-timing-max-16-256-range",
+            "target": false,
+            "ratio": 0.9691535135599957,
+            "before_median_ns": 1907154,
+            "candidate_median_ns": 1848325
+          },
+          {
+            "id": "deriv-native-bare-mixed-reverse-deriv-0-instant",
+            "target": false,
+            "ratio": 0.9769960855809963,
+            "before_median_ns": 18649,
+            "candidate_median_ns": 18220
+          },
+          {
+            "id": "deriv-native-literal-mixed-reverse-deriv-0-instant",
+            "target": true,
+            "ratio": 0.7070372489385408,
+            "before_median_ns": 33209,
+            "candidate_median_ns": 23480
+          },
+          {
+            "id": "deriv-native-bare-histogram-deriv-0-instant",
+            "target": false,
+            "ratio": 0.9793882978723404,
+            "before_median_ns": 15040,
+            "candidate_median_ns": 14730
+          },
+          {
+            "id": "deriv-native-literal-histogram-deriv-0-instant",
+            "target": true,
+            "ratio": 0.6699029126213593,
+            "before_median_ns": 27810,
+            "candidate_median_ns": 18630
+          },
+          {
+            "id": "deriv-native-bare-float_histogram-deriv-0-instant",
+            "target": false,
+            "ratio": 0.9811772315653299,
+            "before_median_ns": 15460,
+            "candidate_median_ns": 15169
+          },
+          {
+            "id": "deriv-native-literal-float_histogram-deriv-0-instant",
+            "target": true,
+            "ratio": 0.6741373692023607,
+            "before_median_ns": 27619,
+            "candidate_median_ns": 18619
+          },
+          {
+            "id": "deriv-native-bare-mixed-deriv-0-instant",
+            "target": false,
+            "ratio": 0.9885711020314866,
+            "before_median_ns": 34999,
+            "candidate_median_ns": 34599
+          },
+          {
+            "id": "deriv-native-literal-mixed-deriv-0-instant",
+            "target": true,
+            "ratio": 0.7827220580566661,
+            "before_median_ns": 57530,
+            "candidate_median_ns": 45030
+          },
+          {
+            "id": "deriv-native-bare-stale-histogram-deriv-0-instant",
+            "target": false,
+            "ratio": 0.9638200782268579,
+            "before_median_ns": 30680,
+            "candidate_median_ns": 29570
+          },
+          {
+            "id": "deriv-native-literal-stale-histogram-deriv-0-instant",
+            "target": true,
+            "ratio": 0.7717655869687324,
+            "before_median_ns": 53410,
+            "candidate_median_ns": 41220
+          }
+        ]
+      },
+      "release-min": {
+        "target": 0.6970085824923196,
+        "families": {
+          "deriv": 0.6970085824923196
+        },
+        "controls": 1.0090746854890538,
+        "complete_pairs": 2320,
+        "cases": [
+          {
+            "id": "summary-target-deriv-+-False-4-32",
+            "target": true,
+            "ratio": 0.7209074224061703,
+            "before_median_ns": 134579,
+            "candidate_median_ns": 97019
+          },
+          {
+            "id": "summary-target-deriv-+-True-4-32",
+            "target": true,
+            "ratio": 0.7244271265382537,
+            "before_median_ns": 131399,
+            "candidate_median_ns": 95189
+          },
+          {
+            "id": "summary-target-deriv---False-4-32",
+            "target": true,
+            "ratio": 0.7318390226812289,
+            "before_median_ns": 131298,
+            "candidate_median_ns": 96089
+          },
+          {
+            "id": "summary-target-deriv---True-4-32",
+            "target": true,
+            "ratio": 0.7447829860444397,
+            "before_median_ns": 130199,
+            "candidate_median_ns": 96970
+          },
+          {
+            "id": "summary-target-deriv-*-False-4-32",
+            "target": true,
+            "ratio": 0.7457986268964932,
+            "before_median_ns": 129779,
+            "candidate_median_ns": 96789
+          },
+          {
+            "id": "summary-target-deriv-*-True-4-32",
+            "target": true,
+            "ratio": 0.7339960884051361,
+            "before_median_ns": 129359,
+            "candidate_median_ns": 94949
+          },
+          {
+            "id": "summary-target-deriv-/-False-4-32",
+            "target": true,
+            "ratio": 0.7276762742974756,
+            "before_median_ns": 130209,
+            "candidate_median_ns": 94750
+          },
+          {
+            "id": "summary-target-deriv-/-True-4-32",
+            "target": true,
+            "ratio": 0.741686575588183,
+            "before_median_ns": 129339,
+            "candidate_median_ns": 95929
+          },
+          {
+            "id": "summary-target-deriv-^-False-4-32",
+            "target": true,
+            "ratio": 0.7380098798133644,
+            "before_median_ns": 131379,
+            "candidate_median_ns": 96959
+          },
+          {
+            "id": "summary-target-deriv-^-True-4-32",
+            "target": true,
+            "ratio": 0.7325649555797471,
+            "before_median_ns": 131359,
+            "candidate_median_ns": 96229
+          },
+          {
+            "id": "summary-target-deriv-%-False-4-32",
+            "target": true,
+            "ratio": 0.7239766530988403,
+            "before_median_ns": 130210,
+            "candidate_median_ns": 94269
+          },
+          {
+            "id": "summary-target-deriv-%-True-4-32",
+            "target": true,
+            "ratio": 0.7149397163939093,
+            "before_median_ns": 129969,
+            "candidate_median_ns": 92920
+          },
+          {
+            "id": "summary-target-deriv-atan2-False-4-32",
+            "target": true,
+            "ratio": 0.7108411823988967,
+            "before_median_ns": 131969,
+            "candidate_median_ns": 93809
+          },
+          {
+            "id": "summary-target-deriv-atan2-True-4-32",
+            "target": true,
+            "ratio": 0.7214313372662461,
+            "before_median_ns": 131709,
+            "candidate_median_ns": 95019
+          },
+          {
+            "id": "summary-control-deriv-plain-4-32",
+            "target": false,
+            "ratio": 0.9799289720226904,
+            "before_median_ns": 62229,
+            "candidate_median_ns": 60980
+          },
+          {
+            "id": "summary-control-deriv-bool-4-32",
+            "target": true,
+            "ratio": 0.6970085824923196,
+            "before_median_ns": 132479,
+            "candidate_median_ns": 92339
+          },
+          {
+            "id": "summary-control-deriv-filter-4-32",
+            "target": false,
+            "ratio": 1.004049113363265,
+            "before_median_ns": 83969,
+            "candidate_median_ns": 84309
+          },
+          {
+            "id": "summary-control-deriv-dynamic-4-32",
+            "target": false,
+            "ratio": 0.9986240530809745,
+            "before_median_ns": 130819,
+            "candidate_median_ns": 130639
+          },
+          {
+            "id": "summary-control-deriv-nested-4-32",
+            "target": false,
+            "ratio": 1.002992840205355,
+            "before_median_ns": 173748,
+            "candidate_median_ns": 174268
+          },
+          {
+            "id": "summary-control-deriv-range-4-32",
+            "target": false,
+            "ratio": 1.0090746854890538,
+            "before_median_ns": 362547,
+            "candidate_median_ns": 365837
+          },
+          {
+            "id": "summary-control-deriv-equal-range-4-32",
+            "target": false,
+            "ratio": 1.017710058855411,
+            "before_median_ns": 130999,
+            "candidate_median_ns": 133319
+          },
+          {
+            "id": "summary-control-deriv-offset-4-32",
+            "target": false,
+            "ratio": 1.0162527378123816,
+            "before_median_ns": 129209,
+            "candidate_median_ns": 131309
+          },
+          {
+            "id": "summary-target-deriv-+-False-16-256",
+            "target": true,
+            "ratio": 0.6798589524822379,
+            "before_median_ns": 1754586,
+            "candidate_median_ns": 1192871
+          },
+          {
+            "id": "summary-target-deriv-+-True-16-256",
+            "target": true,
+            "ratio": 0.6574854189164054,
+            "before_median_ns": 1801135,
+            "candidate_median_ns": 1184220
+          },
+          {
+            "id": "summary-target-deriv---False-16-256",
+            "target": true,
+            "ratio": 0.662556618725491,
+            "before_median_ns": 1776135,
+            "candidate_median_ns": 1176790
+          },
+          {
+            "id": "summary-target-deriv---True-16-256",
+            "target": true,
+            "ratio": 0.6657175513950983,
+            "before_median_ns": 1777796,
+            "candidate_median_ns": 1183510
+          },
+          {
+            "id": "summary-target-deriv-*-False-16-256",
+            "target": true,
+            "ratio": 0.6742048420463563,
+            "before_median_ns": 1744056,
+            "candidate_median_ns": 1175851
+          },
+          {
+            "id": "summary-target-deriv-*-True-16-256",
+            "target": true,
+            "ratio": 0.6676407648457782,
+            "before_median_ns": 1762656,
+            "candidate_median_ns": 1176821
+          },
+          {
+            "id": "summary-target-deriv-/-False-16-256",
+            "target": true,
+            "ratio": 0.6740164551961118,
+            "before_median_ns": 1741456,
+            "candidate_median_ns": 1173770
+          },
+          {
+            "id": "summary-target-deriv-/-True-16-256",
+            "target": true,
+            "ratio": 0.6842949838041232,
+            "before_median_ns": 1745506,
+            "candidate_median_ns": 1194441
+          },
+          {
+            "id": "summary-target-deriv-^-False-16-256",
+            "target": true,
+            "ratio": 0.6829265781426429,
+            "before_median_ns": 1748226,
+            "candidate_median_ns": 1193910
+          },
+          {
+            "id": "summary-target-deriv-^-True-16-256",
+            "target": true,
+            "ratio": 0.6820677619332952,
+            "before_median_ns": 1755676,
+            "candidate_median_ns": 1197490
+          },
+          {
+            "id": "summary-target-deriv-%-False-16-256",
+            "target": true,
+            "ratio": 0.6866100225222003,
+            "before_median_ns": 1747165,
+            "candidate_median_ns": 1199621
+          },
+          {
+            "id": "summary-target-deriv-%-True-16-256",
+            "target": true,
+            "ratio": 0.6853991953185461,
+            "before_median_ns": 1767656,
+            "candidate_median_ns": 1211550
+          },
+          {
+            "id": "summary-target-deriv-atan2-False-16-256",
+            "target": true,
+            "ratio": 0.6809176367168115,
+            "before_median_ns": 1763225,
+            "candidate_median_ns": 1200611
+          },
+          {
+            "id": "summary-target-deriv-atan2-True-16-256",
+            "target": true,
+            "ratio": 0.6852065788034561,
+            "before_median_ns": 1755456,
+            "candidate_median_ns": 1202850
+          },
+          {
+            "id": "summary-control-deriv-plain-16-256",
+            "target": false,
+            "ratio": 1.0221780635106175,
+            "before_median_ns": 641625,
+            "candidate_median_ns": 655855
+          },
+          {
+            "id": "summary-control-deriv-bool-16-256",
+            "target": true,
+            "ratio": 0.689341875364007,
+            "before_median_ns": 1759925,
+            "candidate_median_ns": 1213190
+          },
+          {
+            "id": "summary-control-deriv-filter-16-256",
+            "target": false,
+            "ratio": 1.0358649289411295,
+            "before_median_ns": 1140111,
+            "candidate_median_ns": 1181001
+          },
+          {
+            "id": "summary-control-deriv-dynamic-16-256",
+            "target": false,
+            "ratio": 1.042787542576278,
+            "before_median_ns": 1739525,
+            "candidate_median_ns": 1813955
+          },
+          {
+            "id": "summary-control-deriv-nested-16-256",
+            "target": false,
+            "ratio": 1.0005518370532496,
+            "before_median_ns": 2357580,
+            "candidate_median_ns": 2358881
+          },
+          {
+            "id": "summary-control-deriv-range-16-256",
+            "target": false,
+            "ratio": 1.0136551649570154,
+            "before_median_ns": 5216268,
+            "candidate_median_ns": 5287497
+          },
+          {
+            "id": "summary-control-deriv-equal-range-16-256",
+            "target": false,
+            "ratio": 1.0375948750325972,
+            "before_median_ns": 1748616,
+            "candidate_median_ns": 1814355
+          },
+          {
+            "id": "summary-control-deriv-offset-16-256",
+            "target": false,
+            "ratio": 1.0350716948301515,
+            "before_median_ns": 1728716,
+            "candidate_median_ns": 1789345
+          },
+          {
+            "id": "summary-control-deriv-native",
+            "target": false,
+            "ratio": 0.5785785709378745,
+            "before_median_ns": 131009,
+            "candidate_median_ns": 75799
+          },
+          {
+            "id": "summary-control-deriv-native-first",
+            "target": false,
+            "ratio": 0.7278360759562782,
+            "before_median_ns": 183158,
+            "candidate_median_ns": 133309
+          },
+          {
+            "id": "summary-control-deriv-native-last",
+            "target": false,
+            "ratio": 0.7126289369103579,
+            "before_median_ns": 181678,
+            "candidate_median_ns": 129469
+          },
+          {
+            "id": "summary-control-deriv-alternating",
+            "target": false,
+            "ratio": 0.7171362635664903,
+            "before_median_ns": 207128,
+            "candidate_median_ns": 148539
+          },
+          {
+            "id": "summary-control-deriv-stale-first",
+            "target": false,
+            "ratio": 0.7158287992951502,
+            "before_median_ns": 174789,
+            "candidate_median_ns": 125119
+          },
+          {
+            "id": "summary-control-deriv-stale-last",
+            "target": false,
+            "ratio": 0.7174876747640433,
+            "before_median_ns": 173019,
+            "candidate_median_ns": 124139
+          },
+          {
+            "id": "deriv-retained-summary-target-changes-*-True-4-32",
+            "target": false,
+            "ratio": 1.0086775606645129,
+            "before_median_ns": 95649,
+            "candidate_median_ns": 96479
+          },
+          {
+            "id": "deriv-retained-summary-target-changes-*-True-16-256",
+            "target": false,
+            "ratio": 1.0117569489128795,
+            "before_median_ns": 1258830,
+            "candidate_median_ns": 1273630
+          },
+          {
+            "id": "deriv-retained-summary-target-resets-*-True-4-32",
+            "target": false,
+            "ratio": 1.0234658451144751,
+            "before_median_ns": 127888,
+            "candidate_median_ns": 130889
+          },
+          {
+            "id": "deriv-retained-summary-target-resets-*-True-16-256",
+            "target": false,
+            "ratio": 1.03376597561131,
+            "before_median_ns": 1961975,
+            "candidate_median_ns": 2028223
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-target-count_over_time-*-True-4-32",
+            "target": false,
+            "ratio": 0.9839171374764595,
+            "before_median_ns": 79650,
+            "candidate_median_ns": 78369
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-target-count_over_time-*-True-16-256",
+            "target": false,
+            "ratio": 1.0183378698126415,
+            "before_median_ns": 781443,
+            "candidate_median_ns": 795773
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-target-min_over_time-*-True-4-32",
+            "target": false,
+            "ratio": 0.9925028903800999,
+            "before_median_ns": 83899,
+            "candidate_median_ns": 83270
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-target-min_over_time-*-True-16-256",
+            "target": false,
+            "ratio": 1.00804162459014,
+            "before_median_ns": 890243,
+            "candidate_median_ns": 897402
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-target-max_over_time-*-True-4-32",
+            "target": false,
+            "ratio": 0.997836252389138,
+            "before_median_ns": 83189,
+            "candidate_median_ns": 83009
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-target-max_over_time-*-True-16-256",
+            "target": false,
+            "ratio": 1.0122371356958435,
+            "before_median_ns": 901273,
+            "candidate_median_ns": 912302
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-fold-target-sum_over_time-*-True-4-32",
+            "target": false,
+            "ratio": 1.0397255284400004,
+            "before_median_ns": 85109,
+            "candidate_median_ns": 88490
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-fold-target-avg_over_time-*-True-4-32",
+            "target": false,
+            "ratio": 1.0294672324375296,
+            "before_median_ns": 84840,
+            "candidate_median_ns": 87340
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-fold-target-sum_over_time-*-True-16-256",
+            "target": false,
+            "ratio": 0.9996217148297244,
+            "before_median_ns": 951663,
+            "candidate_median_ns": 951303
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-fold-target-avg_over_time-*-True-16-256",
+            "target": false,
+            "ratio": 1.0035605428830103,
+            "before_median_ns": 952102,
+            "candidate_median_ns": 955492
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-retained-target-rate-*-True-4-32",
+            "target": false,
+            "ratio": 1.014156225320902,
+            "before_median_ns": 84839,
+            "candidate_median_ns": 86040
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-retained-target-increase-*-True-4-32",
+            "target": false,
+            "ratio": 1.0181156827668456,
+            "before_median_ns": 83850,
+            "candidate_median_ns": 85369
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-retained-target-rate-*-True-16-256",
+            "target": false,
+            "ratio": 1.0312913949495253,
+            "before_median_ns": 902133,
+            "candidate_median_ns": 930362
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-retained-retained-target-increase-*-True-16-256",
+            "target": false,
+            "ratio": 1.0378442151262686,
+            "before_median_ns": 893373,
+            "candidate_median_ns": 927182
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-control-stddev_over_time-plain-16-256",
+            "target": false,
+            "ratio": 1.017668981194423,
+            "before_median_ns": 1072501,
+            "candidate_median_ns": 1091451
+          },
+          {
+            "id": "deriv-retained-predecessor-retained-summary-control-stddev_over_time-offset-16-256",
+            "target": false,
+            "ratio": 1.0059618242848316,
+            "before_median_ns": 1616787,
+            "candidate_median_ns": 1626426
+          },
+          {
+            "id": "deriv-history-timing-deriv-4-32-instant",
+            "target": false,
+            "ratio": 1.0182692137143263,
+            "before_median_ns": 56379,
+            "candidate_median_ns": 57409
+          },
+          {
+            "id": "deriv-history-literal-deriv-4-32-instant",
+            "target": true,
+            "ratio": 0.736372670603405,
+            "before_median_ns": 121759,
+            "candidate_median_ns": 89660
+          },
+          {
+            "id": "deriv-history-timing-deriv-4-32-range",
+            "target": false,
+            "ratio": 1.0136545162679613,
+            "before_median_ns": 204328,
+            "candidate_median_ns": 207118
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-4-32-instant",
+            "target": false,
+            "ratio": 1.0044879156271862,
+            "before_median_ns": 75759,
+            "candidate_median_ns": 76099
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-4-32-range",
+            "target": false,
+            "ratio": 1.0182920840699272,
+            "before_median_ns": 244368,
+            "candidate_median_ns": 248838
+          },
+          {
+            "id": "deriv-history-timing-min-4-32-instant",
+            "target": false,
+            "ratio": 1.038610662358643,
+            "before_median_ns": 68090,
+            "candidate_median_ns": 70719
+          },
+          {
+            "id": "deriv-history-timing-min-4-32-range",
+            "target": false,
+            "ratio": 0.9901858940880055,
+            "before_median_ns": 174239,
+            "candidate_median_ns": 172529
+          },
+          {
+            "id": "deriv-history-timing-max-4-32-instant",
+            "target": false,
+            "ratio": 1.003948913681738,
+            "before_median_ns": 68120,
+            "candidate_median_ns": 68389
+          },
+          {
+            "id": "deriv-history-timing-max-4-32-range",
+            "target": false,
+            "ratio": 0.9955967766806206,
+            "before_median_ns": 175099,
+            "candidate_median_ns": 174328
+          },
+          {
+            "id": "deriv-history-timing-deriv-4-256-instant",
+            "target": false,
+            "ratio": 0.9961528832003127,
+            "before_median_ns": 163759,
+            "candidate_median_ns": 163129
+          },
+          {
+            "id": "deriv-history-literal-deriv-4-256-instant",
+            "target": true,
+            "ratio": 0.687987627584943,
+            "before_median_ns": 447447,
+            "candidate_median_ns": 307838
+          },
+          {
+            "id": "deriv-history-timing-deriv-4-256-range",
+            "target": false,
+            "ratio": 1.0137292468680528,
+            "before_median_ns": 839813,
+            "candidate_median_ns": 851343
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-4-256-instant",
+            "target": false,
+            "ratio": 1.0121335941776088,
+            "before_median_ns": 184529,
+            "candidate_median_ns": 186768
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-4-256-range",
+            "target": false,
+            "ratio": 1.0032230062000758,
+            "before_median_ns": 890473,
+            "candidate_median_ns": 893343
+          },
+          {
+            "id": "deriv-history-timing-min-4-256-instant",
+            "target": false,
+            "ratio": 0.9966949846052292,
+            "before_median_ns": 221179,
+            "candidate_median_ns": 220448
+          },
+          {
+            "id": "deriv-history-timing-min-4-256-range",
+            "target": false,
+            "ratio": 1.001578834054972,
+            "before_median_ns": 627045,
+            "candidate_median_ns": 628035
+          },
+          {
+            "id": "deriv-history-timing-max-4-256-instant",
+            "target": false,
+            "ratio": 1.0044509442360272,
+            "before_median_ns": 220178,
+            "candidate_median_ns": 221158
+          },
+          {
+            "id": "deriv-history-timing-max-4-256-range",
+            "target": false,
+            "ratio": 1.0057257750763755,
+            "before_median_ns": 627164,
+            "candidate_median_ns": 630755
+          },
+          {
+            "id": "deriv-history-timing-deriv-16-32-instant",
+            "target": false,
+            "ratio": 1.0103498549783885,
+            "before_median_ns": 194109,
+            "candidate_median_ns": 196118
+          },
+          {
+            "id": "deriv-history-literal-deriv-16-32-instant",
+            "target": true,
+            "ratio": 0.697881219680899,
+            "before_median_ns": 432277,
+            "candidate_median_ns": 301678
+          },
+          {
+            "id": "deriv-history-timing-deriv-16-32-range",
+            "target": false,
+            "ratio": 1.011484727850021,
+            "before_median_ns": 788003,
+            "candidate_median_ns": 797053
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-16-32-instant",
+            "target": false,
+            "ratio": 1.0053453725993893,
+            "before_median_ns": 260038,
+            "candidate_median_ns": 261428
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-16-32-range",
+            "target": false,
+            "ratio": 1.008465380861883,
+            "before_median_ns": 934512,
+            "candidate_median_ns": 942423
+          },
+          {
+            "id": "deriv-history-timing-min-16-32-instant",
+            "target": false,
+            "ratio": 0.9937417681754596,
+            "before_median_ns": 244478,
+            "candidate_median_ns": 242948
+          },
+          {
+            "id": "deriv-history-timing-min-16-32-range",
+            "target": false,
+            "ratio": 1.007855142803808,
+            "before_median_ns": 669625,
+            "candidate_median_ns": 674885
+          },
+          {
+            "id": "deriv-history-timing-max-16-32-instant",
+            "target": false,
+            "ratio": 1.0078708524297157,
+            "before_median_ns": 243938,
+            "candidate_median_ns": 245858
+          },
+          {
+            "id": "deriv-history-timing-max-16-32-range",
+            "target": false,
+            "ratio": 1.01104100003884,
+            "before_median_ns": 669414,
+            "candidate_median_ns": 676805
+          },
+          {
+            "id": "deriv-history-timing-deriv-16-256-instant",
+            "target": false,
+            "ratio": 1.0169509159737173,
+            "before_median_ns": 624745,
+            "candidate_median_ns": 635335
+          },
+          {
+            "id": "deriv-history-literal-deriv-16-256-instant",
+            "target": true,
+            "ratio": 0.7012971524382117,
+            "before_median_ns": 1710516,
+            "candidate_median_ns": 1199580
+          },
+          {
+            "id": "deriv-history-timing-deriv-16-256-range",
+            "target": false,
+            "ratio": 1.0001706764850766,
+            "before_median_ns": 3398242,
+            "candidate_median_ns": 3398822
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-16-256-instant",
+            "target": false,
+            "ratio": 1.0052128658699455,
+            "before_median_ns": 696354,
+            "candidate_median_ns": 699984
+          },
+          {
+            "id": "deriv-history-timing-predict_linear-16-256-range",
+            "target": false,
+            "ratio": 0.9968981153456632,
+            "before_median_ns": 3536882,
+            "candidate_median_ns": 3525911
+          },
+          {
+            "id": "deriv-history-timing-min-16-256-instant",
+            "target": false,
+            "ratio": 1.0136061153303813,
+            "before_median_ns": 848883,
+            "candidate_median_ns": 860433
+          },
+          {
+            "id": "deriv-history-timing-min-16-256-range",
+            "target": false,
+            "ratio": 1.0074533417430152,
+            "before_median_ns": 2487609,
+            "candidate_median_ns": 2506150
+          },
+          {
+            "id": "deriv-history-timing-max-16-256-instant",
+            "target": false,
+            "ratio": 1.022081011626112,
+            "before_median_ns": 848693,
+            "candidate_median_ns": 867433
+          },
+          {
+            "id": "deriv-history-timing-max-16-256-range",
+            "target": false,
+            "ratio": 1.0123431154390563,
+            "before_median_ns": 2494589,
+            "candidate_median_ns": 2525380
+          },
+          {
+            "id": "deriv-native-bare-mixed-reverse-deriv-0-instant",
+            "target": false,
+            "ratio": 1.037861994994637,
+            "before_median_ns": 27970,
+            "candidate_median_ns": 29029
+          },
+          {
+            "id": "deriv-native-literal-mixed-reverse-deriv-0-instant",
+            "target": true,
+            "ratio": 0.6967923489467567,
+            "before_median_ns": 49039,
+            "candidate_median_ns": 34170
+          },
+          {
+            "id": "deriv-native-bare-histogram-deriv-0-instant",
+            "target": false,
+            "ratio": 1.0148277365896206,
+            "before_median_ns": 22930,
+            "candidate_median_ns": 23270
+          },
+          {
+            "id": "deriv-native-literal-histogram-deriv-0-instant",
+            "target": true,
+            "ratio": 0.6771290866354852,
+            "before_median_ns": 42119,
+            "candidate_median_ns": 28520
+          },
+          {
+            "id": "deriv-native-bare-float_histogram-deriv-0-instant",
+            "target": false,
+            "ratio": 1.029325513196481,
+            "before_median_ns": 23870,
+            "candidate_median_ns": 24570
+          },
+          {
+            "id": "deriv-native-literal-float_histogram-deriv-0-instant",
+            "target": true,
+            "ratio": 0.6614107304821042,
+            "before_median_ns": 42999,
+            "candidate_median_ns": 28440
+          },
+          {
+            "id": "deriv-native-bare-mixed-deriv-0-instant",
+            "target": false,
+            "ratio": 1.0180464562239429,
+            "before_median_ns": 50370,
+            "candidate_median_ns": 51279
+          },
+          {
+            "id": "deriv-native-literal-mixed-deriv-0-instant",
+            "target": true,
+            "ratio": 0.7979383858498301,
+            "before_median_ns": 85370,
+            "candidate_median_ns": 68120
+          },
+          {
+            "id": "deriv-native-bare-stale-histogram-deriv-0-instant",
+            "target": false,
+            "ratio": 1.014934538038115,
+            "before_median_ns": 45599,
+            "candidate_median_ns": 46280
+          },
+          {
+            "id": "deriv-native-literal-stale-histogram-deriv-0-instant",
+            "target": true,
+            "ratio": 0.7831840315206483,
+            "before_median_ns": 80709,
+            "candidate_median_ns": 63210
+          }
+        ]
+      }
+    },
+    "complete_pairs": 4640,
+    "followup_pairs": 0,
+    "followup": {
+      "release": {
+        "selected": [],
+        "pairs": 0
+      },
+      "release-min": {
+        "selected": [],
+        "pairs": 0
+      }
+    }
+  },
+  "resources": {
+    "pairs": 7464,
+    "categories": 8,
+    "memory_observations": "All measured current/peak/acquired/released fields nonincreasing; no overflow.",
+    "peak_delta_range": [
+      -8278,
+      0
+    ],
+    "work_delta_range": [
+      -18831,
+      0
+    ],
+    "witnesses": [
+      {
+        "id": "summary-target-deriv-+-False-16-256",
+        "profile": "release",
+        "page": 17,
+        "workspace_peak_before": 34323,
+        "workspace_peak_current": 26045,
+        "samples_fetched_before": 13104,
+        "samples_fetched_current": 8736,
+        "pages_before": 816,
+        "pages_current": 544
+      }
+    ],
+    "scope": "Finite query-accounted observations, not process RSS or live dbengine cache use. Category peaks are not additive. Native weights are checked by causal units; C callers check ordinary Float logical/read totals."
+  },
+  "preparation_corrections": {
+    "ordering": "Initial baseline scope assertion omitted the retained PredictLinear subquery. A successor checked the same capture and proved the complete row permutation under the existing policy, before implementation; no query rerun or original edit.",
+    "edit_helper": "Initial helper expected one native-empty predicate but found two and stopped before writing source. Its successor updates both. No runtime candidate was rejected or restored."
+  },
+  "historical_input_scope": "Published regression capture directly binds32timing and384control inputs, deduplicated to27datasets.144Deriv source controls also receive two explicitly parenthesized whole-expression compositions; existing comparisons retain precedence and remain controls where ineligible.",
+  "compiled_C_sizes": {
+    "release": {
+      "kind": "default-C",
+      "before": [
+        7490382,
+        509272,
+        400
+      ],
+      "current": [
+        7490414,
+        509272,
+        400
+      ],
+      "growth": 32,
+      "before_total": 8000054,
+      "current_total": 8000086,
+      "growth_percent": 0.00039999730001822486,
+      "cumulative_baseline_text_data_bss": [
+        7370378,
+        506744,
+        400
+      ],
+      "cumulative_growth_bytes": 122564,
+      "cumulative_growth_percent": 1.555869980432933
+    },
+    "release-min": {
+      "kind": "default-C",
+      "before": [
+        5148095,
+        464752,
+        400
+      ],
+      "current": [
+        5148175,
+        464752,
+        400
+      ],
+      "growth": 80,
+      "before_total": 5613247,
+      "current_total": 5613327,
+      "growth_percent": 0.0014252000669131432,
+      "cumulative_baseline_text_data_bss": [
+        5103967,
+        462056,
+        400
+      ],
+      "cumulative_growth_bytes": 46904,
+      "cumulative_growth_percent": 0.8426237100558114
+    },
+    "arm32": {
+      "kind": "default-C",
+      "before": [
+        6429649,
+        294164,
+        244
+      ],
+      "current": [
+        6429649,
+        294164,
+        244
+      ],
+      "growth": 0,
+      "before_total": 6724057,
+      "current_total": 6724057,
+      "growth_percent": 0.0,
+      "cumulative_baseline_text_data_bss": [
+        6382697,
+        292596,
+        244
+      ],
+      "cumulative_growth_bytes": 48520,
+      "cumulative_growth_percent": 0.7268329124683153
+    },
+    "arm64": {
+      "kind": "default-C",
+      "before": [
+        6455078,
+        499336,
+        384
+      ],
+      "current": [
+        6467878,
+        499336,
+        384
+      ],
+      "growth": 12800,
+      "before_total": 6954798,
+      "current_total": 6967598,
+      "growth_percent": 0.18404560420015076,
+      "cumulative_baseline_text_data_bss": [
+        6374470,
+        497032,
+        384
+      ],
+      "cumulative_growth_bytes": 95712,
+      "cumulative_growth_percent": 1.3928054103342227
+    }
+  },
+  "cumulative_compiled_baseline": "51862635936717f6bcc9ab018b994d0ac205b0ea",
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/literal-deriv-qan7bcln/baseline-source.json",
+      "sha256": "f93536b9e7ba387263e10051e154f79e8eac239df47675669679503f80b06dfd"
+    },
+    "red": {
+      "path": ".tmp/literal-deriv-qan7bcln/red-source.json",
+      "sha256": "ef79c9392e7b3e491f7dab40c3d0f4128f60754eb035431e00d10b257a1bea19"
+    },
+    "candidate": {
+      "path": ".tmp/literal-deriv-qan7bcln/candidate-source.json",
+      "sha256": "2e494a96ea77f742a6178d1fea62f414976ca7abb07bbee13571ffc70c59ce38"
+    }
+  },
+  "receipts": {
+    "setup": {
+      "path": ".tmp/literal-deriv-qan7bcln/setup.json",
+      "sha256": "1cbfb6b196d186d48b3e7157e28b26903a72c139720616e0fa32948934c752b0"
+    },
+    "baseline-binding": {
+      "path": ".tmp/literal-deriv-qan7bcln/baseline-binding.json",
+      "sha256": "2c3e908e72638469e37e78b076a8d6f6f974461e2c44fbfeecd00abb96cb3bba"
+    },
+    "before-builds": {
+      "path": ".tmp/literal-deriv-qan7bcln/before-builds.json",
+      "sha256": "d76b2f50966edbc5a5e30065784fc09727dbf8673bcd7873fcc195119bc6aa56"
+    },
+    "inputs-prepared": {
+      "path": ".tmp/literal-deriv-qan7bcln/inputs-prepared.json",
+      "sha256": "9eff53bb68b41969a8c7ccaf13c99cc371289d3edf5f3970bbe287aab3056e7c"
+    },
+    "original-capture": {
+      "path": ".tmp/literal-deriv-qan7bcln/original-capture.json",
+      "sha256": "89b5c1c78e1bcad29cd4e1b59e71979f9590b9ece8f2200b4273126ca0d59276"
+    },
+    "supplement-provenance": {
+      "path": ".tmp/literal-deriv-qan7bcln/supplement-provenance.json",
+      "sha256": "2a6e7766eb0e40f8607e781bbb7af2f0be70a84aed001d82a38a16512c385e65"
+    },
+    "baseline-original-analysis": {
+      "path": ".tmp/literal-deriv-qan7bcln/baseline-original-analysis.json",
+      "sha256": "b7085acd738ce21505764b12adceaee6920740433963fdaf92783609bd7a2bcb"
+    },
+    "test-extension": {
+      "path": ".tmp/literal-deriv-qan7bcln/test-extension.json",
+      "sha256": "fba5375a55b4f726ffc0e312e79e7724977ad866fba13489cf6ccbd4e36cefb9"
+    },
+    "causal-red": {
+      "path": ".tmp/literal-deriv-qan7bcln/causal-red.json",
+      "sha256": "fa7552ee3a019852f3760988fe17a9a2b1a424153c9cca22eb5faa539ecbd46d"
+    },
+    "baseline-error-validation": {
+      "path": ".tmp/literal-deriv-qan7bcln/baseline-error-validation.json",
+      "sha256": "89c73297adca4343cece41a479da0a42db6c4201600c9b4f8e2118eb25ca807c"
+    },
+    "C-original-expectations": {
+      "path": ".tmp/literal-deriv-qan7bcln/C-original-expectations.json",
+      "sha256": "0e3a3e45179a712d6da05aace14814797fffbc1a3ceccf414db0574f2a7b8859"
+    },
+    "implementation": {
+      "path": ".tmp/literal-deriv-qan7bcln/implementation.json",
+      "sha256": "7157b6ff75f72ce55ee1ad580a9725c6aad2fc836838e2de55de0cd670a2bce8"
+    },
+    "causal-green": {
+      "path": ".tmp/literal-deriv-qan7bcln/causal-green.json",
+      "sha256": "99106faec2621ce3bcb0eba6cf0c35511915aa40e3778dbd9a1b776dbf153024"
+    },
+    "controls-final-comparison-both": {
+      "path": ".tmp/literal-deriv-qan7bcln/controls-final-comparison-both.json",
+      "sha256": "af9e985ed13f5a103895fb02a1eff1a816dca02348650cfe0c9644ddfa789bd3"
+    },
+    "resource-analysis": {
+      "path": ".tmp/literal-deriv-qan7bcln/resource-analysis.json",
+      "sha256": "eae68297d680a7bd33ae762c71190715976441bfa759ed84052176adf2206fe8"
+    },
+    "pilot": {
+      "path": ".tmp/literal-deriv-qan7bcln/pilot.json",
+      "sha256": "ffcd20858c2b9c2792c8b32b805391ada0cb430877fab161f48380669981aa0c"
+    },
+    "slower-followup": {
+      "path": ".tmp/literal-deriv-qan7bcln/slower-followup.json",
+      "sha256": "a0571df23f0f50945841c9b861afaa1bc47c20714bcfaa57f8ebf815a8871a05"
+    },
+    "scoped-order-policy": {
+      "path": ".tmp/literal-deriv-qan7bcln/scoped-order-policy.json",
+      "sha256": "77cacec6cb453f66da713a804eb4a42d9a46e815997640f3c06f50db6d1d900e"
+    },
+    "acceptance-policy": {
+      "path": ".tmp/literal-deriv-qan7bcln/acceptance-policy.json",
+      "sha256": "3cdb9779cdad39275b4542020f4ec608906e27947bf69dab37a0c413ff0c0eb8"
+    },
+    "candidate-static": {
+      "path": ".tmp/literal-deriv-qan7bcln/candidate-static.json",
+      "sha256": "1027f259267857473ed7e9636171ee241c04cf26d6bee1945f0e3949af089e60"
+    },
+    "perf-release-builds": {
+      "path": ".tmp/literal-deriv-qan7bcln/perf-release-builds.json",
+      "sha256": "c6d057972723da72a9e92c156508f9977af7c21237d303d7fa97b66529d75a34"
+    },
+    "perf-release-min-builds": {
+      "path": ".tmp/literal-deriv-qan7bcln/perf-release-min-builds.json",
+      "sha256": "7973b2a62ab46c5fe5dfcf77549cf8406e96cf9521def57378eb7b83eeacbf36"
+    },
+    "build-release": {
+      "path": ".tmp/literal-deriv-qan7bcln/build-release.json",
+      "sha256": "0b3e7d575d2280a5d05b7441a112f2a0847c3afaf71095a17b7edf00d41195eb"
+    },
+    "qualification-release": {
+      "path": ".tmp/literal-deriv-qan7bcln/qualification-release.json",
+      "sha256": "4c06d7e5d07db46407e00bc5dd44280145a607585aad8d14118075bc64ed9830"
+    },
+    "build-release-min": {
+      "path": ".tmp/literal-deriv-qan7bcln/build-release-min.json",
+      "sha256": "a8eb747eb95fd18025b0d7f1313e2ef5ad161d983f01dcfe0d71a32cd8096bf1"
+    },
+    "qualification-release-min": {
+      "path": ".tmp/literal-deriv-qan7bcln/qualification-release-min.json",
+      "sha256": "aff8518ae38443e7ba78892da34b83e1b00bc0f3f6ddf55fe0b5197d2be7d1a7"
+    },
+    "build-arm32": {
+      "path": ".tmp/literal-deriv-qan7bcln/build-arm32.json",
+      "sha256": "019e7e08a7fbd44db70bf05ecf6eed5b2850e0bc42801772c8e0c4014fb5d242"
+    },
+    "qualification-arm32": {
+      "path": ".tmp/literal-deriv-qan7bcln/qualification-arm32.json",
+      "sha256": "c1a6f4ac94477b10f1df81c67301d5f4e24630f43ea9ce5ac8239a6bb4c987f8"
+    },
+    "build-arm64": {
+      "path": ".tmp/literal-deriv-qan7bcln/build-arm64.json",
+      "sha256": "40706792ea16542936589fdc024de2fc277cecc7c6eda2c1b356df863bd43dc1"
+    },
+    "qualification-arm64": {
+      "path": ".tmp/literal-deriv-qan7bcln/qualification-arm64.json",
+      "sha256": "7e04b51611ab22d66b630092a119002dd1e15ce55c345bfe91cca451017f884f"
+    },
+    "corpus-reproduction": {
+      "path": ".tmp/literal-deriv-qan7bcln/corpus-reproduction.json",
+      "sha256": "b424ef9b6f8cc07a24a14a39aac8df4ef798524fbf5e6f9c0e46625c3a248d77"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/literal-deriv-qan7bcln/artifact-integrity.json",
+      "sha256": "b7448e3ca6e5d5944cc817665bc36eecc6dec56afc22868bcb480c97464013ea"
+    }
+  },
+  "limitations": [
+    "Finite synthetic queries, not production-weighted, concurrent, live-provider or physical ARM throughput.",
+    "Only admitted instant one-operation literal roots accelerate; ordinary alert filters remain generic.",
+    "The existing native reset-helper regression remains specific to Resets; Deriv error checks exercise provider failures and duplicate priority.",
+    "C results are inspected after query release while reports remain alive; these cases alone do not prove lifetime after report release.",
+    "Unit arithmetic helpers are not independent numerical oracles; complete expressions are compared with fresh original Go captures."
+  ]
+}

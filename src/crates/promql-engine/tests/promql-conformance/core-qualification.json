@@ -74170,5 +74170,16 @@
     "timing_pairs": 5760,
     "retained_strict_order_failures": 312,
     "maximum_measured_memory_growth_bytes": 0
+  },
+  "literal_deriv_preparation": {
+    "status": "finite_qualification_pass",
+    "report": "literal-deriv-preparation-qualification.json",
+    "report_sha256": "f5eb85145639517f1026dcae4cf6499dfcf0075c9938f8332266e853cc209c36",
+    "baseline_commit": "8df2c259990d273a127bba0aacfb42c653c82207",
+    "exact_baseline_pairs": 7488,
+    "resource_pairs": 7464,
+    "timing_pairs": 4640,
+    "retained_strict_order_failures": 330,
+    "maximum_measured_memory_growth_bytes": 0
   }
 }
