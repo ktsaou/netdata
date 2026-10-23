@@ -74322,5 +74322,16 @@
     "strict_order_failures": 882,
     "numeric_bit_differences": 0,
     "timing_pairs": 2264
+  },
+  "delayed_nested_clocks": {
+    "status": "finite_qualification_pass",
+    "report": "delayed-nested-clocks-qualification.json",
+    "report_sha256": "5fd2aeb247750660ba77eff6a15a59f226237cc1bead09513cad2dac4b992f94",
+    "baseline_commit": "9cee02d5a9cace17d24b9146e21f32ecf13d774a",
+    "exact_baseline_pairs": 2160,
+    "original_policy_pairs": 2160,
+    "strict_order_failures": 18,
+    "numeric_bit_differences": 0,
+    "timing_pairs": 1600
   }
 }

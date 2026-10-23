@@ -2745,6 +2745,9 @@ adds a separate identity proof; this section retains its original qualification 
 
 ## Completed clocks in nested grouped subqueries
 
+The later [delayed nested-group extension](#completed-nested-groups-with-delayed-metadata-removal)
+adds a separate metadata proof; this section retains its original qualification scope.
+
 - **Choice:** qualify exactly two ordinary aggregate levels under a direct consumed range, with an existing
   selector/rate/increase/delta terminal. Keep one-level map, ratio and histogram composition admission unchanged.
 - **Preparation:** propagate grouped demand through the outer aggregate only for this shape. Require prepared
@@ -3110,11 +3113,15 @@ throughput costs and finite compatibility evidence are recorded in
 
 ## Completed direct groups with delayed metadata removal
 
+The later [nested-group extension](#completed-nested-groups-with-delayed-metadata-removal)
+qualifies direct two-level groups separately.
+
 The later [grouped-ratio extension](#completed-grouped-ratios-with-delayed-metadata-removal)
 qualifies direct ratios separately; this section retains its original direct-group scope and measurements.
 
 - **Choice:** allow delayed-mode completion reuse only at direct consumed-group discovery and matching Group
-  preparation. Every composition caller retains its early-mode requirement.
+  preparation. This initial stage retained the early-mode requirement at composition callers; the linked
+  later extensions qualify their own scopes.
 - **Identity:** the shared grouping predicate must exclude all of `__name__`, `__type__`, and `__unit__`.
   Deferred cleanup then cannot merge group identities. `by(id)` qualifies; a `without` clause must explicitly
   exclude type/unit. Name- or metadata-retaining groups keep ordinary evaluation.
@@ -3147,8 +3154,32 @@ qualifies direct ratios separately; this section retains its original direct-gro
   adds no retained field; its fixed compiled cost is measured separately from query memory under decision 66.
 - **Cost and scope:** the finite target panel uses about 81% less time, with maximum 2,312 bytes additional Workspace
   peak and no other category peak growth. Raw samples remain paged. Metadata-retaining, native/multiple-head,
-  raw-selector-pair, nested, mapped and prefix fallbacks remain supported through their existing evaluation.
+  raw selector pairs, nested ratio operands, mapped and prefix fallbacks retain their existing evaluation.
 - **Evidence:** [qualification](delayed-ratio-clocks-qualification.json) preserves both implementation revisions,
   complete outputs/resources, pinned originals, strict ordering differences, individual timings, C/ARM owners,
   static checks and executable costs. [Procedure](README.md#completed-grouped-ratios-with-delayed-metadata-removal)
   distinguishes query profiles, build profiles, accounted memory and the limits of finite synthetic measurements.
+
+## Completed nested groups with delayed metadata removal
+
+- **Admission:** exactly two ordinary aggregate levels beneath a direct consumed subquery. Both grouping clauses
+  exclude name/type/unit through the shared checked grouping predicate. Inner selector/rate/increase/delta
+  admission reuses the existing delayed-aware predicate. Parentheses preserve the checked edges.
+- **Preparation:** retain the three existing callers for subquery discovery, grouped-demand propagation and
+  outer plan certification. Outer certification requires prepared inner interval support and nonempty Float-only,
+  single-head descriptors. Neither syntax nor inner completion alone establishes outer completion.
+- **Runtime:** evaluator and aggregate replay code are unchanged. Exact ancestry/clocks, full required diagnostic
+  traversals, independent intervals, final truncated endpoints, fresh selected values and cleanup retain their owners.
+- **Boundary:** outer reserved-label exclusion is deliberately conservative, not a claim that an ordinary group
+  recreates absent labels. Third-level, projected, mapped, paired and retained-metadata forms remain supported
+  through their existing evaluation. They need separate optimization proofs.
+- **Cost:** no state field, value cache, API/ABI/default or implicit-limit change. Finite targets take about 53%
+  less time; maximum Workspace peak addition is 1,320 bytes. Other category peaks do not grow. Fixed executable
+  costs remain separate from query RAM and are reviewed proportionally under decision 66.
+- **Shared paths:** a separate fixed control panel checks previously qualified direct groups and ratios because
+  their metadata predicate is now separately compiled. Its 320 complete timing/resource pairs pass the same
+  1.05 control threshold; no main-panel rerun, threshold change or additional original claim is involved.
+- **Evidence:** [qualification](delayed-nested-clocks-qualification.json) retains actual original/baseline results,
+  strict row-order failures, per-case timing/resources, causal interruption tests and actual C/ARM callers.
+  The [procedure](README.md#completed-nested-groups-with-delayed-metadata-removal) distinguishes finite synthetic
+  observations from universal compatibility, live-provider performance, concurrency and process RSS.

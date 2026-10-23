@@ -1,0 +1,1875 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "9cee02d5a9cace17d24b9146e21f32ecf13d774a",
+  "change": "Reuse completed two-level ordinary group scans with delayed metadata removal.",
+  "proof": "Both levels exclude reserved metadata. Existing inner interval support, outer Float/single-head descriptors, exact ancestry/clocks, diagnostic traversals and independently completed intervals remain required.",
+  "implementation": "Shared metadata grouping predicate and scoped nested admission; evaluator and replay unchanged. No state field, raw cache, public option, ABI or cap change.",
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/delayed-nested-g4dau5kg/baseline-source.json",
+      "sha256": "3e04a55fc0b5a407b993e63a0f92e47a8e0e73df8c24ce33c0e7e89587069d31"
+    },
+    "candidate": {
+      "path": ".tmp/delayed-nested-g4dau5kg/candidate-source.json",
+      "sha256": "73b1548088a6de4be88d00abde74140757198c883f5ab44d9f88428372a955bb"
+    }
+  },
+  "qualification": {
+    "functional_cases": 360,
+    "fresh_originals": 360,
+    "fresh_original_datasets": 15,
+    "exact_baseline_pairs": 2160,
+    "original_policy_pairs": 2160,
+    "strict_order_failures": 18,
+    "strict_order_ids": [
+      "delayed-nested-shape:3:False",
+      "delayed-nested-perf:fallback:1",
+      "delayed-nested-perf:fallback:7"
+    ],
+    "numeric_bit_differences": 0,
+    "resource_pairs": 2160,
+    "timing_pairs": 1600,
+    "focused": [
+      {
+        "filter": "delayed_nested_clocks",
+        "passed": 2,
+        "ignored": 0
+      },
+      {
+        "filter": "nested_grouped_clocks",
+        "passed": 5,
+        "ignored": 0
+      },
+      {
+        "filter": "grouped_selector_clocks_admission",
+        "passed": 1,
+        "ignored": 0
+      },
+      {
+        "filter": "delayed_ratio_clocks",
+        "passed": 3,
+        "ignored": 0
+      },
+      {
+        "filter": "aggregate_replay::tests::",
+        "passed": 4,
+        "ignored": 0
+      }
+    ],
+    "new_tests": 2,
+    "calibrated_delivery_failures": 766,
+    "units": {
+      "release": [
+        {
+          "filter": "",
+          "passed": 1016,
+          "ignored": 2
+        }
+      ],
+      "release-min": [
+        {
+          "filter": "",
+          "passed": 1016,
+          "ignored": 2
+        }
+      ],
+      "arm32": [
+        {
+          "filter": "delayed_nested_clocks",
+          "passed": 2,
+          "ignored": 0
+        },
+        {
+          "filter": "nested_grouped_clocks",
+          "passed": 5,
+          "ignored": 0
+        },
+        {
+          "filter": "delayed_ratio_clocks",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "delayed_group_clocks",
+          "passed": 2,
+          "ignored": 0
+        },
+        {
+          "filter": "grouped_selector_clocks",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "aggregate_replay::tests::",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "completed_interval",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "statistics::tests::",
+          "passed": 12,
+          "ignored": 0
+        },
+        {
+          "filter": "c_abi::tests::",
+          "passed": 52,
+          "ignored": 1
+        }
+      ],
+      "arm64": [
+        {
+          "filter": "delayed_nested_clocks",
+          "passed": 2,
+          "ignored": 0
+        },
+        {
+          "filter": "nested_grouped_clocks",
+          "passed": 5,
+          "ignored": 0
+        },
+        {
+          "filter": "delayed_ratio_clocks",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "delayed_group_clocks",
+          "passed": 2,
+          "ignored": 0
+        },
+        {
+          "filter": "grouped_selector_clocks",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "aggregate_replay::tests::",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "completed_interval",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "statistics::tests::",
+          "passed": 12,
+          "ignored": 0
+        },
+        {
+          "filter": "c_abi::tests::",
+          "passed": 52,
+          "ignored": 1
+        }
+      ]
+    },
+    "C_CPP_cases": 12096,
+    "callers": {
+      "release": [
+        {
+          "consumer": "grouped_selector_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "bf72503f4e8f42bb5ec406380a267294249d34c7921ff954cf0c44dd17115d85"
+        },
+        {
+          "consumer": "grouped_selector_clocks",
+          "language": "CPP",
+          "cases": 192,
+          "binary_sha256": "d256bb5763b24aab6d80dd7f85522882bcb61508bb9fa9c03225bddbc33e2562"
+        },
+        {
+          "consumer": "grouped_subquery_clocks",
+          "language": "C",
+          "cases": 768,
+          "binary_sha256": "75df720a35ad7b8368f596d5846e84f47f9d93787bc85cc3c5f800a68ed0d052"
+        },
+        {
+          "consumer": "grouped_subquery_clocks",
+          "language": "CPP",
+          "cases": 768,
+          "binary_sha256": "08800865f51dfa73d9b64d7d492f0bb320b94641e11de3caa2c73f3889ddd7cd"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "44501890911d9cb4bd4a4b18d9614422d7050f2476b225bbd83edb9fdec658e3"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "CPP",
+          "cases": 672,
+          "binary_sha256": "fd7c62791ac20435aea79146cfa748b1481d7a360f469421ebf84ecd72b41220"
+        },
+        {
+          "consumer": "nested_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "b66902191d41b01954a7bf5330f4089e4113c5886151e54448346e8d687d294b"
+        },
+        {
+          "consumer": "nested_grouped_clocks",
+          "language": "CPP",
+          "cases": 192,
+          "binary_sha256": "593414a4b9ea456f6e13f2a0d64d81f035370779838febcbb6f5dc623ee2d18f"
+        },
+        {
+          "consumer": "projected_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "07531a7aa94e567986624c3f4f40fae43fd8ac755af4600358b5b5a894c54aea"
+        },
+        {
+          "consumer": "projected_grouped_clocks",
+          "language": "CPP",
+          "cases": 192,
+          "binary_sha256": "b31e1d3aa0ffc11fc0a375ae324e4a789b7525d175a79bd765b79424678ca6b5"
+        }
+      ],
+      "release-min": [
+        {
+          "consumer": "grouped_selector_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "5adeb94c509412b908e9e741a85662192d7259955ac98377fe7ff86459cf0fd5"
+        },
+        {
+          "consumer": "grouped_selector_clocks",
+          "language": "CPP",
+          "cases": 192,
+          "binary_sha256": "6f4e90cc629706eebd6794436bde39a89bc9562c1cc64edea718224ebf726c88"
+        },
+        {
+          "consumer": "grouped_subquery_clocks",
+          "language": "C",
+          "cases": 768,
+          "binary_sha256": "b75f5f8458a909ab7c010c02000aa78ea65d89bdce60d6460c0783207ab98913"
+        },
+        {
+          "consumer": "grouped_subquery_clocks",
+          "language": "CPP",
+          "cases": 768,
+          "binary_sha256": "570c9df53577c217b9b8b088f5e6a1fe5e97931f1303ff469ddd4ef5b3cf2f14"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "78136b8a59b34f0c78a81a44c164d3c93175b244d81b3c1e471f4972d32b14f6"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "CPP",
+          "cases": 672,
+          "binary_sha256": "51ece343fb2c521e0c96d1a3939ddc2667129a0072477b8d5b1a66649b02f35d"
+        },
+        {
+          "consumer": "nested_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "861d9cfbb84483cd50f18c7b35f731fd3bc758bfb0c0f540eae10f51d075fd62"
+        },
+        {
+          "consumer": "nested_grouped_clocks",
+          "language": "CPP",
+          "cases": 192,
+          "binary_sha256": "0ed4b16a415ec89f6bd56f17eeabb44a9c60079edec400ab0f9e5e11d9d00749"
+        },
+        {
+          "consumer": "projected_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "a46f28428e9c4ac1d916802100f8d00d85becb8ddf44299342b1a989a643fe9e"
+        },
+        {
+          "consumer": "projected_grouped_clocks",
+          "language": "CPP",
+          "cases": 192,
+          "binary_sha256": "f4da809c8ec77de8623ff5ee4d2b7fffe857b1da72f97d79a1e95a072687b848"
+        }
+      ],
+      "arm32": [
+        {
+          "consumer": "grouped_selector_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "c8db8000e7182338050cd07c8cd0f7cf914b13a62679f907750d3087efa2a900"
+        },
+        {
+          "consumer": "grouped_subquery_clocks",
+          "language": "C",
+          "cases": 768,
+          "binary_sha256": "8baa78a62394e4b4d15e126cc39184f3efe25f1093db57bcc4d8342146857a08"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "1785389c68243476ea0a31f0d0b0d53950895487ff47e159f5937dfcc0901dd4"
+        },
+        {
+          "consumer": "nested_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "ece5037367081d88e876d64b2c0720503d2ab1c7b38e3f5d50d463c4b6dee56a"
+        },
+        {
+          "consumer": "projected_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "dc4de6da0bdf9cecda2aade695cd06623fb316fbf3fe714959e4d33bdcc13205"
+        }
+      ],
+      "arm64": [
+        {
+          "consumer": "grouped_selector_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "b3ae47d3241b6c61ba51d8f11eab039be99913685926c3b651d12243c72da896"
+        },
+        {
+          "consumer": "grouped_subquery_clocks",
+          "language": "C",
+          "cases": 768,
+          "binary_sha256": "9d2ae63710738071c98c181b61c9459098aa03f75497d4ee53964ea6f513956f"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "12ef3845c0b45f28fe0f87e777a30e8d584f15bee4ab9ad1a77afa2a29a7e4d7"
+        },
+        {
+          "consumer": "nested_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "a430a52a13f7671cc643a975010e402817c657ea9b13825a1b0d3d4e9977c0af"
+        },
+        {
+          "consumer": "projected_grouped_clocks",
+          "language": "C",
+          "cases": 192,
+          "binary_sha256": "ca2d0d2d3a96efe732e8e54b943c94b5e215e036ffd59d6a56b3f00b6aecd203"
+        }
+      ]
+    },
+    "complete_native_C_suites": 2,
+    "static": "Strict default/fixture lint, format, installed MSRV1.91 compile-only."
+  },
+  "timing": {
+    "release": {
+      "target": 0.4730542699038168,
+      "families": {
+        "target-selector": 0.4915963429745954,
+        "target-rate": 0.4359397990211483
+      },
+      "controls": 0.9911973116194565,
+      "complete_pairs": 800,
+      "cases": [
+        {
+          "id": "delayed-nested-perf:4:sum:selector:instant:False",
+          "target": false,
+          "ratio": 0.9862227291223238,
+          "before_median_ns": 2044672,
+          "candidate_median_ns": 2016502
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:selector:instant:True",
+          "target": true,
+          "ratio": 0.6186505377356539,
+          "before_median_ns": 3239231,
+          "candidate_median_ns": 2003952
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:selector:range:False",
+          "target": false,
+          "ratio": 0.9855970201781968,
+          "before_median_ns": 3807476,
+          "candidate_median_ns": 3752637
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:selector:range:True",
+          "target": true,
+          "ratio": 0.5284862067431142,
+          "before_median_ns": 7124097,
+          "candidate_median_ns": 3764987
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:rate:instant:False",
+          "target": false,
+          "ratio": 1.010929523462541,
+          "before_median_ns": 2305590,
+          "candidate_median_ns": 2330789
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:rate:instant:True",
+          "target": true,
+          "ratio": 0.5888633831949093,
+          "before_median_ns": 3918515,
+          "candidate_median_ns": 2307470
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:rate:range:False",
+          "target": false,
+          "ratio": 1.0112251894518178,
+          "before_median_ns": 4136144,
+          "candidate_median_ns": 4182573
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:rate:range:True",
+          "target": true,
+          "ratio": 0.49120416482765783,
+          "before_median_ns": 8437516,
+          "candidate_median_ns": 4144543
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:selector:instant:False",
+          "target": false,
+          "ratio": 0.9876460578953562,
+          "before_median_ns": 2014013,
+          "candidate_median_ns": 1989132
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:selector:instant:True",
+          "target": true,
+          "ratio": 0.616636003192271,
+          "before_median_ns": 3221531,
+          "candidate_median_ns": 1986512
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:selector:range:False",
+          "target": false,
+          "ratio": 0.9872977149413735,
+          "before_median_ns": 3785067,
+          "candidate_median_ns": 3736988
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:selector:range:True",
+          "target": true,
+          "ratio": 0.5215373969265669,
+          "before_median_ns": 7143087,
+          "candidate_median_ns": 3725387
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:rate:instant:False",
+          "target": false,
+          "ratio": 1.0129924651573659,
+          "before_median_ns": 2286710,
+          "candidate_median_ns": 2316420
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:rate:instant:True",
+          "target": true,
+          "ratio": 0.5859085281003303,
+          "before_median_ns": 3912196,
+          "candidate_median_ns": 2292189
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:rate:range:False",
+          "target": false,
+          "ratio": 1.017816207305617,
+          "before_median_ns": 4115354,
+          "candidate_median_ns": 4188674
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:rate:range:True",
+          "target": true,
+          "ratio": 0.48445325078500967,
+          "before_median_ns": 8543844,
+          "candidate_median_ns": 4139093
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:selector:instant:False",
+          "target": false,
+          "ratio": 0.9752167573476523,
+          "before_median_ns": 5376173,
+          "candidate_median_ns": 5242934
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:selector:instant:True",
+          "target": true,
+          "ratio": 0.46165528902262404,
+          "before_median_ns": 11379040,
+          "candidate_median_ns": 5253194
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:selector:range:False",
+          "target": false,
+          "ratio": 0.9750748506173207,
+          "before_median_ns": 10123831,
+          "candidate_median_ns": 9871493
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:selector:range:True",
+          "target": true,
+          "ratio": 0.3710410469053371,
+          "before_median_ns": 26819464,
+          "candidate_median_ns": 9951122
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:rate:instant:False",
+          "target": false,
+          "ratio": 1.0033247560524752,
+          "before_median_ns": 5425962,
+          "candidate_median_ns": 5444002
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:rate:instant:True",
+          "target": true,
+          "ratio": 0.387426347257287,
+          "before_median_ns": 13892558,
+          "candidate_median_ns": 5382343
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:rate:range:False",
+          "target": false,
+          "ratio": 1.0067811368543065,
+          "before_median_ns": 9993752,
+          "candidate_median_ns": 10061521
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:rate:range:True",
+          "target": true,
+          "ratio": 0.3109782365814163,
+          "before_median_ns": 31734031,
+          "candidate_median_ns": 9868593
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:selector:instant:False",
+          "target": false,
+          "ratio": 0.9672386878086543,
+          "before_median_ns": 5382843,
+          "candidate_median_ns": 5206494
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:selector:instant:True",
+          "target": true,
+          "ratio": 0.4593872754502436,
+          "before_median_ns": 11406659,
+          "candidate_median_ns": 5240074
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:selector:range:False",
+          "target": false,
+          "ratio": 0.9884386983623016,
+          "before_median_ns": 10153701,
+          "candidate_median_ns": 10036311
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:selector:range:True",
+          "target": true,
+          "ratio": 0.37633219708539467,
+          "before_median_ns": 26512406,
+          "candidate_median_ns": 9977472
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:rate:instant:False",
+          "target": false,
+          "ratio": 0.9999963422832785,
+          "before_median_ns": 5467892,
+          "candidate_median_ns": 5467872
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:rate:instant:True",
+          "target": true,
+          "ratio": 0.3847880567236832,
+          "before_median_ns": 14042177,
+          "candidate_median_ns": 5403262
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:rate:range:False",
+          "target": false,
+          "ratio": 0.9990976701722596,
+          "before_median_ns": 10061731,
+          "candidate_median_ns": 10052652
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:rate:range:True",
+          "target": true,
+          "ratio": 0.31386826715096994,
+          "before_median_ns": 31624261,
+          "candidate_median_ns": 9925852
+        },
+        {
+          "id": "delayed-nested-perf:fallback:0",
+          "target": false,
+          "ratio": 0.9836414385341273,
+          "before_median_ns": 4395252,
+          "candidate_median_ns": 4323352
+        },
+        {
+          "id": "delayed-nested-perf:fallback:1",
+          "target": false,
+          "ratio": 0.9817139239502553,
+          "before_median_ns": 4615479,
+          "candidate_median_ns": 4531080
+        },
+        {
+          "id": "delayed-nested-perf:fallback:2",
+          "target": false,
+          "ratio": 0.986252880447894,
+          "before_median_ns": 4327452,
+          "candidate_median_ns": 4267962
+        },
+        {
+          "id": "delayed-nested-perf:fallback:3",
+          "target": false,
+          "ratio": 0.9901779362045818,
+          "before_median_ns": 4354482,
+          "candidate_median_ns": 4311712
+        },
+        {
+          "id": "delayed-nested-perf:fallback:4",
+          "target": false,
+          "ratio": 0.9922166870343311,
+          "before_median_ns": 4013715,
+          "candidate_median_ns": 3982475
+        },
+        {
+          "id": "delayed-nested-perf:fallback:5",
+          "target": false,
+          "ratio": 0.9988637872663602,
+          "before_median_ns": 4021254,
+          "candidate_median_ns": 4016685
+        },
+        {
+          "id": "delayed-nested-perf:fallback:6",
+          "target": false,
+          "ratio": 1.0143606931341205,
+          "before_median_ns": 3107162,
+          "candidate_median_ns": 3151783
+        },
+        {
+          "id": "delayed-nested-perf:fallback:7",
+          "target": false,
+          "ratio": 1.0212614579914112,
+          "before_median_ns": 23497683,
+          "candidate_median_ns": 23997278
+        }
+      ],
+      "followup": {
+        "selected": [],
+        "pairs": 0
+      }
+    },
+    "release-min": {
+      "target": 0.4672890881145485,
+      "families": {
+        "target-selector": 0.49418611842398263,
+        "target-rate": 0.43237891024829667
+      },
+      "controls": 0.9926802145583469,
+      "complete_pairs": 800,
+      "cases": [
+        {
+          "id": "delayed-nested-perf:4:sum:selector:instant:False",
+          "target": false,
+          "ratio": 0.9900155981351371,
+          "before_median_ns": 3008693,
+          "candidate_median_ns": 2978653
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:selector:instant:True",
+          "target": true,
+          "ratio": 0.6212206220773034,
+          "before_median_ns": 4769568,
+          "candidate_median_ns": 2962954
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:selector:range:False",
+          "target": false,
+          "ratio": 0.9877542977220791,
+          "before_median_ns": 5658230,
+          "candidate_median_ns": 5588941
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:selector:range:True",
+          "target": true,
+          "ratio": 0.5277090360594702,
+          "before_median_ns": 10610167,
+          "candidate_median_ns": 5599081
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:rate:instant:False",
+          "target": false,
+          "ratio": 0.9988973158154503,
+          "before_median_ns": 3582168,
+          "candidate_median_ns": 3578218
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:rate:instant:True",
+          "target": true,
+          "ratio": 0.5711867943376411,
+          "before_median_ns": 6043347,
+          "candidate_median_ns": 3451880
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:rate:range:False",
+          "target": false,
+          "ratio": 0.9972383396005331,
+          "before_median_ns": 6499713,
+          "candidate_median_ns": 6481763
+        },
+        {
+          "id": "delayed-nested-perf:4:sum:rate:range:True",
+          "target": true,
+          "ratio": 0.47391497544060185,
+          "before_median_ns": 13241774,
+          "candidate_median_ns": 6275475
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:selector:instant:False",
+          "target": false,
+          "ratio": 0.9828081634777839,
+          "before_median_ns": 2996713,
+          "candidate_median_ns": 2945194
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:selector:instant:True",
+          "target": true,
+          "ratio": 0.629069327805239,
+          "before_median_ns": 4731709,
+          "candidate_median_ns": 2976573
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:selector:range:False",
+          "target": false,
+          "ratio": 1.0034925197405036,
+          "before_median_ns": 5600541,
+          "candidate_median_ns": 5620101
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:selector:range:True",
+          "target": true,
+          "ratio": 0.5277711553961069,
+          "before_median_ns": 10599577,
+          "candidate_median_ns": 5594151
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:rate:instant:False",
+          "target": false,
+          "ratio": 1.0023124800461658,
+          "before_median_ns": 3580139,
+          "candidate_median_ns": 3588418
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:rate:instant:True",
+          "target": true,
+          "ratio": 0.5816160716405185,
+          "before_median_ns": 6024077,
+          "candidate_median_ns": 3503700
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:rate:range:False",
+          "target": false,
+          "ratio": 1.0015553398645631,
+          "before_median_ns": 6512403,
+          "candidate_median_ns": 6522532
+        },
+        {
+          "id": "delayed-nested-perf:4:avg:rate:range:True",
+          "target": true,
+          "ratio": 0.4799112691772417,
+          "before_median_ns": 13121934,
+          "candidate_median_ns": 6297364
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:selector:instant:False",
+          "target": false,
+          "ratio": 0.9901216010400554,
+          "before_median_ns": 7898041,
+          "candidate_median_ns": 7820021
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:selector:instant:True",
+          "target": true,
+          "ratio": 0.4587586054767705,
+          "before_median_ns": 17081709,
+          "candidate_median_ns": 7836381
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:selector:range:False",
+          "target": false,
+          "ratio": 0.9918610726358114,
+          "before_median_ns": 15162686,
+          "candidate_median_ns": 15039278
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:selector:range:True",
+          "target": true,
+          "ratio": 0.3803879861637047,
+          "before_median_ns": 39796780,
+          "candidate_median_ns": 15138217
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:rate:instant:False",
+          "target": false,
+          "ratio": 1.0074236449768874,
+          "before_median_ns": 8537585,
+          "candidate_median_ns": 8600965
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:rate:instant:True",
+          "target": true,
+          "ratio": 0.3908428450559915,
+          "before_median_ns": 21319482,
+          "candidate_median_ns": 8332567
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:rate:range:False",
+          "target": false,
+          "ratio": 1.0052318713336266,
+          "before_median_ns": 15719041,
+          "candidate_median_ns": 15801281
+        },
+        {
+          "id": "delayed-nested-perf:8:sum:rate:range:True",
+          "target": true,
+          "ratio": 0.3120651297717621,
+          "before_median_ns": 48913299,
+          "candidate_median_ns": 15264135
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:selector:instant:False",
+          "target": false,
+          "ratio": 0.9921518150645036,
+          "before_median_ns": 7897240,
+          "candidate_median_ns": 7835261
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:selector:instant:True",
+          "target": true,
+          "ratio": 0.4606632007884951,
+          "before_median_ns": 17065420,
+          "candidate_median_ns": 7861411
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:selector:range:False",
+          "target": false,
+          "ratio": 0.9745372258434207,
+          "before_median_ns": 15447924,
+          "candidate_median_ns": 15054577
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:selector:range:True",
+          "target": true,
+          "ratio": 0.3754853370729632,
+          "before_median_ns": 39909119,
+          "candidate_median_ns": 14985289
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:rate:instant:False",
+          "target": false,
+          "ratio": 1.0003763702849717,
+          "before_median_ns": 8581974,
+          "candidate_median_ns": 8585204
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:rate:instant:True",
+          "target": true,
+          "ratio": 0.3832284186606935,
+          "before_median_ns": 21603270,
+          "candidate_median_ns": 8278987
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:rate:range:False",
+          "target": false,
+          "ratio": 1.0048122431362245,
+          "before_median_ns": 15986100,
+          "candidate_median_ns": 16063029
+        },
+        {
+          "id": "delayed-nested-perf:8:avg:rate:range:True",
+          "target": true,
+          "ratio": 0.3118251475269679,
+          "before_median_ns": 48790571,
+          "candidate_median_ns": 15214127
+        },
+        {
+          "id": "delayed-nested-perf:fallback:0",
+          "target": false,
+          "ratio": 0.9922929444440003,
+          "before_median_ns": 6628861,
+          "candidate_median_ns": 6577772
+        },
+        {
+          "id": "delayed-nested-perf:fallback:1",
+          "target": false,
+          "ratio": 1.0010342231899265,
+          "before_median_ns": 6970449,
+          "candidate_median_ns": 6977658
+        },
+        {
+          "id": "delayed-nested-perf:fallback:2",
+          "target": false,
+          "ratio": 0.9783494958230446,
+          "before_median_ns": 6600262,
+          "candidate_median_ns": 6457363
+        },
+        {
+          "id": "delayed-nested-perf:fallback:3",
+          "target": false,
+          "ratio": 0.9909368167989431,
+          "before_median_ns": 6646561,
+          "candidate_median_ns": 6586322
+        },
+        {
+          "id": "delayed-nested-perf:fallback:4",
+          "target": false,
+          "ratio": 0.9708563847024175,
+          "before_median_ns": 6153286,
+          "candidate_median_ns": 5973957
+        },
+        {
+          "id": "delayed-nested-perf:fallback:5",
+          "target": false,
+          "ratio": 0.9930674846726935,
+          "before_median_ns": 6064177,
+          "candidate_median_ns": 6022137
+        },
+        {
+          "id": "delayed-nested-perf:fallback:6",
+          "target": false,
+          "ratio": 0.9963816173771454,
+          "before_median_ns": 4938947,
+          "candidate_median_ns": 4921076
+        },
+        {
+          "id": "delayed-nested-perf:fallback:7",
+          "target": false,
+          "ratio": 0.9561914711076348,
+          "before_median_ns": 38801029,
+          "candidate_median_ns": 37101213
+        }
+      ],
+      "followup": {
+        "selected": [],
+        "pairs": 0
+      }
+    }
+  },
+  "memory": {
+    "max_peak_growth_by_category": [
+      0,
+      1320,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "maximum_added_recognition_work": 60,
+    "example": {
+      "id": "delayed-nested-perf:8:sum:rate:instant:True",
+      "page": 17,
+      "workspace_peak": [
+        51985,
+        52880
+      ],
+      "workspace_acquired": [
+        5715264,
+        2287464
+      ],
+      "samples_fetched": [
+        64512,
+        17472
+      ],
+      "work": [
+        939566,
+        414884
+      ]
+    },
+    "scope": "Accounted finite queries; peaks are not additive or RSS. Early observations exact. Syntactically declined delayed functional/timing cases are exact except bounded recognition work; other category peaks/current ownership nongrowth."
+  },
+  "shared_controls": {
+    "case_ids": [
+      "delayed-perf:4:sum:selector:instant:False",
+      "delayed-perf:4:sum:selector:instant:True",
+      "delayed-perf:4:sum:rate:instant:False",
+      "delayed-perf:4:sum:rate:instant:True",
+      "delayed-ratio-perf:4:sum:rate:instant:False",
+      "delayed-ratio-perf:4:sum:rate:instant:True",
+      "delayed-ratio-perf:4:sum:delta:instant:False",
+      "delayed-ratio-perf:4:sum:delta:instant:True"
+    ],
+    "case_sources": [
+      "delayed_group_cases.delayed_group_performance_cases",
+      "delayed_ratio_cases.delayed_ratio_performance_cases"
+    ],
+    "input_rule": "Select the recorded IDs from the public generators; set explicit delayed_name_removal from the True/False suffix. Original query profiles and clocks remain. Primary timing data are not repeated or replaced.",
+    "complete_pairs": 320,
+    "primary": {
+      "release": {
+        "median": 1.0058155490376284,
+        "timings": [
+          {
+            "id": "delayed-perf:4:sum:selector:instant:False",
+            "before_ns": [
+              1781133,
+              1761843,
+              1755233,
+              1767483,
+              1749403,
+              1756283,
+              1770943,
+              1761892,
+              1761163,
+              1749083,
+              1732233,
+              1730963,
+              1752123,
+              1774913,
+              1786762
+            ],
+            "candidate_ns": [
+              1834732,
+              1739713,
+              1736593,
+              1742473,
+              1754033,
+              1760062,
+              1808193,
+              1798442,
+              1776253,
+              1757313,
+              1905952,
+              1755563,
+              1756513,
+              1763402,
+              1804552
+            ],
+            "ratio": 0.9993748449178185
+          },
+          {
+            "id": "delayed-perf:4:sum:selector:instant:True",
+            "before_ns": [
+              1762023,
+              1758073,
+              1764293,
+              1783143,
+              1753653,
+              1805593,
+              1759903,
+              1783532,
+              1763753,
+              1731114,
+              1716203,
+              1737784,
+              1798013,
+              1768393,
+              1752973
+            ],
+            "candidate_ns": [
+              1768953,
+              1762733,
+              1769943,
+              1812032,
+              1765983,
+              1747083,
+              1789102,
+              1778383,
+              1779212,
+              1763443,
+              1768242,
+              1805173,
+              1757813,
+              1746623,
+              1759222
+            ],
+            "ratio": 1.0035294658469271
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:False",
+            "before_ns": [
+              1949871,
+              1980910,
+              1949861,
+              2070230,
+              2026900,
+              2029170,
+              1991900,
+              1992540,
+              1956311,
+              1957860,
+              1954841,
+              1960641,
+              1956961,
+              1976321,
+              1942781
+            ],
+            "candidate_ns": [
+              1983120,
+              1969911,
+              1960901,
+              1961071,
+              1951861,
+              1989241,
+              2004330,
+              2018741,
+              2002821,
+              1970581,
+              1973721,
+              1967471,
+              1970821,
+              2029230,
+              1954631
+            ],
+            "ratio": 1.0051921794963994
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:True",
+            "before_ns": [
+              3395677,
+              3322198,
+              3331458,
+              3385207,
+              3370527,
+              3421886,
+              3420297,
+              3320958,
+              3320257,
+              3378167,
+              3363427,
+              3377578,
+              3406837,
+              3422806,
+              3418416
+            ],
+            "candidate_ns": [
+              3436497,
+              3304448,
+              3325547,
+              3311578,
+              3300168,
+              3308258,
+              3368317,
+              3373307,
+              3367887,
+              3308698,
+              3339108,
+              3316118,
+              3330568,
+              3303958,
+              3293928
+            ],
+            "ratio": 0.9816323467726729
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:rate:instant:False",
+            "before_ns": [
+              3047530,
+              3057841,
+              3046540,
+              3089120,
+              3173459,
+              3085081,
+              3035420,
+              3043791,
+              3065180,
+              3093240,
+              3025771,
+              3051910,
+              3016971,
+              3052580,
+              3032701
+            ],
+            "candidate_ns": [
+              3125210,
+              3046411,
+              3056750,
+              3050840,
+              3073440,
+              3071561,
+              3118400,
+              3112909,
+              3125949,
+              3065860,
+              3051390,
+              3116650,
+              3139840,
+              3034550,
+              3029581
+            ],
+            "ratio": 1.0064389185788571
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:rate:instant:True",
+            "before_ns": [
+              3005301,
+              3067361,
+              2983261,
+              3039060,
+              3049751,
+              3035540,
+              3001880,
+              3004730,
+              3055790,
+              3283538,
+              3025851,
+              3019960,
+              3000440,
+              2982551,
+              2964811
+            ],
+            "candidate_ns": [
+              3055720,
+              3044540,
+              3044281,
+              2981091,
+              2970071,
+              2992730,
+              3060600,
+              3085350,
+              3058540,
+              3061300,
+              3306027,
+              3085581,
+              2974202,
+              2978260,
+              3051530
+            ],
+            "ratio": 1.0104537808447793
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:delta:instant:False",
+            "before_ns": [
+              3045380,
+              3031911,
+              3031580,
+              3072810,
+              3072461,
+              3069590,
+              3057270,
+              3042391,
+              3054710,
+              3067200,
+              3108160,
+              3065280,
+              3066850,
+              3029470,
+              3019761
+            ],
+            "candidate_ns": [
+              3090480,
+              3075950,
+              3100450,
+              3037140,
+              3056620,
+              3077010,
+              3105700,
+              3082360,
+              3082030,
+              3106130,
+              3073010,
+              3119630,
+              3019610,
+              3015151,
+              3010371
+            ],
+            "ratio": 1.0064567408177885
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:delta:instant:True",
+            "before_ns": [
+              3052170,
+              2998650,
+              2997310,
+              3038430,
+              3109519,
+              3061890,
+              2990071,
+              2991221,
+              3022971,
+              3016650,
+              3007291,
+              3021231,
+              2979371,
+              2980671,
+              2988231
+            ],
+            "candidate_ns": [
+              3035390,
+              3122609,
+              3030641,
+              3009550,
+              2989721,
+              2998051,
+              3040791,
+              4159929,
+              3875832,
+              3038161,
+              3041950,
+              3069441,
+              3018990,
+              2976220,
+              2980271
+            ],
+            "ratio": 1.0093436252095325
+          }
+        ],
+        "followup_required": []
+      },
+      "release-min": {
+        "median": 1.003369252152141,
+        "timings": [
+          {
+            "id": "delayed-perf:4:sum:selector:instant:False",
+            "before_ns": [
+              2534246,
+              2536255,
+              2531266,
+              2703774,
+              2599825,
+              2586004,
+              2621774,
+              2614095,
+              2607505,
+              2591795,
+              2572375,
+              2596605,
+              2556045,
+              2588494,
+              3076660
+            ],
+            "candidate_ns": [
+              2613244,
+              2597054,
+              2584885,
+              2625405,
+              2602445,
+              2615654,
+              2686784,
+              2653824,
+              2671694,
+              2651574,
+              2689044,
+              2635684,
+              2635734,
+              2621785,
+              2634614
+            ],
+            "ratio": 1.0165209825622783
+          },
+          {
+            "id": "delayed-perf:4:sum:selector:instant:True",
+            "before_ns": [
+              2554495,
+              2532126,
+              2522656,
+              2586815,
+              2592565,
+              2588905,
+              2597434,
+              2593695,
+              2645074,
+              2630845,
+              2586035,
+              2553135,
+              2615034,
+              2537646,
+              2560025
+            ],
+            "candidate_ns": [
+              2631734,
+              2631114,
+              2601745,
+              2627794,
+              2603384,
+              2599525,
+              2680504,
+              2689374,
+              2689644,
+              2681144,
+              2677124,
+              2643325,
+              2641684,
+              2592364,
+              2637724
+            ],
+            "ratio": 1.0196801858656301
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:False",
+            "before_ns": [
+              3019441,
+              2985901,
+              3001341,
+              3037160,
+              3063460,
+              3046330,
+              3118390,
+              3081180,
+              3072530,
+              3119870,
+              3076680,
+              3071650,
+              3069301,
+              3060090,
+              3061020
+            ],
+            "candidate_ns": [
+              3044931,
+              3035430,
+              3053310,
+              3023000,
+              3023140,
+              3015030,
+              3107050,
+              3189179,
+              3112270,
+              3100710,
+              3109570,
+              3130360,
+              3004561,
+              3019861,
+              3160079
+            ],
+            "ratio": 0.9966867528872582
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:True",
+            "before_ns": [
+              4806173,
+              4789154,
+              4785613,
+              4938912,
+              4883962,
+              4864932,
+              4908723,
+              4944531,
+              4961211,
+              5048120,
+              4920803,
+              4904172,
+              4887503,
+              4895502,
+              4902582
+            ],
+            "candidate_ns": [
+              4911233,
+              4946432,
+              4947232,
+              5000081,
+              5002572,
+              4937372,
+              5049940,
+              5074441,
+              5096090,
+              5008311,
+              5004102,
+              5111610,
+              4975622,
+              4943011,
+              4934451
+            ],
+            "ratio": 1.019887275725322
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:rate:instant:False",
+            "before_ns": [
+              4768304,
+              4762014,
+              4746464,
+              4824183,
+              4806523,
+              4858703,
+              4916792,
+              4974921,
+              4910492,
+              4869482,
+              4918282,
+              4867743,
+              4858933,
+              4868862,
+              4836993
+            ],
+            "candidate_ns": [
+              4837033,
+              4848513,
+              4868653,
+              4828953,
+              4840473,
+              4833363,
+              4944482,
+              4959962,
+              4988271,
+              4945392,
+              5185950,
+              5126471,
+              4945442,
+              4873582,
+              4840553
+            ],
+            "ratio": 1.0030148594351886
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:rate:instant:True",
+            "before_ns": [
+              4613586,
+              4632725,
+              4682454,
+              4703775,
+              4765924,
+              4703214,
+              4713204,
+              4746914,
+              4757924,
+              4765643,
+              4742334,
+              4736954,
+              4761703,
+              4726784,
+              4717244
+            ],
+            "candidate_ns": [
+              4689924,
+              4701194,
+              4667395,
+              4724934,
+              4685604,
+              4685364,
+              4835243,
+              4756233,
+              4922792,
+              4781253,
+              4772964,
+              4782053,
+              4697214,
+              4693884,
+              4691405
+            ],
+            "ratio": 0.9945861710626083
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:delta:instant:False",
+            "before_ns": [
+              4886092,
+              4833853,
+              4814723,
+              4822863,
+              4825683,
+              4886003,
+              4982071,
+              4870282,
+              4887253,
+              4873113,
+              5030001,
+              4882882,
+              4839623,
+              4844453,
+              4840372
+            ],
+            "candidate_ns": [
+              4820073,
+              4804063,
+              4858632,
+              4866693,
+              4886912,
+              4800573,
+              4973681,
+              4969152,
+              5058300,
+              4916182,
+              4878853,
+              4893132,
+              4928632,
+              4814223,
+              4848842
+            ],
+            "ratio": 1.0017598570267594
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:delta:instant:True",
+            "before_ns": [
+              4649965,
+              4692164,
+              4664905,
+              4713124,
+              4677595,
+              5347357,
+              5053691,
+              4768903,
+              4753934,
+              4783114,
+              4950061,
+              4764294,
+              4684595,
+              4683984,
+              4689764
+            ],
+            "candidate_ns": [
+              4706134,
+              4945991,
+              4699624,
+              4703824,
+              4695264,
+              4767184,
+              4785834,
+              4885573,
+              4797353,
+              4739893,
+              4698484,
+              4759763,
+              4678995,
+              4696964,
+              4730674
+            ],
+            "ratio": 1.0037236448690932
+          }
+        ],
+        "followup_required": []
+      }
+    },
+    "followup": {
+      "release": {
+        "selected": [],
+        "pairs": 0
+      },
+      "release-min": {
+        "selected": [],
+        "pairs": 0
+      }
+    },
+    "scope": "Supplementary baseline/resource/timing comparisons for existing direct groups and ratios affected by the shared predicate. No additional pinned-original outcomes."
+  },
+  "compiled_C_sizes": {
+    "release": {
+      "kind": "default-C",
+      "before": [
+        7392774,
+        509768,
+        400
+      ],
+      "current": [
+        7392894,
+        509768,
+        400
+      ],
+      "growth": 120,
+      "before_total": 7902942,
+      "current_total": 7903062,
+      "growth_percent": 0.001518421873778145,
+      "cumulative_baseline_text_data_bss": [
+        7370378,
+        506744,
+        400
+      ],
+      "cumulative_growth_bytes": 25540,
+      "cumulative_growth_percent": 0.32421362961601374
+    },
+    "release-min": {
+      "kind": "default-C",
+      "before": [
+        5156095,
+        465208,
+        400
+      ],
+      "current": [
+        5156327,
+        465208,
+        400
+      ],
+      "growth": 232,
+      "before_total": 5621703,
+      "current_total": 5621935,
+      "growth_percent": 0.004126863336608142,
+      "cumulative_baseline_text_data_bss": [
+        5103967,
+        462056,
+        400
+      ],
+      "cumulative_growth_bytes": 55512,
+      "cumulative_growth_percent": 0.9972652096328288
+    },
+    "arm32": {
+      "kind": "default-C",
+      "before": [
+        6279921,
+        294524,
+        244
+      ],
+      "current": [
+        6279765,
+        294524,
+        244
+      ],
+      "growth": -156,
+      "before_total": 6574689,
+      "current_total": 6574533,
+      "growth_percent": -0.0023727358054502655,
+      "cumulative_baseline_text_data_bss": [
+        6382697,
+        292596,
+        244
+      ],
+      "cumulative_growth_bytes": -101004,
+      "cumulative_growth_percent": -1.5130468155595573
+    },
+    "arm64": {
+      "kind": "default-C",
+      "before": [
+        6457746,
+        499736,
+        384
+      ],
+      "current": [
+        6482326,
+        499736,
+        384
+      ],
+      "growth": 24580,
+      "before_total": 6957866,
+      "current_total": 6982446,
+      "growth_percent": 0.35326923513617536,
+      "cumulative_baseline_text_data_bss": [
+        6374470,
+        497032,
+        384
+      ],
+      "cumulative_growth_bytes": 110560,
+      "cumulative_growth_percent": 1.608874186795299
+    }
+  },
+  "cost_review": "Immediate, relative and cumulative fixed executable costs under66, separate from query RAM.",
+  "measurement_notes": [
+    "Before candidate measurements, strict resource enforcement was extended to17 syntactically declined functional metadata/topk cases. Initial checker bytes and correction retained; corpus, thresholds and existing rules unchanged.",
+    "Compiled shared-predicate extraction motivated an additional8-case regression panel after broad qualification. Its inputs and same1.05control/followup gates were fixed before the320supplementary measurements. Main1600-pair trial was neither repeated nor replaced."
+  ],
+  "scope_limits": [
+    "Finite synthetic inputs, not exhaustive equivalence.",
+    "Both timing profiles use server-default query options with explicit delayed flag; native build profiles are separate.",
+    "Three strict complete-row-order differences per panel remain failures; agreed ordering policy reported separately.",
+    "No live-dbengine, concurrent-query, process-RSS or physical ARM throughput claim.",
+    "Metadata-retaining, native/multiple-head and composed/third-level paths retain their existing evaluation."
+  ],
+  "receipts": {
+    "baseline-measurement": {
+      "path": ".tmp/delayed-nested-g4dau5kg/baseline-measurement.json",
+      "sha256": "e9f85b4b4649ed6b7e933b542a409f7c304000310323ffea003d23e493390b40"
+    },
+    "input-freeze": {
+      "path": ".tmp/delayed-nested-g4dau5kg/input-freeze.json",
+      "sha256": "7f78ce50ec205c0be3589283e4ac546feccea11e0b51cba208c7473c633e254f"
+    },
+    "original-capture": {
+      "path": ".tmp/delayed-nested-g4dau5kg/original-capture.json",
+      "sha256": "b8e0302c63575e9acad80ca29be5a0bf9a58f8713dd61004af7c01f55570daa2"
+    },
+    "baseline-probe": {
+      "path": ".tmp/delayed-nested-g4dau5kg/baseline-probe.json",
+      "sha256": "4c32f998074963a1af2eb0d6f2be5a86515404fb0c49b7274c74911e00270df8"
+    },
+    "resource-enforcement-correction": {
+      "path": ".tmp/delayed-nested-g4dau5kg/resource-enforcement-correction.json",
+      "sha256": "eac3d3b55c042e1ce97fe38c485ae326c56b7ae97a6016fb22f77aed25f55c45"
+    },
+    "focused": {
+      "path": ".tmp/delayed-nested-g4dau5kg/focused.json",
+      "sha256": "0b270b85734e7106c2864c74682ffe7a2961762ec798b70b135ffa5a7422e210"
+    },
+    "candidate-static": {
+      "path": ".tmp/delayed-nested-g4dau5kg/candidate-static.json",
+      "sha256": "3f50b79f403cbb3322e3bcda720f5e2b95297c1fe6eaf98dbf2753320980f858"
+    },
+    "pilot": {
+      "path": ".tmp/delayed-nested-g4dau5kg/pilot.json",
+      "sha256": "9647a7a4448b243f96ba6db57fb0cbb9dcbc844c92126885fecf8110e5b1c033"
+    },
+    "slower-followup": {
+      "path": ".tmp/delayed-nested-g4dau5kg/slower-followup.json",
+      "sha256": "67985acc12401439dfccf0232be5083fbfb82f16b550f2d7ab8b4d72b357f49e"
+    },
+    "acceptance-policy": {
+      "path": ".tmp/delayed-nested-g4dau5kg/acceptance-policy.json",
+      "sha256": "cd233337ad80cde78402879d21f2aafd9fd29e8d0ca905f31723c59d904d450e"
+    },
+    "shared-control-plan": {
+      "path": ".tmp/delayed-nested-g4dau5kg/shared-control-plan.json",
+      "sha256": "d95f1aa7dbc7f6a1ee74febcf91dc9cd6536a802e21e547accff6188632b57d4"
+    },
+    "shared-code": {
+      "path": ".tmp/delayed-nested-g4dau5kg/shared-code.json",
+      "sha256": "351543f1f0b0b577be232af46f00ba45d83c7ef33cc7bebc0e0b9e951ff8bdbe"
+    },
+    "shared-control-primary": {
+      "path": ".tmp/delayed-nested-g4dau5kg/shared-control-primary.json",
+      "sha256": "2797aaf28a6118cde20833df74acd3e2f579974ae54b30befb3ae32b2b901f4a"
+    },
+    "shared-control-followup": {
+      "path": ".tmp/delayed-nested-g4dau5kg/shared-control-followup.json",
+      "sha256": "5cd3bdedf0da36f8eb20b3d710bc3971df98dde8c27880c29e9cdb9fa330d9ea"
+    },
+    "shared-control-verification": {
+      "path": ".tmp/delayed-nested-g4dau5kg/shared-control-verification.json",
+      "sha256": "12cae413e8408c339fcbe78434c39427263131d0269ead2ea0c6d452eace8014"
+    },
+    "perf-release-builds": {
+      "path": ".tmp/delayed-nested-g4dau5kg/perf-release-builds.json",
+      "sha256": "15167c514e77401def7774f6a7191499af3779bf57b76c82349f1cd54c92dfa9"
+    },
+    "perf-release-min-builds": {
+      "path": ".tmp/delayed-nested-g4dau5kg/perf-release-min-builds.json",
+      "sha256": "70c96a44099ee6b3ef45f575956969aef1f118653c490b20bb23b9407d61885c"
+    },
+    "probe-candidate-release-analysis": {
+      "path": ".tmp/delayed-nested-g4dau5kg/probe-candidate-release-analysis.json",
+      "sha256": "9b89b21c57e73673cd400c762d31e1d247b2ba7f4529c93f4fd027b144ef1ec2"
+    },
+    "probe-candidate-release-min-analysis": {
+      "path": ".tmp/delayed-nested-g4dau5kg/probe-candidate-release-min-analysis.json",
+      "sha256": "86c1b60365117b9a981cb37cadd2f7f497715e608431ab48d749c89800597131"
+    },
+    "build-release": {
+      "path": ".tmp/delayed-nested-g4dau5kg/build-release.json",
+      "sha256": "6b918ea3e209817ef8ce75e4eebf26c41fe288929b51f5467c311569d115f6a7"
+    },
+    "qualification-release": {
+      "path": ".tmp/delayed-nested-g4dau5kg/qualification-release.json",
+      "sha256": "d99cc6c8e2504acb7fa2739732bb30fd3c5efeb83aa4e2cd19d93ee294ce6e23"
+    },
+    "build-release-min": {
+      "path": ".tmp/delayed-nested-g4dau5kg/build-release-min.json",
+      "sha256": "a1671b300996b32326c9b0275553ee919878ad6c6cdcaa67d23ca9a124c1e797"
+    },
+    "qualification-release-min": {
+      "path": ".tmp/delayed-nested-g4dau5kg/qualification-release-min.json",
+      "sha256": "61816793579afcba23e4878ab67339fb58957717e4d2d1c19c340de5c6ecded7"
+    },
+    "build-arm32": {
+      "path": ".tmp/delayed-nested-g4dau5kg/build-arm32.json",
+      "sha256": "863fa1a3aa61285fc3ce63e7a8e4f90faf8f0c87e437f856f7105142a0f7d0c1"
+    },
+    "qualification-arm32": {
+      "path": ".tmp/delayed-nested-g4dau5kg/qualification-arm32.json",
+      "sha256": "4dd9807f0234e71385307de32b7661e596325c93a79cfb11274843824183f068"
+    },
+    "build-arm64": {
+      "path": ".tmp/delayed-nested-g4dau5kg/build-arm64.json",
+      "sha256": "4e5b472ba90043f59730eb3730ef237d1067dd3bf4cd040b8f5025d00ca5e8ce"
+    },
+    "qualification-arm64": {
+      "path": ".tmp/delayed-nested-g4dau5kg/qualification-arm64.json",
+      "sha256": "bc0b0ad178162ac6c6c4c0937d081dbe4102ad8aa0bd5e34b63d5a84804980aa"
+    },
+    "historical-source-snapshots": {
+      "path": ".tmp/delayed-nested-g4dau5kg/historical-source-snapshots.json",
+      "sha256": "83f58236ed19effd832be46b8da9d7cae8ac7576b0a28e39336fd3ad558b05e3"
+    },
+    "corpus-reproduction": {
+      "path": ".tmp/delayed-nested-g4dau5kg/corpus-reproduction.json",
+      "sha256": "3ccf7182fa79c13e9c9b48e85226f2c37c043d7f735fdfd40502d718e6cd366d"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/delayed-nested-g4dau5kg/artifact-integrity.json",
+      "sha256": "ca352cf9cace916b4f20f11a9efdca2e7731172b6cba4a03b205e27b097f077c"
+    }
+  }
+}

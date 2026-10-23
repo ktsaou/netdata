@@ -10684,6 +10684,9 @@ required errors. Qualify callbacks at their actual read boundary, including pre-
 
 ## Completed clocks in nested grouped subqueries
 
+The later [delayed nested-group extension](#completed-nested-groups-with-delayed-metadata-removal)
+adds a separate metadata proof; this section retains its original qualification scope.
+
 Directly consumed two-level aggregates can reuse completed group scans. For example,
 `max_over_time((sum by(job)(max by(job,instance)(rate(m_total[3s]))))[8s:1s])`
 reuses the existing inner and outer group plans. Each level earns its own interval after actual successful
@@ -12019,6 +12022,9 @@ the public snapshot field and ABI remain unchanged.
 
 ## Completed direct groups with delayed metadata removal
 
+The later [nested-group extension](#completed-nested-groups-with-delayed-metadata-removal)
+qualifies direct two-level groups separately.
+
 The later [grouped-ratio extension](#completed-grouped-ratios-with-delayed-metadata-removal)
 qualifies direct ratios separately; this section retains its original direct-group scope and measurements.
 
@@ -12028,8 +12034,9 @@ already excludes `__name__`, `__type__`, and `__unit__`. For example,
 direct selectors and rate/increase/delta inputs follow the existing Float-only, single-head and clock checks.
 `without` must explicitly exclude type and unit as well; retaining any deferred metadata keeps the old path.
 
-Only direct subquery discovery and matching Group preparation enable this extension. Projected, nested,
-ratio, mapped and histogram compositions retain their previous delayed-mode handling. Cold traversal and
+The initial extension enabled direct subquery discovery and matching Group preparation. The linked later
+ratio and nested extensions qualify their own scopes; projected, mapped and histogram compositions
+retain their previous delayed-mode handling. Cold traversal and
 required diagnostic scans remain complete; successful clock completion permits fresh reads of the selected
 group's contributors. Failed, cancelled and truncated traversals do not earn missing completion credit.
 No raw-value cache, state field, API/ABI change, default-option change or implicit limit is introduced.
@@ -12077,7 +12084,7 @@ single-head, clock and source-binding checks remain required. This also serves o
 
 Group and pair completion remain separate. A completed left operand does not certify the right operand or the
 division; cancelled, failed and truncated traversals cannot earn missing credit. Selected values are read freshly.
-Raw selector pairs, metadata-retaining groups, nested groups and mapped/prefix paths retain their existing delayed
+Raw selector pairs, metadata-retaining groups, nested ratio operands and mapped/prefix paths retain their existing delayed
 handling. There is no raw history cache, new retained state field, default-option change or implicit cap.
 
 The [qualification](delayed-ratio-clocks-qualification.json) and [corpus](delayed_ratio_cases.py) record 280 functional
@@ -12111,3 +12118,56 @@ required-delivery failures. Existing interval tests additionally cover both dela
 absent, fresh values, exact key domains and delayed-prefix rejection. The report records complete native units,
 focused ARM execution under QEMU, actual C/C++ consumers, static/MSRV checks and proportional compiled costs.
 No live-dbengine, concurrent-query or physical ARM throughput claim is made.
+
+## Completed nested groups with delayed metadata removal
+
+Direct two-level ordinary aggregates can reuse completed group scans when delayed metadata removal is enabled.
+For example, `max_over_time((sum by(job)(max by(job,instance)(rate(m_total[3s]))))[4s:1s])` qualifies.
+Both grouping clauses must exclude `__name__`, `__type__`, and `__unit__`. The inner input can be a direct
+selector, rate, increase or delta. All eight ordinary reducers retain their existing arithmetic.
+
+The outer group still requires an independently qualified inner plan and nonempty Float-only, single-head
+descriptors. Runtime ancestry and clock checks are unchanged. Inner completion cannot certify a truncated,
+failed or cancelled outer endpoint. Fresh selected values, diagnostic traversals and clearing retain their
+existing owners. No new state field, raw history cache, public option, ABI change or implicit cap is introduced.
+Third-level aggregates, projections, maps, pairs and metadata-retaining groups keep their existing evaluation.
+Requiring the outer grouping to omit reserved labels is a conservative scope boundary: an ordinary outer
+group cannot recreate a label already removed by the inner group.
+
+The [qualification](delayed-nested-clocks-qualification.json) and [corpus](delayed_nested_cases.py) bind 360
+functional cases and 40 timing cases to actual source, inputs and binaries. Timing queries use server-default
+options with the explicit delayed flag; early-mode and delayed fallback controls are separate. Five alternating
+blocks produce 1,600 complete before/after timing pairs. Target median ratios are 0.4731/release and
+0.4673/release-min, about 53% less elapsed time. Selector ratios are 0.4916/0.4942, rate ratios 0.4359/0.4324,
+and control medians 0.9912/0.9927. No individual case in this primary panel required the predefined follow-up.
+
+A separate 320-pair control panel checks the earlier direct-group and grouped-ratio paths that also use the
+extracted metadata predicate. Its median ratios are 1.0058/1.0034, with no slower-case follow-up required.
+Complete results and all nonelapsed observations match except bounded added recognition work in delayed mode;
+early-mode work is exact. This supplementary panel adds no pinned-original outcomes and does not replace the
+primary measurements. Its eight cases are selected by the recorded IDs from the existing public generators.
+
+All 2,160 exact baseline-result/resource comparisons and agreed-order pinned-original comparisons pass.
+The 360 fresh Go outcomes come from 15 datasets with explicitly matched delayed options and request clocks.
+Three unchanged complete-row permutations per panel remain strict ordering failures: 18 overall, with zero
+numeric-bit differences. Coverage includes all ordinary inner/outer operator combinations, native/mixed/stale
+and disappearing inputs, reserved metadata at both levels, offsets, parentheses, range consumers and excluded
+compositions. Finite agreement does not prove exhaustive compatibility.
+
+Maximum accounted Workspace peak growth is 1,320 bytes; other category peaks do not grow. For the eight-group
+SUM/MAX/rate instant example at page 17, Workspace peak changes from 51,985 to 52,880 bytes, cumulative
+Workspace acquisition falls from 5,715,264 to 2,287,464 bytes, fetched entries from 64,512 to 17,472, and work
+from 939,566 to 414,884. Early-mode observations remain exact. Syntactically declined delayed metadata/topk
+functional cases and timing fallbacks retain exact observations except bounded recognition work. The maximum
+added recognition work across the functional panel is 60 units. Category peaks are not additive or process RSS.
+
+The causal owners exercise 766 calibrated required-delivery failures, separate inner/outer completion, final
+uncredited endpoints, cancellation and cleanup. The report records complete native tests, focused ARM execution
+under QEMU, actual C/C++ callers, static checks and proportional compiled costs. No live-dbengine throughput,
+concurrent-query throughput or physical ARM performance claim follows from these synthetic measurements.
+
+Future changes should reproduce the canonical corpus, preserve complete results and strict original failures,
+and run `delayed_nested_clocks`, `nested_grouped_clocks`, `grouped_selector_clocks_admission`, aggregate-replay
+and delayed-ratio controls. The existing C group/ratio/nested/projection consumers exercise actual adapters.
+The resource checker was strengthened before candidate measurements to cover all 17 syntactically declined
+functional cases; its initial bytes remain in the evidence. This changed enforcement, not the frozen rules.

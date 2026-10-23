@@ -1368,6 +1368,20 @@ impl CompiledQuery {
         )
     }
 
+    fn grouping_drops_metadata(
+        grouping: Option<&[AccountedVec<u8>]>,
+        without: bool,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        for name in [b"__name__".as_slice(), b"__type__", b"__unit__"] {
+            if crate::binary_labels::keep_name(name, grouping, without, control, account)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
     fn grouped_interval_child(
         &self,
         mut node: NodeId,
@@ -1404,18 +1418,15 @@ impl CompiledQuery {
                     without,
                 } if crate::aggregation::ordinary(*operator) => {
                     // Deferred cleanup must not change a certified group's identity.
-                    if self.options.delayed_name_removal {
-                        for name in [b"__name__".as_slice(), b"__type__", b"__unit__"] {
-                            if crate::binary_labels::keep_name(
-                                name,
-                                grouping.as_deref(),
-                                *without,
-                                control,
-                                account,
-                            )? {
-                                return Ok(None);
-                            }
-                        }
+                    if self.options.delayed_name_removal
+                        && !Self::grouping_drops_metadata(
+                            grouping.as_deref(),
+                            *without,
+                            control,
+                            account,
+                        )?
+                    {
+                        return Ok(None);
                     }
                     let child = prepared.preprocessing.child(
                         &self.expression,
@@ -1507,8 +1518,19 @@ impl CompiledQuery {
                     operator,
                     expression: Some(child),
                     parameter: None,
-                    ..
+                    grouping,
+                    without,
                 } if outer && crate::aggregation::ordinary(*operator) => {
+                    if self.options.delayed_name_removal
+                        && !Self::grouping_drops_metadata(
+                            grouping.as_deref(),
+                            *without,
+                            control,
+                            account,
+                        )?
+                    {
+                        return Ok(None);
+                    }
                     outer = false;
                     node = prepared.preprocessing.child(
                         &self.expression,
@@ -1520,7 +1542,7 @@ impl CompiledQuery {
                 }
                 _ if !outer => {
                     return Ok(self
-                        .grouped_interval_child(node, true, false, prepared, control, account)?
+                        .grouped_interval_child(node, true, true, prepared, control, account)?
                         .map(|_| node));
                 }
                 _ => return Ok(None),
@@ -12684,6 +12706,19 @@ mod tests {
             ("count by(id)(m_total offset 1s)", 1),
             ("sum by(id)(m_total @ 8)", 0),
             ("sum by(id)(sum by(id,member)(m_total))", 2),
+            ("sum by(id,__name__)(sum by(id,member)(m_total))", 2),
+            ("sum by(id,__type__)(sum by(id,member)(m_total))", 2),
+            ("sum by(id,__unit__)(sum by(id,member)(m_total))", 2),
+            ("sum by(id)(sum by(id,member,__name__)(m_total))", 2),
+            ("sum by(id)(sum by(id,member,__type__)(m_total))", 2),
+            ("sum by(id)(sum by(id,member,__unit__)(m_total))", 2),
+            (
+                "sum without(member,__type__,__unit__)(sum by(id,member)(m_total))",
+                2,
+            ),
+            ("sum by(id)(sum without(__type__,__unit__)(m_total))", 2),
+            ("sum without(member)(sum by(id,member)(m_total))", 2),
+            ("sum by(id)(sum without(member)(m_total))", 2),
             ("label_join(sum by(id)(m_total),\"service\",\"\",\"id\")", 1),
             (
                 "label_replace((sum by(id)(m_total)),\"service\",\"$1\",\"id\",\"(.*)\")",
@@ -12722,13 +12757,21 @@ mod tests {
             ("histogram_quantile(0.5,sum by(id,le)(m_total))", 0),
             ("topk(1,m_total)", 0),
         ] {
-            for delayed in [false, true] {
+            for settings in [
+                options(false),
+                options(true),
+                EngineOptions {
+                    delayed_name_removal: true,
+                    ..EngineOptions::default()
+                },
+            ] {
+                let delayed = settings.delayed_name_removal;
                 for shape in ["float", "selected-native", "unselected-native", "empty"] {
                     let engine = Engine::default();
                     let control = Control::default();
                     let expression = format!("max_over_time(({body})[4s:2s])");
                     let compiled = engine
-                        .compile(expression.as_bytes(), options(delayed), &control)
+                        .compile(expression.as_bytes(), settings, &control)
                         .unwrap();
                     let mut provider = grouped_subquery_provider(1, 2);
                     for series in &mut provider.series {
@@ -12807,6 +12850,14 @@ mod tests {
                                     | "avg without(member,__type__,__unit__)(m_total)"
                             ) {
                                 1
+                            } else if matches!(
+                                body,
+                                "sum by(id)(sum by(id,member)(m_total))"
+                                    | "((sum by(id)(((max by(id,member)(m_total))))))"
+                                    | "sum without(member,__type__,__unit__)(sum by(id,member)(m_total))"
+                                    | "sum by(id)(sum without(__type__,__unit__)(m_total))"
+                            ) {
+                                2
                             } else {
                                 0
                             },
@@ -14827,7 +14878,23 @@ mod tests {
         wrapper: Option<&str>,
         delayed: bool,
     ) {
+        grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case_with_options(
+            aggregate,
+            full_matrix,
+            wrapper,
+            options(delayed),
+        );
+    }
+
+    fn grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case_with_options(
+        aggregate: &str,
+        full_matrix: bool,
+        wrapper: Option<&str>,
+        settings: EngineOptions,
+    ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
+            let wrapper = wrapper.map(|value| value.replace("{rate}", rate_function));
+            let wrapper = wrapper.as_deref();
             let request = QueryRequest::Instant { time_ms: 8000 };
             for &page in grouped_clock_pages(full_matrix) {
                 let engine = Engine::default();
@@ -14836,7 +14903,7 @@ mod tests {
                     .compile(
                         grouped_map_test_expression(format!("max_over_time(({aggregate} by(id)({rate_function}(m_total[3s])))[4s:1s])"), wrapper)
                             .as_bytes(),
-                        options(delayed),
+                        settings,
                         &control,
                     )
                     .unwrap();
@@ -15417,6 +15484,55 @@ mod tests {
     }
 
     #[test]
+    fn delayed_nested_clocks_completion() {
+        let settings = EngineOptions {
+            delayed_name_removal: true,
+            ..EngineOptions::default()
+        };
+        for aggregate in ["sum", "avg"] {
+            for (cancel, fault) in [(false, false), (true, false), (false, true)] {
+                grouped_clocks_completion_case_with_options(
+                    aggregate, true, None, true, cancel, fault, settings,
+                );
+            }
+        }
+        for (cancel, fault) in [(false, false), (true, false), (false, true)] {
+            grouped_clocks_completion_case_with_options(
+                "sum",
+                false,
+                Some("sum by(id)(max by(id,member)(m_total))"),
+                true,
+                cancel,
+                fault,
+                settings,
+            );
+        }
+    }
+
+    #[test]
+    fn delayed_nested_clocks_required_delivery_failures() {
+        let settings = EngineOptions {
+            delayed_name_removal: true,
+            ..EngineOptions::default()
+        };
+        for outer in ["sum", "avg"] {
+            let body = format!("{outer} by(id)(max by(id,member)({{rate}}(m_total[3s])))");
+            grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case_with_options(
+                "sum",
+                true,
+                Some(&body),
+                settings,
+            );
+        }
+        grouped_subquery_clocks_preserve_every_required_delivery_read_failure_case_with_options(
+            "sum",
+            false,
+            Some("sum by(id)(max by(id,member)(m_total))"),
+            settings,
+        );
+    }
+
+    #[test]
     fn nested_grouped_clocks_completion() {
         for cancel in [false, true] {
             grouped_clocks_completion_case("sum", true, None, true, cancel, false);
@@ -15486,6 +15602,26 @@ mod tests {
         fault: bool,
         delayed: bool,
     ) {
+        grouped_clocks_completion_case_with_options(
+            aggregate,
+            full_matrix,
+            wrapper,
+            nested,
+            cancel,
+            fault,
+            options(delayed),
+        );
+    }
+
+    fn grouped_clocks_completion_case_with_options(
+        aggregate: &str,
+        full_matrix: bool,
+        wrapper: Option<&str>,
+        nested: bool,
+        cancel: bool,
+        fault: bool,
+        settings: EngineOptions,
+    ) {
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             for &page in grouped_clock_pages(full_matrix) {
                 let engine = Engine::default();
@@ -15503,7 +15639,7 @@ mod tests {
                             wrapper,
                         )
                         .as_bytes(),
-                        options(delayed),
+                        settings,
                         &control,
                     )
                     .unwrap();
