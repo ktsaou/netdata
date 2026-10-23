@@ -11906,3 +11906,24 @@ capacity lesson matters independently: retaining 6,000 bytes instead of the ordi
 7,000-byte replacement to grow to 12,000. The rejected candidate guarded against that change; allocation savings
 alone still did not establish enough throughput. Full native/ARM/C, strict/MSRV and compiled-cost checks were
 not run after the early rejection. This record changes neither PromQL support nor library behavior.
+
+
+## Rejected outlining of generated label assignment
+
+[generated-label-outline-rejected-qualification.json](generated-label-outline-rejected-qualification.json) records
+a separate experiment using the same generated-buffer transfer with `set_generated` explicitly kept out of line.
+The intended compiled change occurred: release-min's label-operation body fell from 6,466 to 5,614 bytes, calling
+a 796-byte setter. Release's executable code/data sections remained identical to the prior rejected candidate.
+Its new release timings therefore provide additional same-code observations, not an outlining gain.
+
+All 1,920 complete baseline/original/resource comparisons passed on the unchanged 320-case corpus. Outputs, work,
+reads and other nonelapsed observations remained exact; all eight memory categories were nonincreasing, with the
+same allocation savings as the previous candidate. The 1,760 primary timing pairs gave target ratios
+0.98707/0.99391 and control ratios 0.98914/1.03850 for release/release-min. All ten individual follow-ups passed
+1.05, adding 240 pairs, but both target medians missed the unchanged 0.98 requirement.
+
+The two runtime/test files were restored exactly. The earlier rejection remains unchanged, including its release
+timing miss. No new unit/ARM/C/static/compiled-cost qualification ran after this early failure; the 13 focused tests
+belong to the earlier candidate. [generated_label_cases.py](generated_label_cases.py) remains the unchanged corpus.
+This record closes the outlined variant without shipping label-buffer transfer or claiming that inlining caused
+the earlier slowdown. Function-size reduction alone did not establish sufficient throughput.

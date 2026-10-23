@@ -74256,5 +74256,16 @@
     "strict_original_pairs": 1920,
     "timing_pairs": 2144,
     "runtime_restored": true
+  },
+  "generated_label_outline_rejected": {
+    "status": "rejected_and_restored",
+    "report": "generated-label-outline-rejected-qualification.json",
+    "report_sha256": "1f07cf3aa858ceb2637b8e5fa5b3138e756d39705840b11398d7dbefed0229ea",
+    "baseline_commit": "bd2b78c9a6e1b5c4a50c86cf764aada14b6d281f",
+    "runtime_base": "f5c74d453d0a31e223df0e823ee107da149581e9",
+    "exact_baseline_pairs": 1920,
+    "strict_original_pairs": 1920,
+    "timing_pairs": 2000,
+    "runtime_restored": true
   }
 }
