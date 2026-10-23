@@ -11718,3 +11718,28 @@ and 384 control inputs using 27 deduplicated datasets, bound by the published re
 Deriv controls also receive two explicitly parenthesized whole-expression compositions. Existing comparisons
 therefore retain precedence; compositions that do not fit the admission rules remain controls. Historical
 panels retain their actual source and binary identities.
+
+
+## Rejected instant literal rate comparison reuse
+
+[literal-filter-reuse-rejected-qualification.json](literal-filter-reuse-rejected-qualification.json) records a
+rejected candidate for ordinary instant comparisons such as `rate(m[5m]) > 0`. It retained the direct child's
+existing completed Float/absent folds during literal and comparison preparation, then kept final reads fresh.
+The candidate added no per-series array. The branch runtime was restored exactly after the failed gate.
+
+- 1,116 fresh pinned Go outcomes; 6,696 exact baseline comparisons across both profiles and pages1/17/1024.
+  One source-proven instant subquery row permutation per panel follows existing decision9; no numeric bit differences.
+- 6,648 resource pairs: all eight memory categories unchanged in peak, with no increase in current/allocation traffic,
+  accounted work or provider traffic. The representative16-series/256-point Rate comparison fetched8,736entries
+  instead of13,104; Workspace peak stayed30,387bytes. These are rejected-candidate measurements.
+- 6,080 timing pairs: target median ratios0.74438release/0.73683release-min; control medians1.02864/1.01038.
+  The single predefined follow-up comprised336pairs. One small existing scalar-left Increase multiplication remained
+  at1.05542, above the1.05individual-case ceiling. Its runtime/compiler cause is unresolved; the gate was not relaxed.
+- Nine focused unit owners passed after correcting one test-only start-timestamp acquisition expectation. The first
+  failure is retained. Computed-duration controls and24Ccomparison expressions have fresh original outcomes in two
+  profiles; prepared C consumers, full native/ARM units, strict/MSRV and compiled-cost qualification were not run
+  after rejection. They are not counted as passing evidence.
+
+[literal_filter_cases.py](literal_filter_cases.py) reproduces the152timing and1,116functional inputs. All209baseline
+source bindings matched after reversing only the candidate's two edited source files. This negative record preserves
+an investigated trade-off; it does not change supported PromQL or establish a live-provider throughput result.
