@@ -2213,6 +2213,80 @@ impl CompiledQuery {
         Ok(Some(child))
     }
 
+    fn literal_filter_child(&self, prepared: &Prepared) -> Option<(NodeId, NodeId)> {
+        let request = prepared.header;
+        if request.value_type != ValueType::Vector
+            || request.start_ms != request.end_ms
+            || request.step_ms != 0
+        {
+            return None;
+        }
+        let root = self.expression.root;
+        let Expr::Binary {
+            operator,
+            left,
+            right,
+            return_bool: false,
+            matching: None,
+        } = &self.expression.arena[root].expression
+        else {
+            return None;
+        };
+        if !operator.is_comparison() {
+            return None;
+        }
+        let (child, literal) =
+            if matches!(self.expression.arena[*left].expression, Expr::Number { .. }) {
+                (*right, *left)
+            } else if matches!(
+                self.expression.arena[*right].expression,
+                Expr::Number { .. }
+            ) {
+                (*left, *right)
+            } else {
+                return None;
+            };
+        let Expr::Call {
+            function: Some(function),
+            arguments,
+        } = &self.expression.arena[child].expression
+        else {
+            return None;
+        };
+        if !matches!(function.name, "rate" | "increase") {
+            return None;
+        }
+        let Expr::Matrix { selector, .. } = &self.expression.arena[arguments[0]].expression else {
+            return None;
+        };
+        let Expr::Selector(selector) = &self.expression.arena[*selector].expression else {
+            return None;
+        };
+        let modifiers = &selector.modifiers;
+        if selector.anchored
+            || selector.smoothed
+            || modifiers.original_offset != 0
+            || modifiers.offset != 0
+            || modifiers.original_offset_expression.is_some()
+            || modifiers.timestamp.is_some()
+            || modifiers.start_or_end.is_some()
+        {
+            return None;
+        }
+        let header = prepared.evaluator_header();
+        let grid = crate::query_scopes::Grid::from(header);
+        for current in [root, child] {
+            if prepared.flags().invariants[current.0]
+                || prepared.flags().boundaries[current.0]
+                || crate::query_scopes::Grid::from(prepared.source_header(current, header)) != grid
+                || crate::query_scopes::Grid::from(prepared.scope_header(current, header)) != grid
+            {
+                return None;
+            }
+        }
+        Some((child, literal))
+    }
+
     fn prepare_rosters<Q: QueryProvider>(
         &self,
         catalog: &Catalog<'_, Q>,
@@ -2246,6 +2320,8 @@ impl CompiledQuery {
             true,
             Demand::None,
         ));
+        let literal_filter = self.literal_filter_child(prepared);
+        let mut literal_filter_complete = false;
         while let Some(task) = tasks.pop() {
             control.check()?;
             account.work(1);
@@ -3373,7 +3449,13 @@ impl CompiledQuery {
                     rosters.certify_schedule(selector_node, selector_node);
                 }
             }
-            prepared.range_folds.clear(control, account)?;
+            // The completed direct child owns every fold; a literal cannot add another owner.
+            if !literal_filter_complete
+                || !literal_filter
+                    .is_some_and(|(_, literal)| node == literal || node == self.expression.root)
+            {
+                prepared.range_folds.clear(control, account)?;
+            }
             let mut base = Machine::new(
                 catalog,
                 &self.expression,
@@ -3780,6 +3862,7 @@ impl CompiledQuery {
             let merged_unary =
                 unary_merge && rosters.has_merged_unary(node, &descriptors, control, account)?;
             rosters.finish_group_flags(node, &descriptors, control, account)?;
+            let mut literal_filter_float = false;
             if (crate::topk::is_selection(expression) || crate::vector_sort::is_sort(expression))
                 && single_step
             {
@@ -3797,6 +3880,9 @@ impl CompiledQuery {
                 } else {
                     rosters.ordered_output(node, descriptors, control, account)?;
                 }
+            } else if literal_filter.is_some_and(|(child, _)| child == node) {
+                literal_filter_float =
+                    rosters.output_observing_float_kinds(node, descriptors, control, account)?;
             } else {
                 rosters.output(node, descriptors, control, account)?;
             }
@@ -3910,6 +3996,14 @@ impl CompiledQuery {
                 control,
                 account,
             )?;
+            // Failed or unfinished children never publish reusable folds, including empty results.
+            if literal_filter.is_some_and(|(child, _)| child == node) {
+                literal_filter_complete = literal_filter_float
+                    && rosters.ordered(node).is_none()
+                    && rosters.producer_clock(node).is_some_and(|clock| {
+                        clock.grid == crate::query_scopes::Grid::from(prepared.evaluator_header())
+                    });
+            }
         }
         // Final consumption must validate its own first delivery, even on the same key.
         rosters.clear_replay_progress(control, account)?;
@@ -4870,6 +4964,196 @@ mod tests {
         crate::value::Sample {
             value: crate::value::SampleValue::Float(4.0 - index as f64),
             ..crate::test_storage::counter(index)
+        }
+    }
+
+    #[test]
+    fn literal_filter_reuses_completed_folds_with_fresh_final_reads() {
+        fn constant(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                value: crate::value::SampleValue::Float(5.0),
+                ..crate::test_storage::counter(index)
+            }
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for start_timestamps in [false, true] {
+                    for (function, value) in [("rate", 1.0_f64), ("increase", 4.0)] {
+                        for scalar in [0.0, value / 2.0, value, value + 1.0] {
+                            for operator in ["==", "!=", ">", "<", ">=", "<="] {
+                                for left in [false, true] {
+                                    let engine = Engine::default();
+                                    let control = Control::default();
+                                    let mut provider = FixtureProvider::new(4, page, 4);
+                                    for index in [0, 2] {
+                                        provider.series[index].source.sample = constant;
+                                    }
+                                    let child = format!("{function}(counter_total[4s])");
+                                    let expression = if left {
+                                        format!("{scalar} {operator} {child}")
+                                    } else {
+                                        format!("{child} {operator} {scalar}")
+                                    };
+                                    let expected: Vec<_> = (0..4)
+                                        .filter_map(|ordinal| {
+                                            let value = if ordinal % 2 == 0 { 0.0 } else { value };
+                                            let (a, b) = if left {
+                                                (scalar, value)
+                                            } else {
+                                                (value, scalar)
+                                            };
+                                            let keep = match operator {
+                                                "==" => a == b,
+                                                "!=" => a != b,
+                                                ">" => a > b,
+                                                "<" => a < b,
+                                                ">=" => a >= b,
+                                                "<=" => a <= b,
+                                                _ => unreachable!(),
+                                            };
+                                            keep.then_some((ordinal, value))
+                                        })
+                                        .collect();
+                                    let query = engine
+                                        .compile(
+                                            expression.as_bytes(),
+                                            EngineOptions {
+                                                start_timestamps,
+                                                ..options(delayed)
+                                            },
+                                            &control,
+                                        )
+                                        .unwrap();
+                                    let report = query.collect_reported(
+                                        &provider,
+                                        QueryRequest::Instant { time_ms: 4000 },
+                                        &control,
+                                    );
+                                    let result = report.result.as_ref().unwrap();
+                                    assert!(report.annotations.is_empty(), "{expression}");
+                                    assert_eq!(result.series.len(), expected.len(), "{expression}");
+                                    for (row, (ordinal, value)) in
+                                        result.series.iter().zip(&expected)
+                                    {
+                                        assert_eq!(
+                                            row.labels.0[0].value.as_ref(),
+                                            ordinal.to_string().as_bytes()
+                                        );
+                                        assert_eq!(row.points.len(), 1);
+                                        assert_eq!(row.points[0].time_ms, 4000);
+                                        assert_eq!(
+                                            float_bits(&row.points[0]),
+                                            value.to_bits(),
+                                            "{expression}"
+                                        );
+                                    }
+                                    assert_eq!(
+                                        report
+                                            .observations
+                                            .statistics
+                                            .samples
+                                            .total_queryable_samples,
+                                        16
+                                    );
+                                    let passes = if expected.is_empty() { 1 } else { 2 };
+                                    assert_eq!(
+                                        report.observations.statistics.samples.samples_read,
+                                        passes * if start_timestamps { 32 } else { 16 },
+                                        "{expression}"
+                                    );
+                                    provider.assert_closed();
+                                    drop((report, query));
+                                    engine.accounting.snapshot().assert_memory_released();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn literal_filter_checks_labels_and_actual_acquisitions() {
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for function in ["rate", "increase"] {
+                    for left in [false, true] {
+                        let engine = Engine::default();
+                        let child = format!("{function}(counter_total[4s])");
+                        let expression = if left {
+                            format!("0 < {child}")
+                        } else {
+                            format!("{child} > 0")
+                        };
+                        let query = engine
+                            .compile(expression.as_bytes(), options(delayed), &Control::default())
+                            .unwrap();
+                        let control = Control::default();
+                        let provider = FixtureProvider::new(4, page, 1);
+                        let (report, labels) =
+                            crate::test_storage::observe_label_reads(&control, None, || {
+                                query.collect_reported(
+                                    &provider,
+                                    QueryRequest::Instant { time_ms: 4000 },
+                                    &control,
+                                )
+                            });
+                        assert_eq!(report.result.as_ref().unwrap().series.len(), 1);
+                        assert!(labels > 0);
+                        let acquisitions = provider.series[0]
+                            .source
+                            .counters
+                            .opened
+                            .load(Ordering::Relaxed);
+                        assert_eq!(
+                            acquisitions,
+                            if query.options.start_timestamps { 6 } else { 2 },
+                            "{expression}"
+                        );
+                        provider.assert_closed();
+                        drop(report);
+                        for failed in 1..=acquisitions {
+                            let control = Control::default();
+                            let mut provider = FixtureProvider::new(4, page, 1);
+                            provider.series[0].source.fail_acquisition = Some(failed);
+                            let report = query.collect_reported(
+                                &provider,
+                                QueryRequest::Instant { time_ms: 4000 },
+                                &control,
+                            );
+                            assert!(matches!(
+                                report.result,
+                                Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                                    StorageError::Provider(_)
+                                )))
+                            ));
+                            provider.assert_closed();
+                        }
+                        // Every observed label access includes the cached preparation and fresh final paths.
+                        for at in 1..=labels {
+                            let control = Control::default();
+                            let provider = FixtureProvider::new(4, page, 1);
+                            let (report, observed) = crate::test_storage::observe_label_reads(
+                                &control,
+                                Some(at),
+                                || {
+                                    query.collect_reported(
+                                        &provider,
+                                        QueryRequest::Instant { time_ms: 4000 },
+                                        &control,
+                                    )
+                                },
+                            );
+                            assert!(observed >= at);
+                            assert!(report.result.is_err(), "{expression}: label {at}");
+                            provider.assert_closed();
+                        }
+                        drop(query);
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
         }
     }
 
@@ -5927,8 +6211,11 @@ mod tests {
             "deriv",
         ] {
             for suffix in [
-                "> bool 0", "+ 2", "- 2", "* 2", "/ 2", "^ 123", "% 3", "atan2 2",
+                "> bool 0", "+ 2", "- 2", "* 2", "/ 2", "^ 123", "% 3", "atan2 2", "> 0",
             ] {
+                if suffix == "> 0" && !matches!(function, "rate" | "increase") {
+                    continue;
+                }
                 for delayed in [false, true] {
                     for failed in [false, true] {
                         let engine = Engine::default();

@@ -3040,3 +3040,25 @@ unchanged. Absent results may still carry meaningful progress. This adds no heap
 public contract or query cap. Full progress users keep their ordinary representation. Layout, memory,
 throughput costs and finite compatibility evidence are recorded in
 [the qualification guide](README.md#compact-cached-window-geometry) and its linked report.
+
+
+## Completed instant literal rate filters
+
+- Admission requires a root ordinary instant comparison, exactly one immediate numeric literal, and a direct
+  Rate/Increase Matrix selector. Effective clocks must match; modifiers, extended selectors, invariants and
+  boundaries retain ordinary preparation. This changes optimization admission, not expression support.
+- The existing `has_multiple` descriptor walk has a private statically specialized visitor. Ordinary callers use
+  a no-op visitor; the eligible child observes `Descriptor.kinds`, which records actual emitted values. It does
+  not trust a provider's declared sample kind. No second traversal, retained summary or per-sample check is added.
+- Only a complete scan with no multiplicity and Float-only descriptors certifies eligibility. Empty output is
+  eligible. Native/unknown/mixed kinds do not stop the required scan early; an early multiplicity return cannot
+  certify an unseen suffix. Entry, row, terminal checks and charged work keep their existing order.
+- The proof becomes usable only after the child's full Finish tail, including histogram-streaming certification,
+  and with its exact producer clock and no ordered output. Errors and interrupted publication cannot enable reuse.
+- Completed folds survive only literal/root preparation. Existing duplicate detection, annotations and comparison
+  semantics remain authoritative; final evaluation clears replay progress and performs its own first reads.
+- Shared metadata tests compare ordinary/observed sorting, source allocation, publication, work and every charged
+  interruption boundary. Filter tests cover actual acquisition failures, exact labels, final read/statistic
+  counts and both scalar orientations. Native-middle cases supplement first/last native fallback controls.
+- The finite qualification and retained earlier rejection are linked from
+  [Completed instant literal rate filters](README.md#completed-instant-literal-rate-filters).

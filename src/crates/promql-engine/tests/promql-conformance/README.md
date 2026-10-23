@@ -11825,3 +11825,32 @@ producer equality assertion before snapshot publication and cleanup of existing 
 Compare actual native/ARM layouts and all memory fields; raw history must remain paged on both axes.
 These finite synthetic measurements do not establish production-weighted speed, process RSS, live
 cache use, concurrent performance or physical ARM throughput.
+
+
+## Completed instant literal rate filters
+
+[observed-filter-preparation-qualification.json](observed-filter-preparation-qualification.json) records completed
+Float/absent fold reuse for direct instant comparisons such as `rate(m[5m]) > 0` and `0 < increase(m[5m])`.
+The engine checks actual output kinds during its existing descriptor traversal, then reuses completed folds for
+comparison preparation. Final evaluation still reads fresh data. Native histograms and unsupported optimization
+shapes keep ordinary evaluation; supported PromQL expressions are unchanged.
+
+- 1,120 expressions: 1,116 authenticated historical pinned Go outcomes and four fresh native-middle controls.
+  All 6,720 baseline comparisons match across both profiles and pages 1, 17 and 1024. One previously proved
+  whole-row ordering difference per panel remains in the strict original report; no numeric bit differences.
+- All 6,672 measured resource pairs have unchanged peaks across eight memory categories, with no increase in
+  current/allocation counters, work, provider traffic or cancellation references. The 48 construction errors
+  have no query observations and are compared as complete error outcomes.
+- 6,240 timing pairs: target median ratios 0.72851 in release and 0.75783 in release-min, approximately 27% and
+  24% less query time. Control medians are 0.99646 and 1.00452. Every individual stays within the frozen 1.05
+  ceiling, so no follow-up round is needed. These are finite synthetic measurements, not a live workload forecast.
+- A 16-series, 256-point Rate comparison fetches 8,736 entries instead of 13,104, and 544 pages instead of 816.
+  Its Workspace peak remains 33,299 bytes at page width 17. Query-accounted bytes are not process RSS;
+  category peaks are not simultaneous totals.
+
+The earlier [rejected comparison implementation](#rejected-instant-literal-rate-comparison-reuse) remains rejected.
+This version removes its additional per-emitted-sample predicate and obtains the proof during an existing metadata
+scan. The earlier slowdown's runtime/compiler cause is unresolved; these new measurements qualify this version only.
+[observed_filter_cases.py](observed_filter_cases.py) reproduces the functional and timing corpus. Full native,
+ARM and C/C++ counts, compiler checks and fixed executable costs are recorded in the qualification report.
+Logical sample statistics are checked by the Rust and C owners, not by the query fixture's JSON observations.

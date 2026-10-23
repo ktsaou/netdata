@@ -422,3 +422,6 @@ Literal Deriv preparation and empty mixed warnings follow
 
 Cached progress geometry and owning-key reconstruction follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#compact-cached-window-geometry`.
+
+Existing-pass kind observation and ordinary instant Rate/Increase filters follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-literal-rate-filters`.

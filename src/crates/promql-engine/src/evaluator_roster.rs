@@ -29,10 +29,20 @@ pub(crate) fn has_multiple(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<bool, Interrupted> {
+    has_multiple_observed(descriptors, control, account, |_| {})
+}
+
+fn has_multiple_observed(
+    descriptors: &[Descriptor],
+    control: &Control,
+    account: &QueryAccounting,
+    mut observe: impl FnMut(&Descriptor),
+) -> Result<bool, Interrupted> {
     control.check()?;
     for descriptor in descriptors {
         control.check()?;
         account.work(1);
+        observe(descriptor);
         if descriptor.heads.multiple() {
             control.check()?;
             return Ok(true);
@@ -966,17 +976,45 @@ impl Rosters {
     pub(crate) fn output(
         &mut self,
         node: NodeId,
-        mut descriptors: AccountedVec<Descriptor>,
+        descriptors: AccountedVec<Descriptor>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), Interrupted> {
+        self.output_observed(node, descriptors, control, account, |_| {})
+            .map(|_| ())
+    }
+
+    pub(crate) fn output_observing_float_kinds(
+        &mut self,
+        node: NodeId,
+        descriptors: AccountedVec<Descriptor>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        let mut all_float = true;
+        let multiple = self.output_observed(node, descriptors, control, account, |descriptor| {
+            all_float &= descriptor.kinds == 1;
+        })?;
+        // An early multiplicity return leaves an unobserved suffix.
+        Ok(!multiple && all_float)
+    }
+
+    fn output_observed(
+        &mut self,
+        node: NodeId,
+        mut descriptors: AccountedVec<Descriptor>,
+        control: &Control,
+        account: &QueryAccounting,
+        observe: impl FnMut(&Descriptor),
+    ) -> Result<bool, Interrupted> {
         // Production identities are unique here; identity-changing operators use ordered output.
         let _sort_phase =
             (self.result_node == Some(node)).then(|| account.phase(crate::statistics::Phase::Sort));
         evaluator_order::sort(&mut descriptors, control, account, |left, right| {
             left.ordinal.cmp(&right.ordinal)
         })?;
-        if has_multiple(&descriptors, control, account)? {
+        let multiple = has_multiple_observed(&descriptors, control, account, observe)?;
+        if multiple {
             let mut sources = AccountedVec::new(account, MemoryKind::Workspace);
             for descriptor in descriptors.iter_mut() {
                 control.check()?;
@@ -988,7 +1026,7 @@ impl Rosters {
         }
         control.check()?;
         self.nodes[node.0].output = Some(descriptors);
-        Ok(())
+        Ok(multiple)
     }
     pub(crate) fn has_merged_unary(
         &self,
@@ -1563,6 +1601,177 @@ pub(crate) fn group_position<T>(
 
 #[cfg(test)]
 mod tests {
+    fn observed_filter_rows(
+        kinds: &[u8],
+        multiple: Option<usize>,
+        account: &QueryAccounting,
+    ) -> AccountedVec<Descriptor> {
+        let mut rows = AccountedVec::new(account, MemoryKind::Workspace);
+        for (index, &kind) in kinds.iter().enumerate() {
+            let mut labels = OwnedLabels::new(account, MemoryKind::Workspace);
+            labels.push(
+                b"id",
+                index.to_string().as_bytes(),
+                account,
+                MemoryKind::Workspace,
+            );
+            let mut heads = HeadSummary::default();
+            if multiple == Some(index) {
+                let mut counts = PointCounts::default();
+                counts.push(1);
+                counts.push(1);
+                heads.note(counts, 7);
+            }
+            rows.push(Descriptor {
+                labels,
+                ordinal: kinds.len() - index - 1,
+                hash: index as u64,
+                drop_name: true,
+                first_order: index,
+                sources: 0..0,
+                kinds: kind,
+                heads,
+            });
+        }
+        rows
+    }
+
+    #[test]
+    fn observed_float_output_preserves_ordinary_scans_and_publication() {
+        for kinds in [
+            vec![],
+            vec![1],
+            vec![1, 1, 1, 1],
+            vec![2, 1, 1, 1],
+            vec![1, 2, 1, 1],
+            vec![1, 1, 1, 2],
+            vec![0],
+            vec![3],
+            vec![255],
+        ] {
+            for multiple in std::iter::once(None).chain((0..kinds.len()).map(Some)) {
+                let mut observations = Vec::new();
+                for observing in [false, true] {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let rows = observed_filter_rows(&kinds, multiple, &account);
+                    let before = account.snapshot().work;
+                    let ordinary = has_multiple(&rows, &control, &account).unwrap();
+                    let work = account.snapshot().work - before;
+                    let before = account.snapshot().work;
+                    let mut visited = 0;
+                    let observed =
+                        has_multiple_observed(&rows, &control, &account, |_| visited += 1).unwrap();
+                    assert_eq!(observed, ordinary);
+                    assert_eq!(account.snapshot().work - before, work);
+                    assert_eq!(visited, multiple.map_or(kinds.len(), |index| index + 1));
+                    let mut roster = Rosters::new(&account, 1, &control).unwrap();
+                    roster.set_result_node(NodeId(0));
+                    if observing {
+                        let proof = roster
+                            .output_observing_float_kinds(NodeId(0), rows, &control, &account)
+                            .unwrap();
+                        assert_eq!(
+                            proof,
+                            multiple.is_none() && kinds.iter().all(|&kind| kind == 1)
+                        );
+                    } else {
+                        roster.output(NodeId(0), rows, &control, &account).unwrap();
+                    }
+                    let metadata: Vec<_> = roster
+                        .descriptors(NodeId(0))
+                        .iter()
+                        .map(|row| {
+                            (
+                                row.ordinal,
+                                row.hash,
+                                row.first_order,
+                                row.kinds,
+                                row.drop_name,
+                                row.sources.clone(),
+                                row.heads.multiple(),
+                                row.labels.0[0].value.to_vec(),
+                            )
+                        })
+                        .collect();
+                    let sources = roster.nodes[0].sources.as_ref().map(|s| s.to_vec());
+                    let snapshot = account.snapshot();
+                    observations.push((metadata, sources, snapshot.work, snapshot.memory));
+                    drop(roster);
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
+                }
+                assert_eq!(observations[0], observations[1]);
+            }
+        }
+    }
+
+    #[test]
+    fn observed_float_output_keeps_every_charged_interruption_boundary() {
+        for kinds in [vec![], vec![1, 1, 1, 1], vec![1, 1, 1, 2], vec![3, 1, 1, 1]] {
+            for multiple in std::iter::once(None).chain((0..kinds.len()).map(Some)) {
+                let mut outcomes = Vec::new();
+                for observing in [false, true] {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let mut roster = Rosters::new(&account, 1, &control).unwrap();
+                    let rows = observed_filter_rows(&kinds, multiple, &account);
+                    let before = account.snapshot().work;
+                    if observing {
+                        roster
+                            .output_observing_float_kinds(NodeId(0), rows, &control, &account)
+                            .unwrap();
+                    } else {
+                        roster.output(NodeId(0), rows, &control, &account).unwrap();
+                    }
+                    let work = account.snapshot().work - before;
+                    drop(roster);
+                    let mut observed_work = Vec::new();
+                    for at in 0..=work {
+                        let control = Control::default();
+                        let mut roster = Rosters::new(&account, 1, &control).unwrap();
+                        let rows = observed_filter_rows(&kinds, multiple, &account);
+                        if at == 0 {
+                            control.cancellation.cancel();
+                        }
+                        let before = account.snapshot().work;
+                        let result = crate::test_storage::interrupt_after_work(
+                            &account,
+                            &control,
+                            at.max(1),
+                            || {
+                                if observing {
+                                    roster
+                                        .output_observing_float_kinds(
+                                            NodeId(0),
+                                            rows,
+                                            &control,
+                                            &account,
+                                        )
+                                        .map(|_| ())
+                                } else {
+                                    roster.output(NodeId(0), rows, &control, &account)
+                                }
+                            },
+                        );
+                        assert_eq!(result, Err(Interrupted::Cancelled));
+                        assert!(roster.nodes[0].output.is_none());
+                        observed_work.push(account.snapshot().work - before);
+                        drop(roster);
+                        account.snapshot().assert_memory_released();
+                    }
+                    outcomes.push((work, observed_work));
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
+                }
+                assert_eq!(outcomes[0], outcomes[1]);
+            }
+        }
+    }
+
     #[test]
     fn set_discovery_checks_original_aliases_and_descriptor_presence() {
         for (case, pair) in (0..4).flat_map(|case| [false, true].map(|pair| (case, pair))) {

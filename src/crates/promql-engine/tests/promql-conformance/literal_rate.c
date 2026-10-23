@@ -160,7 +160,31 @@ int main(void) {
         {"deriv(m_total[4s]) % 2", 0x1.0000000000000p+0},
         {"2 % deriv(m_total[4s])", 0x0.0p+0},
         {"deriv(m_total[4s]) atan2 2", 0x1.dac670561bb4fp-2},
-        {"2 atan2 deriv(m_total[4s])", 0x1.1b6e192ebbe44p+0}
+        {"2 atan2 deriv(m_total[4s])", 0x1.1b6e192ebbe44p+0},
+        {"rate(m_total[4s]) == 1", 0x1.0000000000000p+0},
+        {"1 == rate(m_total[4s])", 0x1.0000000000000p+0},
+        {"rate(m_total[4s]) != 2", 0x1.0000000000000p+0},
+        {"2 != rate(m_total[4s])", 0x1.0000000000000p+0},
+        {"rate(m_total[4s]) > 0", 0x1.0000000000000p+0},
+        {"2 > rate(m_total[4s])", 0x1.0000000000000p+0},
+        {"rate(m_total[4s]) < 2", 0x1.0000000000000p+0},
+        {"0 < rate(m_total[4s])", 0x1.0000000000000p+0},
+        {"rate(m_total[4s]) >= 1", 0x1.0000000000000p+0},
+        {"1 >= rate(m_total[4s])", 0x1.0000000000000p+0},
+        {"rate(m_total[4s]) <= 1", 0x1.0000000000000p+0},
+        {"1 <= rate(m_total[4s])", 0x1.0000000000000p+0},
+        {"increase(m_total[4s]) == 4", 0x1.0000000000000p+2},
+        {"4 == increase(m_total[4s])", 0x1.0000000000000p+2},
+        {"increase(m_total[4s]) != 5", 0x1.0000000000000p+2},
+        {"5 != increase(m_total[4s])", 0x1.0000000000000p+2},
+        {"increase(m_total[4s]) > 0", 0x1.0000000000000p+2},
+        {"5 > increase(m_total[4s])", 0x1.0000000000000p+2},
+        {"increase(m_total[4s]) < 5", 0x1.0000000000000p+2},
+        {"0 < increase(m_total[4s])", 0x1.0000000000000p+2},
+        {"increase(m_total[4s]) >= 4", 0x1.0000000000000p+2},
+        {"4 >= increase(m_total[4s])", 0x1.0000000000000p+2},
+        {"increase(m_total[4s]) <= 4", 0x1.0000000000000p+2},
+        {"4 <= increase(m_total[4s])", 0x1.0000000000000p+2}
     };
     const uint64_t pages[] = {1, 17, 1024};
     unsigned cases = 0;
@@ -232,7 +256,7 @@ int main(void) {
         }
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
     }
-    assert(cases == 2520);
+    assert(cases == 2952);
     printf("{\"literal_rate\":\"pass\",\"cases\":%u}\n", cases);
     return 0;
 }
