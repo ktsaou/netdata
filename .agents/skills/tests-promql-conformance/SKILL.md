@@ -407,3 +407,7 @@ Aligned histogram merging follows
 
 Literal Sum/Avg preparation and its native fallback checks follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-literal-sum-and-avg-preparation`.
+
+
+Literal Count/Min/Max preparation and empty-descriptor checks follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-literal-count-and-extrema-preparation`.

@@ -74140,5 +74140,15 @@
     "resource_pairs": 5568,
     "timing_pairs": 4160,
     "maximum_measured_memory_growth_bytes": 0
+  },
+  "literal_count_extrema_preparation": {
+    "status": "finite_qualification_pass",
+    "report": "literal-count-extrema-preparation-qualification.json",
+    "report_sha256": "3208e0ead3b932b83dd5ab3006f38f83fc0e146cb6d3986e81c9c3e378f42a77",
+    "baseline_commit": "265345652beb33aae22a820a57a2e21c96a5377f",
+    "exact_baseline_pairs": 8400,
+    "resource_pairs": 8364,
+    "timing_pairs": 6320,
+    "maximum_measured_memory_growth_bytes": 0
   }
 }

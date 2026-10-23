@@ -2973,3 +2973,19 @@ changing membership, special literals, complete original comparisons and proport
   warning-only empty outputs, sparse source identity, duplicate handling and cleanup on interruption.
 - The [finite qualification](literal-fold-preparation-qualification.json) owns original full-query results,
   causal read/lifetime checks, actual C consumers, resource measurements and proportional compiled costs.
+
+
+## Instant literal Count and extrema ownership
+
+- Admit completed Count/Min/Max under the existing instant literal range-fold guards. Their successful values
+  are Float and names are dropped. Keep the Sum/Avg first-native rejection specific to Sum/Avg.
+- Count includes native and mixed samples without an ignored-histogram note; its numeric sample count differs
+  from histogram-weighted logical accounting. Native-only extrema is empty; mixed extrema preserves Float and
+  HistogramIgnoredInMixedRange. Singletons remain valid for all three functions.
+- Preserve annotation merge, checked identity transfer, fold-state clearing, logical totals and final reads.
+  An entirely empty result avoids final reads; partial native omission does not permit skipping the ordinary
+  final selector traversal. Provider-error and duplicate publication order remain unchanged.
+- Empty descriptor checks can poll cancellation without counted loop work. Test them with an already-cancelled
+  token; retain work-triggered checks for populated scans and publication. No new state or buffers are needed.
+- The [finite qualification](literal-count-extrema-preparation-qualification.json) owns exact original outcomes,
+  weighted-count and lifecycle evidence, native timing, actual C callers and proportional compiled costs.

@@ -2128,7 +2128,13 @@ impl CompiledQuery {
         };
         if !matches!(
             function.name,
-            "rate" | "increase" | "sum_over_time" | "avg_over_time"
+            "rate"
+                | "increase"
+                | "sum_over_time"
+                | "avg_over_time"
+                | "count_over_time"
+                | "min_over_time"
+                | "max_over_time"
         ) {
             return Ok(None);
         }
@@ -4857,6 +4863,9 @@ mod tests {
                     "123 % rate(counter_total[4s])",
                     "sum_over_time(counter_total[4s]) ^ 123",
                     "123 % avg_over_time(counter_total[4s])",
+                    "123 % count_over_time(counter_total[4s])",
+                    "123 % min_over_time(counter_total[4s])",
+                    "123 % max_over_time(counter_total[4s])",
                 ] {
                     let engine = Engine::default();
                     let control = Control::default();
@@ -4978,12 +4987,22 @@ mod tests {
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
                 for start_timestamps in [false, true] {
-                    for function in ["rate", "increase", "sum_over_time", "avg_over_time"] {
+                    for function in [
+                        "rate",
+                        "increase",
+                        "sum_over_time",
+                        "avg_over_time",
+                        "count_over_time",
+                        "min_over_time",
+                        "max_over_time",
+                    ] {
                         let value: f64 = match function {
                             "rate" => 1.0,
                             "increase" => 4.0,
                             "sum_over_time" => 10.0,
                             "avg_over_time" => 2.5,
+                            "count_over_time" | "max_over_time" => 4.0,
+                            "min_over_time" => 1.0,
                             _ => unreachable!(),
                         };
                         for operator in ["+", "-", "*", "/", "^", "%", "atan2"] {
@@ -5082,12 +5101,22 @@ mod tests {
     fn boolean_rate_preparation_preserves_values_and_read_statistics() {
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
-                for function in ["rate", "increase", "sum_over_time", "avg_over_time"] {
+                for function in [
+                    "rate",
+                    "increase",
+                    "sum_over_time",
+                    "avg_over_time",
+                    "count_over_time",
+                    "min_over_time",
+                    "max_over_time",
+                ] {
                     let value: f64 = match function {
                         "rate" => 1.0,
                         "increase" => 4.0,
                         "sum_over_time" => 10.0,
                         "avg_over_time" => 2.5,
+                        "count_over_time" | "max_over_time" => 4.0,
+                        "min_over_time" => 1.0,
                         _ => unreachable!(),
                     };
                     for scalar in [0.0, value, value + 1.0] {
@@ -5181,6 +5210,9 @@ mod tests {
                         ("increase", 4.0),
                         ("sum_over_time", 10.0),
                         ("avg_over_time", 2.5),
+                        ("count_over_time", 4.0),
+                        ("min_over_time", 1.0),
+                        ("max_over_time", 4.0),
                     ] {
                         let engine = Engine::default();
                         let control = Control::default();
@@ -5205,12 +5237,11 @@ mod tests {
                             &control,
                         );
                         let result = report.result.as_ref().unwrap();
-                        let ordinals: &[usize] =
-                            if matches!(function, "sum_over_time" | "avg_over_time") {
-                                &[0, 1, 3]
-                            } else {
-                                &[1, 3]
-                            };
+                        let ordinals: &[usize] = if !matches!(function, "rate" | "increase") {
+                            &[0, 1, 3]
+                        } else {
+                            &[1, 3]
+                        };
                         assert_eq!(result.series.len(), ordinals.len());
                         for (row, ordinal) in result.series.iter().zip(ordinals) {
                             assert_eq!(
@@ -5278,7 +5309,15 @@ mod tests {
         for arithmetic in [false, true] {
             for page in [1, 17, 1024] {
                 for delayed in [false, true] {
-                    for function in ["rate", "increase", "sum_over_time", "avg_over_time"] {
+                    for function in [
+                        "rate",
+                        "increase",
+                        "sum_over_time",
+                        "avg_over_time",
+                        "count_over_time",
+                        "min_over_time",
+                        "max_over_time",
+                    ] {
                         for native in [false, true] {
                             for ordinary in [false, true] {
                                 let engine = Engine::default();
@@ -5299,6 +5338,8 @@ mod tests {
                                         "increase" => 6.0,
                                         "sum_over_time" => 12.0,
                                         "avg_over_time" => 4.5,
+                                        "count_over_time" | "max_over_time" => 6.0,
+                                        "min_over_time" => 3.0,
                                         _ => unreachable!(),
                                     }
                                 };
@@ -5316,31 +5357,86 @@ mod tests {
                                     &control,
                                 );
                                 let result = report.result.as_ref().unwrap();
-                                assert_eq!(result.series.len(), usize::from(ordinary));
-                                if ordinary {
-                                    assert_eq!(result.series[0].labels.0[0].value.as_ref(), b"1");
+                                let summary = matches!(
+                                    function,
+                                    "count_over_time" | "min_over_time" | "max_over_time"
+                                );
+                                let survives = function == "count_over_time"
+                                    || (!native
+                                        && matches!(function, "min_over_time" | "max_over_time"));
+                                assert_eq!(
+                                    result.series.len(),
+                                    usize::from(ordinary) + usize::from(survives)
+                                );
+                                if survives {
+                                    assert_eq!(result.series[0].labels.0[0].value.as_ref(), b"0");
+                                    let first: f64 = if !arithmetic {
+                                        1.0
+                                    } else if function == "count_over_time" {
+                                        6.0
+                                    } else {
+                                        7.0
+                                    };
                                     assert_eq!(
                                         float_bits(&result.series[0].points[0]),
-                                        expected.to_bits()
+                                        first.to_bits()
                                     );
                                 }
-                                assert_eq!(report.annotations.len(), 1);
+                                if ordinary {
+                                    let row = &result.series[usize::from(survives)];
+                                    assert_eq!(row.labels.0[0].value.as_ref(), b"1");
+                                    assert_eq!(float_bits(&row.points[0]), expected.to_bits());
+                                }
+                                let annotation = if summary {
+                                    (!native && function != "count_over_time")
+                                        .then_some(AnnotationKind::HistogramIgnoredInMixedRange)
+                                } else if native {
+                                    Some(AnnotationKind::IncompatibleBinaryTypes {
+                                        left_histogram: true,
+                                        operator: if arithmetic {
+                                            TokenKind::ADD
+                                        } else {
+                                            TokenKind::GTR
+                                        },
+                                        right_histogram: false,
+                                    })
+                                } else {
+                                    Some(AnnotationKind::MixedFloatsHistograms)
+                                };
                                 assert_eq!(
-                                    report.annotations.iter().next().unwrap().kind,
-                                    if native {
-                                        AnnotationKind::IncompatibleBinaryTypes {
-                                            left_histogram: true,
-                                            operator: if arithmetic {
-                                                TokenKind::ADD
-                                            } else {
-                                                TokenKind::GTR
-                                            },
-                                            right_histogram: false,
-                                        }
-                                    } else {
-                                        AnnotationKind::MixedFloatsHistograms
-                                    }
+                                    report.annotations.len(),
+                                    usize::from(annotation.is_some())
                                 );
+                                if let Some(expected) = annotation {
+                                    assert_eq!(
+                                        report.annotations.iter().next().unwrap().kind,
+                                        expected
+                                    );
+                                }
+                                if summary {
+                                    let first_units = if native { 52 } else { 24 };
+                                    let ordinary_units = if ordinary { 4 } else { 0 };
+                                    assert_eq!(
+                                        report
+                                            .observations
+                                            .statistics
+                                            .samples
+                                            .total_queryable_samples,
+                                        first_units + ordinary_units,
+                                        "{function}"
+                                    );
+                                    let first_reads =
+                                        if native && function != "count_over_time" && !ordinary {
+                                            first_units
+                                        } else {
+                                            first_units * 2
+                                        };
+                                    assert_eq!(
+                                        report.observations.statistics.samples.samples_read,
+                                        first_reads + ordinary_units * 2,
+                                        "{function}"
+                                    );
+                                }
                                 provider.assert_closed();
                                 drop((report, query));
                                 engine.accounting.snapshot().assert_memory_released();
@@ -5419,8 +5515,14 @@ mod tests {
                     )
                     .unwrap();
                 let descriptors = rosters.descriptors(compiled.expression.root);
-                assert_eq!(descriptors.len(), 4);
-                assert!(descriptors.iter().all(|descriptor| descriptor.kinds == 2));
+                let empty = matches!(function, "min_over_time" | "max_over_time");
+                assert_eq!(descriptors.len(), if empty { 0 } else { 4 });
+                let kind = if function == "count_over_time" { 1 } else { 2 };
+                assert!(
+                    descriptors
+                        .iter()
+                        .all(|descriptor| descriptor.kinds == kind)
+                );
                 acquisitions = provider
                     .series
                     .iter()
@@ -5433,7 +5535,15 @@ mod tests {
             engine.accounting.snapshot().assert_memory_released();
             acquisitions
         }
-        for function in ["rate", "increase", "sum_over_time", "avg_over_time"] {
+        for function in [
+            "rate",
+            "increase",
+            "sum_over_time",
+            "avg_over_time",
+            "count_over_time",
+            "min_over_time",
+            "max_over_time",
+        ] {
             let native_acquisitions = native_preparation_acquisitions(function);
             for suffix in [
                 "> bool 0", "+ 2", "- 2", "* 2", "/ 2", "^ 123", "% 3", "atan2 2",
@@ -5508,7 +5618,12 @@ mod tests {
                             &account,
                             &mut Annotations::default(),
                         );
-                        if native {
+                        if native
+                            && !matches!(
+                                function,
+                                "count_over_time" | "min_over_time" | "max_over_time"
+                            )
+                        {
                             assert!(matches!(
                                 prepared_rosters,
                                 Err(EvaluationError::Storage(StorageError::Provider(_)))
@@ -5538,13 +5653,24 @@ mod tests {
                                 unreachable!()
                             };
                             let rows = rosters.take_output(root).unwrap();
-                            assert_eq!(rows.len(), 4);
+                            let row_count = if native
+                                && matches!(function, "min_over_time" | "max_over_time")
+                            {
+                                0
+                            } else {
+                                4
+                            };
+                            assert_eq!(rows.len(), row_count);
                             assert!(rosters.take_output(child).is_none());
-                            assert_eq!(rosters.sample_units(root), 16);
-                            for series in &provider.series {
+                            assert_eq!(rosters.sample_units(root), if native { 208 } else { 16 });
+                            for (index, series) in provider.series.iter().enumerate() {
                                 assert_eq!(
                                     series.source.counters.opened.load(Ordering::Relaxed),
-                                    1
+                                    if native {
+                                        native_acquisitions[index]
+                                    } else {
+                                        1
+                                    }
                                 );
                             }
                             let identities =
@@ -5560,9 +5686,13 @@ mod tests {
                                 Some(child)
                             );
                             let work = account.snapshot().work - before;
-                            assert!(work >= 4);
-                            for budget in [work - 3, work] {
+                            assert!(work >= row_count as u64);
+                            for budget in [work - row_count.min(3) as u64, work] {
                                 let cancelled = Control::default();
+                                if row_count == 0 {
+                                    assert_eq!(work, 0);
+                                    cancelled.cancellation.cancel();
+                                }
                                 let result = crate::test_storage::interrupt_after_work(
                                     &account,
                                     &cancelled,
@@ -5583,6 +5713,9 @@ mod tests {
                             }
                             let rows = rosters.take_output(child).unwrap();
                             let cancelled = Control::default();
+                            if row_count == 0 {
+                                cancelled.cancellation.cancel();
+                            }
                             let result = crate::test_storage::interrupt_after_work(
                                 &account,
                                 &cancelled,
@@ -5594,10 +5727,14 @@ mod tests {
                                 rosters.take_output(root).is_none()
                                     && rosters.take_output(child).is_none()
                             );
-                            for series in &provider.series {
+                            for (index, series) in provider.series.iter().enumerate() {
                                 assert_eq!(
                                     series.source.counters.opened.load(Ordering::Relaxed),
-                                    1
+                                    if native {
+                                        native_acquisitions[index]
+                                    } else {
+                                        1
+                                    }
                                 );
                             }
                         }
@@ -5612,7 +5749,15 @@ mod tests {
 
     #[test]
     fn literal_rate_preparation_keeps_late_input_errors_before_duplicates() {
-        for function in ["rate", "increase", "sum_over_time", "avg_over_time"] {
+        for function in [
+            "rate",
+            "increase",
+            "sum_over_time",
+            "avg_over_time",
+            "count_over_time",
+            "min_over_time",
+            "max_over_time",
+        ] {
             for suffix in [
                 "> bool 0", "+ 2", "- 2", "* 2", "/ 2", "^ 123", "% 3", "atan2 2",
             ] {

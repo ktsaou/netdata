@@ -61,7 +61,49 @@ int main(void) {
         {"avg_over_time(m_total[4s]) % 2", 0.5},
         {"2 % avg_over_time(m_total[4s])", 2.0},
         {"avg_over_time(m_total[4s]) atan2 2.5", 0.7853981633974483},
-        {"2.5 atan2 avg_over_time(m_total[4s])", 0.7853981633974483}
+        {"2.5 atan2 avg_over_time(m_total[4s])", 0.7853981633974483},
+        {"count_over_time(m_total[4s]) + 2", 6.0},
+        {"2 + count_over_time(m_total[4s])", 6.0},
+        {"count_over_time(m_total[4s]) - 2", 2.0},
+        {"2 - count_over_time(m_total[4s])", -2.0},
+        {"count_over_time(m_total[4s]) * 2", 8.0},
+        {"2 * count_over_time(m_total[4s])", 8.0},
+        {"count_over_time(m_total[4s]) / 2", 2.0},
+        {"2 / count_over_time(m_total[4s])", 0.5},
+        {"count_over_time(m_total[4s]) ^ 2", 16.0},
+        {"2 ^ count_over_time(m_total[4s])", 16.0},
+        {"count_over_time(m_total[4s]) % 2", 0.0},
+        {"2 % count_over_time(m_total[4s])", 2.0},
+        {"count_over_time(m_total[4s]) atan2 4", 0.7853981633974483},
+        {"4 atan2 count_over_time(m_total[4s])", 0.7853981633974483},
+        {"min_over_time(m_total[4s]) + 2", 3.0},
+        {"2 + min_over_time(m_total[4s])", 3.0},
+        {"min_over_time(m_total[4s]) - 2", -1.0},
+        {"2 - min_over_time(m_total[4s])", 1.0},
+        {"min_over_time(m_total[4s]) * 2", 2.0},
+        {"2 * min_over_time(m_total[4s])", 2.0},
+        {"min_over_time(m_total[4s]) / 2", 0.5},
+        {"2 / min_over_time(m_total[4s])", 2.0},
+        {"min_over_time(m_total[4s]) ^ 2", 1.0},
+        {"2 ^ min_over_time(m_total[4s])", 2.0},
+        {"min_over_time(m_total[4s]) % 2", 1.0},
+        {"2 % min_over_time(m_total[4s])", 0.0},
+        {"min_over_time(m_total[4s]) atan2 1", 0.7853981633974483},
+        {"1 atan2 min_over_time(m_total[4s])", 0.7853981633974483},
+        {"max_over_time(m_total[4s]) + 2", 6.0},
+        {"2 + max_over_time(m_total[4s])", 6.0},
+        {"max_over_time(m_total[4s]) - 2", 2.0},
+        {"2 - max_over_time(m_total[4s])", -2.0},
+        {"max_over_time(m_total[4s]) * 2", 8.0},
+        {"2 * max_over_time(m_total[4s])", 8.0},
+        {"max_over_time(m_total[4s]) / 2", 2.0},
+        {"2 / max_over_time(m_total[4s])", 0.5},
+        {"max_over_time(m_total[4s]) ^ 2", 16.0},
+        {"2 ^ max_over_time(m_total[4s])", 16.0},
+        {"max_over_time(m_total[4s]) % 2", 0.0},
+        {"2 % max_over_time(m_total[4s])", 2.0},
+        {"max_over_time(m_total[4s]) atan2 4", 0.7853981633974483},
+        {"4 atan2 max_over_time(m_total[4s])", 0.7853981633974483}
     };
     const uint64_t pages[] = {1, 17, 1024};
     unsigned cases = 0;
@@ -131,7 +173,7 @@ int main(void) {
         }
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
     }
-    assert(cases == 1008);
+    assert(cases == 1764);
     printf("{\"literal_rate\":\"pass\",\"cases\":%u}\n", cases);
     return 0;
 }

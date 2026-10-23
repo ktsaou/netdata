@@ -11538,3 +11538,42 @@ This is not a claim of identical work for every possible mixed-descriptor fallba
 `literal_fold_performance_cases()` reproduces the 104 timing inputs. The original captures belong to this
 experiment and were reused unchanged between its first and refined candidates. Historical rate/Boolean panels
 retain their own sources and counts.
+
+
+## Completed instant literal Count and extrema preparation
+
+Instant literal arithmetic and Boolean comparisons over `count_over_time`, `min_over_time` and `max_over_time`
+reuse completed child descriptors through `execution::literal_range_child`. The existing selector, clock,
+root and descriptor restrictions remain. This removes redundant metadata reconstruction without a new buffer
+or cache. Native Count produces Float results and qualifies; native-only Min/Max produces empty output.
+Mixed Min/Max keeps its Float result and ignored-histogram annotation. Final evaluation remains fresh, including
+ignored native rows when another Float row survives; only an entirely empty result avoids those final reads.
+
+[Qualification](literal-count-extrema-preparation-qualification.json) records 1,400 fresh pinned Go1.27.1
+outcomes and 8,400 exact baseline/original comparisons across both release profiles and pages 1/17/1024.
+There are no exclusions, strict-order failures or numerical bit differences. The 36 expected construction
+errors are separate from 8,364 executed resource pairs. Seven existing causal owners cover singleton/sparse
+identity, weighted native counts, mixed warnings, final fresh arithmetic, late-error precedence and cleanup.
+Old-engine Count arithmetic and Boolean tests read 48 samples instead of the required 32.
+
+Across 6,320 timing pairs, target median time falls by 28.9% in release and 29.6% in release-min. Every individual
+case stays within the frozen slower-case threshold, so no follow-up is needed. All eight measured memory
+categories, allocation traffic, reads, pages and work are nonincreasing. A 16-series Count case reduces workspace
+peak from 34,323 to 26,045 bytes and fetched sample entries from 13,104 to 8,736. These are finite synthetic
+query measurements, not live-provider or concurrent throughput; category peaks are not process RSS.
+
+Both native profiles pass 995 units with two existing ignored checks. Each ARM target executes 19 focused units
+under QEMU. The extended arithmetic C/C++ caller passes 10,584 cases across six consumers, including values,
+labels, statistics, failures, cancellation and release. Complete native C suites, strict lint, formatting and
+installed Rust1.91 compilation pass. The report records absolute, relative and cumulative executable costs
+separately from query memory.
+
+Two initial test assumptions were corrected with their failed evidence retained: an ignored native row is still
+read during final evaluation when another row survives, and an empty descriptor path has no loop work to trigger
+work-based cancellation. Its test now uses an already-cancelled token; populated scans retain work-triggered
+checks. Production code is byte-identical before and after these test corrections.
+
+`literal_count_extrema_cases.literal_count_extrema_cases()` reproduces all 1,400 functional inputs;
+`literal_count_extrema_performance_cases()` reproduces the 158 timing inputs. The original outcomes were
+captured once for this experiment and reused unchanged after the test corrections. Historical panels retain
+their actual sources and counts.
