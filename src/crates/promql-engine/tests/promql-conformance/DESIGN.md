@@ -2957,3 +2957,19 @@ changing membership, special literals, complete original comparisons and proport
   do not add buffers, retained state or memory allowances.
 - The [finite qualification](aligned-merge-qualification.json) records exact original kernels and full queries,
   ownership/error/control checks, native timing, ARM correctness, C consumers and proportional compiled costs.
+
+
+## Instant literal Sum and Avg ownership
+
+- Extend completed literal range-fold preparation to ordinary Float `sum_over_time` and `avg_over_time`.
+  Both drop the metric name and preserve successful Float membership beneath arithmetic or Boolean operators.
+  Their singleton windows are valid; do not copy rate's minimum-two-point assumptions.
+- Retain root/instant/literal, selector/clock and descriptor guards. Merge annotations before transfer,
+  clear fold state, preserve logical sample statistics and perform fresh final reads and arithmetic.
+- Sum/Avg reject a known non-Float first descriptor in constant-size admission. The full eligible descriptor
+  scan remains checked and accounted; no unchecked variable-length scan or persistent state is introduced.
+- Native fallback can have multiple preparation acquisitions. Place causal failure checks after the measured
+  completed child phase, rather than assuming rate's acquisition number. Preserve late provider-error precedence,
+  warning-only empty outputs, sparse source identity, duplicate handling and cleanup on interruption.
+- The [finite qualification](literal-fold-preparation-qualification.json) owns original full-query results,
+  causal read/lifetime checks, actual C consumers, resource measurements and proportional compiled costs.

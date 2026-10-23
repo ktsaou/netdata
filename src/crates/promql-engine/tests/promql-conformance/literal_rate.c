@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Exercise literal rate arithmetic and retained results through actual C callbacks. */
+/* Exercise literal range arithmetic and retained results through actual C callbacks. */
 #define main retained_embedding_main
 #include "c_embedding.c"
 #undef main
@@ -33,7 +33,35 @@ int main(void) {
         {"increase(m_total[4s]) % 2", 0.0},
         {"2 % increase(m_total[4s])", 2.0},
         {"increase(m_total[4s]) atan2 4", 0.7853981633974483},
-        {"4 atan2 increase(m_total[4s])", 0.7853981633974483}
+        {"4 atan2 increase(m_total[4s])", 0.7853981633974483},
+        {"sum_over_time(m_total[4s]) + 2", 12.0},
+        {"2 + sum_over_time(m_total[4s])", 12.0},
+        {"sum_over_time(m_total[4s]) - 2", 8.0},
+        {"2 - sum_over_time(m_total[4s])", -8.0},
+        {"sum_over_time(m_total[4s]) * 2", 20.0},
+        {"2 * sum_over_time(m_total[4s])", 20.0},
+        {"sum_over_time(m_total[4s]) / 2", 5.0},
+        {"2 / sum_over_time(m_total[4s])", 0.2},
+        {"sum_over_time(m_total[4s]) ^ 2", 100.0},
+        {"2 ^ sum_over_time(m_total[4s])", 1024.0},
+        {"sum_over_time(m_total[4s]) % 2", 0.0},
+        {"2 % sum_over_time(m_total[4s])", 2.0},
+        {"sum_over_time(m_total[4s]) atan2 10.0", 0.7853981633974483},
+        {"10.0 atan2 sum_over_time(m_total[4s])", 0.7853981633974483},
+        {"avg_over_time(m_total[4s]) + 2", 4.5},
+        {"2 + avg_over_time(m_total[4s])", 4.5},
+        {"avg_over_time(m_total[4s]) - 2", 0.5},
+        {"2 - avg_over_time(m_total[4s])", -0.5},
+        {"avg_over_time(m_total[4s]) * 2", 5.0},
+        {"2 * avg_over_time(m_total[4s])", 5.0},
+        {"avg_over_time(m_total[4s]) / 2", 1.25},
+        {"2 / avg_over_time(m_total[4s])", 0.8},
+        {"avg_over_time(m_total[4s]) ^ 2", 6.25},
+        {"4 ^ avg_over_time(m_total[4s])", 32.0},
+        {"avg_over_time(m_total[4s]) % 2", 0.5},
+        {"2 % avg_over_time(m_total[4s])", 2.0},
+        {"avg_over_time(m_total[4s]) atan2 2.5", 0.7853981633974483},
+        {"2.5 atan2 avg_over_time(m_total[4s])", 0.7853981633974483}
     };
     const uint64_t pages[] = {1, 17, 1024};
     unsigned cases = 0;
@@ -103,7 +131,7 @@ int main(void) {
         }
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
     }
-    assert(cases == 504);
+    assert(cases == 1008);
     printf("{\"literal_rate\":\"pass\",\"cases\":%u}\n", cases);
     return 0;
 }

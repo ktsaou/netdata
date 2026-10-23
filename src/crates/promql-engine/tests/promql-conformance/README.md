@@ -11500,3 +11500,41 @@ throughput. Function-symbol sizes in the report are distinct from executable foo
 `calendar_dispatch_cases.calendar_cases()` reproduces the 78 functional pilot inputs;
 `calendar_performance_cases()` reproduces the 39 timing inputs. Future trials must retain this negative
 evidence and qualify their own costs.
+
+
+## Completed instant literal Sum and Avg preparation
+
+Instant literal arithmetic and Boolean comparisons over ordinary Float `sum_over_time` and `avg_over_time`
+now reuse the child's completed series descriptors. This removes a redundant metadata reconstruction pass;
+the final value evaluation still reads the provider afresh. The existing rate/increase transfer owns this
+behavior through `execution::literal_range_child`, without a new buffer, cache or retained history.
+Range requests, modified clocks, dynamic/nested expressions and surviving native results keep general preparation.
+
+[Qualification](literal-fold-preparation-qualification.json) records 932 fresh pinned Go1.27.1 outcomes and
+5,592 exact baseline/original comparisons across both release profiles and pages 1/17/1024, with no exclusions,
+strict-order failures or numerical bit differences. Of these, 24 are expected construction errors for default
+anchored/smoothed requests; 5,568 executed pairs provide resource observations. Arithmetic, all six Boolean
+comparisons, singleton/empty/stale inputs, native/mixed fallback, sparse identities and clock/profile controls
+are included. Seven existing causal tests were extended; the old engine fails the two repeated-read assertions.
+
+Across 4,160 primary timing pairs, target median time falls by 31.1% in release and 32.6% in release-min.
+The prescribed 48-pair follow-up clears both initially slower controls. All eight measured memory categories,
+allocation traffic, reads, pages and accounted work are nonincreasing. One 16-series Sum case reduces workspace
+peak from 34,323 to 26,045 bytes; the multiplication case reduces fetched sample entries from 13,104 to 8,736.
+These are finite synthetic query measurements, not live-provider or concurrent throughput; category peaks are not RSS.
+
+Both native profiles pass 995 units with two existing ignored checks. Each ARM target executes 19 focused units
+under QEMU. The extended C/C++ caller passes 6,048 cases across six consumers, covering values, labels, fresh
+reads, failures, cancellation and release. Complete native C suites, two strict lint variants, formatting and
+installed Rust1.91 compilation pass. Fixed text/data/BSS totals change by +224 bytes in release, +192 in
+release-min, +224 on ARM32 and -7,980 on ARM64; the report separates these costs from query memory.
+
+The first candidate failed the unchanged work gate because a native fallback added one descriptor visit.
+Its evidence is retained. Constant-size admission now rejects a known native first Sum/Avg descriptor before
+the checked scan. Eligible Float prefixes and all later descriptors still receive ordinary checked validation.
+This is not a claim of identical work for every possible mixed-descriptor fallback.
+
+`literal_fold_cases.literal_fold_cases()` reproduces all 932 functional inputs;
+`literal_fold_performance_cases()` reproduces the 104 timing inputs. The original captures belong to this
+experiment and were reused unchanged between its first and refined candidates. Historical rate/Boolean panels
+retain their own sources and counts.

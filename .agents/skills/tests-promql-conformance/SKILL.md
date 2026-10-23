@@ -403,3 +403,7 @@ The rejected dense single-span compaction experiment is recorded in
 
 Aligned histogram merging follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#aligned-histogram-bucket-merging`.
+
+
+Literal Sum/Avg preparation and its native fallback checks follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-literal-sum-and-avg-preparation`.

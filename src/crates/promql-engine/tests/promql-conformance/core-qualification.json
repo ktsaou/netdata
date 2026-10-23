@@ -74130,5 +74130,15 @@
     "exact_baseline_pairs": 504,
     "timing_pairs": 1560,
     "runtime_restored": true
+  },
+  "literal_sum_avg_preparation": {
+    "status": "finite_qualification_pass",
+    "report": "literal-fold-preparation-qualification.json",
+    "report_sha256": "40c13f245ba076121bfb509148fb89d2f777a1e5ed43d50c1c6afea133bc8b36",
+    "baseline_commit": "d6a14188eedd09fcb59005efc32ba51fa2c03e46",
+    "exact_baseline_pairs": 5592,
+    "resource_pairs": 5568,
+    "timing_pairs": 4160,
+    "maximum_measured_memory_growth_bytes": 0
   }
 }
