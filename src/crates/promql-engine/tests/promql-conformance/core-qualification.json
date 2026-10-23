@@ -74278,5 +74278,16 @@
     "original_policy_pairs": 6414,
     "timing_pairs": 8528,
     "runtime_restored": true
+  },
+  "native_group_owner_rejected": {
+    "status": "rejected_candidate_runtime_restored",
+    "report": "native-group-owner-rejected-qualification.json",
+    "report_sha256": "02c9c8c47e32beadb95f36635975494067783f64b6d8e89f997ccee5a4266e26",
+    "baseline_commit": "3b897df67121115b95735d8f1f123b4414a07556",
+    "runtime_base": "f5c74d453d0a31e223df0e823ee107da149581e9",
+    "exact_baseline_pairs": 3144,
+    "strict_original_pairs": 3144,
+    "timing_pairs": 14776,
+    "runtime_restored": true
   }
 }

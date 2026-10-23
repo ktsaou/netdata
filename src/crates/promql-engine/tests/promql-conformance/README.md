@@ -11952,3 +11952,28 @@ Rate/Increase/Delta on float and native data. Fourteen focused native cache test
 fractional-lookback and wrapping witnesses. Candidate ARM containing allocations, full native units, C/C++,
 static checks and default executable sizes were not qualified after rejection. The three-target isolated enum
 layout result is distinct from actual containing allocations and whole-query memory.
+
+
+## Rejected first native aggregate ownership transfer
+
+[native-group-owner-rejected-qualification.json](native-group-owner-rejected-qualification.json) records an
+attempt to reuse an already-owned first SUM/AVG native histogram instead of copying it. Admission required
+the same query, identical copy fields and exactly the capacities a fresh copy would allocate. Custom,
+present-empty, oversized and foreign-query inputs retained the existing copy path.
+
+All 3,144 baseline and strict original comparisons passed across both profiles and pages 1/17/1024, with no
+ordering or numeric-bit differences. All eight memory categories were nonincreasing. A 32-group, 1,024-bucket
+Sum selector range reduced cumulative Workspace acquisitions from 24,567,160 to 22,928,248 bytes, but its
+Workspace peak remained 593,937 bytes. Cumulative allocation savings are not peak savings.
+
+The 13,600 primary timing pairs gave target medians 0.96872/1.01990 and control medians 0.99505/1.01503
+for release/release-min. The latter target failed the required 0.98 ratio. The single prescribed follow-up
+added 1,176 pairs across 49 cases; ten still exceeded the 1.05 individual limit. The cause is unproven.
+All five Rust files were restored exactly; this ownership change is not shipped.
+
+[native_group_owner_cases.py](native_group_owner_cases.py) retains 524 functional and 340 timing cases,
+including 32 targets. All 524 original outcomes were captured freshly in 74 datasets. Forty-five focused
+checks passed across the initial candidate and a test-only successor, covering admission, normalization,
+capacity, later growth, cancellation and cleanup. These are not a complete-suite qualification. Full native,
+ARM, C/C++, static and executable-size checks were not run after rejection; prepared C fixture sources are
+not executed evidence. Measurements use finite synthetic data, not live dbengine or physical ARM hardware.
