@@ -11577,3 +11577,40 @@ checks. Production code is byte-identical before and after these test correction
 `literal_count_extrema_performance_cases()` reproduces the 158 timing inputs. The original outcomes were
 captured once for this experiment and reused unchanged after the test corrections. Historical panels retain
 their actual sources and counts.
+
+
+## Instant literal variance preparation trial (rejected)
+
+This experiment admitted `stdvar_over_time` and `stddev_over_time` beneath the existing instant literal
+arithmetic/Boolean preparation shortcut. It removed redundant metadata evaluation while keeping fresh final
+arithmetic and reads. It missed the frozen timing gate, so the runtime and coupled tests were restored exactly.
+This optimization does not ship; the previous Sum/Avg and Count/Min/Max improvements remain unchanged.
+
+[Rejection evidence](literal-variance-preparation-rejection.json) records 1,098 fresh pinned Go1.27.1 outcomes
+and 6,588 exact baseline/original comparisons across both release profiles and pages 1/17/1024. There are no
+order or numerical-bit differences or original exclusions. The 24 construction errors remain separate from
+6,564 executed resource pairs. Seven extended causal owners passed; old-engine arithmetic and Boolean tests
+failed on 48 reads instead of 32. Supplemental inputs cover close/reordered values, overflow, underflow,
+signaling NaNs, signed zeros and all-NaN windows, with their earlier dataset provenance retained.
+
+Across 4,560 primary timing pairs, target median ratios were 0.7079 in release and 0.7047 in release-min.
+All eight measured memory categories, allocation traffic, reads, pages and work were nonincreasing. A
+16-series variance case reduced workspace peak from 34,323 to
+26,045 bytes and fetched sample entries from 13,104 to
+8,736. These gains remain experimental, not shipped behavior.
+
+The single prescribed follow-up left two release-min controls above 1.05: plain Stddev at 1.050264 and offset
+Stddev at 1.050862. Offset admission does additional bounded matrix/selector checks before falling back.
+Plain Stddev rejects before the modified allowlist. Selected compiled hot functions retain their sizes but
+move by 16 bytes; layout is only a possible explanation, not an established cause. All initial/follow-up
+measurements remain in the report. The gate was not relaxed or rerun until favorable.
+
+Exact expected C results were captured separately for the real input 1,2,3,4. Deviation squared is one bit
+above 1.25, and its candidate C expectation retained that distinction. Candidate C/C++, complete native units,
+ARM, strict lint/MSRV and linked-footprint qualification were not pursued after rejection. The seven focused
+native tests do not establish those broader guarantees. No live or concurrent throughput claim is made.
+
+`literal_variance_cases.literal_variance_cases()` reproduces 1,098 functional inputs;
+`literal_variance_performance_cases()` reproduces 114 timing inputs. `literal_variance_inputs.json` supplies
+the eight retained numerical datasets. Future experiments must preserve this negative result and qualify
+their own source and measurements.

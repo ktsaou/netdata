@@ -1,0 +1,1762 @@
+[
+  {
+    "name": "close-forward",
+    "dataset": {
+      "schema_version": 1,
+      "series": [
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "Mg=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MA=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MQ=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            }
+          ]
+        }
+      ]
+    },
+    "time_ms": 8000,
+    "range_seconds": 4
+  },
+  {
+    "name": "close-reordered",
+    "dataset": {
+      "schema_version": 1,
+      "series": [
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "Mg=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MA=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MQ=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "4341c37937e08003"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "4341c37937e08000"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "4341c37937e08002"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "4341c37937e08001"
+            }
+          ]
+        }
+      ]
+    },
+    "time_ms": 8000,
+    "range_seconds": 4
+  },
+  {
+    "name": "overflow",
+    "dataset": {
+      "schema_version": 1,
+      "series": [
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "Mg=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MA=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MQ=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "7fe1ccf385ebc8a0"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "ffe1ccf385ebc8a0"
+            }
+          ]
+        }
+      ]
+    },
+    "time_ms": 8000,
+    "range_seconds": 4
+  },
+  {
+    "name": "underflow",
+    "dataset": {
+      "schema_version": 1,
+      "series": [
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "Mg=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "16787e92154ef7ac"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "96787e92154ef7ac"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "16687e92154ef7ac"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "96687e92154ef7ac"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "16787e92154ef7ac"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "96787e92154ef7ac"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "16687e92154ef7ac"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "96687e92154ef7ac"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "16787e92154ef7ac"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "96787e92154ef7ac"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "16687e92154ef7ac"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MA=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "16687e92154ef7ac"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "96687e92154ef7ac"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "16787e92154ef7ac"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "96787e92154ef7ac"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "16687e92154ef7ac"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "96687e92154ef7ac"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "16787e92154ef7ac"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "96787e92154ef7ac"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "16687e92154ef7ac"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "96687e92154ef7ac"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "16787e92154ef7ac"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MQ=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "96687e92154ef7ac"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "16787e92154ef7ac"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "96787e92154ef7ac"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "16687e92154ef7ac"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "96687e92154ef7ac"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "16787e92154ef7ac"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "96787e92154ef7ac"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "16687e92154ef7ac"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "96687e92154ef7ac"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "16787e92154ef7ac"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "96787e92154ef7ac"
+            }
+          ]
+        }
+      ]
+    },
+    "time_ms": 8000,
+    "range_seconds": 4
+  },
+  {
+    "name": "signaling-first",
+    "dataset": {
+      "schema_version": 1,
+      "series": [
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "Mg=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MA=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "4000000000000000"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MQ=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "4008000000000000"
+            }
+          ]
+        }
+      ]
+    },
+    "time_ms": 8000,
+    "range_seconds": 4
+  },
+  {
+    "name": "signaling-last",
+    "dataset": {
+      "schema_version": 1,
+      "series": [
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "Mg=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MA=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "4008000000000000"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MQ=="
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "3ff0000000000000"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "4000000000000000"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "4008000000000000"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "7ff0000000001234"
+            }
+          ]
+        }
+      ]
+    },
+    "time_ms": 8000,
+    "range_seconds": 4
+  },
+  {
+    "name": "zeros",
+    "dataset": {
+      "schema_version": 1,
+      "series": [
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "Mg=="
+            },
+            {
+              "name": "ZW1wdHk=",
+              "value": ""
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "0000000000000000"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MA=="
+            },
+            {
+              "name": "ZW1wdHk=",
+              "value": ""
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "0000000000000000"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MQ=="
+            },
+            {
+              "name": "ZW1wdHk=",
+              "value": ""
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "0000000000000000"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "8000000000000000"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "0000000000000000"
+            }
+          ]
+        }
+      ]
+    },
+    "time_ms": 8000,
+    "range_seconds": 3
+  },
+  {
+    "name": "all-nan",
+    "dataset": {
+      "schema_version": 1,
+      "series": [
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "Mg=="
+            },
+            {
+              "name": "ZW1wdHk=",
+              "value": ""
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MA=="
+            },
+            {
+              "name": "ZW1wdHk=",
+              "value": ""
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            }
+          ]
+        },
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "bQ=="
+            },
+            {
+              "name": "aWQ=",
+              "value": "MQ=="
+            },
+            {
+              "name": "ZW1wdHk=",
+              "value": ""
+            }
+          ],
+          "points": [
+            {
+              "time_ms": 0,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 1000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 2000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 3000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 4000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 5000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 6000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 7000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 8000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            },
+            {
+              "time_ms": 9000,
+              "kind": "float",
+              "float": "7ff8000000000042"
+            },
+            {
+              "time_ms": 10000,
+              "kind": "float",
+              "float": "7ff8000000000053"
+            }
+          ]
+        }
+      ]
+    },
+    "time_ms": 8000,
+    "range_seconds": 3
+  }
+]

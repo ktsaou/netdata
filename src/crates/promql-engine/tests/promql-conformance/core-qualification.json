@@ -74150,5 +74150,14 @@
     "resource_pairs": 8364,
     "timing_pairs": 6320,
     "maximum_measured_memory_growth_bytes": 0
+  },
+  "rejected_literal_variance_preparation": {
+    "status": "rejected_timing_gate_runtime_restored",
+    "report": "literal-variance-preparation-rejection.json",
+    "report_sha256": "cdcecc74b9d7dacae492a7bcc797ad560cb590124401a6325e75ac7ff9e05899",
+    "baseline_commit": "7afa88ee95e5a80fd5cf658c60fd220aa4b6a33e",
+    "exact_baseline_pairs": 6588,
+    "timing_pairs": 4560,
+    "runtime_restored": true
   }
 }
