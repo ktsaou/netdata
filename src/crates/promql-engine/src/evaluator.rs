@@ -2390,7 +2390,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     (node, selector_node, series_ordinal),
                     operation,
                     matrix,
-                    input.into(),
+                    crate::range_cache::Input::rate(input, range_ns),
                 );
                 let result = self.prepared.range_folds.evaluate(
                     request,

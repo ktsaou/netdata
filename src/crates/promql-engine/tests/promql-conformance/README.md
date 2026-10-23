@@ -11854,3 +11854,32 @@ scan. The earlier slowdown's runtime/compiler cause is unresolved; these new mea
 [observed_filter_cases.py](observed_filter_cases.py) reproduces the functional and timing corpus. Full native,
 ARM and C/C++ counts, compiler checks and fixed executable costs are recorded in the qualification report.
 Logical sample statistics are checked by the Rust and C owners, not by the query fixture's JSON observations.
+
+
+## Compact precise range keys
+
+[fold-range-key-qualification.json](fold-range-key-qualification.json) records removal of a duplicate duration
+from completed fold-cache keys. The exact nanosecond duration remains in the key; no expression, arithmetic,
+provider or storage contract changes.
+
+- Actual shared snapshot allocations fall from 424 to 416 bytes on AMD64, ARM32 and ARM64. Each snapshot
+  becomes eight bytes smaller, including snapshots for functions other than Rate. Raw samples remain paged.
+- 977 expressions yield 5,862 exact baseline comparisons: 5,838 original-reference comparisons under the
+  existing ordering policy and 24 provider-error comparisons. Five previously proved whole-row permutations
+  per panel remain strict original differences; there are no numeric bit differences.
+- All eight memory categories are nonincreasing. Every other nonelapsed observation is exactly unchanged,
+  including reads, work, cancellation references, temporary storage and output counts. The many-series
+  Workspace peak median falls about 0.73%; a 256-series Sum range query falls from 273,335 to 271,287 bytes.
+- 8,480 primary timing pairs have target ratios 0.97312/1.00466 and control ratios 0.97787/1.00185 for
+  release/release-min. Twelve initially slower controls pass the one prescribed follow-up, adding 288 pairs.
+  This is a memory improvement with finite timing qualification, not a universal throughput claim.
+
+The precision witnesses distinguish `333ms` from the numeric duration literal `0.333333333`: a Rate threshold
+can return true for one and false for the other. The initially selected computed expression `1s / 3` truncates
+to milliseconds in pinned Prometheus, so its saved captures remain rounding controls. Additive numeric-literal
+captures establish the distinct precision outcome; no reference result was changed.
+
+[fold_range_key_cases.py](fold_range_key_cases.py) reproduces the corpus. The report retains full native,
+ARM and C/C++ checks, actual compiled costs, source/binary attribution and the earlier comparison evidence.
+Measurements describe synthetic query-accounted allocations, not process RSS, concurrent-query cost or live
+provider throughput. Logical statistics remain checked by the Rust and C owners.

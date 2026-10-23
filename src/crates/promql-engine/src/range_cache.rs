@@ -44,7 +44,6 @@ pub(crate) enum Input {
     Rate {
         start_ms: i64,
         end_ms: i64,
-        range_ns: i64,
         start_timestamps: bool,
         range_start_ms: i64,
         range_end_ms: i64,
@@ -62,19 +61,6 @@ pub(crate) enum Input {
 fn bounds_key(bounds: Option<TimeBounds>) -> Option<[i64; 2]> {
     bounds.map(|bounds| [bounds.start_ms, bounds.end_ms])
 }
-impl From<RateInput> for Input {
-    fn from(input: RateInput) -> Self {
-        Self::Rate {
-            start_ms: input.window.start_ms,
-            end_ms: input.window.end_ms,
-            range_ns: input.window.range_ns,
-            start_timestamps: input.window.start_timestamps,
-            range_start_ms: input.range_start_ms,
-            range_end_ms: input.range_end_ms,
-            data_bounds: bounds_key(input.data_bounds),
-        }
-    }
-}
 impl From<NumericRangeInput> for Input {
     fn from(input: NumericRangeInput) -> Self {
         Self::Numeric {
@@ -84,6 +70,20 @@ impl From<NumericRangeInput> for Input {
     }
 }
 impl Input {
+    pub(crate) fn rate(input: RateInput, range_ns: i64) -> Self {
+        assert_eq!(
+            input.window.range_ns, range_ns,
+            "rate input range must match its producer"
+        );
+        Self::Rate {
+            start_ms: input.window.start_ms,
+            end_ms: input.window.end_ms,
+            start_timestamps: input.window.start_timestamps,
+            range_start_ms: input.range_start_ms,
+            range_end_ms: input.range_end_ms,
+            data_bounds: bounds_key(input.data_bounds),
+        }
+    }
     pub(crate) fn fold(bounds: Option<TimeBounds>, anchor_start_ms: Option<i64>) -> Self {
         Self::Fold {
             bounds: bounds_key(bounds),
@@ -1001,6 +1001,114 @@ mod tests {
                 "unrelated progress must not be stored under a different geometry"
             );
         }
+    }
+
+    fn precise_rate_request(range_ns: i64, variant: u8) -> Request {
+        let mut request = request(1000, 0.0);
+        request.function = RangeFunction::parse("rate").unwrap();
+        request.range_ns = range_ns;
+        request.window.range_ms = range_ns / 1_000_000;
+        let mut input = RateInput {
+            window: crate::range_float::RateWindow {
+                start_ms: 667,
+                end_ms: 1000,
+                range_ns,
+                start_timestamps: false,
+            },
+            range_start_ms: 667,
+            range_end_ms: 1000,
+            data_bounds: Some(request.window.data_bounds),
+        };
+        match variant {
+            0 => {}
+            1 => input.window.start_ms -= 1,
+            2 => input.window.end_ms += 1,
+            3 => input.window.start_timestamps = true,
+            4 => input.range_start_ms -= 1,
+            5 => input.range_end_ms += 1,
+            6 => input.data_bounds.as_mut().unwrap().start_ms += 1,
+            7 => input.data_bounds.as_mut().unwrap().end_ms -= 1,
+            8 => input.data_bounds = None,
+            _ => unreachable!(),
+        }
+        request.input = Input::rate(input, range_ns);
+        request
+    }
+
+    #[test]
+    fn precise_rate_keys_keep_nanoseconds_and_all_input_fields() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let folds = Folds::new(&account);
+        let calls = Cell::new(0);
+        for variant in 0..9 {
+            // Compare each field independently against the same populated base key.
+            drop(
+                folds
+                    .evaluate(
+                        precise_rate_request(333_000_000, 0),
+                        &control,
+                        &account,
+                        |_| {
+                            calls.set(calls.get() + 1);
+                            Ok(completed(Some(OwnedValue::Float(333_000_000.0))))
+                        },
+                    )
+                    .unwrap(),
+            );
+            let mut expected_calls = calls.get();
+            for (index, range_ns) in [333_000_000, 333_333_333, 333_000_000]
+                .into_iter()
+                .enumerate()
+            {
+                if variant != 0 || index != 0 {
+                    expected_calls += 1;
+                }
+                for _ in 0..2 {
+                    let request = precise_rate_request(range_ns, variant);
+                    assert_eq!(request.window.range_ms, 333);
+                    let output = folds
+                        .evaluate(request, &control, &account, |_| {
+                            calls.set(calls.get() + 1);
+                            Ok(completed((variant % 2 == 0).then_some(OwnedValue::Float(
+                                range_ns as f64 + f64::from(variant),
+                            ))))
+                        })
+                        .unwrap();
+                    assert_eq!(calls.get(), expected_calls);
+                    if variant % 2 == 0 {
+                        let Some(OwnedValue::Float(value)) = output.value else {
+                            panic!("cached rate value must retain its exact key");
+                        };
+                        assert_eq!(value, range_ns as f64 + f64::from(variant));
+                    } else {
+                        assert!(output.value.is_none());
+                    }
+                    assert!(output.nonempty && output.invalid_quantile);
+                    assert_eq!(
+                        output.annotations[0],
+                        Some(AnnotationKind::HistogramIgnoredInMixedRange)
+                    );
+                }
+            }
+        }
+        drop(folds);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    #[should_panic(expected = "rate input range must match its producer")]
+    fn precise_rate_input_rejects_an_inconsistent_producer_range() {
+        let input = RateInput::from(crate::range_float::RateWindow {
+            start_ms: 667,
+            end_ms: 1000,
+            range_ns: 333_333_333,
+            start_timestamps: false,
+        });
+        let _ = Input::rate(input, 333_000_000);
     }
 
     #[test]

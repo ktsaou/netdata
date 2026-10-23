@@ -425,3 +425,6 @@ Cached progress geometry and owning-key reconstruction follow
 
 Existing-pass kind observation and ordinary instant Rate/Increase filters follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-literal-rate-filters`.
+
+Precise duration identity and compact cached Rate input follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#compact-precise-range-keys`.

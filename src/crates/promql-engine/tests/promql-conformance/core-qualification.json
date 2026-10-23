@@ -74235,5 +74235,16 @@
     "timing_pairs": 6240,
     "retained_strict_order_failures": 6,
     "maximum_measured_memory_growth_bytes": 0
+  },
+  "compact_precise_range_keys": {
+    "status": "finite_qualification_pass",
+    "report": "fold-range-key-qualification.json",
+    "report_sha256": "c6cf98a07be69e4e9f98ae9821c3a1fabdcd40c54382c7d6af27d14b0659e736",
+    "baseline_commit": "2cc96ec0484fe0327829a82abbc35653b81efca7",
+    "exact_baseline_pairs": 5862,
+    "resource_pairs": 5862,
+    "timing_pairs": 8768,
+    "retained_strict_order_failures": 30,
+    "maximum_measured_memory_growth_bytes": 0
   }
 }

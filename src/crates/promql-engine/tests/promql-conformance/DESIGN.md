@@ -3062,3 +3062,22 @@ throughput costs and finite compatibility evidence are recorded in
   counts and both scalar orientations. Native-middle cases supplement first/last native fallback controls.
 - The finite qualification and retained earlier rejection are linked from
   [Completed instant literal rate filters](README.md#completed-instant-literal-rate-filters).
+
+
+## Compact precise range keys
+
+- `Key.range_ns` remains the exact signed duration. `Input::Rate` no longer repeats it; all endpoint,
+  start-timestamp and data-bound fields remain. Other input variants and cache lookup/progress ownership are unchanged.
+- `Input::rate` checks the input against the producer's expected range before dropping the duplicate. Its sole
+  production caller passes the same operation range used by `fold_request` to construct the key. Extended-window
+  adjustments change endpoints and buffering, never that range. The assertion checks its argument; it does not
+  validate an independently fabricated private Request assembled afterward.
+- Numeric durations can preserve nanoseconds even when their sample-window endpoints have the same millisecond
+  geometry. Keep the exact key field and qualify threshold outcomes, not just empty data or parsed expressions.
+  Pinned computed durations truncate to milliseconds; they are separate rounding controls.
+- The key regression preloads the same base before each individual input-field change, then exercises distinct
+  nanosecond ranges with identical millisecond geometry, warm hits, absent results, metadata and cleanup.
+  The constructor mismatch has an explicit internal-invariant test; valid query control/error phases are unchanged.
+- Measure actual Key, Snapshot and shared allocations on every supported target. A smaller isolated enum does
+  not establish reduced containing allocations or full-query memory. Results and costs are recorded in
+  [Compact precise range keys](README.md#compact-precise-range-keys).
