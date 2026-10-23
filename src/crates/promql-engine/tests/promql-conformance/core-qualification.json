@@ -74159,5 +74159,16 @@
     "exact_baseline_pairs": 6588,
     "timing_pairs": 4560,
     "runtime_restored": true
+  },
+  "literal_predecessor_preparation": {
+    "status": "finite_qualification_pass",
+    "report": "literal-predecessor-preparation-qualification.json",
+    "report_sha256": "7618d1f63da0e43ff401e1a9de1044e9dcbd6f0eabf7f59962309883b9a646c2",
+    "baseline_commit": "5f652a6865538659cf7ff9dd1e5240fd5c5a115f",
+    "exact_baseline_pairs": 10092,
+    "resource_pairs": 10068,
+    "timing_pairs": 5760,
+    "retained_strict_order_failures": 312,
+    "maximum_measured_memory_growth_bytes": 0
   }
 }

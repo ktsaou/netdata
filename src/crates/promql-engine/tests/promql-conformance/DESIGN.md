@@ -2989,3 +2989,23 @@ changing membership, special literals, complete original comparisons and proport
   token; retain work-triggered checks for populated scans and publication. No new state or buffers are needed.
 - The [finite qualification](literal-count-extrema-preparation-qualification.json) owns exact original outcomes,
   weighted-count and lifecycle evidence, native timing, actual C callers and proportional compiled costs.
+
+
+## Instant literal Changes and Resets ownership
+
+- Admit completed Changes/Resets through the existing instant literal preparation path. Their successful
+  outputs are Float or empty and drop metric names, including native and mixed histories. Singletons produce
+  a present zero; do not confuse zero with absence. Keep histogram-weighted logical accounting distinct from
+  physical acquisition and fetched-sample counts.
+- Require a syntactically direct Matrix argument before preprocessing these two new paths. Parenthesis
+  unwrapping charges work even when a later modifier check rejects eligibility. Parenthesized windows remain
+  generic; verify exact results, generic read counts, zero added admission work and cancellation. Existing
+  functions retain their prior admission rules.
+- Preserve full initial child completion, annotation merge, checked identity transfer, fold-state clearing
+  and fresh final reads. Do not reuse predecessor values or alter native equality/reset helpers. Preserve
+  public error conversion, provider failures, late-input-before-duplicate ordering and final arithmetic checks.
+- Upstream map-assembled subquery rows retain the existing deterministic label-byte order contract. Keep
+  strict failures separately and prove complete whole-row permutations for a specifically identified set;
+  this is not permission to ignore order for arbitrary results or to change original captures.
+- The [finite qualification](literal-predecessor-preparation-qualification.json) owns the original outcomes,
+  causal tests, native timing, actual C/ARM callers, failed initial attempt and proportional compiled costs.

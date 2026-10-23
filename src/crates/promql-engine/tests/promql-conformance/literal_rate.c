@@ -4,6 +4,21 @@
 #include "c_embedding.c"
 #undef main
 
+static uint32_t predecessor_next(void *context, void *handle,
+                                  const netdata_promql_callback_control_t *control,
+                                  netdata_promql_page_t *out, netdata_promql_resources_t *resources,
+                                  netdata_promql_bytes_t *error) {
+    uint32_t status = cursor_next(context, handle, control, out, resources, error);
+    if (status != NETDATA_PROMQL_OK) return status;
+    cursor *c = (cursor *)handle;
+    for (uint64_t i = 0; i < out->samples.len; i++) {
+        int64_t tick = c->page[i].time_ms / 1000;
+        assert(tick >= 1 && tick <= 4);
+        c->page[i].value.payload.float_bits = netdata_promql_double_bits((double)(5 - tick));
+    }
+    return status;
+}
+
 int main(void) {
     const struct { const char *text; double expected; } expressions[] = {
         {"rate(m_total[4s]) + 2", 3.0},
@@ -103,7 +118,35 @@ int main(void) {
         {"max_over_time(m_total[4s]) % 2", 0.0},
         {"2 % max_over_time(m_total[4s])", 2.0},
         {"max_over_time(m_total[4s]) atan2 4", 0.7853981633974483},
-        {"4 atan2 max_over_time(m_total[4s])", 0.7853981633974483}
+        {"4 atan2 max_over_time(m_total[4s])", 0.7853981633974483},
+        {"changes(m_total[4s]) + 2", 0x1.4000000000000p+2},
+        {"2 + changes(m_total[4s])", 0x1.4000000000000p+2},
+        {"changes(m_total[4s]) - 2", 0x1.0000000000000p+0},
+        {"2 - changes(m_total[4s])", -0x1.0000000000000p+0},
+        {"changes(m_total[4s]) * 2", 0x1.8000000000000p+2},
+        {"2 * changes(m_total[4s])", 0x1.8000000000000p+2},
+        {"changes(m_total[4s]) / 2", 0x1.8000000000000p+0},
+        {"2 / changes(m_total[4s])", 0x1.5555555555555p-1},
+        {"changes(m_total[4s]) ^ 2", 0x1.2000000000000p+3},
+        {"2 ^ changes(m_total[4s])", 0x1.0000000000000p+3},
+        {"changes(m_total[4s]) % 2", 0x1.0000000000000p+0},
+        {"2 % changes(m_total[4s])", 0x1.0000000000000p+1},
+        {"changes(m_total[4s]) atan2 2", 0x1.f730bd281f69bp-1},
+        {"2 atan2 changes(m_total[4s])", 0x1.2d0ead6066395p-1},
+        {"resets(m_total[4s]) + 2", 0x1.4000000000000p+2},
+        {"2 + resets(m_total[4s])", 0x1.4000000000000p+2},
+        {"resets(m_total[4s]) - 2", 0x1.0000000000000p+0},
+        {"2 - resets(m_total[4s])", -0x1.0000000000000p+0},
+        {"resets(m_total[4s]) * 2", 0x1.8000000000000p+2},
+        {"2 * resets(m_total[4s])", 0x1.8000000000000p+2},
+        {"resets(m_total[4s]) / 2", 0x1.8000000000000p+0},
+        {"2 / resets(m_total[4s])", 0x1.5555555555555p-1},
+        {"resets(m_total[4s]) ^ 2", 0x1.2000000000000p+3},
+        {"2 ^ resets(m_total[4s])", 0x1.0000000000000p+3},
+        {"resets(m_total[4s]) % 2", 0x1.0000000000000p+0},
+        {"2 % resets(m_total[4s])", 0x1.0000000000000p+1},
+        {"resets(m_total[4s]) atan2 2", 0x1.f730bd281f69bp-1},
+        {"2 atan2 resets(m_total[4s])", 0x1.2d0ead6066395p-1}
     };
     const uint64_t pages[] = {1, 17, 1024};
     unsigned cases = 0;
@@ -128,6 +171,8 @@ int main(void) {
                             assert(netdata_promql_control_create(engine, NULL, &source.control) == NETDATA_PROMQL_OK);
                         }
                         netdata_promql_provider_t input = provider(&source);
+                        if (strstr(expressions[expression].text, "changes(") ||
+                            strstr(expressions[expression].text, "resets(")) input.cursor_next = predecessor_next;
                         netdata_promql_query_t *query = compile(engine, expressions[expression].text);
                         netdata_promql_request_t request = instant(4000);
                         netdata_promql_result_t *result = NULL;
@@ -173,7 +218,7 @@ int main(void) {
         }
         assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
     }
-    assert(cases == 1764);
+    assert(cases == 2268);
     printf("{\"literal_rate\":\"pass\",\"cases\":%u}\n", cases);
     return 0;
 }

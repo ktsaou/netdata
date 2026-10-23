@@ -411,3 +411,7 @@ Literal Sum/Avg preparation and its native fallback checks follow
 
 Literal Count/Min/Max preparation and empty-descriptor checks follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-literal-count-and-extrema-preparation`.
+
+
+Literal Changes/Resets preparation and direct-window admission follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#completed-instant-literal-changes-and-resets-preparation`.

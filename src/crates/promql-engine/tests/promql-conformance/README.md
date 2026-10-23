@@ -11614,3 +11614,54 @@ native tests do not establish those broader guarantees. No live or concurrent th
 `literal_variance_performance_cases()` reproduces 114 timing inputs. `literal_variance_inputs.json` supplies
 the eight retained numerical datasets. Future experiments must preserve this negative result and qualify
 their own source and measurements.
+
+
+## Completed instant literal Changes and Resets preparation
+
+Instant literal arithmetic and Boolean comparisons over `changes` and `resets` reuse completed child
+descriptors through `execution::literal_range_child`. Successful outputs are Float or empty, including native
+and mixed histories. Existing root, literal, selector, clock and descriptor restrictions remain; final values
+are read afresh. Ordinary alert filters remain generic. For these two functions, only syntactically direct
+Matrix arguments enter this optimization; parenthesized windows remain supported through generic evaluation.
+
+[Qualification](literal-predecessor-preparation-qualification.json) records 1,682 fresh pinned Go1.27.1
+outcomes and 10,092 exact baseline comparisons across both release profiles and pages 1/17/1024. There are
+no numerical bit differences or excluded outcomes. The 24 expected construction errors are separate from
+10,068 executed resource pairs. Seven existing causal owners cover singleton zero, sparse identity, native
+weights, mixed transitions, native helper errors, late input failures, final fresh arithmetic and cancellation.
+Parenthesized controls retain generic read counts and verify zero added eligibility work.
+
+Strict original reports retain 52 row-order differences per panel (312 total). They occur only in four instant
+derived-subquery expressions that upstream assembles through a Go map. The accepted baseline and candidate
+match completely. The existing deterministic label-byte order policy applies only to those proven whole-row
+permutations; labels, timestamps, values, membership and diagnostics match exactly. All other outcomes remain
+strictly compared. These subquery controls do not enter the new direct-Matrix optimization.
+
+Across 5,760 timing pairs, median target time falls by 28.9% in release and 29.5% in release-min. Target-family
+and overall medians pass their frozen thresholds. Initial slower measurements are retained: 47 cases receive
+the prescribed single follow-up, totaling 1,128 pairs, and none remains above the 5% slower-case threshold.
+All eight measured memory categories, allocation traffic, physical reads, pages and work are nonincreasing.
+For 16 series and 256 points, workspace peak falls from 34,323 to 26,045 bytes. Fetched entries fall from
+13,104 to 8,736 for Changes and from 26,208 to 17,472 for Resets. These finite synthetic observations are not
+live-provider or concurrent throughput, and category peaks are not process RSS.
+
+Both native profiles pass 995 units with two existing ignored checks. Each ARM target executes 19 focused
+units under QEMU. The extended arithmetic C/C++ caller passes 13,608 cases across six consumers, including
+values, labels, statistics, errors, cancellation and release. Its 28 new expressions use exact original Go
+constants for decreasing counters; existing expressions keep their prior fixture. Complete native C suites,
+strict lint, formatting and installed Rust1.91 compilation pass. Absolute, relative and cumulative compiled
+costs are reported separately from query memory.
+
+The initial candidate failed 24 resource comparisons: rejecting a parenthesized anchored argument first
+unwrapped it, charging one extra work unit. The refined raw-Matrix guard avoids that work; initial evidence
+is preserved. The copied zero-order-failure assertion was also corrected to the existing narrowly proven
+ordering policy, retaining strict failures. An initial native-error test expected an internal error variant;
+the corrected public `WrappedRuntime` expectation passed against unchanged baseline source. Its message and
+provider first-page failure checks remain. Those checks do not establish later consuming-page failure priority.
+
+`literal_predecessor_cases.literal_predecessor_cases()` reproduces all 1,682 functional inputs;
+`literal_predecessor_performance_cases()` reproduces 144 timing inputs. The supplemental JSON deduplicates
+51 historical datasets without changing their content. Of 325 source controls, 80 already contain Boolean
+comparisons: their 160 suffix variants are precedence-sensitive controls, not uniformly outer arithmetic or
+direct optimization targets. Fresh original captures cover their exact strings and are reused unchanged
+between candidate attempts. Historical panels retain their actual source and binary identities.

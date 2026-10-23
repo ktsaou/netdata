@@ -2121,7 +2121,7 @@ impl CompiledQuery {
                 .child(&self.expression, node, child, control, account)?;
         let Expr::Call {
             function: Some(function),
-            ..
+            arguments,
         } = &self.expression.arena[child].expression
         else {
             return Ok(None);
@@ -2135,7 +2135,18 @@ impl CompiledQuery {
                 | "count_over_time"
                 | "min_over_time"
                 | "max_over_time"
+                | "changes"
+                | "resets"
         ) {
+            return Ok(None);
+        }
+        // Keep new predecessor paths limited to syntactically direct windows.
+        if matches!(function.name, "changes" | "resets")
+            && !matches!(
+                self.expression.arena[arguments[0]].expression,
+                Expr::Matrix { .. }
+            )
+        {
             return Ok(None);
         }
         let Some((_, argument)) =
@@ -4854,6 +4865,13 @@ mod tests {
     use crate::{result::OwnedValue, test_storage::FixtureProvider};
     use std::sync::atomic::Ordering;
 
+    fn descending_literal_sample(index: usize) -> crate::value::Sample {
+        crate::value::Sample {
+            value: crate::value::SampleValue::Float(4.0 - index as f64),
+            ..crate::test_storage::counter(index)
+        }
+    }
+
     #[test]
     fn literal_rate_final_arithmetic_interrupts_after_fresh_child_reads() {
         for page in [1, 17, 1024] {
@@ -4866,13 +4884,18 @@ mod tests {
                     "123 % count_over_time(counter_total[4s])",
                     "123 % min_over_time(counter_total[4s])",
                     "123 % max_over_time(counter_total[4s])",
+                    "123 % changes(counter_total[4s])",
+                    "123 % resets(counter_total[4s])",
                 ] {
                     let engine = Engine::default();
                     let control = Control::default();
                     let compiled = engine
                         .compile(expression.as_bytes(), options(delayed), &control)
                         .unwrap();
-                    let provider = FixtureProvider::new(4, page, 1);
+                    let mut provider = FixtureProvider::new(4, page, 1);
+                    if expression.contains("resets(") {
+                        provider.series[0].source.sample = descending_literal_sample;
+                    }
                     let account = compiled.execution_accounting();
                     {
                         let header = compiled
@@ -4995,6 +5018,8 @@ mod tests {
                         "count_over_time",
                         "min_over_time",
                         "max_over_time",
+                        "changes",
+                        "resets",
                     ] {
                         let value: f64 = match function {
                             "rate" => 1.0,
@@ -5003,92 +5028,115 @@ mod tests {
                             "avg_over_time" => 2.5,
                             "count_over_time" | "max_over_time" => 4.0,
                             "min_over_time" => 1.0,
+                            "changes" | "resets" => 3.0,
                             _ => unreachable!(),
                         };
-                        for operator in ["+", "-", "*", "/", "^", "%", "atan2"] {
-                            for left in [false, true] {
-                                let engine = Engine::default();
-                                let control = Control::default();
-                                let provider = FixtureProvider::new(4, page, 4);
-                                let child = format!("{function}(counter_total[4s])");
-                                let expression = if left {
-                                    format!("2 {operator} {child}")
-                                } else {
-                                    format!("{child} {operator} 2")
-                                };
-                                let query = engine
-                                    .compile(
-                                        expression.as_bytes(),
-                                        EngineOptions {
-                                            start_timestamps,
-                                            ..options(delayed)
-                                        },
+                        for parenthesized in [false, true] {
+                            if parenthesized && !matches!(function, "changes" | "resets") {
+                                continue;
+                            }
+                            for operator in ["+", "-", "*", "/", "^", "%", "atan2"] {
+                                for left in [false, true] {
+                                    let engine = Engine::default();
+                                    let control = Control::default();
+                                    let mut provider = FixtureProvider::new(4, page, 4);
+                                    if function == "resets" {
+                                        for series in &mut provider.series {
+                                            series.source.sample = descending_literal_sample;
+                                        }
+                                    }
+                                    let argument = if parenthesized {
+                                        "(counter_total[4s])"
+                                    } else {
+                                        "counter_total[4s]"
+                                    };
+                                    let child = format!("{function}({argument})");
+                                    let expression = if left {
+                                        format!("2 {operator} {child}")
+                                    } else {
+                                        format!("{child} {operator} 2")
+                                    };
+                                    let query = engine
+                                        .compile(
+                                            expression.as_bytes(),
+                                            EngineOptions {
+                                                start_timestamps,
+                                                ..options(delayed)
+                                            },
+                                            &control,
+                                        )
+                                        .unwrap();
+                                    let report = query.collect_reported(
+                                        &provider,
+                                        QueryRequest::Instant { time_ms: 4000 },
                                         &control,
-                                    )
-                                    .unwrap();
-                                let report = query.collect_reported(
-                                    &provider,
-                                    QueryRequest::Instant { time_ms: 4000 },
-                                    &control,
-                                );
-                                let result = report.result.as_ref().unwrap();
-                                assert_eq!(result.series.len(), 4, "{expression}");
-                                assert!(report.annotations.is_empty());
-                                let (a, b): (f64, f64) =
-                                    if left { (2.0, value) } else { (value, 2.0) };
-                                let expected = match operator {
-                                    "+" => a + b,
-                                    "-" => a - b,
-                                    "*" => a * b,
-                                    "/" => a / b,
-                                    "^" => crate::numerical_math::pow(a, b),
-                                    "%" => a % b,
-                                    "atan2" => crate::numerical::atan2(a, b),
-                                    _ => unreachable!(),
-                                };
-                                for (index, row) in result.series.iter().enumerate() {
-                                    assert_eq!(
-                                        row.labels
-                                            .0
-                                            .iter()
-                                            .map(|label| (
-                                                label.name.to_vec(),
-                                                label.value.to_vec()
-                                            ))
-                                            .collect::<Vec<_>>(),
-                                        [
-                                            (b"instance".to_vec(), index.to_string().into_bytes()),
-                                            (b"job".to_vec(), b"worker".to_vec())
-                                        ]
                                     );
-                                    assert_eq!(row.points.len(), 1);
-                                    assert_eq!(row.points[0].time_ms, 4000);
+                                    let result = report.result.as_ref().unwrap();
+                                    assert_eq!(result.series.len(), 4, "{expression}");
+                                    assert!(report.annotations.is_empty());
+                                    let (a, b): (f64, f64) =
+                                        if left { (2.0, value) } else { (value, 2.0) };
+                                    let expected = match operator {
+                                        "+" => a + b,
+                                        "-" => a - b,
+                                        "*" => a * b,
+                                        "/" => a / b,
+                                        "^" => crate::numerical_math::pow(a, b),
+                                        "%" => a % b,
+                                        "atan2" => crate::numerical::atan2(a, b),
+                                        _ => unreachable!(),
+                                    };
+                                    for (index, row) in result.series.iter().enumerate() {
+                                        assert_eq!(
+                                            row.labels
+                                                .0
+                                                .iter()
+                                                .map(|label| (
+                                                    label.name.to_vec(),
+                                                    label.value.to_vec()
+                                                ))
+                                                .collect::<Vec<_>>(),
+                                            [
+                                                (
+                                                    b"instance".to_vec(),
+                                                    index.to_string().into_bytes()
+                                                ),
+                                                (b"job".to_vec(), b"worker".to_vec())
+                                            ]
+                                        );
+                                        assert_eq!(row.points.len(), 1);
+                                        assert_eq!(row.points[0].time_ms, 4000);
+                                        assert_eq!(
+                                            float_bits(&row.points[0]),
+                                            expected.to_bits(),
+                                            "{expression}"
+                                        );
+                                    }
                                     assert_eq!(
-                                        float_bits(&row.points[0]),
-                                        expected.to_bits(),
+                                        report
+                                            .observations
+                                            .statistics
+                                            .samples
+                                            .total_queryable_samples,
+                                        16
+                                    );
+                                    assert_eq!(
+                                        report.observations.statistics.samples.samples_read,
+                                        if parenthesized {
+                                            48
+                                        } else if start_timestamps
+                                            && matches!(function, "rate" | "increase")
+                                        {
+                                            64
+                                        } else {
+                                            32
+                                        },
                                         "{expression}"
                                     );
+                                    provider.assert_closed();
+                                    drop((report, query));
+                                    engine.accounting.snapshot().assert_memory_released();
                                 }
-                                assert_eq!(
-                                    report
-                                        .observations
-                                        .statistics
-                                        .samples
-                                        .total_queryable_samples,
-                                    16
-                                );
-                                assert_eq!(
-                                    report.observations.statistics.samples.samples_read,
-                                    if start_timestamps && matches!(function, "rate" | "increase") {
-                                        64
-                                    } else {
-                                        32
-                                    },
-                                    "{expression}"
-                                );
-                                provider.assert_closed();
-                                drop((report, query));
-                                engine.accounting.snapshot().assert_memory_released();
                             }
                         }
                     }
@@ -5109,6 +5157,8 @@ mod tests {
                     "count_over_time",
                     "min_over_time",
                     "max_over_time",
+                    "changes",
+                    "resets",
                 ] {
                     let value: f64 = match function {
                         "rate" => 1.0,
@@ -5117,6 +5167,8 @@ mod tests {
                         "avg_over_time" => 2.5,
                         "count_over_time" | "max_over_time" => 4.0,
                         "min_over_time" => 1.0,
+                        "changes" => 3.0,
+                        "resets" => 0.0,
                         _ => unreachable!(),
                     };
                     for scalar in [0.0, value, value + 1.0] {
@@ -5213,11 +5265,15 @@ mod tests {
                         ("count_over_time", 4.0),
                         ("min_over_time", 1.0),
                         ("max_over_time", 4.0),
+                        ("changes", 3.0),
+                        ("resets", 0.0),
                     ] {
                         let engine = Engine::default();
                         let control = Control::default();
                         let suffix = if boolean {
                             "> bool 0".to_owned()
+                        } else if function == "resets" {
+                            "/ 1".to_owned()
                         } else {
                             format!("/ {value}")
                         };
@@ -5248,11 +5304,14 @@ mod tests {
                                 row.labels.0[0].value.as_ref(),
                                 ordinal.to_string().as_bytes()
                             );
-                            let expected: f64 = if boolean || *ordinal != 0 {
-                                1.0
-                            } else {
-                                1.0 / value
-                            };
+                            let expected: f64 =
+                                if function == "resets" || function == "changes" && *ordinal == 0 {
+                                    0.0
+                                } else if boolean || *ordinal != 0 {
+                                    1.0
+                                } else {
+                                    1.0 / value
+                                };
                             assert_eq!(float_bits(&row.points[0]), expected.to_bits());
                         }
                         assert_eq!(
@@ -5317,6 +5376,8 @@ mod tests {
                         "count_over_time",
                         "min_over_time",
                         "max_over_time",
+                        "changes",
+                        "resets",
                     ] {
                         for native in [false, true] {
                             for ordinary in [false, true] {
@@ -5331,7 +5392,7 @@ mod tests {
                                 };
                                 let suffix = if arithmetic { "+ 2" } else { "> bool 0" };
                                 let expected: f64 = if !arithmetic {
-                                    1.0
+                                    if function == "resets" { 0.0 } else { 1.0 }
                                 } else {
                                     match function {
                                         "rate" => 3.0,
@@ -5340,6 +5401,8 @@ mod tests {
                                         "avg_over_time" => 4.5,
                                         "count_over_time" | "max_over_time" => 6.0,
                                         "min_over_time" => 3.0,
+                                        "changes" => 5.0,
+                                        "resets" => 2.0,
                                         _ => unreachable!(),
                                     }
                                 };
@@ -5359,18 +5422,39 @@ mod tests {
                                 let result = report.result.as_ref().unwrap();
                                 let summary = matches!(
                                     function,
-                                    "count_over_time" | "min_over_time" | "max_over_time"
+                                    "count_over_time"
+                                        | "min_over_time"
+                                        | "max_over_time"
+                                        | "changes"
+                                        | "resets"
                                 );
-                                let survives = function == "count_over_time"
-                                    || (!native
-                                        && matches!(function, "min_over_time" | "max_over_time"));
+                                let survives =
+                                    matches!(function, "count_over_time" | "changes" | "resets")
+                                        || (!native
+                                            && matches!(
+                                                function,
+                                                "min_over_time" | "max_over_time"
+                                            ));
                                 assert_eq!(
                                     result.series.len(),
                                     usize::from(ordinary) + usize::from(survives)
                                 );
                                 if survives {
                                     assert_eq!(result.series[0].labels.0[0].value.as_ref(), b"0");
-                                    let first: f64 = if !arithmetic {
+                                    let first: f64 = if matches!(function, "changes" | "resets") {
+                                        let value = if native && function == "resets" {
+                                            0.0
+                                        } else {
+                                            3.0
+                                        };
+                                        if arithmetic {
+                                            value + 2.0
+                                        } else if value > 0.0 {
+                                            1.0
+                                        } else {
+                                            0.0
+                                        }
+                                    } else if !arithmetic {
                                         1.0
                                     } else if function == "count_over_time" {
                                         6.0
@@ -5388,8 +5472,9 @@ mod tests {
                                     assert_eq!(float_bits(&row.points[0]), expected.to_bits());
                                 }
                                 let annotation = if summary {
-                                    (!native && function != "count_over_time")
-                                        .then_some(AnnotationKind::HistogramIgnoredInMixedRange)
+                                    (!native
+                                        && matches!(function, "min_over_time" | "max_over_time"))
+                                    .then_some(AnnotationKind::HistogramIgnoredInMixedRange)
                                 } else if native {
                                     Some(AnnotationKind::IncompatibleBinaryTypes {
                                         left_histogram: true,
@@ -5425,12 +5510,14 @@ mod tests {
                                         first_units + ordinary_units,
                                         "{function}"
                                     );
-                                    let first_reads =
-                                        if native && function != "count_over_time" && !ordinary {
-                                            first_units
-                                        } else {
-                                            first_units * 2
-                                        };
+                                    let first_reads = if native
+                                        && matches!(function, "min_over_time" | "max_over_time")
+                                        && !ordinary
+                                    {
+                                        first_units
+                                    } else {
+                                        first_units * 2
+                                    };
                                     assert_eq!(
                                         report.observations.statistics.samples.samples_read,
                                         first_reads + ordinary_units * 2,
@@ -5450,20 +5537,27 @@ mod tests {
 
     #[test]
     fn literal_rate_preparation_moves_metadata_and_checks_cancellation() {
-        fn native_preparation_acquisitions(function: &str) -> Vec<usize> {
+        fn preparation_acquisitions(
+            function: &str,
+            native: bool,
+            parenthesized: bool,
+        ) -> Vec<usize> {
             let engine = Engine::default();
             let control = Control::default();
+            let expression = if parenthesized {
+                format!("{function}((counter_total[4s])) + 2")
+            } else {
+                format!("{function}(counter_total[4s])")
+            };
             let compiled = engine
-                .compile(
-                    format!("{function}(counter_total[4s])").as_bytes(),
-                    EngineOptions::default(),
-                    &control,
-                )
+                .compile(expression.as_bytes(), EngineOptions::default(), &control)
                 .unwrap();
             let mut provider = FixtureProvider::new(4, 1, 4);
             for series in &mut provider.series {
                 series.source.counters = Default::default();
-                series.source.sample = native_range_sample;
+                if native {
+                    series.source.sample = native_range_sample;
+                }
             }
             let account = compiled.execution_accounting();
             let acquisitions;
@@ -5514,10 +5608,44 @@ mod tests {
                         &mut Annotations::default(),
                     )
                     .unwrap();
+                if parenthesized {
+                    let before = account.snapshot().work;
+                    assert_eq!(
+                        compiled
+                            .literal_range_child(
+                                compiled.expression.root,
+                                &prepared,
+                                &rosters,
+                                &control,
+                                &account
+                            )
+                            .unwrap(),
+                        None
+                    );
+                    assert_eq!(account.snapshot().work, before);
+                    let cancelled = Control::default();
+                    cancelled.cancellation.cancel();
+                    assert_eq!(
+                        compiled.literal_range_child(
+                            compiled.expression.root,
+                            &prepared,
+                            &rosters,
+                            &cancelled,
+                            &account
+                        ),
+                        Err(Interrupted::Cancelled)
+                    );
+                    assert_eq!(account.snapshot().work, before);
+                }
                 let descriptors = rosters.descriptors(compiled.expression.root);
-                let empty = matches!(function, "min_over_time" | "max_over_time");
+                let empty = native && matches!(function, "min_over_time" | "max_over_time");
                 assert_eq!(descriptors.len(), if empty { 0 } else { 4 });
-                let kind = if function == "count_over_time" { 1 } else { 2 };
+                let kind =
+                    if !native || matches!(function, "count_over_time" | "changes" | "resets") {
+                        1
+                    } else {
+                        2
+                    };
                 assert!(
                     descriptors
                         .iter()
@@ -5543,8 +5671,16 @@ mod tests {
             "count_over_time",
             "min_over_time",
             "max_over_time",
+            "changes",
+            "resets",
         ] {
-            let native_acquisitions = native_preparation_acquisitions(function);
+            let native_acquisitions = preparation_acquisitions(function, true, false);
+            let float_acquisitions = preparation_acquisitions(function, false, false);
+            if matches!(function, "changes" | "resets") {
+                for native in [false, true] {
+                    preparation_acquisitions(function, native, true);
+                }
+            }
             for suffix in [
                 "> bool 0", "+ 2", "- 2", "* 2", "/ 2", "^ 123", "% 3", "atan2 2",
             ] {
@@ -5621,7 +5757,11 @@ mod tests {
                         if native
                             && !matches!(
                                 function,
-                                "count_over_time" | "min_over_time" | "max_over_time"
+                                "count_over_time"
+                                    | "min_over_time"
+                                    | "max_over_time"
+                                    | "changes"
+                                    | "resets"
                             )
                         {
                             assert!(matches!(
@@ -5669,7 +5809,7 @@ mod tests {
                                     if native {
                                         native_acquisitions[index]
                                     } else {
-                                        1
+                                        float_acquisitions[index]
                                     }
                                 );
                             }
@@ -5733,7 +5873,7 @@ mod tests {
                                     if native {
                                         native_acquisitions[index]
                                     } else {
-                                        1
+                                        float_acquisitions[index]
                                     }
                                 );
                             }
@@ -5757,6 +5897,8 @@ mod tests {
             "count_over_time",
             "min_over_time",
             "max_over_time",
+            "changes",
+            "resets",
         ] {
             for suffix in [
                 "> bool 0", "+ 2", "- 2", "* 2", "/ 2", "^ 123", "% 3", "atan2 2",
@@ -5801,6 +5943,82 @@ mod tests {
                         assert!(sink.aborted && !sink.committed);
                         // Delayed duplicate cleanup can abort after the first provisional point.
                         assert_eq!(sink.chunks, usize::from(delayed && !failed));
+                        provider.assert_closed();
+                        drop((report, query, sink));
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+
+        fn reset_error_sample(index: usize) -> crate::value::Sample {
+            use crate::histogram::{FloatHistogram, Span};
+            let mut sample = crate::test_storage::counter(index);
+            if index < 2 {
+                sample.value = crate::value::SampleValue::FloatHistogram(FloatHistogram {
+                    schema: if index == 0 { 0 } else { i32::MIN },
+                    count: 1.0,
+                    sum: 1.0,
+                    positive_spans: Some(
+                        vec![Span {
+                            offset: 0,
+                            length: 1,
+                        }]
+                        .into(),
+                    ),
+                    positive_buckets: Some(vec![1.0].into()),
+                    ..FloatHistogram::default()
+                });
+            }
+            sample
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for suffix in ["+ 2", "> bool 0"] {
+                    for failed in [None, Some(1), Some(2)] {
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let mut provider = FixtureProvider::new(3, page, 1);
+                        provider.series[0].source.sample = reset_error_sample;
+                        provider.series[0].source.fail_acquisition = failed;
+                        let query = engine
+                            .compile(
+                                format!("resets(counter_total[3s]) {suffix}").as_bytes(),
+                                options(delayed),
+                                &control,
+                            )
+                            .unwrap();
+                        let mut sink = RecordingSink::default();
+                        let report = query.execute_reported(
+                            &provider,
+                            QueryRequest::Instant { time_ms: 3000 },
+                            &control,
+                            &mut sink,
+                        );
+                        let error = report.result.as_ref().unwrap_err();
+                        if failed.is_some() {
+                            assert!(matches!(
+                                error,
+                                ExecutionError::Evaluation(EvaluationError::Storage(
+                                    StorageError::Provider(_)
+                                ))
+                            ));
+                        } else {
+                            assert!(
+                                matches!(error, ExecutionError::Evaluation(EvaluationError::WrappedRuntime(message))
+                                    if &**message == b"unexpected error: runtime error: negative shift amount"),
+                                "{error:?}"
+                            );
+                        }
+                        assert_eq!(
+                            provider.series[0]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            failed.unwrap_or(2)
+                        );
+                        assert!(sink.aborted && !sink.committed && sink.chunks == 0);
                         provider.assert_closed();
                         drop((report, query, sink));
                         engine.accounting.snapshot().assert_memory_released();
