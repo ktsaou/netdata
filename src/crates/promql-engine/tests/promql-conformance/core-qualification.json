@@ -74246,5 +74246,15 @@
     "timing_pairs": 8768,
     "retained_strict_order_failures": 30,
     "maximum_measured_memory_growth_bytes": 0
+  },
+  "generated_label_value_transfer_rejected": {
+    "status": "rejected_and_restored",
+    "report": "generated-label-value-rejected-qualification.json",
+    "report_sha256": "70d382708f295e1f287d99841130997b628ffcf2150b5372056ca4e842ae8501",
+    "baseline_commit": "f5c74d453d0a31e223df0e823ee107da149581e9",
+    "exact_baseline_pairs": 1920,
+    "strict_original_pairs": 1920,
+    "timing_pairs": 2144,
+    "runtime_restored": true
   }
 }

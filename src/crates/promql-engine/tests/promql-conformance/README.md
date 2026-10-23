@@ -11883,3 +11883,26 @@ captures establish the distinct precision outcome; no reference result was chang
 ARM and C/C++ checks, actual compiled costs, source/binary attribution and the earlier comparison evidence.
 Measurements describe synthetic query-accounted allocations, not process RSS, concurrent-query cost or live
 provider throughput. Logical statistics remain checked by the Rust and C owners.
+
+
+## Rejected generated label-buffer transfer
+
+[generated-label-value-rejected-qualification.json](generated-label-value-rejected-qualification.json) records an
+experiment to reuse generated `label_join()` and `label_replace()` buffers. Transfer preserved the capacity that
+ordinary copying would retain, including later replacements, and kept the existing work and cancellation checks.
+The candidate and its added tests were removed after the timing gate failed; the accepted runtime is unchanged.
+
+- 320 fresh pinned Prometheus outcomes matched in all 1,920 baseline/original comparisons across both profiles
+  and pages 1, 17 and 1024, with no numeric-bit or ordering exceptions. All 13 focused tests passed.
+- Every nonelapsed, nonmemory observation stayed exact. All eight memory categories were nonincreasing;
+  112 cases per panel reduced allocation counters and 24 reduced Workspace peaks. A 32-series, 4 KiB label-join
+  range query reduced acquired Workspace bytes from 1,119,960 to 890,584. The target peak median was unchanged.
+- The 1,760 primary timing pairs gave target ratios 0.98059/1.02627 and control ratios 0.99225/1.05387 for
+  release/release-min. The frozen target was 0.98, with controls at most 1.05. One follow-up added 384 pairs;
+  four release-min controls remained above 1.05. The runtime/compiler cause is unresolved.
+
+[generated_label_cases.py](generated_label_cases.py) reproduces the 320 functional and 44 timing cases. The
+capacity lesson matters independently: retaining 6,000 bytes instead of the ordinary 8,192 can cause a later
+7,000-byte replacement to grow to 12,000. The rejected candidate guarded against that change; allocation savings
+alone still did not establish enough throughput. Full native/ARM/C, strict/MSRV and compiled-cost checks were
+not run after the early rejection. This record changes neither PromQL support nor library behavior.
