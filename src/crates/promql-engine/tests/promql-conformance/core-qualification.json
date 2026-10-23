@@ -74354,5 +74354,15 @@
     "primary_timing_pairs": 960,
     "original_differential_pairs": 0,
     "runtime_restored": true
+  },
+  "ordered_label_identity_rejected": {
+    "status": "rejected_candidate_runtime_restored",
+    "report": "ordered-label-identity-rejected-qualification.json",
+    "report_sha256": "40f15c6b2de37748237c64b29baf0ab088b3943365d1644ebbdf3b6750375047",
+    "baseline_commit": "b7176417c494f73593b187180e8331955bf13a7f",
+    "primary_timing_pairs": 2560,
+    "followup_pairs": 120,
+    "original_differential_pairs": 0,
+    "runtime_restored": true
   }
 }

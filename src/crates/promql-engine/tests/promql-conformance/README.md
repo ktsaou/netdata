@@ -12240,3 +12240,29 @@ cold-state test failure and its correction remain recorded. The full 1,933-case 
 authenticated and prepared, but not executed against the candidate. No supplementary timing, full native,
 ARM, C/C++, static/MSRV or default-C size qualification ran after rejection. Prepared helpers do not count
 as execution evidence. The earlier accepted [pair lookup](#certified-frozen-pair-label-lookup) remains intact.
+
+## Rejected ordered-label identity shortcut
+
+The [finite experiment](ordered-label-identity-rejected-qualification.json) skipped equality byte scans when
+ordered output and its descriptor referenced the same label object. Full hashing, nonempty cancellation checks,
+distinct-object comparisons and canonical copying remained. No fields, caches or raw history were added.
+
+The candidate failed both frozen target gates: release target/control median ratios were **0.994097 / 0.996885**,
+and release-min **0.987937 / 0.990998**, against a required target ratio of at most 0.98. Five initially slower
+cases passed their single prescribed followup, but that does not waive the primary failures. Both runtime/test
+files were restored exactly to the accepted baseline. The cause of the timing outcome is unproven.
+
+The [64-case corpus](ordered_label_identity_cases.py) covers ordinary and projected binary/aggregate queries,
+instant/range requests, both name-removal settings, 8/32 series and 16/4096-byte detail labels. All 384 baseline
+runs matched complete analytical results. The 2,560 primary and 120 followup comparisons preserved complete
+outputs, all measured category memory/traffic and physical observations; work never increased.
+
+Six focused tests passed. They include two direct identity/copy/empty/control owners, 96 complete-query checks,
+the existing 576 projected-group cases and lifetime/failure owners. The scoped query observer recorded 288 shared
+object matches and 324 equal-copy fallbacks; these totals combine preparation and evaluation. The direct
+cancellation test verifies that hashing actually returns before the equality boundary observes cancellation.
+
+No full original differential, complete native, ARM, C/C++, static/MSRV or default-C size qualification ran after
+rejection. A separately reviewed 1,964-case original corpus was not executed against the candidate. Prepared
+helpers are not execution evidence. These finite observations do not establish universal speedup, process RSS,
+live-provider or concurrent throughput. The accepted runtime remains unchanged.
