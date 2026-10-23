@@ -182,6 +182,7 @@ impl EngineAccounting {
                 engine: self.clone(),
                 observations: Mutex::new(observations),
                 current_samples: AtomicU64::new(0),
+                work: AtomicU64::new(0),
                 timers: Mutex::new([TimerState::default(); PHASES]),
             },
             self,
@@ -201,6 +202,7 @@ struct QueryState {
     engine: EngineAccounting,
     observations: Mutex<QueryObservations>,
     current_samples: AtomicU64,
+    work: AtomicU64,
     timers: Mutex<[TimerState; PHASES]>,
 }
 #[derive(Clone, Copy, Debug, Default)]
@@ -218,7 +220,12 @@ impl QueryAccounting {
         self.0.same_allocation(&other.0)
     }
     pub fn snapshot(&self) -> QueryObservations {
-        lock(&self.0.observations).clone()
+        // Keep the overflow flag stable while sampling the independently updated work count.
+        let observations = lock(&self.0.observations);
+        QueryObservations {
+            work: self.0.work.load(Ordering::Relaxed),
+            ..observations.clone()
+        }
     }
     pub(crate) fn phase(&self, phase: Phase) -> PhaseObservation {
         let mut timers = lock(&self.0.timers);
@@ -310,7 +317,19 @@ impl QueryAccounting {
         (&*self.0 as *const QueryState) as usize
     }
     pub fn work(&self, amount: u64) {
-        self.count(|s| &mut s.work, amount);
+        if self
+            .0
+            .work
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+                value.checked_add(amount)
+            })
+            .is_err()
+        {
+            // Work is monotonic; serialize saturation and its flag with snapshots.
+            let mut observations = lock(&self.0.observations);
+            self.0.work.store(u64::MAX, Ordering::Relaxed);
+            observations.counter_overflowed = true;
+        }
         #[cfg(test)]
         crate::test_storage::work_observed(self, amount);
     }
@@ -1127,6 +1146,163 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     #[test]
+    fn work_counter_preserves_exact_boundaries_and_other_observations() {
+        for (start, amount, was_overflowed) in [
+            (0, 0, false),
+            (0, 7, false),
+            (17, 0, false),
+            (u64::MAX - 3, 3, false),
+            (u64::MAX - 3, 4, false),
+            (0, u64::MAX, false),
+            (1, u64::MAX, false),
+            (u64::MAX, 0, false),
+            (u64::MAX, 1, false),
+            (3, 7, true),
+            (u64::MAX, 0, true),
+        ] {
+            let engine = EngineAccounting::default();
+            let query = engine.query();
+            query.work(start);
+            if was_overflowed {
+                query.statistics_overflow();
+            }
+            query.page(3);
+            query.output(2);
+            let mut expected = query.snapshot();
+            expected.work = start.saturating_add(amount);
+            expected.counter_overflowed = was_overflowed || start.checked_add(amount).is_none();
+            query.work(amount);
+            assert_eq!(query.snapshot(), expected, "{start} + {amount}");
+            query.snapshot().assert_memory_released();
+            drop(query);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn work_counter_concurrent_updates_preserve_snapshot_order() {
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        std::thread::scope(|scope| {
+            let mut handles = Vec::new();
+            for _ in 0..4 {
+                let query = query.clone();
+                handles.push(scope.spawn(move || {
+                    for _ in 0..2048 {
+                        query.work(2);
+                        query.page(1);
+                        query.output(1);
+                    }
+                }));
+            }
+            let mut previous = 0;
+            while handles.iter().any(|handle| !handle.is_finished()) {
+                let observed = query.snapshot();
+                assert!(observed.work >= previous);
+                assert!(observed.work >= observed.pages * 2);
+                assert_eq!(observed.pages, observed.samples_fetched);
+                assert!(observed.pages >= observed.output_samples);
+                assert!(!observed.counter_overflowed);
+                previous = observed.work;
+                std::thread::yield_now();
+            }
+            for handle in handles {
+                handle.join().unwrap();
+            }
+        });
+        let observed = query.snapshot();
+        assert_eq!(
+            (
+                observed.work,
+                observed.pages,
+                observed.samples_fetched,
+                observed.output_samples
+            ),
+            (16384, 8192, 8192, 8192)
+        );
+        observed.assert_memory_released();
+        drop(query);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn work_counter_overflow_snapshots_keep_the_flag_with_saturation() {
+        let engine = EngineAccounting::default();
+        for _ in 0..16 {
+            let query = engine.query();
+            query.work(u64::MAX - 3);
+            let barrier = std::sync::Barrier::new(3);
+            std::thread::scope(|scope| {
+                let barrier = &barrier;
+                let mut handles = Vec::new();
+                for _ in 0..2 {
+                    let query = query.clone();
+                    handles.push(scope.spawn(move || {
+                        barrier.wait();
+                        for _ in 0..32 {
+                            query.work(2);
+                        }
+                    }));
+                }
+                barrier.wait();
+                while handles.iter().any(|handle| !handle.is_finished()) {
+                    let observed = query.snapshot();
+                    // An odd MAX is reachable only by overflow from this even starting count.
+                    assert_eq!(observed.work == u64::MAX, observed.counter_overflowed);
+                    std::thread::yield_now();
+                }
+                for handle in handles {
+                    handle.join().unwrap();
+                }
+            });
+            let observed = query.snapshot();
+            assert_eq!(observed.work, u64::MAX);
+            assert!(observed.counter_overflowed);
+            observed.assert_memory_released();
+            drop(query);
+        }
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn work_counter_keeps_control_hooks_and_poison_recovery() {
+        use crate::storage::{Control, Interrupted};
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let control = Control::default();
+        crate::test_storage::interrupt_after_work(&query, &control, 5, || {
+            query.work(0);
+            query.work(3);
+            assert_eq!(control.check(), Ok(()));
+            query.work(2);
+            assert_eq!(control.check(), Err(Interrupted::Cancelled));
+            assert_eq!(query.snapshot().work, 5);
+        });
+        let zero = Control::default();
+        crate::test_storage::interrupt_after_work(&query, &zero, 0, || {
+            query.work(0);
+            assert_eq!(zero.check(), Err(Interrupted::Cancelled));
+        });
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let _guard = lock(&query.0.observations);
+                panic!("synthetic work ledger poison");
+            }))
+            .is_err()
+        );
+        query.work(u64::MAX - 5);
+        assert_eq!(query.snapshot().work, u64::MAX);
+        assert!(!query.snapshot().counter_overflowed);
+        query.work(0);
+        assert!(!query.snapshot().counter_overflowed);
+        query.work(1);
+        assert!(query.snapshot().counter_overflowed);
+        query.snapshot().assert_memory_released();
+        drop(query);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
     fn page_counters_preserve_independent_saturation_and_other_observations() {
         let maximum = u64::MAX;
         for (pages, fetched, overflowed, samples, next_pages, next_fetched, next_overflowed) in [
@@ -1151,10 +1327,10 @@ mod tests {
                 observed.samples_fetched = fetched;
                 observed.counter_overflowed = overflowed;
                 observed.provider_calls = 11;
-                observed.work = 13;
                 observed.output_samples = 17;
                 observed.statistics.samples.samples_read = 19;
             }
+            query.work(13);
             let mut expected = query.snapshot();
             expected.pages = next_pages;
             expected.samples_fetched = next_fetched;

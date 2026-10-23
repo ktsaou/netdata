@@ -428,3 +428,6 @@ Existing-pass kind observation and ordinary instant Rate/Increase filters follow
 
 Precise duration identity and compact cached Rate input follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#compact-precise-range-keys`.
+
+Atomic work publication and coherent overflow snapshots follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#atomic-work-accounting`.

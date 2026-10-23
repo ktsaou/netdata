@@ -74289,5 +74289,16 @@
     "strict_original_pairs": 3144,
     "timing_pairs": 14776,
     "runtime_restored": true
+  },
+  "atomic_work_accounting": {
+    "status": "finite_qualification_pass",
+    "report": "atomic-work-qualification.json",
+    "report_sha256": "47a7af5e8477b40dbc2bcffc31771cdd3e990dd3703274a698f9c24cc74d0d71",
+    "baseline_commit": "4d41c81670601b1a93c20c60d897bdeb7ae8888f",
+    "exact_baseline_pairs": 468,
+    "strict_original_pairs": 444,
+    "provider_error_pairs": 24,
+    "timing_pairs": 2896,
+    "fixed_per_accounting_context_memory_growth_bytes": 8
   }
 }

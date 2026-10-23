@@ -11977,3 +11977,39 @@ checks passed across the initial candidate and a test-only successor, covering a
 capacity, later growth, cancellation and cleanup. These are not a complete-suite qualification. Full native,
 ARM, C/C++, static and executable-size checks were not run after rejection; prepared C fixture sources are
 not executed evidence. Measurements use finite synthetic data, not live dbengine or physical ARM hardware.
+
+
+## Atomic work accounting
+
+Ordinary work increments use an exact private atomic counter instead of taking the query's observations mutex.
+Overflow still takes that mutex before publishing both saturation and its sticky flag. Snapshots hold the mutex
+while reading work and the other fields. Exact addition to `u64::MAX`, zero additions, control polling and
+work-triggered interruption retain their existing behavior. There is no batching or deferred work publication.
+
+[atomic-work-qualification.json](atomic-work-qualification.json) records 468 exact baseline comparisons:
+444 strict original matches from 74 fresh Prometheus outcomes, plus 24 provider-error comparisons. There are
+no ordering or numeric-bit differences. Work, reads, cancellation references, output and temporary-storage
+observations are exact. The only memory change is one fixed query-accounting field: **888 → 896 bytes** on
+native, ARM32 and ARM64. Aliases share it. Compilation and execution have separate accounting contexts,
+so one compiled query plus one active execution adds 16 bytes across these roots; the execution report shows
+its own 8 bytes. This cost does not scale with samples or metrics.
+
+The 2,800 primary timing pairs give target ratios **0.95610 / 0.90806** and control ratios **0.98673 / 0.93879**
+for release/release-min. Four initially slower release controls receive the single prescribed follow-up;
+all pass, adding 96 pairs. These are finite synthetic measurements, not concurrent-query, live-dbengine or
+physical ARM performance claims. The linked default C consumer changes by −35,512 / +64 / −170,472 / +41,768
+bytes for release/release-min/ARM32/ARM64. The ARM64 increase is about 0.60%; this fixed cost is accepted under
+the proportional footprint policy. Text/data/BSS and cumulative costs are reported separately from RAM.
+
+Both native profiles pass 1,009 unit tests, with two pre-existing ignored measurement tests. Focused accounting,
+rank, histogram-work, provider, C ABI and statistics owners execute on both ARM targets under QEMU. Actual
+C/C++ callers complete 17,712 checks, and both complete native C suites pass. Strict default/fixture lint,
+formatting and installed Rust 1.91 compile-only checks pass.
+
+[atomic_work_cases.py](atomic_work_cases.py) retains the 78 functional and 70 timing cases. From the crate
+directory, reproduce the focused unit owners using the fixtures feature and filter `accounting::tests::work_counter_`
+in either release profile. Existing rank saturation, provider and C-interface checks remain necessary.
+Concurrent snapshot tests provide scheduling-dependent stress coverage; they do not exhaust all interleavings.
+Future changes must retain the monotonicity argument and the mutex-held relationship between saturation,
+the overflow flag and complete snapshots. The private stored observation record is not the authority for work;
+the public snapshot field and ABI remain unchanged.

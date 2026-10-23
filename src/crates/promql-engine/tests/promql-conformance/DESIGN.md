@@ -3081,3 +3081,23 @@ throughput costs and finite compatibility evidence are recorded in
 - Measure actual Key, Snapshot and shared allocations on every supported target. A smaller isolated enum does
   not establish reduced containing allocations or full-query memory. Results and costs are recorded in
   [Compact precise range keys](README.md#compact-precise-range-keys).
+
+
+## Atomic work accounting
+
+- **Choice:** one private atomic work counter per accounting context. Successful checked additions publish immediately without
+  taking the observations mutex. The public `QueryObservations` schema remains unchanged.
+- **Coherence:** work never decreases. An addition that would overflow locks observations before storing `MAX`
+  and setting the sticky flag. Snapshots retain that lock while loading work and copying the remaining fields.
+  Exact addition to `MAX` and `MAX + 0` therefore remain distinct from overflow. Updating saturation before taking
+  the flag's lock would violate this relationship.
+- **Preserved behavior:** all work amounts, zero updates, observation hooks, polling, error phases and unrelated
+  counters remain unchanged. No batch, deferred publication, new cap or raw-data retention is introduced.
+- **Cost:** actual query allocations grow from 888 to 896 bytes on native and emulated ARM targets. The atomic is
+  shared by context aliases; it adds no per-series/sample state. Compiled queries and executions own separate
+  contexts, so one compiled query plus one active execution adds 16 bytes across their roots. Keeping the public
+  observation schema avoids a
+  second private schema and conversion path. Compiled executable costs are distinct from this fixed query cost.
+- **Evidence:** [atomic work qualification](atomic-work-qualification.json) binds complete outcomes/resources,
+  boundary and concurrent snapshot tests, native/ARM/C consumers and timings. Concurrency tests are finite stress
+  checks rather than exhaustive interleaving proof; physical ARM and concurrent-query throughput are not measured.
