@@ -11743,3 +11743,26 @@ The candidate added no per-series array. The branch runtime was restored exactly
 [literal_filter_cases.py](literal_filter_cases.py) reproduces the152timing and1,116functional inputs. All209baseline
 source bindings matched after reversing only the candidate's two edited source files. This negative record preserves
 an investigated trade-off; it does not change supported PromQL or establish a live-provider throughput result.
+
+
+## Rejected instant Sum/Count preparation reuse
+
+[window-ratio-reuse-rejected-qualification.json](window-ratio-reuse-rejected-qualification.json) records an early
+rejected experiment for `sum_over_time(m[5m]) / count_over_time(m[5m])`, including one-to-one label matching.
+It retained both completed child caches during ordinary division preparation; arithmetic and final fresh reads
+were unchanged. The accepted runtime was restored exactly.
+
+- 48 fresh pinned Prometheus outcomes passed strictly at pages 1, 17 and 1024 in the release profile.
+  All 156 baseline comparisons matched, including 12 provider-error comparisons. No numeric bit or row-order exceptions.
+- Successful 16-series/256-point queries fetched 17,472 sample entries instead of 26,208, with unchanged memory peaks.
+  These are measurements of the rejected candidate, not an acceleration shipped on this branch.
+- A late failure while reading Count kept Sum snapshots alive unnecessarily. At 16 series per operand, Workspace
+  peak rose from 43,536 to 51,856 bytes, allocation traffic grew by 1,024 bytes and accounted work by 37 units.
+  Three additional exact-error comparisons confirmed scaling: peak overhead was 2,080 bytes at 4 series,
+  33,280 bytes at 64, and 133,120 bytes at 256. This failed the frozen memory/work nonincrease gate.
+- Retaining only Count is also unsuitable for the current sorted cache: subsequently inserting lower-owner Sum
+  records repeatedly shifts the Count suffix. A different approach would require its own analysis and qualification.
+
+[window_ratio_cases.py](window_ratio_cases.py) reproduces the 52 initial inputs and three scaling inputs. The probe
+stopped before timing acceptance, full native/ARM/C tests or compiled-cost qualification. Provider faults are baseline
+comparisons, not Prometheus originals. All 211 baseline source bindings matched after reversing the sole runtime edit.

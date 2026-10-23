@@ -74192,5 +74192,15 @@
     "timing_pairs": 6080,
     "followup_pairs": 336,
     "runtime_restored": true
+  },
+  "window_ratio_reuse_rejected": {
+    "status": "rejected_and_restored",
+    "report": "window-ratio-reuse-rejected-qualification.json",
+    "report_sha256": "7d99c205382bebca2ad54ac5218671fae931467d072e2435c3f0e2c31cd37510",
+    "baseline_commit": "3075c8b39f1cc41eb7e2b0274eeadbcab3a846cc",
+    "exact_baseline_pairs": 156,
+    "strict_original_comparisons": 144,
+    "additional_scaling_error_pairs": 3,
+    "runtime_restored": true
   }
 }

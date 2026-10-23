@@ -1,0 +1,371 @@
+{
+  "schema_version": 1,
+  "status": "rejected_and_restored",
+  "comparison_base": "3075c8b39f1cc41eb7e2b0274eeadbcab3a846cc",
+  "runtime_base": "d1994146b7166599682fe3832283714584dee8a3",
+  "candidate_change": "Retain completed direct Sum folds through direct Count preparation, then retain both through ordinary root instant one-to-one division preparation. Two successful Finish phases; unchanged arithmetic, matching and final fresh clearing.",
+  "motivation": {
+    "retained_SRE_root_sum_count_expressions": 38,
+    "scope": "Source-expression shape count, not measured production query traffic.",
+    "evidence": {
+      "root_sum_count_ratios": 38,
+      "same_selector_window": true,
+      "one_to_one": true,
+      "scope": "Retained source-expression inventory, not traffic frequency; no service labels copied.",
+      "source_files": {
+        "tests/promql-conformance/.tmp/sre-source-review-gu3b7iu8/source-workload-summary.json": "4c63b75dce87d96534e0348b6f3b2c1202bd8e1e861d47d645eb70e3e0a0bb2a",
+        "tests/promql-conformance/.tmp/sre-source-review-gu3b7iu8/shapes.v2.stdout.json": "d20c8d2d6a873a9127c3dc08302351a52f732be0cf2cd9c2370d4c530e3f0a90"
+      }
+    }
+  },
+  "rejection": {
+    "gate": "All measured query-memory current/peak/acquired/released counters and work/provider traffic must be nonincreasing.",
+    "cause": "When right-side reading fails, retained left Sum snapshots overlap Count preparation. Baseline has released those snapshots before Count. No avoided root replay is reached on this error path.",
+    "initial_increases": [
+      {
+        "page": 1,
+        "counters": [
+          {
+            "id": "ratio-fault-n_total-4",
+            "field": "memory.1.peak",
+            "before": 43536,
+            "candidate": 51856
+          },
+          {
+            "id": "ratio-fault-n_total-4",
+            "field": "memory.1.acquired",
+            "before": 122666,
+            "candidate": 123690
+          },
+          {
+            "id": "ratio-fault-n_total-4",
+            "field": "memory.1.released",
+            "before": 122641,
+            "candidate": 123665
+          },
+          {
+            "id": "ratio-fault-n_total-4",
+            "field": "work",
+            "before": 7400,
+            "candidate": 7437
+          },
+          {
+            "id": "ratio-fault-n_total-32",
+            "field": "memory.1.peak",
+            "before": 43536,
+            "candidate": 51856
+          },
+          {
+            "id": "ratio-fault-n_total-32",
+            "field": "memory.1.acquired",
+            "before": 180010,
+            "candidate": 181034
+          },
+          {
+            "id": "ratio-fault-n_total-32",
+            "field": "memory.1.released",
+            "before": 179985,
+            "candidate": 181009
+          },
+          {
+            "id": "ratio-fault-n_total-32",
+            "field": "work",
+            "before": 9192,
+            "candidate": 9229
+          }
+        ]
+      },
+      {
+        "page": 17,
+        "counters": [
+          {
+            "id": "ratio-fault-n_total-4",
+            "field": "memory.1.peak",
+            "before": 43536,
+            "candidate": 51856
+          },
+          {
+            "id": "ratio-fault-n_total-4",
+            "field": "memory.1.acquired",
+            "before": 116586,
+            "candidate": 117610
+          },
+          {
+            "id": "ratio-fault-n_total-4",
+            "field": "memory.1.released",
+            "before": 116561,
+            "candidate": 117585
+          },
+          {
+            "id": "ratio-fault-n_total-4",
+            "field": "work",
+            "before": 7495,
+            "candidate": 7532
+          },
+          {
+            "id": "ratio-fault-n_total-32",
+            "field": "memory.1.peak",
+            "before": 43536,
+            "candidate": 51856
+          },
+          {
+            "id": "ratio-fault-n_total-32",
+            "field": "memory.1.acquired",
+            "before": 118634,
+            "candidate": 119658
+          },
+          {
+            "id": "ratio-fault-n_total-32",
+            "field": "memory.1.released",
+            "before": 118609,
+            "candidate": 119633
+          },
+          {
+            "id": "ratio-fault-n_total-32",
+            "field": "work",
+            "before": 9704,
+            "candidate": 9741
+          }
+        ]
+      },
+      {
+        "page": 1024,
+        "counters": [
+          {
+            "id": "ratio-fault-n_total-4",
+            "field": "memory.1.peak",
+            "before": 43536,
+            "candidate": 51856
+          },
+          {
+            "id": "ratio-fault-n_total-4",
+            "field": "memory.1.acquired",
+            "before": 116586,
+            "candidate": 117610
+          },
+          {
+            "id": "ratio-fault-n_total-4",
+            "field": "memory.1.released",
+            "before": 116561,
+            "candidate": 117585
+          },
+          {
+            "id": "ratio-fault-n_total-4",
+            "field": "work",
+            "before": 7495,
+            "candidate": 7532
+          },
+          {
+            "id": "ratio-fault-n_total-32",
+            "field": "memory.1.peak",
+            "before": 43536,
+            "candidate": 51856
+          },
+          {
+            "id": "ratio-fault-n_total-32",
+            "field": "memory.1.acquired",
+            "before": 116586,
+            "candidate": 117610
+          },
+          {
+            "id": "ratio-fault-n_total-32",
+            "field": "memory.1.released",
+            "before": 116561,
+            "candidate": 117585
+          },
+          {
+            "id": "ratio-fault-n_total-32",
+            "field": "work",
+            "before": 10183,
+            "candidate": 10220
+          }
+        ]
+      }
+    ],
+    "scaling": [
+      {
+        "series_per_operand": 4,
+        "workspace_peak_before": 21002,
+        "workspace_peak_candidate": 23082,
+        "workspace_peak_delta": 2080
+      },
+      {
+        "series_per_operand": 64,
+        "workspace_peak_before": 133776,
+        "workspace_peak_candidate": 167056,
+        "workspace_peak_delta": 33280
+      },
+      {
+        "series_per_operand": 256,
+        "workspace_peak_before": 495358,
+        "workspace_peak_candidate": 628478,
+        "workspace_peak_delta": 133120
+      }
+    ],
+    "decision": "Reject this cache lifetime. The failed-query overhead grows with series count; it is not a fixed small allocation. The successful-query read reduction does not qualify the candidate.",
+    "excluded_approach": "Retaining Count alone while inserting lower-owner Sum records into the current sorted cache repeatedly shifts the retained suffix; source analysis rejects that quadratic route."
+  },
+  "qualification": {
+    "profiles": [
+      "release"
+    ],
+    "pages": [
+      1,
+      17,
+      1024
+    ],
+    "initial_cases": 52,
+    "fresh_pinned_originals": 48,
+    "strict_original_comparisons": 144,
+    "exact_baseline_pairs": 156,
+    "resource_pairs": 156,
+    "original_numeric_bit_differences": 0,
+    "original_order_exceptions": 0,
+    "provider_fault_cases": 4,
+    "provider_fault_comparisons": 12,
+    "additional_scaling_error_pairs": 3,
+    "original_engine": "Prometheus v0.315.0, pinned Go 1.27.1 AMD64 FMA-on",
+    "fault_scope": "Synthetic provider read errors compared exactly to baseline; these are not Go original outcomes or final-acquisition lifecycle coverage.",
+    "corrections": [
+      "Before execution, add z labels to four per-series fault inputs; all 48 normal inputs unchanged.",
+      "First candidate page completed, then verifier treated structured cancellation counters as scalars. Corrected verifier reuses that exact capture; no repeated query run."
+    ],
+    "timing_acceptance_run": false,
+    "full_native_units_run": false,
+    "ARM_qualification_run": false,
+    "C_CPP_execution_run": false,
+    "strict_lint_and_MSRV_run": false,
+    "compiled_footprint_qualified": false
+  },
+  "successful_query_witness": {
+    "profile": "release",
+    "page": 17,
+    "id": "ratio-16-256-0-",
+    "changes": [
+      {
+        "field": "memory.1.acquired",
+        "before": 325016,
+        "candidate": 274584
+      },
+      {
+        "field": "memory.1.released",
+        "before": 325016,
+        "candidate": 274584
+      },
+      {
+        "field": "memory.4.acquired",
+        "before": 7128576,
+        "candidate": 4752384
+      },
+      {
+        "field": "memory.4.released",
+        "before": 7128576,
+        "candidate": 4752384
+      },
+      {
+        "field": "work",
+        "before": 73782,
+        "candidate": 56709
+      },
+      {
+        "field": "pages",
+        "before": 1632,
+        "candidate": 1088
+      },
+      {
+        "field": "provider_calls",
+        "before": 1863,
+        "candidate": 1255
+      },
+      {
+        "field": "samples_fetched",
+        "before": 26208,
+        "candidate": 17472
+      }
+    ],
+    "scope": "Rejected candidate. Samples fetched 26208 to17472; no peak increase for this successful query. No latency measurement claim."
+  },
+  "restoration": {
+    "matched_baseline_source_bindings": 211,
+    "paths": [
+      "src/crates/promql-engine/src/execution.rs"
+    ],
+    "method": "Preserve own exact patch and both source snapshots, reverse-check and reverse-apply that patch, verify every baseline source binding. No checkout/reset/deletion/process signal."
+  },
+  "historical_source_snapshots": {
+    "src/crates/promql-engine/src/execution.rs": {
+      "1daa2107190936f8c640caa13c6ce61d9219078092d5b1456c8c82dca4b0afc7": ".tmp/window-ratio-oe02hx2s/baseline-execution.rs",
+      "3dc6f3be91bc2bc3881b3ec79a7b4ce9d24187f8ebbe73b65d198a52c7634821": ".tmp/window-ratio-oe02hx2s/candidate-execution.rs"
+    }
+  },
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/window-ratio-oe02hx2s/baseline-source.json",
+      "sha256": "5b0f7e17733d808d91d8309a1ecb92e83bb11a4c9bc97791795a134bb6fe6cd9"
+    },
+    "candidate": {
+      "path": ".tmp/window-ratio-oe02hx2s/candidate-source.json",
+      "sha256": "7f4bd1043fbaaeae201bd19b717ba5d188521ca09deacbd3e32024f998a7637d"
+    },
+    "restored": {
+      "path": ".tmp/window-ratio-oe02hx2s/restored-source.json",
+      "sha256": "5b0f7e17733d808d91d8309a1ecb92e83bb11a4c9bc97791795a134bb6fe6cd9"
+    }
+  },
+  "receipts": {
+    "original-capture": {
+      "path": ".tmp/window-ratio-oe02hx2s/original-capture.json",
+      "sha256": "0d7399a9273f057f5e94de6dc5631fadef784a4460723ffba7659f16cc697e22"
+    },
+    "baseline-binding": {
+      "path": ".tmp/window-ratio-oe02hx2s/baseline-binding.json",
+      "sha256": "4e43db12d3cc57be3a07bf076ee7c208c5ad8bc48f85514ba9024007efe2a4b5"
+    },
+    "fault-input-correction": {
+      "path": ".tmp/window-ratio-oe02hx2s/fault-input-correction.json",
+      "sha256": "c92dbaf4fb4cc7f2238aea7bdfb708a73ffd38e395ea294798887d18363d5f2b"
+    },
+    "probe-baseline-analysis": {
+      "path": ".tmp/window-ratio-oe02hx2s/probe-baseline-analysis.json",
+      "sha256": "cc349c590dd6d731c7fbb5feb7ec4c9ed52d4821a86207cc792ffd8157a8db95"
+    },
+    "implementation": {
+      "path": ".tmp/window-ratio-oe02hx2s/implementation.json",
+      "sha256": "58585947e69a133bd73617ffdd38ba89c59b7ba26d1c97fc913f445d92b5bbf9"
+    },
+    "perf-release-builds": {
+      "path": ".tmp/window-ratio-oe02hx2s/perf-release-builds.json",
+      "sha256": "868d33969bb7eaaba4e9c0cf5251c736ff4639601b1384b1de4ed4523006bb01"
+    },
+    "probe-comparison-correction": {
+      "path": ".tmp/window-ratio-oe02hx2s/probe-comparison-correction.json",
+      "sha256": "cfc2f05b7903eb415bd80ce0f1dcf904c6795bb69487bf59c1ed3b9148ebd351"
+    },
+    "probe-candidate-analysis": {
+      "path": ".tmp/window-ratio-oe02hx2s/probe-candidate-analysis.json",
+      "sha256": "e06b5a57c23dc2149ace413886e7e7c6a64504832366156a8f331a8a48918e25"
+    },
+    "fault-scale-analysis": {
+      "path": ".tmp/window-ratio-oe02hx2s/fault-scale-analysis.json",
+      "sha256": "10b8a81f8d7c4749f1a60a1a0b347bfd142a23e161ba5954abc0da7460e1f832"
+    },
+    "restoration": {
+      "path": ".tmp/window-ratio-oe02hx2s/restoration.json",
+      "sha256": "9230afd20bf356bbd684fa0f8b8910b513ab6f21672e6a0721cf9542d6484821"
+    },
+    "corpus-reproduction": {
+      "path": ".tmp/window-ratio-oe02hx2s/corpus-reproduction.json",
+      "sha256": "0452d6acf229e7ae8f935e96c57cf62250ac5a005d372641aca5ae7ef38022be"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/window-ratio-oe02hx2s/artifact-integrity.json",
+      "sha256": "329b15505c7461c4f34aeadd64d5be635d4e3b598105b724506e742f5a00297b"
+    }
+  },
+  "limitations": [
+    "Finite synthetic release-only probe; no full-language, production-traffic, concurrency, live dbengine or physical ARM performance claim.",
+    "Accounted memory categories are not RSS; independent category peaks are not additive.",
+    "Later acquisition/copy/cancellation ownership was not qualified after the early rejection.",
+    "The branch runtime remains the prior accepted implementation."
+  ]
+}
