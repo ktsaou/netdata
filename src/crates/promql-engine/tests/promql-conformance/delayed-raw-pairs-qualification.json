@@ -1,0 +1,1339 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "a968117bcaf9cf549f17b623cf1ab0aac4f67711",
+  "change": "Reuse existing completed pair discovery for direct raw arithmetic under a metadata-removing root aggregate in delayed-name mode.",
+  "proof": "Direct ordinary parameterless aggregate and raw one-to-one no-fill arithmetic; forward multi-step matching grids, metadata exclusion, final Float/source/uniqueness/selector schedule certification. Candidate and certification share one local proof.",
+  "implementation": "One private admission helper and one per-preparation target; no new field, cache, raw history, API, provider or default. Existing grouped-ratio proof and fresh selected reads remain.",
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/baseline-source.json",
+      "sha256": "479f409164fac2d25f90d3331b5e4a4f946f8d8b5b07aa67ef04bef3d8df30ba"
+    },
+    "rejected-v1": {
+      "path": ".tmp/delayed-raw-pairs-ngslwwc3/candidate-source.json",
+      "sha256": "22992a33eaba0b9a65aa9270715b6a5b18eff34c0cde1235ce3d31c4a32a24ae"
+    },
+    "accepted-v2": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/candidate-source.json",
+      "sha256": "6e6740f66307116097eebbec19d9f05b61e76c0aec53755ee183686e527e1198"
+    }
+  },
+  "qualification": {
+    "retained_original_cases": 3700,
+    "retained_original_sources": {
+      "ordered_parent": 1776,
+      "binary_ownership": 1644,
+      "delayed_ratio": 280
+    },
+    "fresh_original_cases": 208,
+    "exact_before_after_pairs": 23448,
+    "strict_original_order_failures": 882,
+    "strict_original_numeric_failures": 6,
+    "exact_before_after_numeric_differences": 0,
+    "functional_panels": [
+      {
+        "family": "retained",
+        "profile": "release",
+        "page": 1,
+        "exact_pairs": 3700,
+        "strict_original_passed": 3553,
+        "strict_original_failed": 147,
+        "order_policy_passed": 3700,
+        "order_policy_failed": 0,
+        "bitwise_differences": [],
+        "resource_changed_cases": 50
+      },
+      {
+        "family": "retained",
+        "profile": "release",
+        "page": 17,
+        "exact_pairs": 3700,
+        "strict_original_passed": 3553,
+        "strict_original_failed": 147,
+        "order_policy_passed": 3700,
+        "order_policy_failed": 0,
+        "bitwise_differences": [],
+        "resource_changed_cases": 50
+      },
+      {
+        "family": "retained",
+        "profile": "release",
+        "page": 1024,
+        "exact_pairs": 3700,
+        "strict_original_passed": 3553,
+        "strict_original_failed": 147,
+        "order_policy_passed": 3700,
+        "order_policy_failed": 0,
+        "bitwise_differences": [],
+        "resource_changed_cases": 50
+      },
+      {
+        "family": "retained",
+        "profile": "release-min",
+        "page": 1,
+        "exact_pairs": 3700,
+        "strict_original_passed": 3553,
+        "strict_original_failed": 147,
+        "order_policy_passed": 3700,
+        "order_policy_failed": 0,
+        "bitwise_differences": [],
+        "resource_changed_cases": 50
+      },
+      {
+        "family": "retained",
+        "profile": "release-min",
+        "page": 17,
+        "exact_pairs": 3700,
+        "strict_original_passed": 3553,
+        "strict_original_failed": 147,
+        "order_policy_passed": 3700,
+        "order_policy_failed": 0,
+        "bitwise_differences": [],
+        "resource_changed_cases": 50
+      },
+      {
+        "family": "retained",
+        "profile": "release-min",
+        "page": 1024,
+        "exact_pairs": 3700,
+        "strict_original_passed": 3553,
+        "strict_original_failed": 147,
+        "order_policy_passed": 3700,
+        "order_policy_failed": 0,
+        "bitwise_differences": [],
+        "resource_changed_cases": 50
+      },
+      {
+        "family": "supplemental",
+        "profile": "release",
+        "page": 1,
+        "exact_pairs": 208,
+        "strict_original_passed": 207,
+        "strict_original_failed": 1,
+        "order_policy_passed": 207,
+        "order_policy_failed": 1,
+        "bitwise_differences": [
+          {
+            "id": "delayed-raw-operator:stdvar:^:False",
+            "path": "row[0].point[0].float",
+            "reference": "43ad399a32fb1c00",
+            "candidate": "43ad399a32fb1c01"
+          }
+        ],
+        "resource_changed_cases": 80
+      },
+      {
+        "family": "supplemental",
+        "profile": "release",
+        "page": 17,
+        "exact_pairs": 208,
+        "strict_original_passed": 207,
+        "strict_original_failed": 1,
+        "order_policy_passed": 207,
+        "order_policy_failed": 1,
+        "bitwise_differences": [
+          {
+            "id": "delayed-raw-operator:stdvar:^:False",
+            "path": "row[0].point[0].float",
+            "reference": "43ad399a32fb1c00",
+            "candidate": "43ad399a32fb1c01"
+          }
+        ],
+        "resource_changed_cases": 80
+      },
+      {
+        "family": "supplemental",
+        "profile": "release",
+        "page": 1024,
+        "exact_pairs": 208,
+        "strict_original_passed": 207,
+        "strict_original_failed": 1,
+        "order_policy_passed": 207,
+        "order_policy_failed": 1,
+        "bitwise_differences": [
+          {
+            "id": "delayed-raw-operator:stdvar:^:False",
+            "path": "row[0].point[0].float",
+            "reference": "43ad399a32fb1c00",
+            "candidate": "43ad399a32fb1c01"
+          }
+        ],
+        "resource_changed_cases": 80
+      },
+      {
+        "family": "supplemental",
+        "profile": "release-min",
+        "page": 1,
+        "exact_pairs": 208,
+        "strict_original_passed": 207,
+        "strict_original_failed": 1,
+        "order_policy_passed": 207,
+        "order_policy_failed": 1,
+        "bitwise_differences": [
+          {
+            "id": "delayed-raw-operator:stdvar:^:False",
+            "path": "row[0].point[0].float",
+            "reference": "43ad399a32fb1c00",
+            "candidate": "43ad399a32fb1c01"
+          }
+        ],
+        "resource_changed_cases": 80
+      },
+      {
+        "family": "supplemental",
+        "profile": "release-min",
+        "page": 17,
+        "exact_pairs": 208,
+        "strict_original_passed": 207,
+        "strict_original_failed": 1,
+        "order_policy_passed": 207,
+        "order_policy_failed": 1,
+        "bitwise_differences": [
+          {
+            "id": "delayed-raw-operator:stdvar:^:False",
+            "path": "row[0].point[0].float",
+            "reference": "43ad399a32fb1c00",
+            "candidate": "43ad399a32fb1c01"
+          }
+        ],
+        "resource_changed_cases": 80
+      },
+      {
+        "family": "supplemental",
+        "profile": "release-min",
+        "page": 1024,
+        "exact_pairs": 208,
+        "strict_original_passed": 207,
+        "strict_original_failed": 1,
+        "order_policy_passed": 207,
+        "order_policy_failed": 1,
+        "bitwise_differences": [
+          {
+            "id": "delayed-raw-operator:stdvar:^:False",
+            "path": "row[0].point[0].float",
+            "reference": "43ad399a32fb1c00",
+            "candidate": "43ad399a32fb1c01"
+          }
+        ],
+        "resource_changed_cases": 80
+      }
+    ],
+    "focused": [
+      {
+        "filter": "delayed_raw_pair_",
+        "passed": 2,
+        "ignored": 0
+      },
+      {
+        "filter": "ordered_binary_",
+        "passed": 3,
+        "ignored": 0
+      },
+      {
+        "filter": "local_grouped_inner_machines_preserve_member_and_clock_failures",
+        "passed": 1,
+        "ignored": 0
+      },
+      {
+        "filter": "root_delayed_join_",
+        "passed": 2,
+        "ignored": 0
+      },
+      {
+        "filter": "vector_matching::tests::",
+        "passed": 45,
+        "ignored": 0
+      }
+    ],
+    "focused_distinct_tests": 53,
+    "admission_preparations": 312,
+    "complete_ordered_queries": 80,
+    "units": {
+      "release": [
+        {
+          "filter": "",
+          "passed": 1019,
+          "ignored": 2
+        }
+      ],
+      "release-min": [
+        {
+          "filter": "",
+          "passed": 1019,
+          "ignored": 2
+        }
+      ],
+      "arm32": [
+        {
+          "filter": "vector_matching::tests::",
+          "passed": 45,
+          "ignored": 0
+        },
+        {
+          "filter": "pair_discovery::tests::",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "ordered_binary_",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "delayed_raw_pair_",
+          "passed": 2,
+          "ignored": 0
+        },
+        {
+          "filter": "root_delayed_join_",
+          "passed": 2,
+          "ignored": 0
+        },
+        {
+          "filter": "local_grouped_inner_machines_preserve_member_and_clock_failures",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "delayed_ratio_clocks",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "statistics::tests::",
+          "passed": 12,
+          "ignored": 0
+        },
+        {
+          "filter": "c_abi::tests::",
+          "passed": 52,
+          "ignored": 1
+        }
+      ],
+      "arm64": [
+        {
+          "filter": "vector_matching::tests::",
+          "passed": 45,
+          "ignored": 0
+        },
+        {
+          "filter": "pair_discovery::tests::",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "ordered_binary_",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "delayed_raw_pair_",
+          "passed": 2,
+          "ignored": 0
+        },
+        {
+          "filter": "root_delayed_join_",
+          "passed": 2,
+          "ignored": 0
+        },
+        {
+          "filter": "local_grouped_inner_machines_preserve_member_and_clock_failures",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "delayed_ratio_clocks",
+          "passed": 3,
+          "ignored": 0
+        },
+        {
+          "filter": "statistics::tests::",
+          "passed": 12,
+          "ignored": 0
+        },
+        {
+          "filter": "c_abi::tests::",
+          "passed": 52,
+          "ignored": 1
+        }
+      ]
+    },
+    "shared_C_CPP_cases": 4032,
+    "custom_C_before_after_pairs": 576,
+    "custom_C_executions": 1152,
+    "callers": {
+      "release": [
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "a8d1d97287d7ea4e26e9af7edcc9909563da85f963ee2d4bd92c663aaed52378"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "CPP",
+          "cases": 672,
+          "binary_sha256": "be7cab2bb060018228483e88ef778ba4ecb619f287b8b65b80bb8b512b92aeee"
+        }
+      ],
+      "release-min": [
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "8ec9189e3301f6d3b58b69e320e7472225173b84af816f749258d19062230f3d"
+        },
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "CPP",
+          "cases": 672,
+          "binary_sha256": "d8c2de418bf8a23ee46f70c32e1b53c71cec05603a4dc6caa846119e31120adf"
+        }
+      ],
+      "arm32": [
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "546e7a6cd4d3ef0bc69d5d87cd90e1c8f13a03e77784f0a9728ba66dd35c33dc"
+        }
+      ],
+      "arm64": [
+        {
+          "consumer": "grouped_ratio_clocks",
+          "language": "C",
+          "cases": 672,
+          "binary_sha256": "353961d9beef4964e8af645e09b85072ec72befc739f34013289412b524223f8"
+        }
+      ]
+    },
+    "complete_native_C_suites": 2,
+    "static": "Strict default/fixture Clippy, formatting, installed Rust1.91 compile-only."
+  },
+  "timing": {
+    "release": {
+      "target_median": 0.16134876323458136,
+      "control_median": 1.0018004876608257,
+      "complete_pairs": 480,
+      "cases": [
+        {
+          "id": "n8-w16-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 1.0026584792479083,
+          "before_median_ns": 2275361,
+          "candidate_median_ns": 2281410
+        },
+        {
+          "id": "n8-w16-sum by(job)(m+n)-1",
+          "target": true,
+          "ratio": 0.2511412386947758,
+          "before_median_ns": 8468430,
+          "candidate_median_ns": 2126772
+        },
+        {
+          "id": "n8-w16-m+n-0",
+          "target": false,
+          "ratio": 1.0146039145936958,
+          "before_median_ns": 1810405,
+          "candidate_median_ns": 1836844
+        },
+        {
+          "id": "n8-w16-m+n-1",
+          "target": false,
+          "ratio": 1.0068667614957314,
+          "before_median_ns": 1817305,
+          "candidate_median_ns": 1829784
+        },
+        {
+          "id": "n8-w256-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 1.0844311316890716,
+          "before_median_ns": 2182702,
+          "candidate_median_ns": 2366990
+        },
+        {
+          "id": "n8-w256-sum by(job)(m+n)-1",
+          "target": true,
+          "ratio": 0.249341640235713,
+          "before_median_ns": 9147734,
+          "candidate_median_ns": 2280911
+        },
+        {
+          "id": "n8-w256-m+n-0",
+          "target": false,
+          "ratio": 1.0486232977495071,
+          "before_median_ns": 1919224,
+          "candidate_median_ns": 2012543
+        },
+        {
+          "id": "n8-w256-m+n-1",
+          "target": false,
+          "ratio": 1.0779777891263564,
+          "before_median_ns": 1889615,
+          "candidate_median_ns": 2036963
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 1.0503888497947669,
+          "before_median_ns": 2255241,
+          "candidate_median_ns": 2368880
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-1",
+          "target": true,
+          "ratio": 0.2534406513058847,
+          "before_median_ns": 9224053,
+          "candidate_median_ns": 2337750
+        },
+        {
+          "id": "n8-w1024-m+n-0",
+          "target": false,
+          "ratio": 1.0009424960737432,
+          "before_median_ns": 2057303,
+          "candidate_median_ns": 2059242
+        },
+        {
+          "id": "n8-w1024-m+n-1",
+          "target": false,
+          "ratio": 1.1432364115937241,
+          "before_median_ns": 1973723,
+          "candidate_median_ns": 2256432
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 1.053449116567405,
+          "before_median_ns": 8324291,
+          "candidate_median_ns": 8769217
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-1",
+          "target": true,
+          "ratio": 0.07335588623344969,
+          "before_median_ns": 122889443,
+          "candidate_median_ns": 9014664
+        },
+        {
+          "id": "n32-w16-m+n-0",
+          "target": false,
+          "ratio": 0.8874881488184777,
+          "before_median_ns": 8343050,
+          "candidate_median_ns": 7404358
+        },
+        {
+          "id": "n32-w16-m+n-1",
+          "target": false,
+          "ratio": 0.9029150873612876,
+          "before_median_ns": 8299271,
+          "candidate_median_ns": 7493537
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 0.9506311667607866,
+          "before_median_ns": 9123104,
+          "candidate_median_ns": 8672707
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-1",
+          "target": true,
+          "ratio": 0.06514005132996392,
+          "before_median_ns": 130461810,
+          "candidate_median_ns": 8498289
+        },
+        {
+          "id": "n32-w256-m+n-0",
+          "target": false,
+          "ratio": 0.9165945312770508,
+          "before_median_ns": 8000003,
+          "candidate_median_ns": 7332759
+        },
+        {
+          "id": "n32-w256-m+n-1",
+          "target": false,
+          "ratio": 0.9117920141800129,
+          "before_median_ns": 8240331,
+          "candidate_median_ns": 7513468
+        },
+        {
+          "id": "n32-w1024-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 0.923688200827421,
+          "before_median_ns": 9722258,
+          "candidate_median_ns": 8980335
+        },
+        {
+          "id": "n32-w1024-sum by(job)(m+n)-1",
+          "target": true,
+          "ratio": 0.06574169754583957,
+          "before_median_ns": 134927243,
+          "candidate_median_ns": 8870346
+        },
+        {
+          "id": "n32-w1024-m+n-0",
+          "target": false,
+          "ratio": 0.9362600567890976,
+          "before_median_ns": 8627008,
+          "candidate_median_ns": 8077123
+        },
+        {
+          "id": "n32-w1024-m+n-1",
+          "target": false,
+          "ratio": 0.9950907212855085,
+          "before_median_ns": 8383920,
+          "candidate_median_ns": 8342761
+        }
+      ]
+    },
+    "release-min": {
+      "target_median": 0.16251791605391724,
+      "control_median": 0.9933665098146218,
+      "complete_pairs": 480,
+      "cases": [
+        {
+          "id": "n8-w16-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 0.9670657074586924,
+          "before_median_ns": 3425882,
+          "candidate_median_ns": 3313053
+        },
+        {
+          "id": "n8-w16-sum by(job)(m+n)-1",
+          "target": true,
+          "ratio": 0.23880130425164608,
+          "before_median_ns": 13719745,
+          "candidate_median_ns": 3276293
+        },
+        {
+          "id": "n8-w16-m+n-0",
+          "target": false,
+          "ratio": 0.9991679633164271,
+          "before_median_ns": 2812376,
+          "candidate_median_ns": 2810036
+        },
+        {
+          "id": "n8-w16-m+n-1",
+          "target": false,
+          "ratio": 0.9900085454379031,
+          "before_median_ns": 2862346,
+          "candidate_median_ns": 2833747
+        },
+        {
+          "id": "n8-w256-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 0.9933807330321498,
+          "before_median_ns": 3387082,
+          "candidate_median_ns": 3364662
+        },
+        {
+          "id": "n8-w256-sum by(job)(m+n)-1",
+          "target": true,
+          "ratio": 0.2554050405177043,
+          "before_median_ns": 13184360,
+          "candidate_median_ns": 3367352
+        },
+        {
+          "id": "n8-w256-m+n-0",
+          "target": false,
+          "ratio": 0.9940800914869626,
+          "before_median_ns": 2871666,
+          "candidate_median_ns": 2854666
+        },
+        {
+          "id": "n8-w256-m+n-1",
+          "target": false,
+          "ratio": 0.9905713766164022,
+          "before_median_ns": 2942105,
+          "candidate_median_ns": 2914365
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 0.9880235491629631,
+          "before_median_ns": 3536941,
+          "candidate_median_ns": 3494581
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-1",
+          "target": true,
+          "ratio": 0.24534161992032025,
+          "before_median_ns": 14247281,
+          "candidate_median_ns": 3495451
+        },
+        {
+          "id": "n8-w1024-m+n-0",
+          "target": false,
+          "ratio": 0.9909292009878873,
+          "before_median_ns": 3121004,
+          "candidate_median_ns": 3092694
+        },
+        {
+          "id": "n8-w1024-m+n-1",
+          "target": false,
+          "ratio": 1.0150958931237004,
+          "before_median_ns": 3201533,
+          "candidate_median_ns": 3249863
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 1.0405366568758303,
+          "before_median_ns": 13104090,
+          "candidate_median_ns": 13635286
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-1",
+          "target": true,
+          "ratio": 0.07369953454146301,
+          "before_median_ns": 196514389,
+          "candidate_median_ns": 14483019
+        },
+        {
+          "id": "n32-w16-m+n-0",
+          "target": false,
+          "ratio": 1.1013017480652607,
+          "before_median_ns": 11195177,
+          "candidate_median_ns": 12329268
+        },
+        {
+          "id": "n32-w16-m+n-1",
+          "target": false,
+          "ratio": 0.9671923061869273,
+          "before_median_ns": 11931561,
+          "candidate_median_ns": 11540114
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 1.0633094229967008,
+          "before_median_ns": 13086251,
+          "candidate_median_ns": 13914734
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-1",
+          "target": true,
+          "ratio": 0.08623452785618842,
+          "before_median_ns": 201080651,
+          "candidate_median_ns": 17340095
+        },
+        {
+          "id": "n32-w256-m+n-0",
+          "target": false,
+          "ratio": 0.92893901110186,
+          "before_median_ns": 13009712,
+          "candidate_median_ns": 12085229
+        },
+        {
+          "id": "n32-w256-m+n-1",
+          "target": false,
+          "ratio": 0.9531512899441077,
+          "before_median_ns": 12645044,
+          "candidate_median_ns": 12052640
+        },
+        {
+          "id": "n32-w1024-sum by(job)(m+n)-0",
+          "target": false,
+          "ratio": 0.9933522865970938,
+          "before_median_ns": 14284611,
+          "candidate_median_ns": 14189651
+        },
+        {
+          "id": "n32-w1024-sum by(job)(m+n)-1",
+          "target": true,
+          "ratio": 0.06973444300634768,
+          "before_median_ns": 205705522,
+          "candidate_median_ns": 14344760
+        },
+        {
+          "id": "n32-w1024-m+n-0",
+          "target": false,
+          "ratio": 1.0307062824192832,
+          "before_median_ns": 12894332,
+          "candidate_median_ns": 13290269
+        },
+        {
+          "id": "n32-w1024-m+n-1",
+          "target": false,
+          "ratio": 1.073230706468386,
+          "before_median_ns": 13354398,
+          "candidate_median_ns": 14332350
+        }
+      ]
+    }
+  },
+  "timing_pairs": {
+    "primary": 960,
+    "primary_followup": 192,
+    "shared": 320,
+    "shared_followup": 48,
+    "total": 1520
+  },
+  "followups": [
+    {
+      "panel": "primary",
+      "profile": "release",
+      "selected": [
+        "n8-w256-sum by(job)(m+n)-0",
+        "n8-w256-m+n-1",
+        "n8-w1024-sum by(job)(m+n)-0",
+        "n8-w1024-m+n-1",
+        "n32-w16-sum by(job)(m+n)-0"
+      ],
+      "timings": [
+        {
+          "id": "n8-w256-sum by(job)(m+n)-0",
+          "ratio": 0.9707476679161579
+        },
+        {
+          "id": "n8-w256-m+n-1",
+          "ratio": 1.0186169655605846
+        },
+        {
+          "id": "n8-w1024-sum by(job)(m+n)-0",
+          "ratio": 1.0231581732540416
+        },
+        {
+          "id": "n8-w1024-m+n-1",
+          "ratio": 1.0200042442962707
+        },
+        {
+          "id": "n32-w16-sum by(job)(m+n)-0",
+          "ratio": 1.0305528203493044
+        }
+      ]
+    },
+    {
+      "panel": "primary",
+      "profile": "release-min",
+      "selected": [
+        "n32-w16-m+n-0",
+        "n32-w256-sum by(job)(m+n)-0",
+        "n32-w1024-m+n-1"
+      ],
+      "timings": [
+        {
+          "id": "n32-w16-m+n-0",
+          "ratio": 1.0074141506830456
+        },
+        {
+          "id": "n32-w256-sum by(job)(m+n)-0",
+          "ratio": 0.9763722177897888
+        },
+        {
+          "id": "n32-w1024-m+n-1",
+          "ratio": 0.984358251284096
+        }
+      ]
+    }
+  ],
+  "shared_controls": {
+    "profiles": {
+      "release": {
+        "median": 1.0019008255105692,
+        "followup_required": [
+          "delayed-perf:4:sum:selector:instant:False",
+          "delayed-perf:4:sum:rate:instant:False"
+        ],
+        "timings": [
+          {
+            "id": "delayed-perf:4:sum:selector:instant:False",
+            "ratio": 1.0760976831689886
+          },
+          {
+            "id": "delayed-perf:4:sum:selector:instant:True",
+            "ratio": 1.0464505484981304
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:False",
+            "ratio": 1.0603647291063747
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:True",
+            "ratio": 0.9972712271353208
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:rate:instant:False",
+            "ratio": 1.0007400960312236
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:rate:instant:True",
+            "ratio": 0.9334418287196644
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:delta:instant:False",
+            "ratio": 0.9785734936727541
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:delta:instant:True",
+            "ratio": 1.0030615549899147
+          }
+        ]
+      },
+      "release-min": {
+        "median": 0.9922599173921971,
+        "followup_required": [],
+        "timings": [
+          {
+            "id": "delayed-perf:4:sum:selector:instant:False",
+            "ratio": 0.9605646055697439
+          },
+          {
+            "id": "delayed-perf:4:sum:selector:instant:True",
+            "ratio": 0.8979964299589086
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:False",
+            "ratio": 0.9861764906089151
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:True",
+            "ratio": 1.0063139360818583
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:rate:instant:False",
+            "ratio": 1.0032528050008616
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:rate:instant:True",
+            "ratio": 1.036126375397279
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:delta:instant:False",
+            "ratio": 0.9532833608290541
+          },
+          {
+            "id": "delayed-ratio-perf:4:sum:delta:instant:True",
+            "ratio": 0.9983433441754792
+          }
+        ]
+      }
+    },
+    "followups": [
+      {
+        "panel": "shared",
+        "profile": "release",
+        "selected": [
+          "delayed-perf:4:sum:selector:instant:False",
+          "delayed-perf:4:sum:rate:instant:False"
+        ],
+        "timings": [
+          {
+            "id": "delayed-perf:4:sum:selector:instant:False",
+            "ratio": 1.0098087557767816
+          },
+          {
+            "id": "delayed-perf:4:sum:rate:instant:False",
+            "ratio": 1.0056784396700125
+          }
+        ]
+      },
+      {
+        "panel": "shared",
+        "profile": "release-min",
+        "selected": [],
+        "timings": []
+      }
+    ]
+  },
+  "memory": {
+    "primary_max_peak_growth_by_category": [
+      0,
+      792,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "functional_max_peak_growth_by_category": [
+      0,
+      632,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "gate": "Workspace: 4096 + 256 * actual operand descriptor rows; functional/C panels use the tighter fixed4096. Other category peaks/current do not grow; balances and traffic are checked separately. No runtime cap.",
+    "example": {
+      "id": "n32-w16-sum by(job)(m+n)-1",
+      "workspace_peak": [
+        87696,
+        87816
+      ],
+      "workspace_acquired": [
+        33716203,
+        2616211
+      ],
+      "samples_fetched": [
+        406016,
+        25088
+      ],
+      "work": [
+        9408572,
+        650586
+      ]
+    },
+    "scope": "Finite accounted query observations; temporary metadata growth, not raw-history retention or process RSS."
+  },
+  "numerical_order_witness": {
+    "id": "delayed-raw-operator:stdvar:^:False",
+    "expression": "stdvar by(job)(m ^ n)",
+    "original_bits": "43ad399a32fb1c00",
+    "unchanged_baseline_and_candidate_bits": "43ad399a32fb1c01",
+    "original_repeats": {
+      "False": {
+        "43ad399a32fb1c01": 21,
+        "43ad399a32fb1c00": 11
+      },
+      "True": {
+        "3ff0000000000000": 23,
+        "0000000000000000": 9
+      }
+    },
+    "canonical_child": {
+      "status": "pass",
+      "canonical_values": [
+        16.0,
+        65536.0,
+        2176782336.0
+      ],
+      "canonical_bits": "43ad399a32fb1c01",
+      "permutations": [
+        {
+          "values": [
+            16.0,
+            65536.0,
+            2176782336.0
+          ],
+          "bits": "43ad399a32fb1c01"
+        },
+        {
+          "values": [
+            16.0,
+            2176782336.0,
+            65536.0
+          ],
+          "bits": "43ad399a32fb1c00"
+        },
+        {
+          "values": [
+            65536.0,
+            16.0,
+            2176782336.0
+          ],
+          "bits": "43ad399a32fb1c01"
+        },
+        {
+          "values": [
+            65536.0,
+            2176782336.0,
+            16.0
+          ],
+          "bits": "43ad399a32fb1c00"
+        },
+        {
+          "values": [
+            2176782336.0,
+            16.0,
+            65536.0
+          ],
+          "bits": "43ad399a32fb1c00"
+        },
+        {
+          "values": [
+            2176782336.0,
+            65536.0,
+            16.0
+          ],
+          "bits": "43ad399a32fb1c00"
+        }
+      ],
+      "go_source": {
+        "repository": "prometheus/prometheus",
+        "version": "v0.315.0",
+        "file": "promql/engine.go",
+        "sha256": "e535d8ed656d73e922d0991739d7bf9e33807da782e767d56e4892fba98ea24a",
+        "lines": [
+          1622,
+          2154,
+          3925
+        ]
+      },
+      "scope": "Finite explicit Welford recurrence on original child values at1000;9.A intermediate ordering, not relaxed final-row/numeric tolerance. Original strict discrepancy remains."
+    },
+    "scope": "Decision9.A: deterministic label-byte intermediate order. Original strict failure remains; separate original child capture and finite Welford permutations qualify the canonical outcome. No relaxed numeric/final-row comparison."
+  },
+  "compiled_C_sizes": {
+    "release": {
+      "kind": "default-C",
+      "before": [
+        7393282,
+        509768,
+        400
+      ],
+      "current": [
+        7397562,
+        509864,
+        400
+      ],
+      "growth": 4376,
+      "before_total": 7903450,
+      "current_total": 7907826,
+      "growth_percent": 0.05536822526871177,
+      "cumulative_baseline_text_data_bss": [
+        7370378,
+        506744,
+        400
+      ],
+      "cumulative_growth_bytes": 30304,
+      "cumulative_growth_percent": 0.38468950007375413
+    },
+    "release-min": {
+      "kind": "default-C",
+      "before": [
+        5156583,
+        465208,
+        400
+      ],
+      "current": [
+        5158071,
+        465360,
+        400
+      ],
+      "growth": 1640,
+      "before_total": 5622191,
+      "current_total": 5623831,
+      "growth_percent": 0.029170122466490377,
+      "cumulative_baseline_text_data_bss": [
+        5103967,
+        462056,
+        400
+      ],
+      "cumulative_growth_bytes": 57408,
+      "cumulative_growth_percent": 1.0313265808221905
+    },
+    "arm32": {
+      "kind": "default-C",
+      "before": [
+        6280589,
+        294524,
+        244
+      ],
+      "current": [
+        6282529,
+        294604,
+        244
+      ],
+      "growth": 2020,
+      "before_total": 6575357,
+      "current_total": 6577377,
+      "growth_percent": 0.03072076542764142,
+      "cumulative_baseline_text_data_bss": [
+        6382697,
+        292596,
+        244
+      ],
+      "cumulative_growth_bytes": -98160,
+      "cumulative_growth_percent": -1.4704435013992132
+    },
+    "arm64": {
+      "kind": "default-C",
+      "before": [
+        6458074,
+        499736,
+        384
+      ],
+      "current": [
+        6467770,
+        499856,
+        384
+      ],
+      "growth": 9816,
+      "before_total": 6958194,
+      "current_total": 6968010,
+      "growth_percent": 0.1410710882737676,
+      "cumulative_baseline_text_data_bss": [
+        6374470,
+        497032,
+        384
+      ],
+      "cumulative_growth_bytes": 96124,
+      "cumulative_growth_percent": 1.398800853215551
+    }
+  },
+  "cost_review": "Small proportional fixed code/data growth under66; reported separately from query RAM, including immediate and cumulative totals. BSS unchanged.",
+  "rejected_candidate": {
+    "receipt": {
+      "path": ".tmp/delayed-raw-pairs-ngslwwc3/candidate-v1-rejection.json",
+      "sha256": "fc20e1e5a19e7c8f90fe8b87d2a42ebd65f7487235dae680f9929540f6d55e5c"
+    },
+    "reason": "Shared delayed-rate control ratio1.114970347 on prescribed followup exceeds1.05.",
+    "revision": "V2 computes the only potentially eligible raw child once and skips irrelevant helper calls. Charged checks remain at eligible Finish. Timing causality remains unproven.",
+    "scope": "V1 passed focused, functional and static checks, but full native/ARM/C candidate qualification did not run after the early rejection. Same gates and inputs, materially changed routing."
+  },
+  "scope_limits": [
+    "Finite synthetic evidence, not exhaustive compatibility or universal speedup.",
+    "Historical originals and unchanged baseline binaries retain actual source identities.",
+    "Strict instant-order and numeric differences remain recorded separately from canonical policy evidence.",
+    "No live-dbengine, concurrent-query, process-RSS or physical ARM throughput claim."
+  ],
+  "receipts": {
+    "baseline-binding": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/baseline-binding.json",
+      "sha256": "56723b2bd86b8595648643a2335e90d5362afbf4287406d36a7f4235dc194010"
+    },
+    "explore": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/explore.json",
+      "sha256": "41cb2f702f1e04f4daefab9a17fa7fbdc26a7e831e0559ee4d26a391150b243a"
+    },
+    "measurement-plan": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/measurement-plan.json",
+      "sha256": "b39f3b71ae9fd80e84c74ac34028d4f011b33d4a40bf68d1b85800838db5e04f"
+    },
+    "focused": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/focused.json",
+      "sha256": "cb60730ac9c50f54c30173a7fca6ab6dd748010a392a7192499f096d1fcf7d2e"
+    },
+    "candidate-static": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/candidate-static.json",
+      "sha256": "3bc3cc90772ee79b46221a9a447b658c1f81dba3f272252df58cf134b13860d2"
+    },
+    "pilot": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/pilot.json",
+      "sha256": "5b77d726a5f87e078ffe61a949b350863c21eb1a1d0eec98225e008c63765298"
+    },
+    "followup": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/followup.json",
+      "sha256": "037cc7d61ec692ddf2850dd6efcc99a93a9e6bebd29b26f34ea441e6cadd523a"
+    },
+    "shared-control-plan": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/shared-control-plan.json",
+      "sha256": "6ca7e38e17b6f5e51b75587ef5e9a2a7241af126889ff32f79c523248bfff2ca"
+    },
+    "shared-control-primary": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/shared-control-primary.json",
+      "sha256": "d7b929e282a91560072d82f44d3add0fcfda9c4a6872168049ae04c94e6ac1dd"
+    },
+    "shared-followup": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/shared-followup.json",
+      "sha256": "384324b8b55f3af0d474cc44d2aabb542d12e6f5325979baa4539925c741dc80"
+    },
+    "functional-preparation": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/functional-preparation.json",
+      "sha256": "1f227fc2807cafa733ceb41067954c68a30d0b3c31f90a9f898eb929ce7b290e"
+    },
+    "original-capture": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/original-capture.json",
+      "sha256": "ac616622ee4ac028a1c3454b973759aeff140762eae75f55d36cd1594c2662ac"
+    },
+    "functional": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/functional.json",
+      "sha256": "a53c830c0aee107828bc5d015c6cbb4edf8132fe90162fb8a4c683983ad74f24"
+    },
+    "variance-order-original": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/variance-order-original.json",
+      "sha256": "1ae1e2d8f79468bd32f2f3bdfe37a63ba3f5103a17560432d21f26d90cb14650"
+    },
+    "variance-canonical-child": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/variance-canonical-child.json",
+      "sha256": "7bbeb6b3b4e377affbd7a2ba1463b00714205947103d559148454e21744bdc5a"
+    },
+    "custom-C-comparison": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/custom-C-comparison.json",
+      "sha256": "4c9b0d86e0619a40d8618100e63acf05dd39a091f5e77a0fd5c262439e4ecdfa"
+    },
+    "development-review": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/development-review.json",
+      "sha256": "2cce4737526b0edcd851ae36d9dd733a499051ea401b800fb4df87e7c9fedc6b"
+    },
+    "v1-reference": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/v1-reference.json",
+      "sha256": "7c236fe652aef27d934dfe0db322f4116422f8d27e54abbb6a5dea8b07c720c0"
+    },
+    "perf-release-builds": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/perf-release-builds.json",
+      "sha256": "4efbadd24ccb364d5d360504d53cf3df6849c14153e545b5ed003ad0146c0a21"
+    },
+    "perf-release-min-builds": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/perf-release-min-builds.json",
+      "sha256": "a4a0c0196c663948afe6a3ad1d85581b597cab38042c986fdaf2a76519c7c106"
+    },
+    "build-release": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/build-release.json",
+      "sha256": "f867090f3ee356dbdfe2a92489f6378728e95b88ca9920111f513ea035308c64"
+    },
+    "qualification-release": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/qualification-release.json",
+      "sha256": "f93b5440713c74c02fd4bfc15503bb15adc3d012662ccbe7404aa0f254bcf764"
+    },
+    "custom-before-release": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/custom-before-release.json",
+      "sha256": "af5b62595106d9cbca9eb637894b7cdd9048fccb40005d4d714d13f1488ffb9d"
+    },
+    "custom-candidate-release": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/custom-candidate-release.json",
+      "sha256": "0be24f0fae1581367c35ec031280984a63bfdb17e5a94e4e88088625fe112fea"
+    },
+    "build-release-min": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/build-release-min.json",
+      "sha256": "1d0847054d3c35cf850dae7c5a237605712a3cf3bd9f954abc1675a2517ef8cf"
+    },
+    "qualification-release-min": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/qualification-release-min.json",
+      "sha256": "30781e19512aa01b7dabcfb0386a72ee9f7b45275874e429a3852cf06b4ac1c3"
+    },
+    "custom-before-release-min": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/custom-before-release-min.json",
+      "sha256": "a72850030cf8ccdc56806f1fc2b44c0a063fcf17e2dbebe9f382981472efb7fe"
+    },
+    "custom-candidate-release-min": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/custom-candidate-release-min.json",
+      "sha256": "2e295f0b5f56de70e35d2cd7fa66ef0a6ab4695cfdbca634dbae6addffd9286c"
+    },
+    "build-arm32": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/build-arm32.json",
+      "sha256": "3929b76425aa90dd69c866127abb914048f69d240ec943da1145e609602b11e0"
+    },
+    "qualification-arm32": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/qualification-arm32.json",
+      "sha256": "d5c44fa47f7b5d162eb70c73bdfbe48404033d065b29ee7dcf2b02eb4daad923"
+    },
+    "custom-before-arm32": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/custom-before-arm32.json",
+      "sha256": "1eef7889f840a8210aafa34d5183c109992d09ba4dcc788e4c771fea98b661a8"
+    },
+    "custom-candidate-arm32": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/custom-candidate-arm32.json",
+      "sha256": "65408ccc04991aacaba6a1e18b7b5ddd7e90e65f16c55c29c0ae86039af89630"
+    },
+    "build-arm64": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/build-arm64.json",
+      "sha256": "587b88b7d2bfb78ed9afa6bc94c718d0f924be1b8efc84b75414361d57e4e2d9"
+    },
+    "qualification-arm64": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/qualification-arm64.json",
+      "sha256": "c3d78fa016e91fdcaeaa243837aa975cb10d25f0994a2bf11d7566c773aa3bb1"
+    },
+    "custom-before-arm64": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/custom-before-arm64.json",
+      "sha256": "d2d46b9c6f3db78aba9c9bf5f72e99f814f94e08c98db745603f1df607edef34"
+    },
+    "custom-candidate-arm64": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/custom-candidate-arm64.json",
+      "sha256": "fc86634286533a03d214a86c2fec39b8e7d3f462b8230634222d80780e558d36"
+    },
+    "historical-source-snapshots": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/historical-source-snapshots.json",
+      "sha256": "bf30a8bff97b6d3122ddd81e2e04f950f759eb0afcfe2cc4107cbcfa68c1e6c3"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/delayed-raw-pairs-v2-x0d4irjq/artifact-integrity.json",
+      "sha256": "81cb2497f041da82150475659ef480a439a8450d60fa28922ec582b86e7fc4c1"
+    }
+  }
+}

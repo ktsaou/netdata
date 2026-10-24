@@ -74364,5 +74364,18 @@
     "followup_pairs": 120,
     "original_differential_pairs": 0,
     "runtime_restored": true
+  },
+  "delayed_raw_pairs": {
+    "status": "finite_qualification_pass",
+    "report": "delayed-raw-pairs-qualification.json",
+    "report_sha256": "bb7d9b9f59445d36f177a4e6f28953aede14ceec83bc8058b159f2d340d21e19",
+    "baseline_commit": "a968117bcaf9cf549f17b623cf1ab0aac4f67711",
+    "exact_before_after_pairs": 23448,
+    "retained_original_cases": 3700,
+    "fresh_original_cases": 208,
+    "strict_original_order_failures": 882,
+    "strict_original_numeric_failures": 6,
+    "timing_pairs": 1520,
+    "custom_C_before_after_pairs": 576
   }
 }

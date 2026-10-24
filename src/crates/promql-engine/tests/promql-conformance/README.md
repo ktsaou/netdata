@@ -2629,10 +2629,12 @@ the earlier qualification cohorts and their original source identities.
 
 When `delayed_name_removal` is enabled, eligible final-root joins reuse the existing completed Pair proof.
 This includes the supported raw/rate/earned-map operands and range `group_left`/`group_right` shapes. The option's
-default stays disabled. Shared target discovery, contributor demand, nested PairCandidate and prefix paths retain
-their delayed-name gate. Native/mixed operands, fills, ambiguity, unsupported clocks and unproven shapes keep fallback.
+default stays disabled. General target discovery and prefix paths retain their delayed-name gate. Later
+[direct-group](#completed-direct-groups-with-delayed-metadata-removal),
+[grouped-ratio](#completed-grouped-ratios-with-delayed-metadata-removal) and
+[raw-pair](#delayed-raw-pair-discovery) proofs add scoped exceptions. Native/mixed operands, fills, ambiguity, unsupported clocks and unproven shapes keep fallback.
 
-Only final-root non-prefix certification calls the shared structural predicate directly. Full unique Float operand
+At this checkpoint, only final-root non-prefix certification called the structural predicate directly. Full unique Float operand
 and result checks, complete frozen-key bindings and existing clock proofs remain. The actual root OrderedRows body
 uses Matrix children: its cold pass drains discovery, every fresh pair, reservations/diagnostics and successful Done
 before publishing membership. The first returned row alone earns no credit. Later selected values remain fresh;
@@ -4733,8 +4735,9 @@ These are reported engine execution times, including preparation/evaluation/coll
 JSON conversion and compression are excluded; they are not end-to-end API latency or concurrent throughput.
 
 The initial 128-series timing preflight exceeded its declared 250 ms scaling gate, so no large primary batch ran.
-All 112 cold before/current outcomes remain exact and retained. Delayed-name generic replay still fetches 595,200
-entries from 768 input points; that separate performance opportunity is not fixed by digest reuse.
+All 112 cold before/current outcomes remain exact and retained. At that checkpoint, delayed-name generic replay
+fetched 595,200 entries from 768 input points; digest reuse did not address that cost. The later
+[raw-pair admission](#delayed-raw-pair-discovery) addresses its narrowly proved root aggregate edge.
 
 Ten matched linked executables retain text/data/BSS/file costs. The measured 64-bit Step remains 688 bytes and
 ARM32 Step 504 bytes; all measured discovery/index layouts stay equal. No whole-query stack or live-Agent claim
@@ -7257,8 +7260,9 @@ freeze, a pending candidate receives the same complete prefix certificate used b
 
 The existing root/wrapper route remains. Local admission requires an unequal range header, a supported Float
 arithmetic/comparison join, original unique input ownership, compatible producer/source/scope grids and supported
-single-source operands. Invariant/boundary clocks, delayed names, fills, native/mixed operands and unsupported
-grouped operands retain ordinary evaluation. No evaluator mode, Plan field, raw-value cache or public interface
+single-source operands. Invariant/boundary clocks, fills, native/mixed operands and unsupported
+grouped operands retain ordinary evaluation. Delayed names retain the general gate, with the later
+[raw-pair admission](#delayed-raw-pair-discovery) proving a narrow root aggregate exception. No evaluator mode, Plan field, raw-value cache or public interface
 is added. Matching metadata and owned output can still scale with series count; raw histories remain paged.
 
 Preparation earns no final replay credit. The first final traversal validates the original inputs and successful
@@ -12180,6 +12184,9 @@ functional cases; its initial bytes remain in the evidence. This changed enforce
 
 ## Certified frozen pair label lookup
 
+The later [delayed raw pair admission](#delayed-raw-pair-discovery) also enables the proved
+root aggregate edge in delayed mode. The measurements below retain their earlier scope.
+
 An already-certified warm pair frontier can use its existing physical-row index to find the frozen result
 labels. It avoids hashing both operand label streams again. The indexed entry must still contain exactly the
 requested original-side row pair; otherwise the ordinary complete-key lookup runs. Mutable preparation,
@@ -12209,7 +12216,8 @@ all production workloads.
 The new causal unit constructs cache entries in physical order 2, 0, 1, exercises all three matching cardinalities,
 and checks exact borrowed addresses, encoded/unbound fallback, zero allocation and entry/return interruption.
 The existing complete-query owner now observes actual shortcut use: 16 of its 80 cases produce 624 hits.
-Early grouped and `abs(m+n)` cases reach it; tested root and delayed plain-selector cases do not. Existing
+At this checkpoint, early grouped and `abs(m+n)` cases reached it; tested root and delayed plain-selector
+cases did not. Existing
 delayed grouped-ratio frontiers are also eligible, so delayed removal is not a blanket exclusion.
 
 Full native suites, focused ARM32/ARM64 execution under QEMU, actual C/C++ grouped-ratio callers, complete native
@@ -12266,3 +12274,79 @@ No full original differential, complete native, ARM, C/C++, static/MSRV or defau
 rejection. A separately reviewed 1,964-case original corpus was not executed against the candidate. Prepared
 helpers are not execution evidence. These finite observations do not establish universal speedup, process RSS,
 live-provider or concurrent throughput. The accepted runtime remains unchanged.
+
+## Delayed raw pair discovery
+
+In delayed-name mode, a root ordinary aggregate such as `sum by(job)(m+n)` can now reuse completed
+matching metadata for its direct raw arithmetic child. The aggregate must discard `__name__`, `__type__`
+and `__unit__`; the query must have a forward multi-step range and two direct, uniquely bound Float selectors.
+The existing clock, source, selector schedule and pair certification checks still apply. Comparisons, fills,
+many-side joins, metadata-retaining groups and other shapes keep their existing execution. This changes
+evaluation cost, not the supported language or the default name-removal setting.
+
+The local structural proof permits an existing PairCandidate before descriptors move, then the same proof
+participates in final certification after producer clocks are published. It does not grant completion credit.
+Preparation credit is cleared before delivery; the first final traversal validates original inputs and pair
+prefixes, selected values remain fresh, and the next timestamp starts cold. No persistent field, raw sample
+array or new cache is added. Failed, cancelled and partial traversals keep the existing cleanup owners.
+
+The [qualification report](delayed-raw-pairs-qualification.json) records 23,448 complete before/after comparisons
+over 3,700 authenticated retained cases and 208 [new corpus cases](delayed_raw_pair_cases.py), on pages 1, 17 and
+1024 in both native profiles. All candidate outcomes match the baseline exactly. The retained originals preserve
+147 strict instant-row differences per panel; the established scoped order policy passes with no numeric-bit
+differences. Range row ordering remains checked.
+
+The supplemental corpus has one unchanged strict numeric difference: early-name `stdvar by(job)(m ^ n)` at
+the first timestamp. Its saved original has bits `43ad399a32fb1c00`; baseline and candidate have
+`43ad399a32fb1c01`. Repeating the pinned Go query produced those two values 11 and 21 times, and a threshold
+comparison returned false/true 9/23 times. A separately captured original child supplies values
+`16, 65536, 2176782336`; the upstream sequential variance recurrence in canonical label order gives the Rust
+bits. This qualifies the agreed deterministic intermediate-order behavior separately. The six strict numeric
+failures remain recorded; no tolerance or final-row comparison was relaxed.
+
+The 24 existing [timing shapes](frozen_pair_ordinal_cases.py) cover eight or 32 pairs, eight timestamps,
+16/256/1024-byte detail labels, root/grouped expressions and both name modes. Here the six targets are the
+delayed grouped cases. Five alternating blocks with four repeats give 960 comparisons, excluding only the
+first repeat from timing. Target median ratios are **0.161349 / 0.162518** for release/release-min; control
+medians are **1.001800 / 0.993367**. Eight initially slower cases received their one prescribed six-block
+followup, adding 192 comparisons; all pass. Eight existing group/ratio controls add 320 comparisons and two
+prescribed followups add 48. The target gate stays 0.98 and the control/followup gate 1.05.
+
+For the 32-pair, 16-byte delayed grouped example:
+
+| Accounted resource | Baseline | Candidate |
+|---|---:|---:|
+| Fetched sample entries | 406,016 | 25,088 |
+| Provider calls | 101,639 | 6,407 |
+| Work | 9,408,572 | 650,586 |
+| Workspace peak, bytes | 87,696 | 87,816 |
+| Workspace allocation traffic, bytes | 33,716,203 | 2,616,211 |
+
+The largest primary-panel Workspace increase is 792 bytes, from 216,976 to 217,768; the functional-panel
+maximum is 632 bytes. Other category peaks do not grow. The finite matching-metadata gate is 4,096 bytes plus
+256 bytes per actual operand descriptor; functional and C comparisons use the tighter fixed 4,096-byte allowance.
+These are qualification bounds, not runtime caps or universal allocator bounds. Traffic and current ownership
+are checked separately from peaks; query accounting is not process RSS.
+
+The first implementation passed its primary timing, focused, functional and static checks but failed a shared
+delayed grouped-rate followup at 1.114970. That candidate remains rejected. The second revision computes the
+only possible raw target once, avoiding irrelevant proof calls while retaining all charged checks at the
+eligible preparation step. It passed the same gates; the first slowdown's precise cause is unproven.
+
+The two new Rust owners cover 312 admission preparations and actual cold, warm selected-value, next-clock,
+provider-error, cancellation and output-failure phases. The existing 80-query owner checks complete results
+and actual indexed lookup use. The full native suites each pass 1,019 tests with two pre-existing ignored tests.
+Focused ARM32/ARM64 tests execute under QEMU; the report lists the exact filters and counts. Actual shared
+group/ratio C/C++ consumers add 4,032 cases. The [new C driver](delayed_raw_pairs.c) adds 576 before/after pairs
+across native C/C++ and both ARM C callers, plus two complete native C suites. Strict lint, formatting,
+installed Rust 1.91 compile-only checks and per-target code/data/BSS costs are separate report entries.
+
+Reproduction uses the generator as an importable function, not a CLI; it returns the saved 208-case supplemental
+panel. The other retained originals, timing fixtures and order witnesses remain separate inputs. Build the C
+driver with the matching public header/static library, assertions enabled and the platform's native libraries;
+provide writable `NETDATA_PROMQL_FIXTURE_SCRATCH`. It emits 96 individual cases, eight 12-case summaries and one
+final marker. Its promoted source differs from the executed task driver only in the relative include path;
+that is source equivalence, not a claim of byte-identical linked executables.
+
+This finite qualification does not establish exhaustive equivalence, universal speedup, live-dbengine or
+concurrent throughput, process RSS, or physical ARM performance. Fixed executable growth is separate from RAM.

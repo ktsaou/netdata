@@ -1183,7 +1183,7 @@ impl CompiledQuery {
         shape_header: OutputHeader,
         header: OutputHeader,
         prefix: bool,
-        delayed_grouped_pair: bool,
+        delayed_pair_proven: bool,
         prepared: &Prepared,
         rosters: &mut Rosters,
         control: &Control,
@@ -1192,7 +1192,7 @@ impl CompiledQuery {
         // Final root Matrix children drain through Done; nested demand retains its separate gate.
         if (!prefix || rosters.replay_grid_matches(node, header, prepared))
             && let Some((left, right, matching)) =
-                (if !prefix && node == self.expression.root || delayed_grouped_pair {
+                (if !prefix && node == self.expression.root || delayed_pair_proven {
                     self.binary_pair_children(node, shape_header)
                 } else {
                     self.binary_replay_children(node, shape_header)
@@ -1652,6 +1652,58 @@ impl CompiledQuery {
             }
         }
         Ok(true)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn delayed_raw_pair(
+        &self,
+        node: NodeId,
+        header: OutputHeader,
+        prepared: &Prepared,
+        rosters: &Rosters,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        let grid = crate::query_scopes::Grid::from(header);
+        if header.start_ms >= header.end_ms || !grid.forward_without_wrap() {
+            return Ok(false);
+        }
+        let root = self.expression.root;
+        let Expr::Aggregate {
+            operator,
+            expression: Some(child),
+            parameter: None,
+            grouping,
+            without,
+        } = &self.expression.arena[root].expression
+        else {
+            return Ok(false);
+        };
+        if *child != node || !crate::aggregation::ordinary(*operator) {
+            return Ok(false);
+        }
+        let Some((left, right, matching)) = self.binary_pair_children(node, header) else {
+            return Ok(false);
+        };
+        if matching.cardinality != crate::frontend::ast::Cardinality::OneToOne
+            || matches!(self.expression.arena[node].expression,
+                Expr::Binary { operator, .. } if operator.is_comparison())
+            || ![left, right]
+                .into_iter()
+                .all(|child| matches!(self.expression.arena[child].expression, Expr::Selector(_)))
+            || ![root, node, left, right].into_iter().all(|child| {
+                !prepared.flags().invariants[child.0]
+                    && !prepared.flags().boundaries[child.0]
+                    && rosters.matrix(child).is_none()
+                    && crate::query_scopes::Grid::from(prepared.source_header(child, header))
+                        == grid
+                    && crate::query_scopes::Grid::from(prepared.scope_header(child, header)) == grid
+            })
+        {
+            return Ok(false);
+        }
+        // Only the immediate consumer may discard the delayed result metadata.
+        Self::grouping_drops_metadata(grouping.as_deref(), *without, control, account)
     }
 
     fn grouped_map_child(
@@ -2417,6 +2469,18 @@ impl CompiledQuery {
         ));
         let literal_filter = self.literal_filter_child(prepared);
         let mut literal_filter_complete = false;
+        // Only this raw edge can reach the delayed pair proof's charged inspection.
+        let delayed_raw_target = match &self.expression.arena[self.expression.root].expression {
+            Expr::Aggregate {
+                operator,
+                expression: Some(child),
+                parameter: None,
+                ..
+            } if self.options.delayed_name_removal && crate::aggregation::ordinary(*operator) => {
+                Some(*child)
+            }
+            _ => None,
+        };
         while let Some(task) = tasks.pop() {
             control.check()?;
             account.work(1);
@@ -3241,10 +3305,16 @@ impl CompiledQuery {
             } else {
                 (None, None)
             };
-            // Both operands must already have earned metadata-eliminating group plans.
-            let delayed_grouped_pair = self.options.delayed_name_removal
-                && matches!(task, Task::Finish(_, _, Demand::GroupedSubquery))
-                && self.delayed_grouped_pair(node, header, prepared, &rosters, control, account)?;
+            // Keep each delayed edge's proof local to candidate creation and certification.
+            let delayed_pair_proven = self.options.delayed_name_removal
+                && (matches!(task, Task::Finish(_, _, Demand::GroupedSubquery))
+                    && self.delayed_grouped_pair(
+                        node, header, prepared, &rosters, control, account,
+                    )?
+                    || delayed_raw_target == Some(node)
+                        && self.delayed_raw_pair(
+                            node, header, prepared, &rosters, control, account,
+                        )?);
             let binary_cache = std::cell::RefCell::new(crate::vector_matching::Cache::new(account));
             let binary_preparation = if let Expr::Binary {
                 left,
@@ -3284,7 +3354,7 @@ impl CompiledQuery {
                     matching,
                     set_discovery,
                     node != self.expression.root
-                        && (delayed_grouped_pair
+                        && (delayed_pair_proven
                             || self.binary_replay_target(header, prepared, control, account)?
                             == Some(node)
                             // Ordered children select rows even when their parent consumes All.
@@ -4054,7 +4124,7 @@ impl CompiledQuery {
                     header,
                     header,
                     true,
-                    delayed_grouped_pair,
+                    delayed_pair_proven,
                     prepared,
                     &mut rosters,
                     control,
@@ -16017,7 +16087,8 @@ mod tests {
                             });
                         assert_eq!(
                             ordinal_hits > 0,
-                            matches!(expression, "abs(m+n)" | "sum by(job)(m+n)") && !delayed
+                            expression == "sum by(job)(m+n)"
+                                || expression == "abs(m+n)" && !delayed
                         );
                         eprintln!(
                             "frozen ordinal hits: {expression:?} delayed={delayed} count={count} page={page} hits={ordinal_hits}"
@@ -16096,7 +16167,9 @@ mod tests {
                             "ordered-binary-growth expression={expression:?} delayed={delayed} rows={count} page={page} fetched={} work={}",
                             report.observations.samples_fetched, report.observations.work
                         );
-                        if !delayed || matches!(expression, "m+n" | "m>n" | "m>bool n") {
+                        if !delayed
+                            || matches!(expression, "m+n" | "m>n" | "m>bool n" | "sum by(job)(m+n)")
+                        {
                             growth.push((
                                 report.observations.samples_fetched,
                                 report.observations.work,
@@ -16485,7 +16558,12 @@ mod tests {
                             assert_eq!(rows, usize::from(count != 0));
                             assert_eq!(
                                 plans,
-                                usize::from(supported && ranged && count > 1 && !delayed),
+                                usize::from(
+                                    supported
+                                        && ranged
+                                        && count > 1
+                                        && (!delayed || expression == "sum by(job)(m+n)")
+                                ),
                                 "{expression} {request:?} count{count} delayed{delayed}"
                             );
                             drop(compiled);
@@ -16525,6 +16603,105 @@ mod tests {
     fn ordered_binary_inner_machines_preserve_cold_warm_and_next_clock_failures() {
         check_ordered_binary_inner_phases(
             b"sum by(job)(m+n)",
+            false,
+            |page| ordered_binary_provider(page, 4),
+            1000,
+            0,
+            2,
+            |identity, time| {
+                (if identity.is_multiple_of(2) {
+                    6.0
+                } else {
+                    12.0
+                }) * (time / 1000) as f64
+            },
+        );
+    }
+
+    #[test]
+    fn delayed_raw_pair_admission_keeps_local_shape_and_clock_boundaries() {
+        let range = QueryRequest::Range {
+            start_ms: 1000,
+            end_ms: 3000,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            for reducer in [
+                "sum", "avg", "count", "min", "max", "group", "stdvar", "stddev",
+            ] {
+                for operator in ["+", "-", "*", "/", "%", "^", "atan2"] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let expression = format!("{reducer} by(job)(m {operator} n)");
+                    let compiled = engine
+                        .compile(expression.as_bytes(), options(true), &control)
+                        .unwrap();
+                    let provider = ordered_binary_provider(page, 4);
+                    let (_, _, plans) = float_map_join_preparation_with_discovery(
+                        &compiled, &provider, range, &control,
+                    );
+                    assert_eq!(plans, 1, "{expression}");
+                    drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+            for (expression, eligible) in [
+                ("sum(m+n)", true),
+                ("sum without(__name__,__type__,__unit__,id)(m+n)", true),
+                ("sum by(job,__name__)(m+n)", false),
+                ("sum by(job,__type__)(m+n)", false),
+                ("sum by(job,__unit__)(m+n)", false),
+                ("sum without(id)(m+n)", false),
+                ("sum by(job)(m>n)", false),
+                ("sum by(job)(m>bool n)", false),
+                ("sum by(job)(m or n)", false),
+                ("sum by(job)(m + on(id) group_left n)", false),
+                ("sum by(job)(m + on(id) group_right n)", false),
+                ("sum by(job)(m @ 2+n)", false),
+                ("sum by(job)(m @ start()+n)", false),
+                ("sum by(job)((m+n))", false),
+                ("abs(sum by(job)(m+n))", false),
+                ("sum by(job)(abs(m)+n)", false),
+            ] {
+                for request in [
+                    range,
+                    QueryRequest::Instant { time_ms: 2000 },
+                    QueryRequest::Range {
+                        start_ms: 2000,
+                        end_ms: 2000,
+                        step_ms: 1000,
+                    },
+                ] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let compiled = engine
+                        .compile(expression.as_bytes(), options(true), &control)
+                        .unwrap();
+                    let provider = ordered_binary_provider(page, 4);
+                    let (_, _, plans) = float_map_join_preparation_with_discovery(
+                        &compiled, &provider, request, &control,
+                    );
+                    assert_eq!(
+                        plans,
+                        usize::from(
+                            eligible
+                                && matches!(request, QueryRequest::Range { start_ms: 1000, .. })
+                        ),
+                        "{expression} {request:?}"
+                    );
+                    drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+        eprintln!("delayed raw pair admission: 312 complete preparation cases");
+    }
+
+    #[test]
+    fn delayed_raw_pair_preserves_cold_warm_and_next_clock_failures() {
+        check_ordered_binary_inner_phases(
+            b"sum by(job)(m+n)",
+            true,
             |page| ordered_binary_provider(page, 4),
             1000,
             0,
@@ -16556,6 +16733,7 @@ mod tests {
                 format!("sum by(job)(sum by(job,id)({left}) + on(job,id) sum by(job,id)({right}))");
             check_ordered_binary_inner_phases(
                 expression.as_bytes(),
+                false,
                 |page| local_grouped_operand_provider(page, 4),
                 2000,
                 2,
@@ -16581,6 +16759,7 @@ mod tests {
 
     fn check_ordered_binary_inner_phases(
         expression: &[u8],
+        delayed: bool,
         make_provider: impl Fn(usize) -> FixtureProvider,
         start_ms: i64,
         expected_groups: usize,
@@ -16597,7 +16776,7 @@ mod tests {
         for page in [1, 17, 1024] {
             let engine = Engine::default();
             let compiled = engine
-                .compile(expression, options(false), &Control::default())
+                .compile(expression, options(delayed), &Control::default())
                 .unwrap();
             let mut landmarks: Vec<Vec<usize>> = Vec::new();
             let (mut selected, mut nonmember) = (0, 0);

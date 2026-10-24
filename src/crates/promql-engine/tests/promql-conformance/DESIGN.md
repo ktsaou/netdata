@@ -685,18 +685,19 @@ integration, and Alertmanager remains excluded.
   identifies all effective clock/options, step index, exact lookback and data bounds. Replacement releases the prior
   snapshot first; errors and partial replays never publish one. No raw values or timeline are retained.
 - **Compatibility:** exact frozen keys and first-writer labels remain authoritative. Native operand values, filled,
-  ambiguous, nested delayed-name, invariant and unsupported clock shapes retain ordinary replay. Initial validation and
+  ambiguous, unproved nested delayed-name, invariant and unsupported clock shapes retain ordinary replay. Initial validation and
   error priority remain complete; errors tied to omitted physical operations follow the existing provider policy.
 - **Grouped ranges:** existing direct/rate/earned Float operand proofs can admit `group_left`/`group_right`.
   Keep unique full float rows on both sides and unique matching signatures on the one side. Enumerate every
   many-side row; reject ambiguous histories, missing output bindings and conflicting cache ordinals. Pair positions
   remain in original left/right order while frozen keys use many/one label order. Existing cold validation,
   successful Done, exact-clock membership and fresh selected reads remain the same owners; no state field is added.
-- **Deferred-name final roots:** use the structural predicate only for final-root non-prefix certification.
+- **Deferred-name final roots:** the original extension used the structural predicate for final-root non-prefix certification.
   Keep the delayed-name wrapper for general target discovery and prefix paths. Later
   [direct-group](#completed-direct-groups-with-delayed-metadata-removal) and
   [grouped-ratio](#completed-grouped-ratios-with-delayed-metadata-removal) proofs narrowly extend grouped demand
-  and nested PairCandidate admission without weakening the general wrapper.
+  and nested PairCandidate admission. The later [raw-pair](#delayed-raw-pair-discovery) proof covers the immediate
+  raw arithmetic child of a metadata-removing ordinary root aggregate. The general wrapper remains intact.
   Reuse the same complete unique-Float, cache-binding and clock proof. Actual root Matrix children drain through
   Done before sharing membership; fresh selected values, next-clock discovery and final name/duplicate/identity
   owners remain. The option stays disabled by default. No persistent layout, raw value/history or reader is added.
@@ -3192,6 +3193,9 @@ qualifies direct ratios separately; this section retains its original direct-gro
 
 ## Certified frozen pair label lookup
 
+The later [delayed raw pair admission](#delayed-raw-pair-discovery) also enables the proved
+root aggregate edge in delayed mode. The measurements below retain their earlier scope.
+
 - **Choice:** a private frozen-result wrapper uses the existing `PairDiscovery::ordinal` lookup only while
   `Step.frontier` is active. It verifies the indexed ordinary cache key equals both original-side row positions,
   then borrows the existing result labels. Missing, encoded or different-row entries retain generic lookup.
@@ -3211,3 +3215,25 @@ qualifies direct ratios separately; this section retains its original direct-gro
   less in release-min, with exact observed memory and physical reads. The [qualification procedure](README.md#certified-frozen-pair-label-lookup)
   separates the fixed compiled cost, current resource measurements, historical originals and existing row-order
   policy. Finite measurements do not establish universal speedup or compatibility.
+
+## Delayed raw pair discovery
+
+- **Choice:** admit the immediate raw arithmetic child of an ordinary metadata-removing root aggregate to
+  existing completed pair discovery in delayed-name mode. Compute the potential child once per preparation;
+  only that edge performs the local proof. The general delayed-name gate and grouped-ratio proof remain intact.
+- **Admission:** direct parameterless ordinary aggregate, direct one-to-one no-fill arithmetic Binary, two
+  direct selectors, forward multi-step header, matching source/scope grids, no invariants, boundaries or matrix
+  operands, and removal of all three reserved metadata labels. Final certification still validates Float/source
+  provenance, unique bindings, selector schedules and published producer clocks. Unsupported shapes fall back.
+- **Ownership and phases:** candidate creation and final certification share one local proof. Neither structural
+  eligibility nor preparation gives final completion credit. The cold traversal, successful pair prefix,
+  fresh selected values, exact-key invalidation, error priority and cleanup retain their existing owners.
+  No state field, raw history, provider assumption, public interface or implicit limit is added.
+- **Trade-off:** existing matching metadata becomes available to this edge. The finite primary maximum increase
+  is 792 bytes of accounted Workspace, while targeted queries take about 84% less time. The representative
+  32-pair narrow-label query reads 25,088 rather than 406,016 entries, with a 120-byte peak increase. These
+  observations do not establish universal memory or performance bounds.
+- **Evidence:** [qualification procedure](README.md#delayed-raw-pair-discovery) separates exact baseline outcomes,
+  preserved strict upstream differences, canonical-order variance evidence, rejected first implementation,
+  native/ARM/C execution and fixed compiled costs. Deterministic intermediate label order remains the existing
+  numerical contract; the optimization changes no arithmetic recurrence.

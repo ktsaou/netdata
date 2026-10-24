@@ -230,6 +230,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Local ordered binary admission MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#ordered-binary-discovery` for pre-copy proof,
   source/final ordinals, cold/warm/next-clock phases, fresh outer parameters and actual read/peak costs.
+  Delayed raw aggregate admission also follows
+  `src/crates/promql-engine/tests/promql-conformance/README.md#delayed-raw-pair-discovery`.
 - Local grouped join operands MUST follow
   `src/crates/promql-engine/tests/promql-conformance/README.md#local-grouped-join-operands` for resolved child demand,
   separate group/Pair credit, actual member/clock failures, exact portable results and retained numerical/cost scopes.
