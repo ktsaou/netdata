@@ -12376,3 +12376,33 @@ qualified the live-memory observation independently. Thirty-two focused tests an
 Broader original, full native, ARM, C/C++, static/MSRV and compiled-cost qualification did not run after
 rejection. Prepared helpers and the read-only historical-capture audit are not candidate execution evidence.
 These finite synthetic measurements establish neither universal behavior nor live-provider/concurrent throughput.
+
+## Rejected borrowed cleanup hashing
+
+The [finite experiment](borrowed-cleanup-hash-rejected-qualification.json) calculated final cleanup hashes
+from immutable descriptor labels, avoiding a temporary copy. It retained entry cancellation, the conditional
+empty-first-name error and the existing length-prefixed full hash; metadata filtering removed exactly
+`__name__`, `__type__` and `__unit__`. Output labels and merge-guard behavior remained unchanged.
+
+Primary target/control median timing ratios passed: **0.948046 / 0.994034** in release and
+**0.942739 / 0.986841** in release-min. However, seven of the 27 prescribed individual followups exceeded
+1.05, all in release-min. The candidate was rejected and its runtime and tests restored exactly. The cause
+is unproven; some slower controls never execute the new helper. Symbol inspection found an existing separate
+helper function in both profiles, providing no justification for an inline-never-only retry.
+
+The [112-case corpus](borrowed_cleanup_hash_cases.py) covers plain, unary, scalar-addition and rate queries,
+instant/range requests, both name modes, 0/1/32/128 series and short/4,096-byte labels. All 224 complete
+analytical baseline outcomes passed. The 4,480 primary and 648 followup comparisons preserved complete results
+and physical observations; work and each measured memory category's current, peak and allocation traffic
+never increased. Another 224 baseline/candidate pairs checked resource gains before timing.
+
+For the 128-series wide-label plain range example, Workspace acquired bytes fell from **1,669,608 to
+1,013,992**, while its simultaneous peak fell from **650,634 to 649,416 bytes**. Work fell from **3,832,024 to
+3,298,392**; fetched samples remained **768**. Allocation traffic is not peak memory or process RSS, and these
+savings do not ship after rejection.
+
+Fourteen focused tests and formatting passed. These include old-versus-new hash comparisons, retained and
+discarded 16 MiB fields, cancellation, unchanged descriptors, duplicate/disjoint names and retained diagnostics.
+Broader originals, full native, ARM, C/C++, static/MSRV and compiled costs were not qualified. Prepared helpers
+and the explicit delayed C/C++ consumer are not execution evidence. No universal or live/concurrent throughput
+claim follows from this finite synthetic experiment.

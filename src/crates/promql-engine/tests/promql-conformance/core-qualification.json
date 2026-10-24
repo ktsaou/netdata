@@ -74387,5 +74387,15 @@
     "followup_pairs": 120,
     "original_differential_pairs": 0,
     "runtime_restored": true
+  },
+  "borrowed_cleanup_hash_rejected": {
+    "status": "rejected_candidate_runtime_restored",
+    "report": "borrowed-cleanup-hash-rejected-qualification.json",
+    "report_sha256": "510e4149cca1558ef395be69e3c127ebbaaefc5caa5f9289a256b919d538333e",
+    "baseline_commit": "3339853e4c70f5655399545672bab494b9cef90b",
+    "primary_timing_pairs": 4480,
+    "followup_pairs": 648,
+    "original_differential_pairs": 0,
+    "runtime_restored": true
   }
 }
