@@ -27683,6 +27683,7 @@ mod tests {
                             "counter_total",
                             "abs(counter_total)",
                             "rate(counter_total[3s])",
+                            "increase(counter_total[3s])",
                         ] {
                             for instant in [false, true] {
                                 let provider = mapped_group_provider(page, groups);
@@ -27727,8 +27728,13 @@ mod tests {
                                     for (tick, point) in row.points.iter().enumerate() {
                                         let time = (tick + 3) as f64;
                                         let value =
-                                            (if child.starts_with("rate") { 1.0 } else { time })
-                                                * if group.is_multiple_of(2) { 1.0 } else { 2.0 };
+                                            (if child.starts_with("rate") {
+                                                1.0
+                                            } else if child.starts_with("increase") {
+                                                3.0
+                                            } else {
+                                                time
+                                            }) * if group.is_multiple_of(2) { 1.0 } else { 2.0 };
                                         let expected: f64 = match operator {
                                             "sum" => 2.0 * value,
                                             "count" => 2.0,
@@ -27746,7 +27752,7 @@ mod tests {
                                 }
                                 assert!(seen.into_iter().all(|present| present));
                                 assert_eq!(observed[2], 0);
-                                if child == "counter_total" {
+                                if !child.starts_with("abs") {
                                     assert!(
                                         observed[0] > 0,
                                         "{expression} {request:?} {observed:?}"
@@ -27769,8 +27775,8 @@ mod tests {
                 }
             }
         }
-        assert_eq!(queries, 576);
-        println!("Complete direct/mapped/rate selector queries: {queries}");
+        assert_eq!(queries, 768);
+        println!("Complete direct/mapped/rate/increase selector queries: {queries}");
     }
 
     #[test]
@@ -27883,16 +27889,25 @@ mod tests {
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
                 for native_first in [false, true] {
-                    for operator in [
+                    for (operator, child) in [
                         "sum", "avg", "count", "group", "min", "max", "stdvar", "stddev",
-                    ] {
+                    ]
+                    .into_iter()
+                    .flat_map(|operator| {
+                        [
+                            "counter_total",
+                            "rate(counter_total[3s])",
+                            "increase(counter_total[3s])",
+                        ]
+                        .map(|child| (operator, child))
+                    }) {
                         let mut provider = FixtureProvider::new(3, page, 2);
                         provider.series[usize::from(!native_first)].source.sample =
                             native_range_sample;
                         provider.series[usize::from(native_first)].source.sample = second_value;
                         let engine = Engine::default();
                         let control = Control::default();
-                        let source = format!("{operator} by(job)(counter_total)");
+                        let source = format!("{operator} by(job)({child})");
                         let query = engine
                             .compile(source.as_bytes(), options(delayed), &control)
                             .unwrap();
@@ -27927,11 +27942,8 @@ mod tests {
                             };
                             assert_eq!(annotation.raw_message, expected.as_bytes());
                             let span = annotation.span.unwrap();
-                            let start = source.find("counter_total").unwrap();
-                            assert_eq!(
-                                (span.start, span.end),
-                                (start, start + "counter_total".len())
-                            );
+                            let start = source.find(child).unwrap();
+                            assert_eq!((span.start, span.end), (start, start + child.len()));
                             assert_eq!(
                                 annotation.message,
                                 format!("{expected} (1:{})", start + 1).as_bytes()
@@ -27946,9 +27958,16 @@ mod tests {
                             assert_eq!(row.points.len(), 1);
                             assert_eq!(row.points[0].time_ms, 3000);
                             let value: f64 = match operator {
+                                "count" => 2.0,
                                 "group" => 1.0,
                                 "stdvar" | "stddev" => 0.0,
-                                _ => 2.0,
+                                _ => {
+                                    if child == "counter_total" {
+                                        2.0
+                                    } else {
+                                        0.0
+                                    }
+                                }
                             };
                             assert_eq!(float_bits(&row.points[0]), value.to_bits());
                         }
@@ -27963,14 +27982,74 @@ mod tests {
     }
 
     #[test]
+    fn selector_group_labels_keep_rate_operation_and_metadata_fallbacks() {
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for expression in [
+                    "sum by(instance)(delta(counter_total[3s]))",
+                    "sum by(instance)(irate(counter_total[3s]))",
+                    "sum by(instance)(idelta(counter_total[3s]))",
+                    "sum by(instance)(rate(counter_total[3s] anchored))",
+                    "sum by(instance)(rate(counter_total[3s] smoothed))",
+                    "sum by(instance)(rate(counter_total[3s:1s]))",
+                    "sum by(instance)(abs(rate(counter_total[3s])))",
+                    "sum by(instance,member)(rate(counter_total[3s]))",
+                    "sum without(member)(rate(counter_total[3s]))",
+                    "sum by(__name__)(rate(counter_total[3s]))",
+                    "sum by(__type__)(rate(counter_total[3s]))",
+                    "sum by(__unit__)(increase(counter_total[3s]))",
+                ] {
+                    let provider = mapped_group_provider(page, 1);
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut settings = options(delayed);
+                    settings.parser.extended_range_selectors = true;
+                    let query = engine
+                        .compile(expression.as_bytes(), settings, &control)
+                        .unwrap();
+                    let (report, observed, phase) =
+                        crate::evaluator::observe_selector_labels(|| {
+                            query.collect_reported(
+                                &provider,
+                                QueryRequest::Instant { time_ms: 3000 },
+                                &control,
+                            )
+                        });
+                    let result = report.result.as_ref().unwrap();
+                    assert!(!result.series.is_empty(), "{expression}");
+                    assert!(report.annotations.is_empty(), "{expression}");
+                    for row in result.series.iter() {
+                        assert_eq!(row.points.len(), 1);
+                        assert_eq!(row.points[0].time_ms, 3000);
+                    }
+                    assert_eq!(observed[0], 0, "{expression} {observed:?}");
+                    if !expression.contains("[3s:1s]") {
+                        assert!(observed[1] > 0, "{expression}");
+                    }
+                    assert!(phase.is_none(), "{expression}");
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
     fn selector_group_labels_preserve_sparse_misses_and_post_read_cancellation() {
-        fn drive(page: usize, delayed: bool, cancel_after: Option<u64>) -> u64 {
+        fn drive(
+            page: usize,
+            delayed: bool,
+            child: &str,
+            cold: bool,
+            cancel_after: Option<u64>,
+        ) -> u64 {
             let provider = mapped_group_provider(page, 4);
             let engine = Engine::default();
             let control = Control::default();
             let compiled = engine
                 .compile(
-                    b"sum by(instance)(counter_total)",
+                    format!("sum by(instance)({child})").as_bytes(),
                     options(delayed),
                     &control,
                 )
@@ -28022,6 +28101,9 @@ mod tests {
                         &mut Annotations::default(),
                     )
                     .unwrap();
+                if cold {
+                    prepared.range_folds.clear(&control, &account).unwrap();
+                }
                 let mut machine = Machine::new(
                     &catalog,
                     &compiled.expression,
@@ -28069,7 +28151,12 @@ mod tests {
                 let (work, samples_read) =
                     phase.expect("actual borrowed hash entry after provider read");
                 first_hash = work - before.work;
-                assert!(samples_read > before.statistics.samples.samples_read);
+                if cold || child == "counter_total" {
+                    assert!(samples_read > before.statistics.samples.samples_read);
+                } else {
+                    assert!(before.statistics.samples.samples_read > 0);
+                    assert_eq!(samples_read, before.statistics.samples.samples_read);
+                }
                 if cancel_after.is_some() {
                     assert!(matches!(
                         outcome,
@@ -28090,7 +28177,8 @@ mod tests {
                             let label = groups[ordinal].labels.0[0].value.to_vec();
                             let group: usize =
                                 std::str::from_utf8(&label[1..]).unwrap().parse().unwrap();
-                            let value: f64 = if group.is_multiple_of(2) { 6.0 } else { 12.0 };
+                            let value: f64 = (if group.is_multiple_of(2) { 2.0 } else { 4.0 })
+                                * if child.starts_with("rate") { 1.0 } else { 3.0 };
                             (ordinal, label, value.to_bits(), 3000)
                         })
                         .collect();
@@ -28110,8 +28198,19 @@ mod tests {
         }
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
-                let first_hash = drive(page, delayed, None);
-                assert_eq!(drive(page, delayed, Some(first_hash + 1)), first_hash);
+                for child in [
+                    "counter_total",
+                    "rate(counter_total[3s])",
+                    "increase(counter_total[3s])",
+                ] {
+                    for cold in [false, true] {
+                        let first_hash = drive(page, delayed, child, cold, None);
+                        assert_eq!(
+                            drive(page, delayed, child, cold, Some(first_hash + 1)),
+                            first_hash
+                        );
+                    }
+                }
             }
         }
     }

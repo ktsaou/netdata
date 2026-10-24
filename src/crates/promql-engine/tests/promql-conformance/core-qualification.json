@@ -74427,5 +74427,16 @@
     "timing_pairs": 11344,
     "C_CPP_pairs": 4176,
     "peak_memory_increase": false
+  },
+  "borrowed_rate_increase_group_labels": {
+    "status": "finite_qualification_pass",
+    "report": "rate-group-labels-qualification.json",
+    "report_sha256": "d84b8e8efcaf4ad8b093661df78192d83da7060e2c566433f1e91c23e269bb0d",
+    "comparison_base": "2bf9ed919ebdbb9b6cb864326630db250abc9e4b",
+    "broad_pairs": 27768,
+    "metadata_pairs": 1680,
+    "timing_pairs": 14712,
+    "C_CPP_pairs": 6048,
+    "peak_memory_increase": false
   }
 }

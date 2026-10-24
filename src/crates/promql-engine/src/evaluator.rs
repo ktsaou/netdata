@@ -2689,6 +2689,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             }
         };
         self.finish_selector_sample(
+            node,
             selector_node,
             operation,
             series_ordinal,
@@ -2716,6 +2717,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     }
     fn finish_selector_sample(
         &self,
+        node: NodeId,
         selector_node: NodeId,
         operation: SelectorOperation,
         series_ordinal: usize,
@@ -2725,9 +2727,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         value
             .map(|value| {
                 let labels = if matches!(value.2.value, OwnedValue::Float(_))
-                    && matches!(operation, SelectorOperation::Instant)
                     && let Some(labels) =
-                        self.selector_group_labels(selector_node, series_labels)?
+                        self.selector_group_labels(node, selector_node, operation, series_labels)?
                 {
                     SampleLabels::Borrowed(labels)
                 } else {
@@ -2750,18 +2751,46 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     }
     fn selector_group_labels(
         &self,
+        node: NodeId,
         selector_node: NodeId,
+        operation: SelectorOperation,
         labels: &[crate::storage::LabelRef<'_>],
     ) -> Result<Option<&'a OwnedLabels>, EvaluationError> {
         let [.., parent, current] = self.frames.as_ref() else {
             return Ok(None);
         };
-        if current.node != selector_node
-            || !matches!(current.state, State::Selection { selector, operation: SelectorOperation::Instant, .. } if selector == selector_node)
-            || self.smooths(selector_node)
-        {
+        let State::Selection {
+            selector,
+            operation: active,
+            ..
+        } = current.state
+        else {
+            return Ok(None);
+        };
+        if current.node != node || selector != selector_node {
             return Ok(None);
         }
+        let rate = match (operation, active) {
+            (SelectorOperation::Instant, SelectorOperation::Instant)
+                if node == selector_node && !self.smooths(selector_node) =>
+            {
+                false
+            }
+            (
+                SelectorOperation::Rate { kind, range_ns },
+                SelectorOperation::Rate {
+                    kind: active_kind,
+                    range_ns: active_range,
+                },
+            ) if kind.checks_counter_name() && kind == active_kind && range_ns == active_range => {
+                let selector = self.selector(selector_node);
+                if selector.anchored || selector.smoothed {
+                    return Ok(None);
+                }
+                true
+            }
+            _ => return Ok(None),
+        };
         let State::Aggregate {
             groups,
             lookup,
@@ -2780,11 +2809,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         else {
             unreachable!("ordinary aggregation frame")
         };
-        if *child != selector_node
+        if *child != node
             || *without
-            || grouping
-                .as_ref()
-                .is_some_and(|names| names.len() > 1 || !names.is_empty() && labels.len() <= 1)
+            || grouping.as_ref().is_some_and(|names| {
+                names.len() > 1
+                    || !names.is_empty() && (labels.len() <= 1 || rate && metadata(&names[0]))
+            })
         {
             return Ok(None);
         }

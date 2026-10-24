@@ -12524,3 +12524,53 @@ Requalification must retain raw grouping identity and existing source-label vali
 checks and both native profiles, compare the original ordinary/reducer cohorts, and execute actual C callers.
 Preserve the failed first candidate and every prescribed slower-control result. No live-provider, concurrent,
 RSS, universal-work or physical ARM throughput guarantee follows from these finite checks.
+
+## Borrowed rate and increase group labels
+
+Completed Float `rate` and `increase` inputs can now use the direct-selector group-label shortcut described
+above. The function must directly feed an ordinary global aggregate or a single-key `by` aggregate; grouping
+by `__name__`, `__type__` or `__unit__` keeps full labels. Wider grouping, `without`, native values,
+anchored/smoothed windows, derived inputs and intervening expressions keep their existing ownership paths.
+Counter-name warnings, range arithmetic and sample credits finish before borrowing the existing group key.
+
+The [qualification](rate-group-labels-qualification.json) measures **9.50% less time in release and 12.45%
+less in release-min** across the median targeted query ratio. Control medians are **0.985136 / 0.994171**;
+all 13 prescribed slower-case followups pass. The [424-case corpus](rate_group_label_cases.py) includes
+360 timing shapes and 112 targets. All **14,712 timing pairs** compare complete results and resources,
+including repetitions omitted from elapsed-time analysis. These are finite synthetic results.
+
+For 128 series with 32 extra labels, grouped-rate Workspace allocation traffic falls **18,363,944 →
+10,326,824 bytes**, with its simultaneous **712,439-byte peak unchanged**. A narrower grouped-rate case
+falls **1,762,856 → 1,516,328 bytes**, with its **141,993-byte peak unchanged**. All measured category
+current/peak/acquired bytes and counted work are nonincreasing; nonadmitted early/timing memory observations
+are exact. Allocation traffic means cumulative allocation activity, not simultaneous RAM or process RSS.
+Physical reads and statistics remain exact. No cache, state field, provider lifetime or implicit limit is added.
+
+The **27,768** broad comparisons retain the original ordinary and historical cohorts, both profiles and
+pages 1/17/1024. Original strict differences remain explicit: **882 ordering failures and six numerical
+failures**, with the latter still failing the canonical-order policy report. An additional **1,680 complete
+comparisons** cover actual reserved metadata values, metadata/name aliases, absent-versus-empty keys and
+counter-name warnings. These compare against accepted production behavior, not a new upstream capture.
+
+Focused tests include 768 direct/mapped/rate/increase queries, 288 mixed Float/native cases, 18 existing
+full-label fallbacks, 72 operation/metadata fallback admission checks and 72 sparse/cached/cold/cancelled
+Machine executions. The 72 admission checks alone do not establish complete fallback values; complete
+metadata outcomes are covered separately. The initial extended tests made three incorrect assumptions
+about COUNT values, preowned derived labels and prepared reads. Their failures remain retained; corrections
+changed tests only, and all final measurements share the same production source.
+
+Both native profiles pass their full unit suites; selected ARM32/ARM64 units execute under QEMU. Actual
+C/C++ callers exercise all eight ordinary reducers over rate/increase, both name modes, three page sizes
+and provider/cancellation/output failures, alongside retained-output and raw/scheduled ownership controls.
+Their **6,048 before/after pairs** preserve asserted values, labels, timestamps and cleanup. Both complete
+native C runs, strict default/fixture Clippy, formatting and Rust 1.91 compile-only checks pass. The report
+records exact test counts and fixed code/data/BSS costs separately from query memory. Standalone default C
+consumers grow by 544 bytes in release, 280 in release-min, 472 on ARM32 and 512 on ARM64 (less than
+0.008% each); data and BSS are unchanged. The cumulative comparison uses the explicitly identified earlier
+baseline. These are not complete Netdata binary sizes.
+
+The C ratio fixture checks published ratio values; absolute rate/increase outcomes come from Rust and
+original-bound comparisons. Requalification must preserve the current call-node versus underlying selector
+identity, exact operation/range identity, reserved-label cleanup, warning timing, raw group identity and
+post-read cancellation. No new language coverage, live-provider result, concurrency/RSS measurement,
+physical ARM throughput or universal speed/work guarantee is claimed.

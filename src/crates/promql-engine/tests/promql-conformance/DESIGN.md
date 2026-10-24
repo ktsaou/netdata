@@ -3260,3 +3260,21 @@ root aggregate edge in delayed mode. The measurements below retain their earlier
   sparse/failure/native ownership tests, complete original-bound outcomes, finite timing/resource results,
   preserved upstream differences, native/ARM/C execution and proportional fixed compiled costs. No arithmetic,
   deterministic ordering, API, ABI, implicit limit, dbengine or contexts contract changes.
+
+## Borrowed rate and increase group labels
+
+- **Choice:** reuse the immutable ordinary aggregate's raw group labels for completed Float rate/increase
+  samples. Range evaluation, counter-name warnings and statistical credits finish first; the original
+  sample finalizer still owns timestamps, name-removal behavior and post-callback propagation.
+- **Proof:** the current selection frame must match the actual function-call node, underlying selector and
+  exact rate kind/range. Its immediate parent must be the collecting ordinary aggregate over that call.
+  The raw-selector admission remains unchanged. A missing active group retains the full-label fallback.
+- **Admission:** global grouping or single nonreserved `by` key; the latter requires multiple source labels.
+  Reserved metadata grouping, wider/without grouping, native values, extended or derived windows and
+  intervening frames keep existing ownership. Raw empty keys and hash-only first-writer aliases retain
+  their existing identity. The borrowed owner is the roster, never the callback's temporary label buffer.
+- **Cost and evidence:** no retained field or label cache. Avoiding transient full labels reduces measured
+  allocation traffic and time without increasing measured query-memory peaks. The finite
+  [qualification](README.md#borrowed-rate-and-increase-group-labels) records complete results, metadata
+  aliases, native diagnostics, sparse/cancelled owner checks, actual C consumers and fixed compiled costs.
+  Numerical algorithms, language coverage, contexts/dbengine ownership, API/ABI and defaults are unchanged.

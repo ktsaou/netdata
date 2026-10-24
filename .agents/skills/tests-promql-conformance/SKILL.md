@@ -437,3 +437,7 @@ Atomic work publication and coherent overflow snapshots follow
 Borrowed direct-selector group labels follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-direct-selector-group-labels` for raw keys,
 active positions, Float/native diagnostic ownership, post-read interruption and full-label fallbacks.
+
+Completed rate/increase group labels follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-rate-and-increase-group-labels` for
+call/selector identity, metadata exclusions, completed diagnostics and distinct streamed/retained C owners.
