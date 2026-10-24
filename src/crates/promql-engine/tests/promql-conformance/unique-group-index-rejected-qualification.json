@@ -1,0 +1,2143 @@
+{
+  "schema_version": 1,
+  "status": "rejected_candidate_runtime_restored",
+  "comparison_base": "61979ddf5a232f1f9e93ba465bfa2e74aa27878e",
+  "candidate_change": "Remove the always-missing find before insert_new when activating plural ordinary aggregate groups. Ordinary preparation merges hash aliases and filters retain unique ordinals. Insertion/growth/order/sample matching and arithmetic remain unchanged.",
+  "rejection": {
+    "reason": "Both target medians exceed the frozen0.98 required benefit threshold.",
+    "decision": "Reject and restore exact owned additions/probe change. All five prescribed individual followups pass1.05, but do not waive primary failures. No unchanged retry or threshold relaxation.",
+    "cause": "Unproven; lower accounted metadata-search work did not establish the required complete-query speedup."
+  },
+  "timing": {
+    "release": {
+      "target_median": 0.9996120437797671,
+      "control_median": 0.9964363213923788,
+      "complete_pairs": 2400,
+      "cases": [
+        {
+          "id": "n32-sum-raw-single-instant-d0",
+          "target": false,
+          "ratio": 1.03051993447344,
+          "before_median_ns": 191678,
+          "candidate_median_ns": 197528
+        },
+        {
+          "id": "n32-sum-raw-single-instant-d1",
+          "target": false,
+          "ratio": 1.0165954927910026,
+          "before_median_ns": 189208,
+          "candidate_median_ns": 192348
+        },
+        {
+          "id": "n32-sum-raw-single-range-d0",
+          "target": false,
+          "ratio": 1.0332225086851352,
+          "before_median_ns": 401836,
+          "candidate_median_ns": 415186
+        },
+        {
+          "id": "n32-sum-raw-single-range-d1",
+          "target": false,
+          "ratio": 1.016972598573517,
+          "before_median_ns": 407716,
+          "candidate_median_ns": 414636
+        },
+        {
+          "id": "n32-sum-raw-plural-instant-d0",
+          "target": true,
+          "ratio": 0.9801525778810385,
+          "before_median_ns": 227687,
+          "candidate_median_ns": 223168
+        },
+        {
+          "id": "n32-sum-raw-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9986081994450196,
+          "before_median_ns": 229918,
+          "candidate_median_ns": 229598
+        },
+        {
+          "id": "n32-sum-raw-plural-range-d0",
+          "target": true,
+          "ratio": 1.0187225142582286,
+          "before_median_ns": 465696,
+          "candidate_median_ns": 474415
+        },
+        {
+          "id": "n32-sum-raw-plural-range-d1",
+          "target": true,
+          "ratio": 0.9977342245383483,
+          "before_median_ns": 485485,
+          "candidate_median_ns": 484385
+        },
+        {
+          "id": "n32-max-raw-single-instant-d0",
+          "target": false,
+          "ratio": 0.975718436534256,
+          "before_median_ns": 194798,
+          "candidate_median_ns": 190068
+        },
+        {
+          "id": "n32-max-raw-single-instant-d1",
+          "target": false,
+          "ratio": 0.9958253627706909,
+          "before_median_ns": 189238,
+          "candidate_median_ns": 188448
+        },
+        {
+          "id": "n32-max-raw-single-range-d0",
+          "target": false,
+          "ratio": 1.0050681268934434,
+          "before_median_ns": 404686,
+          "candidate_median_ns": 406737
+        },
+        {
+          "id": "n32-max-raw-single-range-d1",
+          "target": false,
+          "ratio": 1.0065835201519349,
+          "before_median_ns": 408596,
+          "candidate_median_ns": 411286
+        },
+        {
+          "id": "n32-max-raw-plural-instant-d0",
+          "target": true,
+          "ratio": 1.0088903731248984,
+          "before_median_ns": 221588,
+          "candidate_median_ns": 223558
+        },
+        {
+          "id": "n32-max-raw-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9695675455148146,
+          "before_median_ns": 235308,
+          "candidate_median_ns": 228147
+        },
+        {
+          "id": "n32-max-raw-plural-range-d0",
+          "target": true,
+          "ratio": 1.0160264379907977,
+          "before_median_ns": 470535,
+          "candidate_median_ns": 478076
+        },
+        {
+          "id": "n32-max-raw-plural-range-d1",
+          "target": true,
+          "ratio": 1.0292747642743247,
+          "before_median_ns": 477886,
+          "candidate_median_ns": 491876
+        },
+        {
+          "id": "n32-none-raw-plural-instant-d0",
+          "target": false,
+          "ratio": 1.016309855384674,
+          "before_median_ns": 156899,
+          "candidate_median_ns": 159458
+        },
+        {
+          "id": "n32-none-raw-plural-instant-d1",
+          "target": false,
+          "ratio": 0.9890051752676682,
+          "before_median_ns": 190908,
+          "candidate_median_ns": 188809
+        },
+        {
+          "id": "n32-none-raw-plural-range-d0",
+          "target": false,
+          "ratio": 0.9765868745910814,
+          "before_median_ns": 184939,
+          "candidate_median_ns": 180609
+        },
+        {
+          "id": "n32-none-raw-plural-range-d1",
+          "target": false,
+          "ratio": 1.018242993227719,
+          "before_median_ns": 232418,
+          "candidate_median_ns": 236658
+        },
+        {
+          "id": "n32-sum-mapped-single-instant-d0",
+          "target": false,
+          "ratio": 0.9970472800140668,
+          "before_median_ns": 301417,
+          "candidate_median_ns": 300527
+        },
+        {
+          "id": "n32-sum-mapped-single-instant-d1",
+          "target": false,
+          "ratio": 0.9750776945366103,
+          "before_median_ns": 266428,
+          "candidate_median_ns": 259788
+        },
+        {
+          "id": "n32-sum-mapped-single-range-d0",
+          "target": false,
+          "ratio": 0.9805378889889832,
+          "before_median_ns": 740413,
+          "candidate_median_ns": 726003
+        },
+        {
+          "id": "n32-sum-mapped-single-range-d1",
+          "target": false,
+          "ratio": 0.9929693630134099,
+          "before_median_ns": 735353,
+          "candidate_median_ns": 730183
+        },
+        {
+          "id": "n32-sum-mapped-plural-instant-d0",
+          "target": true,
+          "ratio": 1.0113403714198448,
+          "before_median_ns": 330677,
+          "candidate_median_ns": 334427
+        },
+        {
+          "id": "n32-sum-mapped-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9991604737614469,
+          "before_median_ns": 297787,
+          "candidate_median_ns": 297537
+        },
+        {
+          "id": "n32-sum-mapped-plural-range-d0",
+          "target": true,
+          "ratio": 0.9944680399503778,
+          "before_median_ns": 791582,
+          "candidate_median_ns": 787203
+        },
+        {
+          "id": "n32-sum-mapped-plural-range-d1",
+          "target": true,
+          "ratio": 0.9935745729817009,
+          "before_median_ns": 812553,
+          "candidate_median_ns": 807332
+        },
+        {
+          "id": "n32-max-mapped-single-instant-d0",
+          "target": false,
+          "ratio": 1.0252335942733035,
+          "before_median_ns": 295598,
+          "candidate_median_ns": 303057
+        },
+        {
+          "id": "n32-max-mapped-single-instant-d1",
+          "target": false,
+          "ratio": 1.0201712417945021,
+          "before_median_ns": 257297,
+          "candidate_median_ns": 262487
+        },
+        {
+          "id": "n32-max-mapped-single-range-d0",
+          "target": false,
+          "ratio": 0.9865355871910769,
+          "before_median_ns": 721903,
+          "candidate_median_ns": 712183
+        },
+        {
+          "id": "n32-max-mapped-single-range-d1",
+          "target": false,
+          "ratio": 0.9883466543598624,
+          "before_median_ns": 734553,
+          "candidate_median_ns": 725993
+        },
+        {
+          "id": "n32-max-mapped-plural-instant-d0",
+          "target": true,
+          "ratio": 1.0107328993684568,
+          "before_median_ns": 329827,
+          "candidate_median_ns": 333367
+        },
+        {
+          "id": "n32-max-mapped-plural-instant-d1",
+          "target": true,
+          "ratio": 1.0028345344631873,
+          "before_median_ns": 303048,
+          "candidate_median_ns": 303907
+        },
+        {
+          "id": "n32-max-mapped-plural-range-d0",
+          "target": true,
+          "ratio": 1.0000636137980872,
+          "before_median_ns": 785993,
+          "candidate_median_ns": 786043
+        },
+        {
+          "id": "n32-max-mapped-plural-range-d1",
+          "target": true,
+          "ratio": 0.987221593541007,
+          "before_median_ns": 813873,
+          "candidate_median_ns": 803473
+        },
+        {
+          "id": "n32-none-mapped-plural-instant-d0",
+          "target": false,
+          "ratio": 1.0081662153852793,
+          "before_median_ns": 278097,
+          "candidate_median_ns": 280368
+        },
+        {
+          "id": "n32-none-mapped-plural-instant-d1",
+          "target": false,
+          "ratio": 1.012998159294104,
+          "before_median_ns": 273808,
+          "candidate_median_ns": 277367
+        },
+        {
+          "id": "n32-none-mapped-plural-range-d0",
+          "target": false,
+          "ratio": 0.9889035052395143,
+          "before_median_ns": 558735,
+          "candidate_median_ns": 552535
+        },
+        {
+          "id": "n32-none-mapped-plural-range-d1",
+          "target": false,
+          "ratio": 0.9846786398083074,
+          "before_median_ns": 697784,
+          "candidate_median_ns": 687093
+        },
+        {
+          "id": "n32-sum-rate-single-instant-d0",
+          "target": false,
+          "ratio": 0.9727359733292837,
+          "before_median_ns": 283157,
+          "candidate_median_ns": 275437
+        },
+        {
+          "id": "n32-sum-rate-single-instant-d1",
+          "target": false,
+          "ratio": 0.9698945392141045,
+          "before_median_ns": 272708,
+          "candidate_median_ns": 264498
+        },
+        {
+          "id": "n32-sum-rate-single-range-d0",
+          "target": false,
+          "ratio": 0.974446152478654,
+          "before_median_ns": 765012,
+          "candidate_median_ns": 745463
+        },
+        {
+          "id": "n32-sum-rate-single-range-d1",
+          "target": false,
+          "ratio": 0.984945158307349,
+          "before_median_ns": 755903,
+          "candidate_median_ns": 744523
+        },
+        {
+          "id": "n32-sum-rate-plural-instant-d0",
+          "target": true,
+          "ratio": 1.0111474558843594,
+          "before_median_ns": 300517,
+          "candidate_median_ns": 303867
+        },
+        {
+          "id": "n32-sum-rate-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9755863245370121,
+          "before_median_ns": 315397,
+          "candidate_median_ns": 307697
+        },
+        {
+          "id": "n32-sum-rate-plural-range-d0",
+          "target": true,
+          "ratio": 0.9833339764987362,
+          "before_median_ns": 829232,
+          "candidate_median_ns": 815412
+        },
+        {
+          "id": "n32-sum-rate-plural-range-d1",
+          "target": true,
+          "ratio": 0.9834633629797761,
+          "before_median_ns": 842372,
+          "candidate_median_ns": 828442
+        },
+        {
+          "id": "n32-max-rate-single-instant-d0",
+          "target": false,
+          "ratio": 0.981204579247965,
+          "before_median_ns": 275067,
+          "candidate_median_ns": 269897
+        },
+        {
+          "id": "n32-max-rate-single-instant-d1",
+          "target": false,
+          "ratio": 0.9549559439126489,
+          "before_median_ns": 273288,
+          "candidate_median_ns": 260978
+        },
+        {
+          "id": "n32-max-rate-single-range-d0",
+          "target": false,
+          "ratio": 0.9455567651514575,
+          "before_median_ns": 788142,
+          "candidate_median_ns": 745233
+        },
+        {
+          "id": "n32-max-rate-single-range-d1",
+          "target": false,
+          "ratio": 0.9736609457248333,
+          "before_median_ns": 765783,
+          "candidate_median_ns": 745613
+        },
+        {
+          "id": "n32-max-rate-plural-instant-d0",
+          "target": true,
+          "ratio": 0.9320465537421877,
+          "before_median_ns": 316967,
+          "candidate_median_ns": 295428
+        },
+        {
+          "id": "n32-max-rate-plural-instant-d1",
+          "target": true,
+          "ratio": 0.937746117290915,
+          "before_median_ns": 321747,
+          "candidate_median_ns": 301717
+        },
+        {
+          "id": "n32-max-rate-plural-range-d0",
+          "target": true,
+          "ratio": 0.9409532530688838,
+          "before_median_ns": 864891,
+          "candidate_median_ns": 813822
+        },
+        {
+          "id": "n32-max-rate-plural-range-d1",
+          "target": true,
+          "ratio": 0.9498049538696735,
+          "before_median_ns": 860822,
+          "candidate_median_ns": 817613
+        },
+        {
+          "id": "n32-none-rate-plural-instant-d0",
+          "target": false,
+          "ratio": 0.9907389032215387,
+          "before_median_ns": 211638,
+          "candidate_median_ns": 209678
+        },
+        {
+          "id": "n32-none-rate-plural-instant-d1",
+          "target": false,
+          "ratio": 0.9367647723490716,
+          "before_median_ns": 243377,
+          "candidate_median_ns": 227987
+        },
+        {
+          "id": "n32-none-rate-plural-range-d0",
+          "target": false,
+          "ratio": 0.9725608361741724,
+          "before_median_ns": 568494,
+          "candidate_median_ns": 552895
+        },
+        {
+          "id": "n32-none-rate-plural-range-d1",
+          "target": false,
+          "ratio": 0.9610222697390869,
+          "before_median_ns": 615454,
+          "candidate_median_ns": 591465
+        },
+        {
+          "id": "n128-sum-raw-single-instant-d0",
+          "target": false,
+          "ratio": 0.9841114224105515,
+          "before_median_ns": 731343,
+          "candidate_median_ns": 719723
+        },
+        {
+          "id": "n128-sum-raw-single-instant-d1",
+          "target": false,
+          "ratio": 1.0016739628963567,
+          "before_median_ns": 723433,
+          "candidate_median_ns": 724644
+        },
+        {
+          "id": "n128-sum-raw-single-range-d0",
+          "target": false,
+          "ratio": 1.0165633271417889,
+          "before_median_ns": 1586034,
+          "candidate_median_ns": 1612304
+        },
+        {
+          "id": "n128-sum-raw-single-range-d1",
+          "target": false,
+          "ratio": 1.0088205445974954,
+          "before_median_ns": 1581535,
+          "candidate_median_ns": 1595485
+        },
+        {
+          "id": "n128-sum-raw-plural-instant-d0",
+          "target": true,
+          "ratio": 1.0130017663229087,
+          "before_median_ns": 834502,
+          "candidate_median_ns": 845352
+        },
+        {
+          "id": "n128-sum-raw-plural-instant-d1",
+          "target": true,
+          "ratio": 1.0067004991987032,
+          "before_median_ns": 868592,
+          "candidate_median_ns": 874412
+        },
+        {
+          "id": "n128-sum-raw-plural-range-d0",
+          "target": true,
+          "ratio": 1.060426405136126,
+          "before_median_ns": 1814753,
+          "candidate_median_ns": 1924412
+        },
+        {
+          "id": "n128-sum-raw-plural-range-d1",
+          "target": true,
+          "ratio": 1.0414480422574035,
+          "before_median_ns": 1875553,
+          "candidate_median_ns": 1953291
+        },
+        {
+          "id": "n128-max-raw-single-instant-d0",
+          "target": false,
+          "ratio": 1.0044843049327354,
+          "before_median_ns": 720513,
+          "candidate_median_ns": 723744
+        },
+        {
+          "id": "n128-max-raw-single-instant-d1",
+          "target": false,
+          "ratio": 1.0139554343489943,
+          "before_median_ns": 719433,
+          "candidate_median_ns": 729473
+        },
+        {
+          "id": "n128-max-raw-single-range-d0",
+          "target": false,
+          "ratio": 1.025433949884698,
+          "before_median_ns": 1554615,
+          "candidate_median_ns": 1594155
+        },
+        {
+          "id": "n128-max-raw-single-range-d1",
+          "target": false,
+          "ratio": 1.0300566009265473,
+          "before_median_ns": 1557395,
+          "candidate_median_ns": 1604205
+        },
+        {
+          "id": "n128-max-raw-plural-instant-d0",
+          "target": true,
+          "ratio": 1.0083347045651287,
+          "before_median_ns": 838662,
+          "candidate_median_ns": 845652
+        },
+        {
+          "id": "n128-max-raw-plural-instant-d1",
+          "target": true,
+          "ratio": 1.0117295725247961,
+          "before_median_ns": 871302,
+          "candidate_median_ns": 881522
+        },
+        {
+          "id": "n128-max-raw-plural-range-d0",
+          "target": true,
+          "ratio": 1.0476469729103255,
+          "before_median_ns": 1800723,
+          "candidate_median_ns": 1886522
+        },
+        {
+          "id": "n128-max-raw-plural-range-d1",
+          "target": true,
+          "ratio": 1.0370930183737206,
+          "before_median_ns": 1857762,
+          "candidate_median_ns": 1926672
+        },
+        {
+          "id": "n128-none-raw-plural-instant-d0",
+          "target": false,
+          "ratio": 1.0513029694039304,
+          "before_median_ns": 603084,
+          "candidate_median_ns": 634024
+        },
+        {
+          "id": "n128-none-raw-plural-instant-d1",
+          "target": false,
+          "ratio": 1.0823812132580473,
+          "before_median_ns": 731963,
+          "candidate_median_ns": 792263
+        },
+        {
+          "id": "n128-none-raw-plural-range-d0",
+          "target": false,
+          "ratio": 1.0026210537202669,
+          "before_median_ns": 705823,
+          "candidate_median_ns": 707673
+        },
+        {
+          "id": "n128-none-raw-plural-range-d1",
+          "target": false,
+          "ratio": 1.0516796718918722,
+          "before_median_ns": 908481,
+          "candidate_median_ns": 955431
+        },
+        {
+          "id": "n128-sum-mapped-single-instant-d0",
+          "target": false,
+          "ratio": 1.023424667193018,
+          "before_median_ns": 1148789,
+          "candidate_median_ns": 1175699
+        },
+        {
+          "id": "n128-sum-mapped-single-instant-d1",
+          "target": false,
+          "ratio": 1.0178194797191784,
+          "before_median_ns": 975281,
+          "candidate_median_ns": 992660
+        },
+        {
+          "id": "n128-sum-mapped-single-range-d0",
+          "target": false,
+          "ratio": 1.019067769169024,
+          "before_median_ns": 2856653,
+          "candidate_median_ns": 2911123
+        },
+        {
+          "id": "n128-sum-mapped-single-range-d1",
+          "target": false,
+          "ratio": 1.0310920186274382,
+          "before_median_ns": 2880482,
+          "candidate_median_ns": 2970042
+        },
+        {
+          "id": "n128-sum-mapped-plural-instant-d0",
+          "target": true,
+          "ratio": 1.0112392538101473,
+          "before_median_ns": 1267077,
+          "candidate_median_ns": 1281318
+        },
+        {
+          "id": "n128-sum-mapped-plural-instant-d1",
+          "target": true,
+          "ratio": 1.0357946094728758,
+          "before_median_ns": 1134249,
+          "candidate_median_ns": 1174849
+        },
+        {
+          "id": "n128-sum-mapped-plural-range-d0",
+          "target": true,
+          "ratio": 1.0226777535827964,
+          "before_median_ns": 3091091,
+          "candidate_median_ns": 3161190
+        },
+        {
+          "id": "n128-sum-mapped-plural-range-d1",
+          "target": true,
+          "ratio": 1.013753995845965,
+          "before_median_ns": 3222409,
+          "candidate_median_ns": 3266730
+        },
+        {
+          "id": "n128-max-mapped-single-instant-d0",
+          "target": false,
+          "ratio": 1.02702870825554,
+          "before_median_ns": 1141379,
+          "candidate_median_ns": 1172229
+        },
+        {
+          "id": "n128-max-mapped-single-instant-d1",
+          "target": false,
+          "ratio": 1.0265374068727007,
+          "before_median_ns": 984271,
+          "candidate_median_ns": 1010391
+        },
+        {
+          "id": "n128-max-mapped-single-range-d0",
+          "target": false,
+          "ratio": 0.9986135519933561,
+          "before_median_ns": 2892283,
+          "candidate_median_ns": 2888273
+        },
+        {
+          "id": "n128-max-mapped-single-range-d1",
+          "target": false,
+          "ratio": 0.9948949475010156,
+          "before_median_ns": 2934152,
+          "candidate_median_ns": 2919173
+        },
+        {
+          "id": "n128-max-mapped-plural-instant-d0",
+          "target": true,
+          "ratio": 0.9637573936391334,
+          "before_median_ns": 1315827,
+          "candidate_median_ns": 1268138
+        },
+        {
+          "id": "n128-max-mapped-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9982633597563146,
+          "before_median_ns": 1151649,
+          "candidate_median_ns": 1149649
+        },
+        {
+          "id": "n128-max-mapped-plural-range-d0",
+          "target": true,
+          "ratio": 0.9959626297342821,
+          "before_median_ns": 3121091,
+          "candidate_median_ns": 3108490
+        },
+        {
+          "id": "n128-max-mapped-plural-range-d1",
+          "target": true,
+          "ratio": 0.9937489255965869,
+          "before_median_ns": 3199450,
+          "candidate_median_ns": 3179450
+        },
+        {
+          "id": "n128-none-mapped-plural-instant-d0",
+          "target": false,
+          "ratio": 1.0093419735258957,
+          "before_median_ns": 1029761,
+          "candidate_median_ns": 1039381
+        },
+        {
+          "id": "n128-none-mapped-plural-instant-d1",
+          "target": false,
+          "ratio": 1.0105876996696792,
+          "before_median_ns": 1032330,
+          "candidate_median_ns": 1043260
+        },
+        {
+          "id": "n128-none-mapped-plural-range-d0",
+          "target": false,
+          "ratio": 0.960697477407561,
+          "before_median_ns": 2265249,
+          "candidate_median_ns": 2176219
+        },
+        {
+          "id": "n128-none-mapped-plural-range-d1",
+          "target": false,
+          "ratio": 0.9953004664560935,
+          "before_median_ns": 2802193,
+          "candidate_median_ns": 2789024
+        },
+        {
+          "id": "n128-sum-rate-single-instant-d0",
+          "target": false,
+          "ratio": 0.9764495496177428,
+          "before_median_ns": 1056880,
+          "candidate_median_ns": 1031990
+        },
+        {
+          "id": "n128-sum-rate-single-instant-d1",
+          "target": false,
+          "ratio": 0.9658910833687628,
+          "before_median_ns": 1034920,
+          "candidate_median_ns": 999620
+        },
+        {
+          "id": "n128-sum-rate-single-range-d0",
+          "target": false,
+          "ratio": 1.00375106026261,
+          "before_median_ns": 3073531,
+          "candidate_median_ns": 3085060
+        },
+        {
+          "id": "n128-sum-rate-single-range-d1",
+          "target": false,
+          "ratio": 1.0058651972295993,
+          "before_median_ns": 3038261,
+          "candidate_median_ns": 3056081
+        },
+        {
+          "id": "n128-sum-rate-plural-instant-d0",
+          "target": true,
+          "ratio": 1.001799031016957,
+          "before_median_ns": 1178968,
+          "candidate_median_ns": 1181089
+        },
+        {
+          "id": "n128-sum-rate-plural-instant-d1",
+          "target": true,
+          "ratio": 0.990275258347774,
+          "before_median_ns": 1183579,
+          "candidate_median_ns": 1172069
+        },
+        {
+          "id": "n128-sum-rate-plural-range-d0",
+          "target": true,
+          "ratio": 1.0021466690796244,
+          "before_median_ns": 3320959,
+          "candidate_median_ns": 3328088
+        },
+        {
+          "id": "n128-sum-rate-plural-range-d1",
+          "target": true,
+          "ratio": 0.981794718095451,
+          "before_median_ns": 3371549,
+          "candidate_median_ns": 3310169
+        },
+        {
+          "id": "n128-max-rate-single-instant-d0",
+          "target": false,
+          "ratio": 0.9978406573375586,
+          "before_median_ns": 1069770,
+          "candidate_median_ns": 1067460
+        },
+        {
+          "id": "n128-max-rate-single-instant-d1",
+          "target": false,
+          "ratio": 0.9785846885696053,
+          "before_median_ns": 1034260,
+          "candidate_median_ns": 1012111
+        },
+        {
+          "id": "n128-max-rate-single-range-d0",
+          "target": false,
+          "ratio": 0.9850624551627569,
+          "before_median_ns": 3068041,
+          "candidate_median_ns": 3022212
+        },
+        {
+          "id": "n128-max-rate-single-range-d1",
+          "target": false,
+          "ratio": 0.975704178041865,
+          "before_median_ns": 3058921,
+          "candidate_median_ns": 2984602
+        },
+        {
+          "id": "n128-max-rate-plural-instant-d0",
+          "target": true,
+          "ratio": 0.9945451881190132,
+          "before_median_ns": 1180609,
+          "candidate_median_ns": 1174169
+        },
+        {
+          "id": "n128-max-rate-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9989085709919998,
+          "before_median_ns": 1191099,
+          "candidate_median_ns": 1189799
+        },
+        {
+          "id": "n128-max-rate-plural-range-d0",
+          "target": true,
+          "ratio": 1.0568847887333375,
+          "before_median_ns": 3285729,
+          "candidate_median_ns": 3472637
+        },
+        {
+          "id": "n128-max-rate-plural-range-d1",
+          "target": true,
+          "ratio": 0.9523799675926992,
+          "before_median_ns": 3433177,
+          "candidate_median_ns": 3269689
+        },
+        {
+          "id": "n128-none-rate-plural-instant-d0",
+          "target": false,
+          "ratio": 0.9828303447326604,
+          "before_median_ns": 813703,
+          "candidate_median_ns": 799732
+        },
+        {
+          "id": "n128-none-rate-plural-instant-d1",
+          "target": false,
+          "ratio": 0.9819621215531239,
+          "before_median_ns": 910861,
+          "candidate_median_ns": 894431
+        },
+        {
+          "id": "n128-none-rate-plural-range-d0",
+          "target": false,
+          "ratio": 0.9432900660055674,
+          "before_median_ns": 2267839,
+          "candidate_median_ns": 2139230
+        },
+        {
+          "id": "n128-none-rate-plural-range-d1",
+          "target": false,
+          "ratio": 0.9561874853138801,
+          "before_median_ns": 2438527,
+          "candidate_median_ns": 2331689
+        }
+      ]
+    },
+    "release-min": {
+      "target_median": 0.9928500643500597,
+      "control_median": 0.9939214676056494,
+      "complete_pairs": 2400,
+      "cases": [
+        {
+          "id": "n32-sum-raw-single-instant-d0",
+          "target": false,
+          "ratio": 1.0006597459318416,
+          "before_median_ns": 303147,
+          "candidate_median_ns": 303347
+        },
+        {
+          "id": "n32-sum-raw-single-instant-d1",
+          "target": false,
+          "ratio": 0.9900164299150074,
+          "before_median_ns": 302497,
+          "candidate_median_ns": 299477
+        },
+        {
+          "id": "n32-sum-raw-single-range-d0",
+          "target": false,
+          "ratio": 0.9749974690689548,
+          "before_median_ns": 651934,
+          "candidate_median_ns": 635634
+        },
+        {
+          "id": "n32-sum-raw-single-range-d1",
+          "target": false,
+          "ratio": 0.9938542827092189,
+          "before_median_ns": 642724,
+          "candidate_median_ns": 638774
+        },
+        {
+          "id": "n32-sum-raw-plural-instant-d0",
+          "target": true,
+          "ratio": 0.9931988013614024,
+          "before_median_ns": 344057,
+          "candidate_median_ns": 341717
+        },
+        {
+          "id": "n32-sum-raw-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9758506007506608,
+          "before_median_ns": 360216,
+          "candidate_median_ns": 351517
+        },
+        {
+          "id": "n32-sum-raw-plural-range-d0",
+          "target": true,
+          "ratio": 0.9929316601676047,
+          "before_median_ns": 717283,
+          "candidate_median_ns": 712213
+        },
+        {
+          "id": "n32-sum-raw-plural-range-d1",
+          "target": true,
+          "ratio": 0.9843547089640131,
+          "before_median_ns": 744633,
+          "candidate_median_ns": 732983
+        },
+        {
+          "id": "n32-max-raw-single-instant-d0",
+          "target": false,
+          "ratio": 1.001576481186428,
+          "before_median_ns": 297498,
+          "candidate_median_ns": 297967
+        },
+        {
+          "id": "n32-max-raw-single-instant-d1",
+          "target": false,
+          "ratio": 1.009808663417406,
+          "before_median_ns": 295657,
+          "candidate_median_ns": 298557
+        },
+        {
+          "id": "n32-max-raw-single-range-d0",
+          "target": false,
+          "ratio": 0.9884133536099645,
+          "before_median_ns": 635214,
+          "candidate_median_ns": 627854
+        },
+        {
+          "id": "n32-max-raw-single-range-d1",
+          "target": false,
+          "ratio": 0.9890961316190375,
+          "before_median_ns": 641974,
+          "candidate_median_ns": 634974
+        },
+        {
+          "id": "n32-max-raw-plural-instant-d0",
+          "target": true,
+          "ratio": 1.0184688964253463,
+          "before_median_ns": 339977,
+          "candidate_median_ns": 346256
+        },
+        {
+          "id": "n32-max-raw-plural-instant-d1",
+          "target": true,
+          "ratio": 1.0009035540734759,
+          "before_median_ns": 354157,
+          "candidate_median_ns": 354477
+        },
+        {
+          "id": "n32-max-raw-plural-range-d0",
+          "target": true,
+          "ratio": 0.9816898998457254,
+          "before_median_ns": 724682,
+          "candidate_median_ns": 711413
+        },
+        {
+          "id": "n32-max-raw-plural-range-d1",
+          "target": true,
+          "ratio": 0.9935141374274723,
+          "before_median_ns": 741613,
+          "candidate_median_ns": 736803
+        },
+        {
+          "id": "n32-none-raw-plural-instant-d0",
+          "target": false,
+          "ratio": 1.0025216197893414,
+          "before_median_ns": 241908,
+          "candidate_median_ns": 242518
+        },
+        {
+          "id": "n32-none-raw-plural-instant-d1",
+          "target": false,
+          "ratio": 1.0022737233372987,
+          "before_median_ns": 303467,
+          "candidate_median_ns": 304157
+        },
+        {
+          "id": "n32-none-raw-plural-range-d0",
+          "target": false,
+          "ratio": 0.9814081258416665,
+          "before_median_ns": 279208,
+          "candidate_median_ns": 274017
+        },
+        {
+          "id": "n32-none-raw-plural-range-d1",
+          "target": false,
+          "ratio": 1.0324272757283617,
+          "before_median_ns": 357446,
+          "candidate_median_ns": 369037
+        },
+        {
+          "id": "n32-sum-mapped-single-instant-d0",
+          "target": false,
+          "ratio": 0.9997791812039041,
+          "before_median_ns": 498146,
+          "candidate_median_ns": 498036
+        },
+        {
+          "id": "n32-sum-mapped-single-instant-d1",
+          "target": false,
+          "ratio": 0.9939827583784822,
+          "before_median_ns": 427106,
+          "candidate_median_ns": 424536
+        },
+        {
+          "id": "n32-sum-mapped-single-range-d0",
+          "target": false,
+          "ratio": 1.0135321684164638,
+          "before_median_ns": 1211188,
+          "candidate_median_ns": 1227578
+        },
+        {
+          "id": "n32-sum-mapped-single-range-d1",
+          "target": false,
+          "ratio": 1.0109199369962978,
+          "before_median_ns": 1229769,
+          "candidate_median_ns": 1243198
+        },
+        {
+          "id": "n32-sum-mapped-plural-instant-d0",
+          "target": true,
+          "ratio": 0.9997764009875623,
+          "before_median_ns": 536675,
+          "candidate_median_ns": 536555
+        },
+        {
+          "id": "n32-sum-mapped-plural-instant-d1",
+          "target": true,
+          "ratio": 0.98557618220857,
+          "before_median_ns": 486695,
+          "candidate_median_ns": 479675
+        },
+        {
+          "id": "n32-sum-mapped-plural-range-d0",
+          "target": true,
+          "ratio": 0.9916011484283604,
+          "before_median_ns": 1315537,
+          "candidate_median_ns": 1304488
+        },
+        {
+          "id": "n32-sum-mapped-plural-range-d1",
+          "target": true,
+          "ratio": 1.0057562313990167,
+          "before_median_ns": 1346367,
+          "candidate_median_ns": 1354117
+        },
+        {
+          "id": "n32-max-mapped-single-instant-d0",
+          "target": false,
+          "ratio": 0.9911670262659414,
+          "before_median_ns": 493605,
+          "candidate_median_ns": 489245
+        },
+        {
+          "id": "n32-max-mapped-single-instant-d1",
+          "target": false,
+          "ratio": 0.9944844226011933,
+          "before_median_ns": 426066,
+          "candidate_median_ns": 423716
+        },
+        {
+          "id": "n32-max-mapped-single-range-d0",
+          "target": false,
+          "ratio": 0.9938601768328165,
+          "before_median_ns": 1218439,
+          "candidate_median_ns": 1210958
+        },
+        {
+          "id": "n32-max-mapped-single-range-d1",
+          "target": false,
+          "ratio": 0.9970533313748388,
+          "before_median_ns": 1232239,
+          "candidate_median_ns": 1228608
+        },
+        {
+          "id": "n32-max-mapped-plural-instant-d0",
+          "target": true,
+          "ratio": 0.9923103165309755,
+          "before_median_ns": 542285,
+          "candidate_median_ns": 538115
+        },
+        {
+          "id": "n32-max-mapped-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9798463411390398,
+          "before_median_ns": 488745,
+          "candidate_median_ns": 478895
+        },
+        {
+          "id": "n32-max-mapped-plural-range-d0",
+          "target": true,
+          "ratio": 0.9917463280279804,
+          "before_median_ns": 1315778,
+          "candidate_median_ns": 1304918
+        },
+        {
+          "id": "n32-max-mapped-plural-range-d1",
+          "target": true,
+          "ratio": 0.9972027702934205,
+          "before_median_ns": 1351337,
+          "candidate_median_ns": 1347557
+        },
+        {
+          "id": "n32-none-mapped-plural-instant-d0",
+          "target": false,
+          "ratio": 0.9929157912668218,
+          "before_median_ns": 440275,
+          "candidate_median_ns": 437156
+        },
+        {
+          "id": "n32-none-mapped-plural-instant-d1",
+          "target": false,
+          "ratio": 0.9882977663899175,
+          "before_median_ns": 441796,
+          "candidate_median_ns": 436626
+        },
+        {
+          "id": "n32-none-mapped-plural-range-d0",
+          "target": false,
+          "ratio": 0.9953556879553085,
+          "before_median_ns": 904332,
+          "candidate_median_ns": 900132
+        },
+        {
+          "id": "n32-none-mapped-plural-range-d1",
+          "target": false,
+          "ratio": 0.9912057459314471,
+          "before_median_ns": 1135969,
+          "candidate_median_ns": 1125979
+        },
+        {
+          "id": "n32-sum-rate-single-instant-d0",
+          "target": false,
+          "ratio": 0.9760035313785526,
+          "before_median_ns": 425896,
+          "candidate_median_ns": 415676
+        },
+        {
+          "id": "n32-sum-rate-single-instant-d1",
+          "target": false,
+          "ratio": 0.9906486232423328,
+          "before_median_ns": 408496,
+          "candidate_median_ns": 404676
+        },
+        {
+          "id": "n32-sum-rate-single-range-d0",
+          "target": false,
+          "ratio": 0.9768416065366189,
+          "before_median_ns": 1186179,
+          "candidate_median_ns": 1158709
+        },
+        {
+          "id": "n32-sum-rate-single-range-d1",
+          "target": false,
+          "ratio": 0.9754998466491556,
+          "before_median_ns": 1167258,
+          "candidate_median_ns": 1138660
+        },
+        {
+          "id": "n32-sum-rate-plural-instant-d0",
+          "target": true,
+          "ratio": 0.9917630228781018,
+          "before_median_ns": 464855,
+          "candidate_median_ns": 461026
+        },
+        {
+          "id": "n32-sum-rate-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9912456029002034,
+          "before_median_ns": 464795,
+          "candidate_median_ns": 460726
+        },
+        {
+          "id": "n32-sum-rate-plural-range-d0",
+          "target": true,
+          "ratio": 0.9721337617032875,
+          "before_median_ns": 1276778,
+          "candidate_median_ns": 1241199
+        },
+        {
+          "id": "n32-sum-rate-plural-range-d1",
+          "target": true,
+          "ratio": 0.9927913146127246,
+          "before_median_ns": 1246968,
+          "candidate_median_ns": 1237979
+        },
+        {
+          "id": "n32-max-rate-single-instant-d0",
+          "target": false,
+          "ratio": 0.990851977873667,
+          "before_median_ns": 420856,
+          "candidate_median_ns": 417006
+        },
+        {
+          "id": "n32-max-rate-single-instant-d1",
+          "target": false,
+          "ratio": 0.9747549603222813,
+          "before_median_ns": 411566,
+          "candidate_median_ns": 401176
+        },
+        {
+          "id": "n32-max-rate-single-range-d0",
+          "target": false,
+          "ratio": 0.9950785253378913,
+          "before_median_ns": 1168349,
+          "candidate_median_ns": 1162599
+        },
+        {
+          "id": "n32-max-rate-single-range-d1",
+          "target": false,
+          "ratio": 0.9948928913618663,
+          "before_median_ns": 1137630,
+          "candidate_median_ns": 1131820
+        },
+        {
+          "id": "n32-max-rate-plural-instant-d0",
+          "target": true,
+          "ratio": 0.9865152804558822,
+          "before_median_ns": 464155,
+          "candidate_median_ns": 457896
+        },
+        {
+          "id": "n32-max-rate-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9820285552668178,
+          "before_median_ns": 470246,
+          "candidate_median_ns": 461795
+        },
+        {
+          "id": "n32-max-rate-plural-range-d0",
+          "target": true,
+          "ratio": 0.9929088140873948,
+          "before_median_ns": 1246618,
+          "candidate_median_ns": 1237778
+        },
+        {
+          "id": "n32-max-rate-plural-range-d1",
+          "target": true,
+          "ratio": 0.9970543449217228,
+          "before_median_ns": 1242508,
+          "candidate_median_ns": 1238848
+        },
+        {
+          "id": "n32-none-rate-plural-instant-d0",
+          "target": false,
+          "ratio": 0.9841613598787978,
+          "before_median_ns": 318146,
+          "candidate_median_ns": 313107
+        },
+        {
+          "id": "n32-none-rate-plural-instant-d1",
+          "target": false,
+          "ratio": 0.9735628751537599,
+          "before_median_ns": 365017,
+          "candidate_median_ns": 355367
+        },
+        {
+          "id": "n32-none-rate-plural-range-d0",
+          "target": false,
+          "ratio": 0.984627631115345,
+          "before_median_ns": 842941,
+          "candidate_median_ns": 829983
+        },
+        {
+          "id": "n32-none-rate-plural-range-d1",
+          "target": false,
+          "ratio": 1.0089837624785118,
+          "before_median_ns": 913871,
+          "candidate_median_ns": 922081
+        },
+        {
+          "id": "n128-sum-raw-single-instant-d0",
+          "target": false,
+          "ratio": 0.9970185505609235,
+          "before_median_ns": 1143739,
+          "candidate_median_ns": 1140329
+        },
+        {
+          "id": "n128-sum-raw-single-instant-d1",
+          "target": false,
+          "ratio": 0.9997118758806833,
+          "before_median_ns": 1141869,
+          "candidate_median_ns": 1141540
+        },
+        {
+          "id": "n128-sum-raw-single-range-d0",
+          "target": false,
+          "ratio": 1.0027855873950755,
+          "before_median_ns": 2473446,
+          "candidate_median_ns": 2480336
+        },
+        {
+          "id": "n128-sum-raw-single-range-d1",
+          "target": false,
+          "ratio": 0.9935852735688584,
+          "before_median_ns": 2470877,
+          "candidate_median_ns": 2455027
+        },
+        {
+          "id": "n128-sum-raw-plural-instant-d0",
+          "target": true,
+          "ratio": 1.0084254939485042,
+          "before_median_ns": 1306867,
+          "candidate_median_ns": 1317878
+        },
+        {
+          "id": "n128-sum-raw-plural-instant-d1",
+          "target": true,
+          "ratio": 1.0011688669369185,
+          "before_median_ns": 1368847,
+          "candidate_median_ns": 1370447
+        },
+        {
+          "id": "n128-sum-raw-plural-range-d0",
+          "target": true,
+          "ratio": 1.0060376114782807,
+          "before_median_ns": 2815683,
+          "candidate_median_ns": 2832683
+        },
+        {
+          "id": "n128-sum-raw-plural-range-d1",
+          "target": true,
+          "ratio": 1.0090577599157948,
+          "before_median_ns": 2874883,
+          "candidate_median_ns": 2900923
+        },
+        {
+          "id": "n128-max-raw-single-instant-d0",
+          "target": false,
+          "ratio": 0.9935513098388562,
+          "before_median_ns": 1156669,
+          "candidate_median_ns": 1149210
+        },
+        {
+          "id": "n128-max-raw-single-instant-d1",
+          "target": false,
+          "ratio": 1.0069655372170578,
+          "before_median_ns": 1142769,
+          "candidate_median_ns": 1150729
+        },
+        {
+          "id": "n128-max-raw-single-range-d0",
+          "target": false,
+          "ratio": 1.0039089705591941,
+          "before_median_ns": 2461006,
+          "candidate_median_ns": 2470626
+        },
+        {
+          "id": "n128-max-raw-single-range-d1",
+          "target": false,
+          "ratio": 1.0125150208005433,
+          "before_median_ns": 2449936,
+          "candidate_median_ns": 2480597
+        },
+        {
+          "id": "n128-max-raw-plural-instant-d0",
+          "target": true,
+          "ratio": 1.0256947768246136,
+          "before_median_ns": 1303728,
+          "candidate_median_ns": 1337227
+        },
+        {
+          "id": "n128-max-raw-plural-instant-d1",
+          "target": true,
+          "ratio": 1.0254625685259502,
+          "before_median_ns": 1361528,
+          "candidate_median_ns": 1396196
+        },
+        {
+          "id": "n128-max-raw-plural-range-d0",
+          "target": true,
+          "ratio": 1.0077314438758995,
+          "before_median_ns": 2808143,
+          "candidate_median_ns": 2829854
+        },
+        {
+          "id": "n128-max-raw-plural-range-d1",
+          "target": true,
+          "ratio": 1.0047894398082695,
+          "before_median_ns": 2877372,
+          "candidate_median_ns": 2891153
+        },
+        {
+          "id": "n128-none-raw-plural-instant-d0",
+          "target": false,
+          "ratio": 1.0234904098638347,
+          "before_median_ns": 935701,
+          "candidate_median_ns": 957681
+        },
+        {
+          "id": "n128-none-raw-plural-instant-d1",
+          "target": false,
+          "ratio": 1.0213913198739055,
+          "before_median_ns": 1153739,
+          "candidate_median_ns": 1178419
+        },
+        {
+          "id": "n128-none-raw-plural-range-d0",
+          "target": false,
+          "ratio": 1.0260233447929046,
+          "before_median_ns": 1050941,
+          "candidate_median_ns": 1078290
+        },
+        {
+          "id": "n128-none-raw-plural-range-d1",
+          "target": false,
+          "ratio": 1.0215554535943827,
+          "before_median_ns": 1392687,
+          "candidate_median_ns": 1422707
+        },
+        {
+          "id": "n128-sum-mapped-single-instant-d0",
+          "target": false,
+          "ratio": 1.0257390356885046,
+          "before_median_ns": 1920002,
+          "candidate_median_ns": 1969421
+        },
+        {
+          "id": "n128-sum-mapped-single-instant-d1",
+          "target": false,
+          "ratio": 1.0171964711682442,
+          "before_median_ns": 1632835,
+          "candidate_median_ns": 1660914
+        },
+        {
+          "id": "n128-sum-mapped-single-range-d0",
+          "target": false,
+          "ratio": 1.0305728745478204,
+          "before_median_ns": 4807824,
+          "candidate_median_ns": 4954813
+        },
+        {
+          "id": "n128-sum-mapped-single-range-d1",
+          "target": false,
+          "ratio": 0.9940527550734309,
+          "before_median_ns": 4971882,
+          "candidate_median_ns": 4942313
+        },
+        {
+          "id": "n128-sum-mapped-plural-instant-d0",
+          "target": true,
+          "ratio": 0.996742890408125,
+          "before_median_ns": 2078530,
+          "candidate_median_ns": 2071760
+        },
+        {
+          "id": "n128-sum-mapped-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9849798939719941,
+          "before_median_ns": 1893462,
+          "candidate_median_ns": 1865022
+        },
+        {
+          "id": "n128-sum-mapped-plural-range-d0",
+          "target": true,
+          "ratio": 1.0024267639394546,
+          "before_median_ns": 5142651,
+          "candidate_median_ns": 5155131
+        },
+        {
+          "id": "n128-sum-mapped-plural-range-d1",
+          "target": true,
+          "ratio": 0.9897710734075691,
+          "before_median_ns": 5399198,
+          "candidate_median_ns": 5343970
+        },
+        {
+          "id": "n128-max-mapped-single-instant-d0",
+          "target": false,
+          "ratio": 0.9961408374696444,
+          "before_median_ns": 1912332,
+          "candidate_median_ns": 1904952
+        },
+        {
+          "id": "n128-max-mapped-single-instant-d1",
+          "target": false,
+          "ratio": 0.9918808906019791,
+          "before_median_ns": 1647964,
+          "candidate_median_ns": 1634584
+        },
+        {
+          "id": "n128-max-mapped-single-range-d0",
+          "target": false,
+          "ratio": 0.9757911697936762,
+          "before_median_ns": 4914653,
+          "candidate_median_ns": 4795675
+        },
+        {
+          "id": "n128-max-mapped-single-range-d1",
+          "target": false,
+          "ratio": 0.9883816768380962,
+          "before_median_ns": 4948993,
+          "candidate_median_ns": 4891494
+        },
+        {
+          "id": "n128-max-mapped-plural-instant-d0",
+          "target": true,
+          "ratio": 0.9878709542024783,
+          "before_median_ns": 2096620,
+          "candidate_median_ns": 2071190
+        },
+        {
+          "id": "n128-max-mapped-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9915020602036091,
+          "before_median_ns": 1874572,
+          "candidate_median_ns": 1858642
+        },
+        {
+          "id": "n128-max-mapped-plural-range-d0",
+          "target": true,
+          "ratio": 0.9953901146639436,
+          "before_median_ns": 5212711,
+          "candidate_median_ns": 5188681
+        },
+        {
+          "id": "n128-max-mapped-plural-range-d1",
+          "target": true,
+          "ratio": 1.0038978434470827,
+          "before_median_ns": 5385029,
+          "candidate_median_ns": 5406019
+        },
+        {
+          "id": "n128-none-mapped-plural-instant-d0",
+          "target": false,
+          "ratio": 1.007610932479729,
+          "before_median_ns": 1672594,
+          "candidate_median_ns": 1685324
+        },
+        {
+          "id": "n128-none-mapped-plural-instant-d1",
+          "target": false,
+          "ratio": 1.0080174330960163,
+          "before_median_ns": 1674975,
+          "candidate_median_ns": 1688404
+        },
+        {
+          "id": "n128-none-mapped-plural-range-d0",
+          "target": false,
+          "ratio": 0.9845431707863164,
+          "before_median_ns": 3653466,
+          "candidate_median_ns": 3596995
+        },
+        {
+          "id": "n128-none-mapped-plural-range-d1",
+          "target": false,
+          "ratio": 0.987784135177303,
+          "before_median_ns": 4562837,
+          "candidate_median_ns": 4507098
+        },
+        {
+          "id": "n128-sum-rate-single-instant-d0",
+          "target": false,
+          "ratio": 0.9770126965472898,
+          "before_median_ns": 1625245,
+          "candidate_median_ns": 1587885
+        },
+        {
+          "id": "n128-sum-rate-single-instant-d1",
+          "target": false,
+          "ratio": 0.9820390449969391,
+          "before_median_ns": 1559995,
+          "candidate_median_ns": 1531976
+        },
+        {
+          "id": "n128-sum-rate-single-range-d0",
+          "target": false,
+          "ratio": 0.9954022824899404,
+          "before_median_ns": 4636866,
+          "candidate_median_ns": 4615547
+        },
+        {
+          "id": "n128-sum-rate-single-range-d1",
+          "target": false,
+          "ratio": 0.9904686863958203,
+          "before_median_ns": 4502947,
+          "candidate_median_ns": 4460028
+        },
+        {
+          "id": "n128-sum-rate-plural-instant-d0",
+          "target": true,
+          "ratio": 0.9647108205662243,
+          "before_median_ns": 1812992,
+          "candidate_median_ns": 1749013
+        },
+        {
+          "id": "n128-sum-rate-plural-instant-d1",
+          "target": true,
+          "ratio": 1.0033189679015575,
+          "before_median_ns": 1789713,
+          "candidate_median_ns": 1795653
+        },
+        {
+          "id": "n128-sum-rate-plural-range-d0",
+          "target": true,
+          "ratio": 0.9961791037760601,
+          "before_median_ns": 4935753,
+          "candidate_median_ns": 4916894
+        },
+        {
+          "id": "n128-sum-rate-plural-range-d1",
+          "target": true,
+          "ratio": 0.9814199365782135,
+          "before_median_ns": 4936474,
+          "candidate_median_ns": 4844754
+        },
+        {
+          "id": "n128-max-rate-single-instant-d0",
+          "target": false,
+          "ratio": 0.9963261048928188,
+          "before_median_ns": 1605925,
+          "candidate_median_ns": 1600025
+        },
+        {
+          "id": "n128-max-rate-single-instant-d1",
+          "target": false,
+          "ratio": 0.989748526684313,
+          "before_median_ns": 1554996,
+          "candidate_median_ns": 1539055
+        },
+        {
+          "id": "n128-max-rate-single-range-d0",
+          "target": false,
+          "ratio": 0.9806613908557609,
+          "before_median_ns": 4624376,
+          "candidate_median_ns": 4534947
+        },
+        {
+          "id": "n128-max-rate-single-range-d1",
+          "target": false,
+          "ratio": 0.9968783180476244,
+          "before_median_ns": 4462338,
+          "candidate_median_ns": 4448408
+        },
+        {
+          "id": "n128-max-rate-plural-instant-d0",
+          "target": true,
+          "ratio": 0.9734260186924623,
+          "before_median_ns": 1797623,
+          "candidate_median_ns": 1749853
+        },
+        {
+          "id": "n128-max-rate-plural-instant-d1",
+          "target": true,
+          "ratio": 0.9741608093947365,
+          "before_median_ns": 1800753,
+          "candidate_median_ns": 1754223
+        },
+        {
+          "id": "n128-max-rate-plural-range-d0",
+          "target": true,
+          "ratio": 0.9745396198479448,
+          "before_median_ns": 4969643,
+          "candidate_median_ns": 4843114
+        },
+        {
+          "id": "n128-max-rate-plural-range-d1",
+          "target": true,
+          "ratio": 0.9747046900922233,
+          "before_median_ns": 4958943,
+          "candidate_median_ns": 4833505
+        },
+        {
+          "id": "n128-none-rate-plural-instant-d0",
+          "target": false,
+          "ratio": 0.9736327808757715,
+          "before_median_ns": 1235208,
+          "candidate_median_ns": 1202639
+        },
+        {
+          "id": "n128-none-rate-plural-instant-d1",
+          "target": false,
+          "ratio": 0.9847844861763843,
+          "before_median_ns": 1399887,
+          "candidate_median_ns": 1378587
+        },
+        {
+          "id": "n128-none-rate-plural-range-d0",
+          "target": false,
+          "ratio": 0.9669344679781998,
+          "before_median_ns": 3375388,
+          "candidate_median_ns": 3263779
+        },
+        {
+          "id": "n128-none-rate-plural-range-d1",
+          "target": false,
+          "ratio": 0.9816802830291947,
+          "before_median_ns": 3599346,
+          "candidate_median_ns": 3533407
+        }
+      ]
+    }
+  },
+  "followup": {
+    "complete_pairs": 120,
+    "reports": [
+      {
+        "panel": "primary",
+        "profile": "release",
+        "selected": [
+          "n128-sum-raw-plural-range-d0",
+          "n128-none-raw-plural-instant-d0",
+          "n128-none-raw-plural-instant-d1",
+          "n128-none-raw-plural-range-d1",
+          "n128-max-rate-plural-range-d0"
+        ],
+        "timings": [
+          {
+            "id": "n128-sum-raw-plural-range-d0",
+            "before_ns": [
+              1801513,
+              1823723,
+              1740563,
+              1770393,
+              1755433,
+              1740584,
+              1847683,
+              1830093,
+              1790983,
+              1806913,
+              1755613,
+              1793024,
+              1899492,
+              1895832,
+              1891972,
+              1746434,
+              1754403,
+              1736913
+            ],
+            "candidate_ns": [
+              1793063,
+              1801953,
+              1793283,
+              1833283,
+              1827453,
+              1805343,
+              1792283,
+              1791603,
+              1777363,
+              1811693,
+              1804533,
+              1782364,
+              1826203,
+              1821813,
+              1814162,
+              1813533,
+              1783603,
+              1768454
+            ],
+            "ratio": 1.0062720301606554
+          },
+          {
+            "id": "n128-none-raw-plural-instant-d0",
+            "before_ns": [
+              588994,
+              589305,
+              588014,
+              587175,
+              586485,
+              587024,
+              617823,
+              599514,
+              618894,
+              580965,
+              584734,
+              577644,
+              621354,
+              652854,
+              640044,
+              590874,
+              593224,
+              587215
+            ],
+            "candidate_ns": [
+              592584,
+              592275,
+              590535,
+              597105,
+              593564,
+              591794,
+              587045,
+              598614,
+              589135,
+              599105,
+              598684,
+              598124,
+              670343,
+              621304,
+              604994,
+              589994,
+              591264,
+              623104
+            ],
+            "ratio": 1.0104981842469527
+          },
+          {
+            "id": "n128-none-raw-plural-instant-d1",
+            "before_ns": [
+              716343,
+              700654,
+              702163,
+              704933,
+              713623,
+              761533,
+              741693,
+              724324,
+              738453,
+              714854,
+              715123,
+              714343,
+              745392,
+              757483,
+              758343,
+              700423,
+              725153,
+              734813
+            ],
+            "candidate_ns": [
+              709853,
+              704714,
+              699863,
+              717723,
+              720573,
+              717413,
+              734273,
+              703103,
+              698983,
+              729593,
+              723293,
+              720294,
+              756313,
+              728403,
+              753593,
+              700624,
+              693553,
+              703313
+            ],
+            "ratio": 0.9961608060710768
+          },
+          {
+            "id": "n128-none-raw-plural-range-d1",
+            "before_ns": [
+              891932,
+              899601,
+              886762,
+              909442,
+              885801,
+              892471,
+              919581,
+              928711,
+              931641,
+              892361,
+              882662,
+              899431,
+              930351,
+              924991,
+              937041,
+              912882,
+              891722,
+              918711
+            ],
+            "candidate_ns": [
+              884322,
+              893781,
+              873681,
+              907651,
+              900472,
+              907132,
+              890292,
+              915141,
+              984641,
+              898311,
+              884382,
+              885322,
+              958761,
+              921041,
+              922802,
+              874692,
+              873152,
+              865482
+            ],
+            "ratio": 0.9906298523584016
+          },
+          {
+            "id": "n128-max-rate-plural-range-d0",
+            "before_ns": [
+              3377788,
+              3265929,
+              3294479,
+              3287799,
+              3310608,
+              3235660,
+              3238959,
+              3220229,
+              3228010,
+              3227520,
+              3214599,
+              3214370,
+              3426218,
+              3441348,
+              3399348,
+              3311029,
+              3304159,
+              3305569
+            ],
+            "candidate_ns": [
+              3271839,
+              3278289,
+              3278719,
+              3118321,
+              3121101,
+              3120480,
+              3130640,
+              3183850,
+              3168240,
+              3208799,
+              3212050,
+              3197749,
+              3362198,
+              3308249,
+              3282669,
+              3140300,
+              3265409,
+              3132420
+            ],
+            "ratio": 0.9733025557413406
+          }
+        ]
+      },
+      {
+        "panel": "primary",
+        "profile": "release-min",
+        "selected": [],
+        "timings": []
+      }
+    ]
+  },
+  "qualification": {
+    "baseline_analytical_queries": 336,
+    "functional_shapes": 168,
+    "timing_shapes": 120,
+    "primary_timing_pairs": 4800,
+    "followup_pairs": 120,
+    "standard_memory_pairs": 336,
+    "focused_distinct_tests": 41,
+    "focused": [
+      {
+        "filter": "unique_group_indexes_follow_actual_root_clocks_and_preserve_results",
+        "passed": 1,
+        "ignored": 0,
+        "capture": ".tmp/unique-group-index-_5w5chjj/focused-units-0.stdout",
+        "reused_completed": true
+      },
+      {
+        "filter": "position_index::tests::",
+        "passed": 10,
+        "ignored": 0,
+        "capture": ".tmp/unique-group-index-_5w5chjj/focused-units-1.stdout",
+        "reused_completed": true
+      },
+      {
+        "filter": "evaluator_roster::tests::",
+        "passed": 21,
+        "ignored": 0,
+        "capture": ".tmp/unique-group-index-_5w5chjj/focused-units-2.stdout",
+        "reused_completed": true
+      },
+      {
+        "filter": "aggregate_replay::tests::",
+        "passed": 4,
+        "ignored": 0,
+        "capture": ".tmp/unique-group-index-_5w5chjj/focused-units-3.stdout",
+        "reused_completed": true
+      },
+      {
+        "filter": "mapped_groups_check_complete_results_before_linear_label_visits",
+        "passed": 1,
+        "ignored": 0,
+        "capture": ".tmp/unique-group-index-_5w5chjj/focused-units-4.stdout",
+        "reused_completed": true
+      },
+      {
+        "filter": "mapped_groups_keep_cold_selected_next_clock_and_output_failures",
+        "passed": 1,
+        "ignored": 0,
+        "capture": ".tmp/unique-group-index-_5w5chjj/focused-units-5.stdout",
+        "reused_completed": true
+      },
+      {
+        "filter": "native_group_maps_check_complete_results_before_bounded_source_reads",
+        "passed": 1,
+        "ignored": 0,
+        "capture": ".tmp/unique-group-index-_5w5chjj/focused-remainder-0.stdout",
+        "reused_completed": false
+      },
+      {
+        "filter": "completed_single_group_values_keep_one_pass_native_and_absent_fallbacks",
+        "passed": 1,
+        "ignored": 0,
+        "capture": ".tmp/unique-group-index-_5w5chjj/focused-remainder-1.stdout",
+        "reused_completed": false
+      },
+      {
+        "filter": "local_grouped_inner_machines_preserve_member_and_clock_failures",
+        "passed": 1,
+        "ignored": 0,
+        "capture": ".tmp/unique-group-index-_5w5chjj/focused-remainder-2.stdout",
+        "reused_completed": false
+      }
+    ],
+    "complete_observer_queries": 288,
+    "observed_plural_constructions": "2T and2TGinsertions for G>1 at Tqueryclocks; zero for G<=1. Successful completequeries, not output-cardinality inference.",
+    "format_passed": true,
+    "new_unit_tests": 1,
+    "original_differential_pairs": 0,
+    "full_native_suites": false,
+    "ARM_units": false,
+    "C_CPP_checks": false,
+    "static_MSRV_checks": false,
+    "compiled_cost_checks": false
+  },
+  "resources": {
+    "complete_timing_pairs": 4920,
+    "complete_outputs_exact": true,
+    "all_nonelapsed_observations_except_work_exact": true,
+    "work_nonincreasing": true,
+    "target_work_reduced": true,
+    "example": {
+      "id": "n128-sum-raw-plural-range-d0",
+      "work": [
+        119565,
+        118821
+      ],
+      "samples_fetched": [
+        2688,
+        2688
+      ],
+      "workspace": {
+        "peak": [
+          83304,
+          83304
+        ],
+        "acquired": [
+          696920,
+          696920
+        ]
+      }
+    },
+    "scope": "Finite accounted categories/traffic and physical observations, not process RSS or universal bounds."
+  },
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/unique-group-index-_5w5chjj/baseline-source.json",
+      "sha256": "bfb2d3abf0635c30efe601872a87276bbd9a402653b037272df3758a2bbf7f92"
+    },
+    "candidate": {
+      "path": ".tmp/unique-group-index-_5w5chjj/candidate-source.json",
+      "sha256": "d861df6716304e326c51ce3098d8b72fc141c92487546019e9553d095839bfa4"
+    }
+  },
+  "canonical_cases": {
+    "path": "src/crates/promql-engine/tests/promql-conformance/unique_group_index_cases.py",
+    "sha256": "c8890a3ee0eddca31245e3ef64469adaf27eb3a8408540537546b3e3271d1f2a",
+    "executed_inputs_reproduced": true
+  },
+  "development_corrections": [
+    "Initial focused helper used nonexistent native test prefixes. Its first six completed checks and build were authenticated and reused; successor ran the actual native owners and remaining failure owner. Zero selected tests were not counted as coverage.",
+    "An initial limited constructor search omitted quantile_aggregate::Plan::prepare_rows. It is a separate parameterized kernel and unaffected by this ordinary-aggregation edit; no global sole-constructor claim is made."
+  ],
+  "scope_limits": [
+    "No runtime optimization ships.",
+    "Empty/one-source cases are functional/resource controls, not timing claims; timing uses32/128source-series workloads. Earlier failed210/211gates remain unchanged.",
+    "No original differential, full native, ARM, C/C++, static/MSRV or compiled-cost qualification ran after early rejection. Prepared helpers are not executions.",
+    "No universal performance, live-dbengine/concurrent throughput, process RSS or physical ARM speed claim."
+  ],
+  "receipts": {
+    "baseline-binding": {
+      "path": ".tmp/unique-group-index-_5w5chjj/baseline-binding.json",
+      "sha256": "76f4231738dc4a0e009806ec2bc7a03327879880ff76b9bbd71f01b6035424af"
+    },
+    "explore": {
+      "path": ".tmp/unique-group-index-_5w5chjj/explore.json",
+      "sha256": "d6de23fc8f415b77119e01619c57c85190ef9710a66b103d6760212d5d9b8ef1"
+    },
+    "measurement-plan": {
+      "path": ".tmp/unique-group-index-_5w5chjj/measurement-plan.json",
+      "sha256": "560a3172862ae2b0a2ea79a60f2e5b55a0a85480b9b6f4e2969237d6a66d4c6a"
+    },
+    "development-review": {
+      "path": ".tmp/unique-group-index-_5w5chjj/development-review.json",
+      "sha256": "ba6b98839754b2b485da227d5e43445c577ee89451e0900fcac240d62c7d1e9c"
+    },
+    "focused": {
+      "path": ".tmp/unique-group-index-_5w5chjj/focused.json",
+      "sha256": "c20ff230d99693b07559f52dfb648e3ef31e788d62f12f23b2bad341cc902f80"
+    },
+    "early": {
+      "path": ".tmp/unique-group-index-_5w5chjj/early.json",
+      "sha256": "b466ab98bdd5ae7caec0829f140d587621adf17c894837509849b42aa9f16e10"
+    },
+    "pilot": {
+      "path": ".tmp/unique-group-index-_5w5chjj/pilot.json",
+      "sha256": "be8ef180c24ed0f8b10b871d8b6a97920d5c97d5a25c5ef8c3f989a0daa79230"
+    },
+    "followup": {
+      "path": ".tmp/unique-group-index-_5w5chjj/followup.json",
+      "sha256": "9d91be4330cac6d0aa08f21d4fdbbc9ffb63db1dd5fa0fdd3ba3214cab8be6cf"
+    },
+    "restoration": {
+      "path": ".tmp/unique-group-index-_5w5chjj/restoration.json",
+      "sha256": "a9a83903dad27b4a040c0a8d22cc5fcd85916a80193f767a341ea940475b9621"
+    },
+    "perf-release-builds": {
+      "path": ".tmp/unique-group-index-_5w5chjj/perf-release-builds.json",
+      "sha256": "905ee2ffe49400d9fe5731c670c603edb3800f5a96b89afe7bdbb2d15145d171"
+    },
+    "perf-release-min-builds": {
+      "path": ".tmp/unique-group-index-_5w5chjj/perf-release-min-builds.json",
+      "sha256": "91e2c9feb7048217b99b654c74ca643b224835473612d47e8c0edf5df987f61e"
+    },
+    "historical-source-snapshots": {
+      "path": ".tmp/unique-group-index-_5w5chjj/historical-source-snapshots.json",
+      "sha256": "ed2983d463700bc12e0df1c48162a1b189c6cc3f0c6a6fa1f3c6549914e410fd"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/unique-group-index-_5w5chjj/artifact-integrity.json",
+      "sha256": "ef5768224ed2a1c526780391af2d17272fa615ae7d814eefe39ff00c912d821d"
+    }
+  }
+}

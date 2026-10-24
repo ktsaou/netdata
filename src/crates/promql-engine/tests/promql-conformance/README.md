@@ -12406,3 +12406,31 @@ discarded 16 MiB fields, cancellation, unchanged descriptors, duplicate/disjoint
 Broader originals, full native, ARM, C/C++, static/MSRV and compiled costs were not qualified. Prepared helpers
 and the explicit delayed C/C++ consumer are not execution evidence. No universal or live/concurrent throughput
 claim follows from this finite synthetic experiment.
+
+## Rejected unique-group index insertion
+
+The [finite experiment](unique-group-index-rejected-qualification.json) removed an existence probe before each
+insertion when constructing an ordinary aggregate's lookup. Preparation already merges equal grouping hashes;
+active filters preserve unique original ordinals. Insertion order, table growth, sample lookup and arithmetic
+were unchanged. Quantile has a separate parameterized kernel and was outside this edit.
+
+A restored test-only observer verified actual construction in **288 complete ordinary queries**. A plural root
+built the lookup twice per clock, with one insertion per group; zero/singleton groups bypassed it. This confirms
+the executed path, rather than inferring it from output cardinality. Forty-one focused tests and formatting passed,
+including preparation aliases, contributor selection, growth controls, native groups and later failures.
+
+Both primary target gates failed. Target/control median ratios were **0.999612 / 0.996436** in release and
+**0.992850 / 0.993921** in release-min, against a required target ratio no greater than 0.98. Five prescribed
+individual followups passed 1.05, but did not waive these failures. Both runtime/test files were restored exactly.
+The reduced metadata-search work did not establish the required complete-query benefit; its timing cause is unproven.
+
+The [168-case corpus](unique_group_index_cases.py) includes sum/max over raw, absolute-value and rate inputs,
+instant/range requests and both naming modes. The 120 timing shapes use 32/128 source series, comparing plural
+aggregates with single-group and nongrouped controls. Empty/one-source cases remain functional/resource checks.
+All 336 analytical baseline outcomes, 336 early comparisons, 4,800 primary pairs and 120 followup pairs preserved
+complete results; all nonelapsed observations except reduced work were exact, including every memory counter.
+
+The original focused helper selected no tests for an incorrect native prefix. Its completed checks were retained;
+a successor executed the real native tests without changing runtime or gates. Broader originals, full native,
+ARM, C/C++, static/MSRV and compiled costs were not qualified after rejection. Prepared helpers are not execution
+evidence. These finite results imply no universal or live/concurrent performance guarantee.
