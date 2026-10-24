@@ -12350,3 +12350,29 @@ that is source equivalence, not a claim of byte-identical linked executables.
 
 This finite qualification does not establish exhaustive equivalence, universal speedup, live-dbengine or
 concurrent throughput, process RSS, or physical ARM performance. Fixed executable growth is separate from RAM.
+
+## Rejected empty merge-buffer release
+
+The [finite experiment](empty-merge-guard-rejected-qualification.json) released hash-buffer capacity when
+compaction left an immutable merge guard empty. It preserved sorting, collision handling, accounting context,
+work and cancellation checks. No fields, caches or raw history were added.
+
+The memory gate passed in both profiles. For 128-series range queries, all four measured live Workspace
+values (first, last, minimum and maximum during delivery) fell by **1,024 bytes**: plain delayed-name queries
+from **97,480 to 96,456**, unary queries from **97,711 to 96,687**, and label projections from **152,968 to
+151,944 bytes**. Each delivered 256 chunks. These are retained-memory observations, not whole-query peak or RSS.
+
+The candidate nevertheless failed the frozen timing gate. Primary target/control median ratios were
+**1.013546 / 0.998440** in release and **0.990328 / 0.986492** in release-min, all within 1.05. Of five prescribed
+individual followups, the empty unary range query remained **1.088729** in release, exceeding 1.05. The cause
+is unproven. The exact runtime and three added tests were restored; the memory saving does not ship.
+
+The [80-case corpus](empty_merge_guard_cases.py) covers 0/1/8/32/128 series, plain/unary/projection/duplicate
+shapes, instant/range requests and both name-removal settings. All 160 analytical baseline results passed.
+The 3,200 primary and 120 followup pairs preserved complete outputs, work, physical observations and allocation
+traffic; no measured category current or peak increased. Another 160 normal-fixture and 160 diagnostic pairs
+qualified the live-memory observation independently. Thirty-two focused tests and formatting passed.
+
+Broader original, full native, ARM, C/C++, static/MSRV and compiled-cost qualification did not run after
+rejection. Prepared helpers and the read-only historical-capture audit are not candidate execution evidence.
+These finite synthetic measurements establish neither universal behavior nor live-provider/concurrent throughput.

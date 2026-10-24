@@ -74377,5 +74377,15 @@
     "strict_original_numeric_failures": 6,
     "timing_pairs": 1520,
     "custom_C_before_after_pairs": 576
+  },
+  "empty_merge_guard_rejected": {
+    "status": "rejected_candidate_runtime_restored",
+    "report": "empty-merge-guard-rejected-qualification.json",
+    "report_sha256": "14da382f72a2bd2060ab8517093b2a3e8d7ddf49316fda7468fcaad6c542aa70",
+    "baseline_commit": "737528393d6e3253b2e421340330e2a5b94834e0",
+    "primary_timing_pairs": 3200,
+    "followup_pairs": 120,
+    "original_differential_pairs": 0,
+    "runtime_restored": true
   }
 }
