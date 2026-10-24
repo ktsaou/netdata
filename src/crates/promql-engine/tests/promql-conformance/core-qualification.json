@@ -74438,5 +74438,15 @@
     "timing_pairs": 14712,
     "C_CPP_pairs": 6048,
     "peak_memory_increase": false
+  },
+  "rejected_sum_avg_group_labels": {
+    "status": "rejected_performance",
+    "report": "fold-group-labels-investigation.json",
+    "report_sha256": "c1f140c656d4296dc744bca39fa8b2b5f03019aae4a27b359de31e6c5cd41ae5",
+    "comparison_base": "a4be543c38383246c43c12bf50d3d8eb3c1df794",
+    "early_pairs": 1168,
+    "timing_pairs": 20144,
+    "failed_followups": 5,
+    "production_change_retained": false
   }
 }

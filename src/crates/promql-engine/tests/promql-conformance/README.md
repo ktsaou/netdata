@@ -12574,3 +12574,40 @@ original-bound comparisons. Requalification must preserve the current call-node 
 identity, exact operation/range identity, reserved-label cleanup, warning timing, raw group identity and
 post-read cancellation. No new language coverage, live-provider result, concurrency/RSS measurement,
 physical ARM throughput or universal speed/work guarantee is claimed.
+
+## Rejected Sum/Avg group-label borrowing
+
+A candidate extended the existing group-label shortcut to completed Float `sum_over_time` and
+`avg_over_time` inputs. It preserved measured results, reads, statistics and memory peaks, but was
+**rejected and fully reverted** after five control queries failed the frozen timing gate.
+The published rate/increase optimization remains unchanged.
+
+The [investigation](fold-group-labels-investigation.json) records a [584-case corpus](fold_group_label_cases.py),
+including 488 timing shapes and 112 targets. Median targeted query times fell 6.68% in release and 13.23%
+in release-min; control median ratios were 1.004551 and 1.007786. Those family averages did not override
+individual failures. Exactly one prescribed followup was run for each of 26 slower cases:
+
+| Profile | Query | Request / name removal | Followup slowdown |
+|---|---|---|---:|
+| release | `sum_over_time(m_total[2s])` | range / early | 5.75% |
+| release | `avg_over_time(m_total[2s])` | range / early | 6.48% |
+| release | `sum_over_time(m_total[2s])` | range / delayed | 7.22% |
+| release | `avg_over_time(m_total[2s])` | range / delayed | 6.41% |
+| release-min | `sum without(id)(m_total)` | instant / early | 8.61% |
+
+All five use 128 series; the last adds 32 labels. The report retains exact identities and all followups,
+including passing controls. All **20,144 timing pairs** and **1,168 early pairs** compare complete outcomes
+and resources, including repetitions omitted from timing analysis. All 52 focused tests and formatting
+passed. Tests included native and mixed-series outcomes, mixed samples within a window, warning bytes and
+spans, declined admission, sparse groups, cache states and cancellation after reads.
+
+The rejected wide-label Avg case reduced cumulative Workspace allocation from **18,363,944 to 10,326,824
+bytes**, with peak **712,439 bytes** unchanged. This is a rejected candidate's measured allocation traffic,
+not a shipped improvement or a process-RSS result. No measured memory category increased.
+
+Both source files were restored exactly to the accepted predecessor, with rejected source and captures
+retained. Broader original/metadata, full native, ARM and C qualification was intentionally not started
+after the failed gate. No upstream compatibility, language coverage or compiled-size claim was added.
+The timing cause remains unestablished: the unaggregated Fold paths reject borrowing before the new
+operation checks. Changed generated code alone does not justify another code-layout variant, an unchanged
+retry or relaxing the gate.

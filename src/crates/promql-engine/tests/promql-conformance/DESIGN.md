@@ -3278,3 +3278,17 @@ root aggregate edge in delayed mode. The measurements below retain their earlier
   [qualification](README.md#borrowed-rate-and-increase-group-labels) records complete results, metadata
   aliases, native diagnostics, sparse/cancelled owner checks, actual C consumers and fixed compiled costs.
   Numerical algorithms, language coverage, contexts/dbengine ownership, API/ABI and defaults are unchanged.
+
+## Rejected Sum/Avg group-label borrowing
+
+- **Candidate:** extend the existing immutable group-key owner to exact active Sum/Avg Fold kinds and ranges,
+  with the current function/selector proof and immediate ordinary aggregate. Keep metadata/wider grouping,
+  native/missing values and extended/derived operations on their existing paths. Mixed-history suppression
+  must preserve range warnings and credits before any label substitution.
+- **Decision:** reject and restore both files exactly. Target medians and allocation traffic improved, but
+  five prescribed individual controls remained above the frozen 5% slowdown threshold. Family averages do
+  not override those failures. No gate relaxation or unchanged retry was performed.
+- **Consequence:** this candidate is not part of the implementation. The accepted rate/increase and raw-selector
+  shortcuts remain unchanged. The [finite record](README.md#rejected-sumavg-group-label-borrowing) retains
+  complete measured outcomes, all slower-case results and restored source identities. No established causal
+  fix follows merely from the observed generated-code differences.
