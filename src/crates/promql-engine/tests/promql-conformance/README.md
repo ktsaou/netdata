@@ -12459,7 +12459,7 @@ The native optional index occupies 56 bytes in the local roster value; this is s
 These savings and layout changes do not ship.
 
 A process-scoped instruction profile explains why another lookup-only trial was not selected: the added
-per-sample dispatch represents only **0.0385%** of baseline process instructions. Repeated selector-label copying
+per-sample dispatch represents only **0.0385%** of baseline process instructions. Repeated label copying
 and destruction together account for approximately **14.52%** in this one synthetic profile. This identifies an
 investigation target, not elapsed-time causation or a new performance claim. Adapted C pages bypass the native
 page-byte inspection hotspot, so its fixture cost is not automatically a live-Netdata opportunity.
@@ -12467,3 +12467,60 @@ page-byte inspection hotspot, so its fixture cost is not automatically a live-Ne
 Read-only classification of 3,908 historical inputs established conservative group-domain ceilings; it did not
 execute the new candidate against those originals. Full native, ARM, C/C++, static/MSRV and compiled costs were
 not qualified after rejection. No universal, live/concurrent, RSS or physical ARM speed guarantee follows.
+
+## Borrowed direct-selector group labels
+
+An ordinary aggregate can borrow its existing frozen group key when consuming a direct Float selector.
+This avoids copying every provider label into a temporary sample which aggregation immediately discards.
+Admission is deliberately narrow: global grouping or `by` with one key; the latter requires more than one
+input label. Wider `by`, `without`, native histograms, smoothed selectors, intervening expression frames,
+and scheduled preowned samples retain their original ownership paths. A missing active group also falls back.
+
+The [qualification](selector-group-labels-qualification.json) records **12.31% less time in release and
+18.80% less in release-min** for the median targeted query ratio. These are finite synthetic measurements,
+not a universal speedup. Control medians are **1.010936 / 0.992109**; all six prescribed individual followups
+pass, with a maximum ratio of **1.045944**. All **11,344 timing pairs** check complete results and resources,
+including repetitions excluded from elapsed-time analysis. The [328-case corpus](selector_group_label_cases.py)
+contains 280 timing shapes and 136 targets, with empty/singleton functional controls, raw/mapped/rate children,
+both naming modes, short/wide labels and instant/range requests.
+
+For 128 series over 32 clocks, Workspace allocation traffic falls **5,748,632 → 3,119,000 bytes**, while its
+simultaneous peak remains **83,368 bytes**. A 128-series case with 32 extra labels falls **13,718,104 →
+5,680,984 bytes**, with its **649,366-byte peak** unchanged. No measured memory category's peak, current or
+acquired bytes increases; nonadmitted early/timing controls retain exact memory observations. Allocation
+traffic is cumulative allocation activity, not simultaneous RAM or process RSS. Physical reads and statistics
+remain exact. The implementation adds no retained field, label cache or query limit.
+
+Qualification includes **27,768 complete result comparisons** across both profiles and pages 1/17/1024:
+720 original ordinary cases are freshly executed before/after; 3,908 retained cases compare fresh results
+against authenticated accepted-runtime captures. Original strict differences remain explicit: 882 retained
+ordering failures and six supplemental numerical failures. The canonical-order policy resolves only the
+ordering cases; the numerical difference remains a failure under both reports, with its existing original
+nondeterminism evidence. This change adds no compatibility exception or new language coverage.
+
+Four new causal tests exercise 576 direct/mapped/rate queries, 18 wider/full-label fallbacks, 96 mixed
+Float/histogram queries and 12 actual sparse/cancelled Machine executions. They check complete results,
+diagnostic names and spans, active-position versus roster-ordinal translation, fallback misses, post-read
+cancellation, output ownership and cleanup. Shared hash tests preserve raw empty values, hash aliases,
+long-byte polling and exact borrowed/owned work. Both native profiles pass 1,023 tests with two unchanged
+ignored tests; selected ARM32/ARM64 tests run under QEMU. Actual C/C++ callers provide 4,176 before/after
+case pairs, and both native complete C embedding runs pass. Strict default/fixture Clippy, formatting and
+Rust 1.91 compile-only checks pass.
+
+Standalone default C consumers grow by **40,892 bytes (0.517%)** in release, **2,996 (0.053%)** in release-min,
+**56,528 (0.859%)** on ARM32 and **43,488 (0.624%)** on ARM64. BSS is unchanged. The report separates code/data,
+immediate and cumulative costs; these are neither the complete Netdata binary nor per-query memory.
+
+The first broader candidate was rejected because wider grouping repeated more counted work in 32 cases.
+Its exact reversal and failed evidence remain retained. Narrower admission uses the same frozen target/control
+corpus and gates. An initial test assumed an unspecified instant row order; corrected checks compare complete
+keyed rows, while differential panels preserve actual ordering. A C report parser initially expected record
+names from another shared caller; its successful captures were authenticated and reused by a corrected parser.
+The only post-measurement source edit changes two test-only parity expressions for linting. Earlier binaries
+retain their actual source attribution. Timing payload helper bindings are verified retrospectively against
+pre-candidate pins, without claiming they were checked per original timing command.
+
+Requalification must retain raw grouping identity and existing source-label validation, run the causal owner
+checks and both native profiles, compare the original ordinary/reducer cohorts, and execute actual C callers.
+Preserve the failed first candidate and every prescribed slower-control result. No live-provider, concurrent,
+RSS, universal-work or physical ARM throughput guarantee follows from these finite checks.

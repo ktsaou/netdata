@@ -74417,5 +74417,15 @@
     "followup_pairs": 288,
     "original_differential_pairs": 0,
     "runtime_restored": true
+  },
+  "borrowed_direct_selector_group_labels": {
+    "status": "finite_qualification_pass",
+    "report": "selector-group-labels-qualification.json",
+    "report_sha256": "c019dec3993d9aa06af063e600b6315fb494686463bf744af3eda8039130fb22",
+    "comparison_base": "8d0431fe72407589efabbdb07d208c5e99460a4d",
+    "broad_pairs": 27768,
+    "timing_pairs": 11344,
+    "C_CPP_pairs": 4176,
+    "peak_memory_increase": false
   }
 }

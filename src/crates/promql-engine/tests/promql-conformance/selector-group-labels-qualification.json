@@ -1,0 +1,4683 @@
+{
+  "schema_version": 1,
+  "status": "finite_qualification_pass",
+  "comparison_base": "8d0431fe72407589efabbdb07d208c5e99460a4d",
+  "accepted_runtime_base": "737528393d6e3253b2e421340330e2a5b94834e0",
+  "change": "Borrow frozen raw group keys for direct Float selector inputs to an ordinary global or single-key by aggregate; preserve full-label fallbacks and post-callback propagation.",
+  "ownership": "No new field, owner, cache or provider lifetime; Group raw labels borrow existing immutable roster. Shared LabelRef hash encoder preserves original filtering, work, byte chunks and terminal checks.",
+  "source_phases": {
+    "baseline": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/baseline-source.json",
+      "sha256": "9ffc9408387cd7754cfaf48f2d10a58a2c5332092019782ca8d685e6c43d0aff"
+    },
+    "candidate": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/candidate-source.json",
+      "sha256": "3dac7344adb92534caaa21e8b3fd1e2d92b27ce33d8de517f8c5757e50de9a1d"
+    },
+    "candidate-final": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/candidate-final-source.json",
+      "sha256": "ed390c6972ee3ce94214a49b2dbe734d06b9044e8bc69d8d1f8ae271180500d4"
+    },
+    "candidate-v2": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/candidate-v2-source.json",
+      "sha256": "a07abd5d6cf5a39738fd81e04ecef44c8c490b054804cd0033ffc2c12edc5b07"
+    },
+    "candidate-qualified": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/candidate-qualified-source.json",
+      "sha256": "72a993a437ffbf1463193e3964204b1f3c6ddbb2fc920d8f484657e82d8a4c7d"
+    }
+  },
+  "source_attribution": "Timing and broad fixtures use candidate-v2. Native default archives and final units use candidate-qualified; ARM default archives use candidate-v2. Only two excluded execution.rs test expressions differ, with identical production prefix. Initial failed test phase retains its manifest and binary identity; complete rejected V1 final files and V2 execution source are retained.",
+  "qualification": {
+    "early_pairs": 656,
+    "broad_pairs": 27768,
+    "functional_panels": [
+      {
+        "family": "ordinary",
+        "profile": "release",
+        "page": 1,
+        "pairs": 720,
+        "changed_resource_cases": 32,
+        "original": {
+          "required": 720,
+          "completed": 720,
+          "passed": 720,
+          "failed": 0,
+          "bitwise_differences": []
+        }
+      },
+      {
+        "family": "retained",
+        "profile": "release",
+        "page": 1,
+        "pairs": 3700,
+        "changed_resource_cases": 41,
+        "historical_original_analysis": {
+          "strict": {
+            "required": 3700,
+            "completed": 3700,
+            "passed": 3553,
+            "failed": 147,
+            "bitwise_differences": []
+          },
+          "policy": {
+            "required": 3700,
+            "completed": 3700,
+            "passed": 3700,
+            "failed": 0,
+            "bitwise_differences": []
+          }
+        }
+      },
+      {
+        "family": "supplemental",
+        "profile": "release",
+        "page": 1,
+        "pairs": 208,
+        "changed_resource_cases": 0,
+        "historical_original_analysis": {
+          "strict": {
+            "required": 208,
+            "completed": 208,
+            "passed": 207,
+            "failed": 1,
+            "bitwise_differences": [
+              {
+                "id": "delayed-raw-operator:stdvar:^:False",
+                "path": "row[0].point[0].float",
+                "reference": "43ad399a32fb1c00",
+                "candidate": "43ad399a32fb1c01"
+              }
+            ]
+          },
+          "policy": {
+            "required": 208,
+            "completed": 208,
+            "passed": 207,
+            "failed": 1,
+            "bitwise_differences": [
+              {
+                "id": "delayed-raw-operator:stdvar:^:False",
+                "path": "row[0].point[0].float",
+                "reference": "43ad399a32fb1c00",
+                "candidate": "43ad399a32fb1c01"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "family": "ordinary",
+        "profile": "release",
+        "page": 17,
+        "pairs": 720,
+        "changed_resource_cases": 32,
+        "original": {
+          "required": 720,
+          "completed": 720,
+          "passed": 720,
+          "failed": 0,
+          "bitwise_differences": []
+        }
+      },
+      {
+        "family": "retained",
+        "profile": "release",
+        "page": 17,
+        "pairs": 3700,
+        "changed_resource_cases": 41,
+        "historical_original_analysis": {
+          "strict": {
+            "required": 3700,
+            "completed": 3700,
+            "passed": 3553,
+            "failed": 147,
+            "bitwise_differences": []
+          },
+          "policy": {
+            "required": 3700,
+            "completed": 3700,
+            "passed": 3700,
+            "failed": 0,
+            "bitwise_differences": []
+          }
+        }
+      },
+      {
+        "family": "supplemental",
+        "profile": "release",
+        "page": 17,
+        "pairs": 208,
+        "changed_resource_cases": 0,
+        "historical_original_analysis": {
+          "strict": {
+            "required": 208,
+            "completed": 208,
+            "passed": 207,
+            "failed": 1,
+            "bitwise_differences": [
+              {
+                "id": "delayed-raw-operator:stdvar:^:False",
+                "path": "row[0].point[0].float",
+                "reference": "43ad399a32fb1c00",
+                "candidate": "43ad399a32fb1c01"
+              }
+            ]
+          },
+          "policy": {
+            "required": 208,
+            "completed": 208,
+            "passed": 207,
+            "failed": 1,
+            "bitwise_differences": [
+              {
+                "id": "delayed-raw-operator:stdvar:^:False",
+                "path": "row[0].point[0].float",
+                "reference": "43ad399a32fb1c00",
+                "candidate": "43ad399a32fb1c01"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "family": "ordinary",
+        "profile": "release",
+        "page": 1024,
+        "pairs": 720,
+        "changed_resource_cases": 32,
+        "original": {
+          "required": 720,
+          "completed": 720,
+          "passed": 720,
+          "failed": 0,
+          "bitwise_differences": []
+        }
+      },
+      {
+        "family": "retained",
+        "profile": "release",
+        "page": 1024,
+        "pairs": 3700,
+        "changed_resource_cases": 41,
+        "historical_original_analysis": {
+          "strict": {
+            "required": 3700,
+            "completed": 3700,
+            "passed": 3553,
+            "failed": 147,
+            "bitwise_differences": []
+          },
+          "policy": {
+            "required": 3700,
+            "completed": 3700,
+            "passed": 3700,
+            "failed": 0,
+            "bitwise_differences": []
+          }
+        }
+      },
+      {
+        "family": "supplemental",
+        "profile": "release",
+        "page": 1024,
+        "pairs": 208,
+        "changed_resource_cases": 0,
+        "historical_original_analysis": {
+          "strict": {
+            "required": 208,
+            "completed": 208,
+            "passed": 207,
+            "failed": 1,
+            "bitwise_differences": [
+              {
+                "id": "delayed-raw-operator:stdvar:^:False",
+                "path": "row[0].point[0].float",
+                "reference": "43ad399a32fb1c00",
+                "candidate": "43ad399a32fb1c01"
+              }
+            ]
+          },
+          "policy": {
+            "required": 208,
+            "completed": 208,
+            "passed": 207,
+            "failed": 1,
+            "bitwise_differences": [
+              {
+                "id": "delayed-raw-operator:stdvar:^:False",
+                "path": "row[0].point[0].float",
+                "reference": "43ad399a32fb1c00",
+                "candidate": "43ad399a32fb1c01"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "family": "ordinary",
+        "profile": "release-min",
+        "page": 1,
+        "pairs": 720,
+        "changed_resource_cases": 32,
+        "original": {
+          "required": 720,
+          "completed": 720,
+          "passed": 720,
+          "failed": 0,
+          "bitwise_differences": []
+        }
+      },
+      {
+        "family": "retained",
+        "profile": "release-min",
+        "page": 1,
+        "pairs": 3700,
+        "changed_resource_cases": 41,
+        "historical_original_analysis": {
+          "strict": {
+            "required": 3700,
+            "completed": 3700,
+            "passed": 3553,
+            "failed": 147,
+            "bitwise_differences": []
+          },
+          "policy": {
+            "required": 3700,
+            "completed": 3700,
+            "passed": 3700,
+            "failed": 0,
+            "bitwise_differences": []
+          }
+        }
+      },
+      {
+        "family": "supplemental",
+        "profile": "release-min",
+        "page": 1,
+        "pairs": 208,
+        "changed_resource_cases": 0,
+        "historical_original_analysis": {
+          "strict": {
+            "required": 208,
+            "completed": 208,
+            "passed": 207,
+            "failed": 1,
+            "bitwise_differences": [
+              {
+                "id": "delayed-raw-operator:stdvar:^:False",
+                "path": "row[0].point[0].float",
+                "reference": "43ad399a32fb1c00",
+                "candidate": "43ad399a32fb1c01"
+              }
+            ]
+          },
+          "policy": {
+            "required": 208,
+            "completed": 208,
+            "passed": 207,
+            "failed": 1,
+            "bitwise_differences": [
+              {
+                "id": "delayed-raw-operator:stdvar:^:False",
+                "path": "row[0].point[0].float",
+                "reference": "43ad399a32fb1c00",
+                "candidate": "43ad399a32fb1c01"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "family": "ordinary",
+        "profile": "release-min",
+        "page": 17,
+        "pairs": 720,
+        "changed_resource_cases": 32,
+        "original": {
+          "required": 720,
+          "completed": 720,
+          "passed": 720,
+          "failed": 0,
+          "bitwise_differences": []
+        }
+      },
+      {
+        "family": "retained",
+        "profile": "release-min",
+        "page": 17,
+        "pairs": 3700,
+        "changed_resource_cases": 41,
+        "historical_original_analysis": {
+          "strict": {
+            "required": 3700,
+            "completed": 3700,
+            "passed": 3553,
+            "failed": 147,
+            "bitwise_differences": []
+          },
+          "policy": {
+            "required": 3700,
+            "completed": 3700,
+            "passed": 3700,
+            "failed": 0,
+            "bitwise_differences": []
+          }
+        }
+      },
+      {
+        "family": "supplemental",
+        "profile": "release-min",
+        "page": 17,
+        "pairs": 208,
+        "changed_resource_cases": 0,
+        "historical_original_analysis": {
+          "strict": {
+            "required": 208,
+            "completed": 208,
+            "passed": 207,
+            "failed": 1,
+            "bitwise_differences": [
+              {
+                "id": "delayed-raw-operator:stdvar:^:False",
+                "path": "row[0].point[0].float",
+                "reference": "43ad399a32fb1c00",
+                "candidate": "43ad399a32fb1c01"
+              }
+            ]
+          },
+          "policy": {
+            "required": 208,
+            "completed": 208,
+            "passed": 207,
+            "failed": 1,
+            "bitwise_differences": [
+              {
+                "id": "delayed-raw-operator:stdvar:^:False",
+                "path": "row[0].point[0].float",
+                "reference": "43ad399a32fb1c00",
+                "candidate": "43ad399a32fb1c01"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "family": "ordinary",
+        "profile": "release-min",
+        "page": 1024,
+        "pairs": 720,
+        "changed_resource_cases": 32,
+        "original": {
+          "required": 720,
+          "completed": 720,
+          "passed": 720,
+          "failed": 0,
+          "bitwise_differences": []
+        }
+      },
+      {
+        "family": "retained",
+        "profile": "release-min",
+        "page": 1024,
+        "pairs": 3700,
+        "changed_resource_cases": 41,
+        "historical_original_analysis": {
+          "strict": {
+            "required": 3700,
+            "completed": 3700,
+            "passed": 3553,
+            "failed": 147,
+            "bitwise_differences": []
+          },
+          "policy": {
+            "required": 3700,
+            "completed": 3700,
+            "passed": 3700,
+            "failed": 0,
+            "bitwise_differences": []
+          }
+        }
+      },
+      {
+        "family": "supplemental",
+        "profile": "release-min",
+        "page": 1024,
+        "pairs": 208,
+        "changed_resource_cases": 0,
+        "historical_original_analysis": {
+          "strict": {
+            "required": 208,
+            "completed": 208,
+            "passed": 207,
+            "failed": 1,
+            "bitwise_differences": [
+              {
+                "id": "delayed-raw-operator:stdvar:^:False",
+                "path": "row[0].point[0].float",
+                "reference": "43ad399a32fb1c00",
+                "candidate": "43ad399a32fb1c01"
+              }
+            ]
+          },
+          "policy": {
+            "required": 208,
+            "completed": 208,
+            "passed": 207,
+            "failed": 1,
+            "bitwise_differences": [
+              {
+                "id": "delayed-raw-operator:stdvar:^:False",
+                "path": "row[0].point[0].float",
+                "reference": "43ad399a32fb1c00",
+                "candidate": "43ad399a32fb1c01"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "unchanged_strict_original_order_failures": 882,
+    "unchanged_strict_original_numeric_failures": 6,
+    "policy_numeric_failures": 6,
+    "focused_tests": 42,
+    "causal_queries": {
+      "direct_mapped_rate": 576,
+      "fallback": 18,
+      "mixed_float_native": 96,
+      "sparse_cancelled_machine": 12
+    },
+    "units": {
+      "release": [
+        {
+          "filter": "",
+          "passed": 1023,
+          "ignored": 2
+        }
+      ],
+      "release-min": [
+        {
+          "filter": "",
+          "passed": 1023,
+          "ignored": 2
+        }
+      ],
+      "arm32": [
+        {
+          "filter": "selector_group_labels_",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "evaluator_roster::tests::",
+          "passed": 21,
+          "ignored": 0
+        },
+        {
+          "filter": "label_hash::tests::",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "sample_labels::tests::",
+          "passed": 6,
+          "ignored": 0
+        },
+        {
+          "filter": "aggregation::tests::",
+          "passed": 2,
+          "ignored": 0
+        },
+        {
+          "filter": "filter_tests::",
+          "passed": 11,
+          "ignored": 0
+        },
+        {
+          "filter": "empty_group_keys_remain_distinct_until_source_label_projection",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "source_group_hash_delimiters_can_merge_distinct_byte_labelsets",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "aggregate_label_borrows_outlive_machines_and_materialize_at_descriptor_boundaries",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "bare_smoothed_selectors_preserve_interpolation_and_direct_clock_delegation",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "bare_anchored_selectors_preserve_ordinary_owned_results",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "single_selector_preparation_streams_each_map_with_one_page",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "failed_parent_retains_completed_selector_sample_totals",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "mapped_groups_keep_cold_selected_next_clock_and_output_failures",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "native_group_maps_check_complete_results_before_bounded_source_reads",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "completed_single_group_values_keep_one_pass_native_and_absent_fallbacks",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "c_abi::tests::",
+          "passed": 52,
+          "ignored": 1
+        }
+      ],
+      "arm64": [
+        {
+          "filter": "selector_group_labels_",
+          "passed": 4,
+          "ignored": 0
+        },
+        {
+          "filter": "evaluator_roster::tests::",
+          "passed": 21,
+          "ignored": 0
+        },
+        {
+          "filter": "label_hash::tests::",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "sample_labels::tests::",
+          "passed": 6,
+          "ignored": 0
+        },
+        {
+          "filter": "aggregation::tests::",
+          "passed": 2,
+          "ignored": 0
+        },
+        {
+          "filter": "filter_tests::",
+          "passed": 11,
+          "ignored": 0
+        },
+        {
+          "filter": "empty_group_keys_remain_distinct_until_source_label_projection",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "source_group_hash_delimiters_can_merge_distinct_byte_labelsets",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "aggregate_label_borrows_outlive_machines_and_materialize_at_descriptor_boundaries",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "bare_smoothed_selectors_preserve_interpolation_and_direct_clock_delegation",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "bare_anchored_selectors_preserve_ordinary_owned_results",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "single_selector_preparation_streams_each_map_with_one_page",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "failed_parent_retains_completed_selector_sample_totals",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "mapped_groups_keep_cold_selected_next_clock_and_output_failures",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "native_group_maps_check_complete_results_before_bounded_source_reads",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "completed_single_group_values_keep_one_pass_native_and_absent_fallbacks",
+          "passed": 1,
+          "ignored": 0
+        },
+        {
+          "filter": "c_abi::tests::",
+          "passed": 52,
+          "ignored": 1
+        }
+      ]
+    },
+    "C_CPP_before_after_pairs": 4176,
+    "complete_native_C_runs": 2,
+    "strict_clippy_variants": 2,
+    "format": true,
+    "msrv_compile_only": "1.91.0"
+  },
+  "timing": {
+    "primary_pairs": 11200,
+    "followup_pairs": 144,
+    "cases": 280,
+    "targets": 136,
+    "profiles": {
+      "release": {
+        "target_median": 0.8769004816212143,
+        "control_median": 1.0109362798157495,
+        "individual_ratios": [
+          {
+            "id": "n32-sum-raw-single-instant-d0",
+            "target": true,
+            "ratio": 0.958851845623476
+          },
+          {
+            "id": "n32-sum-raw-single-instant-d1",
+            "target": true,
+            "ratio": 0.9317875126674333
+          },
+          {
+            "id": "n32-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8645444495669805
+          },
+          {
+            "id": "n32-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.870237273554802
+          },
+          {
+            "id": "n32-sum-raw-plural-instant-d0",
+            "target": true,
+            "ratio": 0.9291814006051548
+          },
+          {
+            "id": "n32-sum-raw-plural-instant-d1",
+            "target": true,
+            "ratio": 0.9202186076998876
+          },
+          {
+            "id": "n32-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.9102522791912631
+          },
+          {
+            "id": "n32-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8900282855927042
+          },
+          {
+            "id": "n32-max-raw-single-instant-d0",
+            "target": true,
+            "ratio": 0.913645310813385
+          },
+          {
+            "id": "n32-max-raw-single-instant-d1",
+            "target": true,
+            "ratio": 0.9135746800652753
+          },
+          {
+            "id": "n32-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8690553762255148
+          },
+          {
+            "id": "n32-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8688757567886187
+          },
+          {
+            "id": "n32-max-raw-plural-instant-d0",
+            "target": true,
+            "ratio": 0.9491963380242557
+          },
+          {
+            "id": "n32-max-raw-plural-instant-d1",
+            "target": true,
+            "ratio": 0.9248646346656932
+          },
+          {
+            "id": "n32-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8896923853187065
+          },
+          {
+            "id": "n32-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8950671512087217
+          },
+          {
+            "id": "n32-none-raw-plural-instant-d0",
+            "target": false,
+            "ratio": 1.046104907983361
+          },
+          {
+            "id": "n32-none-raw-plural-instant-d1",
+            "target": false,
+            "ratio": 1.0322859983536279
+          },
+          {
+            "id": "n32-none-raw-plural-range-d0",
+            "target": false,
+            "ratio": 1.0143166234297463
+          },
+          {
+            "id": "n32-none-raw-plural-range-d1",
+            "target": false,
+            "ratio": 1.0086919296419563
+          },
+          {
+            "id": "n32-sum-mapped-single-instant-d0",
+            "target": false,
+            "ratio": 1.015329873099046
+          },
+          {
+            "id": "n32-sum-mapped-single-instant-d1",
+            "target": false,
+            "ratio": 1.0347184454035956
+          },
+          {
+            "id": "n32-sum-mapped-single-range-d0",
+            "target": false,
+            "ratio": 1.0213111412950553
+          },
+          {
+            "id": "n32-sum-mapped-single-range-d1",
+            "target": false,
+            "ratio": 1.0061234699753092
+          },
+          {
+            "id": "n32-sum-mapped-plural-instant-d0",
+            "target": false,
+            "ratio": 1.0291962358471323
+          },
+          {
+            "id": "n32-sum-mapped-plural-instant-d1",
+            "target": false,
+            "ratio": 1.0395067359320136
+          },
+          {
+            "id": "n32-sum-mapped-plural-range-d0",
+            "target": false,
+            "ratio": 1.0053135950887253
+          },
+          {
+            "id": "n32-sum-mapped-plural-range-d1",
+            "target": false,
+            "ratio": 1.0111658895059186
+          },
+          {
+            "id": "n32-max-mapped-single-instant-d0",
+            "target": false,
+            "ratio": 1.0421039275852513
+          },
+          {
+            "id": "n32-max-mapped-single-instant-d1",
+            "target": false,
+            "ratio": 1.0568276045496503
+          },
+          {
+            "id": "n32-max-mapped-single-range-d0",
+            "target": false,
+            "ratio": 1.0110585882333278
+          },
+          {
+            "id": "n32-max-mapped-single-range-d1",
+            "target": false,
+            "ratio": 1.0072193494943043
+          },
+          {
+            "id": "n32-max-mapped-plural-instant-d0",
+            "target": false,
+            "ratio": 1.015746753734595
+          },
+          {
+            "id": "n32-max-mapped-plural-instant-d1",
+            "target": false,
+            "ratio": 1.0356063693967128
+          },
+          {
+            "id": "n32-max-mapped-plural-range-d0",
+            "target": false,
+            "ratio": 1.0067030522737657
+          },
+          {
+            "id": "n32-max-mapped-plural-range-d1",
+            "target": false,
+            "ratio": 1.0146143343700555
+          },
+          {
+            "id": "n32-none-mapped-plural-instant-d0",
+            "target": false,
+            "ratio": 1.0309428200177655
+          },
+          {
+            "id": "n32-none-mapped-plural-instant-d1",
+            "target": false,
+            "ratio": 1.034847583395847
+          },
+          {
+            "id": "n32-none-mapped-plural-range-d0",
+            "target": false,
+            "ratio": 0.9998769689426817
+          },
+          {
+            "id": "n32-none-mapped-plural-range-d1",
+            "target": false,
+            "ratio": 0.9769069705504021
+          },
+          {
+            "id": "n32-sum-rate-single-instant-d0",
+            "target": false,
+            "ratio": 0.996237800514905
+          },
+          {
+            "id": "n32-sum-rate-single-instant-d1",
+            "target": false,
+            "ratio": 0.9924898968071636
+          },
+          {
+            "id": "n32-sum-rate-single-range-d0",
+            "target": false,
+            "ratio": 0.9964102820248586
+          },
+          {
+            "id": "n32-sum-rate-single-range-d1",
+            "target": false,
+            "ratio": 1.0011990280021612
+          },
+          {
+            "id": "n32-sum-rate-plural-instant-d0",
+            "target": false,
+            "ratio": 1.005125559786698
+          },
+          {
+            "id": "n32-sum-rate-plural-instant-d1",
+            "target": false,
+            "ratio": 0.977227313111615
+          },
+          {
+            "id": "n32-sum-rate-plural-range-d0",
+            "target": false,
+            "ratio": 0.984255278655429
+          },
+          {
+            "id": "n32-sum-rate-plural-range-d1",
+            "target": false,
+            "ratio": 0.9722669329939401
+          },
+          {
+            "id": "n32-max-rate-single-instant-d0",
+            "target": false,
+            "ratio": 0.9930849176547115
+          },
+          {
+            "id": "n32-max-rate-single-instant-d1",
+            "target": false,
+            "ratio": 0.9550837687166166
+          },
+          {
+            "id": "n32-max-rate-single-range-d0",
+            "target": false,
+            "ratio": 0.970772178928906
+          },
+          {
+            "id": "n32-max-rate-single-range-d1",
+            "target": false,
+            "ratio": 0.97943696837643
+          },
+          {
+            "id": "n32-max-rate-plural-instant-d0",
+            "target": false,
+            "ratio": 1.002727472542111
+          },
+          {
+            "id": "n32-max-rate-plural-instant-d1",
+            "target": false,
+            "ratio": 0.993162098301753
+          },
+          {
+            "id": "n32-max-rate-plural-range-d0",
+            "target": false,
+            "ratio": 0.9874446856850694
+          },
+          {
+            "id": "n32-max-rate-plural-range-d1",
+            "target": false,
+            "ratio": 0.9650124016824793
+          },
+          {
+            "id": "n32-none-rate-plural-instant-d0",
+            "target": false,
+            "ratio": 0.9830394451340263
+          },
+          {
+            "id": "n32-none-rate-plural-instant-d1",
+            "target": false,
+            "ratio": 0.9884618824721982
+          },
+          {
+            "id": "n32-none-rate-plural-range-d0",
+            "target": false,
+            "ratio": 0.996017486853181
+          },
+          {
+            "id": "n32-none-rate-plural-range-d1",
+            "target": false,
+            "ratio": 0.9649417479725001
+          },
+          {
+            "id": "n128-sum-raw-single-instant-d0",
+            "target": true,
+            "ratio": 0.8673804977524868
+          },
+          {
+            "id": "n128-sum-raw-single-instant-d1",
+            "target": true,
+            "ratio": 0.8807244884951676
+          },
+          {
+            "id": "n128-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8466905650379384
+          },
+          {
+            "id": "n128-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.847379257022751
+          },
+          {
+            "id": "n128-sum-raw-plural-instant-d0",
+            "target": true,
+            "ratio": 0.9120560141621069
+          },
+          {
+            "id": "n128-sum-raw-plural-instant-d1",
+            "target": true,
+            "ratio": 0.9151590567535358
+          },
+          {
+            "id": "n128-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8680123342767436
+          },
+          {
+            "id": "n128-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8743312787075305
+          },
+          {
+            "id": "n128-max-raw-single-instant-d0",
+            "target": true,
+            "ratio": 0.9018183737123209
+          },
+          {
+            "id": "n128-max-raw-single-instant-d1",
+            "target": true,
+            "ratio": 0.9042374040391621
+          },
+          {
+            "id": "n128-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8594989622049525
+          },
+          {
+            "id": "n128-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8573404981587984
+          },
+          {
+            "id": "n128-max-raw-plural-instant-d0",
+            "target": true,
+            "ratio": 0.9075952489874518
+          },
+          {
+            "id": "n128-max-raw-plural-instant-d1",
+            "target": true,
+            "ratio": 0.9108050070104127
+          },
+          {
+            "id": "n128-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8766207543328584
+          },
+          {
+            "id": "n128-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8725877635012561
+          },
+          {
+            "id": "n128-none-raw-plural-instant-d0",
+            "target": false,
+            "ratio": 1.0166086444752567
+          },
+          {
+            "id": "n128-none-raw-plural-instant-d1",
+            "target": false,
+            "ratio": 1.00158919186399
+          },
+          {
+            "id": "n128-none-raw-plural-range-d0",
+            "target": false,
+            "ratio": 0.9879791520660437
+          },
+          {
+            "id": "n128-none-raw-plural-range-d1",
+            "target": false,
+            "ratio": 1.0177386548569267
+          },
+          {
+            "id": "n128-sum-mapped-single-instant-d0",
+            "target": false,
+            "ratio": 1.007145090370237
+          },
+          {
+            "id": "n128-sum-mapped-single-instant-d1",
+            "target": false,
+            "ratio": 1.0408613717569255
+          },
+          {
+            "id": "n128-sum-mapped-single-range-d0",
+            "target": false,
+            "ratio": 0.9992610596195921
+          },
+          {
+            "id": "n128-sum-mapped-single-range-d1",
+            "target": false,
+            "ratio": 0.9927084443892902
+          },
+          {
+            "id": "n128-sum-mapped-plural-instant-d0",
+            "target": false,
+            "ratio": 0.999129048355863
+          },
+          {
+            "id": "n128-sum-mapped-plural-instant-d1",
+            "target": false,
+            "ratio": 1.0357023846255564
+          },
+          {
+            "id": "n128-sum-mapped-plural-range-d0",
+            "target": false,
+            "ratio": 0.9883437464322731
+          },
+          {
+            "id": "n128-sum-mapped-plural-range-d1",
+            "target": false,
+            "ratio": 1.0006035250970262
+          },
+          {
+            "id": "n128-max-mapped-single-instant-d0",
+            "target": false,
+            "ratio": 1.0339458710689895
+          },
+          {
+            "id": "n128-max-mapped-single-instant-d1",
+            "target": false,
+            "ratio": 1.0373019807823973
+          },
+          {
+            "id": "n128-max-mapped-single-range-d0",
+            "target": false,
+            "ratio": 1.0460582334959683
+          },
+          {
+            "id": "n128-max-mapped-single-range-d1",
+            "target": false,
+            "ratio": 1.0280258899900656
+          },
+          {
+            "id": "n128-max-mapped-plural-instant-d0",
+            "target": false,
+            "ratio": 1.0299211199319716
+          },
+          {
+            "id": "n128-max-mapped-plural-instant-d1",
+            "target": false,
+            "ratio": 1.0540849106133818
+          },
+          {
+            "id": "n128-max-mapped-plural-range-d0",
+            "target": false,
+            "ratio": 1.039038737303422
+          },
+          {
+            "id": "n128-max-mapped-plural-range-d1",
+            "target": false,
+            "ratio": 1.0379019759996302
+          },
+          {
+            "id": "n128-none-mapped-plural-instant-d0",
+            "target": false,
+            "ratio": 1.0702611510931679
+          },
+          {
+            "id": "n128-none-mapped-plural-instant-d1",
+            "target": false,
+            "ratio": 1.0737344658275858
+          },
+          {
+            "id": "n128-none-mapped-plural-range-d0",
+            "target": false,
+            "ratio": 1.0089847556518508
+          },
+          {
+            "id": "n128-none-mapped-plural-range-d1",
+            "target": false,
+            "ratio": 0.9940094786729858
+          },
+          {
+            "id": "n128-sum-rate-single-instant-d0",
+            "target": false,
+            "ratio": 1.0265940674175618
+          },
+          {
+            "id": "n128-sum-rate-single-instant-d1",
+            "target": false,
+            "ratio": 1.0381457453642111
+          },
+          {
+            "id": "n128-sum-rate-single-range-d0",
+            "target": false,
+            "ratio": 1.0368140698110009
+          },
+          {
+            "id": "n128-sum-rate-single-range-d1",
+            "target": false,
+            "ratio": 1.0313125741056959
+          },
+          {
+            "id": "n128-sum-rate-plural-instant-d0",
+            "target": false,
+            "ratio": 1.0142071048543184
+          },
+          {
+            "id": "n128-sum-rate-plural-instant-d1",
+            "target": false,
+            "ratio": 1.0236456070218127
+          },
+          {
+            "id": "n128-sum-rate-plural-range-d0",
+            "target": false,
+            "ratio": 1.0286879585981985
+          },
+          {
+            "id": "n128-sum-rate-plural-range-d1",
+            "target": false,
+            "ratio": 1.0246216296814106
+          },
+          {
+            "id": "n128-max-rate-single-instant-d0",
+            "target": false,
+            "ratio": 1.0081576092689022
+          },
+          {
+            "id": "n128-max-rate-single-instant-d1",
+            "target": false,
+            "ratio": 1.0164895219156818
+          },
+          {
+            "id": "n128-max-rate-single-range-d0",
+            "target": false,
+            "ratio": 1.0197791918010952
+          },
+          {
+            "id": "n128-max-rate-single-range-d1",
+            "target": false,
+            "ratio": 1.0189536134706725
+          },
+          {
+            "id": "n128-max-rate-plural-instant-d0",
+            "target": false,
+            "ratio": 1.0231241364650867
+          },
+          {
+            "id": "n128-max-rate-plural-instant-d1",
+            "target": false,
+            "ratio": 1.0293220976732382
+          },
+          {
+            "id": "n128-max-rate-plural-range-d0",
+            "target": false,
+            "ratio": 1.019347305897113
+          },
+          {
+            "id": "n128-max-rate-plural-range-d1",
+            "target": false,
+            "ratio": 1.0133923083330572
+          },
+          {
+            "id": "n128-none-rate-plural-instant-d0",
+            "target": false,
+            "ratio": 1.0228255106534028
+          },
+          {
+            "id": "n128-none-rate-plural-instant-d1",
+            "target": false,
+            "ratio": 1.012394277792579
+          },
+          {
+            "id": "n128-none-rate-plural-range-d0",
+            "target": false,
+            "ratio": 1.0100653438071245
+          },
+          {
+            "id": "n128-none-rate-plural-range-d1",
+            "target": false,
+            "ratio": 1.0108487150386776
+          },
+          {
+            "id": "n32-t8-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8915082223199156
+          },
+          {
+            "id": "n32-t8-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8847911448278931
+          },
+          {
+            "id": "n32-t8-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.9035760860886614
+          },
+          {
+            "id": "n32-t8-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.9123207154019796
+          },
+          {
+            "id": "n32-t8-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8867063917261916
+          },
+          {
+            "id": "n32-t8-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.885281374276647
+          },
+          {
+            "id": "n32-t8-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.904023301734228
+          },
+          {
+            "id": "n32-t8-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.9133198904842665
+          },
+          {
+            "id": "n32-t32-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8986730253523146
+          },
+          {
+            "id": "n32-t32-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8776077948277602
+          },
+          {
+            "id": "n32-t32-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.9228329275985998
+          },
+          {
+            "id": "n32-t32-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.9329074912575318
+          },
+          {
+            "id": "n32-t32-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.9002608519222188
+          },
+          {
+            "id": "n32-t32-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.9036133383066282
+          },
+          {
+            "id": "n32-t32-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.9194968212398589
+          },
+          {
+            "id": "n32-t32-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.9253880765907332
+          },
+          {
+            "id": "n128-t8-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8561694581487028
+          },
+          {
+            "id": "n128-t8-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.811483502731497
+          },
+          {
+            "id": "n128-t8-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8596827976842795
+          },
+          {
+            "id": "n128-t8-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8473435656476823
+          },
+          {
+            "id": "n128-t8-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8176366077617322
+          },
+          {
+            "id": "n128-t8-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8031461307980121
+          },
+          {
+            "id": "n128-t8-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8330692435255136
+          },
+          {
+            "id": "n128-t8-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8676608930278222
+          },
+          {
+            "id": "n128-t32-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8877580736646736
+          },
+          {
+            "id": "n128-t32-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8943066486937203
+          },
+          {
+            "id": "n128-t32-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.9090336642469691
+          },
+          {
+            "id": "n128-t32-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.9060607853318365
+          },
+          {
+            "id": "n128-t32-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8887103236509328
+          },
+          {
+            "id": "n128-t32-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8849136342472134
+          },
+          {
+            "id": "n128-t32-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8907574632549247
+          },
+          {
+            "id": "n128-t32-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8788336425052264
+          },
+          {
+            "id": "n1024-t3-sum-raw-single-instant-d0",
+            "target": true,
+            "ratio": 0.6729564921919995
+          },
+          {
+            "id": "n1024-t3-sum-raw-single-instant-d1",
+            "target": true,
+            "ratio": 0.6562195917628159
+          },
+          {
+            "id": "n1024-t3-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8110930634981924
+          },
+          {
+            "id": "n1024-t3-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.7956992082866682
+          },
+          {
+            "id": "n1024-t3-sum-raw-plural-instant-d0",
+            "target": true,
+            "ratio": 0.8883107307524843
+          },
+          {
+            "id": "n1024-t3-sum-raw-plural-instant-d1",
+            "target": true,
+            "ratio": 0.9076200988161148
+          },
+          {
+            "id": "n1024-t3-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.9052954022401313
+          },
+          {
+            "id": "n1024-t3-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.9118469596191706
+          },
+          {
+            "id": "n1024-t3-max-raw-single-instant-d0",
+            "target": true,
+            "ratio": 0.896425237873628
+          },
+          {
+            "id": "n1024-t3-max-raw-single-instant-d1",
+            "target": true,
+            "ratio": 0.9057966752780284
+          },
+          {
+            "id": "n1024-t3-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8826112791653524
+          },
+          {
+            "id": "n1024-t3-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8641017782783269
+          },
+          {
+            "id": "n1024-t3-max-raw-plural-instant-d0",
+            "target": true,
+            "ratio": 0.9302452959513977
+          },
+          {
+            "id": "n1024-t3-max-raw-plural-instant-d1",
+            "target": true,
+            "ratio": 0.9222003947036274
+          },
+          {
+            "id": "n1024-t3-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.890651105911626
+          },
+          {
+            "id": "n1024-t3-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8560174484268195
+          },
+          {
+            "id": "n128-sum-raw-plural-instant-d0-wrapped",
+            "target": true,
+            "ratio": 0.8960819928633786
+          },
+          {
+            "id": "n128-sum-raw-plural-instant-d1-wrapped",
+            "target": true,
+            "ratio": 0.9107006024254349
+          },
+          {
+            "id": "n128-sum-raw-plural-range-d0-wrapped",
+            "target": true,
+            "ratio": 0.8482848171745243
+          },
+          {
+            "id": "n128-sum-raw-plural-range-d1-wrapped",
+            "target": true,
+            "ratio": 0.8640560295578713
+          },
+          {
+            "id": "n128-max-raw-plural-instant-d0-wrapped",
+            "target": true,
+            "ratio": 0.8887296789042048
+          },
+          {
+            "id": "n128-max-raw-plural-instant-d1-wrapped",
+            "target": true,
+            "ratio": 0.8978675440784298
+          },
+          {
+            "id": "n128-max-raw-plural-range-d0-wrapped",
+            "target": true,
+            "ratio": 0.8584554168335518
+          },
+          {
+            "id": "n128-max-raw-plural-range-d1-wrapped",
+            "target": true,
+            "ratio": 0.8434114911747863
+          },
+          {
+            "id": "n128-sum-rate-plural-instant-d0-wrapped",
+            "target": false,
+            "ratio": 0.9816983229197505
+          },
+          {
+            "id": "n128-sum-rate-plural-instant-d1-wrapped",
+            "target": false,
+            "ratio": 0.9604722109989925
+          },
+          {
+            "id": "n128-sum-rate-plural-range-d0-wrapped",
+            "target": false,
+            "ratio": 0.9787006898368877
+          },
+          {
+            "id": "n128-sum-rate-plural-range-d1-wrapped",
+            "target": false,
+            "ratio": 0.9641777755215772
+          },
+          {
+            "id": "n128-max-rate-plural-instant-d0-wrapped",
+            "target": false,
+            "ratio": 0.9844196397606082
+          },
+          {
+            "id": "n128-max-rate-plural-instant-d1-wrapped",
+            "target": false,
+            "ratio": 0.9750527838548896
+          },
+          {
+            "id": "n128-max-rate-plural-range-d0-wrapped",
+            "target": false,
+            "ratio": 0.9560949814147826
+          },
+          {
+            "id": "n128-max-rate-plural-range-d1-wrapped",
+            "target": false,
+            "ratio": 0.9571787565876378
+          },
+          {
+            "id": "labels-n32-w0-global-instant-d0",
+            "target": true,
+            "ratio": 0.8777494214590047
+          },
+          {
+            "id": "labels-n32-w0-global-instant-d1",
+            "target": true,
+            "ratio": 0.8803513344796241
+          },
+          {
+            "id": "labels-n32-w0-global-range-d0",
+            "target": true,
+            "ratio": 0.8324851101377115
+          },
+          {
+            "id": "labels-n32-w0-global-range-d1",
+            "target": true,
+            "ratio": 0.8421899994037079
+          },
+          {
+            "id": "labels-n32-w0-byjob-instant-d0",
+            "target": true,
+            "ratio": 0.9253849747463618
+          },
+          {
+            "id": "labels-n32-w0-byjob-instant-d1",
+            "target": true,
+            "ratio": 0.9176087614817806
+          },
+          {
+            "id": "labels-n32-w0-byjob-range-d0",
+            "target": true,
+            "ratio": 0.8787133356520272
+          },
+          {
+            "id": "labels-n32-w0-byjob-range-d1",
+            "target": true,
+            "ratio": 0.8771802089095702
+          },
+          {
+            "id": "labels-n32-w0-all-instant-d0",
+            "target": false,
+            "ratio": 0.9803864476702987
+          },
+          {
+            "id": "labels-n32-w0-all-instant-d1",
+            "target": false,
+            "ratio": 1.017968495453035
+          },
+          {
+            "id": "labels-n32-w0-all-range-d0",
+            "target": false,
+            "ratio": 1.0034235998976448
+          },
+          {
+            "id": "labels-n32-w0-all-range-d1",
+            "target": false,
+            "ratio": 1.0019565893760405
+          },
+          {
+            "id": "labels-n32-w0-withoutid-instant-d0",
+            "target": false,
+            "ratio": 1.0034291508959825
+          },
+          {
+            "id": "labels-n32-w0-withoutid-instant-d1",
+            "target": false,
+            "ratio": 0.9920858100257632
+          },
+          {
+            "id": "labels-n32-w0-withoutid-range-d0",
+            "target": false,
+            "ratio": 1.0224692852516113
+          },
+          {
+            "id": "labels-n32-w0-withoutid-range-d1",
+            "target": false,
+            "ratio": 1.0231339533834432
+          },
+          {
+            "id": "labels-n32-w8-global-instant-d0",
+            "target": true,
+            "ratio": 0.7169202535370007
+          },
+          {
+            "id": "labels-n32-w8-global-instant-d1",
+            "target": true,
+            "ratio": 0.70727686099735
+          },
+          {
+            "id": "labels-n32-w8-global-range-d0",
+            "target": true,
+            "ratio": 0.6070029218280232
+          },
+          {
+            "id": "labels-n32-w8-global-range-d1",
+            "target": true,
+            "ratio": 0.6158808163038776
+          },
+          {
+            "id": "labels-n32-w8-byjob-instant-d0",
+            "target": true,
+            "ratio": 0.7781680911361778
+          },
+          {
+            "id": "labels-n32-w8-byjob-instant-d1",
+            "target": true,
+            "ratio": 0.7711003170866674
+          },
+          {
+            "id": "labels-n32-w8-byjob-range-d0",
+            "target": true,
+            "ratio": 0.6731318759429196
+          },
+          {
+            "id": "labels-n32-w8-byjob-range-d1",
+            "target": true,
+            "ratio": 0.6776954459503252
+          },
+          {
+            "id": "labels-n32-w8-all-instant-d0",
+            "target": false,
+            "ratio": 0.996152459368054
+          },
+          {
+            "id": "labels-n32-w8-all-instant-d1",
+            "target": false,
+            "ratio": 0.9650385326939488
+          },
+          {
+            "id": "labels-n32-w8-all-range-d0",
+            "target": false,
+            "ratio": 0.9960362383439187
+          },
+          {
+            "id": "labels-n32-w8-all-range-d1",
+            "target": false,
+            "ratio": 0.9854544073010192
+          },
+          {
+            "id": "labels-n32-w8-withoutid-instant-d0",
+            "target": false,
+            "ratio": 0.9976558654154197
+          },
+          {
+            "id": "labels-n32-w8-withoutid-instant-d1",
+            "target": false,
+            "ratio": 0.9790244979033326
+          },
+          {
+            "id": "labels-n32-w8-withoutid-range-d0",
+            "target": false,
+            "ratio": 1.0008839920693282
+          },
+          {
+            "id": "labels-n32-w8-withoutid-range-d1",
+            "target": false,
+            "ratio": 0.9818394351122183
+          },
+          {
+            "id": "labels-n32-w32-global-instant-d0",
+            "target": true,
+            "ratio": 0.6027124862956824
+          },
+          {
+            "id": "labels-n32-w32-global-instant-d1",
+            "target": true,
+            "ratio": 0.6824681402848977
+          },
+          {
+            "id": "labels-n32-w32-global-range-d0",
+            "target": true,
+            "ratio": 0.48034575530593016
+          },
+          {
+            "id": "labels-n32-w32-global-range-d1",
+            "target": true,
+            "ratio": 0.45675823089048856
+          },
+          {
+            "id": "labels-n32-w32-byjob-instant-d0",
+            "target": true,
+            "ratio": 0.693903634552435
+          },
+          {
+            "id": "labels-n32-w32-byjob-instant-d1",
+            "target": true,
+            "ratio": 0.6845476504383474
+          },
+          {
+            "id": "labels-n32-w32-byjob-range-d0",
+            "target": true,
+            "ratio": 0.5322442404307138
+          },
+          {
+            "id": "labels-n32-w32-byjob-range-d1",
+            "target": true,
+            "ratio": 0.539193034320292
+          },
+          {
+            "id": "labels-n32-w32-all-instant-d0",
+            "target": false,
+            "ratio": 1.054723320266291
+          },
+          {
+            "id": "labels-n32-w32-all-instant-d1",
+            "target": false,
+            "ratio": 1.035050074897345
+          },
+          {
+            "id": "labels-n32-w32-all-range-d0",
+            "target": false,
+            "ratio": 1.033129558413056
+          },
+          {
+            "id": "labels-n32-w32-all-range-d1",
+            "target": false,
+            "ratio": 1.0215954145319064
+          },
+          {
+            "id": "labels-n32-w32-withoutid-instant-d0",
+            "target": false,
+            "ratio": 1.0457183293573786
+          },
+          {
+            "id": "labels-n32-w32-withoutid-instant-d1",
+            "target": false,
+            "ratio": 1.022031558829775
+          },
+          {
+            "id": "labels-n32-w32-withoutid-range-d0",
+            "target": false,
+            "ratio": 1.0174713506711093
+          },
+          {
+            "id": "labels-n32-w32-withoutid-range-d1",
+            "target": false,
+            "ratio": 1.0196316881258192
+          },
+          {
+            "id": "labels-n128-w0-global-instant-d0",
+            "target": true,
+            "ratio": 0.8747467333147301
+          },
+          {
+            "id": "labels-n128-w0-global-instant-d1",
+            "target": true,
+            "ratio": 0.9039394845308365
+          },
+          {
+            "id": "labels-n128-w0-global-range-d0",
+            "target": true,
+            "ratio": 0.8250681873667819
+          },
+          {
+            "id": "labels-n128-w0-global-range-d1",
+            "target": true,
+            "ratio": 0.8581877183686727
+          },
+          {
+            "id": "labels-n128-w0-byjob-instant-d0",
+            "target": true,
+            "ratio": 0.9367442439814283
+          },
+          {
+            "id": "labels-n128-w0-byjob-instant-d1",
+            "target": true,
+            "ratio": 0.9296483116646395
+          },
+          {
+            "id": "labels-n128-w0-byjob-range-d0",
+            "target": true,
+            "ratio": 0.8911455010659044
+          },
+          {
+            "id": "labels-n128-w0-byjob-range-d1",
+            "target": true,
+            "ratio": 0.8815553929648416
+          },
+          {
+            "id": "labels-n128-w0-all-instant-d0",
+            "target": false,
+            "ratio": 1.0189609267836617
+          },
+          {
+            "id": "labels-n128-w0-all-instant-d1",
+            "target": false,
+            "ratio": 1.0181008613994211
+          },
+          {
+            "id": "labels-n128-w0-all-range-d0",
+            "target": false,
+            "ratio": 1.0257010640656175
+          },
+          {
+            "id": "labels-n128-w0-all-range-d1",
+            "target": false,
+            "ratio": 1.0412087674997024
+          },
+          {
+            "id": "labels-n128-w0-withoutid-instant-d0",
+            "target": false,
+            "ratio": 1.0429674127897346
+          },
+          {
+            "id": "labels-n128-w0-withoutid-instant-d1",
+            "target": false,
+            "ratio": 1.0258788059812944
+          },
+          {
+            "id": "labels-n128-w0-withoutid-range-d0",
+            "target": false,
+            "ratio": 1.0450820414065276
+          },
+          {
+            "id": "labels-n128-w0-withoutid-range-d1",
+            "target": false,
+            "ratio": 1.0580877909125601
+          },
+          {
+            "id": "labels-n128-w8-global-instant-d0",
+            "target": true,
+            "ratio": 0.751306279256028
+          },
+          {
+            "id": "labels-n128-w8-global-instant-d1",
+            "target": true,
+            "ratio": 0.7131271870094171
+          },
+          {
+            "id": "labels-n128-w8-global-range-d0",
+            "target": true,
+            "ratio": 0.6227871345082874
+          },
+          {
+            "id": "labels-n128-w8-global-range-d1",
+            "target": true,
+            "ratio": 0.622447089107122
+          },
+          {
+            "id": "labels-n128-w8-byjob-instant-d0",
+            "target": true,
+            "ratio": 0.77868356386678
+          },
+          {
+            "id": "labels-n128-w8-byjob-instant-d1",
+            "target": true,
+            "ratio": 0.7180067437467909
+          },
+          {
+            "id": "labels-n128-w8-byjob-range-d0",
+            "target": true,
+            "ratio": 0.6846396736033339
+          },
+          {
+            "id": "labels-n128-w8-byjob-range-d1",
+            "target": true,
+            "ratio": 0.6848601037385196
+          },
+          {
+            "id": "labels-n128-w8-all-instant-d0",
+            "target": false,
+            "ratio": 0.9811837576817894
+          },
+          {
+            "id": "labels-n128-w8-all-instant-d1",
+            "target": false,
+            "ratio": 1.007678615676588
+          },
+          {
+            "id": "labels-n128-w8-all-range-d0",
+            "target": false,
+            "ratio": 1.0278350797128213
+          },
+          {
+            "id": "labels-n128-w8-all-range-d1",
+            "target": false,
+            "ratio": 1.0096675750745334
+          },
+          {
+            "id": "labels-n128-w8-withoutid-instant-d0",
+            "target": false,
+            "ratio": 1.041377166956756
+          },
+          {
+            "id": "labels-n128-w8-withoutid-instant-d1",
+            "target": false,
+            "ratio": 1.0402393331940574
+          },
+          {
+            "id": "labels-n128-w8-withoutid-range-d0",
+            "target": false,
+            "ratio": 1.043166221623914
+          },
+          {
+            "id": "labels-n128-w8-withoutid-range-d1",
+            "target": false,
+            "ratio": 1.0110238445928215
+          },
+          {
+            "id": "labels-n128-w32-global-instant-d0",
+            "target": true,
+            "ratio": 0.6549448836365708
+          },
+          {
+            "id": "labels-n128-w32-global-instant-d1",
+            "target": true,
+            "ratio": 0.6406032927658538
+          },
+          {
+            "id": "labels-n128-w32-global-range-d0",
+            "target": true,
+            "ratio": 0.4943938422887929
+          },
+          {
+            "id": "labels-n128-w32-global-range-d1",
+            "target": true,
+            "ratio": 0.4901985851348456
+          },
+          {
+            "id": "labels-n128-w32-byjob-instant-d0",
+            "target": true,
+            "ratio": 0.6755343527946688
+          },
+          {
+            "id": "labels-n128-w32-byjob-instant-d1",
+            "target": true,
+            "ratio": 0.6835342515411801
+          },
+          {
+            "id": "labels-n128-w32-byjob-range-d0",
+            "target": true,
+            "ratio": 0.5223537648831718
+          },
+          {
+            "id": "labels-n128-w32-byjob-range-d1",
+            "target": true,
+            "ratio": 0.5289627334288858
+          },
+          {
+            "id": "labels-n128-w32-all-instant-d0",
+            "target": false,
+            "ratio": 0.9894509239927641
+          },
+          {
+            "id": "labels-n128-w32-all-instant-d1",
+            "target": false,
+            "ratio": 0.9953114276280921
+          },
+          {
+            "id": "labels-n128-w32-all-range-d0",
+            "target": false,
+            "ratio": 0.8555385143299084
+          },
+          {
+            "id": "labels-n128-w32-all-range-d1",
+            "target": false,
+            "ratio": 0.9092554169469435
+          },
+          {
+            "id": "labels-n128-w32-withoutid-instant-d0",
+            "target": false,
+            "ratio": 0.9845420037221987
+          },
+          {
+            "id": "labels-n128-w32-withoutid-instant-d1",
+            "target": false,
+            "ratio": 0.9807732182897944
+          },
+          {
+            "id": "labels-n128-w32-withoutid-range-d0",
+            "target": false,
+            "ratio": 0.9937803602574147
+          },
+          {
+            "id": "labels-n128-w32-withoutid-range-d1",
+            "target": false,
+            "ratio": 0.9906152211482586
+          }
+        ]
+      },
+      "release-min": {
+        "target_median": 0.8119875282928687,
+        "control_median": 0.9921089246394321,
+        "individual_ratios": [
+          {
+            "id": "n32-sum-raw-single-instant-d0",
+            "target": true,
+            "ratio": 0.84522429012287
+          },
+          {
+            "id": "n32-sum-raw-single-instant-d1",
+            "target": true,
+            "ratio": 0.8713783318693734
+          },
+          {
+            "id": "n32-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.7821435754877561
+          },
+          {
+            "id": "n32-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.7975676932758164
+          },
+          {
+            "id": "n32-sum-raw-plural-instant-d0",
+            "target": true,
+            "ratio": 0.8628124850224276
+          },
+          {
+            "id": "n32-sum-raw-plural-instant-d1",
+            "target": true,
+            "ratio": 0.8804736219062435
+          },
+          {
+            "id": "n32-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8339024432454308
+          },
+          {
+            "id": "n32-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.835426657532161
+          },
+          {
+            "id": "n32-max-raw-single-instant-d0",
+            "target": true,
+            "ratio": 0.843762115220594
+          },
+          {
+            "id": "n32-max-raw-single-instant-d1",
+            "target": true,
+            "ratio": 0.8669605983885097
+          },
+          {
+            "id": "n32-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8090974779872679
+          },
+          {
+            "id": "n32-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.7992178170345462
+          },
+          {
+            "id": "n32-max-raw-plural-instant-d0",
+            "target": true,
+            "ratio": 0.8619514973912206
+          },
+          {
+            "id": "n32-max-raw-plural-instant-d1",
+            "target": true,
+            "ratio": 0.8802833185599533
+          },
+          {
+            "id": "n32-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8095580967945062
+          },
+          {
+            "id": "n32-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8217091162611416
+          },
+          {
+            "id": "n32-none-raw-plural-instant-d0",
+            "target": false,
+            "ratio": 0.9913210488673165
+          },
+          {
+            "id": "n32-none-raw-plural-instant-d1",
+            "target": false,
+            "ratio": 0.979329607167427
+          },
+          {
+            "id": "n32-none-raw-plural-range-d0",
+            "target": false,
+            "ratio": 0.978711586323289
+          },
+          {
+            "id": "n32-none-raw-plural-range-d1",
+            "target": false,
+            "ratio": 0.9803967101035248
+          },
+          {
+            "id": "n32-sum-mapped-single-instant-d0",
+            "target": false,
+            "ratio": 1.0005080853974302
+          },
+          {
+            "id": "n32-sum-mapped-single-instant-d1",
+            "target": false,
+            "ratio": 0.9844356568243311
+          },
+          {
+            "id": "n32-sum-mapped-single-range-d0",
+            "target": false,
+            "ratio": 0.9935603500756784
+          },
+          {
+            "id": "n32-sum-mapped-single-range-d1",
+            "target": false,
+            "ratio": 0.994993145797341
+          },
+          {
+            "id": "n32-sum-mapped-plural-instant-d0",
+            "target": false,
+            "ratio": 0.98291904526453
+          },
+          {
+            "id": "n32-sum-mapped-plural-instant-d1",
+            "target": false,
+            "ratio": 0.9770208783440696
+          },
+          {
+            "id": "n32-sum-mapped-plural-range-d0",
+            "target": false,
+            "ratio": 0.9987992332882181
+          },
+          {
+            "id": "n32-sum-mapped-plural-range-d1",
+            "target": false,
+            "ratio": 1.0052434290114853
+          },
+          {
+            "id": "n32-max-mapped-single-instant-d0",
+            "target": false,
+            "ratio": 0.9905949239060006
+          },
+          {
+            "id": "n32-max-mapped-single-instant-d1",
+            "target": false,
+            "ratio": 0.976849014721303
+          },
+          {
+            "id": "n32-max-mapped-single-range-d0",
+            "target": false,
+            "ratio": 1.001639057074223
+          },
+          {
+            "id": "n32-max-mapped-single-range-d1",
+            "target": false,
+            "ratio": 1.0082317089919395
+          },
+          {
+            "id": "n32-max-mapped-plural-instant-d0",
+            "target": false,
+            "ratio": 1.0171251069193716
+          },
+          {
+            "id": "n32-max-mapped-plural-instant-d1",
+            "target": false,
+            "ratio": 0.9952530945398519
+          },
+          {
+            "id": "n32-max-mapped-plural-range-d0",
+            "target": false,
+            "ratio": 1.0109309610959427
+          },
+          {
+            "id": "n32-max-mapped-plural-range-d1",
+            "target": false,
+            "ratio": 1.0120363949409619
+          },
+          {
+            "id": "n32-none-mapped-plural-instant-d0",
+            "target": false,
+            "ratio": 0.9964508989586365
+          },
+          {
+            "id": "n32-none-mapped-plural-instant-d1",
+            "target": false,
+            "ratio": 1.0034024497638299
+          },
+          {
+            "id": "n32-none-mapped-plural-range-d0",
+            "target": false,
+            "ratio": 1.004317267342463
+          },
+          {
+            "id": "n32-none-mapped-plural-range-d1",
+            "target": false,
+            "ratio": 1.004765135389547
+          },
+          {
+            "id": "n32-sum-rate-single-instant-d0",
+            "target": false,
+            "ratio": 0.9710191783837328
+          },
+          {
+            "id": "n32-sum-rate-single-instant-d1",
+            "target": false,
+            "ratio": 0.9704375340553872
+          },
+          {
+            "id": "n32-sum-rate-single-range-d0",
+            "target": false,
+            "ratio": 0.9690210605419118
+          },
+          {
+            "id": "n32-sum-rate-single-range-d1",
+            "target": false,
+            "ratio": 0.9631995233912133
+          },
+          {
+            "id": "n32-sum-rate-plural-instant-d0",
+            "target": false,
+            "ratio": 0.9588343012609218
+          },
+          {
+            "id": "n32-sum-rate-plural-instant-d1",
+            "target": false,
+            "ratio": 0.9502199314848739
+          },
+          {
+            "id": "n32-sum-rate-plural-range-d0",
+            "target": false,
+            "ratio": 0.971716523042571
+          },
+          {
+            "id": "n32-sum-rate-plural-range-d1",
+            "target": false,
+            "ratio": 0.9649495706938952
+          },
+          {
+            "id": "n32-max-rate-single-instant-d0",
+            "target": false,
+            "ratio": 0.956683829093796
+          },
+          {
+            "id": "n32-max-rate-single-instant-d1",
+            "target": false,
+            "ratio": 0.9596602111878542
+          },
+          {
+            "id": "n32-max-rate-single-range-d0",
+            "target": false,
+            "ratio": 0.9657077647994979
+          },
+          {
+            "id": "n32-max-rate-single-range-d1",
+            "target": false,
+            "ratio": 0.9677829707444034
+          },
+          {
+            "id": "n32-max-rate-plural-instant-d0",
+            "target": false,
+            "ratio": 0.972085392839278
+          },
+          {
+            "id": "n32-max-rate-plural-instant-d1",
+            "target": false,
+            "ratio": 0.9645438753487393
+          },
+          {
+            "id": "n32-max-rate-plural-range-d0",
+            "target": false,
+            "ratio": 0.9752857728328586
+          },
+          {
+            "id": "n32-max-rate-plural-range-d1",
+            "target": false,
+            "ratio": 0.9727516626301637
+          },
+          {
+            "id": "n32-none-rate-plural-instant-d0",
+            "target": false,
+            "ratio": 0.9858532597212909
+          },
+          {
+            "id": "n32-none-rate-plural-instant-d1",
+            "target": false,
+            "ratio": 0.9622867145365279
+          },
+          {
+            "id": "n32-none-rate-plural-range-d0",
+            "target": false,
+            "ratio": 0.9786369815270679
+          },
+          {
+            "id": "n32-none-rate-plural-range-d1",
+            "target": false,
+            "ratio": 0.9721950536463855
+          },
+          {
+            "id": "n128-sum-raw-single-instant-d0",
+            "target": true,
+            "ratio": 0.8415073510712895
+          },
+          {
+            "id": "n128-sum-raw-single-instant-d1",
+            "target": true,
+            "ratio": 0.8373899780352622
+          },
+          {
+            "id": "n128-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.7971152288506925
+          },
+          {
+            "id": "n128-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.7902155676395447
+          },
+          {
+            "id": "n128-sum-raw-plural-instant-d0",
+            "target": true,
+            "ratio": 0.880348477014791
+          },
+          {
+            "id": "n128-sum-raw-plural-instant-d1",
+            "target": true,
+            "ratio": 0.8795496645328539
+          },
+          {
+            "id": "n128-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8196630347927677
+          },
+          {
+            "id": "n128-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8399720831309822
+          },
+          {
+            "id": "n128-max-raw-single-instant-d0",
+            "target": true,
+            "ratio": 0.8478565031270227
+          },
+          {
+            "id": "n128-max-raw-single-instant-d1",
+            "target": true,
+            "ratio": 0.845155589423202
+          },
+          {
+            "id": "n128-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.7903957023009138
+          },
+          {
+            "id": "n128-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.7997441535363671
+          },
+          {
+            "id": "n128-max-raw-plural-instant-d0",
+            "target": true,
+            "ratio": 0.8687888817698938
+          },
+          {
+            "id": "n128-max-raw-plural-instant-d1",
+            "target": true,
+            "ratio": 0.8751948538001728
+          },
+          {
+            "id": "n128-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8144757472540726
+          },
+          {
+            "id": "n128-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8383807598673665
+          },
+          {
+            "id": "n128-none-raw-plural-instant-d0",
+            "target": false,
+            "ratio": 1.0305728356795207
+          },
+          {
+            "id": "n128-none-raw-plural-instant-d1",
+            "target": false,
+            "ratio": 1.0247951264235586
+          },
+          {
+            "id": "n128-none-raw-plural-range-d0",
+            "target": false,
+            "ratio": 0.9870896653046233
+          },
+          {
+            "id": "n128-none-raw-plural-range-d1",
+            "target": false,
+            "ratio": 0.979536298741051
+          },
+          {
+            "id": "n128-sum-mapped-single-instant-d0",
+            "target": false,
+            "ratio": 0.993968344905773
+          },
+          {
+            "id": "n128-sum-mapped-single-instant-d1",
+            "target": false,
+            "ratio": 0.9873287909953485
+          },
+          {
+            "id": "n128-sum-mapped-single-range-d0",
+            "target": false,
+            "ratio": 1.0053149496520613
+          },
+          {
+            "id": "n128-sum-mapped-single-range-d1",
+            "target": false,
+            "ratio": 1.0290256789773256
+          },
+          {
+            "id": "n128-sum-mapped-plural-instant-d0",
+            "target": false,
+            "ratio": 1.0170160844598075
+          },
+          {
+            "id": "n128-sum-mapped-plural-instant-d1",
+            "target": false,
+            "ratio": 0.9922084519596522
+          },
+          {
+            "id": "n128-sum-mapped-plural-range-d0",
+            "target": false,
+            "ratio": 0.9948791319979388
+          },
+          {
+            "id": "n128-sum-mapped-plural-range-d1",
+            "target": false,
+            "ratio": 1.0056104415325275
+          },
+          {
+            "id": "n128-max-mapped-single-instant-d0",
+            "target": false,
+            "ratio": 1.0235454592196276
+          },
+          {
+            "id": "n128-max-mapped-single-instant-d1",
+            "target": false,
+            "ratio": 1.008285598708364
+          },
+          {
+            "id": "n128-max-mapped-single-range-d0",
+            "target": false,
+            "ratio": 1.0100779149392372
+          },
+          {
+            "id": "n128-max-mapped-single-range-d1",
+            "target": false,
+            "ratio": 1.0060285028100504
+          },
+          {
+            "id": "n128-max-mapped-plural-instant-d0",
+            "target": false,
+            "ratio": 0.9981789154834676
+          },
+          {
+            "id": "n128-max-mapped-plural-instant-d1",
+            "target": false,
+            "ratio": 0.992009397319212
+          },
+          {
+            "id": "n128-max-mapped-plural-range-d0",
+            "target": false,
+            "ratio": 1.0249142944486769
+          },
+          {
+            "id": "n128-max-mapped-plural-range-d1",
+            "target": false,
+            "ratio": 1.011173387886281
+          },
+          {
+            "id": "n128-none-mapped-plural-instant-d0",
+            "target": false,
+            "ratio": 1.0269964235701379
+          },
+          {
+            "id": "n128-none-mapped-plural-instant-d1",
+            "target": false,
+            "ratio": 1.0248543763136082
+          },
+          {
+            "id": "n128-none-mapped-plural-range-d0",
+            "target": false,
+            "ratio": 1.0225567737663797
+          },
+          {
+            "id": "n128-none-mapped-plural-range-d1",
+            "target": false,
+            "ratio": 1.002004013885013
+          },
+          {
+            "id": "n128-sum-rate-single-instant-d0",
+            "target": false,
+            "ratio": 0.9614263433747954
+          },
+          {
+            "id": "n128-sum-rate-single-instant-d1",
+            "target": false,
+            "ratio": 0.9663646313452853
+          },
+          {
+            "id": "n128-sum-rate-single-range-d0",
+            "target": false,
+            "ratio": 0.9611121194274574
+          },
+          {
+            "id": "n128-sum-rate-single-range-d1",
+            "target": false,
+            "ratio": 0.9615371508698357
+          },
+          {
+            "id": "n128-sum-rate-plural-instant-d0",
+            "target": false,
+            "ratio": 0.9715862585693408
+          },
+          {
+            "id": "n128-sum-rate-plural-instant-d1",
+            "target": false,
+            "ratio": 0.9726983507410101
+          },
+          {
+            "id": "n128-sum-rate-plural-range-d0",
+            "target": false,
+            "ratio": 0.9525692778697995
+          },
+          {
+            "id": "n128-sum-rate-plural-range-d1",
+            "target": false,
+            "ratio": 0.9771724329194531
+          },
+          {
+            "id": "n128-max-rate-single-instant-d0",
+            "target": false,
+            "ratio": 0.9745416873113824
+          },
+          {
+            "id": "n128-max-rate-single-instant-d1",
+            "target": false,
+            "ratio": 0.9728012699796118
+          },
+          {
+            "id": "n128-max-rate-single-range-d0",
+            "target": false,
+            "ratio": 0.9824181983388857
+          },
+          {
+            "id": "n128-max-rate-single-range-d1",
+            "target": false,
+            "ratio": 0.9720824951319672
+          },
+          {
+            "id": "n128-max-rate-plural-instant-d0",
+            "target": false,
+            "ratio": 0.9781051511820847
+          },
+          {
+            "id": "n128-max-rate-plural-instant-d1",
+            "target": false,
+            "ratio": 0.9733488577811884
+          },
+          {
+            "id": "n128-max-rate-plural-range-d0",
+            "target": false,
+            "ratio": 0.9787371767221722
+          },
+          {
+            "id": "n128-max-rate-plural-range-d1",
+            "target": false,
+            "ratio": 0.9879223019762399
+          },
+          {
+            "id": "n128-none-rate-plural-instant-d0",
+            "target": false,
+            "ratio": 0.9866457553566157
+          },
+          {
+            "id": "n128-none-rate-plural-instant-d1",
+            "target": false,
+            "ratio": 1.004668716436509
+          },
+          {
+            "id": "n128-none-rate-plural-range-d0",
+            "target": false,
+            "ratio": 0.9749435992506768
+          },
+          {
+            "id": "n128-none-rate-plural-range-d1",
+            "target": false,
+            "ratio": 0.9844795110350759
+          },
+          {
+            "id": "n32-t8-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.7880942213522266
+          },
+          {
+            "id": "n32-t8-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8039244318128406
+          },
+          {
+            "id": "n32-t8-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8207279212261392
+          },
+          {
+            "id": "n32-t8-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8273422679017008
+          },
+          {
+            "id": "n32-t8-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.7906534937803374
+          },
+          {
+            "id": "n32-t8-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.7988385657938853
+          },
+          {
+            "id": "n32-t8-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.812220347644839
+          },
+          {
+            "id": "n32-t8-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8248152103689327
+          },
+          {
+            "id": "n32-t32-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8064429632184813
+          },
+          {
+            "id": "n32-t32-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8130262502428967
+          },
+          {
+            "id": "n32-t32-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8359030242095611
+          },
+          {
+            "id": "n32-t32-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8358943395546565
+          },
+          {
+            "id": "n32-t32-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8119436120059191
+          },
+          {
+            "id": "n32-t32-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8308069117006385
+          },
+          {
+            "id": "n32-t32-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8313907952475925
+          },
+          {
+            "id": "n32-t32-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8477497433955204
+          },
+          {
+            "id": "n128-t8-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.79222826404285
+          },
+          {
+            "id": "n128-t8-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.7901146696796718
+          },
+          {
+            "id": "n128-t8-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8117165640493097
+          },
+          {
+            "id": "n128-t8-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8368742123867244
+          },
+          {
+            "id": "n128-t8-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.7953167441629929
+          },
+          {
+            "id": "n128-t8-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.7893716137534027
+          },
+          {
+            "id": "n128-t8-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8143116460323578
+          },
+          {
+            "id": "n128-t8-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8257250990006019
+          },
+          {
+            "id": "n128-t32-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8122306104129173
+          },
+          {
+            "id": "n128-t32-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8099613105604812
+          },
+          {
+            "id": "n128-t32-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8292164318895113
+          },
+          {
+            "id": "n128-t32-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8381029586468778
+          },
+          {
+            "id": "n128-t32-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.8134681774658477
+          },
+          {
+            "id": "n128-t32-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8035392999703156
+          },
+          {
+            "id": "n128-t32-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.7695453741562885
+          },
+          {
+            "id": "n128-t32-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8292934841471375
+          },
+          {
+            "id": "n1024-t3-sum-raw-single-instant-d0",
+            "target": true,
+            "ratio": 0.8874452817423198
+          },
+          {
+            "id": "n1024-t3-sum-raw-single-instant-d1",
+            "target": true,
+            "ratio": 0.9214989053051849
+          },
+          {
+            "id": "n1024-t3-sum-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.7905881527957046
+          },
+          {
+            "id": "n1024-t3-sum-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.8120314445798182
+          },
+          {
+            "id": "n1024-t3-sum-raw-plural-instant-d0",
+            "target": true,
+            "ratio": 0.8981695852471077
+          },
+          {
+            "id": "n1024-t3-sum-raw-plural-instant-d1",
+            "target": true,
+            "ratio": 0.9218853105866274
+          },
+          {
+            "id": "n1024-t3-sum-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.8611207096741447
+          },
+          {
+            "id": "n1024-t3-sum-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8339038247309486
+          },
+          {
+            "id": "n1024-t3-max-raw-single-instant-d0",
+            "target": true,
+            "ratio": 0.7503427603069888
+          },
+          {
+            "id": "n1024-t3-max-raw-single-instant-d1",
+            "target": true,
+            "ratio": 0.8156868870121994
+          },
+          {
+            "id": "n1024-t3-max-raw-single-range-d0",
+            "target": true,
+            "ratio": 0.7713577663866024
+          },
+          {
+            "id": "n1024-t3-max-raw-single-range-d1",
+            "target": true,
+            "ratio": 0.7661838335232749
+          },
+          {
+            "id": "n1024-t3-max-raw-plural-instant-d0",
+            "target": true,
+            "ratio": 0.8956665391848788
+          },
+          {
+            "id": "n1024-t3-max-raw-plural-instant-d1",
+            "target": true,
+            "ratio": 0.9610725160149537
+          },
+          {
+            "id": "n1024-t3-max-raw-plural-range-d0",
+            "target": true,
+            "ratio": 0.833445725402834
+          },
+          {
+            "id": "n1024-t3-max-raw-plural-range-d1",
+            "target": true,
+            "ratio": 0.8513920628673606
+          },
+          {
+            "id": "n128-sum-raw-plural-instant-d0-wrapped",
+            "target": true,
+            "ratio": 0.8454097771557451
+          },
+          {
+            "id": "n128-sum-raw-plural-instant-d1-wrapped",
+            "target": true,
+            "ratio": 0.8507459621291297
+          },
+          {
+            "id": "n128-sum-raw-plural-range-d0-wrapped",
+            "target": true,
+            "ratio": 0.8066709462568857
+          },
+          {
+            "id": "n128-sum-raw-plural-range-d1-wrapped",
+            "target": true,
+            "ratio": 0.802667564362361
+          },
+          {
+            "id": "n128-max-raw-plural-instant-d0-wrapped",
+            "target": true,
+            "ratio": 0.8438078685191701
+          },
+          {
+            "id": "n128-max-raw-plural-instant-d1-wrapped",
+            "target": true,
+            "ratio": 0.8571623651508944
+          },
+          {
+            "id": "n128-max-raw-plural-range-d0-wrapped",
+            "target": true,
+            "ratio": 0.8057975281589556
+          },
+          {
+            "id": "n128-max-raw-plural-range-d1-wrapped",
+            "target": true,
+            "ratio": 0.7969792766873606
+          },
+          {
+            "id": "n128-sum-rate-plural-instant-d0-wrapped",
+            "target": false,
+            "ratio": 0.9512771392343855
+          },
+          {
+            "id": "n128-sum-rate-plural-instant-d1-wrapped",
+            "target": false,
+            "ratio": 0.9505178380149666
+          },
+          {
+            "id": "n128-sum-rate-plural-range-d0-wrapped",
+            "target": false,
+            "ratio": 0.9570673563875123
+          },
+          {
+            "id": "n128-sum-rate-plural-range-d1-wrapped",
+            "target": false,
+            "ratio": 0.9616898242515912
+          },
+          {
+            "id": "n128-max-rate-plural-instant-d0-wrapped",
+            "target": false,
+            "ratio": 0.9450848814882018
+          },
+          {
+            "id": "n128-max-rate-plural-instant-d1-wrapped",
+            "target": false,
+            "ratio": 0.9602705511795285
+          },
+          {
+            "id": "n128-max-rate-plural-range-d0-wrapped",
+            "target": false,
+            "ratio": 0.9691975248862394
+          },
+          {
+            "id": "n128-max-rate-plural-range-d1-wrapped",
+            "target": false,
+            "ratio": 0.9587957401664281
+          },
+          {
+            "id": "labels-n32-w0-global-instant-d0",
+            "target": true,
+            "ratio": 0.8208954716159582
+          },
+          {
+            "id": "labels-n32-w0-global-instant-d1",
+            "target": true,
+            "ratio": 0.8353782180388288
+          },
+          {
+            "id": "labels-n32-w0-global-range-d0",
+            "target": true,
+            "ratio": 0.7454624863415279
+          },
+          {
+            "id": "labels-n32-w0-global-range-d1",
+            "target": true,
+            "ratio": 0.7587994255158592
+          },
+          {
+            "id": "labels-n32-w0-byjob-instant-d0",
+            "target": true,
+            "ratio": 0.8848296718516636
+          },
+          {
+            "id": "labels-n32-w0-byjob-instant-d1",
+            "target": true,
+            "ratio": 0.8999744440200381
+          },
+          {
+            "id": "labels-n32-w0-byjob-range-d0",
+            "target": true,
+            "ratio": 0.8195202819882424
+          },
+          {
+            "id": "labels-n32-w0-byjob-range-d1",
+            "target": true,
+            "ratio": 0.834574936850417
+          },
+          {
+            "id": "labels-n32-w0-all-instant-d0",
+            "target": false,
+            "ratio": 0.9943292503936167
+          },
+          {
+            "id": "labels-n32-w0-all-instant-d1",
+            "target": false,
+            "ratio": 1.0110798859779007
+          },
+          {
+            "id": "labels-n32-w0-all-range-d0",
+            "target": false,
+            "ratio": 0.9821554215046256
+          },
+          {
+            "id": "labels-n32-w0-all-range-d1",
+            "target": false,
+            "ratio": 0.9998521440590005
+          },
+          {
+            "id": "labels-n32-w0-withoutid-instant-d0",
+            "target": false,
+            "ratio": 1.002478629309435
+          },
+          {
+            "id": "labels-n32-w0-withoutid-instant-d1",
+            "target": false,
+            "ratio": 1.0014288579852553
+          },
+          {
+            "id": "labels-n32-w0-withoutid-range-d0",
+            "target": false,
+            "ratio": 0.9734343379168204
+          },
+          {
+            "id": "labels-n32-w0-withoutid-range-d1",
+            "target": false,
+            "ratio": 0.9926558316225255
+          },
+          {
+            "id": "labels-n32-w8-global-instant-d0",
+            "target": true,
+            "ratio": 0.7182321800775943
+          },
+          {
+            "id": "labels-n32-w8-global-instant-d1",
+            "target": true,
+            "ratio": 0.7036650705559356
+          },
+          {
+            "id": "labels-n32-w8-global-range-d0",
+            "target": true,
+            "ratio": 0.5817658682894893
+          },
+          {
+            "id": "labels-n32-w8-global-range-d1",
+            "target": true,
+            "ratio": 0.5853614244531942
+          },
+          {
+            "id": "labels-n32-w8-byjob-instant-d0",
+            "target": true,
+            "ratio": 0.7410814867870575
+          },
+          {
+            "id": "labels-n32-w8-byjob-instant-d1",
+            "target": true,
+            "ratio": 0.764029448901281
+          },
+          {
+            "id": "labels-n32-w8-byjob-range-d0",
+            "target": true,
+            "ratio": 0.6508444142548439
+          },
+          {
+            "id": "labels-n32-w8-byjob-range-d1",
+            "target": true,
+            "ratio": 0.6511194179240323
+          },
+          {
+            "id": "labels-n32-w8-all-instant-d0",
+            "target": false,
+            "ratio": 1.0090698658884776
+          },
+          {
+            "id": "labels-n32-w8-all-instant-d1",
+            "target": false,
+            "ratio": 1.0028727709411294
+          },
+          {
+            "id": "labels-n32-w8-all-range-d0",
+            "target": false,
+            "ratio": 0.9879139523125878
+          },
+          {
+            "id": "labels-n32-w8-all-range-d1",
+            "target": false,
+            "ratio": 1.0073607342778423
+          },
+          {
+            "id": "labels-n32-w8-withoutid-instant-d0",
+            "target": false,
+            "ratio": 1.0140654088553274
+          },
+          {
+            "id": "labels-n32-w8-withoutid-instant-d1",
+            "target": false,
+            "ratio": 1.0079396421587674
+          },
+          {
+            "id": "labels-n32-w8-withoutid-range-d0",
+            "target": false,
+            "ratio": 1.0050553844167343
+          },
+          {
+            "id": "labels-n32-w8-withoutid-range-d1",
+            "target": false,
+            "ratio": 0.9975801128890633
+          },
+          {
+            "id": "labels-n32-w32-global-instant-d0",
+            "target": true,
+            "ratio": 0.6233240918236403
+          },
+          {
+            "id": "labels-n32-w32-global-instant-d1",
+            "target": true,
+            "ratio": 0.6679805470894702
+          },
+          {
+            "id": "labels-n32-w32-global-range-d0",
+            "target": true,
+            "ratio": 0.47184412596583436
+          },
+          {
+            "id": "labels-n32-w32-global-range-d1",
+            "target": true,
+            "ratio": 0.46211780696159144
+          },
+          {
+            "id": "labels-n32-w32-byjob-instant-d0",
+            "target": true,
+            "ratio": 0.6615337060139216
+          },
+          {
+            "id": "labels-n32-w32-byjob-instant-d1",
+            "target": true,
+            "ratio": 0.6388767068730742
+          },
+          {
+            "id": "labels-n32-w32-byjob-range-d0",
+            "target": true,
+            "ratio": 0.5071494011213226
+          },
+          {
+            "id": "labels-n32-w32-byjob-range-d1",
+            "target": true,
+            "ratio": 0.5231101527365751
+          },
+          {
+            "id": "labels-n32-w32-all-instant-d0",
+            "target": false,
+            "ratio": 1.0030979676332132
+          },
+          {
+            "id": "labels-n32-w32-all-instant-d1",
+            "target": false,
+            "ratio": 1.0244628932999762
+          },
+          {
+            "id": "labels-n32-w32-all-range-d0",
+            "target": false,
+            "ratio": 1.0184230637081841
+          },
+          {
+            "id": "labels-n32-w32-all-range-d1",
+            "target": false,
+            "ratio": 1.0184558888712132
+          },
+          {
+            "id": "labels-n32-w32-withoutid-instant-d0",
+            "target": false,
+            "ratio": 1.0454701981409988
+          },
+          {
+            "id": "labels-n32-w32-withoutid-instant-d1",
+            "target": false,
+            "ratio": 1.0443268761773998
+          },
+          {
+            "id": "labels-n32-w32-withoutid-range-d0",
+            "target": false,
+            "ratio": 1.0178467860292766
+          },
+          {
+            "id": "labels-n32-w32-withoutid-range-d1",
+            "target": false,
+            "ratio": 1.0324792284235387
+          },
+          {
+            "id": "labels-n128-w0-global-instant-d0",
+            "target": true,
+            "ratio": 0.7983258440015366
+          },
+          {
+            "id": "labels-n128-w0-global-instant-d1",
+            "target": true,
+            "ratio": 0.8140613893376414
+          },
+          {
+            "id": "labels-n128-w0-global-range-d0",
+            "target": true,
+            "ratio": 0.7351670253796333
+          },
+          {
+            "id": "labels-n128-w0-global-range-d1",
+            "target": true,
+            "ratio": 0.7427111033263801
+          },
+          {
+            "id": "labels-n128-w0-byjob-instant-d0",
+            "target": true,
+            "ratio": 0.8796249763503926
+          },
+          {
+            "id": "labels-n128-w0-byjob-instant-d1",
+            "target": true,
+            "ratio": 0.8659699216110146
+          },
+          {
+            "id": "labels-n128-w0-byjob-range-d0",
+            "target": true,
+            "ratio": 0.8201571253456367
+          },
+          {
+            "id": "labels-n128-w0-byjob-range-d1",
+            "target": true,
+            "ratio": 0.8224660869128738
+          },
+          {
+            "id": "labels-n128-w0-all-instant-d0",
+            "target": false,
+            "ratio": 0.976991438621126
+          },
+          {
+            "id": "labels-n128-w0-all-instant-d1",
+            "target": false,
+            "ratio": 0.9866264113300921
+          },
+          {
+            "id": "labels-n128-w0-all-range-d0",
+            "target": false,
+            "ratio": 0.9872552706110337
+          },
+          {
+            "id": "labels-n128-w0-all-range-d1",
+            "target": false,
+            "ratio": 0.997879888406158
+          },
+          {
+            "id": "labels-n128-w0-withoutid-instant-d0",
+            "target": false,
+            "ratio": 0.9898329478509449
+          },
+          {
+            "id": "labels-n128-w0-withoutid-instant-d1",
+            "target": false,
+            "ratio": 0.971264870814449
+          },
+          {
+            "id": "labels-n128-w0-withoutid-range-d0",
+            "target": false,
+            "ratio": 0.9817596761980771
+          },
+          {
+            "id": "labels-n128-w0-withoutid-range-d1",
+            "target": false,
+            "ratio": 0.9924977192946838
+          },
+          {
+            "id": "labels-n128-w8-global-instant-d0",
+            "target": true,
+            "ratio": 0.711454151304042
+          },
+          {
+            "id": "labels-n128-w8-global-instant-d1",
+            "target": true,
+            "ratio": 0.6986441728788859
+          },
+          {
+            "id": "labels-n128-w8-global-range-d0",
+            "target": true,
+            "ratio": 0.5743436092424251
+          },
+          {
+            "id": "labels-n128-w8-global-range-d1",
+            "target": true,
+            "ratio": 0.5832209269169327
+          },
+          {
+            "id": "labels-n128-w8-byjob-instant-d0",
+            "target": true,
+            "ratio": 0.7686302942638883
+          },
+          {
+            "id": "labels-n128-w8-byjob-instant-d1",
+            "target": true,
+            "ratio": 0.7720914230090377
+          },
+          {
+            "id": "labels-n128-w8-byjob-range-d0",
+            "target": true,
+            "ratio": 0.6530104970310393
+          },
+          {
+            "id": "labels-n128-w8-byjob-range-d1",
+            "target": true,
+            "ratio": 0.6560665513556895
+          },
+          {
+            "id": "labels-n128-w8-all-instant-d0",
+            "target": false,
+            "ratio": 1.0363545326679522
+          },
+          {
+            "id": "labels-n128-w8-all-instant-d1",
+            "target": false,
+            "ratio": 1.0354164806571344
+          },
+          {
+            "id": "labels-n128-w8-all-range-d0",
+            "target": false,
+            "ratio": 1.0160506346108273
+          },
+          {
+            "id": "labels-n128-w8-all-range-d1",
+            "target": false,
+            "ratio": 1.0109516248569201
+          },
+          {
+            "id": "labels-n128-w8-withoutid-instant-d0",
+            "target": false,
+            "ratio": 1.043925827147514
+          },
+          {
+            "id": "labels-n128-w8-withoutid-instant-d1",
+            "target": false,
+            "ratio": 0.9763626164262379
+          },
+          {
+            "id": "labels-n128-w8-withoutid-range-d0",
+            "target": false,
+            "ratio": 1.0332382004960885
+          },
+          {
+            "id": "labels-n128-w8-withoutid-range-d1",
+            "target": false,
+            "ratio": 1.0275633483611353
+          },
+          {
+            "id": "labels-n128-w32-global-instant-d0",
+            "target": true,
+            "ratio": 0.6676995950993974
+          },
+          {
+            "id": "labels-n128-w32-global-instant-d1",
+            "target": true,
+            "ratio": 0.642309016675685
+          },
+          {
+            "id": "labels-n128-w32-global-range-d0",
+            "target": true,
+            "ratio": 0.5190968987590406
+          },
+          {
+            "id": "labels-n128-w32-global-range-d1",
+            "target": true,
+            "ratio": 0.49739831703564175
+          },
+          {
+            "id": "labels-n128-w32-byjob-instant-d0",
+            "target": true,
+            "ratio": 0.6657364954185039
+          },
+          {
+            "id": "labels-n128-w32-byjob-instant-d1",
+            "target": true,
+            "ratio": 0.6593662821431501
+          },
+          {
+            "id": "labels-n128-w32-byjob-range-d0",
+            "target": true,
+            "ratio": 0.47663558192350425
+          },
+          {
+            "id": "labels-n128-w32-byjob-range-d1",
+            "target": true,
+            "ratio": 0.4999990071466905
+          },
+          {
+            "id": "labels-n128-w32-all-instant-d0",
+            "target": false,
+            "ratio": 1.0114300880546783
+          },
+          {
+            "id": "labels-n128-w32-all-instant-d1",
+            "target": false,
+            "ratio": 1.0232021354646994
+          },
+          {
+            "id": "labels-n128-w32-all-range-d0",
+            "target": false,
+            "ratio": 1.0003267972859042
+          },
+          {
+            "id": "labels-n128-w32-all-range-d1",
+            "target": false,
+            "ratio": 1.0300103911068474
+          },
+          {
+            "id": "labels-n128-w32-withoutid-instant-d0",
+            "target": false,
+            "ratio": 0.9810449341303926
+          },
+          {
+            "id": "labels-n128-w32-withoutid-instant-d1",
+            "target": false,
+            "ratio": 0.9842346557589479
+          },
+          {
+            "id": "labels-n128-w32-withoutid-range-d0",
+            "target": false,
+            "ratio": 1.0271864145487954
+          },
+          {
+            "id": "labels-n128-w32-withoutid-range-d1",
+            "target": false,
+            "ratio": 1.0189645211376275
+          }
+        ]
+      }
+    },
+    "followups": [
+      {
+        "panel": "primary",
+        "profile": "release",
+        "selected": [
+          "n32-max-mapped-single-instant-d1",
+          "n128-max-mapped-plural-instant-d1",
+          "n128-none-mapped-plural-instant-d0",
+          "n128-none-mapped-plural-instant-d1",
+          "labels-n32-w32-all-instant-d0",
+          "labels-n128-w0-withoutid-range-d1"
+        ],
+        "timings": [
+          {
+            "id": "n32-max-mapped-single-instant-d1",
+            "before_ns": [
+              259907,
+              260758,
+              258778,
+              260508,
+              256938,
+              252397,
+              257007,
+              255227,
+              253208,
+              261747,
+              260468,
+              256187,
+              255157,
+              271088,
+              250438,
+              266558,
+              265277,
+              254818
+            ],
+            "candidate_ns": [
+              269877,
+              283358,
+              388096,
+              264738,
+              260848,
+              333297,
+              262567,
+              260448,
+              255357,
+              264537,
+              259958,
+              272938,
+              256908,
+              256387,
+              252968,
+              258367,
+              257048,
+              253258
+            ],
+            "ratio": 1.0106846845100188
+          },
+          {
+            "id": "n128-max-mapped-plural-instant-d1",
+            "before_ns": [
+              1123840,
+              1112620,
+              1110960,
+              1118019,
+              1125620,
+              1114009,
+              1141310,
+              1126589,
+              1128860,
+              1146439,
+              1142499,
+              1150370,
+              1126319,
+              1121110,
+              1122129,
+              1107500,
+              1102770,
+              1111680
+            ],
+            "candidate_ns": [
+              1161369,
+              1167690,
+              1170579,
+              1167789,
+              1165649,
+              1169439,
+              1120269,
+              1118600,
+              1125729,
+              1148109,
+              1149609,
+              1159200,
+              1119780,
+              1137650,
+              1133019,
+              1120820,
+              1115540,
+              1120870
+            ],
+            "ratio": 1.0177161839722633
+          },
+          {
+            "id": "n128-none-mapped-plural-instant-d0",
+            "before_ns": [
+              1018471,
+              1021350,
+              1018391,
+              1038420,
+              1039700,
+              1033321,
+              1049400,
+              1043850,
+              1042881,
+              1058771,
+              1049941,
+              1058320,
+              1063160,
+              1055320,
+              1050850,
+              1324568,
+              1026810,
+              1029680
+            ],
+            "candidate_ns": [
+              1085260,
+              1073620,
+              1074610,
+              1076010,
+              1074621,
+              1074020,
+              1031161,
+              1028671,
+              1045600,
+              1059711,
+              1063350,
+              1069430,
+              1048580,
+              1029210,
+              1031491,
+              1030721,
+              1029591,
+              1029150
+            ],
+            "ratio": 1.010331949829662
+          },
+          {
+            "id": "n128-none-mapped-plural-instant-d1",
+            "before_ns": [
+              1015971,
+              1019810,
+              1014971,
+              1030730,
+              1145600,
+              1080390,
+              1042061,
+              1035571,
+              1038931,
+              1042591,
+              1043341,
+              1058100,
+              1042120,
+              1042750,
+              1048510,
+              1028751,
+              1027721,
+              1018751
+            ],
+            "candidate_ns": [
+              1067220,
+              1070700,
+              1068310,
+              1066580,
+              1070291,
+              1066870,
+              1023701,
+              1023400,
+              1025271,
+              1050700,
+              1052590,
+              1055630,
+              1028311,
+              1031371,
+              1034460,
+              1020221,
+              1026640,
+              1024451
+            ],
+            "ratio": 1.0020028909289416
+          },
+          {
+            "id": "labels-n32-w32-all-instant-d0",
+            "before_ns": [
+              2027791,
+              2028871,
+              2013292,
+              2015552,
+              1998601,
+              2003842,
+              2004061,
+              2002642,
+              2031762,
+              2054981,
+              2080721,
+              2047301,
+              2027691,
+              2052742,
+              2031041,
+              2002112,
+              2025921,
+              2011571
+            ],
+            "candidate_ns": [
+              2225370,
+              2268929,
+              2220560,
+              2009952,
+              2401688,
+              1993322,
+              2026661,
+              2012752,
+              2007961,
+              2097860,
+              2118821,
+              2180921,
+              1984672,
+              1990202,
+              1980902,
+              2056981,
+              2051421,
+              2059041
+            ],
+            "ratio": 1.0135163404884335
+          },
+          {
+            "id": "labels-n128-w0-withoutid-range-d1",
+            "before_ns": [
+              1837543,
+              1832863,
+              1832053,
+              1870693,
+              1838113,
+              1836813,
+              1842354,
+              1813824,
+              1810783,
+              1889443,
+              1891793,
+              1896063,
+              1949052,
+              1897853,
+              1841413,
+              1873972,
+              1858713,
+              1823403
+            ],
+            "candidate_ns": [
+              2081341,
+              2313018,
+              2369969,
+              1906893,
+              1888732,
+              1899463,
+              1901463,
+              1902333,
+              1901732,
+              1984832,
+              1994931,
+              1980422,
+              1900702,
+              1889123,
+              1859353,
+              1956362,
+              1989752,
+              1946122
+            ],
+            "ratio": 1.0459442738913727
+          }
+        ]
+      },
+      {
+        "panel": "primary",
+        "profile": "release-min",
+        "selected": [],
+        "timings": []
+      }
+    ],
+    "gates": {
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "functional_cases": 328,
+      "timing_cases": 280,
+      "targets": [
+        "n32-sum-raw-single-instant-d0",
+        "n32-sum-raw-single-instant-d1",
+        "n32-sum-raw-single-range-d0",
+        "n32-sum-raw-single-range-d1",
+        "n32-sum-raw-plural-instant-d0",
+        "n32-sum-raw-plural-instant-d1",
+        "n32-sum-raw-plural-range-d0",
+        "n32-sum-raw-plural-range-d1",
+        "n32-max-raw-single-instant-d0",
+        "n32-max-raw-single-instant-d1",
+        "n32-max-raw-single-range-d0",
+        "n32-max-raw-single-range-d1",
+        "n32-max-raw-plural-instant-d0",
+        "n32-max-raw-plural-instant-d1",
+        "n32-max-raw-plural-range-d0",
+        "n32-max-raw-plural-range-d1",
+        "n128-sum-raw-single-instant-d0",
+        "n128-sum-raw-single-instant-d1",
+        "n128-sum-raw-single-range-d0",
+        "n128-sum-raw-single-range-d1",
+        "n128-sum-raw-plural-instant-d0",
+        "n128-sum-raw-plural-instant-d1",
+        "n128-sum-raw-plural-range-d0",
+        "n128-sum-raw-plural-range-d1",
+        "n128-max-raw-single-instant-d0",
+        "n128-max-raw-single-instant-d1",
+        "n128-max-raw-single-range-d0",
+        "n128-max-raw-single-range-d1",
+        "n128-max-raw-plural-instant-d0",
+        "n128-max-raw-plural-instant-d1",
+        "n128-max-raw-plural-range-d0",
+        "n128-max-raw-plural-range-d1",
+        "n32-t8-sum-raw-single-range-d0",
+        "n32-t8-sum-raw-single-range-d1",
+        "n32-t8-sum-raw-plural-range-d0",
+        "n32-t8-sum-raw-plural-range-d1",
+        "n32-t8-max-raw-single-range-d0",
+        "n32-t8-max-raw-single-range-d1",
+        "n32-t8-max-raw-plural-range-d0",
+        "n32-t8-max-raw-plural-range-d1",
+        "n32-t32-sum-raw-single-range-d0",
+        "n32-t32-sum-raw-single-range-d1",
+        "n32-t32-sum-raw-plural-range-d0",
+        "n32-t32-sum-raw-plural-range-d1",
+        "n32-t32-max-raw-single-range-d0",
+        "n32-t32-max-raw-single-range-d1",
+        "n32-t32-max-raw-plural-range-d0",
+        "n32-t32-max-raw-plural-range-d1",
+        "n128-t8-sum-raw-single-range-d0",
+        "n128-t8-sum-raw-single-range-d1",
+        "n128-t8-sum-raw-plural-range-d0",
+        "n128-t8-sum-raw-plural-range-d1",
+        "n128-t8-max-raw-single-range-d0",
+        "n128-t8-max-raw-single-range-d1",
+        "n128-t8-max-raw-plural-range-d0",
+        "n128-t8-max-raw-plural-range-d1",
+        "n128-t32-sum-raw-single-range-d0",
+        "n128-t32-sum-raw-single-range-d1",
+        "n128-t32-sum-raw-plural-range-d0",
+        "n128-t32-sum-raw-plural-range-d1",
+        "n128-t32-max-raw-single-range-d0",
+        "n128-t32-max-raw-single-range-d1",
+        "n128-t32-max-raw-plural-range-d0",
+        "n128-t32-max-raw-plural-range-d1",
+        "n1024-t3-sum-raw-single-instant-d0",
+        "n1024-t3-sum-raw-single-instant-d1",
+        "n1024-t3-sum-raw-single-range-d0",
+        "n1024-t3-sum-raw-single-range-d1",
+        "n1024-t3-sum-raw-plural-instant-d0",
+        "n1024-t3-sum-raw-plural-instant-d1",
+        "n1024-t3-sum-raw-plural-range-d0",
+        "n1024-t3-sum-raw-plural-range-d1",
+        "n1024-t3-max-raw-single-instant-d0",
+        "n1024-t3-max-raw-single-instant-d1",
+        "n1024-t3-max-raw-single-range-d0",
+        "n1024-t3-max-raw-single-range-d1",
+        "n1024-t3-max-raw-plural-instant-d0",
+        "n1024-t3-max-raw-plural-instant-d1",
+        "n1024-t3-max-raw-plural-range-d0",
+        "n1024-t3-max-raw-plural-range-d1",
+        "n128-sum-raw-plural-instant-d0-wrapped",
+        "n128-sum-raw-plural-instant-d1-wrapped",
+        "n128-sum-raw-plural-range-d0-wrapped",
+        "n128-sum-raw-plural-range-d1-wrapped",
+        "n128-max-raw-plural-instant-d0-wrapped",
+        "n128-max-raw-plural-instant-d1-wrapped",
+        "n128-max-raw-plural-range-d0-wrapped",
+        "n128-max-raw-plural-range-d1-wrapped",
+        "labels-n32-w0-global-instant-d0",
+        "labels-n32-w0-global-instant-d1",
+        "labels-n32-w0-global-range-d0",
+        "labels-n32-w0-global-range-d1",
+        "labels-n32-w0-byjob-instant-d0",
+        "labels-n32-w0-byjob-instant-d1",
+        "labels-n32-w0-byjob-range-d0",
+        "labels-n32-w0-byjob-range-d1",
+        "labels-n32-w8-global-instant-d0",
+        "labels-n32-w8-global-instant-d1",
+        "labels-n32-w8-global-range-d0",
+        "labels-n32-w8-global-range-d1",
+        "labels-n32-w8-byjob-instant-d0",
+        "labels-n32-w8-byjob-instant-d1",
+        "labels-n32-w8-byjob-range-d0",
+        "labels-n32-w8-byjob-range-d1",
+        "labels-n32-w32-global-instant-d0",
+        "labels-n32-w32-global-instant-d1",
+        "labels-n32-w32-global-range-d0",
+        "labels-n32-w32-global-range-d1",
+        "labels-n32-w32-byjob-instant-d0",
+        "labels-n32-w32-byjob-instant-d1",
+        "labels-n32-w32-byjob-range-d0",
+        "labels-n32-w32-byjob-range-d1",
+        "labels-n128-w0-global-instant-d0",
+        "labels-n128-w0-global-instant-d1",
+        "labels-n128-w0-global-range-d0",
+        "labels-n128-w0-global-range-d1",
+        "labels-n128-w0-byjob-instant-d0",
+        "labels-n128-w0-byjob-instant-d1",
+        "labels-n128-w0-byjob-range-d0",
+        "labels-n128-w0-byjob-range-d1",
+        "labels-n128-w8-global-instant-d0",
+        "labels-n128-w8-global-instant-d1",
+        "labels-n128-w8-global-range-d0",
+        "labels-n128-w8-global-range-d1",
+        "labels-n128-w8-byjob-instant-d0",
+        "labels-n128-w8-byjob-instant-d1",
+        "labels-n128-w8-byjob-range-d0",
+        "labels-n128-w8-byjob-range-d1",
+        "labels-n128-w32-global-instant-d0",
+        "labels-n128-w32-global-instant-d1",
+        "labels-n128-w32-global-range-d0",
+        "labels-n128-w32-global-range-d1",
+        "labels-n128-w32-byjob-instant-d0",
+        "labels-n128-w32-byjob-instant-d1",
+        "labels-n128-w32-byjob-range-d0",
+        "labels-n128-w32-byjob-range-d1"
+      ],
+      "blocks": 5,
+      "repeats": 4,
+      "timing_skip_first": true,
+      "target_ceiling": 0.98,
+      "control_ceiling": 1.05,
+      "individual_followup_threshold": 1.05,
+      "followup_blocks": 6,
+      "followup_repeats": 4,
+      "followup_ceiling": 1.05,
+      "persistent_failure": "Reject; no unchanged retry or relaxed gates.",
+      "resources": "Complete results, physical observations and statistics exact. All category current/peak/acquired nonincreasing, work nonincreasing; nonadmitted memory exact. No new owner/layout field.",
+      "pages": [
+        1,
+        17,
+        1024
+      ],
+      "timing_scope": "280 work-bearing shapes; direct raw aggregations including global/by/without/full-key and 0/8/32 extra32-byte labels, mapped/rate/plain controls,32/128/1024series and3/8/32clocks; empty and singleton inputs functional only.",
+      "compiled_cost": "Proportional66 fixed cost, separately from query memory."
+    },
+    "payload_binding": "Current bytes equal pre-V1 explore receipt pins; exact timed/repeat/page17 payload reconstructed and each process input pin verified. This is retrospective verification, not a claim that generator helpers were listed in the original runtime manifest or checked per timing command."
+  },
+  "resources": {
+    "physical_statistics": "exact",
+    "work": "nonincreasing in measured early/timing/broad/C comparisons, not a universal bound",
+    "memory": "All measured category current/peak/acquired nonincreasing; early/timing nonadmitted memory exact. No allocation or persistent field added. This does not measure stack or RSS.",
+    "examples": [
+      {
+        "id": "n128-t32-sum-raw-plural-range-d0",
+        "before": {
+          "cancellation_references": {
+            "engine_owned": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "external": {
+              "acquired": 8321,
+              "current": 0,
+              "overflowed": false,
+              "peak": 2,
+              "released": 8321
+            }
+          },
+          "counter_overflowed": false,
+          "elapsed_ns": "21299783",
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 5748632,
+              "current": 0,
+              "overflowed": false,
+              "peak": 83368,
+              "released": 5748632
+            },
+            {
+              "acquired": 111840,
+              "current": 62592,
+              "overflowed": false,
+              "peak": 62976,
+              "released": 49248
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 48324608,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 48324608
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "output_samples": 2048,
+          "pages": 12288,
+          "provider_calls": 24324,
+          "samples_fetched": 177664,
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          },
+          "work": 1289403
+        },
+        "candidate": {
+          "cancellation_references": {
+            "engine_owned": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "external": {
+              "acquired": 8321,
+              "current": 0,
+              "overflowed": false,
+              "peak": 2,
+              "released": 8321
+            }
+          },
+          "counter_overflowed": false,
+          "elapsed_ns": "21148785",
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 3119000,
+              "current": 0,
+              "overflowed": false,
+              "peak": 83368,
+              "released": 3119000
+            },
+            {
+              "acquired": 111840,
+              "current": 62592,
+              "overflowed": false,
+              "peak": 62976,
+              "released": 49248
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 48324608,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 48324608
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "output_samples": 2048,
+          "pages": 12288,
+          "provider_calls": 24324,
+          "samples_fetched": 177664,
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          },
+          "work": 1112379
+        }
+      },
+      {
+        "id": "labels-n128-w32-byjob-range-d0",
+        "before": {
+          "cancellation_references": {
+            "engine_owned": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "external": {
+              "acquired": 897,
+              "current": 0,
+              "overflowed": false,
+              "peak": 2,
+              "released": 897
+            }
+          },
+          "counter_overflowed": false,
+          "elapsed_ns": "8952391",
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 13718104,
+              "current": 0,
+              "overflowed": false,
+              "peak": 649366,
+              "released": 13718104
+            },
+            {
+              "acquired": 25824,
+              "current": 19584,
+              "overflowed": false,
+              "peak": 19584,
+              "released": 6240
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 731136,
+              "current": 0,
+              "overflowed": false,
+              "peak": 816,
+              "released": 731136
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "output_samples": 192,
+          "pages": 896,
+          "provider_calls": 1924,
+          "samples_fetched": 2688,
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          },
+          "work": 2008843
+        },
+        "candidate": {
+          "cancellation_references": {
+            "engine_owned": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "external": {
+              "acquired": 897,
+              "current": 0,
+              "overflowed": false,
+              "peak": 2,
+              "released": 897
+            }
+          },
+          "counter_overflowed": false,
+          "elapsed_ns": "4644857",
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 5680984,
+              "current": 0,
+              "overflowed": false,
+              "peak": 649366,
+              "released": 5680984
+            },
+            {
+              "acquired": 25824,
+              "current": 19584,
+              "overflowed": false,
+              "peak": 19584,
+              "released": 6240
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 731136,
+              "current": 0,
+              "overflowed": false,
+              "peak": 816,
+              "released": 731136
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "output_samples": 192,
+          "pages": 896,
+          "provider_calls": 1924,
+          "samples_fetched": 2688,
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          },
+          "work": 960055
+        }
+      }
+    ]
+  },
+  "compiled_C_sizes": {
+    "release": {
+      "before_text_data_bss": [
+        7397562,
+        509864,
+        400
+      ],
+      "current_text_data_bss": [
+        7438310,
+        510008,
+        400
+      ],
+      "delta_text_data_bss": [
+        40748,
+        144,
+        0
+      ],
+      "growth_bytes": 40892,
+      "growth_percent": 0.5171079889719321,
+      "cumulative_base_text_data_bss": [
+        7370378,
+        506744,
+        400
+      ],
+      "cumulative_delta_text_data_bss": [
+        67932,
+        3264,
+        0
+      ],
+      "cumulative_growth_bytes": 71196,
+      "cumulative_growth_percent": 0.9037867491832996
+    },
+    "release-min": {
+      "before_text_data_bss": [
+        5158071,
+        465360,
+        400
+      ],
+      "current_text_data_bss": [
+        5160923,
+        465504,
+        400
+      ],
+      "delta_text_data_bss": [
+        2852,
+        144,
+        0
+      ],
+      "growth_bytes": 2996,
+      "growth_percent": 0.05327329359647859,
+      "cumulative_base_text_data_bss": [
+        5103967,
+        462056,
+        400
+      ],
+      "cumulative_delta_text_data_bss": [
+        56956,
+        3448,
+        0
+      ],
+      "cumulative_growth_bytes": 60404,
+      "cumulative_growth_percent": 1.0851492960560094
+    },
+    "arm32": {
+      "before_text_data_bss": [
+        6282529,
+        294604,
+        244
+      ],
+      "current_text_data_bss": [
+        6338993,
+        294668,
+        244
+      ],
+      "delta_text_data_bss": [
+        56464,
+        64,
+        0
+      ],
+      "growth_bytes": 56528,
+      "growth_percent": 0.8594307426805559,
+      "cumulative_base_text_data_bss": [
+        6382697,
+        292596,
+        244
+      ],
+      "cumulative_delta_text_data_bss": [
+        -43704,
+        2072,
+        0
+      ],
+      "cumulative_growth_bytes": -41632,
+      "cumulative_growth_percent": -0.6236502022234358
+    },
+    "arm64": {
+      "before_text_data_bss": [
+        6467770,
+        499856,
+        384
+      ],
+      "current_text_data_bss": [
+        6511106,
+        500008,
+        384
+      ],
+      "delta_text_data_bss": [
+        43336,
+        152,
+        0
+      ],
+      "growth_bytes": 43488,
+      "growth_percent": 0.6241093224607974,
+      "cumulative_base_text_data_bss": [
+        6374470,
+        497032,
+        384
+      ],
+      "cumulative_delta_text_data_bss": [
+        136636,
+        2976,
+        0
+      ],
+      "cumulative_growth_bytes": 139612,
+      "cumulative_growth_percent": 2.031640222203923
+    }
+  },
+  "cumulative_size_base": "51862635936717f6bcc9ab018b994d0ac205b0ea",
+  "compiled_cost_scope": "Standalone default C consumers; immediate accepted209 predecessor and identified earlier baseline. BSS unchanged; proportional minor fixed cost under decision66, separate from query RAM and full Netdata binary.",
+  "retained_failures": [
+    "Broader V1 rejected on32counted-work increases; complete328releaseoutcomes/reads exact, exact five-file reversal, no timing qualification.",
+    "Initial focused test asserted unspecified ascending instant order; corrected complete keyed checks before acceptance; original-order differential comparisons retained.",
+    "Initial strict lint found2test-only parity expressions; exact correction and source-phase identities retained.",
+    "C postprocessor expected another caller record schema; successful original captures authenticated and reused; no engine or asserted C outcome changed."
+  ],
+  "limitations": [
+    "Finite synthetic throughput/resource evidence only; no live Netdata, concurrency, RSS, physical ARM throughput or universal speed/work guarantee.",
+    "Original strict ordering and numerical differences remain failures; no new compatibility exception.",
+    "Timing generator bindings independently verified retrospectively, not present in original per-command runtime manifest."
+  ],
+  "receipts": {
+    "baseline-binding": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/baseline-binding.json",
+      "sha256": "adefe4da23bda9f893111cb647774183800c4c49eb0be5eda656f9eb56aaa819"
+    },
+    "explore": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/explore.json",
+      "sha256": "6c0dce23878e4ebdae6f073a61a94a4d9fee0d296b8236ac079cecdc4e888e8c"
+    },
+    "measurement-plan": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/measurement-plan.json",
+      "sha256": "6291cb872dc861541d5d54eb05494dc776e78bbf9de06aa655a00cea737010f9"
+    },
+    "v1-restoration": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/v1-restoration.json",
+      "sha256": "c7f7953e76c39eb011b0653c9ca9ee6f3c39bef8d5450459f82014a0f071e5d8"
+    },
+    "early-release": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/early-release.json",
+      "sha256": "c47dcfdb029d11a1456be381bb52089f7947439d09146f6a541d92d86d6c5c4a"
+    },
+    "focused-final": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/focused-final.json",
+      "sha256": "05ec34cf8cac7d8a47f21bf7e99442f6d70c8490fe2d2d29fd5f79ce71b5341b"
+    },
+    "focused-v2": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/focused-v2.json",
+      "sha256": "0404a315644272a1ed01d66e0d746e60f7c67e5922c05ab38c5cd8acdfc8210f"
+    },
+    "early-v2": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/early-v2.json",
+      "sha256": "32c7fb7cfd2d15ffa8d8ff9ac45b1faecf0945d7c6d42412779d960de872aec1"
+    },
+    "early-v2-release": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/early-v2-release.json",
+      "sha256": "a458dc3a99647a8e3bf2b14be1ea524e187b9ece26cfce999629d746373fa374"
+    },
+    "early-v2-release-min": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/early-v2-release-min.json",
+      "sha256": "02dbae3c6adbd4ce92b9cf8f92d5a4dc470af540016835fee98253f6ff146061"
+    },
+    "pilot-v2": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/pilot-v2.json",
+      "sha256": "471aa34e36a95b7278b17cbffbeaf50c4da72afeb83d6355fb6ee3957baed7d8"
+    },
+    "followup-v2": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/followup-v2.json",
+      "sha256": "89c2eef5c8745347f005570d9bfc6617f2d07f75b2a42aba46ee8e4048a307e8"
+    },
+    "functional": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/functional.json",
+      "sha256": "0e3725538e2e998d084c194bab5736433050c0941629f6cad3013f264e39b023"
+    },
+    "qualification-preparation": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/qualification-preparation.json",
+      "sha256": "c99d38699a27779314fd185422491eaa03917c0445eb970d20c9e1f322703b35"
+    },
+    "test-style-correction": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/test-style-correction.json",
+      "sha256": "cb33dd1a8d83c82324541862fa361953dd8dc672bd436fe71b99c79588419e1c"
+    },
+    "qualified-static": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/qualified-static.json",
+      "sha256": "719cbbc302f68a2a1e6adc1fe401e037da6bfce219a39ed6ff8aa85a76aa11e7"
+    },
+    "timing-payload-verification": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/timing-payload-verification.json",
+      "sha256": "7e56e6f3841c4507e19e7a0a24cf43cde0706bfb8d452acf491fbea422b77ef3"
+    },
+    "caller-comparison": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/caller-comparison.json",
+      "sha256": "6767e789124129a91966585f17f86d4c0363c3983d467a6739c262b9df6b6e47"
+    },
+    "artifact-integrity": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/artifact-integrity.json",
+      "sha256": "b3bc474e226b60f62949f074d3bc81d7a292c35572d21e1f200953fab517fe7f"
+    },
+    "build-release": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/build-release.json",
+      "sha256": "b184f3e419ecb6283565ff671cd94b8e60abafde6a8120deaaa344a7dc4b1980"
+    },
+    "units-release": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/units-release.json",
+      "sha256": "08a5e51634d6c89113b7651125f1adf5010ff2a79b0fcb1c02ec840b98eb7b24"
+    },
+    "callers-v2-before-release": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/callers-v2-before-release.json",
+      "sha256": "4d035ec7378f795239b751636f2552d67d760d727b2138b48536536c091515d5"
+    },
+    "callers-v2-candidate-release": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/callers-v2-candidate-release.json",
+      "sha256": "7a74032e91e4e226de8a003319f1887b24ac53bb9f01a117d303e07500bc1192"
+    },
+    "build-release-min": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/build-release-min.json",
+      "sha256": "cdc4fba2ca9dc0f8d86b941e532eb54a5454453a8b4c70ed4443661812a22fa2"
+    },
+    "units-release-min": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/units-release-min.json",
+      "sha256": "420cf2ac788a6e7280624beea5e967b8512fa581ad37496b3757575cfa0d059a"
+    },
+    "callers-v2-before-release-min": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/callers-v2-before-release-min.json",
+      "sha256": "7c3f5f7219ddbd2ae0100a80257e2bdbdb0a973f59a782da7f355eae5a1fce29"
+    },
+    "callers-v2-candidate-release-min": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/callers-v2-candidate-release-min.json",
+      "sha256": "95f849140e69ca81f7cf9ccf16347f52e05ea82b68e09d95afb688ddc83fe395"
+    },
+    "build-arm32": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/build-arm32.json",
+      "sha256": "5574e47b679235934f18c49f4f861d9c5f0c3f930fcaf56c60df5a2a8261bfbf"
+    },
+    "units-arm32": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/units-arm32.json",
+      "sha256": "13f0490480cee4dbf1311c679f1ee5419d3a290ad7545275fb0136e5c2dc1ec5"
+    },
+    "callers-v2-before-arm32": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/callers-v2-before-arm32.json",
+      "sha256": "886e2071589b41e0b517214ee8abcf7ccd94d203d6e90d88f463e3c825c66652"
+    },
+    "callers-v2-candidate-arm32": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/callers-v2-candidate-arm32.json",
+      "sha256": "0e341328d508eb744a7d979c07afdf7dfcc66972436a2d336009580d1b880abc"
+    },
+    "build-arm64": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/build-arm64.json",
+      "sha256": "c489ee93e6d2af7512e872716d1a56232a2216f0f2ccc444711428b8774605bd"
+    },
+    "units-arm64": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/units-arm64.json",
+      "sha256": "3b4d938dd9ef1a6308c825b30820c0eeed5f29381374503fffde8571e99cf1d6"
+    },
+    "callers-v2-before-arm64": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/callers-v2-before-arm64.json",
+      "sha256": "cc3ebbd6d002905e01ff76e436d9417d9d2b2741183afc4a8955ef1739e315c2"
+    },
+    "callers-v2-candidate-arm64": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/callers-v2-candidate-arm64.json",
+      "sha256": "4d47ce82ec115cb9df26ebecd121a51c030ffc7b99b3ef437b5b72c5d24b964e"
+    },
+    "full-release-C": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/full-release-C.json",
+      "sha256": "95a6b7b8ab1a760cb2201d5a332690d0c8a6ad6437d9b3d88e04584e0c853508"
+    },
+    "full-release-min-C": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/full-release-min-C.json",
+      "sha256": "e0c49581ea13209d813016f0aaccd42bce1263243aba42e2e25b196466aa556c"
+    },
+    "perf-v2-release-builds": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/perf-v2-release-builds.json",
+      "sha256": "b32f54c3895c1f0bb3b9f54989c7c475aa6012203e75af353d29dd84595b6023"
+    },
+    "perf-v2-release-min-builds": {
+      "path": ".tmp/selector-group-labels-kdz5nwpp/perf-v2-release-min-builds.json",
+      "sha256": "d658403b319ac9ebd01c476646e42b379f73cd1474243ae585b94a2ef4ab040a"
+    }
+  }
+}

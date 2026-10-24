@@ -27671,6 +27671,452 @@ mod tests {
     }
 
     #[test]
+    fn selector_group_labels_borrow_only_direct_float_inputs() {
+        let mut queries = 0;
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for groups in [1, 4] {
+                    for operator in [
+                        "sum", "avg", "count", "min", "max", "group", "stdvar", "stddev",
+                    ] {
+                        for child in [
+                            "counter_total",
+                            "abs(counter_total)",
+                            "rate(counter_total[3s])",
+                        ] {
+                            for instant in [false, true] {
+                                let provider = mapped_group_provider(page, groups);
+                                let engine = Engine::default();
+                                let control = Control::default();
+                                let expression = format!("{operator} by(instance)({child})");
+                                let query = engine
+                                    .compile(expression.as_bytes(), options(delayed), &control)
+                                    .unwrap();
+                                let request = if instant {
+                                    QueryRequest::Instant { time_ms: 3000 }
+                                } else {
+                                    QueryRequest::Range {
+                                        start_ms: 3000,
+                                        end_ms: 5000,
+                                        step_ms: 1000,
+                                    }
+                                };
+                                let (report, observed, _) =
+                                    crate::evaluator::observe_selector_labels(|| {
+                                        query.collect_reported(&provider, request, &control)
+                                    });
+                                let result = report.result.as_ref().unwrap();
+                                assert!(report.annotations.is_empty());
+                                assert_eq!(result.series.len(), groups);
+                                let mut seen = vec![false; groups];
+                                for row in result.series.iter() {
+                                    assert_eq!(row.labels.0.len(), 1);
+                                    let group: usize =
+                                        std::str::from_utf8(&row.labels.0[0].value[1..])
+                                            .unwrap()
+                                            .parse()
+                                            .unwrap();
+                                    assert!(group < groups && !seen[group]);
+                                    seen[group] = true;
+                                    assert_eq!(&*row.labels.0[0].name, b"instance");
+                                    assert_eq!(
+                                        &*row.labels.0[0].value,
+                                        format!("g{group:04}").as_bytes()
+                                    );
+                                    assert_eq!(row.points.len(), if instant { 1 } else { 3 });
+                                    for (tick, point) in row.points.iter().enumerate() {
+                                        let time = (tick + 3) as f64;
+                                        let value =
+                                            (if child.starts_with("rate") { 1.0 } else { time })
+                                                * if group.is_multiple_of(2) { 1.0 } else { 2.0 };
+                                        let expected: f64 = match operator {
+                                            "sum" => 2.0 * value,
+                                            "count" => 2.0,
+                                            "group" => 1.0,
+                                            "stdvar" | "stddev" => 0.0,
+                                            _ => value,
+                                        };
+                                        assert_eq!(point.time_ms, (tick as i64 + 3) * 1000);
+                                        assert_eq!(
+                                            float_bits(point),
+                                            expected.to_bits(),
+                                            "{expression}"
+                                        );
+                                    }
+                                }
+                                assert!(seen.into_iter().all(|present| present));
+                                assert_eq!(observed[2], 0);
+                                if child == "counter_total" {
+                                    assert!(
+                                        observed[0] > 0,
+                                        "{expression} {request:?} {observed:?}"
+                                    );
+                                } else {
+                                    assert_eq!(observed[0], 0, "{expression} {observed:?}");
+                                }
+                                assert_eq!(
+                                    report.observations.memory[MemoryKind::Workspace as usize]
+                                        .current,
+                                    0
+                                );
+                                provider.assert_closed();
+                                drop((report, query));
+                                engine.accounting.snapshot().assert_memory_released();
+                                queries += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(queries, 576);
+        println!("Complete direct/mapped/rate selector queries: {queries}");
+    }
+
+    #[test]
+    fn selector_group_labels_keep_wide_and_full_label_fallbacks() {
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for (source, full) in [
+                    ("sum by(instance,member)(counter_total)", true),
+                    ("sum without(member)(counter_total)", false),
+                ] {
+                    let provider = mapped_group_provider(page, 2);
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(source.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let (report, observed, phase) =
+                        crate::evaluator::observe_selector_labels(|| {
+                            query.collect_reported(
+                                &provider,
+                                QueryRequest::Instant { time_ms: 3000 },
+                                &control,
+                            )
+                        });
+                    let result = report.result.as_ref().unwrap();
+                    assert!(report.annotations.is_empty());
+                    assert_eq!(result.series.len(), if full { 4 } else { 2 });
+                    let mut actual = Vec::new();
+                    for row in &*result.series {
+                        assert_eq!(row.labels.0.len(), if full { 2 } else { 1 });
+                        assert_eq!(&*row.labels.0[0].name, b"instance");
+                        if full {
+                            assert_eq!(&*row.labels.0[1].name, b"member");
+                        }
+                        assert_eq!(row.points.len(), 1);
+                        assert_eq!(row.points[0].time_ms, 3000);
+                        actual.push((
+                            row.labels
+                                .0
+                                .iter()
+                                .map(|label| label.value.to_vec())
+                                .collect::<Vec<_>>(),
+                            float_bits(&row.points[0]),
+                        ));
+                    }
+                    let mut expected = Vec::new();
+                    for group in 0..2 {
+                        for member in 0..if full { 2 } else { 1 } {
+                            let mut labels = vec![format!("g{group:04}").into_bytes()];
+                            if full {
+                                labels.push(member.to_string().into_bytes());
+                            }
+                            let value: f64 =
+                                (if group == 0 { 3.0 } else { 6.0 }) * if full { 1.0 } else { 2.0 };
+                            expected.push((labels, value.to_bits()));
+                        }
+                    }
+                    actual.sort();
+                    expected.sort();
+                    assert_eq!(actual, expected);
+                    assert_eq!(observed[0], 0);
+                    assert!(observed[1] > 0);
+                    assert!(phase.is_none());
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+                let mut provider = FixtureProvider::new(3, page, 1);
+                provider.series[0].labels = vec![(b"job".to_vec(), b"worker".to_vec())];
+                provider.series[0].source.sample = second_value;
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        br#"sum by(job)({job="worker"})"#,
+                        options(delayed),
+                        &control,
+                    )
+                    .unwrap();
+                let (report, observed, phase) = crate::evaluator::observe_selector_labels(|| {
+                    query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 3000 },
+                        &control,
+                    )
+                });
+                let result = report.result.as_ref().unwrap();
+                assert!(report.annotations.is_empty());
+                assert_eq!(result.series.len(), 1);
+                let row = &result.series[0];
+                assert_eq!(row.labels.0.len(), 1);
+                assert_eq!(&*row.labels.0[0].name, b"job");
+                assert_eq!(&*row.labels.0[0].value, b"worker");
+                assert_eq!(row.points.len(), 1);
+                assert_eq!(row.points[0].time_ms, 3000);
+                assert_eq!(float_bits(&row.points[0]), 2.0_f64.to_bits());
+                assert_eq!(observed[0], 0);
+                assert!(observed[1] > 0);
+                assert!(phase.is_none());
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn selector_group_labels_keep_mixed_inputs_and_complete_annotations() {
+        use crate::annotations::{AnnotationKind, Severity};
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for native_first in [false, true] {
+                    for operator in [
+                        "sum", "avg", "count", "group", "min", "max", "stdvar", "stddev",
+                    ] {
+                        let mut provider = FixtureProvider::new(3, page, 2);
+                        provider.series[usize::from(!native_first)].source.sample =
+                            native_range_sample;
+                        provider.series[usize::from(native_first)].source.sample = second_value;
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let source = format!("{operator} by(job)(counter_total)");
+                        let query = engine
+                            .compile(source.as_bytes(), options(delayed), &control)
+                            .unwrap();
+                        let (report, observed, _) =
+                            crate::evaluator::observe_selector_labels(|| {
+                                query.collect_reported(
+                                    &provider,
+                                    QueryRequest::Instant { time_ms: 3000 },
+                                    &control,
+                                )
+                            });
+                        let result = report.result.as_ref().unwrap();
+                        let mixed = matches!(operator, "sum" | "avg");
+                        let ignored = matches!(operator, "min" | "max" | "stdvar" | "stddev");
+                        assert_eq!(result.series.len(), usize::from(!mixed));
+                        assert_eq!(report.annotations.len(), usize::from(mixed || ignored));
+                        if let Some(annotation) = report.annotations.iter().next() {
+                            let expected = if mixed {
+                                assert_eq!(
+                                    annotation.kind,
+                                    AnnotationKind::MixedFloatsHistogramsAggregation
+                                );
+                                assert_eq!(annotation.severity, Severity::Warning);
+                                "PromQL warning: encountered a mix of histograms and floats for aggregation".to_owned()
+                            } else {
+                                assert!(matches!(
+                                    annotation.kind,
+                                    AnnotationKind::HistogramIgnoredInAggregation(_)
+                                ));
+                                assert_eq!(annotation.severity, Severity::Info);
+                                format!("PromQL info: ignored histogram in {operator} aggregation")
+                            };
+                            assert_eq!(annotation.raw_message, expected.as_bytes());
+                            let span = annotation.span.unwrap();
+                            let start = source.find("counter_total").unwrap();
+                            assert_eq!(
+                                (span.start, span.end),
+                                (start, start + "counter_total".len())
+                            );
+                            assert_eq!(
+                                annotation.message,
+                                format!("{expected} (1:{})", start + 1).as_bytes()
+                            );
+                            assert_eq!(annotation.occurrences, 1);
+                        }
+                        if !mixed {
+                            let row = &result.series[0];
+                            assert_eq!(row.labels.0.len(), 1);
+                            assert_eq!(&*row.labels.0[0].name, b"job");
+                            assert_eq!(&*row.labels.0[0].value, b"worker");
+                            assert_eq!(row.points.len(), 1);
+                            assert_eq!(row.points[0].time_ms, 3000);
+                            let value: f64 = match operator {
+                                "group" => 1.0,
+                                "stdvar" | "stddev" => 0.0,
+                                _ => 2.0,
+                            };
+                            assert_eq!(float_bits(&row.points[0]), value.to_bits());
+                        }
+                        assert!(observed[0] > 0 && observed[2] > 0, "{source} {observed:?}");
+                        provider.assert_closed();
+                        drop((report, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn selector_group_labels_preserve_sparse_misses_and_post_read_cancellation() {
+        fn drive(page: usize, delayed: bool, cancel_after: Option<u64>) -> u64 {
+            let provider = mapped_group_provider(page, 4);
+            let engine = Engine::default();
+            let control = Control::default();
+            let compiled = engine
+                .compile(
+                    b"sum by(instance)(counter_total)",
+                    options(delayed),
+                    &control,
+                )
+                .unwrap();
+            let account = compiled.execution_accounting();
+            let first_hash;
+            {
+                let header = compiled
+                    .header(QueryRequest::Instant { time_ms: 3000 })
+                    .unwrap();
+                let prepared = Prepared::new(
+                    &compiled.expression,
+                    &compiled.preprocessing,
+                    header,
+                    compiled.options.no_step_subquery_interval_ms,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let header = prepared.evaluator_header();
+                prepared.activate(header, &control, &account).unwrap();
+                let options = compiled.evaluation_options(header, 3000, &prepared);
+                let bounds = crate::query_bounds::find(
+                    &compiled.expression,
+                    options,
+                    &prepared,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let scope = provider.open(bounds, &control).unwrap();
+                let catalog = Catalog::new(
+                    &scope,
+                    &compiled.expression,
+                    &prepared,
+                    options,
+                    compiled.options.no_step_subquery_interval_ms,
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let rosters = compiled
+                    .prepare_rosters(
+                        &catalog,
+                        &prepared,
+                        bounds,
+                        &control,
+                        &account,
+                        &mut Annotations::default(),
+                    )
+                    .unwrap();
+                let mut machine = Machine::new(
+                    &catalog,
+                    &compiled.expression,
+                    compiled.expression.root,
+                    options,
+                    &control,
+                    &account,
+                    EvaluationMetadata {
+                        prepared: &prepared,
+                        rosters: &rosters,
+                        timestamp_selectors: &compiled.timestamp_selectors,
+                        data_bounds: bounds,
+                        annotations: None,
+                        binary_preparation: None,
+                        histogram_preparation: None,
+                        info_preparation: None,
+                        count_preparation: None,
+                    },
+                );
+                machine.restrict(&[0, 2]);
+                machine.bypass_root_order();
+                let before = account.snapshot();
+                let mut run = || -> Result<Vec<_>, EvaluationError> {
+                    let mut result = Vec::new();
+                    while let Some(sample) = machine.next()? {
+                        let OwnedValue::Float(value) = sample.value else {
+                            panic!("float fixture")
+                        };
+                        result.push((
+                            sample.ordinal,
+                            sample.labels.0[0].value.to_vec(),
+                            value.to_bits(),
+                            sample.source_time_ms,
+                        ));
+                    }
+                    Ok(result)
+                };
+                let (outcome, observed, phase) = crate::evaluator::observe_selector_labels(|| {
+                    if let Some(budget) = cancel_after {
+                        crate::test_storage::interrupt_after_work(&account, &control, budget, run)
+                    } else {
+                        run()
+                    }
+                });
+                let (work, samples_read) =
+                    phase.expect("actual borrowed hash entry after provider read");
+                first_hash = work - before.work;
+                assert!(samples_read > before.statistics.samples.samples_read);
+                if cancel_after.is_some() {
+                    assert!(matches!(
+                        outcome,
+                        Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+                    ));
+                    assert_eq!(observed[0], 0);
+                    assert_eq!(
+                        account.snapshot().statistics.samples.samples_read,
+                        samples_read
+                    );
+                } else {
+                    let mut actual = outcome.unwrap();
+                    actual.sort_by_key(|row| row.0);
+                    let groups = rosters.groups(compiled.expression.root).unwrap();
+                    let expected: Vec<_> = [0, 2]
+                        .into_iter()
+                        .map(|ordinal| {
+                            let label = groups[ordinal].labels.0[0].value.to_vec();
+                            let group: usize =
+                                std::str::from_utf8(&label[1..]).unwrap().parse().unwrap();
+                            let value: f64 = if group.is_multiple_of(2) { 6.0 } else { 12.0 };
+                            (ordinal, label, value.to_bits(), 3000)
+                        })
+                        .collect();
+                    assert_eq!(actual, expected);
+                    assert!(
+                        observed[0] > 0 && observed[3] > 0,
+                        "borrowed hits and original copied misses: {observed:?}"
+                    );
+                    assert_eq!(observed[2], 0);
+                }
+            }
+            provider.assert_closed();
+            account.snapshot().assert_memory_released();
+            drop((account, compiled));
+            engine.accounting.snapshot().assert_memory_released();
+            first_hash
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let first_hash = drive(page, delayed, None);
+                assert_eq!(drive(page, delayed, Some(first_hash + 1)), first_hash);
+            }
+        }
+    }
+
+    #[test]
     fn mapped_groups_check_complete_results_before_linear_label_visits() {
         let mut observations = Vec::new();
         for delayed in [false, true] {

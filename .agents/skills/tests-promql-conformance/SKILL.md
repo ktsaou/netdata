@@ -433,3 +433,7 @@ Precise duration identity and compact cached Rate input follow
 
 Atomic work publication and coherent overflow snapshots follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#atomic-work-accounting`.
+
+Borrowed direct-selector group labels follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-direct-selector-group-labels` for raw keys,
+active positions, Float/native diagnostic ownership, post-read interruption and full-label fallbacks.

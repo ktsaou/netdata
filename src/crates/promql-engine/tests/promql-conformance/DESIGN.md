@@ -3237,3 +3237,26 @@ root aggregate edge in delayed mode. The measurements below retain their earlier
   preserved strict upstream differences, canonical-order variance evidence, rejected first implementation,
   native/ARM/C execution and fixed compiled costs. Deterministic intermediate label order remains the existing
   numerical contract; the optimization changes no arithmetic recurrence.
+
+## Borrowed direct-selector group labels
+
+- **Choice:** after ordinary provider validation and sample-read credit, a direct Float selector may borrow the
+  immediately consuming ordinary aggregate's frozen raw group labels. Shared borrowed-byte grouping hashes find
+  the active compact group position; original propagation still performs its lookup and arithmetic after the
+  provider callback returns. The lifetime comes from the immutable roster, not the callback's borrowed buffers.
+- **Admission:** exact current selector frame and direct collecting aggregate child; no smoothing; global or
+  single-key `by` grouping, with more than one input label for the latter. Wider `by`, `without`, intervening
+  maps/calls, native values and preowned scheduled samples keep their original paths. A lookup miss also copies
+  full source labels. This private shortcut changes no supported expression or provider requirement.
+- **Identity and diagnostics:** preserve raw empty values and hash-only first-writer aliases. Borrow the active
+  group's raw key without output normalization. Native values keep source metric names for diagnostics; only
+  Float inputs discard unneeded source labels. Selection ordinals, timestamps, statistical credits and final
+  result ownership remain with their existing owners. Entry, byte-chunk and terminal controls stay active.
+- **Cost:** no state field, shared allocation, label cache or raw-history buffer. Avoided label copies reduce
+  allocation traffic; the measured peak does not increase. Additional grouping lookup and the later propagation
+  hash can cost more for wide retained keys, so the broader first candidate was rejected and admission narrowed.
+  The finite work gate is not a universal bound for arbitrary label-name lengths.
+- **Evidence:** the [qualification procedure](README.md#borrowed-direct-selector-group-labels) records causal
+  sparse/failure/native ownership tests, complete original-bound outcomes, finite timing/resource results,
+  preserved upstream differences, native/ARM/C execution and proportional fixed compiled costs. No arithmetic,
+  deterministic ordering, API, ABI, implicit limit, dbengine or contexts contract changes.

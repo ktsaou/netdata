@@ -86,6 +86,9 @@ impl<'a> Group<'a> {
             native: None,
         }
     }
+    pub(crate) fn raw_labels(&self) -> &'a OwnedLabels {
+        self.labels
+    }
     pub(crate) fn add(
         &mut self,
         operator: TokenKind,

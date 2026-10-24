@@ -30,6 +30,45 @@ use tokens::TokenKind;
 
 const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 
+#[cfg(test)]
+thread_local! {
+    static SELECTOR_GROUP_PHASE: std::cell::Cell<Option<(u64, u64)>> = const { std::cell::Cell::new(None) };
+    static SELECTOR_LABEL_OWNERS: std::cell::Cell<Option<[usize; 4]>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn observe_selector_labels<R>(
+    operation: impl FnOnce() -> R,
+) -> (R, [usize; 4], Option<(u64, u64)>) {
+    struct Restore(Option<[usize; 4]>, Option<(u64, u64)>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            SELECTOR_LABEL_OWNERS.set(self.0);
+            SELECTOR_GROUP_PHASE.set(self.1);
+        }
+    }
+    let _restore = Restore(
+        SELECTOR_LABEL_OWNERS.replace(Some([0; 4])),
+        SELECTOR_GROUP_PHASE.replace(None),
+    );
+    let result = operation();
+    (
+        result,
+        SELECTOR_LABEL_OWNERS.get().unwrap(),
+        SELECTOR_GROUP_PHASE.get(),
+    )
+}
+
+#[cfg(test)]
+fn record_selector_labels(borrowed: bool, native: bool) {
+    if let Some(mut counts) = SELECTOR_LABEL_OWNERS.get() {
+        assert!(!borrowed || !native);
+        counts[usize::from(!borrowed)] += 1;
+        counts[2] += usize::from(native);
+        SELECTOR_LABEL_OWNERS.set(Some(counts));
+    }
+}
+
 pub(crate) fn supports_selector_schedule(
     selector: NodeId,
     value: &VectorSelector,
@@ -2685,28 +2724,134 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     ) -> Result<Option<EvaluatedSample<'a>>, EvaluationError> {
         value
             .map(|value| {
-                let labels = OwnedLabels::copy_from_checked(
-                    series_labels,
-                    self.account,
-                    MemoryKind::Workspace,
-                    self.control,
-                )?;
-                self.finish_owned_selector_sample(
-                    selector_node,
-                    operation,
-                    series_ordinal,
-                    labels,
-                    value,
-                )
+                let labels = if matches!(value.2.value, OwnedValue::Float(_))
+                    && matches!(operation, SelectorOperation::Instant)
+                    && let Some(labels) =
+                        self.selector_group_labels(selector_node, series_labels)?
+                {
+                    SampleLabels::Borrowed(labels)
+                } else {
+                    OwnedLabels::copy_from_checked(
+                        series_labels,
+                        self.account,
+                        MemoryKind::Workspace,
+                        self.control,
+                    )?
+                    .into()
+                };
+                #[cfg(test)]
+                record_selector_labels(
+                    matches!(labels, SampleLabels::Borrowed(_)),
+                    matches!(value.2.value, OwnedValue::Histogram(_)),
+                );
+                self.finish_selector_value(selector_node, operation, series_ordinal, labels, value)
             })
             .transpose()
+    }
+    fn selector_group_labels(
+        &self,
+        selector_node: NodeId,
+        labels: &[crate::storage::LabelRef<'_>],
+    ) -> Result<Option<&'a OwnedLabels>, EvaluationError> {
+        let [.., parent, current] = self.frames.as_ref() else {
+            return Ok(None);
+        };
+        if current.node != selector_node
+            || !matches!(current.state, State::Selection { selector, operation: SelectorOperation::Instant, .. } if selector == selector_node)
+            || self.smooths(selector_node)
+        {
+            return Ok(None);
+        }
+        let State::Aggregate {
+            groups,
+            lookup,
+            collecting: true,
+            ..
+        } = &parent.state
+        else {
+            return Ok(None);
+        };
+        let Expr::Aggregate {
+            expression: Some(child),
+            grouping,
+            without,
+            ..
+        } = &self.expression.arena[parent.node].expression
+        else {
+            unreachable!("ordinary aggregation frame")
+        };
+        if *child != selector_node
+            || *without
+            || grouping
+                .as_ref()
+                .is_some_and(|names| names.len() > 1 || !names.is_empty() && labels.len() <= 1)
+        {
+            return Ok(None);
+        }
+        #[cfg(test)]
+        if SELECTOR_LABEL_OWNERS.get().is_some() && SELECTOR_GROUP_PHASE.get().is_none() {
+            let observed = self.account.snapshot();
+            SELECTOR_GROUP_PHASE.set(Some((
+                observed.work,
+                observed.statistics.samples.samples_read,
+            )));
+        }
+        let hash = crate::evaluator_roster::group_hash_refs(
+            labels,
+            grouping.as_deref(),
+            *without,
+            self.control,
+            self.account,
+        )?;
+        let position = if let Some(lookup) = lookup {
+            lookup.find(
+                hash,
+                |position| Ok(groups[position].hash == hash),
+                self.control,
+                self.account,
+            )?
+        } else {
+            crate::evaluator_roster::group_position(
+                groups,
+                hash,
+                |group| group.hash,
+                self.control,
+                self.account,
+            )?
+        };
+        self.control.check()?;
+        #[cfg(test)]
+        if position.is_none()
+            && let Some(mut counts) = SELECTOR_LABEL_OWNERS.get()
+        {
+            counts[3] += 1;
+            SELECTOR_LABEL_OWNERS.set(Some(counts));
+        }
+        // Only Float input can discard source-only diagnostic labels before propagation.
+        Ok(position.map(|position| groups[position].raw_labels()))
     }
     fn finish_owned_selector_sample(
         &self,
         selector_node: NodeId,
         operation: SelectorOperation,
         series_ordinal: usize,
-        mut labels: OwnedLabels,
+        labels: OwnedLabels,
+        value: (i64, i64, crate::statistics::ValueParts),
+    ) -> Result<EvaluatedSample<'a>, EvaluationError> {
+        self.finish_selector_value(
+            selector_node,
+            operation,
+            series_ordinal,
+            labels.into(),
+            value,
+        )
+    }
+    fn finish_selector_value(
+        &self,
+        selector_node: NodeId,
+        operation: SelectorOperation,
+        series_ordinal: usize,
+        mut labels: SampleLabels<'a>,
         value: (i64, i64, crate::statistics::ValueParts),
     ) -> Result<EvaluatedSample<'a>, EvaluationError> {
         let (source_time_ms, source_start_time_ms, value) = value;
@@ -2720,7 +2865,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             };
         let drop_name = operation.drops_name();
         if drop_name && !self.options.delayed_name_removal {
-            drop_reserved(&mut labels, false, self.account, self.control)?;
+            labels.drop_reserved(false, self.account, self.control)?;
         }
         let crate::statistics::ValueParts {
             value,
@@ -2728,7 +2873,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         } = value;
         Ok(EvaluatedSample {
             ordinal: series_ordinal,
-            labels: labels.into(),
+            labels,
             float_samples,
             value,
             source_time_ms,

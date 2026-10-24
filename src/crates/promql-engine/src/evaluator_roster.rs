@@ -10,7 +10,7 @@ use crate::{
     position_index::PositionIndex,
     query_preparation::Prepared,
     result::OwnedLabels,
-    storage::{Control, InitialSample, Interrupted},
+    storage::{Control, InitialSample, Interrupted, LabelRef},
 };
 
 pub(crate) struct Descriptor {
@@ -1474,7 +1474,34 @@ pub(crate) fn group_hash(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<u64, Interrupted> {
-    group_hash_with(labels, grouping, without, control, account, |_| {})
+    group_hash_with(
+        labels.0.iter().map(|label| LabelRef {
+            name: &label.name,
+            value: &label.value,
+        }),
+        grouping,
+        without,
+        control,
+        account,
+        |_| {},
+    )
+}
+
+pub(crate) fn group_hash_refs(
+    labels: &[LabelRef<'_>],
+    grouping: Option<&[AccountedVec<u8>]>,
+    without: bool,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<u64, Interrupted> {
+    group_hash_with(
+        labels.iter().copied(),
+        grouping,
+        without,
+        control,
+        account,
+        |_| {},
+    )
 }
 
 pub(crate) struct PreparedGroupKey<'a> {
@@ -1500,12 +1527,22 @@ impl<'a> PreparedGroupKey<'a> {
             return Self::copied(source, grouping, without, control, account);
         }
         let (mut bits, mut bit) = (0u64, 1u64);
-        let hash = group_hash_with(source, grouping, without, control, account, |keep| {
-            if keep {
-                bits |= bit;
-            }
-            bit <<= 1;
-        })?;
+        let hash = group_hash_with(
+            source.0.iter().map(|label| LabelRef {
+                name: &label.name,
+                value: &label.value,
+            }),
+            grouping,
+            without,
+            control,
+            account,
+            |keep| {
+                if keep {
+                    bits |= bit;
+                }
+                bit <<= 1;
+            },
+        )?;
         Ok(Self {
             hash,
             labels: PreparedGroupLabels::Selected { source, bits },
@@ -1560,8 +1597,8 @@ impl<'a> PreparedGroupKey<'a> {
     }
 }
 
-fn group_hash_with(
-    labels: &OwnedLabels,
+fn group_hash_with<'a>(
+    labels: impl Iterator<Item = LabelRef<'a>>,
     grouping: Option<&[AccountedVec<u8>]>,
     without: bool,
     control: &Control,
@@ -1574,7 +1611,7 @@ fn group_hash_with(
     }
     label_hash::grouping_filtered(labels, control, account, |label| {
         let keep =
-            crate::binary_labels::keep_name(&label.name, grouping, without, control, account)?;
+            crate::binary_labels::keep_name(label.name, grouping, without, control, account)?;
         selected(keep);
         Ok(keep)
     })
@@ -3084,12 +3121,27 @@ mod tests {
                         label_hash::grouping(&copied, &control, &account).unwrap()
                     }
                 };
-                let before = account.snapshot().memory;
+                let refs: Vec<_> = source
+                    .0
+                    .iter()
+                    .map(|label| LabelRef {
+                        name: &label.name,
+                        value: &label.value,
+                    })
+                    .collect();
+                let before = account.snapshot();
                 assert_eq!(
                     group_hash(&source, names.as_deref(), without, &control, &account).unwrap(),
                     expected
                 );
-                assert_eq!(account.snapshot().memory, before);
+                let owned_work = account.snapshot().work - before.work;
+                let after_owned = account.snapshot().work;
+                assert_eq!(
+                    group_hash_refs(&refs, names.as_deref(), without, &control, &account).unwrap(),
+                    expected
+                );
+                assert_eq!(account.snapshot().work - after_owned, owned_work);
+                assert_eq!(account.snapshot().memory, before.memory);
                 assert_eq!(source.0.len(), 6);
                 assert!(source.0[3].value.is_empty());
                 assert_eq!(source.0[5].value.len(), 65_536);
@@ -3151,76 +3203,96 @@ mod tests {
 
     #[test]
     fn borrowed_group_hash_observes_long_scans_and_terminal_interruption() {
-        for shape in 0..3 {
-            let mut terminal_work = 0;
-            for boundary in 0..4 {
-                let engine = EngineAccounting::default();
-                let account = engine.query();
-                let control = Control::default();
-                let mut source = OwnedLabels::new(&account, MemoryKind::Workspace);
-                let mut name = AccountedVec::new(&account, MemoryKind::Workspace);
-                match shape {
-                    0 => {
-                        name.extend_from_slice(b"missing");
-                        for position in 0..10_000 {
-                            source.push(
-                                format!("tag_{position:05}").as_bytes(),
-                                b"omitted",
-                                &account,
-                                MemoryKind::Workspace,
-                            );
+        for borrowed in [false, true] {
+            for shape in 0..3 {
+                let mut terminal_work = 0;
+                for boundary in 0..4 {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let mut source = OwnedLabels::new(&account, MemoryKind::Workspace);
+                    let mut name = AccountedVec::new(&account, MemoryKind::Workspace);
+                    match shape {
+                        0 => {
+                            name.extend_from_slice(b"missing");
+                            for position in 0..10_000 {
+                                source.push(
+                                    format!("tag_{position:05}").as_bytes(),
+                                    b"omitted",
+                                    &account,
+                                    MemoryKind::Workspace,
+                                );
+                            }
+                        }
+                        1 => {
+                            name.extend_from_slice(b"a");
+                            source.push(b"a", &vec![b'x'; 65_536], &account, MemoryKind::Workspace);
+                        }
+                        _ => {
+                            name.extend_from_slice(&vec![b'a'; 16_384]);
+                            source.push(&name, b"value", &account, MemoryKind::Workspace);
                         }
                     }
-                    1 => {
-                        name.extend_from_slice(b"a");
-                        source.push(b"a", &vec![b'x'; 65_536], &account, MemoryKind::Workspace);
+                    let refs: Vec<_> = source
+                        .0
+                        .iter()
+                        .map(|label| LabelRef {
+                            name: &label.name,
+                            value: &label.value,
+                        })
+                        .collect();
+                    let before = account.snapshot();
+                    let operation = || {
+                        if borrowed {
+                            group_hash_refs(
+                                &refs,
+                                Some(std::slice::from_ref(&name)),
+                                false,
+                                &control,
+                                &account,
+                            )
+                        } else {
+                            group_hash(
+                                &source,
+                                Some(std::slice::from_ref(&name)),
+                                false,
+                                &control,
+                                &account,
+                            )
+                        }
+                    };
+                    let result = match boundary {
+                        0 => operation(),
+                        3 => {
+                            control.cancellation.cancel();
+                            operation()
+                        }
+                        _ => crate::test_storage::interrupt_after_work(
+                            &account,
+                            &control,
+                            if boundary == 1 { 64 } else { terminal_work },
+                            operation,
+                        ),
+                    };
+                    let work = account.snapshot().work - before.work;
+                    if boundary == 0 {
+                        assert!(result.is_ok());
+                        terminal_work = work;
+                        assert!(terminal_work > 64);
+                    } else {
+                        assert_eq!(result, Err(Interrupted::Cancelled), "{shape}/{boundary}");
+                        if boundary == 2 {
+                            assert_eq!(work, terminal_work);
+                        } else if boundary == 3 {
+                            assert_eq!(work, 0);
+                        }
                     }
-                    _ => {
-                        name.extend_from_slice(&vec![b'a'; 16_384]);
-                        source.push(&name, b"value", &account, MemoryKind::Workspace);
-                    }
+                    assert_eq!(account.snapshot().memory, before.memory);
+                    drop((source, name));
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
                 }
-                let before = account.snapshot();
-                let operation = || {
-                    group_hash(
-                        &source,
-                        Some(std::slice::from_ref(&name)),
-                        false,
-                        &control,
-                        &account,
-                    )
-                };
-                let result = match boundary {
-                    0 => operation(),
-                    3 => {
-                        control.cancellation.cancel();
-                        operation()
-                    }
-                    _ => crate::test_storage::interrupt_after_work(
-                        &account,
-                        &control,
-                        if boundary == 1 { 64 } else { terminal_work },
-                        operation,
-                    ),
-                };
-                let work = account.snapshot().work - before.work;
-                if boundary == 0 {
-                    assert!(result.is_ok());
-                    terminal_work = work;
-                    assert!(terminal_work > 64);
-                } else {
-                    assert_eq!(result, Err(Interrupted::Cancelled), "{shape}/{boundary}");
-                    if boundary == 2 {
-                        assert_eq!(work, terminal_work);
-                    } else if boundary == 3 {
-                        assert_eq!(work, 0);
-                    }
-                }
-                assert_eq!(account.snapshot().memory, before.memory);
-                drop((source, name));
-                account.snapshot().assert_memory_released();
-                drop(account);
-                engine.snapshot().assert_memory_released();
             }
         }
     }

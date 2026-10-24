@@ -4,7 +4,7 @@ use crate::{
     accounting::QueryAccounting,
     evaluator::EvaluationError,
     result::{OwnedLabel, OwnedLabels},
-    storage::{Control, Interrupted},
+    storage::{Control, Interrupted, LabelRef},
 };
 
 const P1: u64 = 11_400_714_785_074_694_791;
@@ -117,13 +117,13 @@ impl Digest {
     }
     fn grouping_label(
         &mut self,
-        label: &OwnedLabel,
+        label: LabelRef<'_>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), Interrupted> {
-        self.field(&label.name, control, account)?;
+        self.field(label.name, control, account)?;
         self.write(&[255]);
-        self.field(&label.value, control, account)?;
+        self.field(label.value, control, account)?;
         self.write(&[255]);
         Ok(())
     }
@@ -163,18 +163,25 @@ pub(crate) fn grouping(
 ) -> Result<u64, Interrupted> {
     let mut digest = Digest::new();
     for label in labels.0.iter() {
-        digest.grouping_label(label, control, account)?;
+        digest.grouping_label(
+            LabelRef {
+                name: &label.name,
+                value: &label.value,
+            },
+            control,
+            account,
+        )?;
     }
     Ok(digest.finish())
 }
-pub(crate) fn grouping_filtered(
-    labels: &OwnedLabels,
+pub(crate) fn grouping_filtered<'a>(
+    labels: impl Iterator<Item = LabelRef<'a>>,
     control: &Control,
     account: &QueryAccounting,
-    mut keep: impl FnMut(&OwnedLabel) -> Result<bool, Interrupted>,
+    mut keep: impl FnMut(LabelRef<'a>) -> Result<bool, Interrupted>,
 ) -> Result<u64, Interrupted> {
     let mut digest = Digest::new();
-    for label in labels.0.iter() {
+    for label in labels {
         control.check()?;
         account.work(1);
         if keep(label)? {
