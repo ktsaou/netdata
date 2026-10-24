@@ -12434,3 +12434,36 @@ The original focused helper selected no tests for an incorrect native prefix. It
 a successor executed the real native tests without changing runtime or gates. Broader originals, full native,
 ARM, C/C++, static/MSRV and compiled costs were not qualified after rejection. Prepared helpers are not execution
 evidence. These finite results imply no universal or live/concurrent performance guarantee.
+
+## Rejected prepared root group lookup
+
+The [finite experiment](prepared-root-index-rejected-qualification.json) retained the existing ordinary root
+aggregate lookup across query clocks. Unfiltered frames borrowed it; filtered and nonroot frames kept their
+owned indexes. An inline optional value avoided another heap allocation and per-node metadata growth.
+
+The candidate was rejected and all three runtime/test files restored exactly. Target/control timing ratios were
+**1.001360 / 1.016663** in release and **0.990357 / 1.001862** in release-min. Both target medians failed the frozen
+0.98 requirement. One of twelve prescribed individual followups also failed 1.05. The record retains **7,360
+primary and 288 followup comparisons**, without retrying unchanged code or relaxing gates.
+
+The [232-case corpus](prepared_root_index_cases.py) covers raw/mapped/rate children, empty/singleton/plural groups,
+32/128/1,024 source series, 3/8/32 clocks, both naming modes, instant/range and wrapped controls. Forty-four focused
+tests passed, including 576 complete root/wrapped queries, three mixed float/histogram queries selecting
+noncontiguous groups, 32 ownership combinations, and calibrated final provider/output failures and cancellation.
+An earlier 43-test phase is retained separately; review added the missing root failure test before timing.
+
+All 464 analytical baseline outcomes and 464 early comparisons passed. Early heap peaks did not increase.
+For 128 source series over 32 clocks, allocation traffic fell **5,748,632 → 5,679,000 bytes**, with the same
+**83,368-byte Workspace peak** and **177,664 fetched samples**. Work fell **1,289,403 → 1,243,323**.
+The native optional index occupies 56 bytes in the local roster value; this is separate from heap accounting.
+These savings and layout changes do not ship.
+
+A process-scoped instruction profile explains why another lookup-only trial was not selected: the added
+per-sample dispatch represents only **0.0385%** of baseline process instructions. Repeated selector-label copying
+and destruction together account for approximately **14.52%** in this one synthetic profile. This identifies an
+investigation target, not elapsed-time causation or a new performance claim. Adapted C pages bypass the native
+page-byte inspection hotspot, so its fixture cost is not automatically a live-Netdata opportunity.
+
+Read-only classification of 3,908 historical inputs established conservative group-domain ceilings; it did not
+execute the new candidate against those originals. Full native, ARM, C/C++, static/MSRV and compiled costs were
+not qualified after rejection. No universal, live/concurrent, RSS or physical ARM speed guarantee follows.

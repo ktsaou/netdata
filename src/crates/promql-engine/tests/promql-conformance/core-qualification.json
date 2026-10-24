@@ -74407,5 +74407,15 @@
     "followup_pairs": 120,
     "original_differential_pairs": 0,
     "runtime_restored": true
+  },
+  "prepared_root_index_rejected": {
+    "status": "rejected_candidate_runtime_restored",
+    "report": "prepared-root-index-rejected-qualification.json",
+    "report_sha256": "ced3b726d779ebd9c110510d03543f2e107b68439c5a1fc380e245d6c9a45670",
+    "baseline_commit": "8da869e82ba8f8deb0b066b2da8f87fed32a2544",
+    "primary_timing_pairs": 7360,
+    "followup_pairs": 288,
+    "original_differential_pairs": 0,
+    "runtime_restored": true
   }
 }
