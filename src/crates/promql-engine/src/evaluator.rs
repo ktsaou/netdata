@@ -2792,7 +2792,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         if !matches!(
             map.state,
             State::Map {
-                operation: MapOperation::Pointwise(PointwiseFunction::Float(FloatFunction::Abs, _)),
+                operation: MapOperation::Pointwise(PointwiseFunction::Float(..)),
                 ..
             }
         ) {

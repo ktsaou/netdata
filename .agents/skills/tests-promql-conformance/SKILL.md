@@ -459,3 +459,7 @@ ordinal identity alone does not establish generic-provider label-byte identity.
 Complete mapped-label borrowing follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-complete-mapped-labels`: check current
 full bytes and one physical source, preserve raw empties and final comparison polling; count mismatch fallback work.
+
+Numeric Float-map label reuse follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-numeric-map-labels`: preserve
+parameter/diagnostic order and filtering, require actual owner hits, and retain non-Float fallbacks.

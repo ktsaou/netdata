@@ -12735,3 +12735,32 @@ The [query corpus](mapped_label_borrow_cases.py) and [C consumer](mapped_label_b
 scenarios. C self-ratios cover streaming and failure ownership; absolute inner values are checked
 separately in Rust. Timing binaries keep their original source identities across the later test-only
 lint correction; final native and ARM checks use the corrected test source.
+
+## Borrowed numeric-map labels
+
+Checked complete-label reuse now also covers numeric maps such as `ceil`, `round`, `clamp_min`,
+`sqrt` and explicit-vector calendar functions. The same current-byte and single-source ownership
+checks apply. Scalar parameters, filtering, metadata validation, duplicate detection and cancellation
+keep their original order. Timestamp and native-histogram maps retain their previous paths.
+
+[Qualification](float-map-label-borrow-qualification.json) includes 1,808 early before/after pairs,
+27,768 broader pairs, 18 focused tests, both complete native test profiles, selected ARM tests and
+8,640 C/C++ pairs. All 36 numeric-map forms demonstrably reach the borrowed path. Tests compare
+complete results and diagnostics, including changing labels, float/native transitions and clamp
+bounds that produce data, then nothing, then data again. Historical original disagreements remain
+recorded failures.
+
+Across 48 timed shapes, target median time ratios are **0.7700** (`release`) and
+**0.8246** (`release-min`); controls are **0.9730** and
+**0.9848**. The preset gates passed over 25,860 paired queries.
+All blocks, including substantial shared-host variation, remain in the report.
+
+For a grouped `ceil` query with 64 inputs and 16 payload labels, workspace allocation traffic falls
+from **5,065,848 to 3,068,664 bytes**; peak workspace remains **363,432 bytes**. All measured category
+peaks are nonincreasing and physical reads are unchanged. Mismatching current labels can add checked
+comparison work before copying. Fixed compiled costs are recorded separately from query memory.
+These are finite synthetic measurements, not live-load or universal speed guarantees.
+
+The [query corpus](float_map_label_borrow_cases.py) and [C consumer](float_map_label_borrow.c) preserve
+the scenarios. Original test-fixture mistakes and their source phases are retained explicitly; no
+failed capture was rewritten as a pass.

@@ -3325,7 +3325,7 @@ no runtime behavior or provider contract; raw payload counts are not allocated-b
 
 ## Borrowed complete mapped labels
 
-A completed ordinary Float selector below `abs` may borrow its existing full ordered descriptor only
+A completed ordinary Float selector below a numeric Float map may borrow its full ordered descriptor only
 when node/frame/source identity and checked current mapped label bytes agree. The descriptor's owner
 already spans evaluation; no new cache or provider immutability promise is introduced. Early metadata
 removal is reflected in comparison without normalizing raw empty values. Map duplicate and OrderedRows
@@ -3334,3 +3334,9 @@ paths retain their existing ownership. Comparison polls in bounded chunks and af
 
 [Measured qualification](README.md#borrowed-complete-mapped-labels) distinguishes reduced allocation
 traffic from unchanged live peaks, and records extra comparison work for changed-label fallback.
+
+Numeric Float maps share the same label-independent application and metadata-removal rule. Scalar
+parameters complete before the Map state is installed; borrowing does not move parameter diagnostics,
+errors or filtering. This proof excludes timestamp and native-histogram maps and keeps the existing
+exact frame shape. [Numeric-map qualification](README.md#borrowed-numeric-map-labels) includes actual
+borrow hits, changing provider labels, sparse/native inputs and valid/empty/valid clamp bounds.

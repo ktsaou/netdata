@@ -27670,6 +27670,320 @@ mod tests {
         }
     }
 
+    fn mapped_float_report_snapshot(
+        report: &ExecutionReport<crate::result::CollectedResult>,
+    ) -> String {
+        let annotations = |values: &Annotations| {
+            values
+                .iter()
+                .map(|value| {
+                    format!(
+                        "{:?}",
+                        (
+                            value.kind,
+                            value.severity,
+                            value.raw_message,
+                            value.message,
+                            value.span,
+                            value.occurrences,
+                        )
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        let result = report.result.as_ref().map(|result| {
+            let rows = result
+                .series
+                .iter()
+                .map(|row| {
+                    (
+                        row.series_id,
+                        row.labels
+                            .0
+                            .iter()
+                            .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                            .collect::<Vec<_>>(),
+                        row.points
+                            .iter()
+                            .map(|point| (point.time_ms, float_bits(point)))
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            (
+                format!("{:?}", result.header),
+                result.scalar.map(|(time, value)| (time, value.to_bits())),
+                result
+                    .string
+                    .as_ref()
+                    .map(|(time, value)| (*time, value.to_vec())),
+                rows,
+                annotations(&result.annotations),
+            )
+        });
+        let result = result.map_err(|error| match error {
+            ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))) => {
+                format!("Evaluation(Storage(Provider({:?})))", &**bytes)
+            }
+            other => panic!("unexpected fixture error: {other:?}"),
+        });
+        format!("{result:?} {:?}", annotations(&report.annotations))
+    }
+
+    #[test]
+    fn float_maps_borrow_complete_labels_after_parameter_evaluation() {
+        let mut functions: Vec<String> = [
+            "abs",
+            "ceil",
+            "floor",
+            "exp",
+            "sqrt",
+            "ln",
+            "log2",
+            "log10",
+            "sin",
+            "cos",
+            "tan",
+            "asin",
+            "acos",
+            "atan",
+            "sinh",
+            "cosh",
+            "tanh",
+            "asinh",
+            "acosh",
+            "atanh",
+            "rad",
+            "deg",
+            "sgn",
+            "days_in_month",
+            "day_of_month",
+            "day_of_week",
+            "day_of_year",
+            "hour",
+            "minute",
+            "month",
+            "year",
+            "round",
+        ]
+        .iter()
+        .map(|name| format!("{name}(counter_total)"))
+        .collect();
+        functions.extend([
+            "round(counter_total,0.5)".to_owned(),
+            "clamp(counter_total,0,100)".to_owned(),
+            "clamp_min(counter_total,0)".to_owned(),
+            "clamp_max(counter_total,100)".to_owned(),
+        ]);
+        let mut complete = 0;
+        for child in functions {
+            for delayed in [false, true] {
+                let mut outputs = Vec::new();
+                for skip in [true, false] {
+                    let provider = mapped_group_provider(17, 2);
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            format!("sum by(instance)({child})").as_bytes(),
+                            options(delayed),
+                            &control,
+                        )
+                        .unwrap();
+                    let (report, counts) = crate::evaluator::observe_mapped_labels(skip, || {
+                        query.collect_reported(
+                            &provider,
+                            QueryRequest::Range {
+                                start_ms: 3000,
+                                end_ms: 5000,
+                                step_ms: 1000,
+                            },
+                            &control,
+                        )
+                    });
+                    assert!(report.result.is_ok(), "{child}: {:?}", report.result);
+                    assert!(report.annotations.is_empty());
+                    assert!(counts[0] > 0, "{child}: no eligible completion");
+                    if !skip {
+                        assert!(counts[1] > 0 && counts[2] == 0, "{child}: {counts:?}");
+                    }
+                    outputs.push(mapped_float_report_snapshot(&report));
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+                assert_eq!(outputs[0], outputs[1], "{child} delayed={delayed}");
+                complete += 1;
+            }
+        }
+        assert_eq!(complete, 72);
+    }
+
+    #[test]
+    fn float_map_label_borrows_preserve_filtering_native_and_parameter_diagnostics() {
+        fn stale_last(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(if index == 4 {
+                    f64::from_bits(0x7ff0000000000002)
+                } else {
+                    (index + 1) as f64
+                }),
+            }
+        }
+        fn zero(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(0.0),
+            }
+        }
+        fn mixed(index: usize) -> crate::value::Sample {
+            if index == 3 {
+                native_range_sample(index)
+            } else {
+                let mut point = zero(index);
+                point.value = crate::value::SampleValue::Float((index + 1) as f64);
+                point
+            }
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for mode in 0..6 {
+                    let child = match mode {
+                        0 | 1 => "clamp(counter_total,0,(time()-4)^2-.5)",
+                        2 => "ceil(counter_total)",
+                        3 => "clamp_min(counter_total,scalar(min(p)))",
+                        4 => "clamp_min(counter_total,scalar(sum(p)))",
+                        _ => "round(counter_total,scalar(min(p)))",
+                    };
+                    let mut outputs = Vec::new();
+                    for skip in [true, false] {
+                        let mut provider = mapped_group_provider(page, 2);
+                        if mode == 1 {
+                            for row in provider.series.iter_mut().step_by(2) {
+                                row.source.sample = stale_last;
+                            }
+                        } else if mode == 2 {
+                            for row in provider.series.iter_mut().step_by(2) {
+                                row.source.sample = mixed;
+                            }
+                        } else if mode >= 3 {
+                            let mut parameters = mapped_group_provider(page, 1);
+                            for (index, row) in parameters.series.iter_mut().enumerate() {
+                                row.labels[0].1 = b"p".to_vec();
+                                row.source.sample = if index == 0 {
+                                    zero
+                                } else {
+                                    native_range_sample
+                                };
+                                if mode == 5 {
+                                    row.source.fail_page = Some(0);
+                                }
+                            }
+                            provider.series.extend(parameters.series);
+                        }
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let query = engine
+                            .compile(
+                                format!("sum by(instance)({child})").as_bytes(),
+                                options(delayed),
+                                &control,
+                            )
+                            .unwrap();
+                        let ((report, counts), _labels, _) =
+                            crate::evaluator::observe_selector_labels(|| {
+                                crate::evaluator::observe_mapped_labels(skip, || {
+                                    query.collect_reported(
+                                        &provider,
+                                        QueryRequest::Range {
+                                            start_ms: 3000,
+                                            end_ms: 5000,
+                                            step_ms: 1000,
+                                        },
+                                        &control,
+                                    )
+                                })
+                            });
+                        if mode == 5 {
+                            assert!(matches!(&report.result,
+                                Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
+                                if &**bytes == b"injected page failure"));
+                        } else {
+                            let result = report.result.as_ref().unwrap();
+                            assert_eq!(result.series.len(), 2);
+                            if !skip {
+                                assert!(counts[1] > 0 && counts[2] == 0, "mode={mode} {counts:?}");
+                            }
+                            if mode <= 1 {
+                                for row in &result.series {
+                                    let points: Vec<_> = row
+                                        .points
+                                        .iter()
+                                        .map(|p| (p.time_ms, float_bits(p)))
+                                        .collect();
+                                    assert_eq!(
+                                        points,
+                                        vec![
+                                            (3000, 1.0f64.to_bits()),
+                                            (
+                                                5000,
+                                                if mode == 1 { 0.5f64 } else { 1.0f64 }.to_bits()
+                                            )
+                                        ]
+                                    );
+                                }
+                            }
+                            if mode == 2 {
+                                for (index, row) in result.series.iter().enumerate() {
+                                    let expected = if index == 0 {
+                                        [6.0f64, 4.0, 10.0]
+                                    } else {
+                                        [9.0f64, 8.0, 15.0]
+                                    };
+                                    let actual: Vec<_> =
+                                        row.points.iter().map(float_bits).collect();
+                                    assert_eq!(actual, expected.map(f64::to_bits));
+                                }
+                            }
+                            if mode >= 3 {
+                                let expected = if mode == 3 {
+                                    crate::annotations::AnnotationKind::HistogramIgnoredInAggregation(TokenKind::MIN)
+                                } else {
+                                    crate::annotations::AnnotationKind::MixedFloatsHistogramsAggregation
+                                };
+                                let severity = if mode == 3 {
+                                    crate::annotations::Severity::Info
+                                } else {
+                                    crate::annotations::Severity::Warning
+                                };
+                                assert!(
+                                    report
+                                        .annotations
+                                        .iter()
+                                        .any(|annotation| annotation.kind == expected
+                                            && annotation.severity == severity)
+                                );
+                            } else {
+                                assert!(report.annotations.is_empty());
+                            }
+                        }
+                        outputs.push(mapped_float_report_snapshot(&report));
+                        provider.assert_closed();
+                        drop((report, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                    assert_eq!(
+                        outputs[0], outputs[1],
+                        "mode={mode} page={page} delayed={delayed}"
+                    );
+                }
+            }
+        }
+    }
+
     #[test]
     fn mapped_labels_compare_current_provider_bytes_before_reusing_descriptors() {
         use crate::{
@@ -27691,82 +28005,83 @@ mod tests {
         }
         let mut mismatches = 0;
         let mut matches = 0;
-        for page in [1, 17, 1024] {
-            for delayed in [false, true] {
-                let run = |skip, change_after| {
-                    let provider = mapped_group_provider(page, 2);
-                    let engine = Engine::default();
-                    let control = Control::default();
-                    let query = engine
-                        .compile(
-                            b"sum by(instance)(abs(counter_total))",
-                            options(delayed),
-                            &control,
-                        )
-                        .unwrap();
-                    READS.set((0, change_after));
-                    let (report, counts) = observe_mapped_labels(skip, || {
-                        transform_fixture_labels(labels, || {
-                            query.collect_reported(
-                                &provider,
-                                QueryRequest::Range {
-                                    start_ms: 3000,
-                                    end_ms: 5000,
-                                    step_ms: 1000,
-                                },
-                                &control,
-                            )
-                        })
-                    });
-                    let actual = report
-                        .result
-                        .as_ref()
-                        .map(|result| {
-                            result
-                                .series
-                                .iter()
-                                .map(|row| {
-                                    (
-                                        row.labels
-                                            .0
-                                            .iter()
-                                            .map(|label| {
-                                                (label.name.to_vec(), label.value.to_vec())
-                                            })
-                                            .collect::<Vec<_>>(),
-                                        row.points
-                                            .iter()
-                                            .map(|point| (point.time_ms, float_bits(point)))
-                                            .collect::<Vec<_>>(),
-                                    )
-                                })
-                                .collect::<Vec<_>>()
-                        })
-                        .map_err(|error| format!("{error:?}"));
-                    assert!(report.annotations.is_empty());
-                    provider.assert_closed();
-                    let reads = READS.get().0;
-                    let work = report.observations.work;
-                    drop((report, query));
-                    engine.accounting.snapshot().assert_memory_released();
-                    (actual, counts, reads, work)
-                };
-                let baseline = run(true, usize::MAX);
-                let unchanged = run(false, usize::MAX);
-                assert_eq!(baseline.0, unchanged.0);
-                assert_eq!(baseline.2, unchanged.2);
-                assert!(unchanged.1[1] > 0 && unchanged.1[2] == 0);
-                assert!(unchanged.3 <= baseline.3);
-                for change_after in 0..=baseline.2 {
-                    let before = run(true, change_after);
-                    let after = run(false, change_after);
-                    assert_eq!(
-                        before.0, after.0,
-                        "page={page} delayed={delayed} read={change_after}"
-                    );
-                    assert_eq!(before.2, after.2);
-                    mismatches += after.1[2];
-                    matches += after.1[1];
+        for expression in [
+            b"sum by(instance)(abs(counter_total))".as_slice(),
+            b"sum by(instance)(clamp_min(counter_total,0))".as_slice(),
+        ] {
+            for page in [1, 17, 1024] {
+                for delayed in [false, true] {
+                    let run = |skip, change_after| {
+                        let provider = mapped_group_provider(page, 2);
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let query = engine
+                            .compile(expression, options(delayed), &control)
+                            .unwrap();
+                        READS.set((0, change_after));
+                        let (report, counts) = observe_mapped_labels(skip, || {
+                            transform_fixture_labels(labels, || {
+                                query.collect_reported(
+                                    &provider,
+                                    QueryRequest::Range {
+                                        start_ms: 3000,
+                                        end_ms: 5000,
+                                        step_ms: 1000,
+                                    },
+                                    &control,
+                                )
+                            })
+                        });
+                        let actual = report
+                            .result
+                            .as_ref()
+                            .map(|result| {
+                                result
+                                    .series
+                                    .iter()
+                                    .map(|row| {
+                                        (
+                                            row.labels
+                                                .0
+                                                .iter()
+                                                .map(|label| {
+                                                    (label.name.to_vec(), label.value.to_vec())
+                                                })
+                                                .collect::<Vec<_>>(),
+                                            row.points
+                                                .iter()
+                                                .map(|point| (point.time_ms, float_bits(point)))
+                                                .collect::<Vec<_>>(),
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .map_err(|error| format!("{error:?}"));
+                        assert!(report.annotations.is_empty());
+                        provider.assert_closed();
+                        let reads = READS.get().0;
+                        let work = report.observations.work;
+                        drop((report, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                        (actual, counts, reads, work)
+                    };
+                    let baseline = run(true, usize::MAX);
+                    let unchanged = run(false, usize::MAX);
+                    assert_eq!(baseline.0, unchanged.0);
+                    assert_eq!(baseline.2, unchanged.2);
+                    assert!(unchanged.1[1] > 0 && unchanged.1[2] == 0);
+                    assert!(unchanged.3 <= baseline.3);
+                    for change_after in 0..=baseline.2 {
+                        let before = run(true, change_after);
+                        let after = run(false, change_after);
+                        assert_eq!(
+                            before.0, after.0,
+                            "page={page} delayed={delayed} read={change_after}"
+                        );
+                        assert_eq!(before.2, after.2);
+                        mismatches += after.1[2];
+                        matches += after.1[1];
+                    }
                 }
             }
         }
