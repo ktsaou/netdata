@@ -12611,3 +12611,37 @@ after the failed gate. No upstream compatibility, language coverage or compiled-
 The timing cause remains unestablished: the unaggregated Fold paths reject borrowing before the new
 operation checks. Changed generated code alone does not justify another code-layout variant, an unchanged
 retry or relaxing the gate.
+
+## Rejected checked label-view compaction
+
+A private output helper was tested with the existing lazy capacity hint, using its known label count.
+It borrows label bytes and is consumed by four internal output paths. The public unchecked helper stayed
+unchanged. **The candidate was rejected and the complete source file restored.**
+
+The [investigation](checked-label-views-investigation.json) retains the [552-case corpus](checked_label_view_cases.py),
+1,104 analytical baseline checks, 1,104 complete before/after pairs, 93 focused passing tests and one
+explicitly ignored test. Tests covered exact descriptor capacity, borrowed pointers, allocation overlap,
+entry/growth/terminal interruption and all four output consumers. A nonexistent test-runner namespace was
+corrected in a successor helper; no candidate change was needed.
+
+For nine labels on a 64-bit build, the rejected candidate's final descriptor allocation fell from 512 to
+288 bytes and its replacement peak from 768 to 544 bytes. These are local buffer costs. Across complete
+queries, 424 of 552 shapes per profile allocated fewer bytes, but only one lowered Workspace peak—from
+83,977 to 83,945 bytes. For a 32-series, nine-label instant query, cumulative Workspace allocation fell
+from 291,016 to 283,848 bytes while peak stayed 52,392 bytes. Results, work, reads and statistics were exact;
+no measured memory category increased. These are rejected-candidate savings, not shipped improvements.
+
+This memory-first experiment required timing non-regression rather than a speed gain. It compared 424
+work-bearing shapes in both profiles: 16,960 primary pairs and 1,128 prescribed followup pairs. Family
+median candidate/baseline ratios were 1.016390/1.015017 for release targets/controls and
+0.997285/0.993863 for release-min. Ten release followups exceeded the frozen 1.05 individual ceiling.
+All three release-min followups passed. Family medians did not override individual failures.
+
+The timings also expose substantial variation in the unchanged baseline. One identical query's six block
+medians were 189,019; 174,478; 175,338; 174,108; 311,447; and 313,526 ns. The record therefore does **not**
+establish that the source change caused the measured slowdown. Rejection remains in force; a separate
+unchanged-binary repeatability investigation is needed before interpreting further small timing changes.
+
+Broader original-query, full native, ARM, compiled-size and C-executable qualification was not run after
+this early rejection. Prepared helpers are not passing evidence. No gate was relaxed or unchanged
+candidate retried; the accepted engine remains unchanged.

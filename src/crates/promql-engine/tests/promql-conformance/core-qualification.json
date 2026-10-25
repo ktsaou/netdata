@@ -74448,5 +74448,15 @@
     "timing_pairs": 20144,
     "failed_followups": 5,
     "production_change_retained": false
+  },
+  "rejected_checked_label_views": {
+    "status": "rejected_timing_qualification",
+    "report": "checked-label-views-investigation.json",
+    "report_sha256": "ffc2edb045b184e7c0756b793a778b6858d190dc3ad8a93d7a2ac753cd634fc6",
+    "early_pairs": 1104,
+    "timing_pairs": 18088,
+    "failed_followups": 10,
+    "production_change_retained": false,
+    "cause": "Unestablished; unchanged-baseline variation explicitly retained."
   }
 }

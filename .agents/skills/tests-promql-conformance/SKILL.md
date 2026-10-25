@@ -444,3 +444,6 @@ call/selector identity, metadata exclusions, completed diagnostics and distinct 
 
 The rejected completed Sum/Avg group-label experiment and its exact restoration are recorded in
 `src/crates/promql-engine/tests/promql-conformance/README.md#rejected-sumavg-group-label-borrowing`.
+
+The rejected checked output-label capacity trial and its timing repeatability limitation are recorded in
+`src/crates/promql-engine/tests/promql-conformance/README.md#rejected-checked-label-view-compaction`.

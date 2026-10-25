@@ -3292,3 +3292,14 @@ root aggregate edge in delayed mode. The measurements below retain their earlier
   shortcuts remain unchanged. The [finite record](README.md#rejected-sumavg-group-label-borrowing) retains
   complete measured outcomes, all slower-case results and restored source identities. No established causal
   fix follows merely from the observed generated-code differences.
+
+## Rejected checked label-view compaction
+
+- **Candidate:** cap the private checked output-label descriptor array using its exact source length and
+  the existing lazy growth hint. Preserve polling, work, byte borrowing, all consumers and public `views()`.
+- **Outcome:** exact outputs/resources and lower allocation traffic, but ten prescribed release timing
+  followups exceeded the predeclared ceiling. Restore `result.rs` including trial tests exactly.
+- **Interpretation:** baseline timings varied materially within the same panel, so code-level causation is
+  unestablished. Do not infer an allocator or generated-code explanation, retry unchanged, or accept based
+  on family averages. The [finite investigation](README.md#rejected-checked-label-view-compaction) preserves
+  both the failed qualification and the repeatability limitation. No runtime change is retained.
