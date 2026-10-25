@@ -3356,3 +3356,13 @@ output according to the existing option. The comparator receives whether metadat
 raw empty labels. Actual filtering, Boolean zero values and scalar-left vector values are computed by the
 unchanged Map code. [Comparison qualification](README.md#borrowed-scalar-comparison-labels) includes
 independently expected membership/labels, real borrow hits, NaN/stale inputs and parameter failures.
+
+
+Mapped Float Rate/Increase calls reuse the same complete-label proof only with exact active call node,
+raw selector, kind and nanosecond range. Early metadata projection accounts for both child and map.
+For these new admissions, the ordered/map/selection triple must be the whole stack or immediately
+below a collecting ordinary aggregate. A nested map may need a newly owned outer descriptor, so
+borrowing there can add comparison before rematerialization; that broad trial failed its work gate.
+All existing Instant behavior is retained. Native, absent, extended and other-operation paths retain
+their existing owners. [Qualification](README.md#borrowed-mapped-rate-labels) records the retained failure,
+the consumer-qualified successor, current-label fallbacks and separate runtime/compiled costs.

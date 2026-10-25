@@ -472,3 +472,9 @@ Scalar-comparison label reuse follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-scalar-comparison-labels`: distinguish
 ordinary metadata retention from Boolean removal, verify vector values on scalar-left comparisons, and prove
 actual owner hits without accidentally exercising only the scheduled evaluator.
+
+Mapped Rate/Increase label reuse follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-mapped-rate-labels`: verify exact
+active call/selector/kind/range, child-plus-map metadata projection and immediate consumer ownership.
+Nested descriptor rematerialization can add work despite lower allocation traffic; retain that failed
+trial and require actual borrow hits plus unchanged nested-path resources for the narrowed admission.

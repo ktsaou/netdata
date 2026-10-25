@@ -27731,6 +27731,274 @@ mod tests {
     }
 
     #[test]
+    fn mapped_rates_keep_nested_map_materialization_on_the_owned_path() {
+        for function in ["rate", "increase"] {
+            for aggregate in [false, true] {
+                let child = format!("abs(abs({function}(counter_total[3s])))");
+                let expression = if aggregate {
+                    format!("sum by(instance)({child})")
+                } else {
+                    child
+                };
+                for page in [1, 17, 1024] {
+                    for delayed in [false, true] {
+                        let mut outputs = Vec::new();
+                        let mut resources = Vec::new();
+                        for skip in [true, false] {
+                            let mut provider = mapped_group_provider(page, 2);
+                            for row in &mut provider.series {
+                                row.labels.extend([
+                                    (b"__type__".to_vec(), b"counter".to_vec()),
+                                    (b"__unit__".to_vec(), b"raw".to_vec()),
+                                    (b"empty".to_vec(), Vec::new()),
+                                ]);
+                                row.labels.sort_by(|left, right| left.0.cmp(&right.0));
+                            }
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let query = engine
+                                .compile(expression.as_bytes(), options(delayed), &control)
+                                .unwrap();
+                            let (report, counts) =
+                                crate::evaluator::observe_mapped_labels(skip, || {
+                                    query.collect_reported(
+                                        &provider,
+                                        QueryRequest::Range {
+                                            start_ms: 3000,
+                                            end_ms: 5000,
+                                            step_ms: 1000,
+                                        },
+                                        &control,
+                                    )
+                                });
+                            assert_eq!(counts, [0, 0, 0], "{expression}");
+                            assert_eq!(
+                                report.result.as_ref().unwrap().series.len(),
+                                if aggregate { 2 } else { 4 }
+                            );
+                            outputs.push(mapped_float_report_snapshot(&report));
+                            resources.push((
+                                report.observations.work,
+                                report
+                                    .observations
+                                    .memory
+                                    .iter()
+                                    .map(|m| (m.current, m.peak, m.acquired, m.released))
+                                    .collect::<Vec<_>>(),
+                            ));
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                        assert_eq!(outputs[0], outputs[1]);
+                        assert_eq!(resources[0], resources[1]);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn mapped_rates_borrow_complete_labels_with_child_metadata_projection() {
+        let mut pairs = 0;
+        for function in ["rate", "increase"] {
+            for shape in 0..8 {
+                let child = format!("{function}(counter_total[3s])");
+                let threshold = if function == "rate" { 1.5 } else { 4.5 };
+                let parameter = format!("scalar(vector({threshold}))");
+                let expression = match shape {
+                    0 => format!("{child}/3"),
+                    1 => format!("3/{child}"),
+                    2 => format!("abs({child})"),
+                    3 => format!("ceil({child})"),
+                    4 => format!("{child}>{parameter}"),
+                    5 => format!("{child}>bool {parameter}"),
+                    6 => format!("{parameter}<{child}"),
+                    _ => format!("{parameter}<bool {child}"),
+                };
+                for delayed in [false, true] {
+                    for page in [1, 17, 1024] {
+                        let mut outcomes = Vec::new();
+                        for skip in [true, false] {
+                            let mut provider = mapped_group_provider(page, 2);
+                            for row in &mut provider.series {
+                                row.labels.extend([
+                                    (b"__type__".to_vec(), b"counter".to_vec()),
+                                    (b"__unit__".to_vec(), b"KiB".to_vec()),
+                                    (b"empty".to_vec(), Vec::new()),
+                                ]);
+                                row.labels.sort_by(|left, right| left.0.cmp(&right.0));
+                            }
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let query = engine
+                                .compile(expression.as_bytes(), options(delayed), &control)
+                                .unwrap();
+                            let (report, counts) =
+                                crate::evaluator::observe_mapped_labels(skip, || {
+                                    query.collect_reported(
+                                        &provider,
+                                        QueryRequest::Range {
+                                            start_ms: 3000,
+                                            end_ms: 5000,
+                                            step_ms: 1000,
+                                        },
+                                        &control,
+                                    )
+                                });
+                            let result = report.result.as_ref().unwrap();
+                            assert!(report.annotations.is_empty());
+                            assert!(counts[0] > 0, "{expression}: no eligible owner");
+                            if !skip {
+                                assert!(
+                                    counts[1] > 0 && counts[2] == 0,
+                                    "{expression}: {counts:?}"
+                                );
+                            }
+                            assert_eq!(
+                                result.series.len(),
+                                if matches!(shape, 4 | 6) { 2 } else { 4 }
+                            );
+                            for row in &*result.series {
+                                let labels = row
+                                    .labels
+                                    .0
+                                    .iter()
+                                    .map(|label| (&*label.name, &*label.value))
+                                    .collect::<Vec<_>>();
+                                assert_eq!(
+                                    labels.iter().map(|(key, _)| *key).collect::<Vec<_>>(),
+                                    [
+                                        b"empty".as_slice(),
+                                        b"instance".as_slice(),
+                                        b"member".as_slice()
+                                    ]
+                                );
+                                assert_eq!(labels[0].1, b"");
+                                assert!(matches!(labels[1].1, b"g0000" | b"g0001"));
+                                assert!(matches!(labels[2].1, b"0" | b"1"));
+                                let scale = if labels[1].1 == b"g0000" { 1.0 } else { 2.0 };
+                                let value = scale * if function == "rate" { 1.0 } else { 3.0 };
+                                let expected: f64 = match shape {
+                                    0 => value / 3.0,
+                                    1 => 3.0 / value,
+                                    5 | 7 => f64::from(value > threshold),
+                                    _ => value,
+                                };
+                                if matches!(shape, 4 | 6) {
+                                    assert!(value > threshold);
+                                }
+                                assert_eq!(
+                                    row.points
+                                        .iter()
+                                        .map(|point| (point.time_ms, float_bits(point)))
+                                        .collect::<Vec<_>>(),
+                                    (3..=5)
+                                        .map(|time| (time * 1000, expected.to_bits()))
+                                        .collect::<Vec<_>>()
+                                );
+                            }
+                            outcomes.push(mapped_float_report_snapshot(&report));
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                        assert_eq!(
+                            outcomes[0], outcomes[1],
+                            "{expression} delayed={delayed} page={page}"
+                        );
+                        pairs += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(pairs, 96);
+    }
+
+    #[test]
+    fn mapped_rates_preserve_window_diagnostics_and_absent_native_results() {
+        fn overlap(index: usize) -> crate::value::Sample {
+            let mut sample = diagnostic_sample(index);
+            sample.start_time_ms = [100, 500, 1500, 2500][index];
+            sample
+        }
+        for function in ["rate", "increase"] {
+            for page in [1, 17, 1024] {
+                for delayed in [false, true] {
+                    for state in 0..6 {
+                        let mut outcomes = Vec::new();
+                        for skip in [true, false] {
+                            let mut provider = mapped_group_provider(page, 2);
+                            for row in &mut provider.series {
+                                row.labels[0].1 = b"m".to_vec();
+                                row.source.count = 4;
+                                row.source.sample = match state {
+                                    1 => overlap,
+                                    2 => mixed_range_sample,
+                                    3 => native_range_sample,
+                                    _ => diagnostic_sample,
+                                };
+                            }
+                            if state == 4 {
+                                provider.series[0].source.count = 1;
+                            }
+                            if state == 5 {
+                                provider.series[0].source.fail_page = Some(0);
+                            }
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let query = engine
+                                .compile(
+                                    format!("sum by(instance)(abs({function}(m[4s])))").as_bytes(),
+                                    options(delayed),
+                                    &control,
+                                )
+                                .unwrap();
+                            let (report, counts) =
+                                crate::evaluator::observe_mapped_labels(skip, || {
+                                    query.collect_reported(
+                                        &provider,
+                                        QueryRequest::Range {
+                                            start_ms: 2000,
+                                            end_ms: 4000,
+                                            step_ms: 1000,
+                                        },
+                                        &control,
+                                    )
+                                });
+                            if state == 5 {
+                                assert!(matches!(&report.result,
+                                    Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
+                                    if &**bytes == b"injected page failure"));
+                            } else {
+                                assert!(report.result.is_ok());
+                                if matches!(state, 0 | 1 | 4) {
+                                    assert!(report.annotations.iter().any(|entry| entry.kind
+                                        == crate::annotations::AnnotationKind::PossibleNonCounter));
+                                    if !skip {
+                                        assert!(
+                                            counts[1] > 0 && counts[2] == 0,
+                                            "{function} state={state}: {counts:?}"
+                                        );
+                                    }
+                                }
+                            }
+                            outcomes.push(mapped_float_report_snapshot(&report));
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                        assert_eq!(
+                            outcomes[0], outcomes[1],
+                            "{function} state={state} delayed={delayed} page={page}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn comparison_maps_borrow_complete_labels_with_exact_membership_and_metadata() {
         fn sample<const KIND: u8>(index: usize) -> crate::value::Sample {
             let mut sample = crate::test_storage::counter(index);
@@ -28438,6 +28706,8 @@ mod tests {
             b"sum by(instance)(3/counter_total)".as_slice(),
             b"sum by(instance)(counter_total>0)".as_slice(),
             b"sum by(instance)(counter_total>bool 0)".as_slice(),
+            b"sum by(instance)(rate(counter_total[3s])>0)".as_slice(),
+            b"sum by(instance)(increase(counter_total[3s])/3)".as_slice(),
         ] {
             for page in [1, 17, 1024] {
                 for delayed in [false, true] {

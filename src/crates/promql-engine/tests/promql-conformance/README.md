@@ -12820,3 +12820,33 @@ reported separately from query memory. These finite measurements establish no un
 The [query corpus](comparison_map_label_borrow_cases.py) and [C consumer](comparison_map_label_borrow.c)
 preserve the scenarios. The ownership tests use `scalar(vector(time()-3))` as a dynamic threshold;
 the simpler `time()-3` can take the scheduled evaluator and would not establish borrowing-path coverage.
+
+## Borrowed mapped rate labels
+
+Ordinary Float `rate()` and `increase()` results can reuse complete labels under numeric Float maps,
+scalar arithmetic and scalar comparisons. This applies to a root map or a map immediately consumed
+by an ordinary aggregate. Active call/selector/kind/range, one physical source and current label bytes
+must agree. Both the child and map determine metadata removal. Nested maps retain their existing path.
+
+[Qualification](mapped-rate-label-borrow-qualification.json) covers 3,396 early pairs, 27,768 broader
+pairs, 25 focused tests, both complete native profiles, selected ARM tests and 8,640 C/C++ pairs.
+The focused tests include 96 independently expected result/label pairs, 72 diagnostic/fallback pairs
+and 24 nested-map pairs requiring zero borrowing and unchanged work/memory. Original disagreements
+remain recorded failures.
+
+Across 56 timed shapes, target time ratios are **0.8254** (`release`) and
+**0.8264** (`release-min`); controls are **1.0012** and
+**0.9813**. The report retains all 14,568 paired queries and shared-host variation.
+For a grouped rate/division with 64 inputs and 16 payload labels, workspace allocation traffic changes
+from **6,655,464 to 4,535,784 bytes**, with peak workspace **433,704 to
+433,704 bytes**. Compiled costs are reported separately from query RAM.
+
+An earlier broad admission failed the work gate for nested `abs(abs(rate(...)))`: **31,286 to 31,494**
+work units despite lower allocation traffic. Preparing the outer descriptor could copy borrowed labels
+again. The accepted successor restricts consumers; its frozen cases and gates were unchanged. This
+failure remains retained, and its unrun timing/broad/platform checks are not counted as passes.
+
+The [corpus](mapped_rate_label_borrow_cases.py) and [C consumer](mapped_rate_label_borrow.c) preserve
+the scenarios. Start-timestamp semantics are enabled in separate focused checks; the corpus's 32
+start-reset/overlap cases use the default profile and ignore those timestamps. These finite measurements
+do not establish universal speed, live or concurrent throughput, process RSS, or physical ARM performance.
