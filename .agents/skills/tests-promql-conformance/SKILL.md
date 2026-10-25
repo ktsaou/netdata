@@ -490,3 +490,6 @@ Mapped Sum/Avg consumer qualification and delayed-root rematerialization follow
 
 The rejected root Rate-label ownership experiment, metadata-free copy regression and timing limits are recorded in
 `src/crates/promql-engine/tests/promql-conformance/README.md#rejected-root-rate-label-ownership`.
+
+Mapped extrema/count/presence/variance ownership and typed-window checks follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-mapped-reducer-labels`.

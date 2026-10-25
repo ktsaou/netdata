@@ -74559,5 +74559,15 @@
     "metadata_pairs": 90,
     "metadata_resource_failures": 15,
     "production_change_retained": false
+  },
+  "borrowed_mapped_reducer_labels": {
+    "status": "finite_qualification_pass",
+    "report": "mapped-reducer-labels-qualification.json",
+    "report_sha256": "0c6eaf0d87dce9518f9dd17f9da4cb4b333dd6640388dd464e65faf7b2fed987",
+    "early_pairs": 22820,
+    "broad_pairs": 27768,
+    "timing_pairs": 34944,
+    "C_CPP_pairs": 10944,
+    "peak_memory_increase": false
   }
 }

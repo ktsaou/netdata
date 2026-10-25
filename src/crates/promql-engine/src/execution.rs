@@ -27740,6 +27740,12 @@ mod tests {
             "idelta",
             "sum_over_time",
             "avg_over_time",
+            "min_over_time",
+            "max_over_time",
+            "count_over_time",
+            "present_over_time",
+            "stdvar_over_time",
+            "stddev_over_time",
         ] {
             for aggregate in [false, true] {
                 let child = format!("abs(abs({function}(counter_total[3s])))");
@@ -27970,6 +27976,327 @@ mod tests {
         assert_eq!(pairs, 336);
     }
 
+    #[test]
+    fn mapped_reducers_borrow_labels_with_independent_values_and_membership() {
+        let mut pairs = 0;
+        for function in [
+            "min_over_time",
+            "max_over_time",
+            "count_over_time",
+            "present_over_time",
+            "stdvar_over_time",
+            "stddev_over_time",
+        ] {
+            for aggregate in [false, true] {
+                for shape in 0..8 {
+                    let child = format!("{function}(counter_total[3s])");
+                    let threshold = match function {
+                        "min_over_time" | "count_over_time" => 2.5,
+                        "max_over_time" => 4.5,
+                        "present_over_time" => 0.5,
+                        "stdvar_over_time" => 1.5,
+                        _ => 1.1,
+                    };
+                    let parameter = format!("scalar(vector({threshold}))");
+                    let mapped = match shape {
+                        0 => format!("{child}/3"),
+                        1 => format!("3/{child}"),
+                        2 => format!("abs({child})"),
+                        3 => format!("ceil({child})"),
+                        4 => format!("{child}>{parameter}"),
+                        5 => format!("{child}>bool {parameter}"),
+                        6 => format!("{parameter}<{child}"),
+                        _ => format!("{parameter}<bool {child}"),
+                    };
+                    let expression = if aggregate {
+                        format!("sum by(instance)({mapped})")
+                    } else {
+                        mapped
+                    };
+                    for delayed in [false, true] {
+                        for page in [1, 17, 1024] {
+                            let mut outputs = Vec::new();
+                            let mut resources = Vec::new();
+                            let owned_root = delayed && !aggregate;
+                            for skip in [true, false] {
+                                let mut provider = mapped_group_provider(page, 2);
+                                for row in &mut provider.series {
+                                    row.labels.extend([
+                                        (b"__type__".to_vec(), b"gauge".to_vec()),
+                                        (b"__unit__".to_vec(), b"KiB".to_vec()),
+                                        (b"empty".to_vec(), Vec::new()),
+                                    ]);
+                                    row.labels.sort_by(|a, b| a.0.cmp(&b.0));
+                                }
+                                let engine = Engine::default();
+                                let control = Control::default();
+                                let query = engine
+                                    .compile(expression.as_bytes(), options(delayed), &control)
+                                    .unwrap();
+                                let (report, counts) =
+                                    crate::evaluator::observe_mapped_labels(skip, || {
+                                        query.collect_reported(
+                                            &provider,
+                                            QueryRequest::Range {
+                                                start_ms: 3000,
+                                                end_ms: 5000,
+                                                step_ms: 1000,
+                                            },
+                                            &control,
+                                        )
+                                    });
+                                let result = report.result.as_ref().unwrap();
+                                assert!(report.annotations.is_empty());
+                                if owned_root {
+                                    assert_eq!(counts, [0, 0, 0]);
+                                } else {
+                                    assert!(counts[0] > 0, "{expression}: {counts:?}");
+                                    if !skip {
+                                        assert!(
+                                            counts[1] > 0 && counts[2] == 0,
+                                            "{expression}: {counts:?}"
+                                        );
+                                    }
+                                }
+                                let mut expected = Vec::new();
+                                for group in 0..2 {
+                                    let scale = (group + 1) as f64;
+                                    let points = (3..=5)
+                                        .filter_map(|time| {
+                                            let value = match function {
+                                                "min_over_time" => (time - 2) as f64 * scale,
+                                                "max_over_time" => time as f64 * scale,
+                                                "count_over_time" => 3.0,
+                                                "present_over_time" => 1.0,
+                                                "stdvar_over_time" => (2.0 / 3.0) * scale * scale,
+                                                // Population deviation of three consecutive integers.
+                                                _ => 0.816_496_580_927_726 * scale,
+                                            };
+                                            if matches!(shape, 4 | 6) && value <= threshold {
+                                                return None;
+                                            }
+                                            let value = match shape {
+                                                0 => value / 3.0,
+                                                1 => 3.0 / value,
+                                                3 => value.ceil(),
+                                                5 | 7 => f64::from(value > threshold),
+                                                _ => value,
+                                            };
+                                            Some((
+                                                time * 1000,
+                                                (if aggregate { value + value } else { value })
+                                                    .to_bits(),
+                                            ))
+                                        })
+                                        .collect::<Vec<_>>();
+                                    if points.is_empty() {
+                                        continue;
+                                    }
+                                    for member in 0..if aggregate { 1 } else { 2 } {
+                                        let mut labels = vec![(
+                                            b"instance".to_vec(),
+                                            format!("g{group:04}").into_bytes(),
+                                        )];
+                                        if !aggregate {
+                                            labels.insert(0, (b"empty".to_vec(), Vec::new()));
+                                            labels.push((
+                                                b"member".to_vec(),
+                                                member.to_string().into_bytes(),
+                                            ));
+                                        }
+                                        expected.push((labels, points.clone()));
+                                    }
+                                }
+                                let mut actual = result
+                                    .series
+                                    .iter()
+                                    .map(|row| {
+                                        (
+                                            row.labels
+                                                .0
+                                                .iter()
+                                                .map(|l| (l.name.to_vec(), l.value.to_vec()))
+                                                .collect::<Vec<_>>(),
+                                            row.points
+                                                .iter()
+                                                .map(|p| (p.time_ms, float_bits(p)))
+                                                .collect::<Vec<_>>(),
+                                        )
+                                    })
+                                    .collect::<Vec<_>>();
+                                actual.sort();
+                                expected.sort();
+                                assert_eq!(
+                                    actual, expected,
+                                    "{expression} delayed={delayed} page={page}"
+                                );
+                                outputs.push(mapped_float_report_snapshot(&report));
+                                resources.push((
+                                    report.observations.work,
+                                    report
+                                        .observations
+                                        .memory
+                                        .iter()
+                                        .map(|m| (m.current, m.peak, m.acquired, m.released))
+                                        .collect::<Vec<_>>(),
+                                ));
+                                provider.assert_closed();
+                                drop((report, query));
+                                engine.accounting.snapshot().assert_memory_released();
+                            }
+                            assert_eq!(outputs[0], outputs[1]);
+                            if owned_root {
+                                assert_eq!(resources[0], resources[1]);
+                            }
+                            pairs += 1;
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(pairs, 576);
+    }
+
+    #[test]
+    fn mapped_reducers_preserve_mixed_diagnostics_and_native_counts() {
+        use crate::annotations::AnnotationKind;
+        fn sample<const STATE: u8>(index: usize) -> crate::value::Sample {
+            let mut point = native_range_sample(index % 3);
+            point.time_ms = (index as i64 + 1) * 1000;
+            point.start_time_ms = 0;
+            if STATE != 2 && !(STATE == 1 && index % 3 == 1) {
+                point.value = crate::value::SampleValue::Float(if STATE == 3 {
+                    f64::from_bits(0x7ff0_0000_0000_0002)
+                } else {
+                    (index % 3 + 1) as f64
+                });
+            }
+            point
+        }
+        for function in [
+            "min_over_time",
+            "max_over_time",
+            "count_over_time",
+            "present_over_time",
+            "stdvar_over_time",
+            "stddev_over_time",
+        ] {
+            for state in 0..6 {
+                for delayed in [false, true] {
+                    for page in [1, 17, 1024] {
+                        let mut outputs = Vec::new();
+                        for skip in [true, false] {
+                            let mut provider = mapped_group_provider(page, 2);
+                            for row in &mut provider.series {
+                                row.source.count = match state {
+                                    4 => 0,
+                                    5 => 1,
+                                    _ => 5,
+                                };
+                                row.source.sample = match state {
+                                    1 => sample::<1>,
+                                    2 => sample::<2>,
+                                    3 => sample::<3>,
+                                    _ => sample::<0>,
+                                };
+                            }
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let source =
+                                format!("sum by(instance)(abs({function}(counter_total[3s])))");
+                            let query = engine
+                                .compile(source.as_bytes(), options(delayed), &control)
+                                .unwrap();
+                            let (report, counts) =
+                                crate::evaluator::observe_mapped_labels(skip, || {
+                                    query.collect_reported(
+                                        &provider,
+                                        QueryRequest::Range {
+                                            start_ms: 3000,
+                                            end_ms: 5000,
+                                            step_ms: 1000,
+                                        },
+                                        &control,
+                                    )
+                                });
+                            let result = report.result.as_ref().unwrap();
+                            let expected: Option<f64> = match (function, state) {
+                                (_, 3 | 4) => None,
+                                ("count_over_time", 5) => Some(1.0),
+                                ("count_over_time", _) => Some(3.0),
+                                ("present_over_time", _) => Some(1.0),
+                                (_, 2) => None,
+                                ("stdvar_over_time" | "stddev_over_time", 5) => Some(0.0),
+                                (_, 5) | ("min_over_time", _) => Some(1.0),
+                                ("max_over_time", _) => Some(3.0),
+                                (_, 1) => Some(1.0),
+                                ("stdvar_over_time", _) => Some(2.0 / 3.0),
+                                _ => Some(0.816_496_580_927_726),
+                            };
+                            assert_eq!(result.series.len(), if expected.is_some() { 2 } else { 0 });
+                            if let Some(value) = expected {
+                                for row in &*result.series {
+                                    assert_eq!(row.labels.0.len(), 1);
+                                    assert_eq!(&*row.labels.0[0].name, b"instance");
+                                    assert!(matches!(&*row.labels.0[0].value, b"g0000" | b"g0001"));
+                                    let times: &[i64] = if state == 5 {
+                                        &[3000]
+                                    } else {
+                                        &[3000, 4000, 5000]
+                                    };
+                                    assert_eq!(
+                                        row.points
+                                            .iter()
+                                            .map(|point| (point.time_ms, float_bits(point)))
+                                            .collect::<Vec<_>>(),
+                                        times
+                                            .iter()
+                                            .map(|time| (*time, (value + value).to_bits()))
+                                            .collect::<Vec<_>>()
+                                    );
+                                }
+                                if !skip {
+                                    assert!(
+                                        counts[1] > 0 && counts[2] == 0,
+                                        "{function}/{state}: {counts:?}"
+                                    );
+                                }
+                            } else {
+                                assert_eq!(counts, [0, 0, 0]);
+                            }
+                            let mixed_info = state == 1
+                                && !matches!(function, "count_over_time" | "present_over_time");
+                            assert_eq!(report.annotations.len(), usize::from(mixed_info));
+                            if mixed_info {
+                                let annotation = report.annotations.iter().next().unwrap();
+                                assert_eq!(
+                                    annotation.kind,
+                                    AnnotationKind::HistogramIgnoredInMixedRange
+                                );
+                                let span = annotation.span.unwrap();
+                                assert_eq!(&source[span.start..span.end], "counter_total[3s]");
+                                let message = r#"PromQL info: ignored histograms in a range containing both floats and histograms for metric name "counter_total""#;
+                                assert_eq!(annotation.raw_message, message.as_bytes());
+                                assert_eq!(
+                                    annotation.message,
+                                    format!("{message} (1:{})", span.start + 1).as_bytes()
+                                );
+                            }
+                            outputs.push(mapped_float_report_snapshot(&report));
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                        assert_eq!(
+                            outputs[0], outputs[1],
+                            "{function}/{state} delayed={delayed} page={page}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     fn typed_rate_family_sample<const STATE: u8>(index: usize) -> crate::value::Sample {
         let mut point = diagnostic_sample(index);
         point.time_ms = [500, 1500, 2500, 4500][index];
@@ -28136,7 +28463,18 @@ mod tests {
             sample.start_time_ms = [100, 500, 1500, 2500][index];
             sample
         }
-        for function in ["rate", "increase", "sum_over_time", "avg_over_time"] {
+        for function in [
+            "rate",
+            "increase",
+            "sum_over_time",
+            "avg_over_time",
+            "min_over_time",
+            "max_over_time",
+            "count_over_time",
+            "present_over_time",
+            "stdvar_over_time",
+            "stddev_over_time",
+        ] {
             for page in [1, 17, 1024] {
                 for delayed in [false, true] {
                     for state in 0..6 {
@@ -28932,6 +29270,12 @@ mod tests {
             b"sum by(instance)(3/idelta(counter_total[3s]))".as_slice(),
             b"sum by(instance)(sum_over_time(counter_total[3s])>0)".as_slice(),
             b"sum by(instance)(3/avg_over_time(counter_total[3s]))".as_slice(),
+            b"sum by(instance)(min_over_time(counter_total[3s])/3)".as_slice(),
+            b"sum by(instance)(max_over_time(counter_total[3s])/3)".as_slice(),
+            b"sum by(instance)(count_over_time(counter_total[3s])/3)".as_slice(),
+            b"sum by(instance)(present_over_time(counter_total[3s])/3)".as_slice(),
+            b"sum by(instance)(stdvar_over_time(counter_total[3s])/3)".as_slice(),
+            b"sum by(instance)(stddev_over_time(counter_total[3s])/3)".as_slice(),
         ] {
             for page in [1, 17, 1024] {
                 for delayed in [false, true] {

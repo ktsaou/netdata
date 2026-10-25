@@ -12970,3 +12970,30 @@ The initial test compiler error and incorrect cohort-hit expectation remain reco
 passing focused tests. All runtime/Cargo bytes match the accepted predecessor. Broader originals, full
 native suites, ARM/C/C++, MSRV/Clippy and compiled-size checks were not run for this rejected candidate.
 This experiment adds no language coverage, upstream compatibility or shipped performance claim.
+
+## Borrowed mapped reducer labels
+
+Completed `min_over_time`, `max_over_time`, `count_over_time`, `present_over_time`,
+`stdvar_over_time` and `stddev_over_time` Float results can reuse the complete labels already held
+by an immediately mapped consumer. This extends the existing Sum/Avg proof. Delayed-name roots and
+nested consumers retain their established fallback; no new cache or retained sample data is added.
+
+[Qualification](mapped-reducer-labels-qualification.json) includes **22,820 early comparisons**,
+**27,768 broader comparisons**, 31 focused tests, both full native profiles, selected ARM32/ARM64 tests
+and **10,944 C/C++ comparisons**. Independent expectations cover 576 numerical/membership pairs and
+216 typed-window pairs across pages 1/17/1024. Count/presence include histogram samples; extrema and
+variance retain their mixed-window info and omit native-only results. Tests also check metadata-free
+labels, current-label changes, nested fallback, filtering, diagnostics, failures and retained ownership.
+
+The frozen timing panel has 36 targets and 59 controls. Target execution-time ratios are
+**0.8335** (`release`) and **0.8531** (`release-min`); controls are
+**0.9989** and **0.9928**. The report retains 34,944 paired executions,
+every prescribed followup and baseline variation. In the 64-series grouped-minimum example, cumulative
+workspace allocation falls from **6,649,320 to 4,532,712 bytes**, while its peak stays
+at **433,704 bytes**. Measured work and memory in every category stay equal or decrease; compiled
+costs are reported separately.
+
+Use the [corpus](mapped_reducer_label_cases.py) and [C consumer](mapped_reducer_labels.c) to reproduce
+these fixture panels. Timings exclude parsing, compilation, JSON transport and the HTTP API. These
+finite checks do not establish universal speed, concurrent throughput, process RSS or physical ARM
+performance. Original disagreements and earlier rejected experiments remain recorded as failures.

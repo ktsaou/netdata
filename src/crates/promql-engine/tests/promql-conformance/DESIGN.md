@@ -3405,3 +3405,16 @@ The [finite experiment](README.md#rejected-root-rate-label-ownership) failed bot
 and metadata-free allocation/work gates. Its runtime/tests were restored exactly. A metadata-presence
 refinement remained unexecuted because fixing that allocation boundary did not establish a remedy for
 the timing failure. Existing Rate/Instant/Fold ownership policies remain unchanged.
+
+## Complete mapped reducer labels
+
+Min/Max/Count/Present/Stdvar/Stddev share the accepted mapped Sum/Avg label proof. Admission remains
+explicit: exact active kind/range/selector, one physical source, current complete label-byte equality
+and an eligible immediate consumer. Delayed-name roots and nested maps remain excluded. No group-key
+shortcut, raw-sample cache, new metadata owner or public interface is introduced.
+
+Count and presence can produce a Float from native-only windows. Mixed extrema/variance windows keep
+their Float and informational diagnostic; native-only windows produce no value. Complete diagnostics,
+statistics and sample credits precede label borrowing. `absent_over_time` has an intervening absence
+frame and remains structurally excluded despite sharing the Present reducer. See the
+[measured qualification](README.md#borrowed-mapped-reducer-labels).

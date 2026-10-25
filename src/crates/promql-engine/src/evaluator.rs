@@ -2859,8 +2859,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     kind: active_kind,
                     range_ns: active_range,
                 },
-            ) if matches!(kind, FoldKind::Sum | FoldKind::Avg)
-                && !(self.options.delayed_name_removal && prefix.is_empty())
+            ) if matches!(
+                kind,
+                FoldKind::Sum
+                    | FoldKind::Avg
+                    | FoldKind::Min
+                    | FoldKind::Max
+                    | FoldKind::Count
+                    | FoldKind::Present
+                    | FoldKind::Stdvar
+                    | FoldKind::Stddev
+            ) && !(self.options.delayed_name_removal && prefix.is_empty())
                 && kind == active_kind
                 && range_ns == active_range =>
             {
