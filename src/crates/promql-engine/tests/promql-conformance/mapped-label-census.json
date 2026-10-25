@@ -1,0 +1,592 @@
+{
+  "schema_version": 1,
+  "status": "eligibility_measured",
+  "production_change": false,
+  "base": "c8f040805de297763418b10dcc31ccbae13238af",
+  "runtime_origin": "a4be543c38383246c43c12bf50d3d8eb3c1df794",
+  "plan": {
+    "queries": 24,
+    "page_sizes": [
+      1,
+      17,
+      1024
+    ],
+    "groups": [
+      4,
+      16
+    ],
+    "modes": [
+      "instant",
+      "range"
+    ],
+    "name_removal": [
+      "early",
+      "delayed"
+    ],
+    "expression": "sum by(instance)(abs(counter_total))",
+    "range_ticks": [
+      3000,
+      4000,
+      5000
+    ],
+    "instrumentation": "cfg(test)-only immutable frame/label inspection after original selector copy, actual source ordinal and complete byte-equivalence under abs metadata rule; no work/accounting/query behavior changes.",
+    "counters": [
+      "completed_selector_samples",
+      "native_samples",
+      "abs_map_inputs",
+      "single_source_matching_chain",
+      "exact_projected_label_bytes",
+      "projected_label_mismatch",
+      "multiple_descriptor_sources",
+      "eligible_label_payload_bytes",
+      "eligible_label_count",
+      "map_without_order_owner"
+    ],
+    "eligibility": "OrderedRows running and nonstreaming followed by bypassed abs Map then matching Instant Selection; ordered/map node equal, single physical source ordinal; exact full mapped label bytes from current provider.",
+    "meaning": "Counts of potential allocation avoidance only, not implemented reuse or speed/memory gains. Existing preparation/scheduled/native paths remain separate.",
+    "next": "If no useful eligible hits, restore and record no implementation. If useful, finalize contract-preserving checked comparison and a separate preimplementation gate before any runtime code."
+  },
+  "queries": [
+    {
+      "page": 1,
+      "groups": 4,
+      "delayed": false,
+      "instant": false,
+      "counts": {
+        "completed_selector_samples": 48,
+        "native_samples": 0,
+        "abs_map_inputs": 48,
+        "single_source_matching_chain": 48,
+        "exact_projected_label_bytes": 48,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 1968,
+        "eligible_label_count": 144,
+        "map_without_order_owner": 0
+      }
+    },
+    {
+      "page": 1,
+      "groups": 4,
+      "delayed": false,
+      "instant": true,
+      "counts": {
+        "completed_selector_samples": 16,
+        "native_samples": 0,
+        "abs_map_inputs": 16,
+        "single_source_matching_chain": 0,
+        "exact_projected_label_bytes": 0,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 0,
+        "eligible_label_count": 0,
+        "map_without_order_owner": 16
+      }
+    },
+    {
+      "page": 1,
+      "groups": 16,
+      "delayed": false,
+      "instant": false,
+      "counts": {
+        "completed_selector_samples": 192,
+        "native_samples": 0,
+        "abs_map_inputs": 192,
+        "single_source_matching_chain": 192,
+        "exact_projected_label_bytes": 192,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 7872,
+        "eligible_label_count": 576,
+        "map_without_order_owner": 0
+      }
+    },
+    {
+      "page": 1,
+      "groups": 16,
+      "delayed": false,
+      "instant": true,
+      "counts": {
+        "completed_selector_samples": 64,
+        "native_samples": 0,
+        "abs_map_inputs": 64,
+        "single_source_matching_chain": 0,
+        "exact_projected_label_bytes": 0,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 0,
+        "eligible_label_count": 0,
+        "map_without_order_owner": 64
+      }
+    },
+    {
+      "page": 1,
+      "groups": 4,
+      "delayed": true,
+      "instant": false,
+      "counts": {
+        "completed_selector_samples": 48,
+        "native_samples": 0,
+        "abs_map_inputs": 48,
+        "single_source_matching_chain": 48,
+        "exact_projected_label_bytes": 48,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 1968,
+        "eligible_label_count": 144,
+        "map_without_order_owner": 0
+      }
+    },
+    {
+      "page": 1,
+      "groups": 4,
+      "delayed": true,
+      "instant": true,
+      "counts": {
+        "completed_selector_samples": 16,
+        "native_samples": 0,
+        "abs_map_inputs": 16,
+        "single_source_matching_chain": 0,
+        "exact_projected_label_bytes": 0,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 0,
+        "eligible_label_count": 0,
+        "map_without_order_owner": 16
+      }
+    },
+    {
+      "page": 1,
+      "groups": 16,
+      "delayed": true,
+      "instant": false,
+      "counts": {
+        "completed_selector_samples": 192,
+        "native_samples": 0,
+        "abs_map_inputs": 192,
+        "single_source_matching_chain": 192,
+        "exact_projected_label_bytes": 192,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 7872,
+        "eligible_label_count": 576,
+        "map_without_order_owner": 0
+      }
+    },
+    {
+      "page": 1,
+      "groups": 16,
+      "delayed": true,
+      "instant": true,
+      "counts": {
+        "completed_selector_samples": 64,
+        "native_samples": 0,
+        "abs_map_inputs": 64,
+        "single_source_matching_chain": 0,
+        "exact_projected_label_bytes": 0,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 0,
+        "eligible_label_count": 0,
+        "map_without_order_owner": 64
+      }
+    },
+    {
+      "page": 17,
+      "groups": 4,
+      "delayed": false,
+      "instant": false,
+      "counts": {
+        "completed_selector_samples": 48,
+        "native_samples": 0,
+        "abs_map_inputs": 48,
+        "single_source_matching_chain": 48,
+        "exact_projected_label_bytes": 48,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 1968,
+        "eligible_label_count": 144,
+        "map_without_order_owner": 0
+      }
+    },
+    {
+      "page": 17,
+      "groups": 4,
+      "delayed": false,
+      "instant": true,
+      "counts": {
+        "completed_selector_samples": 16,
+        "native_samples": 0,
+        "abs_map_inputs": 16,
+        "single_source_matching_chain": 0,
+        "exact_projected_label_bytes": 0,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 0,
+        "eligible_label_count": 0,
+        "map_without_order_owner": 16
+      }
+    },
+    {
+      "page": 17,
+      "groups": 16,
+      "delayed": false,
+      "instant": false,
+      "counts": {
+        "completed_selector_samples": 192,
+        "native_samples": 0,
+        "abs_map_inputs": 192,
+        "single_source_matching_chain": 192,
+        "exact_projected_label_bytes": 192,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 7872,
+        "eligible_label_count": 576,
+        "map_without_order_owner": 0
+      }
+    },
+    {
+      "page": 17,
+      "groups": 16,
+      "delayed": false,
+      "instant": true,
+      "counts": {
+        "completed_selector_samples": 64,
+        "native_samples": 0,
+        "abs_map_inputs": 64,
+        "single_source_matching_chain": 0,
+        "exact_projected_label_bytes": 0,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 0,
+        "eligible_label_count": 0,
+        "map_without_order_owner": 64
+      }
+    },
+    {
+      "page": 17,
+      "groups": 4,
+      "delayed": true,
+      "instant": false,
+      "counts": {
+        "completed_selector_samples": 48,
+        "native_samples": 0,
+        "abs_map_inputs": 48,
+        "single_source_matching_chain": 48,
+        "exact_projected_label_bytes": 48,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 1968,
+        "eligible_label_count": 144,
+        "map_without_order_owner": 0
+      }
+    },
+    {
+      "page": 17,
+      "groups": 4,
+      "delayed": true,
+      "instant": true,
+      "counts": {
+        "completed_selector_samples": 16,
+        "native_samples": 0,
+        "abs_map_inputs": 16,
+        "single_source_matching_chain": 0,
+        "exact_projected_label_bytes": 0,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 0,
+        "eligible_label_count": 0,
+        "map_without_order_owner": 16
+      }
+    },
+    {
+      "page": 17,
+      "groups": 16,
+      "delayed": true,
+      "instant": false,
+      "counts": {
+        "completed_selector_samples": 192,
+        "native_samples": 0,
+        "abs_map_inputs": 192,
+        "single_source_matching_chain": 192,
+        "exact_projected_label_bytes": 192,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 7872,
+        "eligible_label_count": 576,
+        "map_without_order_owner": 0
+      }
+    },
+    {
+      "page": 17,
+      "groups": 16,
+      "delayed": true,
+      "instant": true,
+      "counts": {
+        "completed_selector_samples": 64,
+        "native_samples": 0,
+        "abs_map_inputs": 64,
+        "single_source_matching_chain": 0,
+        "exact_projected_label_bytes": 0,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 0,
+        "eligible_label_count": 0,
+        "map_without_order_owner": 64
+      }
+    },
+    {
+      "page": 1024,
+      "groups": 4,
+      "delayed": false,
+      "instant": false,
+      "counts": {
+        "completed_selector_samples": 48,
+        "native_samples": 0,
+        "abs_map_inputs": 48,
+        "single_source_matching_chain": 48,
+        "exact_projected_label_bytes": 48,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 1968,
+        "eligible_label_count": 144,
+        "map_without_order_owner": 0
+      }
+    },
+    {
+      "page": 1024,
+      "groups": 4,
+      "delayed": false,
+      "instant": true,
+      "counts": {
+        "completed_selector_samples": 16,
+        "native_samples": 0,
+        "abs_map_inputs": 16,
+        "single_source_matching_chain": 0,
+        "exact_projected_label_bytes": 0,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 0,
+        "eligible_label_count": 0,
+        "map_without_order_owner": 16
+      }
+    },
+    {
+      "page": 1024,
+      "groups": 16,
+      "delayed": false,
+      "instant": false,
+      "counts": {
+        "completed_selector_samples": 192,
+        "native_samples": 0,
+        "abs_map_inputs": 192,
+        "single_source_matching_chain": 192,
+        "exact_projected_label_bytes": 192,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 7872,
+        "eligible_label_count": 576,
+        "map_without_order_owner": 0
+      }
+    },
+    {
+      "page": 1024,
+      "groups": 16,
+      "delayed": false,
+      "instant": true,
+      "counts": {
+        "completed_selector_samples": 64,
+        "native_samples": 0,
+        "abs_map_inputs": 64,
+        "single_source_matching_chain": 0,
+        "exact_projected_label_bytes": 0,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 0,
+        "eligible_label_count": 0,
+        "map_without_order_owner": 64
+      }
+    },
+    {
+      "page": 1024,
+      "groups": 4,
+      "delayed": true,
+      "instant": false,
+      "counts": {
+        "completed_selector_samples": 48,
+        "native_samples": 0,
+        "abs_map_inputs": 48,
+        "single_source_matching_chain": 48,
+        "exact_projected_label_bytes": 48,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 1968,
+        "eligible_label_count": 144,
+        "map_without_order_owner": 0
+      }
+    },
+    {
+      "page": 1024,
+      "groups": 4,
+      "delayed": true,
+      "instant": true,
+      "counts": {
+        "completed_selector_samples": 16,
+        "native_samples": 0,
+        "abs_map_inputs": 16,
+        "single_source_matching_chain": 0,
+        "exact_projected_label_bytes": 0,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 0,
+        "eligible_label_count": 0,
+        "map_without_order_owner": 16
+      }
+    },
+    {
+      "page": 1024,
+      "groups": 16,
+      "delayed": true,
+      "instant": false,
+      "counts": {
+        "completed_selector_samples": 192,
+        "native_samples": 0,
+        "abs_map_inputs": 192,
+        "single_source_matching_chain": 192,
+        "exact_projected_label_bytes": 192,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 7872,
+        "eligible_label_count": 576,
+        "map_without_order_owner": 0
+      }
+    },
+    {
+      "page": 1024,
+      "groups": 16,
+      "delayed": true,
+      "instant": true,
+      "counts": {
+        "completed_selector_samples": 64,
+        "native_samples": 0,
+        "abs_map_inputs": 64,
+        "single_source_matching_chain": 0,
+        "exact_projected_label_bytes": 0,
+        "projected_label_mismatch": 0,
+        "multiple_descriptor_sources": 0,
+        "eligible_label_payload_bytes": 0,
+        "eligible_label_count": 0,
+        "map_without_order_owner": 64
+      }
+    }
+  ],
+  "tests": [
+    {
+      "filter": "mapped_label_descriptor_availability_census",
+      "passed": 1,
+      "ignored": 0
+    },
+    {
+      "filter": "selector_group_labels_",
+      "passed": 5,
+      "ignored": 0
+    },
+    {
+      "filter": "cancellation_in_label_callbacks_stops_each_metadata_walk_and_releases_owners",
+      "passed": 1,
+      "ignored": 0
+    },
+    {
+      "filter": "mapped_groups_keep_cold_selected_next_clock_and_output_failures",
+      "passed": 1,
+      "ignored": 0
+    }
+  ],
+  "summary": {
+    "queries": 24,
+    "range_queries": 12,
+    "instant_queries": 12,
+    "observed_completed_selector_samples": 1920,
+    "exact_current_mapped_label_matches": 1440,
+    "instant_without_ordered_owner": 480,
+    "matching_source_label_payload_bytes": 59040,
+    "matching_source_label_entries": 4320
+  },
+  "interpretation": "Every observed range-query completion in this24query census had a retained complete mapped descriptor with exactly matching current projected bytes and one matching physical source ordinal. Instant completions had no such owner. This measures opportunity after the original copy, not allocation savings, new behavior or speed.",
+  "contract_findings": [
+    "Catalog ordinal identifies the retained series handle, but generic Rust Series does not explicitly promise immutable label bytes across calls.",
+    "Current code rereads/validates/matches labels and later checks mapped hash and labels. Ordinal-only substitution could bypass those checks.",
+    "Any future reuse must check current complete mapped-byte equivalence and fall back on mismatch, preserving metadata rules, duplicate/hash/head checks, diagnostics and cancellation.",
+    "Group-key-only labels are insufficient through Map: distinct member labels sharing one group must remain distinct until aggregation."
+  ],
+  "limits": [
+    "Only24synthetic Float queries; no native, alias, changed-provider-metadata or raw-empty census case was run. Their counters being zero is not qualification of those paths.",
+    "Only finish_selector_sample observer-site completions counted; preparation/other helpers/scheduled copies outside this site are not counted.",
+    "Potential bytes are raw label name/value payload, not allocation capacity/traffic, peak memory or proven savings.",
+    "Assertions cover complete series membership, label bytes, values/timestamps, annotations and owner release; no new row-order qualification or language coverage.",
+    "No production optimization, timing benchmark, compiled footprint comparison, ARM or C-executable qualification in this step."
+  ],
+  "instrumentation": {
+    "patch": "mapped-label-census.patch",
+    "sha256": "bf8dc2ffea4b8ba61137273caa7e80f6a362e2843327997929263c821e86085b",
+    "scope": "Temporary cfg(test) observer and unit only; applied after original copying. Both source files restored exactly. Patch-check succeeds on recorded baseline; do not use instrumented unit timing as production performance."
+  },
+  "binary": {
+    "runtime_path": ".tmp/sort-emit-m_7f3p5d/native-target/release/deps/netdata_promql_engine-18617ffc48387a05",
+    "uncompressed_sha256": "b7d3f93e4fd03eb0eaad9170e8f9b8c4b1d3a48694c5df307d701d4a41e89a9f",
+    "uncompressed_bytes": 29599296,
+    "retained_gzip": ".tmp/mapped-label-census-qx9pi_iy/census-unit.gz",
+    "gzip_sha256": "6c004478b4a7e452e1c1cdb0bc5682dc0b2c0259dd06f06736985720617d0a88",
+    "gzip_bytes": 9163806,
+    "scope": "Executable was run from the shared build cache, verified immediately before/after every command. Its retained immutable artifact is this gzip; the cache path may later be reused. No duplicate uncompressed artifact or deletion."
+  },
+  "receipts": {
+    "baseline-binding": {
+      "path": ".tmp/mapped-label-census-qx9pi_iy/baseline-binding.json",
+      "sha256": "5561b0dd636885606389395a4e08eb0ebf2be5e29b85611062e25205ee4c01db"
+    },
+    "baseline-source": {
+      "path": ".tmp/mapped-label-census-qx9pi_iy/baseline-source.json",
+      "sha256": "ec3805ac4c676660372a0868097603cbea23230bad277956ad0b761fd08e8ca3"
+    },
+    "candidate-source": {
+      "path": ".tmp/mapped-label-census-qx9pi_iy/candidate-source.json",
+      "sha256": "c92e0a8ba51ba106fc40fb279f0c35685841c5aa72d9c693ecdac504a4fe3f07"
+    },
+    "restored-source": {
+      "path": ".tmp/mapped-label-census-qx9pi_iy/restored-source.json",
+      "sha256": "ec3805ac4c676660372a0868097603cbea23230bad277956ad0b761fd08e8ca3"
+    },
+    "census-plan": {
+      "path": ".tmp/mapped-label-census-qx9pi_iy/census-plan.json",
+      "sha256": "19d016ce00e5df4188bc5986d920a72efc15166d2fa72cbcad4a7cf7cd2a0145"
+    },
+    "census": {
+      "path": ".tmp/mapped-label-census-qx9pi_iy/census.json",
+      "sha256": "d2de5873ae38efab324ae647806e78414eb3ea531780681ba955a5ed95acf65e"
+    },
+    "unit-binding": {
+      "path": ".tmp/mapped-label-census-qx9pi_iy/unit-binding.json",
+      "sha256": "b6733f4495cf728d7e48b7c64617364f55ac252fe27a4010a6539ada43cb9c1a"
+    },
+    "restoration": {
+      "path": ".tmp/mapped-label-census-qx9pi_iy/restoration.json",
+      "sha256": "ba0c30748954779e78b1d1f720d80f1107337900fb34c4aad9c36389b278fb81"
+    }
+  },
+  "retained_instrumented_sources": [
+    {
+      "path": "src/crates/promql-engine/src/evaluator.rs",
+      "instrumented_sha256": "5da36e842b3334d024e481509352ef2b3f1c391e3c3564447f3b13b0c004c879",
+      "baseline_sha256": "108ba68608b5cf169b7c0dc2806469189e4e0336f641ccb59f61859704d34d9b",
+      "retained_source": ".tmp/mapped-label-census-qx9pi_iy/instrumented-evaluator.rs"
+    },
+    {
+      "path": "src/crates/promql-engine/src/execution.rs",
+      "instrumented_sha256": "91995fcccc5afa5814c2c6c4384aa3a8beef93ee7d202e1fda6d23e72c659317",
+      "baseline_sha256": "a221c1597206af8572814cd9992ab9b61638a423d19031cf40c16b792cc99f93",
+      "retained_source": ".tmp/mapped-label-census-qx9pi_iy/instrumented-execution.rs"
+    }
+  ],
+  "helper_correction": "First restore helper had a path-indexing typo and stopped before any source write. Successor verifies the already-retained patch/source and performs the exact restoration."
+}

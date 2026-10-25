@@ -451,3 +451,7 @@ The rejected checked output-label capacity trial and its timing repeatability li
 Unchanged-binary timing calibration and limits of pooled short-run medians are recorded in
 `src/crates/promql-engine/tests/promql-conformance/README.md#unchanged-binary-timing-calibration`;
 retain paired blocks and absolute drift without reclassifying historical rejected candidates.
+
+Complete mapped-label owner availability and the need to compare current provider label bytes are recorded in
+`src/crates/promql-engine/tests/promql-conformance/README.md#complete-mapped-label-availability-census`;
+ordinal identity alone does not establish generic-provider label-byte identity.

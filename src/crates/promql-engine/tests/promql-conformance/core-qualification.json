@@ -74467,5 +74467,14 @@
     "same_binary_per_pair": true,
     "production_change": false,
     "historical_gates_unchanged": true
+  },
+  "complete_mapped_label_census": {
+    "status": "eligibility_measured",
+    "report": "mapped-label-census.json",
+    "report_sha256": "7f8d7d6bc9cc866902b91095c667b9b21271ded1177fe15d5f6f9542fe4fc81c",
+    "queries": 24,
+    "observed_selector_completions": 1920,
+    "exact_projected_matches": 1440,
+    "production_change": false
   }
 }

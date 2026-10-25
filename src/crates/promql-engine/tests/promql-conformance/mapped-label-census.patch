@@ -1,0 +1,239 @@
+diff --git a/src/crates/promql-engine/src/evaluator.rs b/src/crates/promql-engine/src/evaluator.rs
+index 438437058c..ce6cf26e1d 100644
+--- a/src/crates/promql-engine/src/evaluator.rs
++++ b/src/crates/promql-engine/src/evaluator.rs
+@@ -34,6 +34,7 @@ const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
+ thread_local! {
+     static SELECTOR_GROUP_PHASE: std::cell::Cell<Option<(u64, u64)>> = const { std::cell::Cell::new(None) };
+     static SELECTOR_LABEL_OWNERS: std::cell::Cell<Option<[usize; 4]>> = const { std::cell::Cell::new(None) };
++    static MAPPED_LABEL_CENSUS: std::cell::Cell<Option<[usize; 10]>> = const { std::cell::Cell::new(None) };
+ }
+ 
+ #[cfg(test)]
+@@ -59,6 +60,19 @@ pub(crate) fn observe_selector_labels<R>(
+     )
+ }
+ 
++#[cfg(test)]
++pub(crate) fn observe_mapped_label_census<R>(operation: impl FnOnce() -> R) -> (R, [usize; 10]) {
++    struct Restore(Option<[usize; 10]>);
++    impl Drop for Restore {
++        fn drop(&mut self) {
++            MAPPED_LABEL_CENSUS.set(self.0);
++        }
++    }
++    let _restore = Restore(MAPPED_LABEL_CENSUS.replace(Some([0; 10])));
++    let result = operation();
++    (result, MAPPED_LABEL_CENSUS.get().unwrap())
++}
++
+ #[cfg(test)]
+ fn record_selector_labels(borrowed: bool, native: bool) {
+     if let Some(mut counts) = SELECTOR_LABEL_OWNERS.get() {
+@@ -2715,6 +2729,103 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
+         }
+         Ok(())
+     }
++    #[cfg(test)]
++    fn record_mapped_label_census(
++        &self,
++        node: NodeId,
++        selector_node: NodeId,
++        operation: SelectorOperation,
++        ordinal: usize,
++        labels: &[crate::storage::LabelRef<'_>],
++        native: bool,
++    ) {
++        let Some(mut counts) = MAPPED_LABEL_CENSUS.get() else {
++            return;
++        };
++        counts[0] += 1;
++        counts[1] += usize::from(native);
++        let mut observe = || {
++            let [.., map, current] = self.frames.as_ref() else {
++                return;
++            };
++            if !matches!(
++                map.state,
++                State::Map {
++                    operation: MapOperation::Pointwise(PointwiseFunction::Float(
++                        FloatFunction::Abs,
++                        _
++                    )),
++                    ..
++                }
++            ) {
++                return;
++            }
++            counts[2] += 1;
++            let [.., ordered, _, _] = self.frames.as_ref() else {
++                counts[9] += 1;
++                return;
++            };
++            let State::OrderedRows {
++                descriptors,
++                sources,
++                position,
++                running: true,
++                streaming: false,
++            } = &ordered.state
++            else {
++                counts[9] += 1;
++                return;
++            };
++            if native
++                || ordered.node != map.node
++                || !map.bypass_order
++                || current.node != node
++                || node != selector_node
++                || !matches!(operation, SelectorOperation::Instant)
++                || !matches!(current.state, State::Selection {
++                    selector, operation: SelectorOperation::Instant, ..
++                } if selector == selector_node)
++                || self.selector(selector_node).anchored
++                || self.selector(selector_node).smoothed
++            {
++                return;
++            }
++            let Some(descriptor) = descriptors.get(*position) else {
++                return;
++            };
++            let source = &sources[descriptor.sources.clone()];
++            if source.len() != 1 {
++                counts[6] += 1;
++                return;
++            }
++            if source[0] != ordinal {
++                return;
++            }
++            counts[3] += 1;
++            let projected = labels
++                .iter()
++                .filter(|label| self.options.delayed_name_removal || !metadata(label.name))
++                .map(|label| (label.name, label.value));
++            if projected.eq(descriptor
++                .labels
++                .0
++                .iter()
++                .map(|label| (&*label.name, &*label.value)))
++            {
++                counts[4] += 1;
++                counts[7] += labels
++                    .iter()
++                    .map(|label| label.name.len() + label.value.len())
++                    .sum::<usize>();
++                counts[8] += labels.len();
++            } else {
++                counts[5] += 1;
++            }
++        };
++        observe();
++        MAPPED_LABEL_CENSUS.set(Some(counts));
++    }
++
+     fn finish_selector_sample(
+         &self,
+         node: NodeId,
+@@ -2745,6 +2856,15 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
+                     matches!(labels, SampleLabels::Borrowed(_)),
+                     matches!(value.2.value, OwnedValue::Histogram(_)),
+                 );
++                #[cfg(test)]
++                self.record_mapped_label_census(
++                    node,
++                    selector_node,
++                    operation,
++                    series_ordinal,
++                    series_labels,
++                    matches!(value.2.value, OwnedValue::Histogram(_)),
++                );
+                 self.finish_selector_value(selector_node, operation, series_ordinal, labels, value)
+             })
+             .transpose()
+diff --git a/src/crates/promql-engine/src/execution.rs b/src/crates/promql-engine/src/execution.rs
+index 36ff7d97b9..32873efd8f 100644
+--- a/src/crates/promql-engine/src/execution.rs
++++ b/src/crates/promql-engine/src/execution.rs
+@@ -27670,6 +27670,82 @@ mod tests {
+         }
+     }
+ 
++    #[test]
++    fn mapped_label_descriptor_availability_census() {
++        let mut queries = 0;
++        for page in [1, 17, 1024] {
++            for delayed in [false, true] {
++                for groups in [4, 16] {
++                    for instant in [false, true] {
++                        let provider = mapped_group_provider(page, groups);
++                        let engine = Engine::default();
++                        let control = Control::default();
++                        let query = engine
++                            .compile(
++                                b"sum by(instance)(abs(counter_total))",
++                                options(delayed),
++                                &control,
++                            )
++                            .unwrap();
++                        let request = if instant {
++                            QueryRequest::Instant { time_ms: 3000 }
++                        } else {
++                            QueryRequest::Range {
++                                start_ms: 3000,
++                                end_ms: 5000,
++                                step_ms: 1000,
++                            }
++                        };
++                        let (report, counts) =
++                            crate::evaluator::observe_mapped_label_census(|| {
++                                query.collect_reported(&provider, request, &control)
++                            });
++                        let result = report.result.as_ref().unwrap();
++                        assert!(report.annotations.is_empty());
++                        assert_eq!(result.series.len(), groups);
++                        let mut seen = vec![false; groups];
++                        for row in result.series.iter() {
++                            assert_eq!(row.labels.0.len(), 1);
++                            assert_eq!(&*row.labels.0[0].name, b"instance");
++                            let group: usize = std::str::from_utf8(&row.labels.0[0].value[1..])
++                                .unwrap()
++                                .parse()
++                                .unwrap();
++                            assert!(group < groups && !seen[group]);
++                            seen[group] = true;
++                            assert_eq!(&*row.labels.0[0].value, format!("g{group:04}").as_bytes());
++                            assert_eq!(row.points.len(), if instant { 1 } else { 3 });
++                            for (tick, point) in row.points.iter().enumerate() {
++                                let time = (tick + 3) as f64;
++                                let expected =
++                                    2.0 * time * if group.is_multiple_of(2) { 1.0 } else { 2.0 };
++                                assert_eq!(point.time_ms, (tick as i64 + 3) * 1000);
++                                assert_eq!(float_bits(point), expected.to_bits());
++                            }
++                        }
++                        assert!(seen.into_iter().all(|present| present));
++                        assert_eq!(counts[1], 0);
++                        assert!(counts[2] <= counts[0]);
++                        assert!(counts[3] <= counts[2]);
++                        assert_eq!(counts[3], counts[4] + counts[5]);
++                        assert_eq!(
++                            report.observations.memory[MemoryKind::Workspace as usize].current,
++                            0
++                        );
++                        println!(
++                            "mapped-label-census page={page} groups={groups} delayed={delayed} instant={instant} counts={counts:?}"
++                        );
++                        provider.assert_closed();
++                        drop((report, query));
++                        engine.accounting.snapshot().assert_memory_released();
++                        queries += 1;
++                    }
++                }
++            }
++        }
++        assert_eq!(queries, 24);
++    }
++
+     #[test]
+     fn selector_group_labels_borrow_only_direct_float_inputs() {
+         let mut queries = 0;

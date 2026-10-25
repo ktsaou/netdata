@@ -12679,3 +12679,31 @@ sequentially on a shared host, so this does not isolate a cause or guarantee rep
 should declare their estimator, repetitions, controls and unchanged-binary checks before measuring a
 candidate. Historical rejected candidates and their frozen criteria remain unchanged. No runtime, ABI,
 query limit or language support was modified.
+
+## Complete mapped-label availability census
+
+A [test-only census](mapped-label-census.json) checked whether `sum by(instance)(abs(counter_total))`
+already holds complete labels that could replace repeated selector copies. The original copy still ran;
+**no runtime optimization was implemented**. The temporary instrumentation was then restored exactly.
+
+The 24 queries cover 4/16 groups, instant/range requests, both name-removal modes and page sizes 1/17/1024.
+Each group has two distinct member labels, so group-only substitution would be incorrect. All query result
+membership, labels, values, timestamps, annotations and ownership checks passed, as did the focused
+selector and callback-cancellation tests: eight passing tests in total.
+
+- Range queries: **1,440 observed selector completions**, all with one matching physical source ordinal and
+  complete current mapped-label bytes equal to an existing descriptor.
+- Instant queries: **480 observed completions**, none with that ordered descriptor owner.
+- Matching labels contain 59,040 payload bytes across 4,320 label entries. These are potential-copy payload
+  counts, **not measured allocation savings, peak memory or throughput gains**.
+
+Ordinal alone is insufficient: the generic Rust provider contract does not explicitly promise identical
+label bytes across calls. Future reuse must compare current full mapped labels and fall back on mismatch;
+it must retain metadata removal, duplicate detection, hash/head checks and cancellation. Existing group-key
+borrowing cannot simply pass through `abs`, where complete member labels are still needed.
+
+The [instrumentation patch](mapped-label-census.patch) targets the reference revision in the report. Its
+`mapped_label_descriptor_availability_census` unit reproduces the count using existing fixtures; it is
+for observation, not performance timing. The compiled test executable is retained losslessly compressed,
+with its uncompressed digest. No native-histogram, alias, changed-label or raw-empty census case was run;
+zero counters do not establish coverage for those paths. Other copy sites were not counted.

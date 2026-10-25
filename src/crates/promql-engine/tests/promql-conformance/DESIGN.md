@@ -3313,3 +3313,12 @@ candidate execution. This evidence changes no historical gate and selects no new
 Longer cohorts were more stable in this finite run; shared-host variation and sequential phases prevent
 attributing that solely to repetition count. Process setup/capture costs remain distinct from query time
 and accounted memory. No production implementation changed.
+
+## Complete mapped-label reuse prerequisite
+
+The [availability census](README.md#complete-mapped-label-availability-census) finds existing complete
+mapped descriptors during its range queries, but not instant queries. Catalog ordinals preserve handle
+identity; the generic provider contract does not establish unchanged label bytes. Reuse therefore needs
+checked equivalence with current complete mapped labels, with mismatch fallback. Preserve all existing
+metadata, duplicate, hash/head and cancellation checks. The census measures eligibility only and changes
+no runtime behavior or provider contract; raw payload counts are not allocated-byte savings.
