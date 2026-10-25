@@ -27732,7 +27732,7 @@ mod tests {
 
     #[test]
     fn mapped_rates_keep_nested_map_materialization_on_the_owned_path() {
-        for function in ["rate", "increase"] {
+        for function in ["rate", "increase", "delta", "irate", "idelta"] {
             for aggregate in [false, true] {
                 let child = format!("abs(abs({function}(counter_total[3s])))");
                 let expression = if aggregate {
@@ -27801,10 +27801,14 @@ mod tests {
     #[test]
     fn mapped_rates_borrow_complete_labels_with_child_metadata_projection() {
         let mut pairs = 0;
-        for function in ["rate", "increase"] {
+        for function in ["rate", "increase", "delta", "irate", "idelta"] {
             for shape in 0..8 {
                 let child = format!("{function}(counter_total[3s])");
-                let threshold = if function == "rate" { 1.5 } else { 4.5 };
+                let threshold = if !matches!(function, "increase" | "delta") {
+                    1.5
+                } else {
+                    4.5
+                };
                 let parameter = format!("scalar(vector({threshold}))");
                 let expression = match shape {
                     0 => format!("{child}/3"),
@@ -27878,7 +27882,12 @@ mod tests {
                                 assert!(matches!(labels[1].1, b"g0000" | b"g0001"));
                                 assert!(matches!(labels[2].1, b"0" | b"1"));
                                 let scale = if labels[1].1 == b"g0000" { 1.0 } else { 2.0 };
-                                let value = scale * if function == "rate" { 1.0 } else { 3.0 };
+                                let value = scale
+                                    * if !matches!(function, "increase" | "delta") {
+                                        1.0
+                                    } else {
+                                        3.0
+                                    };
                                 let expected: f64 = match shape {
                                     0 => value / 3.0,
                                     1 => 3.0 / value,
@@ -27912,7 +27921,129 @@ mod tests {
                 }
             }
         }
-        assert_eq!(pairs, 96);
+        assert_eq!(pairs, 240);
+    }
+
+    #[test]
+    fn mapped_rate_family_preserves_typed_endpoints_and_irregular_reset_values() {
+        use crate::{annotations::AnnotationKind, value::SampleValue};
+        fn sample<const STATE: u8>(index: usize) -> crate::value::Sample {
+            let mut point = diagnostic_sample(index);
+            point.time_ms = [500, 1500, 2500, 4500][index];
+            point.value = if (STATE == 3 && index == 0) || (STATE == 4 && index == 2) || STATE == 5
+            {
+                native_range_sample(index).value
+            } else {
+                SampleValue::Float(match STATE {
+                    1 => [10.0, 20.0, 2.0, 4.0][index],
+                    2 => [2.0, 5.0, 11.0, 3.0][index],
+                    _ => [2.0, 5.0, 11.0, 17.0][index],
+                })
+            };
+            point
+        }
+        let mut pairs = 0;
+        for function in ["delta", "irate", "idelta"] {
+            for state in 0..6 {
+                let expected: Option<f64> = match (function, state) {
+                    (_, 4 | 5) | ("delta", 3) => None,
+                    ("delta", 0) => Some(16.875),
+                    ("delta", 1) => Some(-6.75),
+                    ("delta", 2) => Some(1.125),
+                    ("irate", 0 | 3) => Some(3.0),
+                    ("irate", 1) => Some(1.0),
+                    ("irate", 2) => Some(1.5),
+                    ("idelta", 0 | 3) => Some(6.0),
+                    ("idelta", 1) => Some(2.0),
+                    ("idelta", 2) => Some(-8.0),
+                    _ => unreachable!(),
+                };
+                for delayed in [false, true] {
+                    for page in [1, 17, 1024] {
+                        let mut outputs = Vec::new();
+                        for skip in [true, false] {
+                            let mut provider = mapped_group_provider(page, 1);
+                            for row in &mut provider.series {
+                                row.labels[0].1 = b"m".to_vec();
+                                row.source.count = 4;
+                                row.source.sample = match state {
+                                    0 => sample::<0>,
+                                    1 => sample::<1>,
+                                    2 => sample::<2>,
+                                    3 => sample::<3>,
+                                    4 => sample::<4>,
+                                    _ => sample::<5>,
+                                };
+                            }
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let query = engine
+                                .compile(
+                                    format!("abs({function}(m[4500ms]))").as_bytes(),
+                                    options(delayed),
+                                    &control,
+                                )
+                                .unwrap();
+                            let (report, counts) =
+                                crate::evaluator::observe_mapped_labels(skip, || {
+                                    query.collect_reported(
+                                        &provider,
+                                        QueryRequest::Range {
+                                            start_ms: 4500,
+                                            end_ms: 4501,
+                                            step_ms: 1,
+                                        },
+                                        &control,
+                                    )
+                                });
+                            let result = report.result.as_ref().unwrap();
+                            assert!(
+                                !report
+                                    .annotations
+                                    .iter()
+                                    .any(|a| a.kind == AnnotationKind::PossibleNonCounter)
+                            );
+                            let mixed = state == 4 || (function == "delta" && state == 3);
+                            assert_eq!(
+                                report
+                                    .annotations
+                                    .iter()
+                                    .any(|a| a.kind == AnnotationKind::MixedFloatsHistograms),
+                                mixed
+                            );
+                            assert_eq!(result.series.len(), if expected.is_some() { 2 } else { 0 });
+                            if let Some(expected) = expected {
+                                assert!(counts[0] > 0, "{function}/{state}: {counts:?}");
+                                if !skip {
+                                    assert!(counts[1] > 0 && counts[2] == 0);
+                                }
+                                for row in &*result.series {
+                                    assert_eq!(
+                                        row.points
+                                            .iter()
+                                            .map(|p| (p.time_ms, float_bits(p)))
+                                            .collect::<Vec<_>>(),
+                                        [4500, 4501].map(|time| (time, expected.abs().to_bits()))
+                                    );
+                                }
+                            } else {
+                                assert_eq!(counts, [0, 0, 0]);
+                            }
+                            outputs.push(mapped_float_report_snapshot(&report));
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                        assert_eq!(
+                            outputs[0], outputs[1],
+                            "{function}/{state}/{delayed}/{page}"
+                        );
+                        pairs += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(pairs, 108);
     }
 
     #[test]
@@ -28708,6 +28839,9 @@ mod tests {
             b"sum by(instance)(counter_total>bool 0)".as_slice(),
             b"sum by(instance)(rate(counter_total[3s])>0)".as_slice(),
             b"sum by(instance)(increase(counter_total[3s])/3)".as_slice(),
+            b"sum by(instance)(delta(counter_total[3s])>0)".as_slice(),
+            b"sum by(instance)(irate(counter_total[3s])/3)".as_slice(),
+            b"sum by(instance)(3/idelta(counter_total[3s]))".as_slice(),
         ] {
             for page in [1, 17, 1024] {
                 for delayed in [false, true] {

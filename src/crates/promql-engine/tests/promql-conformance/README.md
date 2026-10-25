@@ -12850,3 +12850,29 @@ The [corpus](mapped_rate_label_borrow_cases.py) and [C consumer](mapped_rate_lab
 the scenarios. Start-timestamp semantics are enabled in separate focused checks; the corpus's 32
 start-reset/overlap cases use the default profile and ignore those timestamps. These finite measurements
 do not establish universal speed, live or concurrent throughput, process RSS, or physical ARM performance.
+
+## Borrowed mapped rate-family labels
+
+Float `delta()`, `irate()` and `idelta()` now share the existing mapped-label reuse path with
+`rate()` and `increase()`. This applies to a root numeric/scalar map or a map immediately consumed by
+an ordinary aggregate. The map reuses its complete label descriptor after checking current label bytes
+and the exact source and operation. The earlier nested-map exclusion remains. Arithmetic and diagnostic rules are unchanged.
+
+[Qualification](rate-family-label-borrow-qualification.json) covers 4,812 early pairs, 27,768 broader
+pairs, 28 focused checks, both complete native profiles, selected ARM tests and 10,944 C/C++ pairs.
+There are 240 independently expected linear-result pairs, 108 irregular/reset/typed-history pairs
+and 60 nested-map pairs with zero borrowing and unchanged resources. Older histogram history followed
+by two floats permits `irate()`/`idelta()` borrowing; a mixed `delta()` window remains absent.
+
+Across 80 timing shapes, target time ratios are **0.8267** (`release`) and
+**0.8716** (`release-min`); controls are **1.0004** and **1.0148**.
+These are engine execution timings after compilation, excluding JSON transport and API latency.
+The report retains all 23,472 paired queries, followups and shared-host variation. In the
+64-input delta/division case, workspace allocation traffic falls from **6,649,320 to
+4,532,712 bytes**; peak workspace is **433,704 to 433,704 bytes**.
+Compiled code/data/BSS costs are reported separately from per-query memory.
+
+The [corpus](rate_family_label_borrow_cases.py) enables start timestamps for its 48 new start/reset
+cases; the inherited 32 default-profile cases still ignore starts. The [C consumer](rate_family_label_borrow.c)
+covers actual output ownership. Original disagreements remain recorded failures. These finite measurements
+do not establish universal speed, live or concurrent throughput, process RSS, or physical ARM performance.

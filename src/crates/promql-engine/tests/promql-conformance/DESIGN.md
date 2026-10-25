@@ -3358,7 +3358,8 @@ unchanged Map code. [Comparison qualification](README.md#borrowed-scalar-compari
 independently expected membership/labels, real borrow hits, NaN/stale inputs and parameter failures.
 
 
-Mapped Float Rate/Increase calls reuse the same complete-label proof only with exact active call node,
+Mapped Float rate-family calls (`rate`, `increase`, `delta`, `irate`, `idelta`) reuse the complete-label proof
+only with exact active call node,
 raw selector, kind and nanosecond range. Early metadata projection accounts for both child and map.
 For these new admissions, the ordered/map/selection triple must be the whole stack or immediately
 below a collecting ordinary aggregate. A nested map may need a newly owned outer descriptor, so
@@ -3366,3 +3367,9 @@ borrowing there can add comparison before rematerialization; that broad trial fa
 All existing Instant behavior is retained. Native, absent, extended and other-operation paths retain
 their existing owners. [Qualification](README.md#borrowed-mapped-rate-labels) records the retained failure,
 the consumer-qualified successor, current-label fallbacks and separate runtime/compiled costs.
+
+The remaining [rate-family qualification](README.md#borrowed-mapped-rate-family-labels) separates
+ownership eligibility from counter-name diagnostics. Only completed Float values borrow: `delta`
+suppresses mixed whole windows, while `irate`/`idelta` may return Float after older native history
+when their selected final pair is Float. Irregular spacing and final-pair resets retain their distinct
+arithmetic. The existing consumer restriction applies to every Rate-function admission.

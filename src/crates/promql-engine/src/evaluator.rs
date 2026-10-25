@@ -2852,9 +2852,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     kind: active_kind,
                     range_ns: active_range,
                 },
-            ) if kind.checks_counter_name() && kind == active_kind && range_ns == active_range => {
-                true
-            }
+            ) if kind == active_kind && range_ns == active_range => true,
             _ => return Ok(None),
         };
         // Another map can need a fresh descriptor and copy the borrowed labels again.

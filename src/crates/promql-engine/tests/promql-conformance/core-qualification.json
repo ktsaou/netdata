@@ -74521,5 +74521,14 @@
     "timing_pairs": 14568,
     "C_CPP_pairs": 8640,
     "peak_memory_increase": false
+  },
+  "borrowed_mapped_rate_family_labels": {
+    "status": "finite_qualification_pass",
+    "report": "rate-family-label-borrow-qualification.json",
+    "report_sha256": "38e684870af73bf7645a231c4c502b32f771c51026a9abab7deef7f0ecbde807",
+    "broad_pairs": 27768,
+    "timing_pairs": 23472,
+    "C_CPP_pairs": 10944,
+    "peak_memory_increase": false
   }
 }

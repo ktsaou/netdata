@@ -478,3 +478,7 @@ Mapped Rate/Increase label reuse follows
 active call/selector/kind/range, child-plus-map metadata projection and immediate consumer ownership.
 Nested descriptor rematerialization can add work despite lower allocation traffic; retain that failed
 trial and require actual borrow hits plus unchanged nested-path resources for the narrowed admission.
+
+The complete mapped rate family follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-mapped-rate-family-labels` for
+whole-window versus final-pair type selection and separate counter-name diagnostics; keep consumer exclusions.
