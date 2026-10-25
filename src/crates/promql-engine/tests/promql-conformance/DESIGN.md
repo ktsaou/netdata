@@ -3325,7 +3325,8 @@ no runtime behavior or provider contract; raw payload counts are not allocated-b
 
 ## Borrowed complete mapped labels
 
-A completed ordinary Float selector below a numeric Float map may borrow its full ordered descriptor only
+A completed ordinary Float selector below a numeric Float map or metadata-changing scalar arithmetic
+may borrow its full ordered descriptor only
 when node/frame/source identity and checked current mapped label bytes agree. The descriptor's owner
 already spans evaluation; no new cache or provider immutability promise is introduced. Early metadata
 removal is reflected in comparison without normalizing raw empty values. Map duplicate and OrderedRows
@@ -3340,3 +3341,10 @@ parameters complete before the Map state is installed; borrowing does not move p
 errors or filtering. This proof excludes timestamp and native-histogram maps and keeps the existing
 exact frame shape. [Numeric-map qualification](README.md#borrowed-numeric-map-labels) includes actual
 borrow hits, changing provider labels, sparse/native inputs and valid/empty/valid clamp bounds.
+
+Scalar arithmetic uses the existing `binary_value::changes_metadata` predicate for this same complete-label
+proof, on either scalar side. The selected Float/Float operation still executes normally after borrowing;
+parameter evaluation precedes Map installation. Ordinary comparisons preserve metadata and remain outside
+this extension; Boolean comparisons, unary and other frame shapes also retain their existing paths.
+[Scalar-arithmetic qualification](README.md#borrowed-scalar-arithmetic-labels) covers actual owner hits,
+parameter Info/Warning/error outcomes and current-label mismatches without assuming provider immutability.

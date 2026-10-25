@@ -2789,13 +2789,18 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         let [.., ordered, map, current] = self.frames.as_ref() else {
             return Ok(None);
         };
-        if !matches!(
-            map.state,
+        let drops_metadata = match map.state {
             State::Map {
                 operation: MapOperation::Pointwise(PointwiseFunction::Float(..)),
                 ..
-            }
-        ) {
+            } => true,
+            State::Map {
+                operation: MapOperation::Binary { operator, .. },
+                ..
+            } => crate::binary_value::changes_metadata(operator),
+            _ => false,
+        };
+        if !drops_metadata {
             return Ok(None);
         }
         let State::OrderedRows {

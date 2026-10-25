@@ -463,3 +463,7 @@ full bytes and one physical source, preserve raw empties and final comparison po
 Numeric Float-map label reuse follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-numeric-map-labels`: preserve
 parameter/diagnostic order and filtering, require actual owner hits, and retain non-Float fallbacks.
+
+Scalar-arithmetic label reuse follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-scalar-arithmetic-labels`: preserve
+both scalar sides and parameter outcomes; use the existing metadata-removal predicate and complete current-byte proof.

@@ -27731,6 +27731,160 @@ mod tests {
     }
 
     #[test]
+    fn scalar_arithmetic_maps_borrow_complete_labels_on_both_sides() {
+        let mut children = Vec::new();
+        for operator in ["+", "-", "*", "/", "%", "^", "atan2"] {
+            children.push(format!("counter_total {operator} 3"));
+            children.push(format!("3 {operator} counter_total"));
+        }
+        children.extend([
+            "counter_total/(time()-4)".to_owned(),
+            "(time()-4)/counter_total".to_owned(),
+        ]);
+        let mut complete = 0;
+        for child in children {
+            for delayed in [false, true] {
+                let mut outputs = Vec::new();
+                for skip in [true, false] {
+                    let provider = mapped_group_provider(17, 2);
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            format!("sum by(instance)({child})").as_bytes(),
+                            options(delayed),
+                            &control,
+                        )
+                        .unwrap();
+                    let (report, counts) = crate::evaluator::observe_mapped_labels(skip, || {
+                        query.collect_reported(
+                            &provider,
+                            QueryRequest::Range {
+                                start_ms: 3000,
+                                end_ms: 5000,
+                                step_ms: 1000,
+                            },
+                            &control,
+                        )
+                    });
+                    assert!(report.result.is_ok(), "{child}: {:?}", report.result);
+                    assert!(report.annotations.is_empty());
+                    assert!(counts[0] > 0, "{child}: no eligible completion");
+                    if !skip {
+                        assert!(counts[1] > 0 && counts[2] == 0, "{child}: {counts:?}");
+                    }
+                    outputs.push(mapped_float_report_snapshot(&report));
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+                assert_eq!(outputs[0], outputs[1], "{child} delayed={delayed}");
+                complete += 1;
+            }
+        }
+        assert_eq!(complete, 32);
+    }
+
+    #[test]
+    fn scalar_arithmetic_label_borrows_preserve_parameter_diagnostics_and_failures() {
+        fn two(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(2.0),
+            }
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for mode in 0..3 {
+                    for scalar_left in [false, true] {
+                        let parameter = if mode == 1 {
+                            "scalar(sum(p))"
+                        } else {
+                            "scalar(min(p))"
+                        };
+                        let child = if scalar_left {
+                            format!("{parameter} * counter_total")
+                        } else {
+                            format!("counter_total * {parameter}")
+                        };
+                        let mut outputs = Vec::new();
+                        for skip in [true, false] {
+                            let mut provider = mapped_group_provider(page, 2);
+                            let mut parameters = mapped_group_provider(page, 1);
+                            for (index, row) in parameters.series.iter_mut().enumerate() {
+                                row.labels[0].1 = b"p".to_vec();
+                                row.source.sample =
+                                    if index == 0 { two } else { native_range_sample };
+                                if mode == 2 {
+                                    row.source.fail_page = Some(0);
+                                }
+                            }
+                            provider.series.extend(parameters.series);
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let query = engine
+                                .compile(
+                                    format!("sum by(instance)({child})").as_bytes(),
+                                    options(delayed),
+                                    &control,
+                                )
+                                .unwrap();
+                            let (report, counts) =
+                                crate::evaluator::observe_mapped_labels(skip, || {
+                                    query.collect_reported(
+                                        &provider,
+                                        QueryRequest::Range {
+                                            start_ms: 3000,
+                                            end_ms: 5000,
+                                            step_ms: 1000,
+                                        },
+                                        &control,
+                                    )
+                                });
+                            if mode == 2 {
+                                assert!(matches!(&report.result,
+                                    Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
+                                    if &**bytes == b"injected page failure"));
+                            } else {
+                                assert_eq!(report.result.as_ref().unwrap().series.len(), 2);
+                                if !skip {
+                                    assert!(counts[1] > 0 && counts[2] == 0, "{child}: {counts:?}");
+                                }
+                                let expected = if mode == 0 {
+                                    crate::annotations::AnnotationKind::HistogramIgnoredInAggregation(TokenKind::MIN)
+                                } else {
+                                    crate::annotations::AnnotationKind::MixedFloatsHistogramsAggregation
+                                };
+                                let severity = if mode == 0 {
+                                    crate::annotations::Severity::Info
+                                } else {
+                                    crate::annotations::Severity::Warning
+                                };
+                                assert!(
+                                    report
+                                        .annotations
+                                        .iter()
+                                        .any(|annotation| annotation.kind == expected
+                                            && annotation.severity == severity)
+                                );
+                            }
+                            outputs.push(mapped_float_report_snapshot(&report));
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                        assert_eq!(
+                            outputs[0], outputs[1],
+                            "{child} page={page} delayed={delayed} mode={mode}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn float_maps_borrow_complete_labels_after_parameter_evaluation() {
         let mut functions: Vec<String> = [
             "abs",
@@ -28008,6 +28162,8 @@ mod tests {
         for expression in [
             b"sum by(instance)(abs(counter_total))".as_slice(),
             b"sum by(instance)(clamp_min(counter_total,0))".as_slice(),
+            b"sum by(instance)(counter_total/3)".as_slice(),
+            b"sum by(instance)(3/counter_total)".as_slice(),
         ] {
             for page in [1, 17, 1024] {
                 for delayed in [false, true] {

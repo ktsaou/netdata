@@ -12764,3 +12764,30 @@ These are finite synthetic measurements, not live-load or universal speed guaran
 The [query corpus](float_map_label_borrow_cases.py) and [C consumer](float_map_label_borrow.c) preserve
 the scenarios. Original test-fixture mistakes and their source phases are retained explicitly; no
 failed capture was rewritten as a pass.
+
+## Borrowed scalar-arithmetic labels
+
+Scalar arithmetic now reuses the existing complete mapped labels when current bytes and the exact
+single-source owner agree. This covers `+`, `-`, `*`, `/`, `%`, `^` and `atan2`, with the scalar on
+either side. Arithmetic and parameter evaluation keep their original order. Comparisons and unary
+maps retain their previous paths. No cache, public interface or data format was added.
+
+[Qualification](scalar-map-label-borrow-qualification.json) includes 2,172 early before/after pairs,
+27,768 broader pairs, 20 focused tests, both complete native test profiles, selected ARM tests and
+8,640 C/C++ pairs. Focused tests demonstrate actual reuse on both scalar sides and compare complete
+results, parameter warnings and provider errors. Changing-label checks compare each expression at
+every read threshold; their match/mismatch counters are combined. Original disagreements remain failures.
+
+Across 48 timed shapes, target median time ratios are **0.7896** (`release`) and
+**0.8252** (`release-min`); controls are **0.9958** and
+**0.9974**. The preset gates passed over 16,542 paired queries, with
+no follow-up required. All blocks and shared-host variation remain in the report.
+
+For a grouped scalar division with 64 inputs and 16 payload labels, workspace allocation traffic
+falls from **5,070,488 to 3,073,304 bytes**; peak workspace remains **364,008 bytes**. Measured category
+peaks do not increase and physical reads are unchanged. Mismatching labels can add checked comparison
+work before copying. Fixed compiled costs are recorded separately from query memory.
+These are finite synthetic measurements, not live-load or universal speed guarantees.
+
+The [query corpus](scalar_map_label_borrow_cases.py) and [C consumer](scalar_map_label_borrow.c)
+preserve the scenarios and actual source identities.
