@@ -3379,3 +3379,17 @@ ownership eligibility from counter-name diagnostics. Only completed Float values
 suppresses mixed whole windows, while `irate`/`idelta` may return Float after older native history
 when their selected final pair is Float. Irregular spacing and final-pair resets retain their distinct
 arithmetic. The existing consumer restriction applies to every Rate-function admission.
+
+## Consumer-qualified mapped Sum and Avg labels
+
+Completed Float Sum/Avg Fold values share the existing complete mapped-label proof: exact active
+call/selector/kind/range, one physical source and checked current label bytes. Both child and map
+metadata rules apply. Diagnostics and sample credits finish before borrowing; native/absent/mixed
+values and direct-group Fold behavior retain their existing owners.
+
+Only the new Fold admission excludes delayed-name root consumers before comparing labels. Final
+output removes reserved metadata and must materialize a borrowed descriptor, defeating the original
+copy saving while adding comparison work. Existing collecting aggregates and nondelayed roots can
+consume the descriptor directly. Existing Rate/Instant admission is unchanged. The
+[measured qualification](README.md#borrowed-mapped-sum-and-avg-labels) retains the failed broad trial,
+unchanged prospective cases/gates and exact-resource fallback checks.

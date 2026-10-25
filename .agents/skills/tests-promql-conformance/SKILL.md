@@ -484,3 +484,6 @@ trial and require actual borrow hits plus unchanged nested-path resources for th
 The complete mapped rate family follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-mapped-rate-family-labels` for
 whole-window versus final-pair type selection and separate counter-name diagnostics; keep consumer exclusions.
+
+Mapped Sum/Avg consumer qualification and delayed-root rematerialization follow
+`src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-mapped-sum-and-avg-labels`.

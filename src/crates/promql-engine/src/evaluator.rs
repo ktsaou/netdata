@@ -2842,7 +2842,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         if selector != selector_node {
             return Ok(None);
         }
-        let rate = match (operation, active) {
+        let range = match (operation, active) {
             (SelectorOperation::Instant, SelectorOperation::Instant) if node == selector_node => {
                 false
             }
@@ -2853,10 +2853,23 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     range_ns: active_range,
                 },
             ) if kind == active_kind && range_ns == active_range => true,
+            (
+                SelectorOperation::Fold { kind, range_ns },
+                SelectorOperation::Fold {
+                    kind: active_kind,
+                    range_ns: active_range,
+                },
+            ) if matches!(kind, FoldKind::Sum | FoldKind::Avg)
+                && !(self.options.delayed_name_removal && prefix.is_empty())
+                && kind == active_kind
+                && range_ns == active_range =>
+            {
+                true
+            }
             _ => return Ok(None),
         };
         // Another map can need a fresh descriptor and copy the borrowed labels again.
-        if rate
+        if range
             && prefix.last().is_some_and(|frame| {
                 !matches!(
                     frame.state,
@@ -2887,7 +2900,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         let same = mapped_labels_equal(
             labels,
             &descriptor.labels,
-            self.options.delayed_name_removal || !(rate || drops_metadata),
+            self.options.delayed_name_removal || !(range || drops_metadata),
             self.account,
             self.control,
         )?;

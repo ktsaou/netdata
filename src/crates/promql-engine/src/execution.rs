@@ -27731,8 +27731,16 @@ mod tests {
     }
 
     #[test]
-    fn mapped_rates_keep_nested_map_materialization_on_the_owned_path() {
-        for function in ["rate", "increase", "delta", "irate", "idelta"] {
+    fn mapped_ranges_keep_nested_map_materialization_on_the_owned_path() {
+        for function in [
+            "rate",
+            "increase",
+            "delta",
+            "irate",
+            "idelta",
+            "sum_over_time",
+            "avg_over_time",
+        ] {
             for aggregate in [false, true] {
                 let child = format!("abs(abs({function}(counter_total[3s])))");
                 let expression = if aggregate {
@@ -27799,15 +27807,24 @@ mod tests {
     }
 
     #[test]
-    fn mapped_rates_borrow_complete_labels_with_child_metadata_projection() {
+    fn mapped_ranges_borrow_complete_labels_with_child_metadata_projection() {
         let mut pairs = 0;
-        for function in ["rate", "increase", "delta", "irate", "idelta"] {
+        for function in [
+            "rate",
+            "increase",
+            "delta",
+            "irate",
+            "idelta",
+            "sum_over_time",
+            "avg_over_time",
+        ] {
             for shape in 0..8 {
                 let child = format!("{function}(counter_total[3s])");
-                let threshold = if !matches!(function, "increase" | "delta") {
-                    1.5
-                } else {
-                    4.5
+                let threshold = match function {
+                    "sum_over_time" => 9.0,
+                    "avg_over_time" => 3.0,
+                    "increase" | "delta" => 4.5,
+                    _ => 1.5,
                 };
                 let parameter = format!("scalar(vector({threshold}))");
                 let expression = match shape {
@@ -27823,6 +27840,9 @@ mod tests {
                 for delayed in [false, true] {
                     for page in [1, 17, 1024] {
                         let mut outcomes = Vec::new();
+                        let mut resources = Vec::new();
+                        let owned_root =
+                            delayed && matches!(function, "sum_over_time" | "avg_over_time");
                         for skip in [true, false] {
                             let mut provider = mapped_group_provider(page, 2);
                             for row in &mut provider.series {
@@ -27852,8 +27872,12 @@ mod tests {
                                 });
                             let result = report.result.as_ref().unwrap();
                             assert!(report.annotations.is_empty());
-                            assert!(counts[0] > 0, "{expression}: no eligible owner");
-                            if !skip {
+                            if owned_root {
+                                assert_eq!(counts, [0, 0, 0]);
+                            } else {
+                                assert!(counts[0] > 0, "{expression}: no eligible owner");
+                            }
+                            if !skip && !owned_root {
                                 assert!(
                                     counts[1] > 0 && counts[2] == 0,
                                     "{expression}: {counts:?}"
@@ -27861,7 +27885,13 @@ mod tests {
                             }
                             assert_eq!(
                                 result.series.len(),
-                                if matches!(shape, 4 | 6) { 2 } else { 4 }
+                                if matches!(shape, 4 | 6)
+                                    && !matches!(function, "sum_over_time" | "avg_over_time")
+                                {
+                                    2
+                                } else {
+                                    4
+                                }
                             );
                             for row in &*result.series {
                                 let labels = row
@@ -27882,32 +27912,45 @@ mod tests {
                                 assert!(matches!(labels[1].1, b"g0000" | b"g0001"));
                                 assert!(matches!(labels[2].1, b"0" | b"1"));
                                 let scale = if labels[1].1 == b"g0000" { 1.0 } else { 2.0 };
-                                let value = scale
-                                    * if !matches!(function, "increase" | "delta") {
-                                        1.0
-                                    } else {
-                                        3.0
-                                    };
-                                let expected: f64 = match shape {
-                                    0 => value / 3.0,
-                                    1 => 3.0 / value,
-                                    5 | 7 => f64::from(value > threshold),
-                                    _ => value,
-                                };
-                                if matches!(shape, 4 | 6) {
-                                    assert!(value > threshold);
-                                }
+                                let expected = (3..=5)
+                                    .filter_map(|time| {
+                                        let value = scale
+                                            * match function {
+                                                "sum_over_time" => (time - 1) as f64 * 3.0,
+                                                "avg_over_time" => (time - 1) as f64,
+                                                "increase" | "delta" => 3.0,
+                                                _ => 1.0,
+                                            };
+                                        if matches!(shape, 4 | 6) && value <= threshold {
+                                            return None;
+                                        }
+                                        let mapped: f64 = match shape {
+                                            0 => value / 3.0,
+                                            1 => 3.0 / value,
+                                            5 | 7 => f64::from(value > threshold),
+                                            _ => value,
+                                        };
+                                        Some((time * 1000, mapped.to_bits()))
+                                    })
+                                    .collect::<Vec<_>>();
                                 assert_eq!(
                                     row.points
                                         .iter()
                                         .map(|point| (point.time_ms, float_bits(point)))
                                         .collect::<Vec<_>>(),
-                                    (3..=5)
-                                        .map(|time| (time * 1000, expected.to_bits()))
-                                        .collect::<Vec<_>>()
+                                    expected
                                 );
                             }
                             outcomes.push(mapped_float_report_snapshot(&report));
+                            resources.push((
+                                report.observations.work,
+                                report
+                                    .observations
+                                    .memory
+                                    .iter()
+                                    .map(|m| (m.current, m.peak, m.acquired, m.released))
+                                    .collect::<Vec<_>>(),
+                            ));
                             provider.assert_closed();
                             drop((report, query));
                             engine.accounting.snapshot().assert_memory_released();
@@ -27916,12 +27959,15 @@ mod tests {
                             outcomes[0], outcomes[1],
                             "{expression} delayed={delayed} page={page}"
                         );
+                        if owned_root {
+                            assert_eq!(resources[0], resources[1]);
+                        }
                         pairs += 1;
                     }
                 }
             }
         }
-        assert_eq!(pairs, 240);
+        assert_eq!(pairs, 336);
     }
 
     fn typed_rate_family_sample<const STATE: u8>(index: usize) -> crate::value::Sample {
@@ -27933,6 +27979,7 @@ mod tests {
             crate::value::SampleValue::Float(match STATE {
                 1 => [10.0, 20.0, 2.0, 4.0][index],
                 2 => [2.0, 5.0, 11.0, 3.0][index],
+                6 => [-10.0, -4.0, 3.0, -5.0][index],
                 _ => [2.0, 5.0, 11.0, 17.0][index],
             })
         };
@@ -27940,13 +27987,25 @@ mod tests {
     }
 
     #[test]
-    fn mapped_rate_family_preserves_typed_endpoints_and_irregular_reset_values() {
+    fn mapped_ranges_preserve_typed_endpoints_and_irregular_reset_values() {
         use crate::annotations::AnnotationKind;
         let mut pairs = 0;
-        for function in ["delta", "irate", "idelta"] {
-            for state in 0..6 {
+        for function in ["delta", "irate", "idelta", "sum_over_time", "avg_over_time"] {
+            for state in 0..if matches!(function, "sum_over_time" | "avg_over_time") {
+                7
+            } else {
+                6
+            } {
                 let expected: Option<f64> = match (function, state) {
-                    (_, 4 | 5) | ("delta", 3) => None,
+                    (_, 4 | 5) | ("delta" | "sum_over_time" | "avg_over_time", 3) => None,
+                    ("sum_over_time", 0) => Some(35.0),
+                    ("sum_over_time", 1) => Some(36.0),
+                    ("sum_over_time", 2) => Some(21.0),
+                    ("sum_over_time", 6) => Some(-16.0),
+                    ("avg_over_time", 0) => Some(8.75),
+                    ("avg_over_time", 1) => Some(9.0),
+                    ("avg_over_time", 2) => Some(5.25),
+                    ("avg_over_time", 6) => Some(-4.0),
                     ("delta", 0) => Some(16.875),
                     ("delta", 1) => Some(-6.75),
                     ("delta", 2) => Some(1.125),
@@ -27961,6 +28020,9 @@ mod tests {
                 for delayed in [false, true] {
                     for page in [1, 17, 1024] {
                         let mut outputs = Vec::new();
+                        let mut resources = Vec::new();
+                        let owned_root =
+                            delayed && matches!(function, "sum_over_time" | "avg_over_time");
                         for skip in [true, false] {
                             let mut provider = mapped_group_provider(page, 1);
                             for row in &mut provider.series {
@@ -27972,7 +28034,8 @@ mod tests {
                                     2 => typed_rate_family_sample::<2>,
                                     3 => typed_rate_family_sample::<3>,
                                     4 => typed_rate_family_sample::<4>,
-                                    _ => typed_rate_family_sample::<5>,
+                                    5 => typed_rate_family_sample::<5>,
+                                    _ => typed_rate_family_sample::<6>,
                                 };
                             }
                             let engine = Engine::default();
@@ -28003,7 +28066,11 @@ mod tests {
                                     .iter()
                                     .any(|a| a.kind == AnnotationKind::PossibleNonCounter)
                             );
-                            let mixed = state == 4 || (function == "delta" && state == 3);
+                            let mixed = state == 4
+                                || (matches!(
+                                    function,
+                                    "delta" | "sum_over_time" | "avg_over_time"
+                                ) && state == 3);
                             assert_eq!(
                                 report
                                     .annotations
@@ -28013,8 +28080,12 @@ mod tests {
                             );
                             assert_eq!(result.series.len(), if expected.is_some() { 2 } else { 0 });
                             if let Some(expected) = expected {
-                                assert!(counts[0] > 0, "{function}/{state}: {counts:?}");
-                                if !skip {
+                                if owned_root {
+                                    assert_eq!(counts, [0, 0, 0]);
+                                } else {
+                                    assert!(counts[0] > 0, "{function}/{state}: {counts:?}");
+                                }
+                                if !skip && !owned_root {
                                     assert!(counts[1] > 0 && counts[2] == 0);
                                 }
                                 for row in &*result.series {
@@ -28030,6 +28101,15 @@ mod tests {
                                 assert_eq!(counts, [0, 0, 0]);
                             }
                             outputs.push(mapped_float_report_snapshot(&report));
+                            resources.push((
+                                report.observations.work,
+                                report
+                                    .observations
+                                    .memory
+                                    .iter()
+                                    .map(|m| (m.current, m.peak, m.acquired, m.released))
+                                    .collect::<Vec<_>>(),
+                            ));
                             provider.assert_closed();
                             drop((report, query));
                             engine.accounting.snapshot().assert_memory_released();
@@ -28038,22 +28118,25 @@ mod tests {
                             outputs[0], outputs[1],
                             "{function}/{state}/{delayed}/{page}"
                         );
+                        if owned_root {
+                            assert_eq!(resources[0], resources[1]);
+                        }
                         pairs += 1;
                     }
                 }
             }
         }
-        assert_eq!(pairs, 108);
+        assert_eq!(pairs, 192);
     }
 
     #[test]
-    fn mapped_rates_preserve_window_diagnostics_and_absent_native_results() {
+    fn mapped_ranges_preserve_window_diagnostics_and_absent_native_results() {
         fn overlap(index: usize) -> crate::value::Sample {
             let mut sample = diagnostic_sample(index);
             sample.start_time_ms = [100, 500, 1500, 2500][index];
             sample
         }
-        for function in ["rate", "increase"] {
+        for function in ["rate", "increase", "sum_over_time", "avg_over_time"] {
             for page in [1, 17, 1024] {
                 for delayed in [false, true] {
                     for state in 0..6 {
@@ -28104,8 +28187,13 @@ mod tests {
                             } else {
                                 assert!(report.result.is_ok());
                                 if matches!(state, 0 | 1 | 4) {
-                                    assert!(report.annotations.iter().any(|entry| entry.kind
-                                        == crate::annotations::AnnotationKind::PossibleNonCounter));
+                                    assert_eq!(
+                                        report.annotations.iter().any(|entry| {
+                                            entry.kind
+                                        == crate::annotations::AnnotationKind::PossibleNonCounter
+                                        }),
+                                        matches!(function, "rate" | "increase")
+                                    );
                                     if !skip {
                                         assert!(
                                             counts[1] > 0 && counts[2] == 0,
@@ -28842,6 +28930,8 @@ mod tests {
             b"sum by(instance)(delta(counter_total[3s])>0)".as_slice(),
             b"sum by(instance)(irate(counter_total[3s])/3)".as_slice(),
             b"sum by(instance)(3/idelta(counter_total[3s]))".as_slice(),
+            b"sum by(instance)(sum_over_time(counter_total[3s])>0)".as_slice(),
+            b"sum by(instance)(3/avg_over_time(counter_total[3s]))".as_slice(),
         ] {
             for page in [1, 17, 1024] {
                 for delayed in [false, true] {

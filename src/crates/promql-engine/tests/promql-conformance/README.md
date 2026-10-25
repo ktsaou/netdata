@@ -12902,3 +12902,33 @@ The [corpus](direct_rate_family_label_cases.py) includes metadata aliases and ea
 The [C consumer](direct_rate_family_labels.c) checks actual output ownership for all five functions.
 Original disagreements and the rejected Sum/Avg Fold trial remain recorded failures. These finite
 measurements do not establish universal speed, live or concurrent throughput, process RSS, or physical ARM performance.
+
+## Borrowed mapped Sum and Avg labels
+
+Float `sum_over_time()` and `avg_over_time()` beneath a numeric map or scalar operation may reuse
+an existing complete result-label descriptor after checking current provider label bytes. Eligible
+consumers are a root map with ordinary early metadata removal, or an immediately collecting ordinary
+aggregate. Delayed-name root output retains owned labels because final metadata removal needs a copy.
+No state or cache is added; native values keep their existing owner and mixed windows remain suppressed.
+
+[Qualification](mapped-fold-labels-qualification.json) covers 9,236 early pairs, 27,768 broader pairs,
+29 focused tests, both full native profiles, selected ARM tests and 10,944 C/C++ pairs. Independent
+checks cover sliding sums/means, filtered point membership, signed values, mixed histories, diagnostics,
+provider failures, changing labels and exact resources for excluded root and nested consumers.
+
+Across 165 timing shapes, target time ratios are **0.8599** (`release`) and
+**0.8615** (`release-min`); controls are **0.9931** and **0.9947**.
+The report retains 140,592 paired queries and shared-host variation, including each initial
+slowdown and its prescribed followup. These execution timings
+exclude compilation, JSON transport and API latency. In the 64-series grouped-sum example, cumulative
+workspace allocation falls from **6,653,160 to 4,536,552 bytes**; peak workspace is
+**437,928 to 437,928 bytes**. Fixed compiled costs are reported separately.
+
+The first candidate failed the work gate in 196 delayed-root cases despite exact results and reads.
+Final metadata removal copied the borrowed labels again. The narrowed candidate keeps those consumers
+on the owned path; it retains every original target, control, repetition and gate. The five controls
+that rejected the earlier, distinct direct-group Fold trial remain included unchanged.
+
+The [corpus](mapped_fold_label_cases.py) and [C consumer](mapped_fold_labels.c) are reproducible fixture
+panels. Original disagreements remain failures. These finite measurements do not establish universal
+speed, live or concurrent throughput, process RSS, or physical ARM performance.
