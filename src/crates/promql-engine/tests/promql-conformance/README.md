@@ -12645,3 +12645,37 @@ unchanged-binary repeatability investigation is needed before interpreting furth
 Broader original-query, full native, ARM, compiled-size and C-executable qualification was not run after
 this early rejection. Prepared helpers are not passing evidence. No gate was relaxed or unchanged
 candidate retried; the accepted engine remains unchanged.
+
+## Unchanged-binary timing calibration
+
+The [calibration](timing-repeatability-qualification.json) runs the **same accepted executable on both sides**.
+It follows the baseline variation observed in the rejected label-view experiment and does not reopen that
+candidate. All **20,520 pairs** had identical complete outputs and nonelapsed engine observations.
+
+Eight frozen raw/rate/aggregate/wide-label shapes from [the existing corpus](checked_label_view_cases.py)
+ran in both native profiles. Each mode used six paired blocks, alternating A/B order and rotating case
+order identically within each pair. Short runs used four repetitions; longer counts were fixed beforehand
+from retained baseline durations, targeting 100 ms per shape with a 512-repetition cap. Only the first
+repetition was excluded from timing summaries; every repetition was checked for correctness.
+
+| Profile / mode | Pairs | Pooled median ratio range | Paired-block median ratio range |
+|---|---:|---:|---:|
+| release / short | 192 | 0.935–1.222 | 0.995–1.030 |
+| release / long | 12,066 | 0.980–1.006 | 0.981–1.018 |
+| release-min / short | 192 | 0.952–1.126 | 0.973–1.017 |
+| release-min / long | 8,070 | 0.977–1.006 | 0.985–1.015 |
+
+A ratio above one appears slower. The pooled short-run summaries therefore show apparent slowdowns of
+22% and 13% **without any code difference**. Paired summaries kept these finite cohorts much closer to one.
+This is measurement evidence, not an engine speed improvement or a new acceptance rule.
+
+The fixture decoded only each shape's required dataset, then compiled each request afresh. The query
+process stayed on CPU0 at nice19; direct gzip capture ran on a different physical core. Captures retain
+all observations, process launch/wait intervals, CPU time and context switches. Whole-process telemetry
+includes setup and serialization; its cumulative child RSS high-water is not query memory.
+
+Absolute block durations still varied materially, even in the longer cohorts. Short/long phases ran
+sequentially on a shared host, so this does not isolate a cause or guarantee repeatability. Future trials
+should declare their estimator, repetitions, controls and unchanged-binary checks before measuring a
+candidate. Historical rejected candidates and their frozen criteria remain unchanged. No runtime, ABI,
+query limit or language support was modified.

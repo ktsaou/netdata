@@ -74458,5 +74458,14 @@
     "failed_followups": 10,
     "production_change_retained": false,
     "cause": "Unestablished; unchanged-baseline variation explicitly retained."
+  },
+  "unchanged_binary_timing_calibration": {
+    "status": "diagnostic_complete",
+    "report": "timing-repeatability-qualification.json",
+    "report_sha256": "5c9d068f3d9f84cdd8d602749457c1acb2addd1ea96b2fd6a878e73a9d9b012d",
+    "complete_pairs": 20520,
+    "same_binary_per_pair": true,
+    "production_change": false,
+    "historical_gates_unchanged": true
   }
 }

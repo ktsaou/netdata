@@ -3303,3 +3303,13 @@ root aggregate edge in delayed mode. The measurements below retain their earlier
   unestablished. Do not infer an allocator or generated-code explanation, retry unchanged, or accept based
   on family averages. The [finite investigation](README.md#rejected-checked-label-view-compaction) preserves
   both the failed qualification and the repeatability limitation. No runtime change is retained.
+
+## Timing repeatability evidence
+
+The unchanged-binary [calibration](README.md#unchanged-binary-timing-calibration) demonstrates that short
+pooled wall-time medians can suggest substantial differences even for identical executables. Report
+paired blocks and absolute drift alongside pooled summaries, and declare measurement choices before
+candidate execution. This evidence changes no historical gate and selects no new universal threshold.
+Longer cohorts were more stable in this finite run; shared-host variation and sequential phases prevent
+attributing that solely to repetition count. Process setup/capture costs remain distinct from query time
+and accounted memory. No production implementation changed.

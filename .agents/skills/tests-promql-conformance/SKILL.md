@@ -447,3 +447,7 @@ The rejected completed Sum/Avg group-label experiment and its exact restoration 
 
 The rejected checked output-label capacity trial and its timing repeatability limitation are recorded in
 `src/crates/promql-engine/tests/promql-conformance/README.md#rejected-checked-label-view-compaction`.
+
+Unchanged-binary timing calibration and limits of pooled short-run medians are recorded in
+`src/crates/promql-engine/tests/promql-conformance/README.md#unchanged-binary-timing-calibration`;
+retain paired blocks and absolute drift without reclassifying historical rejected candidates.
