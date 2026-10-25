@@ -2795,14 +2795,24 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 ..
             } => true,
             State::Map {
-                operation: MapOperation::Binary { operator, .. },
+                operation:
+                    MapOperation::Binary {
+                        operator,
+                        return_bool,
+                        ..
+                    },
                 ..
-            } => crate::binary_value::changes_metadata(operator),
-            _ => false,
+            } => {
+                if crate::binary_value::changes_metadata(operator) {
+                    true
+                } else if operator.is_comparison() {
+                    return_bool
+                } else {
+                    return Ok(None);
+                }
+            }
+            _ => return Ok(None),
         };
-        if !drops_metadata {
-            return Ok(None);
-        }
         let State::OrderedRows {
             descriptors,
             sources,
@@ -2844,7 +2854,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         let same = mapped_labels_equal(
             labels,
             &descriptor.labels,
-            self.options.delayed_name_removal,
+            self.options.delayed_name_removal || !drops_metadata,
             self.account,
             self.control,
         )?;
@@ -5698,7 +5708,7 @@ pub(crate) fn metadata(name: &[u8]) -> bool {
 fn mapped_labels_equal(
     labels: &[crate::storage::LabelRef<'_>],
     mapped: &OwnedLabels,
-    delayed: bool,
+    retain_metadata: bool,
     account: &QueryAccounting,
     control: &Control,
 ) -> Result<bool, Interrupted> {
@@ -5707,7 +5717,7 @@ fn mapped_labels_equal(
         for label in labels {
             control.check()?;
             account.work(1);
-            if !delayed && metadata(label.name) {
+            if !retain_metadata && metadata(label.name) {
                 continue;
             }
             let Some(candidate) = expected.next() else {

@@ -3325,7 +3325,7 @@ no runtime behavior or provider contract; raw payload counts are not allocated-b
 
 ## Borrowed complete mapped labels
 
-A completed ordinary Float selector below a numeric Float map or metadata-changing scalar arithmetic
+A completed ordinary Float selector below a numeric Float map, scalar arithmetic or scalar comparison
 may borrow its full ordered descriptor only
 when node/frame/source identity and checked current mapped label bytes agree. The descriptor's owner
 already spans evaluation; no new cache or provider immutability promise is introduced. Early metadata
@@ -3344,7 +3344,15 @@ borrow hits, changing provider labels, sparse/native inputs and valid/empty/vali
 
 Scalar arithmetic uses the existing `binary_value::changes_metadata` predicate for this same complete-label
 proof, on either scalar side. The selected Float/Float operation still executes normally after borrowing;
-parameter evaluation precedes Map installation. Ordinary comparisons preserve metadata and remain outside
-this extension; Boolean comparisons, unary and other frame shapes also retain their existing paths.
+parameter evaluation precedes Map installation. The arithmetic extension excludes comparisons; the
+separately qualified comparison path below handles their different metadata rule. Unary and other frame
+shapes retain their existing paths.
 [Scalar-arithmetic qualification](README.md#borrowed-scalar-arithmetic-labels) covers actual owner hits,
 parameter Info/Warning/error outcomes and current-label mismatches without assuming provider immutability.
+
+Scalar comparisons reuse that exact owner only after checking the operation's actual metadata projection:
+ordinary comparisons retain all labels; Boolean comparisons remove reserved metadata early or at final
+output according to the existing option. The comparator receives whether metadata is retained, preserving
+raw empty labels. Actual filtering, Boolean zero values and scalar-left vector values are computed by the
+unchanged Map code. [Comparison qualification](README.md#borrowed-scalar-comparison-labels) includes
+independently expected membership/labels, real borrow hits, NaN/stale inputs and parameter failures.

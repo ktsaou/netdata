@@ -12791,3 +12791,32 @@ These are finite synthetic measurements, not live-load or universal speed guaran
 
 The [query corpus](scalar_map_label_borrow_cases.py) and [C consumer](scalar_map_label_borrow.c)
 preserve the scenarios and actual source identities.
+
+## Borrowed scalar-comparison labels
+
+Scalar comparisons now reuse complete mapped labels when current bytes and the exact single-source
+owner agree. All six comparisons are covered on either scalar side, including `bool`. Ordinary
+comparisons keep their metadata; Boolean comparisons use the existing removal rule. Filtering,
+scalar-left vector values, parameter diagnostics and native fallbacks retain their original behavior.
+No cache, public interface or data format was added.
+
+[Qualification](comparison-map-label-borrow-qualification.json) includes 2,780 early before/after pairs,
+27,768 broader pairs, 22 focused tests, both complete native test profiles, selected ARM tests and
+8,640 C/C++ pairs. The 432 direct-root pairs check independently expected labels, values and membership,
+including raw empty labels, NaNs and stale samples, and require actual borrowing hits. Another 72 pairs
+check parameter warnings and errors. Original disagreements remain recorded failures.
+
+Across 56 timed shapes, target median time ratios are **0.7906** (`release`) and
+**0.8076** (`release-min`); controls are **1.0092** and
+**0.9884**. The frozen gates passed over 21,126 paired queries.
+All blocks, including substantial shared-host variation, remain in the report.
+
+For a grouped comparison with 64 inputs and 16 payload labels, workspace allocation traffic falls
+from **3,556,386 to 2,418,816 bytes**. Peak workspace is **313,475 before
+and 313,475 bytes after**. Measured category peaks do not increase and physical reads are
+unchanged. Mismatching current labels can add comparison work before copying. Compiled costs are
+reported separately from query memory. These finite measurements establish no universal speed guarantee.
+
+The [query corpus](comparison_map_label_borrow_cases.py) and [C consumer](comparison_map_label_borrow.c)
+preserve the scenarios. The ownership tests use `scalar(vector(time()-3))` as a dynamic threshold;
+the simpler `time()-3` can take the scheduled evaluator and would not establish borrowing-path coverage.

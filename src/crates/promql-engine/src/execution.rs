@@ -27731,6 +27731,278 @@ mod tests {
     }
 
     #[test]
+    fn comparison_maps_borrow_complete_labels_with_exact_membership_and_metadata() {
+        fn sample<const KIND: u8>(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            sample.value = crate::value::SampleValue::Float(if index == 2 && KIND != 0 {
+                f64::from_bits(if KIND == 1 {
+                    0x7ff8_0000_0000_0001
+                } else {
+                    0x7ff0_0000_0000_0002
+                })
+            } else if index.is_multiple_of(2) {
+                1.0
+            } else {
+                -1.0
+            });
+            sample
+        }
+        let mut pairs = 0;
+        for operator in ["==", "!=", ">", "<", ">=", "<="] {
+            for scalar_left in [false, true] {
+                for boolean in [false, true] {
+                    for delayed in [false, true] {
+                        for page in [1, 17, 1024] {
+                            for kind in 0..3 {
+                                let threshold = "scalar(vector(time()-3))";
+                                let (left, right) = if scalar_left {
+                                    (threshold, "m_total")
+                                } else {
+                                    ("m_total", threshold)
+                                };
+                                let modifier = if boolean { " bool" } else { "" };
+                                let expression = format!("{left} {operator}{modifier} {right}");
+                                let mut outcomes = Vec::new();
+                                for skip in [true, false] {
+                                    let mut provider = comparison_set_provider(page);
+                                    for row in provider.series.iter_mut().take(4) {
+                                        row.source.sample = match kind {
+                                            0 => sample::<0>,
+                                            1 => sample::<1>,
+                                            _ => sample::<2>,
+                                        };
+                                        row.labels.extend([
+                                            (b"__type__".to_vec(), b"gauge".to_vec()),
+                                            (b"__unit__".to_vec(), b"KiB".to_vec()),
+                                            (b"empty".to_vec(), Vec::new()),
+                                        ]);
+                                        row.labels.sort_by(|left, right| left.0.cmp(&right.0));
+                                    }
+                                    let engine = Engine::default();
+                                    let control = Control::default();
+                                    let query = engine
+                                        .compile(expression.as_bytes(), options(delayed), &control)
+                                        .unwrap();
+                                    let (report, counts) =
+                                        crate::evaluator::observe_mapped_labels(skip, || {
+                                            query.collect_reported(
+                                                &provider,
+                                                QueryRequest::Range {
+                                                    start_ms: 1000,
+                                                    end_ms: 5000,
+                                                    step_ms: 1000,
+                                                },
+                                                &control,
+                                            )
+                                        });
+                                    let result = report.result.as_ref().unwrap();
+                                    assert!(report.annotations.is_empty());
+                                    assert_eq!(result.series.len(), 4, "{expression} kind={kind}");
+                                    assert!(counts[0] > 0, "{expression}: no eligible completion");
+                                    if !skip {
+                                        assert!(
+                                            counts[1] > 0 && counts[2] == 0,
+                                            "{expression}: {counts:?}"
+                                        );
+                                    }
+                                    for (index, row) in result.series.iter().enumerate() {
+                                        let identity = index.to_string();
+                                        let mut labels = vec![
+                                            (b"empty".as_slice(), b"".as_slice()),
+                                            (b"instance".as_slice(), identity.as_bytes()),
+                                            (b"job".as_slice(), b"worker".as_slice()),
+                                        ];
+                                        if !boolean {
+                                            labels
+                                                .splice(
+                                                    0..0,
+                                                    [
+                                                        (
+                                                            b"__name__".as_slice(),
+                                                            b"m_total".as_slice(),
+                                                        ),
+                                                        (
+                                                            b"__type__".as_slice(),
+                                                            b"gauge".as_slice(),
+                                                        ),
+                                                        (b"__unit__".as_slice(), b"KiB".as_slice()),
+                                                    ],
+                                                )
+                                                .for_each(drop);
+                                        }
+                                        assert_eq!(
+                                            row.labels
+                                                .0
+                                                .iter()
+                                                .map(|label| (&*label.name, &*label.value))
+                                                .collect::<Vec<_>>(),
+                                            labels
+                                        );
+                                        let expected = (1..=5)
+                                            .filter_map(|tick| {
+                                                if tick == 3 && kind == 2 {
+                                                    return None;
+                                                }
+                                                let vector = if tick == 3 && kind == 1 {
+                                                    f64::from_bits(0x7ff8_0000_0000_0001)
+                                                } else if tick % 2 == 1 {
+                                                    1.0
+                                                } else {
+                                                    -1.0
+                                                };
+                                                let threshold = tick as f64 - 3.0;
+                                                let (left, right) = if scalar_left {
+                                                    (threshold, vector)
+                                                } else {
+                                                    (vector, threshold)
+                                                };
+                                                let keep = match operator {
+                                                    "==" => left == right,
+                                                    "!=" => left != right,
+                                                    ">" => left > right,
+                                                    "<" => left < right,
+                                                    ">=" => left >= right,
+                                                    "<=" => left <= right,
+                                                    _ => unreachable!(),
+                                                };
+                                                (boolean || keep).then_some((
+                                                    tick * 1000,
+                                                    if boolean {
+                                                        f64::from(keep).to_bits()
+                                                    } else {
+                                                        vector.to_bits()
+                                                    },
+                                                ))
+                                            })
+                                            .collect::<Vec<_>>();
+                                        assert_eq!(
+                                            row.points
+                                                .iter()
+                                                .map(|point| (point.time_ms, float_bits(point)))
+                                                .collect::<Vec<_>>(),
+                                            expected,
+                                            "{expression} kind={kind} delayed={delayed} page={page}"
+                                        );
+                                    }
+                                    outcomes.push(mapped_float_report_snapshot(&report));
+                                    provider.assert_closed();
+                                    drop((report, query));
+                                    engine.accounting.snapshot().assert_memory_released();
+                                }
+                                assert_eq!(outcomes[0], outcomes[1]);
+                                pairs += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(pairs, 432);
+    }
+
+    #[test]
+    fn comparison_label_borrows_preserve_parameter_diagnostics_and_failures() {
+        fn two(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(2.0),
+            }
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for mode in 0..3 {
+                    for (scalar_left, boolean) in
+                        [(false, false), (true, false), (false, true), (true, true)]
+                    {
+                        let parameter = if mode == 1 {
+                            "scalar(sum(p))"
+                        } else {
+                            "scalar(min(p))"
+                        };
+                        let operator = if boolean { "!= bool" } else { "!=" };
+                        let child = if scalar_left {
+                            format!("{parameter} {operator} counter_total")
+                        } else {
+                            format!("counter_total {operator} {parameter}")
+                        };
+                        let mut outputs = Vec::new();
+                        for skip in [true, false] {
+                            let mut provider = mapped_group_provider(page, 2);
+                            let mut parameters = mapped_group_provider(page, 1);
+                            for (index, row) in parameters.series.iter_mut().enumerate() {
+                                row.labels[0].1 = b"p".to_vec();
+                                row.source.sample =
+                                    if index == 0 { two } else { native_range_sample };
+                                if mode == 2 {
+                                    row.source.fail_page = Some(0);
+                                }
+                            }
+                            provider.series.extend(parameters.series);
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let query = engine
+                                .compile(
+                                    format!("sum by(instance)({child})").as_bytes(),
+                                    options(delayed),
+                                    &control,
+                                )
+                                .unwrap();
+                            let (report, counts) =
+                                crate::evaluator::observe_mapped_labels(skip, || {
+                                    query.collect_reported(
+                                        &provider,
+                                        QueryRequest::Range {
+                                            start_ms: 3000,
+                                            end_ms: 5000,
+                                            step_ms: 1000,
+                                        },
+                                        &control,
+                                    )
+                                });
+                            if mode == 2 {
+                                assert!(matches!(&report.result,
+                                    Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
+                                    if &**bytes == b"injected page failure"));
+                            } else {
+                                assert_eq!(report.result.as_ref().unwrap().series.len(), 2);
+                                if !skip {
+                                    assert!(counts[1] > 0 && counts[2] == 0, "{child}: {counts:?}");
+                                }
+                                let expected = if mode == 0 {
+                                    crate::annotations::AnnotationKind::HistogramIgnoredInAggregation(TokenKind::MIN)
+                                } else {
+                                    crate::annotations::AnnotationKind::MixedFloatsHistogramsAggregation
+                                };
+                                let severity = if mode == 0 {
+                                    crate::annotations::Severity::Info
+                                } else {
+                                    crate::annotations::Severity::Warning
+                                };
+                                assert!(
+                                    report
+                                        .annotations
+                                        .iter()
+                                        .any(|annotation| annotation.kind == expected
+                                            && annotation.severity == severity)
+                                );
+                            }
+                            outputs.push(mapped_float_report_snapshot(&report));
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                        assert_eq!(
+                            outputs[0], outputs[1],
+                            "{child} page={page} delayed={delayed} mode={mode}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn scalar_arithmetic_maps_borrow_complete_labels_on_both_sides() {
         let mut children = Vec::new();
         for operator in ["+", "-", "*", "/", "%", "^", "atan2"] {
@@ -28164,6 +28436,8 @@ mod tests {
             b"sum by(instance)(clamp_min(counter_total,0))".as_slice(),
             b"sum by(instance)(counter_total/3)".as_slice(),
             b"sum by(instance)(3/counter_total)".as_slice(),
+            b"sum by(instance)(counter_total>0)".as_slice(),
+            b"sum by(instance)(counter_total>bool 0)".as_slice(),
         ] {
             for page in [1, 17, 1024] {
                 for delayed in [false, true] {

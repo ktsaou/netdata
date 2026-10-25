@@ -467,3 +467,8 @@ parameter/diagnostic order and filtering, require actual owner hits, and retain 
 Scalar-arithmetic label reuse follows
 `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-scalar-arithmetic-labels`: preserve
 both scalar sides and parameter outcomes; use the existing metadata-removal predicate and complete current-byte proof.
+
+Scalar-comparison label reuse follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-scalar-comparison-labels`: distinguish
+ordinary metadata retention from Boolean removal, verify vector values on scalar-left comparisons, and prove
+actual owner hits without accidentally exercising only the scheduled evaluator.

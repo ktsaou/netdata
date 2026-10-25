@@ -74503,5 +74503,14 @@
     "timing_pairs": 16542,
     "C_CPP_pairs": 8640,
     "peak_memory_increase": false
+  },
+  "borrowed_scalar_comparison_labels": {
+    "status": "finite_qualification_pass",
+    "report": "comparison-map-label-borrow-qualification.json",
+    "report_sha256": "db541a0a9d5f72acb8e12bce762148adea571fdc8f560e0c855cb029f1712970",
+    "broad_pairs": 27768,
+    "timing_pairs": 21126,
+    "C_CPP_pairs": 8640,
+    "peak_memory_increase": false
   }
 }
