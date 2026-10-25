@@ -3263,8 +3263,9 @@ root aggregate edge in delayed mode. The measurements below retain their earlier
 
 ## Borrowed rate and increase group labels
 
-- **Choice:** reuse the immutable ordinary aggregate's raw group labels for completed Float rate/increase
-  samples. Range evaluation, counter-name warnings and statistical credits finish first; the original
+- **Choice:** reuse the immutable ordinary aggregate's raw group labels for completed ordinary Float `rate`,
+  `increase`, `delta`, `irate` and `idelta` samples. Range evaluation, function diagnostics and statistical
+  credits finish first; the original
   sample finalizer still owns timestamps, name-removal behavior and post-callback propagation.
 - **Proof:** the current selection frame must match the actual function-call node, underlying selector and
   exact rate kind/range. Its immediate parent must be the collecting ordinary aggregate over that call.
@@ -3278,6 +3279,11 @@ root aggregate edge in delayed mode. The measurements below retain their earlier
   [qualification](README.md#borrowed-rate-and-increase-group-labels) records complete results, metadata
   aliases, native diagnostics, sparse/cancelled owner checks, actual C consumers and fixed compiled costs.
   Numerical algorithms, language coverage, contexts/dbengine ownership, API/ABI and defaults are unchanged.
+
+The [direct rate-family extension](README.md#borrowed-direct-rate-family-group-labels) qualifies
+`delta`, `irate` and `idelta` with the same group owner. Whole-window mixed suppression, final-pair
+type selection, native gauge diagnostics and signed reset arithmetic retain their distinct rules.
+The counter-name diagnostic predicate and the separate mapped-label consumer proof are unchanged.
 
 ## Rejected Sum/Avg group-label borrowing
 

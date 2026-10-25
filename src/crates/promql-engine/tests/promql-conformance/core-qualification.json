@@ -74530,5 +74530,14 @@
     "timing_pairs": 23472,
     "C_CPP_pairs": 10944,
     "peak_memory_increase": false
+  },
+  "borrowed_direct_rate_family_labels": {
+    "status": "finite_qualification_pass",
+    "report": "direct-rate-family-labels-qualification.json",
+    "report_sha256": "52a32661fdae9ea2b6ef97d8f7e2c7d1495b3168e93713594f7a867aed790ca0",
+    "broad_pairs": 27768,
+    "timing_pairs": 133428,
+    "C_CPP_pairs": 9792,
+    "peak_memory_increase": false
   }
 }

@@ -27924,24 +27924,24 @@ mod tests {
         assert_eq!(pairs, 240);
     }
 
+    fn typed_rate_family_sample<const STATE: u8>(index: usize) -> crate::value::Sample {
+        let mut point = diagnostic_sample(index);
+        point.time_ms = [500, 1500, 2500, 4500][index];
+        point.value = if (STATE == 3 && index == 0) || (STATE == 4 && index == 2) || STATE == 5 {
+            native_range_sample(index).value
+        } else {
+            crate::value::SampleValue::Float(match STATE {
+                1 => [10.0, 20.0, 2.0, 4.0][index],
+                2 => [2.0, 5.0, 11.0, 3.0][index],
+                _ => [2.0, 5.0, 11.0, 17.0][index],
+            })
+        };
+        point
+    }
+
     #[test]
     fn mapped_rate_family_preserves_typed_endpoints_and_irregular_reset_values() {
-        use crate::{annotations::AnnotationKind, value::SampleValue};
-        fn sample<const STATE: u8>(index: usize) -> crate::value::Sample {
-            let mut point = diagnostic_sample(index);
-            point.time_ms = [500, 1500, 2500, 4500][index];
-            point.value = if (STATE == 3 && index == 0) || (STATE == 4 && index == 2) || STATE == 5
-            {
-                native_range_sample(index).value
-            } else {
-                SampleValue::Float(match STATE {
-                    1 => [10.0, 20.0, 2.0, 4.0][index],
-                    2 => [2.0, 5.0, 11.0, 3.0][index],
-                    _ => [2.0, 5.0, 11.0, 17.0][index],
-                })
-            };
-            point
-        }
+        use crate::annotations::AnnotationKind;
         let mut pairs = 0;
         for function in ["delta", "irate", "idelta"] {
             for state in 0..6 {
@@ -27967,12 +27967,12 @@ mod tests {
                                 row.labels[0].1 = b"m".to_vec();
                                 row.source.count = 4;
                                 row.source.sample = match state {
-                                    0 => sample::<0>,
-                                    1 => sample::<1>,
-                                    2 => sample::<2>,
-                                    3 => sample::<3>,
-                                    4 => sample::<4>,
-                                    _ => sample::<5>,
+                                    0 => typed_rate_family_sample::<0>,
+                                    1 => typed_rate_family_sample::<1>,
+                                    2 => typed_rate_family_sample::<2>,
+                                    3 => typed_rate_family_sample::<3>,
+                                    4 => typed_rate_family_sample::<4>,
+                                    _ => typed_rate_family_sample::<5>,
                                 };
                             }
                             let engine = Engine::default();
@@ -28939,6 +28939,9 @@ mod tests {
                             "abs(counter_total)",
                             "rate(counter_total[3s])",
                             "increase(counter_total[3s])",
+                            "delta(counter_total[3s])",
+                            "irate(counter_total[3s])",
+                            "idelta(counter_total[3s])",
                         ] {
                             for instant in [false, true] {
                                 let provider = mapped_group_provider(page, groups);
@@ -28983,9 +28986,14 @@ mod tests {
                                     for (tick, point) in row.points.iter().enumerate() {
                                         let time = (tick + 3) as f64;
                                         let value =
-                                            (if child.starts_with("rate") {
+                                            (if child.starts_with("rate")
+                                                || child.starts_with("irate")
+                                                || child.starts_with("idelta")
+                                            {
                                                 1.0
-                                            } else if child.starts_with("increase") {
+                                            } else if child.starts_with("increase")
+                                                || child.starts_with("delta")
+                                            {
                                                 3.0
                                             } else {
                                                 time
@@ -29030,8 +29038,8 @@ mod tests {
                 }
             }
         }
-        assert_eq!(queries, 768);
-        println!("Complete direct/mapped/rate/increase selector queries: {queries}");
+        assert_eq!(queries, 1344);
+        println!("Complete direct/mapped/Rate-family selector queries: {queries}");
     }
 
     #[test]
@@ -29237,13 +29245,154 @@ mod tests {
     }
 
     #[test]
+    fn selector_group_labels_preserve_typed_rate_endpoints_and_native_diagnostics() {
+        use crate::annotations::AnnotationKind;
+        let mut cases = 0;
+        for function in ["delta", "irate", "idelta"] {
+            for state in 0..7 {
+                let expected: Option<f64> = match (function, state) {
+                    (_, 4..=6) | ("delta", 3) => None,
+                    ("delta", 0) => Some(16.875),
+                    ("delta", 1) => Some(-6.75),
+                    ("delta", 2) => Some(1.125),
+                    ("irate", 0 | 3) => Some(3.0),
+                    ("irate", 1) => Some(1.0),
+                    ("irate", 2) => Some(1.5),
+                    ("idelta", 0 | 3) => Some(6.0),
+                    ("idelta", 1) => Some(2.0),
+                    ("idelta", 2) => Some(-8.0),
+                    _ => unreachable!(),
+                };
+                for operator in ["sum", "count"] {
+                    for delayed in [false, true] {
+                        for page in [1, 17, 1024] {
+                            let mut provider = mapped_group_provider(page, 1);
+                            for row in &mut provider.series {
+                                row.labels[0].1 = b"m".to_vec();
+                                row.source.count = 4;
+                                row.source.sample = match state {
+                                    1 => typed_rate_family_sample::<1>,
+                                    2 => typed_rate_family_sample::<2>,
+                                    3 => typed_rate_family_sample::<3>,
+                                    4 => typed_rate_family_sample::<4>,
+                                    5 => typed_rate_family_sample::<5>,
+                                    _ => typed_rate_family_sample::<0>,
+                                };
+                            }
+                            if state == 6 {
+                                provider.series[0].source.fail_page = Some(0);
+                            }
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let source = format!("{operator} by(instance)({function}(m[4500ms]))");
+                            let query = engine
+                                .compile(source.as_bytes(), options(delayed), &control)
+                                .unwrap();
+                            let (report, observed, _) =
+                                crate::evaluator::observe_selector_labels(|| {
+                                    query.collect_reported(
+                                        &provider,
+                                        QueryRequest::Range {
+                                            start_ms: 4500,
+                                            end_ms: 4501,
+                                            step_ms: 1,
+                                        },
+                                        &control,
+                                    )
+                                });
+                            if state == 6 {
+                                assert!(matches!(&report.result,
+                                    Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
+                                    if &**bytes == b"injected page failure"));
+                            } else {
+                                let result = report.result.as_ref().unwrap();
+                                let mixed = state == 4 || (function == "delta" && state == 3);
+                                let gauge_warning = state == 5 && function != "irate";
+                                assert_eq!(
+                                    report.annotations.len(),
+                                    usize::from(mixed) + usize::from(gauge_warning)
+                                );
+                                assert_eq!(
+                                    report
+                                        .annotations
+                                        .iter()
+                                        .any(|a| a.kind == AnnotationKind::MixedFloatsHistograms),
+                                    mixed
+                                );
+                                assert_eq!(
+                                    report
+                                        .annotations
+                                        .iter()
+                                        .any(|a| a.kind == AnnotationKind::NativeHistogramNotGauge),
+                                    gauge_warning
+                                );
+                                if gauge_warning {
+                                    let warning = report.annotations.iter().next().unwrap();
+                                    assert_eq!(warning.raw_message, b"PromQL warning: this native histogram metric is not a gauge: \"m\"");
+                                }
+                                assert_eq!(
+                                    result.series.len(),
+                                    usize::from(expected.is_some() || state == 5)
+                                );
+                                if let Some(row) = result.series.first() {
+                                    assert_eq!(row.labels.0.len(), 1);
+                                    assert_eq!(&*row.labels.0[0].name, b"instance");
+                                    assert_eq!(&*row.labels.0[0].value, b"g0000");
+                                    assert_eq!(row.points.len(), 2);
+                                    for (point, time) in row.points.iter().zip([4500, 4501]) {
+                                        assert_eq!(point.time_ms, time);
+                                        if operator == "count" {
+                                            assert_eq!(float_bits(point), 2.0_f64.to_bits());
+                                        } else if let Some(value) = expected {
+                                            assert_eq!(float_bits(point), (value * 2.0).to_bits());
+                                        } else {
+                                            let OwnedValue::Histogram(value) = &point.value else {
+                                                panic!("native sum")
+                                            };
+                                            let sum: f64 = match function {
+                                                "delta" => 6.75,
+                                                "irate" => 1.0,
+                                                _ => 2.0,
+                                            };
+                                            assert_eq!(value.as_ref().sum.to_bits(), sum.to_bits());
+                                            assert_eq!(
+                                                value.as_ref().count.to_bits(),
+                                                0.0_f64.to_bits()
+                                            );
+                                        }
+                                    }
+                                }
+                                if expected.is_some() {
+                                    assert!(
+                                        observed[0] > 0 && observed[2] == 0,
+                                        "{source}/{state}: {observed:?}"
+                                    );
+                                } else if state == 5 {
+                                    assert!(
+                                        observed[0] == 0 && observed[2] > 0,
+                                        "{source}: {observed:?}"
+                                    );
+                                } else {
+                                    assert_eq!(observed[0], 0);
+                                }
+                            }
+                            provider.assert_closed();
+                            drop((report, query));
+                            engine.accounting.snapshot().assert_memory_released();
+                            cases += 1;
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(cases, 252);
+    }
+
+    #[test]
     fn selector_group_labels_keep_rate_operation_and_metadata_fallbacks() {
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
                 for expression in [
-                    "sum by(instance)(delta(counter_total[3s]))",
-                    "sum by(instance)(irate(counter_total[3s]))",
-                    "sum by(instance)(idelta(counter_total[3s]))",
                     "sum by(instance)(rate(counter_total[3s] anchored))",
                     "sum by(instance)(rate(counter_total[3s] smoothed))",
                     "sum by(instance)(rate(counter_total[3s:1s]))",
@@ -29433,7 +29582,14 @@ mod tests {
                             let group: usize =
                                 std::str::from_utf8(&label[1..]).unwrap().parse().unwrap();
                             let value: f64 = (if group.is_multiple_of(2) { 2.0 } else { 4.0 })
-                                * if child.starts_with("rate") { 1.0 } else { 3.0 };
+                                * if child.starts_with("rate")
+                                    || child.starts_with("irate")
+                                    || child.starts_with("idelta")
+                                {
+                                    1.0
+                                } else {
+                                    3.0
+                                };
                             (ordinal, label, value.to_bits(), 3000)
                         })
                         .collect();
@@ -29457,6 +29613,9 @@ mod tests {
                     "counter_total",
                     "rate(counter_total[3s])",
                     "increase(counter_total[3s])",
+                    "delta(counter_total[3s])",
+                    "irate(counter_total[3s])",
+                    "idelta(counter_total[3s])",
                 ] {
                     for cold in [false, true] {
                         let first_hash = drive(page, delayed, child, cold, None);

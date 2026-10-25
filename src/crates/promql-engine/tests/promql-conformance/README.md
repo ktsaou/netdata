@@ -12876,3 +12876,29 @@ The [corpus](rate_family_label_borrow_cases.py) enables start timestamps for its
 cases; the inherited 32 default-profile cases still ignore starts. The [C consumer](rate_family_label_borrow.c)
 covers actual output ownership. Original disagreements remain recorded failures. These finite measurements
 do not establish universal speed, live or concurrent throughput, process RSS, or physical ARM performance.
+
+## Borrowed direct rate-family group labels
+
+Direct aggregates over Float `delta()`, `irate()` and `idelta()` now reuse the existing group-label
+owner already used by `rate()` and `increase()`. This applies to global or single nonreserved-key
+`by` grouping after the function finishes. Native values retain full labels for diagnostics; wider,
+`without`, metadata, extended and derived cases retain their existing paths. No cache or retained state is added.
+
+[Qualification](direct-rate-family-labels-qualification.json) covers 7,740 early pairs, 27,768 broader
+pairs, 29 focused checks, both full native profiles, selected ARM tests and 9,792 C/C++ pairs.
+Independent checks include 1,344 linear-result queries and 252 irregular/reset/typed/native/failure
+cases. Sparse group misses and cancellation after reads retain their original behavior.
+
+Across 132 timing shapes, target time ratios are **0.6740** (`release`) and
+**0.6858** (`release-min`); controls are **0.9889** and **0.9975**.
+These are engine execution timings after compilation, excluding JSON transport and API latency.
+The report retains all 133,428 paired queries, followups and shared-host variation. In the
+64-input grouped delta case, workspace allocation traffic falls from **5,028,840 to
+2,909,928 bytes**; peak workspace is **239,081 to 239,081 bytes**.
+All measured memory categories are nonincreasing; some peaks decrease. Compiled code/data/BSS costs
+are reported separately from per-query memory.
+
+The [corpus](direct_rate_family_label_cases.py) includes metadata aliases and earlier mapped-path controls.
+The [C consumer](direct_rate_family_labels.c) checks actual output ownership for all five functions.
+Original disagreements and the rejected Sum/Avg Fold trial remain recorded failures. These finite
+measurements do not establish universal speed, live or concurrent throughput, process RSS, or physical ARM performance.

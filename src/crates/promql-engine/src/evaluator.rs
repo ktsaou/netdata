@@ -2931,7 +2931,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     kind: active_kind,
                     range_ns: active_range,
                 },
-            ) if kind.checks_counter_name() && kind == active_kind && range_ns == active_range => {
+            ) if kind == active_kind && range_ns == active_range => {
                 let selector = self.selector(selector_node);
                 if selector.anchored || selector.smoothed {
                     return Ok(None);

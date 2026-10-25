@@ -441,6 +441,8 @@ active positions, Float/native diagnostic ownership, post-read interruption and 
 Completed rate/increase group labels follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-rate-and-increase-group-labels` for
 call/selector identity, metadata exclusions, completed diagnostics and distinct streamed/retained C owners.
+The direct rate-family extension is qualified in
+`src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-direct-rate-family-group-labels`.
 
 The rejected completed Sum/Avg group-label experiment and its exact restoration are recorded in
 `src/crates/promql-engine/tests/promql-conformance/README.md#rejected-sumavg-group-label-borrowing`.
