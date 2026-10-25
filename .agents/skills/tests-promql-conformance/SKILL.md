@@ -487,3 +487,6 @@ whole-window versus final-pair type selection and separate counter-name diagnost
 
 Mapped Sum/Avg consumer qualification and delayed-root rematerialization follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-mapped-sum-and-avg-labels`.
+
+The rejected root Rate-label ownership experiment, metadata-free copy regression and timing limits are recorded in
+`src/crates/promql-engine/tests/promql-conformance/README.md#rejected-root-rate-label-ownership`.

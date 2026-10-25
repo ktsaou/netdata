@@ -12932,3 +12932,41 @@ that rejected the earlier, distinct direct-group Fold trial remain included unch
 The [corpus](mapped_fold_label_cases.py) and [C consumer](mapped_fold_labels.c) are reproducible fixture
 panels. Original disagreements remain failures. These finite measurements do not establish universal
 speed, live or concurrent throughput, process RSS, or physical ARM performance.
+
+## Rejected root rate-label ownership
+
+A candidate kept owned labels for selected top-level `rate`, `increase`, `delta`, `irate` and `idelta`
+maps, aiming to avoid comparing a borrowed descriptor immediately before final metadata removal copied it.
+The experiment was **rejected and its runtime/test edits fully reverted**.
+
+The [record](rate-root-labels-investigation.json) and [reproducible corpus](rate_root_label_cases.py) retain
+5,734 cases per profile, 121 timing shapes (30 targets, 91 controls), 180 changing-filter comparisons and
+90 metadata-boundary comparisons. All complete outputs and physical observations matched. The 31 focused
+checks include independent linear/typed values, filtering and ownership controls; they are not a full suite.
+
+| Profile | Target candidate/baseline time | Control candidate/baseline time |
+|---|---:|---:|
+| release | 1.008675 | 1.007720 |
+| release-min | 1.011520 | 1.018979 |
+
+Both target medians failed the prospective 0.98 threshold. Three individual shapes received their one
+prescribed followup and passed; that does not override the failed target-family gate. The 62,790 primary
+and 264 followup pairs remain intact. Maximum baseline block spread was 1.961× / 1.605×; these are finite
+shared-host execution timings after compilation, not universal latency or API measurements.
+
+The main panel reduced work in 220 cases per profile with unchanged category memory. An additional
+metadata-free series case exposed an allocation regression: Workspace traffic rose from **4,545,240 to
+5,541,912 bytes**, work from **2,001,229 to 2,005,453**, and peak stayed **396,840 bytes**. Fifteen
+metadata-free range cases failed. Final cleanup does not copy a borrowed labelset when it contains no
+reserved metadata, so eagerly owning that labelset loses a useful saving.
+
+A proposed first-current-label metadata check would address that boundary. It was **not implemented or
+executed**: it supplies no established explanation or remedy for the failed target timing gate. No unchanged
+retry or relaxed threshold followed. Ordinary comparisons and invalid `clamp` bounds can suppress values
+before final copying; their borrowing remains useful. The mixed-type instant cohort control had zero
+mapped-owner hits and is not positive borrowing evidence.
+
+The initial test compiler error and incorrect cohort-hit expectation remain recorded separately from the
+passing focused tests. All runtime/Cargo bytes match the accepted predecessor. Broader originals, full
+native suites, ARM/C/C++, MSRV/Clippy and compiled-size checks were not run for this rejected candidate.
+This experiment adds no language coverage, upstream compatibility or shipped performance claim.

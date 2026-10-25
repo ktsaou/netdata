@@ -74548,5 +74548,16 @@
     "timing_pairs": 140592,
     "C_CPP_pairs": 10944,
     "peak_memory_increase": false
+  },
+  "rejected_root_rate_label_ownership": {
+    "status": "rejected_performance_and_allocation",
+    "report": "rate-root-labels-investigation.json",
+    "report_sha256": "f58f26ae4053b84d8e78e495d393ea0d8612be1b07dca09a4b2c0d5419e8eeba",
+    "comparison_base": "95714090882ae05aa345453ef3ad1dd9beab52fb",
+    "early_pairs": 11468,
+    "timing_pairs": 63054,
+    "metadata_pairs": 90,
+    "metadata_resource_failures": 15,
+    "production_change_retained": false
   }
 }

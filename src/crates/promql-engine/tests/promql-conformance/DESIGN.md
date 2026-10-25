@@ -3393,3 +3393,15 @@ copy saving while adding comparison work. Existing collecting aggregates and non
 consume the descriptor directly. Existing Rate/Instant admission is unchanged. The
 [measured qualification](README.md#borrowed-mapped-sum-and-avg-labels) retains the failed broad trial,
 unchanged prospective cases/gates and exact-resource fallback checks.
+
+## Rejected root rate-label ownership
+
+Keeping owned labels for a full-expression-root Rate map can avoid comparison before final metadata
+removal. That reasoning requires both a retained Float and actual metadata to remove: ordinary filtering
+comparisons, invalid Clamp bounds and metadata-free rows can still benefit from borrowing. A machine-local
+root alone does not identify the final consumer; child machines and restricted instant cohorts differ.
+
+The [finite experiment](README.md#rejected-root-rate-label-ownership) failed both target timing medians
+and metadata-free allocation/work gates. Its runtime/tests were restored exactly. A metadata-presence
+refinement remained unexecuted because fixing that allocation boundary did not establish a remedy for
+the timing failure. Existing Rate/Instant/Fold ownership policies remain unchanged.
