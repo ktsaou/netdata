@@ -418,8 +418,25 @@ struct LabelObservation {
     reads: usize,
 }
 #[cfg(test)]
+type LabelTransform = for<'a> fn(LabelRef<'a>) -> LabelRef<'a>;
+#[cfg(test)]
 thread_local! {
     static LABEL_OBSERVATION: std::cell::RefCell<Option<LabelObservation>> = const { std::cell::RefCell::new(None) };
+    static LABEL_TRANSFORM: std::cell::Cell<Option<LabelTransform>> = const { std::cell::Cell::new(None) };
+}
+#[cfg(test)]
+pub(crate) fn transform_fixture_labels<R>(
+    transform: LabelTransform,
+    operation: impl FnOnce() -> R,
+) -> R {
+    struct Restore(Option<LabelTransform>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            LABEL_TRANSFORM.set(self.0);
+        }
+    }
+    let _restore = Restore(LABEL_TRANSFORM.replace(Some(transform)));
+    operation()
 }
 #[cfg(test)]
 pub(crate) fn observe_label_reads<R>(
@@ -894,10 +911,15 @@ impl Series for FixtureHandle<'_> {
     fn label(&self, index: usize) -> LabelRef<'_> {
         #[cfg(test)]
         label_observed();
-        LabelRef {
+        let label = LabelRef {
             name: &self.data.labels[index].0,
             value: &self.data.labels[index].1,
+        };
+        #[cfg(test)]
+        if let Some(transform) = LABEL_TRANSFORM.get() {
+            return transform(label);
         }
+        label
     }
     fn resources(&self) -> ProviderResources {
         ProviderResources::default()

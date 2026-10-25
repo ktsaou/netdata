@@ -27671,6 +27671,112 @@ mod tests {
     }
 
     #[test]
+    fn mapped_labels_compare_current_provider_bytes_before_reusing_descriptors() {
+        use crate::{
+            evaluator::observe_mapped_labels, storage::LabelRef,
+            test_storage::transform_fixture_labels,
+        };
+        thread_local! {
+            static READS: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, usize::MAX)) };
+        }
+        fn labels(mut label: LabelRef<'_>) -> LabelRef<'_> {
+            if label.name == b"instance" {
+                let (reads, change_after) = READS.get();
+                READS.set((reads + 1, change_after));
+                if reads >= change_after {
+                    label.value = b"changed";
+                }
+            }
+            label
+        }
+        let mut mismatches = 0;
+        let mut matches = 0;
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let run = |skip, change_after| {
+                    let provider = mapped_group_provider(page, 2);
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            b"sum by(instance)(abs(counter_total))",
+                            options(delayed),
+                            &control,
+                        )
+                        .unwrap();
+                    READS.set((0, change_after));
+                    let (report, counts) = observe_mapped_labels(skip, || {
+                        transform_fixture_labels(labels, || {
+                            query.collect_reported(
+                                &provider,
+                                QueryRequest::Range {
+                                    start_ms: 3000,
+                                    end_ms: 5000,
+                                    step_ms: 1000,
+                                },
+                                &control,
+                            )
+                        })
+                    });
+                    let actual = report
+                        .result
+                        .as_ref()
+                        .map(|result| {
+                            result
+                                .series
+                                .iter()
+                                .map(|row| {
+                                    (
+                                        row.labels
+                                            .0
+                                            .iter()
+                                            .map(|label| {
+                                                (label.name.to_vec(), label.value.to_vec())
+                                            })
+                                            .collect::<Vec<_>>(),
+                                        row.points
+                                            .iter()
+                                            .map(|point| (point.time_ms, float_bits(point)))
+                                            .collect::<Vec<_>>(),
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                        .map_err(|error| format!("{error:?}"));
+                    assert!(report.annotations.is_empty());
+                    provider.assert_closed();
+                    let reads = READS.get().0;
+                    let work = report.observations.work;
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                    (actual, counts, reads, work)
+                };
+                let baseline = run(true, usize::MAX);
+                let unchanged = run(false, usize::MAX);
+                assert_eq!(baseline.0, unchanged.0);
+                assert_eq!(baseline.2, unchanged.2);
+                assert!(unchanged.1[1] > 0 && unchanged.1[2] == 0);
+                assert!(unchanged.3 <= baseline.3);
+                for change_after in 0..=baseline.2 {
+                    let before = run(true, change_after);
+                    let after = run(false, change_after);
+                    assert_eq!(
+                        before.0, after.0,
+                        "page={page} delayed={delayed} read={change_after}"
+                    );
+                    assert_eq!(before.2, after.2);
+                    mismatches += after.1[2];
+                    matches += after.1[1];
+                }
+            }
+        }
+        assert!(mismatches > 0 && matches > 0);
+        println!(
+            "current-label matches={matches} mismatches={mismatches}; changing-label fallback can count extra comparison work"
+        );
+    }
+
+    #[test]
     fn selector_group_labels_borrow_only_direct_float_inputs() {
         let mut queries = 0;
         for page in [1, 17, 1024] {
@@ -27752,12 +27858,12 @@ mod tests {
                                 }
                                 assert!(seen.into_iter().all(|present| present));
                                 assert_eq!(observed[2], 0);
-                                if !child.starts_with("abs") {
+                                if !child.starts_with("abs") || !instant && groups > 1 {
                                     assert!(
                                         observed[0] > 0,
                                         "{expression} {request:?} {observed:?}"
                                     );
-                                } else {
+                                } else if instant {
                                     assert_eq!(observed[0], 0, "{expression} {observed:?}");
                                 }
                                 assert_eq!(

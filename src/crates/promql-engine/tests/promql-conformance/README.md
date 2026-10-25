@@ -12707,3 +12707,31 @@ The [instrumentation patch](mapped-label-census.patch) targets the reference rev
 for observation, not performance timing. The compiled test executable is retained losslessly compressed,
 with its uncompressed digest. No native-histogram, alias, changed-label or raw-empty census case was run;
 zero counters do not establish coverage for those paths. Other copy sites were not counted.
+
+## Borrowed complete mapped labels
+
+The engine can reuse complete labels already held by an ordered `abs()` result. It first compares them
+with the provider's **current full mapped labels**, including empty values. Matching source ordinals
+alone are insufficient. Only the proven Float/ordinary-selector/frame/source chain borrows; every
+other case retains its copy. Existing metadata reads, duplicate detection, output ownership and
+cancellation remain in place.
+
+[Qualification](mapped-label-borrow-qualification.json) covers 1,248 early query pairs, 27,768 broader
+pairs, both native test profiles, selected ARM tests and 5,184 C/C++ pairs. The changed-provider test
+observed 1,944 matching completions and 1,944 mismatches; complete outcomes match disabled borrowing.
+Existing original ordering and numerical disagreements remain explicitly recorded failures.
+
+Across 48 timed shapes, the 20 targets have paired median time ratios **0.8104** (`release`) and
+**0.8462** (`release-min`); controls are **0.9943** and **1.0136**. All preset gates passed after
+53,262 primary pairs and 72 follow-up pairs. Every block, including host drift, is retained.
+
+For `sum by(job)(abs(m_total))` with 128 inputs and 32 payload labels, workspace allocation traffic
+falls from **19,893,688 to 11,856,568 bytes**; peak workspace stays **1,284,712 bytes**. All measured
+category peaks and physical reads are nonincreasing/unchanged respectively. Changed-label fallback
+can add accounted comparison work. Fixed compiled costs for each target are listed separately in
+the report. These are finite synthetic measurements, not live-load or universal performance claims.
+
+The [query corpus](mapped_label_borrow_cases.py) and [C consumer](mapped_label_borrow.c) retain the
+scenarios. C self-ratios cover streaming and failure ownership; absolute inner values are checked
+separately in Rust. Timing binaries keep their original source identities across the later test-only
+lint correction; final native and ARM checks use the corrected test source.

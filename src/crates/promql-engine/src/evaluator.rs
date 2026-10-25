@@ -34,6 +34,23 @@ const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 thread_local! {
     static SELECTOR_GROUP_PHASE: std::cell::Cell<Option<(u64, u64)>> = const { std::cell::Cell::new(None) };
     static SELECTOR_LABEL_OWNERS: std::cell::Cell<Option<[usize; 4]>> = const { std::cell::Cell::new(None) };
+    static MAPPED_LABEL_OBSERVATION: std::cell::Cell<Option<(bool, [usize; 3])>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn observe_mapped_labels<R>(
+    skip: bool,
+    operation: impl FnOnce() -> R,
+) -> (R, [usize; 3]) {
+    struct Restore(Option<(bool, [usize; 3])>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            MAPPED_LABEL_OBSERVATION.set(self.0);
+        }
+    }
+    let _restore = Restore(MAPPED_LABEL_OBSERVATION.replace(Some((skip, [0; 3]))));
+    let result = operation();
+    (result, MAPPED_LABEL_OBSERVATION.get().unwrap().1)
 }
 
 #[cfg(test)]
@@ -2727,9 +2744,21 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         value
             .map(|value| {
                 let labels = if matches!(value.2.value, OwnedValue::Float(_))
-                    && let Some(labels) =
-                        self.selector_group_labels(node, selector_node, operation, series_labels)?
-                {
+                    && let Some(labels) = match self.selector_group_labels(
+                        node,
+                        selector_node,
+                        operation,
+                        series_labels,
+                    )? {
+                        Some(labels) => Some(labels),
+                        None => self.selector_mapped_labels(
+                            node,
+                            selector_node,
+                            operation,
+                            series_ordinal,
+                            series_labels,
+                        )?,
+                    } {
                     SampleLabels::Borrowed(labels)
                 } else {
                     OwnedLabels::copy_from_checked(
@@ -2748,6 +2777,78 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 self.finish_selector_value(selector_node, operation, series_ordinal, labels, value)
             })
             .transpose()
+    }
+    fn selector_mapped_labels(
+        &self,
+        node: NodeId,
+        selector_node: NodeId,
+        operation: SelectorOperation,
+        ordinal: usize,
+        labels: &[crate::storage::LabelRef<'_>],
+    ) -> Result<Option<&'a OwnedLabels>, EvaluationError> {
+        let [.., ordered, map, current] = self.frames.as_ref() else {
+            return Ok(None);
+        };
+        if !matches!(
+            map.state,
+            State::Map {
+                operation: MapOperation::Pointwise(PointwiseFunction::Float(FloatFunction::Abs, _)),
+                ..
+            }
+        ) {
+            return Ok(None);
+        }
+        let State::OrderedRows {
+            descriptors,
+            sources,
+            position,
+            running: true,
+            streaming: false,
+        } = &ordered.state
+        else {
+            return Ok(None);
+        };
+        if ordered.node != map.node
+            || !map.bypass_order
+            || current.node != node
+            || node != selector_node
+            || !matches!(operation, SelectorOperation::Instant)
+            || !matches!(current.state, State::Selection {
+                selector, operation: SelectorOperation::Instant, ..
+            } if selector == selector_node)
+            || self.selector(selector_node).anchored
+            || self.selector(selector_node).smoothed
+        {
+            return Ok(None);
+        }
+        let Some(descriptor) = descriptors.get(*position) else {
+            return Ok(None);
+        };
+        if sources[descriptor.sources.clone()] != [ordinal] {
+            return Ok(None);
+        }
+        #[cfg(test)]
+        if let Some((skip, mut counts)) = MAPPED_LABEL_OBSERVATION.get() {
+            counts[0] += 1;
+            MAPPED_LABEL_OBSERVATION.set(Some((skip, counts)));
+            if skip {
+                return Ok(None);
+            }
+        }
+        // A retained source handle does not promise unchanged metadata across reads.
+        let same = mapped_labels_equal(
+            labels,
+            &descriptor.labels,
+            self.options.delayed_name_removal,
+            self.account,
+            self.control,
+        )?;
+        #[cfg(test)]
+        if let Some((skip, mut counts)) = MAPPED_LABEL_OBSERVATION.get() {
+            counts[if same { 1 } else { 2 }] += 1;
+            MAPPED_LABEL_OBSERVATION.set(Some((skip, counts)));
+        }
+        Ok(same.then_some(&descriptor.labels))
     }
     fn selector_group_labels(
         &self,
@@ -5587,6 +5688,179 @@ pub(crate) fn remember_unique_kind(
 
 pub(crate) fn metadata(name: &[u8]) -> bool {
     matches!(name, b"__name__" | b"__type__" | b"__unit__")
+}
+
+fn mapped_labels_equal(
+    labels: &[crate::storage::LabelRef<'_>],
+    mapped: &OwnedLabels,
+    delayed: bool,
+    account: &QueryAccounting,
+    control: &Control,
+) -> Result<bool, Interrupted> {
+    let same = (|| -> Result<bool, Interrupted> {
+        let mut expected = mapped.0.iter();
+        for label in labels {
+            control.check()?;
+            account.work(1);
+            if !delayed && metadata(label.name) {
+                continue;
+            }
+            let Some(candidate) = expected.next() else {
+                return Ok(false);
+            };
+            if !crate::binary_labels::equal(label.name, &candidate.name, control, account)?
+                || !crate::binary_labels::equal(label.value, &candidate.value, control, account)?
+            {
+                return Ok(false);
+            }
+        }
+        Ok(expected.next().is_none())
+    })()?;
+    control.check()?;
+    Ok(same)
+}
+
+#[cfg(test)]
+mod mapped_label_tests {
+    use super::*;
+    use crate::{
+        accounting::EngineAccounting, storage::LabelRef, test_storage::interrupt_after_work,
+    };
+
+    #[test]
+    fn mapped_labels_keep_complete_bytes_and_raw_empty_values() {
+        let long = vec![0xff; 3073];
+        let cases: Vec<Vec<LabelRef<'_>>> = vec![
+            vec![],
+            vec![LabelRef {
+                name: b"__name__",
+                value: b"m",
+            }],
+            vec![LabelRef {
+                name: b"",
+                value: b"v",
+            }],
+            vec![
+                LabelRef {
+                    name: b"__name__",
+                    value: b"m",
+                },
+                LabelRef {
+                    name: b"__type__",
+                    value: b"counter",
+                },
+                LabelRef {
+                    name: b"__unit__",
+                    value: b"KiB",
+                },
+                LabelRef {
+                    name: b"empty",
+                    value: b"",
+                },
+                LabelRef {
+                    name: b"member",
+                    value: b"\xff\0",
+                },
+                LabelRef {
+                    name: b"z",
+                    value: &long,
+                },
+            ],
+        ];
+        for labels in cases {
+            for delayed in [false, true] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let projected: Vec<_> = labels
+                    .iter()
+                    .copied()
+                    .filter(|label| delayed || !metadata(label.name))
+                    .collect();
+                let mapped = OwnedLabels::copy_from(&projected, &account, MemoryKind::Workspace);
+                assert!(
+                    mapped_labels_equal(&labels, &mapped, delayed, &account, &control).unwrap()
+                );
+                assert_eq!(mapped.0.len(), projected.len());
+                for position in 0..projected.len() {
+                    let mut different = projected.clone();
+                    different[position].value = if different[position].value == b"other" {
+                        b"value"
+                    } else {
+                        b"other"
+                    };
+                    let changed =
+                        OwnedLabels::copy_from(&different, &account, MemoryKind::Workspace);
+                    assert!(
+                        !mapped_labels_equal(&labels, &changed, delayed, &account, &control)
+                            .unwrap()
+                    );
+                    different[position] = projected[position];
+                    different[position].name = b"different";
+                    let renamed =
+                        OwnedLabels::copy_from(&different, &account, MemoryKind::Workspace);
+                    assert!(
+                        !mapped_labels_equal(&labels, &renamed, delayed, &account, &control)
+                            .unwrap()
+                    );
+                }
+                let mut extra = projected.clone();
+                extra.push(LabelRef {
+                    name: b"zz",
+                    value: b"",
+                });
+                let extra = OwnedLabels::copy_from(&extra, &account, MemoryKind::Workspace);
+                assert!(
+                    !mapped_labels_equal(&labels, &extra, delayed, &account, &control).unwrap()
+                );
+                if !projected.is_empty() {
+                    let short = OwnedLabels::copy_from(
+                        &projected[..projected.len() - 1],
+                        &account,
+                        MemoryKind::Workspace,
+                    );
+                    assert!(
+                        !mapped_labels_equal(&labels, &short, delayed, &account, &control).unwrap()
+                    );
+                }
+                drop((extra, mapped));
+                account.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn mapped_labels_poll_before_inside_and_after_the_last_comparison_chunk() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let value = vec![0xff; 3073];
+        let labels = [LabelRef {
+            name: b"member",
+            value: &value,
+        }];
+        let mapped = OwnedLabels::copy_from(&labels, &account, MemoryKind::Workspace);
+        let before = account.snapshot().work;
+        assert!(
+            mapped_labels_equal(&labels, &mapped, true, &account, &Control::default()).unwrap()
+        );
+        let work = account.snapshot().work - before;
+        assert_eq!(work, 1 + 6 + 3073);
+        for at in [1, 7, 1031, 2055, work] {
+            let control = Control::default();
+            let result = interrupt_after_work(&account, &control, at, || {
+                mapped_labels_equal(&labels, &mapped, true, &account, &control)
+            });
+            assert_eq!(result, Err(Interrupted::Cancelled), "work={at}");
+        }
+        let control = Control::default();
+        control.cancellation.cancel();
+        assert_eq!(
+            mapped_labels_equal(&[], &mapped, true, &account, &control),
+            Err(Interrupted::Cancelled)
+        );
+        drop(mapped);
+        account.snapshot().assert_memory_released();
+    }
 }
 
 pub(crate) fn drop_reserved(

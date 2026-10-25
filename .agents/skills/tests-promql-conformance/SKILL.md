@@ -455,3 +455,7 @@ retain paired blocks and absolute drift without reclassifying historical rejecte
 Complete mapped-label owner availability and the need to compare current provider label bytes are recorded in
 `src/crates/promql-engine/tests/promql-conformance/README.md#complete-mapped-label-availability-census`;
 ordinal identity alone does not establish generic-provider label-byte identity.
+
+Complete mapped-label borrowing follows
+`src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-complete-mapped-labels`: check current
+full bytes and one physical source, preserve raw empties and final comparison polling; count mismatch fallback work.

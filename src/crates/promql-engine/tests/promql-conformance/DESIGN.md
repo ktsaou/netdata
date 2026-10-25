@@ -3322,3 +3322,15 @@ identity; the generic provider contract does not establish unchanged label bytes
 checked equivalence with current complete mapped labels, with mismatch fallback. Preserve all existing
 metadata, duplicate, hash/head and cancellation checks. The census measures eligibility only and changes
 no runtime behavior or provider contract; raw payload counts are not allocated-byte savings.
+
+## Borrowed complete mapped labels
+
+A completed ordinary Float selector below `abs` may borrow its existing full ordered descriptor only
+when node/frame/source identity and checked current mapped label bytes agree. The descriptor's owner
+already spans evaluation; no new cache or provider immutability promise is introduced. Early metadata
+removal is reflected in comparison without normalizing raw empty values. Map duplicate and OrderedRows
+hash/head/equality checks still execute. Native, scheduled, absent-owner, multi-source and mismatching
+paths retain their existing ownership. Comparison polls in bounded chunks and after the final charge.
+
+[Measured qualification](README.md#borrowed-complete-mapped-labels) distinguishes reduced allocation
+traffic from unchanged live peaks, and records extra comparison work for changed-label fallback.

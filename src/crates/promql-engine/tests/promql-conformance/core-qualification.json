@@ -74476,5 +74476,14 @@
     "observed_selector_completions": 1920,
     "exact_projected_matches": 1440,
     "production_change": false
+  },
+  "borrowed_complete_mapped_labels": {
+    "status": "finite_qualification_pass",
+    "report": "mapped-label-borrow-qualification.json",
+    "report_sha256": "bc70545bfdf67bb1292ed77448cd68453fc46582b46398be75d56dfbb0611998",
+    "broad_pairs": 27768,
+    "timing_pairs": 53334,
+    "C_CPP_pairs": 5184,
+    "peak_memory_increase": false
   }
 }
