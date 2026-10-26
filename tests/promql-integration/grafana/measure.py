@@ -11,7 +11,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -113,7 +113,9 @@ def main():
     plan = {'schema': 1, 'scope': args.scope, 'hosts_selected': len(args.host), 'start': start, 'end': end,
             'step': args.step, 'deadline': args.deadline, 'concurrency': args.concurrency,
             'repeats': args.repeats, 'cases': len(cases), 'instant_override': args.instant,
+            'rate_scrape_interval_seconds': 1,
             'cache_state': 'uncontrolled live cache; repeated passes are warm candidates, not guaranteed cold/warm',
+            'runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             'catalogue_sha256': hashlib.sha256((HERE / 'workload-catalogue.json').read_bytes()).hexdigest()}
     print(json.dumps(plan), flush=True)
     if args.plan:
@@ -121,6 +123,7 @@ def main():
     parent = args.output.parent.resolve(strict=True)
     if not parent.is_dir() or args.output.suffixes[-2:] != ['.jsonl', '.gz']:
         parser.error('output must be a new .jsonl.gz file under an existing directory')
+    cohort_started = time.monotonic()
     with args.output.open('xb') as destination, gzip.GzipFile(fileobj=destination, mode='wb', mtime=0) as compressed:
         def emit(value):
             compressed.write((json.dumps(value, allow_nan=False) + '\n').encode())
@@ -135,9 +138,16 @@ def main():
                 return {'id': case['id'], 'title': case['title'], 'expression_template': target['expr'], 'repeat': repeat,
                         'template_sha256': hashlib.sha256(target['expr'].encode()).hexdigest(), **measured}
             with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
-                for record in pool.map(run, cases):
+                futures = [pool.submit(run, case) for case in cases]
+                for future in as_completed(futures):
+                    record = future.result()
                     emit(record)
                     print(json.dumps({key: record.get(key) for key in ['id', 'repeat', 'outcome', 'seconds', 'series']}), flush=True)
+        elapsed = time.monotonic() - cohort_started
+        summary = {'completed_requests': len(cases) * args.repeats, 'seconds': elapsed,
+                   'requests_per_second': len(cases) * args.repeats / elapsed}
+        emit({'summary': summary})
+        print(json.dumps({'summary': summary}), flush=True)
 
 
 if __name__ == '__main__':

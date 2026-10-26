@@ -28,6 +28,10 @@ scope the v3 data query itself.
 
 For PromQL expressions and series discovery, follow the [PromQL API guide](../../../../src/web/api/promql/README.md).
 Its five v1 endpoints use retained fleet scope or an explicit host/node prefix, rather than v3 `scope_nodes`.
+For query measurements, exact `stats=all` adds evaluation memory/work observations; these are not whole-request RAM
+or physical disk reads. See the API guide for snapshot timing and failure responses. The
+[practical dashboard catalogue](../../../../tests/promql-integration/grafana/README.md#practical-fleet-workload-catalogue)
+provides repeatable multi-node expressions and distinguishes missing inputs from empty alert results.
 
 ## Use the wrapper
 

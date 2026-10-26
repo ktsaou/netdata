@@ -94,7 +94,7 @@
     {
       "id": 1,
       "title": "CPU busy alert candidates",
-      "description": "Filter comparison returns affected hosts and their actual values. Example threshold only.",
+      "description": "Filter comparison returns affected hosts and their actual values. Example threshold only. Historical matches: the last legend value may precede the range endpoint.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -179,7 +179,7 @@
     {
       "id": 2,
       "title": "Memory alert candidates",
-      "description": "Example condition; no rule hold duration or notifications are installed.",
+      "description": "Example condition; no rule hold duration or notifications are installed. Historical matches: the last legend value may precede the range endpoint.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -264,7 +264,7 @@
     {
       "id": 3,
       "title": "Application CPU alert candidates across nodes",
-      "description": "Application fleet CPU above four cores; alert identity is the application group.",
+      "description": "Application fleet CPU above four cores; alert identity is the application group. Historical matches: the last legend value may precede the range endpoint.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -349,7 +349,7 @@
     {
       "id": 4,
       "title": "CPU busy AND high memory",
-      "description": "Two conditions must hold on the same host.",
+      "description": "Two conditions must hold on the same host. Historical matches: the last legend value may precede the range endpoint.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -434,7 +434,7 @@
     {
       "id": 5,
       "title": "CPU busy OR high memory flags",
-      "description": "Flags only hosts with both input metrics present; absent inputs are not treated as zero.",
+      "description": "Flags only hosts with both input metrics present; absent inputs are not treated as zero. Historical matches: the last legend value may precede the range endpoint.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -519,7 +519,7 @@
     {
       "id": 6,
       "title": "Two-window CPU alert candidates",
-      "description": "Illustrative sustained pressure over two explicitly sampled windows.",
+      "description": "Illustrative sustained pressure over two explicitly sampled windows. Historical matches: the last legend value may precede the range endpoint.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -604,7 +604,7 @@
     {
       "id": 7,
       "title": "CPU increase from one hour ago above 20 points",
-      "description": "Historical join; a missing historical counterpart produces no candidate.",
+      "description": "Historical join; a missing historical counterpart produces no candidate. Historical matches: the last legend value may precede the range endpoint.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -689,7 +689,7 @@
     {
       "id": 8,
       "title": "Application nodes above two cores",
-      "description": "Per-app affected-node count; threshold is illustrative.",
+      "description": "Per-app affected-node count; threshold is illustrative. Historical matches: the last legend value may precede the range endpoint.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -774,7 +774,7 @@
     {
       "id": 9,
       "title": "Missing nodes from recent baseline",
-      "description": "Historical expected-member proxy; not a configuration-backed desired inventory.",
+      "description": "Historical expected-member proxy; not a configuration-backed desired inventory. Historical matches: the last legend value may precede the range endpoint.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -859,7 +859,7 @@
     {
       "id": 10,
       "title": "Filesystem exhaustion projected within four hours",
-      "description": "Illustrative linear prediction of available capacity crossing zero; bursty usage may invalidate the model.",
+      "description": "Illustrative linear prediction of available capacity crossing zero; bursty usage may invalidate the model. Historical matches: the last legend value may precede the range endpoint.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -944,7 +944,7 @@
     {
       "id": 11,
       "title": "HTTP failures or complete absence",
-      "description": "OR retains failure identities and separately detects complete selected-scope absence.",
+      "description": "OR retains failure identities and separately detects complete selected-scope absence. Historical matches: the last legend value may precede the range endpoint.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -1029,7 +1029,7 @@
     {
       "id": 12,
       "title": "HTTP checks slower than one second",
-      "description": "Per-instance candidates; empty can mean healthy or unavailable input, so pair with availability.",
+      "description": "Per-instance candidates; empty can mean healthy or unavailable input, so pair with availability. Historical matches: the last legend value may precede the range endpoint.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",

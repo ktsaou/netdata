@@ -59,7 +59,7 @@ def definitions():
             ('Immediate egress rate by node', group('sum', H, 'irate(' + metric('system_net', 'netdata_dimension_id="OutOctets"') + '[$__rate_interval])'), 'Kbits', 'Last two counter points; more responsive and noisier than rate().', 'irate'),
             ('Top five sending nodes', 'topk(5, ' + group('sum', H, egress) + ')', 'Kbits', 'Ranking changes per step; holes from changing membership are expected here.', 'topk'),
             ('Average egress per reporting node', 'avg(' + group('sum', H, egress) + ')', 'Kbits', 'Mean node contribution, not total throughput.', 'nested-aggregation'),
-            ('Network drops per observed packet', 'sum(' + rate('net_drops') + ') / sum(' + rate('net_packets') + ')', 'percentunit', 'Observed interface drop/packet ratio; interfaces can overlap and directions are combined.', 'ratio,rate'),
+            ('Network drops per observed packet', 'sum(' + rate('net_drops') + ') / sum(' + rate('net_packets', 'netdata_dimension_id=~"received|sent"') + ')', 'percentunit', 'Observed interface drop/packet ratio; received and sent exclude the separately reported multicast subset. Interfaces can overlap.', 'ratio,rate'),
             ('Nodes above 100 Mbit/s egress', 'sum(' + group('sum', H, egress) + ' > bool 100000)', 'short', 'Illustrative capacity threshold; choose the link-specific threshold before alerting.', 'bool,aggregation'),
         ]),
         ('fleet-applications', 'Applications Across Nodes', [
@@ -175,6 +175,8 @@ def build():
                          description='Practical multi-node PromQL workloads. Missing data stays missing; alert thresholds are examples.',
                          refresh='', panels=[])
         for number, (title, expr, unit, description, family) in enumerate(definitions_, 1):
+            if slug == 'alert-expressions':
+                description += ' Historical matches: the last legend value may precede the range endpoint.'
             panel = deepcopy(panel_template)
             panel.update(id=number, title=title, description=description,
                          gridPos={'x': ((number - 1) % 2) * 12, 'y': ((number - 1) // 2) * 8, 'w': 12, 'h': 8})

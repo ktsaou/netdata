@@ -1114,7 +1114,7 @@
     {
       "id": 13,
       "title": "Network drops per observed packet",
-      "description": "Observed interface drop/packet ratio; interfaces can overlap and directions are combined.",
+      "description": "Observed interface drop/packet ratio; received and sent exclude the separately reported multicast subset. Interfaces can overlap.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -1183,7 +1183,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(net_drops{netdata_host_name=~\"${host}\"}[$__rate_interval])) / sum(rate(net_packets{netdata_host_name=~\"${host}\"}[$__rate_interval]))",
+          "expr": "sum(rate(net_drops{netdata_host_name=~\"${host}\"}[$__rate_interval])) / sum(rate(net_packets{netdata_host_name=~\"${host}\",netdata_dimension_id=~\"received|sent\"}[$__rate_interval]))",
           "editorMode": "code",
           "legendFormat": "",
           "range": true,
