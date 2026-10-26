@@ -29,6 +29,7 @@ typedef struct {
     netdata_promql_selector_t **selectors;
     size_t selector_count;
     PROMQL_OUTPUT *output;
+    bool execution_started;
     PROMQL_BODY *body;
     netdata_promql_bytes_t label_name;
     PROMQL_PROVIDER_CONTEXT context;

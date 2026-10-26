@@ -23,6 +23,7 @@ struct promql_output {
     PROMQL_BODY *records, *body;
     PROMQL_NOTES notes;
     netdata_promql_bytes_t stats_parameter;
+    PROMQL_OUTPUT_STORAGE storage;
     OUTPUT_SERIES *series;
     size_t count, capacity, *slots, slot_count;
     uint8_t *window;
@@ -78,6 +79,71 @@ PROMQL_BODY *promql_output_take_body(PROMQL_OUTPUT *output) {
 void promql_output_stats_parameter(PROMQL_OUTPUT *output, netdata_promql_bytes_t value) {
     // The decoded form remains alive until synchronous output commit or abort.
     output->stats_parameter = value;
+}
+
+void promql_output_storage(PROMQL_OUTPUT *output, PROMQL_OUTPUT_STORAGE storage) {
+    output->storage = storage;
+}
+
+static bool resource_number(PROMQL_BODY *body, const char *name, uint64_t value,
+                            PROMQL_READ_FRAME *frame, int *error) {
+    return promql_json_text(body, name, frame, error) && promql_json_unsigned(body, value, frame, error);
+}
+
+static bool resource_memory(PROMQL_BODY *body, const netdata_promql_memory_observation_t *value,
+                            PROMQL_READ_FRAME *frame, int *error) {
+    return resource_number(body, "{\"current\":", value->current, frame, error) &&
+        resource_number(body, ",\"peak\":", value->peak, frame, error) &&
+        resource_number(body, ",\"acquired\":", value->acquired, frame, error) &&
+        resource_number(body, ",\"released\":", value->released, frame, error) &&
+        resource_number(body, ",\"overflowed\":", value->overflowed, frame, error) &&
+        promql_json_text(body, "}", frame, error);
+}
+
+bool promql_output_resources(PROMQL_BODY *body, const netdata_promql_query_observations_t *o,
+                             PROMQL_OUTPUT_STORAGE storage, const char *snapshot,
+                             PROMQL_READ_FRAME *frame, int *error) {
+    static const char *const names[NETDATA_PROMQL_MEMORY_KINDS] = {
+        "compiled", "workspace", "result", "providerHeld", "borrowedView", "regexEstimate",
+        "sharedCacheReference", "accounting"
+    };
+    if(!promql_json_text(body, ",\"netdata\":{\"snapshot\":", frame, error) ||
+       !promql_json_string(body, promql_bytes(snapshot), PROMQL_JSON_ENVELOPE, frame, error) ||
+       !resource_number(body, ",\"samplesRead\":", o->statistics.samples.samples_read, frame, error) ||
+       !resource_number(body, ",\"providerCalls\":", o->provider_calls, frame, error) ||
+       !resource_number(body, ",\"sampleBatches\":", o->pages, frame, error) ||
+       !resource_number(body, ",\"samplesFetched\":", o->samples_fetched, frame, error) ||
+       !resource_number(body, ",\"work\":", o->work, frame, error) ||
+       !resource_number(body, ",\"outputSamples\":", o->output_samples, frame, error) ||
+       !resource_number(body, ",\"counterOverflowed\":", o->counter_overflowed, frame, error) ||
+       !promql_json_text(body, ",\"memoryBytes\":{", frame, error)) return false;
+    for(size_t i = 0; i < NETDATA_PROMQL_MEMORY_KINDS; i++) {
+        if((i && !promql_json_text(body, ",", frame, error)) ||
+           !promql_json_string(body, promql_bytes(names[i]), PROMQL_JSON_ENVELOPE, frame, error) ||
+           !promql_json_text(body, ":", frame, error) || !resource_memory(body, &o->memory[i], frame, error)) return false;
+    }
+    const netdata_promql_temporary_storage_observations_t *t = &o->temporary_storage;
+    if(!promql_json_text(body, "},\"temporaryStorage\":{\"extentBytes\":", frame, error) ||
+       !resource_memory(body, &t->extent, frame, error) ||
+       !resource_number(body, ",\"readCalls\":", t->read_calls, frame, error) ||
+       !resource_number(body, ",\"writeCalls\":", t->write_calls, frame, error) ||
+       !resource_number(body, ",\"readBytes\":", t->read_bytes, frame, error) ||
+       !resource_number(body, ",\"writtenBytes\":", t->written_bytes, frame, error) ||
+       !resource_number(body, ",\"counterOverflowed\":", t->counter_overflowed, frame, error) ||
+       !promql_json_text(body, "}", frame, error)) return false;
+    if(storage.tiers) {
+        if(!promql_json_text(body, ",\"storage\":{\"tiers\":[", frame, error)) return false;
+        for(size_t i = 0; i < storage.tiers; i++) {
+            if((i && !promql_json_text(body, ",", frame, error)) ||
+               !resource_number(body, "{\"pageEncounters\":", storage.pages[i], frame, error) ||
+               !resource_number(body, ",\"points\":", storage.points[i], frame, error) ||
+               !promql_json_text(body, "}", frame, error)) return false;
+        }
+        if(!resource_number(body, "],\"reconstructionPoints\":", *storage.reconstruction_points, frame, error) ||
+           !resource_number(body, ",\"counterOverflowed\":", *storage.overflowed, frame, error) ||
+           !promql_json_text(body, "}", frame, error)) return false;
+    }
+    return promql_json_text(body, "}", frame, error);
 }
 
 static bool copy_blob(PROMQL_OUTPUT *output, PROMQL_BODY *source, uint64_t offset, uint64_t length,
@@ -404,7 +470,10 @@ static bool write_stats(PROMQL_OUTPUT *output, const netdata_promql_query_observ
         promql_json_unsigned(output->body, observations->statistics.samples.total_queryable_samples, frame, &output->failure) &&
         promql_json_text(output->body, ",\"peakSamples\":", frame, &output->failure) &&
         promql_json_unsigned(output->body, observations->statistics.samples.peak_samples, frame, &output->failure) &&
-        promql_json_text(output->body, "}}", frame, &output->failure);
+        promql_json_text(output->body, "}", frame, &output->failure) &&
+        (!(output->stats_parameter.len == 3 && !memcmp(output->stats_parameter.data, "all", 3)) ||
+         promql_output_resources(output->body, observations, output->storage, "evaluation-before-output-commit", frame, &output->failure)) &&
+        promql_json_text(output->body, "}", frame, &output->failure);
 }
 
 static uint32_t commit(void *context, const netdata_promql_query_observations_t *observations,

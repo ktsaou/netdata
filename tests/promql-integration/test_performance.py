@@ -14,7 +14,9 @@ class PerformanceEnvelopeTests(unittest.TestCase):
         stats = {"timings": {"evalTotalTime": 0.000104369, "resultSortTime": 0.00000131,
                              "queryPreparationTime": 0.000024469, "innerEvalTime": 0.00005701,
                              "execQueueTime": 0, "execTotalTime": 0.00010651},
-                 "samples": {"totalQueryableSamples": 0, "peakSamples": 1}}
+                 "samples": {"totalQueryableSamples": 0, "peakSamples": 1},
+                 "netdata": {"snapshot": "evaluation-before-output-commit",
+                             "memoryBytes": {str(index): {} for index in range(8)}}}
         response = {"status": 200, "headers": {}}
         value = {"status": "success", "data": {"resultType": "scalar", "result": [1700002804, "1"], "stats": stats}}
         self.assertEqual(validate(case, response, json.dumps(value).encode()), stats)

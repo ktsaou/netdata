@@ -108,7 +108,7 @@ def validate(case, response, body):
     stats = raw_data.get("stats", {})
     timings = stats.get("timings", {})
     samples = stats.get("samples", {})
-    if set(stats) != {"timings", "samples"} or set(timings) != TIMINGS:
+    if set(stats) != {"timings", "samples", "netdata"} or set(timings) != TIMINGS:
         raise RuntimeError("missing or unexpected HTTP timing statistics")
     if any(type(value) not in (int, float) or not math.isfinite(value) or value < 0 for value in timings.values()):
         raise RuntimeError("invalid server timing")
@@ -116,6 +116,9 @@ def validate(case, response, body):
         raise RuntimeError("invalid sample statistics")
     if bool(samples["totalQueryableSamples"]) != case["reads_dbengine"]:
         raise RuntimeError("query's logical reads differ from its DBengine/control purpose")
+    resources = stats["netdata"]
+    if resources.get("snapshot") != "evaluation-before-output-commit" or len(resources.get("memoryBytes", {})) != 8:
+        raise RuntimeError("missing evaluation resource snapshot")
     return stats
 
 

@@ -261,11 +261,21 @@ static void prepare_label_name(void *context, void *handle __maybe_unused,
         .prefix = "invalid label name: ", .message = request->label_name, .quote = true};
 }
 
+static PROMQL_OUTPUT_STORAGE output_storage(PROMQL_API_REQUEST *request) {
+    return (PROMQL_OUTPUT_STORAGE){.pages = request->context.storage_pages,
+        .points = request->context.storage_points, .tiers = RRD_STORAGE_TIERS,
+        .reconstruction_points = &request->context.reconstruction_points,
+        .overflowed = &request->context.counters_overflowed};
+}
+
 static void prepare_output(void *context, void *handle __maybe_unused, const netdata_promql_accounting_context_t *account) {
     PROMQL_API_REQUEST *request = context;
     netdata_promql_bytes_t stats = promql_form_value(request->form, PROMQL_PARAM_STATS);
     request->output = promql_output_create(account, request->directory, request->limit, stats.len != 0, request->gzip, &request->error);
-    if(request->output) promql_output_stats_parameter(request->output, stats);
+    if(request->output) {
+        promql_output_stats_parameter(request->output, stats);
+        promql_output_storage(request->output, output_storage(request));
+    }
 }
 
 static bool query(PROMQL_API_REQUEST *request, bool range) {
@@ -331,6 +341,7 @@ static bool query(PROMQL_API_REQUEST *request, bool range) {
     netdata_promql_output_t output = promql_output_callbacks(request->output);
     request->request.kind = range ? NETDATA_PROMQL_REQUEST_RANGE : NETDATA_PROMQL_REQUEST_INSTANT;
     report = NULL;
+    request->execution_started = true;
     status = netdata_promql_execute_precise(request->query, &provider, &request->request, request->operation.control, &output, &report);
     promql_api_replace_report(request, report);
     if(status != NETDATA_PROMQL_OK) { promql_api_report_failure(request, status, NULL, source); return false; }
@@ -374,7 +385,16 @@ static void prepare_error(void *context, void *handle __maybe_unused, const netd
     if(!(failure->quote ? promql_json_go_quote(body, failure->message, &frame, &request->error) :
          promql_json_escape(body, failure->message, PROMQL_JSON_ENVELOPE, &frame, &request->error))) return;
     if(failure->suffix && !error_text(request, body, failure->suffix, &frame)) return;
-    if(!promql_json_text(body, "\"}", &frame, &request->error) || !promql_body_seal(body, &frame, &request->error)) return;
+    if(!promql_json_text(body, "\"", &frame, &request->error)) return;
+    netdata_promql_bytes_t stats = request->form ? promql_form_value(request->form, PROMQL_PARAM_STATS) : (netdata_promql_bytes_t){0};
+    if(request->execution_started && stats.len == 3 && !memcmp(stats.data, "all", 3)) {
+        netdata_promql_query_observations_t observations;
+        if(netdata_promql_report_observations(request->report, &observations) == NETDATA_PROMQL_OK &&
+           (!promql_json_text(body, ",\"stats\":{\"available\":true", &frame, &request->error) ||
+            !promql_output_resources(body, &observations, output_storage(request), "execution-report", &frame, &request->error) ||
+            !promql_json_text(body, "}", &frame, &request->error))) return;
+    }
+    if(!promql_json_text(body, "}", &frame, &request->error) || !promql_body_seal(body, &frame, &request->error)) return;
     if(request->gzip) {
         PROMQL_BODY *encoded = promql_body_gzip(body, &frame, web_gzip_level, web_gzip_strategy, &request->error);
         if(encoded) { promql_body_release(body); request->body = encoded; }

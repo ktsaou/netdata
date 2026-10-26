@@ -156,6 +156,31 @@ def qualify(binary, codec, run, observe=None):
             gauge, counter = expressions["gauge"], expressions["counter"]
             for name, scope, value in [("fleet-gauge", "", 12), ("local-gauge", local, 5), ("child-gauge", child, 7)]:
                 check(name, "query", {"query": f"scalar({gauge})", "time": base + 4}, scalar(value), prefix=scope)
+            def resource_stats(value, failed=False):
+                stats = value.get("stats", {}) if failed else value.get("data", {}).get("stats", {})
+                resources = stats.get("netdata", {})
+                memory = resources.get("memoryBytes", {})
+                return (resources.get("snapshot") == ("execution-report" if failed else "evaluation-before-output-commit") and
+                        len(memory) == 8 and all(set(v) == {"current", "peak", "acquired", "released", "overflowed"}
+                                                and v["peak"] >= v["current"] for v in memory.values()) and
+                        len(resources.get("storage", {}).get("tiers", [])) > 0)
+
+            for mode in ["true", "all", "false"]:
+                for compressed in [False, True]:
+                    check(f"statistics-{mode}-{compressed}", "query",
+                          {"query": f"scalar({gauge})", "time": base + 4, "stats": mode}, compressed=compressed,
+                          inspect=lambda value, mode=mode: (value["data"]["result"] == [base + 4, "12"] and
+                              (resource_stats(value) if mode == "all" else
+                               set(value["data"]["stats"]) == {"timings", "samples"})))
+            check("statistics-empty", "query", {"query": "missing_fixture_metric", "time": base + 4, "stats": "all"},
+                  inspect=lambda value: resource_stats(value) and value["data"]["result"] == [])
+            check("statistics-timeout", "query", {"query": "1", "time": base + 4, "stats": "all", "timeout": "0"},
+                  status=503, inspect=lambda value: resource_stats(value, failed=True))
+            check("statistics-execution-error", "query",
+                  {"query": "fixture_http + on(netdata_units) fixture_http", "time": base + 4, "stats": "all"},
+                  status=422, inspect=lambda value: resource_stats(value, failed=True))
+            check("statistics-parse-error", "query", {"query": "(", "stats": "all"}, status=400,
+                  inspect=lambda value: "stats" not in value)
             average = expressions["average"]
             for name, scope, value in [("fleet-average", "", 12), ("local-average", local, 5), ("child-average", child, 7)]:
                 check(name, "query", {"query": f"scalar({average})", "time": base + 4}, scalar(value), prefix=scope)

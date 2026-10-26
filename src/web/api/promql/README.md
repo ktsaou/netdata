@@ -165,3 +165,30 @@ The [Agent integration design](../../../../tests/promql-conformance/DESIGN.md) e
 The [library design](../../../crates/promql-engine/tests/promql-conformance/DESIGN.md) records expression
 compatibility decisions. This API does not implement distributed Cloud query processing, a separate alert-rule
 evaluation engine or Alertmanager.
+
+### Optional evaluation resource observations
+
+Exact `stats=all` adds `data.stats.netdata` to successful query/query_range responses. Ordinary responses and
+`stats=true` retain their existing shape. The extension reuses existing accounting; it does not enable limits.
+
+- `snapshot: "evaluation-before-output-commit"` means the execution snapshot precedes response sorting, JSON assembly
+  and gzip. Compilation and initial request/output allocations use separate accounts. This is **not total HTTP-request
+  memory**, process RSS or shared DBengine cache size.
+- `memoryBytes` reports `current`, `peak`, `acquired`, `released`, and `overflowed` for each existing category:
+  `compiled`, `workspace`, `result`, `providerHeld`, `borrowedView`, `regexEstimate`, `sharedCacheReference`, `accounting`.
+  Engine-owned allocations are accounted; regex dependency memory is estimated, and borrowed/shared views are
+  references rather than additional owned RAM. Peaks need not occur together: do not sum category peaks as total RAM.
+- `samplesRead`, `providerCalls`, `sampleBatches`, `samplesFetched`, `work`, and `outputSamples` report execution work.
+  `sampleBatches` counts returned provider batches, not disk reads. The existing standard `timings` and `samples`
+  fields remain unchanged.
+- `temporaryStorage` reports accounted extent bytes plus read/write calls and bytes. It describes query backing,
+  not total filesystem usage.
+- `storage.tiers` is ordered by tier index. Each entry reports `pageEncounters` and `points` across storage cursors;
+  repeated encounters are counted and cache hits are not distinguished from physical I/O. `reconstructionPoints`
+  reports additional counter reconstruction work. Overflow fields are numeric flags.
+
+If execution started and its report is available, an error response requested with `stats=all` includes
+`stats.netdata` at the top level, with `snapshot: "execution-report"`. This later snapshot includes any output work
+performed before failure. Parse/parameter failures need not have execution statistics. Success and failure snapshots
+have different lifecycle positions; compare those positions explicitly. Client concurrency and end-to-end response
+latency must be measured by the caller.
