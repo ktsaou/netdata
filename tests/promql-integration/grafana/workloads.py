@@ -166,6 +166,32 @@ def definitions():
     ]
 
 
+def legend(slug, number, title):
+    host = '{{netdata_host_name}}'
+    app = '{{app_group}}'
+    dimension = '{{netdata_dimension_name}}'
+    instance = host + ' {{netdata_chart_id}}'
+    if slug == 'fleet-bandwidth':
+        return dimension if number in (3, 7, 8) else host if number in (4, 5, 6, 10, 11) else title
+    if slug == 'fleet-applications':
+        return app + ' ' + dimension if number in (10, 11) else '{{display}}' if number == 12 else app
+    if slug == 'fleet-capacity':
+        return host if number == 10 else title
+    if slug == 'history-comparisons':
+        return host
+    if slug == 'data-availability':
+        return title if number in (1, 2, 6, 8, 10) else host + ' ' + app if number == 4 else app if number == 12 else host
+    if slug == 'service-instances':
+        return (instance if number in (2, 4, 7) else dimension if number in (3, 6, 9)
+                else host + ' {{_collect_job}}' if number == 11 else title)
+    if slug == 'database-instances':
+        return instance if number in (1, 4, 9, 11) else dimension if number in (2, 12) else host if number == 5 else title
+    if slug == 'alert-expressions':
+        return (app if number in (3, 8) else host + ' {{mount_point}}' if number == 10
+                else '' if number == 11 else instance if number == 12 else host)
+    raise ValueError('unknown dashboard')
+
+
 def build():
     template = json.loads((HERE / 'fleet-overview.json').read_text())
     panel_template = template['panels'][4]
@@ -185,7 +211,7 @@ def build():
             defaults.update(unit=unit)
             defaults.pop('max', None)
             defaults.pop('min', None)
-            panel['targets'][0].update(expr=expr, legendFormat='')
+            panel['targets'][0].update(expr=expr, legendFormat=legend(slug, number, title))
             dashboard['panels'].append(panel)
         result[slug + '.json'] = dashboard
     return result
