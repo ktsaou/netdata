@@ -58,6 +58,33 @@ class WorkloadTests(unittest.TestCase):
         actual = struct.unpack('>d', bytes.fromhex(value['rows'][0]['points'][0]['float']))[0]
         self.assertAlmostEqual(actual, 0.1, places=14)
 
+    @unittest.skipUnless(os.environ.get('PROMQL_QUERY_FIXTURE'), 'set PROMQL_QUERY_FIXTURE for numerical integration')
+    def test_historical_comparison_preserves_host_matcher(self):
+        helpers = HERE.parents[2] / 'src/crates/promql-engine/tests/promql-conformance'
+        sys.path.insert(0, str(helpers))
+        from info_cases import series
+        from query import dataset_hex, request_hex, result_base64
+        rows = [series({'__name__': 'system_cpu', 'netdata_host_name': 'fixture', 'netdata_host_id': 'fixture-id',
+                        'netdata_dimension_id': 'idle'}, [(0, 80, 'float'), (3600000, 50, 'float')])]
+        cases = [row for row in workloads([]) if row[0]['title'] in
+                 ('CPU busy change versus one hour ago', 'CPU increase from one hour ago above 20 points')]
+        messages = [{'op': 'dataset', 'dataset_id': 'm', 'dataset': dataset_hex({'schema_version': 1, 'series': rows}),
+                     'page_size': 17}]
+        for case, target in cases:
+            query = {'id': case['id'], 'query': interpolate(target['expr'], ['fixture'], 30, 900),
+                     'profile': 'server-default', 'mode': 'instant', 'time_ms': 3600000, 'start_ms': 3600000,
+                     'end_ms': 3600000, 'step_ms': 30000, 'lookback_ms': 300000, 'subquery_step_ms': 60000}
+            messages.append(request_hex(query, 'm'))
+        binary = Path(os.environ['PROMQL_QUERY_FIXTURE']).resolve(strict=True)
+        result = subprocess.run([str(binary)], input=('\n'.join(map(json.dumps, messages)) + '\n').encode(),
+                                capture_output=True, check=True)
+        packets = [json.loads(line) for line in result.stdout.splitlines()]
+        actual = [result_base64(packet['result']) for packet in packets if 'id' in packet]
+        self.assertEqual(len(actual), 2)
+        for value in actual:
+            self.assertEqual(len(value['rows']), 1, value)
+            self.assertEqual(struct.unpack('>d', bytes.fromhex(value['rows'][0]['points'][0]['float']))[0], 30)
+
     def test_generated_files_and_catalogue_match(self):
         generated = build()
         for name, value in generated.items():

@@ -32,6 +32,7 @@ def definitions():
     cpu_host = group('sum', H + ',' + APP, metric('app_cpu_utilization'))
     rss = group('sum', APP, metric('app_mem_usage'))
     busy = '(100 - ' + group('avg', H, metric('system_cpu', 'netdata_dimension_id="idle"')) + ')'
+    past_busy = '(100 - ' + group('avg', H, metric('system_cpu', 'netdata_dimension_id="idle"') + ' offset 1h') + ')'
     used = metric('system_ram', 'netdata_dimension_id="used"')
     ram = metric('system_ram')
     mem_host = '100 * ' + group('sum', H, used) + ' / ' + group('sum', H, ram)
@@ -93,7 +94,7 @@ def definitions():
             ('Filesystems above 90% used', f'sum(({fs}) > bool 90)', 'short', 'Counts observed mounts; bind mounts can refer to the same storage.', 'join,bool'),
         ]),
         ('history-comparisons', 'History and Forecasts', [
-            ('CPU busy change versus one hour ago', f'{busy} - (' + busy.replace('}', '} offset 1h') + ')', 'percent', 'Percentage-point change, matched by node identity.', 'offset,join'),
+            ('CPU busy change versus one hour ago', f'{busy} - (' + past_busy + ')', 'percent', 'Percentage-point change, matched by node identity.', 'offset,join'),
             ('RAM change over 15 minutes', group('sum', H, 'delta(' + used + '[15m])'), 'mbytes', 'Gauge delta; do not interpret this as counter increase.', 'delta'),
             ('RAM slope over 15 minutes', group('sum', H, 'deriv(' + used + '[15m])'), 'suffix:MiB/s', 'Least-squares slope of used RAM.', 'deriv'),
             ('Used RAM linear prediction one hour ahead', group('sum', H, 'predict_linear(' + used + '[30m],3600)'), 'mbytes', 'Linear extrapolation, not a capacity guarantee; negative predictions are visible.', 'predict_linear'),
@@ -155,7 +156,7 @@ def definitions():
             ('CPU busy AND high memory', f'({busy} > 80) and on(netdata_host_id) (({mem_host}) > 90)', 'percent', 'Two conditions must hold on the same host.', 'and,matching'),
             ('CPU busy OR high memory flags', f'({busy} > bool 80) + on(netdata_host_id,netdata_host_name) (({mem_host}) > bool 90) > bool 0', 'short', 'Flags only hosts with both input metrics present; absent inputs are not treated as zero.', 'bool,join'),
             ('Two-window CPU alert candidates', f'(avg_over_time(({busy})[5m:1m]) > 80) and (avg_over_time(({busy})[30m:1m]) > 70)', 'percent', 'Illustrative sustained pressure over two explicitly sampled windows.', 'subquery,and'),
-            ('CPU increase from one hour ago above 20 points', f'({busy} - (' + busy.replace('}', '} offset 1h') + ')) > 20', 'percent', 'Historical join; a missing historical counterpart produces no candidate.', 'offset,comparison'),
+            ('CPU increase from one hour ago above 20 points', f'({busy} - (' + past_busy + ')) > 20', 'percent', 'Historical join; a missing historical counterpart produces no candidate.', 'offset,comparison'),
             ('Application nodes above two cores', group('sum', APP, cpu_host + ' > bool 200') + ' > 0', 'short', 'Per-app affected-node count; threshold is illustrative.', 'bool,group,comparison'),
             ('Missing nodes from recent baseline', f'{earlier} unless on(netdata_host_id) {seen}', 'short', 'Historical expected-member proxy; not a configuration-backed desired inventory.', 'unless'),
             ('Filesystem exhaustion projected within four hours', 'predict_linear(' + metric('disk_space', 'netdata_dimension_id="avail"') + '[1h],14400) < 0', 'gbytes', 'Illustrative linear prediction of available capacity crossing zero; bursty usage may invalidate the model.', 'predict_linear,comparison'),

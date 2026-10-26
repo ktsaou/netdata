@@ -163,7 +163,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})) - ((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host} offset 1h\",netdata_dimension_id=\"idle\"} offset 1h)))",
+          "expr": "(100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})) - ((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"} offset 1h)))",
           "editorMode": "code",
           "legendFormat": "",
           "range": true,
