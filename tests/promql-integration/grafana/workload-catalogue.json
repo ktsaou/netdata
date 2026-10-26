@@ -1,0 +1,1702 @@
+{
+  "schema": 1,
+  "workloads": [
+    {
+      "id": "nd-pql-alert-expressions/1/A",
+      "file": "alert-expressions.json",
+      "panel": 1,
+      "target": "A",
+      "title": "CPU busy alert candidates",
+      "families": [
+        "comparison"
+      ],
+      "alert_expression": true,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-alert-expressions/2/A",
+      "file": "alert-expressions.json",
+      "panel": 2,
+      "target": "A",
+      "title": "Memory alert candidates",
+      "families": [
+        "comparison",
+        "join"
+      ],
+      "alert_expression": true,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-alert-expressions/3/A",
+      "file": "alert-expressions.json",
+      "panel": 3,
+      "target": "A",
+      "title": "Application CPU alert candidates across nodes",
+      "families": [
+        "comparison",
+        "sum"
+      ],
+      "alert_expression": true,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-alert-expressions/4/A",
+      "file": "alert-expressions.json",
+      "panel": 4,
+      "target": "A",
+      "title": "CPU busy AND high memory",
+      "families": [
+        "and",
+        "matching"
+      ],
+      "alert_expression": true,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-alert-expressions/5/A",
+      "file": "alert-expressions.json",
+      "panel": 5,
+      "target": "A",
+      "title": "CPU busy OR high memory flags",
+      "families": [
+        "bool",
+        "join"
+      ],
+      "alert_expression": true,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-alert-expressions/6/A",
+      "file": "alert-expressions.json",
+      "panel": 6,
+      "target": "A",
+      "title": "Two-window CPU alert candidates",
+      "families": [
+        "subquery",
+        "and"
+      ],
+      "alert_expression": true,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-alert-expressions/7/A",
+      "file": "alert-expressions.json",
+      "panel": 7,
+      "target": "A",
+      "title": "CPU increase from one hour ago above 20 points",
+      "families": [
+        "offset",
+        "comparison"
+      ],
+      "alert_expression": true,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-alert-expressions/8/A",
+      "file": "alert-expressions.json",
+      "panel": 8,
+      "target": "A",
+      "title": "Application nodes above two cores",
+      "families": [
+        "bool",
+        "group",
+        "comparison"
+      ],
+      "alert_expression": true,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-alert-expressions/9/A",
+      "file": "alert-expressions.json",
+      "panel": 9,
+      "target": "A",
+      "title": "Missing nodes from recent baseline",
+      "families": [
+        "unless"
+      ],
+      "alert_expression": true,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-alert-expressions/10/A",
+      "file": "alert-expressions.json",
+      "panel": 10,
+      "target": "A",
+      "title": "Filesystem exhaustion projected within four hours",
+      "families": [
+        "predict_linear",
+        "comparison"
+      ],
+      "alert_expression": true,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-alert-expressions/11/A",
+      "file": "alert-expressions.json",
+      "panel": 11,
+      "target": "A",
+      "title": "HTTP failures or complete absence",
+      "families": [
+        "or",
+        "absent"
+      ],
+      "alert_expression": true,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-alert-expressions/12/A",
+      "file": "alert-expressions.json",
+      "panel": 12,
+      "target": "A",
+      "title": "HTTP checks slower than one second",
+      "families": [
+        "comparison"
+      ],
+      "alert_expression": true,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-apps/1/A",
+      "file": "applications.json",
+      "panel": 1,
+      "target": "A",
+      "title": "Application CPU total",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-apps/2/A",
+      "file": "applications.json",
+      "panel": 2,
+      "target": "A",
+      "title": "Application RSS total",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-apps/3/A",
+      "file": "applications.json",
+      "panel": 3,
+      "target": "A",
+      "title": "Processes",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-apps/4/A",
+      "file": "applications.json",
+      "panel": 4,
+      "target": "A",
+      "title": "Threads",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-apps/5/A",
+      "file": "applications.json",
+      "panel": 5,
+      "target": "A",
+      "title": "Top 10 applications \u00b7 CPU at range end",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-apps/6/A",
+      "file": "applications.json",
+      "panel": 6,
+      "target": "A",
+      "title": "Top 10 applications \u00b7 RSS at range end",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-apps/7/A",
+      "file": "applications.json",
+      "panel": 7,
+      "target": "A",
+      "title": "Application CPU \u00b7 fixed top 10",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-apps/8/A",
+      "file": "applications.json",
+      "panel": 8,
+      "target": "A",
+      "title": "Application RSS \u00b7 fixed top 10",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-apps/9/A",
+      "file": "applications.json",
+      "panel": 9,
+      "target": "A",
+      "title": "Application physical I/O \u00b7 fixed top streams",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-apps/10/A",
+      "file": "applications.json",
+      "panel": 10,
+      "target": "A",
+      "title": "Application page faults \u00b7 fixed top streams",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-data-availability/1/A",
+      "file": "data-availability.json",
+      "panel": 1,
+      "target": "A",
+      "title": "Nodes reporting CPU now",
+      "families": [
+        "count"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-data-availability/2/A",
+      "file": "data-availability.json",
+      "panel": 2,
+      "target": "A",
+      "title": "Nodes seen in the last hour",
+      "families": [
+        "count_over_time",
+        "count"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-data-availability/3/A",
+      "file": "data-availability.json",
+      "panel": 3,
+      "target": "A",
+      "title": "Nodes seen in last hour but missing now",
+      "families": [
+        "unless",
+        "matching"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-data-availability/4/A",
+      "file": "data-availability.json",
+      "panel": 4,
+      "target": "A",
+      "title": "Applications seen in last hour but missing now",
+      "families": [
+        "unless",
+        "matching"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-data-availability/5/A",
+      "file": "data-availability.json",
+      "panel": 5,
+      "target": "A",
+      "title": "Age of latest CPU sample by host",
+      "families": [
+        "timestamp",
+        "time"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-data-availability/6/A",
+      "file": "data-availability.json",
+      "panel": 6,
+      "target": "A",
+      "title": "Oldest selectable CPU sample age",
+      "families": [
+        "timestamp",
+        "max"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-data-availability/7/A",
+      "file": "data-availability.json",
+      "panel": 7,
+      "target": "A",
+      "title": "CPU samples retained in five minutes",
+      "families": [
+        "count_over_time"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-data-availability/8/A",
+      "file": "data-availability.json",
+      "panel": 8,
+      "target": "A",
+      "title": "No CPU data anywhere in selection for five minutes",
+      "families": [
+        "absent_over_time"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-data-availability/9/A",
+      "file": "data-availability.json",
+      "panel": 9,
+      "target": "A",
+      "title": "Reporting application groups per node",
+      "families": [
+        "nested-aggregation"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-data-availability/10/A",
+      "file": "data-availability.json",
+      "panel": 10,
+      "target": "A",
+      "title": "Nodes with any CPU point in five minutes",
+      "families": [
+        "present_over_time"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-data-availability/11/A",
+      "file": "data-availability.json",
+      "panel": 11,
+      "target": "A",
+      "title": "Last observed CPU idle value in one hour",
+      "families": [
+        "last_over_time"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-data-availability/12/A",
+      "file": "data-availability.json",
+      "panel": 12,
+      "target": "A",
+      "title": "Application CPU sample counts",
+      "families": [
+        "count_over_time",
+        "group"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-database-instances/1/A",
+      "file": "database-instances.json",
+      "panel": 1,
+      "target": "A",
+      "title": "Database transactions by instance",
+      "families": [
+        "rate",
+        "group"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-database-instances/2/A",
+      "file": "database-instances.json",
+      "panel": 2,
+      "target": "A",
+      "title": "Fleet database transactions by outcome",
+      "families": [
+        "rate",
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-database-instances/3/A",
+      "file": "database-instances.json",
+      "panel": 3,
+      "target": "A",
+      "title": "Database connections across instances",
+      "families": [
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-database-instances/4/A",
+      "file": "database-instances.json",
+      "panel": 4,
+      "target": "A",
+      "title": "Database connections by instance",
+      "families": [
+        "sum",
+        "group"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-database-instances/5/A",
+      "file": "database-instances.json",
+      "panel": 5,
+      "target": "A",
+      "title": "Connection utilization by node",
+      "families": [
+        "max"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-database-instances/6/A",
+      "file": "database-instances.json",
+      "panel": 6,
+      "target": "A",
+      "title": "Worst server connection utilization",
+      "families": [
+        "max"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-database-instances/7/A",
+      "file": "database-instances.json",
+      "panel": 7,
+      "target": "A",
+      "title": "Worst database cache miss ratio",
+      "families": [
+        "max"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-database-instances/8/A",
+      "file": "database-instances.json",
+      "panel": 8,
+      "target": "A",
+      "title": "Deadlocks across databases",
+      "families": [
+        "rate",
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-database-instances/9/A",
+      "file": "database-instances.json",
+      "panel": 9,
+      "target": "A",
+      "title": "Awaited locks by instance",
+      "families": [
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-database-instances/10/A",
+      "file": "database-instances.json",
+      "panel": 10,
+      "target": "A",
+      "title": "Fleet transaction rollback ratio",
+      "families": [
+        "ratio",
+        "rate"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-database-instances/11/A",
+      "file": "database-instances.json",
+      "panel": 11,
+      "target": "A",
+      "title": "Database transaction share of fleet",
+      "families": [
+        "group_left",
+        "rate"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-database-instances/12/A",
+      "file": "database-instances.json",
+      "panel": 12,
+      "target": "A",
+      "title": "Active-query age distribution",
+      "families": [
+        "rate",
+        "distribution"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/1/A",
+      "file": "fleet-applications.json",
+      "panel": 1,
+      "target": "A",
+      "title": "CPU cores per application",
+      "families": [
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/2/A",
+      "file": "fleet-applications.json",
+      "panel": 2,
+      "target": "A",
+      "title": "RSS per application",
+      "families": [
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/3/A",
+      "file": "fleet-applications.json",
+      "panel": 3,
+      "target": "A",
+      "title": "Processes per application",
+      "families": [
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/4/A",
+      "file": "fleet-applications.json",
+      "panel": 4,
+      "target": "A",
+      "title": "Threads per application",
+      "families": [
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/5/A",
+      "file": "fleet-applications.json",
+      "panel": 5,
+      "target": "A",
+      "title": "Nodes reporting each application",
+      "families": [
+        "nested-aggregation"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/6/A",
+      "file": "fleet-applications.json",
+      "panel": 6,
+      "target": "A",
+      "title": "Mean CPU cores per reporting node",
+      "families": [
+        "nested-aggregation"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/7/A",
+      "file": "fleet-applications.json",
+      "panel": 7,
+      "target": "A",
+      "title": "Maximum CPU cores on one node",
+      "families": [
+        "nested-aggregation"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/8/A",
+      "file": "fleet-applications.json",
+      "panel": 8,
+      "target": "A",
+      "title": "Share of observed application CPU",
+      "families": [
+        "join"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/9/A",
+      "file": "fleet-applications.json",
+      "panel": 9,
+      "target": "A",
+      "title": "Fixed top ten application CPU histories",
+      "families": [
+        "fixed-ranking",
+        "set"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/10/A",
+      "file": "fleet-applications.json",
+      "panel": 10,
+      "target": "A",
+      "title": "Application disk I/O across nodes",
+      "families": [
+        "abs",
+        "group"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/11/A",
+      "file": "fleet-applications.json",
+      "panel": 11,
+      "target": "A",
+      "title": "Application page faults across nodes",
+      "families": [
+        "group"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/12/A",
+      "file": "fleet-applications.json",
+      "panel": 12,
+      "target": "A",
+      "title": "CPU with combined node/application display label",
+      "families": [
+        "label_join"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/13/A",
+      "file": "fleet-applications.json",
+      "panel": 13,
+      "target": "A",
+      "title": "RSS with copied application display label",
+      "families": [
+        "label_replace"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-applications/14/A",
+      "file": "fleet-applications.json",
+      "panel": 14,
+      "target": "A",
+      "title": "Nodes using more than one core per app",
+      "families": [
+        "bool",
+        "nested-aggregation"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 1,
+      "target": "A",
+      "title": "Total ingress",
+      "families": [
+        "rate",
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/2/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 2,
+      "target": "A",
+      "title": "Total egress",
+      "families": [
+        "rate",
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/3/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 3,
+      "target": "A",
+      "title": "Traffic by direction",
+      "families": [
+        "rate",
+        "group"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/4/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 4,
+      "target": "A",
+      "title": "Ingress by node",
+      "families": [
+        "rate",
+        "group"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/5/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 5,
+      "target": "A",
+      "title": "Egress by node",
+      "families": [
+        "rate",
+        "group"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/6/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 6,
+      "target": "A",
+      "title": "Node share of egress",
+      "families": [
+        "rate",
+        "join"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/7/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 7,
+      "target": "A",
+      "title": "Interface errors across nodes",
+      "families": [
+        "rate",
+        "group"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/8/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 8,
+      "target": "A",
+      "title": "Interface drops across nodes",
+      "families": [
+        "rate",
+        "group"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/9/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 9,
+      "target": "A",
+      "title": "Egress change versus one hour ago",
+      "families": [
+        "offset",
+        "rate"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/10/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 10,
+      "target": "A",
+      "title": "Immediate egress rate by node",
+      "families": [
+        "irate"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/11/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 11,
+      "target": "A",
+      "title": "Top five sending nodes",
+      "families": [
+        "topk"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/12/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 12,
+      "target": "A",
+      "title": "Average egress per reporting node",
+      "families": [
+        "nested-aggregation"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/13/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 13,
+      "target": "A",
+      "title": "Network drops per observed packet",
+      "families": [
+        "ratio",
+        "rate"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-bandwidth/14/A",
+      "file": "fleet-bandwidth.json",
+      "panel": 14,
+      "target": "A",
+      "title": "Nodes above 100 Mbit/s egress",
+      "families": [
+        "bool",
+        "aggregation"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-capacity/1/A",
+      "file": "fleet-capacity.json",
+      "panel": 1,
+      "target": "A",
+      "title": "Fleet RAM used ratio",
+      "families": [
+        "ratio",
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-capacity/2/A",
+      "file": "fleet-capacity.json",
+      "panel": 2,
+      "target": "A",
+      "title": "Fleet used RAM",
+      "families": [
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-capacity/3/A",
+      "file": "fleet-capacity.json",
+      "panel": 3,
+      "target": "A",
+      "title": "Fleet free RAM",
+      "families": [
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-capacity/4/A",
+      "file": "fleet-capacity.json",
+      "panel": 4,
+      "target": "A",
+      "title": "Fleet total RAM",
+      "families": [
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-capacity/5/A",
+      "file": "fleet-capacity.json",
+      "panel": 5,
+      "target": "A",
+      "title": "Mean node CPU busy",
+      "families": [
+        "nested-aggregation"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-capacity/6/A",
+      "file": "fleet-capacity.json",
+      "panel": 6,
+      "target": "A",
+      "title": "P95 node CPU busy",
+      "families": [
+        "quantile"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-capacity/7/A",
+      "file": "fleet-capacity.json",
+      "panel": 7,
+      "target": "A",
+      "title": "Maximum node CPU busy",
+      "families": [
+        "nested-aggregation"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-capacity/8/A",
+      "file": "fleet-capacity.json",
+      "panel": 8,
+      "target": "A",
+      "title": "Nodes above 80% CPU busy",
+      "families": [
+        "bool"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-capacity/9/A",
+      "file": "fleet-capacity.json",
+      "panel": 9,
+      "target": "A",
+      "title": "Nodes above 90% used RAM",
+      "families": [
+        "join",
+        "bool"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-capacity/10/A",
+      "file": "fleet-capacity.json",
+      "panel": 10,
+      "target": "A",
+      "title": "Three nodes with least free RAM",
+      "families": [
+        "bottomk"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-capacity/11/A",
+      "file": "fleet-capacity.json",
+      "panel": 11,
+      "target": "A",
+      "title": "Node CPU busy standard deviation",
+      "families": [
+        "stddev"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-fleet-capacity/12/A",
+      "file": "fleet-capacity.json",
+      "panel": 12,
+      "target": "A",
+      "title": "Filesystems above 90% used",
+      "families": [
+        "join",
+        "bool"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-fleet/1/A",
+      "file": "fleet-overview.json",
+      "panel": 1,
+      "target": "A",
+      "title": "Hosts with CPU data",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-fleet/2/A",
+      "file": "fleet-overview.json",
+      "panel": 2,
+      "target": "A",
+      "title": "Highest CPU busy",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-fleet/3/A",
+      "file": "fleet-overview.json",
+      "panel": 3,
+      "target": "A",
+      "title": "Median CPU busy",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-fleet/4/A",
+      "file": "fleet-overview.json",
+      "panel": 4,
+      "target": "A",
+      "title": "Hosts above 80% busy",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-fleet/5/A",
+      "file": "fleet-overview.json",
+      "panel": 5,
+      "target": "A",
+      "title": "CPU busy by host",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-fleet/6/A",
+      "file": "fleet-overview.json",
+      "panel": 6,
+      "target": "A",
+      "title": "RAM used by host",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-fleet/7/A",
+      "file": "fleet-overview.json",
+      "panel": 7,
+      "target": "A",
+      "title": "One-minute load by host",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-fleet/8/A",
+      "file": "fleet-overview.json",
+      "panel": 8,
+      "target": "A",
+      "title": "Age of latest CPU sample",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-history-comparisons/1/A",
+      "file": "history-comparisons.json",
+      "panel": 1,
+      "target": "A",
+      "title": "CPU busy change versus one hour ago",
+      "families": [
+        "offset",
+        "join"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-history-comparisons/2/A",
+      "file": "history-comparisons.json",
+      "panel": 2,
+      "target": "A",
+      "title": "RAM change over 15 minutes",
+      "families": [
+        "delta"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-history-comparisons/3/A",
+      "file": "history-comparisons.json",
+      "panel": 3,
+      "target": "A",
+      "title": "RAM slope over 15 minutes",
+      "families": [
+        "deriv"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-history-comparisons/4/A",
+      "file": "history-comparisons.json",
+      "panel": 4,
+      "target": "A",
+      "title": "Used RAM linear prediction one hour ahead",
+      "families": [
+        "predict_linear"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-history-comparisons/5/A",
+      "file": "history-comparisons.json",
+      "panel": 5,
+      "target": "A",
+      "title": "Context switches over five minutes",
+      "families": [
+        "increase"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-history-comparisons/6/A",
+      "file": "history-comparisons.json",
+      "panel": 6,
+      "target": "A",
+      "title": "Network counter resets over one hour",
+      "families": [
+        "resets"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-history-comparisons/7/A",
+      "file": "history-comparisons.json",
+      "panel": 7,
+      "target": "A",
+      "title": "Load value changes over five minutes",
+      "families": [
+        "changes"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-history-comparisons/8/A",
+      "file": "history-comparisons.json",
+      "panel": 8,
+      "target": "A",
+      "title": "Five-minute CPU maximum",
+      "families": [
+        "subquery",
+        "max_over_time"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-history-comparisons/9/A",
+      "file": "history-comparisons.json",
+      "panel": 9,
+      "target": "A",
+      "title": "Thirty-minute CPU P95",
+      "families": [
+        "subquery",
+        "quantile_over_time"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-history-comparisons/10/A",
+      "file": "history-comparisons.json",
+      "panel": 10,
+      "target": "A",
+      "title": "Minimum free RAM in 15 minutes",
+      "families": [
+        "min_over_time"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-history-comparisons/11/A",
+      "file": "history-comparisons.json",
+      "panel": 11,
+      "target": "A",
+      "title": "Last RAM change between two samples",
+      "families": [
+        "idelta"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-history-comparisons/12/A",
+      "file": "history-comparisons.json",
+      "panel": 12,
+      "target": "A",
+      "title": "RAM standard deviation over 15 minutes",
+      "families": [
+        "stddev_over_time"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-host/1/A",
+      "file": "host-resources.json",
+      "panel": 1,
+      "target": "A",
+      "title": "CPU busy",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-host/2/A",
+      "file": "host-resources.json",
+      "panel": 2,
+      "target": "A",
+      "title": "RAM used",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-host/3/A",
+      "file": "host-resources.json",
+      "panel": 3,
+      "target": "A",
+      "title": "Peak CPU busy \u00b7 last 5m",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-host/4/A",
+      "file": "host-resources.json",
+      "panel": 4,
+      "target": "A",
+      "title": "CPU p95 \u00b7 last 30m",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-host/5/A",
+      "file": "host-resources.json",
+      "panel": 5,
+      "target": "A",
+      "title": "CPU modes",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-host/6/A",
+      "file": "host-resources.json",
+      "panel": 6,
+      "target": "A",
+      "title": "RAM composition",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-host/7/A",
+      "file": "host-resources.json",
+      "panel": 7,
+      "target": "A",
+      "title": "System load",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-host/8/A",
+      "file": "host-resources.json",
+      "panel": 8,
+      "target": "A",
+      "title": "Context switches",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-service-instances/1/A",
+      "file": "service-instances.json",
+      "panel": 1,
+      "target": "A",
+      "title": "Nginx requests across instances",
+      "families": [
+        "rate",
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-service-instances/2/A",
+      "file": "service-instances.json",
+      "panel": 2,
+      "target": "A",
+      "title": "Nginx requests by instance",
+      "families": [
+        "rate",
+        "group"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-service-instances/3/A",
+      "file": "service-instances.json",
+      "panel": 3,
+      "target": "A",
+      "title": "Nginx connection states across instances",
+      "families": [
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-service-instances/4/A",
+      "file": "service-instances.json",
+      "panel": 4,
+      "target": "A",
+      "title": "HTTP response time by instance",
+      "families": [
+        "max"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-service-instances/5/A",
+      "file": "service-instances.json",
+      "panel": 5,
+      "target": "A",
+      "title": "Worst HTTP response time",
+      "families": [
+        "max"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-service-instances/6/A",
+      "file": "service-instances.json",
+      "panel": 6,
+      "target": "A",
+      "title": "HTTP status states",
+      "families": [
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-service-instances/7/A",
+      "file": "service-instances.json",
+      "panel": 7,
+      "target": "A",
+      "title": "Container CPU cores by instance",
+      "families": [
+        "rate",
+        "group"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-service-instances/8/A",
+      "file": "service-instances.json",
+      "panel": 8,
+      "target": "A",
+      "title": "Container CPU cores across observed cgroups",
+      "families": [
+        "rate",
+        "sum"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-service-instances/9/A",
+      "file": "service-instances.json",
+      "panel": 9,
+      "target": "A",
+      "title": "Scheduler histogram bucket observations",
+      "families": [
+        "rate",
+        "histogram-distribution"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-service-instances/10/A",
+      "file": "service-instances.json",
+      "panel": 10,
+      "target": "A",
+      "title": "Failed HTTP checks across nodes",
+      "families": [
+        "sum",
+        "filter"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-service-instances/11/A",
+      "file": "service-instances.json",
+      "panel": 11,
+      "target": "A",
+      "title": "HTTP time in current failed state",
+      "families": [
+        "group_left",
+        "comparison"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-pql-service-instances/12/A",
+      "file": "service-instances.json",
+      "panel": 12,
+      "target": "A",
+      "title": "Scheduler observations across instances",
+      "families": [
+        "rate",
+        "histogram-count"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-storage/1/A",
+      "file": "storage-network.json",
+      "panel": 1,
+      "target": "A",
+      "title": "Filesystem used",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-storage/2/A",
+      "file": "storage-network.json",
+      "panel": 2,
+      "target": "A",
+      "title": "Highest disk busy",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-storage/3/A",
+      "file": "storage-network.json",
+      "panel": 3,
+      "target": "A",
+      "title": "Physical network received",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-storage/4/A",
+      "file": "storage-network.json",
+      "panel": 4,
+      "target": "A",
+      "title": "Physical network sent",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-storage/5/A",
+      "file": "storage-network.json",
+      "panel": 5,
+      "target": "A",
+      "title": "Filesystem usage by mount",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-storage/6/A",
+      "file": "storage-network.json",
+      "panel": 6,
+      "target": "A",
+      "title": "Disk busy by device",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-storage/7/A",
+      "file": "storage-network.json",
+      "panel": 7,
+      "target": "A",
+      "title": "Disk throughput",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-storage/8/A",
+      "file": "storage-network.json",
+      "panel": 8,
+      "target": "A",
+      "title": "Disk operations",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-storage/9/A",
+      "file": "storage-network.json",
+      "panel": 9,
+      "target": "A",
+      "title": "Network throughput by interface",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    },
+    {
+      "id": "nd-promql-storage/10/A",
+      "file": "storage-network.json",
+      "panel": 10,
+      "target": "A",
+      "title": "Network packets by interface",
+      "families": [
+        "existing-regression"
+      ],
+      "alert_expression": false,
+      "empty_requires_input_check": true
+    }
+  ],
+  "unqualified": [
+    {
+      "family": "histogram_quantile/classic cumulative le",
+      "reason": "Available collector histogram contexts expose disjoint buckets without le. Bucket-rate panels do not qualify cumulative histogram quantiles."
+    },
+    {
+      "family": "native histogram storage",
+      "reason": "Live DBengine adapter supplies floats only."
+    },
+    {
+      "family": "alert rule scheduling",
+      "reason": "Expression workloads do not test for-state, recording dependencies or notifications."
+    }
+  ]
+}

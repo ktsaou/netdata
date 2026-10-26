@@ -1,6 +1,6 @@
 # Netdata PromQL dashboards for Grafana
 
-These four importable dashboards use the Netdata PromQL API and the metrics collected by Linux Agents and Parents.
+These twelve importable dashboards use the Netdata PromQL API and the metrics collected by Linux Agents and Parents.
 They are also representative integration workloads: selectors, aggregation, ranking, arithmetic, vector matching,
 boolean comparisons, rates, temporal functions and subqueries all run against retained DBengine data.
 
@@ -10,6 +10,14 @@ boolean comparisons, rates, temporal functions and subqueries all run against re
 | [host-resources.json](host-resources.json) | Host Resources: CPU modes, memory, load, temporal CPU summaries and context switches | 8 |
 | [storage-network.json](storage-network.json) | Storage & Network: filesystems, disk activity and interface traffic | 10 |
 | [applications.json](applications.json) | Applications: CPU/RSS rankings, processes, threads, I/O and page faults | 10 |
+| [fleet-bandwidth.json](fleet-bandwidth.json) | Fleet Bandwidth: totals, shares, rates, interface errors and drops | 14 |
+| [fleet-applications.json](fleet-applications.json) | Applications Across Nodes: CPU cores, RSS, members, shares and label transformations | 14 |
+| [fleet-capacity.json](fleet-capacity.json) | Fleet Capacity: weighted memory, CPU distribution and affected-node counts | 12 |
+| [history-comparisons.json](history-comparisons.json) | History and Forecasts: offsets, derivatives, extrapolation and temporal distributions | 12 |
+| [data-availability.json](data-availability.json) | Data Availability: presence, freshness and missing recent members | 12 |
+| [service-instances.json](service-instances.json) | Service Instances: Nginx, HTTP checks, containers and bucket distributions | 12 |
+| [database-instances.json](database-instances.json) | Database Instances: PostgreSQL transactions, ratios, connections and locks | 12 |
+| [alert-expressions.json](alert-expressions.json) | Alert Expression Workloads: filters, joins, multi-window conditions and absence | 12 |
 
 ## Import and use
 
@@ -84,8 +92,9 @@ plus five scoped metadata operations. Explicit counter normalization was used fo
   not isolated benchmarks or latency guarantees.
 - Scoped host/application/device values, label names and series discovery took about 0.16–0.23 seconds in that cohort.
   This does not qualify unfiltered fleet-wide label discovery.
-- HTTP `stats=all` currently exposes timings and sample counts, but not exact query memory, provider reads or active
-  PromQL execution counts. Process RSS and shared DBengine charts cannot provide precise per-query attribution.
+- That initial binary exposed only timings and sample counts through `stats=all`. The optional resource extension
+  described below now exposes evaluation memory and work. Process RSS and shared DBengine charts still cannot
+  provide precise per-query attribution.
 
 A separate four-request concurrent Grafana-backend cohort passed all 26 panels in the Fleet, Host Resources and
 Applications dashboards at 15 minutes, with nonempty frames. Whole-process Netdata RSS ranged from about 2,171 to
@@ -122,3 +131,74 @@ The core's [qualification record](../../../src/crates/promql-engine/tests/promql
 binds both optimized profiles, 2,784 reference comparisons, read-failure checks and native C/C++ callers. Its synthetic
 read/time savings and query-memory measurements do not measure live per-query RAM. No storage format, collection,
 interpolation or configured query limit changed.
+
+
+## Practical fleet workload catalogue
+
+The twelve dashboards contain **136 panel expressions**. The original four dashboards remain regression workloads;
+[workloads.py](workloads.py) generates the eight expanded dashboards and [workload-catalogue.json](workload-catalogue.json).
+The catalogue references each actual dashboard target instead of maintaining a second copy of its expression.
+Run `python3 workloads.py --check` from this directory to verify generated files. The expanded dashboards start with
+all CPU-reporting hosts selected and **automatic refresh disabled**: they are deliberately broad diagnostic workloads,
+and slow queries should not overlap indefinitely. Use the host selector to compare one host, several hosts and the fleet.
+
+The fleet views distinguish these meanings:
+
+- Bandwidth sums each node's ingress and egress separately. Traffic between two selected nodes appears at both
+  endpoints; this is not unique physical traffic across a fleet boundary. Interface errors/drops can also overlap
+  across physical and virtual interfaces.
+- Application CPU totals sum user/system gauges across nodes; dividing by 100 expresses cores. RSS totals are MiB
+  and can count shared pages more than once. Application member counts mean reporting hosts, not desired replicas.
+- Fleet RAM utilization divides summed used RAM by summed total RAM. Mean host CPU percentages give each host equal
+  weight and are explicitly different from a capacity-weighted fleet percentage.
+- Per-instance results retain host and chart identities. PostgreSQL collectors use incremental transaction/deadlock
+  dimensions even when the context name ends in `_rate`. Container CPU also requires `rate()`, unlike application CPU.
+- PostgreSQL cache ratio is **miss percentage**. Query-duration buckets repeatedly observe the ages of active queries;
+  they are not completed-query latency. HTTP state duration counts the current state, so failure-duration queries gate
+  it with a failed status. Missing checks cannot be inferred healthy from a response-time panel.
+- Alert thresholds are illustrative expression workloads. Filter comparisons preserve affected identities and values;
+  `bool` is used deliberately for counts/flags. No rule scheduling, hold-duration state or notification system is installed.
+  Disappearance checks compare current observations with a recent historical population, not a desired-instance inventory.
+
+### Histogram and alert coverage limits
+
+The inspected live collector histogram contexts expose **disjoint buckets without `le`**. Renaming the bucket label to
+`le` would not restore cumulative classic buckets and would make `histogram_quantile()` misleading. The suite therefore
+shows honest bucket distributions and count rates, and records classic cumulative-histogram projection as unqualified.
+OTel histogram buckets are already rate gauges and must not receive another `rate()`; the inspected OTel latency family
+had retained metadata but no points in the recent inspected interval. Native histogram storage is also not available
+through the float-only live adapter. Existing controlled engine histogram tests are separate from these live limitations.
+
+SRE-shaped cases include error/total ratios, label normalization, matching joins, absent members, historical offsets,
+`increase`, multi-window conditions and `unless`. The source inventory remains in
+[the conformance suite](../../../src/crates/promql-engine/tests/promql-conformance/sre_inventory.py).
+The dashboard adaptations do not reproduce SRE metric names or validate recording-rule dependency scheduling.
+
+### Repeat measurements
+
+[measure.py](measure.py) reads expressions directly from the catalogue's dashboard targets. Supply the API endpoint,
+a new compressed output file under an existing directory, and an explicit scope. For example, from this directory:
+
+```sh
+python3 measure.py --url http://localhost:19999 --scope fleet \
+  --output /path/to/existing/results/fleet-15m.jsonl.gz \
+  --duration 900 --step 30 --concurrency 1
+```
+
+Use `--host node-a --scope host`, or repeat `--host` with `--scope group`; omitted hosts with `--scope fleet` select all.
+`--select nd-pql-fleet-bandwidth` selects one dashboard, and repeated selectors form a cohort. `--instant` evaluates
+panel expressions at one timestamp for alert-style runs. `--repeats`, `--concurrency 1|2|4|8`, `--end`, and `--deadline`
+make comparison conditions explicit. `--plan` prints request counts without contacting the server or writing evidence.
+The request deadline belongs to the benchmark; it does not configure an engine resource limit.
+
+The runner records HTTP status, elapsed time, response size, result counts/digest, annotations counts and requested
+statistics, flushing compressed records as requests finish. It does not store runtime host names or returned labels.
+Empty results remain `empty`, never a language-coverage pass. Metadata availability alone also does not establish data
+availability. Requests use the datasource's documented one-second scrape interval for rate-window interpolation;
+actual browser interpolation/resolution must be checked separately when changing datasource settings.
+
+`stats=all` now supplies [evaluation resource observations](../../../src/web/api/promql/README.md#optional-evaluation-resource-observations).
+Memory categories are not summed as a total; regex memory is estimated and shared/borrowed categories are references.
+Page encounters and sample batches are not physical disk reads. Successful snapshots precede response assembly, and
+failure snapshots come from the execution report. Caller concurrency is measured separately. No caches are flushed;
+first-pass and repeated live measurements are not claimed isolated cold-cache or warm-cache benchmarks.
