@@ -135,6 +135,8 @@ interpolation or configured query limit changed.
 
 ## Practical fleet workload catalogue
 
+Read the [measured findings and next priorities](FINDINGS.md) before treating the expanded suite as a production-capacity claim.
+
 The twelve dashboards contain **136 panel expressions**. The original four dashboards remain regression workloads;
 [workloads.py](workloads.py) generates the eight expanded dashboards and [workload-catalogue.json](workload-catalogue.json).
 The catalogue references each actual dashboard target instead of maintaining a second copy of its expression.

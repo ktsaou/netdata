@@ -8,6 +8,7 @@ from copy import deepcopy
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+EXISTING_DASHBOARDS = ('fleet-overview.json', 'host-resources.json', 'storage-network.json', 'applications.json')
 HOST = 'netdata_host_name=~"${host}"'
 H = 'netdata_host_id,netdata_host_name'
 APP = 'app_group'
@@ -242,7 +243,7 @@ def main():
     parser.add_argument('--check', action='store_true', help='Verify generated files without writing')
     args = parser.parse_args()
     generated = build()
-    all_dashboards = {p.name: json.loads(p.read_text()) for p in HERE.glob('*.json') if p.name != 'workload-catalogue.json'}
+    all_dashboards = {name: json.loads((HERE / name).read_text()) for name in EXISTING_DASHBOARDS}
     all_dashboards.update(generated)
     generated['workload-catalogue.json'] = catalogue(all_dashboards)
     for name, value in generated.items():

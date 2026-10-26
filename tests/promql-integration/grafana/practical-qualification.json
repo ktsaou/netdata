@@ -1,0 +1,1385 @@
+{
+  "schema": 1,
+  "date": "2026-10-26",
+  "installed_commit": "4b2fd852b8",
+  "installed_binary_sha256": "b6fb7e52d72165abc76d0692d3ad485255e254c3c4e10b5da1aae75f0b86b47c",
+  "dashboard_expression_commit": "6260bb1db5",
+  "presentation_commit": "ba45ca8ff4",
+  "host": {
+    "vcpus": 8,
+    "ram_GiB": 16,
+    "ssd_GiB": 100
+  },
+  "cohorts": [
+    {
+      "name": "fleet4",
+      "plan": {
+        "schema": 1,
+        "scope": "fleet",
+        "hosts_selected": 0,
+        "start": 1793027760,
+        "end": 1793028660,
+        "step": 30,
+        "deadline": 25,
+        "concurrency": 4,
+        "repeats": 1,
+        "cases": 136,
+        "instant_override": false,
+        "rate_scrape_interval_seconds": 1,
+        "cache_state": "uncontrolled live cache; repeated passes are warm candidates, not guaranteed cold/warm",
+        "runner_sha256": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+        "catalogue_sha256": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a"
+      },
+      "requests": 136,
+      "outcomes": {
+        "nonempty": 100,
+        "empty": 8,
+        "error": 28
+      },
+      "error_types": {
+        "timeout": 28
+      },
+      "source_capture_sha256": "9c223bb3c11829154007dee6be684feffb827d65f5442d66d1eee0c2f9d876e7",
+      "completion_rate_including_errors": {
+        "completed_requests": 136,
+        "seconds": 298.28966168899206,
+        "requests_per_second": 0.4559326636730665
+      },
+      "query_resources_present": 136
+    },
+    {
+      "name": "instant-fleet",
+      "plan": {
+        "schema": 1,
+        "scope": "fleet",
+        "hosts_selected": 0,
+        "start": 1793028180,
+        "end": 1793029080,
+        "step": 30,
+        "deadline": 25,
+        "concurrency": 4,
+        "repeats": 1,
+        "cases": 136,
+        "instant_override": true,
+        "rate_scrape_interval_seconds": 1,
+        "cache_state": "uncontrolled live cache; repeated passes are warm candidates, not guaranteed cold/warm",
+        "runner_sha256": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+        "catalogue_sha256": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a"
+      },
+      "requests": 136,
+      "outcomes": {
+        "empty": 11,
+        "nonempty": 121,
+        "error": 4
+      },
+      "error_types": {
+        "timeout": 4
+      },
+      "source_capture_sha256": "57d65915114d766582a4d8d3f938544fd37b1f95f7fd34face47a36458470d82",
+      "completion_rate_including_errors": {
+        "completed_requests": 136,
+        "seconds": 74.20891137199942,
+        "requests_per_second": 1.8326639952747732
+      },
+      "query_resources_present": 136
+    },
+    {
+      "name": "focus-host",
+      "plan": {
+        "schema": 1,
+        "scope": "host",
+        "hosts_selected": 1,
+        "start": 1793028180,
+        "end": 1793029080,
+        "step": 30,
+        "deadline": 25,
+        "concurrency": 1,
+        "repeats": 2,
+        "cases": 8,
+        "instant_override": false,
+        "rate_scrape_interval_seconds": 1,
+        "cache_state": "uncontrolled live cache; repeated passes are warm candidates, not guaranteed cold/warm",
+        "runner_sha256": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+        "catalogue_sha256": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a"
+      },
+      "requests": 16,
+      "outcomes": {
+        "empty": 6,
+        "nonempty": 10
+      },
+      "error_types": {},
+      "source_capture_sha256": "c650f2bc10a55ed68ac738875eee52b50b3133e18ce89644f1e61e5fd0c71d3b",
+      "completion_rate_including_errors": {
+        "completed_requests": 16,
+        "seconds": 29.875893048010767,
+        "requests_per_second": 0.535548844491038
+      },
+      "query_resources_present": 16
+    },
+    {
+      "name": "focus-group",
+      "plan": {
+        "schema": 1,
+        "scope": "group",
+        "hosts_selected": 2,
+        "start": 1793028180,
+        "end": 1793029080,
+        "step": 30,
+        "deadline": 25,
+        "concurrency": 1,
+        "repeats": 2,
+        "cases": 8,
+        "instant_override": false,
+        "rate_scrape_interval_seconds": 1,
+        "cache_state": "uncontrolled live cache; repeated passes are warm candidates, not guaranteed cold/warm",
+        "runner_sha256": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+        "catalogue_sha256": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a"
+      },
+      "requests": 16,
+      "outcomes": {
+        "empty": 4,
+        "nonempty": 12
+      },
+      "error_types": {},
+      "source_capture_sha256": "c021fa29ed842dbefdbdf4900cfda698577c37dc51db7261b17d10172c177f60",
+      "completion_rate_including_errors": {
+        "completed_requests": 16,
+        "seconds": 91.51090054499218,
+        "requests_per_second": 0.17484255869751222
+      },
+      "query_resources_present": 16
+    },
+    {
+      "name": "focus-fleet",
+      "plan": {
+        "schema": 1,
+        "scope": "fleet",
+        "hosts_selected": 0,
+        "start": 1793028180,
+        "end": 1793029080,
+        "step": 30,
+        "deadline": 25,
+        "concurrency": 1,
+        "repeats": 2,
+        "cases": 8,
+        "instant_override": false,
+        "rate_scrape_interval_seconds": 1,
+        "cache_state": "uncontrolled live cache; repeated passes are warm candidates, not guaranteed cold/warm",
+        "runner_sha256": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+        "catalogue_sha256": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a"
+      },
+      "requests": 16,
+      "outcomes": {
+        "error": 6,
+        "nonempty": 10
+      },
+      "error_types": {
+        "timeout": 6
+      },
+      "source_capture_sha256": "d5c392ec654fa8fae338d21c7b0243fc478868d136f396b45e3fea537a25043a",
+      "completion_rate_including_errors": {
+        "completed_requests": 16,
+        "seconds": 192.66900527499092,
+        "requests_per_second": 0.08304397470243675
+      },
+      "query_resources_present": 16
+    },
+    {
+      "name": "focus-fleet8",
+      "plan": {
+        "schema": 1,
+        "scope": "fleet",
+        "hosts_selected": 0,
+        "start": 1793028180,
+        "end": 1793029080,
+        "step": 30,
+        "deadline": 25,
+        "concurrency": 8,
+        "repeats": 2,
+        "cases": 8,
+        "instant_override": false,
+        "rate_scrape_interval_seconds": 1,
+        "cache_state": "uncontrolled live cache; repeated passes are warm candidates, not guaranteed cold/warm",
+        "runner_sha256": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+        "catalogue_sha256": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a"
+      },
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 10,
+        "error": 6
+      },
+      "error_types": {
+        "timeout": 6
+      },
+      "source_capture_sha256": "fc610ab716f1a1523a7094b96bfc79eef437c3654732442316f621e4ba31ff25",
+      "completion_rate_including_errors": {
+        "completed_requests": 16,
+        "seconds": 50.24962296499871,
+        "requests_per_second": 0.31841034929047674
+      },
+      "query_resources_present": 16
+    },
+    {
+      "name": "focus-6h",
+      "plan": {
+        "schema": 1,
+        "scope": "fleet",
+        "hosts_selected": 0,
+        "start": 1793007480,
+        "end": 1793029080,
+        "step": 60,
+        "deadline": 25,
+        "concurrency": 1,
+        "repeats": 1,
+        "cases": 8,
+        "instant_override": false,
+        "rate_scrape_interval_seconds": 1,
+        "cache_state": "uncontrolled live cache; repeated passes are warm candidates, not guaranteed cold/warm",
+        "runner_sha256": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+        "catalogue_sha256": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a"
+      },
+      "requests": 8,
+      "outcomes": {
+        "error": 7,
+        "nonempty": 1
+      },
+      "error_types": {
+        "timeout": 7
+      },
+      "source_capture_sha256": "5158796bc63c0da5068d5303b3434152bc10ec0fd183bcb2995d67b622ac7f84",
+      "completion_rate_including_errors": {
+        "completed_requests": 8,
+        "seconds": 178.67167931000586,
+        "requests_per_second": 0.04477486320660551
+      },
+      "query_resources_present": 8
+    },
+    {
+      "name": "focus-24h",
+      "plan": {
+        "schema": 1,
+        "scope": "fleet",
+        "hosts_selected": 0,
+        "start": 1792942500,
+        "end": 1793028900,
+        "step": 300,
+        "deadline": 25,
+        "concurrency": 1,
+        "repeats": 1,
+        "cases": 8,
+        "instant_override": false,
+        "rate_scrape_interval_seconds": 1,
+        "cache_state": "uncontrolled live cache; repeated passes are warm candidates, not guaranteed cold/warm",
+        "runner_sha256": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+        "catalogue_sha256": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a"
+      },
+      "requests": 8,
+      "outcomes": {
+        "error": 7,
+        "nonempty": 1
+      },
+      "error_types": {
+        "timeout": 7
+      },
+      "source_capture_sha256": "3049516dc179e778349437004cbbadbcff535e40400433407bd6fbface4e9ff9",
+      "completion_rate_including_errors": {
+        "completed_requests": 8,
+        "seconds": 187.3312311720074,
+        "requests_per_second": 0.042705105549935805
+      },
+      "query_resources_present": 8
+    },
+    {
+      "name": "focus-7d",
+      "plan": {
+        "schema": 1,
+        "scope": "fleet",
+        "hosts_selected": 0,
+        "start": 1792423800,
+        "end": 1793028600,
+        "step": 1800,
+        "deadline": 25,
+        "concurrency": 1,
+        "repeats": 1,
+        "cases": 8,
+        "instant_override": false,
+        "rate_scrape_interval_seconds": 1,
+        "cache_state": "uncontrolled live cache; repeated passes are warm candidates, not guaranteed cold/warm",
+        "runner_sha256": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+        "catalogue_sha256": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a"
+      },
+      "requests": 8,
+      "outcomes": {
+        "error": 8
+      },
+      "error_types": {
+        "timeout": 8
+      },
+      "source_capture_sha256": "3ca6a55c1846d75470d7d3543ef4b4d8c4d71d4fb2187a57a921010278919cd7",
+      "completion_rate_including_errors": {
+        "completed_requests": 8,
+        "seconds": 200.08039703199756,
+        "requests_per_second": 0.03998392705468598
+      },
+      "query_resources_present": 8
+    }
+  ],
+  "limits": [
+    "Live collection and replication continued; caches were not cleared.",
+    "25-second explicit benchmark deadline, not an engine configuration limit.",
+    "Nonempty means returned series, not numerical correctness, complete history or health.",
+    "Only selected long-range and scope/concurrency cases were measured; not a complete Cartesian product.",
+    "Success memory snapshots precede output commit; failures use later execution reports. Category peaks must not be summed as RAM.",
+    "Two initial fleet4 offset templates were corrected afterward and rerun; their original results are retained unchanged."
+  ],
+  "metadata-measurements": [
+    {
+      "case": "names",
+      "seconds": 0.2596834979922278,
+      "status": "success",
+      "values": 4958
+    },
+    {
+      "case": "cpu-hosts",
+      "seconds": 0.22046915399550926,
+      "status": "success",
+      "values": 18
+    },
+    {
+      "case": "application-groups",
+      "seconds": 0.25880120501096826,
+      "status": "success",
+      "values": 309
+    }
+  ],
+  "empty-input-checks": {
+    "scope": "Current selector presence at the instant cohort timestamp; not full temporal coverage or proof of health",
+    "time": 1793029080,
+    "selectors": {
+      "system_cpu{netdata_host_name=~\".+\",netdata_dimension_id=\"idle\"}": {
+        "status": "success",
+        "series": 18.0
+      },
+      "system_ram{netdata_host_name=~\".+\",netdata_dimension_id=\"used\"}": {
+        "status": "success",
+        "series": 18.0
+      },
+      "system_ram{netdata_host_name=~\".+\"}": {
+        "status": "success",
+        "series": 72.0
+      },
+      "disk_space{netdata_host_name=~\".+\",netdata_dimension_id=\"avail\"}": {
+        "status": "success",
+        "series": 76.0
+      },
+      "httpcheck_status{netdata_host_name=~\".+\",netdata_dimension_id!=\"success\"}": {
+        "status": "success",
+        "series": 6.0
+      },
+      "httpcheck_status{netdata_host_name=~\".+\"}": {
+        "status": "success",
+        "series": 7.0
+      },
+      "httpcheck_response_time{netdata_host_name=~\".+\"}": {
+        "status": "success",
+        "series": 1.0
+      },
+      "system_cpu{netdata_host_name=~\".+\"}": {
+        "status": "success",
+        "series": 180.0
+      },
+      "httpcheck_in_state{netdata_host_name=~\".+\"}": {
+        "status": "success",
+        "series": 1.0
+      }
+    },
+    "empty_cases": [
+      {
+        "id": "nd-pql-alert-expressions/1/A",
+        "selectors": [
+          "system_cpu{netdata_host_name=~\".+\",netdata_dimension_id=\"idle\"}"
+        ]
+      },
+      {
+        "id": "nd-pql-alert-expressions/2/A",
+        "selectors": [
+          "system_ram{netdata_host_name=~\".+\",netdata_dimension_id=\"used\"}",
+          "system_ram{netdata_host_name=~\".+\"}"
+        ]
+      },
+      {
+        "id": "nd-pql-alert-expressions/4/A",
+        "selectors": [
+          "system_cpu{netdata_host_name=~\".+\",netdata_dimension_id=\"idle\"}",
+          "system_ram{netdata_host_name=~\".+\",netdata_dimension_id=\"used\"}",
+          "system_ram{netdata_host_name=~\".+\"}"
+        ]
+      },
+      {
+        "id": "nd-pql-alert-expressions/7/A",
+        "selectors": [
+          "system_cpu{netdata_host_name=~\".+\",netdata_dimension_id=\"idle\"}"
+        ]
+      },
+      {
+        "id": "nd-pql-alert-expressions/9/A",
+        "selectors": [
+          "system_cpu{netdata_host_name=~\".+\",netdata_dimension_id=\"idle\"}"
+        ]
+      },
+      {
+        "id": "nd-pql-alert-expressions/10/A",
+        "selectors": [
+          "disk_space{netdata_host_name=~\".+\",netdata_dimension_id=\"avail\"}"
+        ]
+      },
+      {
+        "id": "nd-pql-alert-expressions/11/A",
+        "selectors": [
+          "httpcheck_status{netdata_host_name=~\".+\",netdata_dimension_id!=\"success\"}",
+          "httpcheck_status{netdata_host_name=~\".+\"}"
+        ]
+      },
+      {
+        "id": "nd-pql-alert-expressions/12/A",
+        "selectors": [
+          "httpcheck_response_time{netdata_host_name=~\".+\"}"
+        ]
+      },
+      {
+        "id": "nd-pql-data-availability/3/A",
+        "selectors": [
+          "system_cpu{netdata_host_name=~\".+\",netdata_dimension_id=\"idle\"}"
+        ]
+      },
+      {
+        "id": "nd-pql-data-availability/8/A",
+        "selectors": [
+          "system_cpu{netdata_host_name=~\".+\"}"
+        ]
+      },
+      {
+        "id": "nd-pql-service-instances/11/A",
+        "selectors": [
+          "httpcheck_in_state{netdata_host_name=~\".+\"}",
+          "httpcheck_status{netdata_host_name=~\".+\",netdata_dimension_id!=\"success\"}"
+        ]
+      }
+    ]
+  },
+  "browser-final": [
+    {
+      "dashboard": "nd-pql-fleet-bandwidth",
+      "selected_hosts": 2,
+      "rows": [
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "sum(rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"InOctets\"}[$__rate_interval]))"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "sum by (netdata_host_id,netdata_host_name) (rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"InOctets\"}[$__rate_interval]))"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 2,
+              "nonempty": 2
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "sum(rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval]))"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "sum by (netdata_host_id,netdata_host_name) (rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval]))"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 2,
+              "nonempty": 2
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "sum by (netdata_dimension_name) (rate(system_net{netdata_host_name=~\"${host}\"}[$__rate_interval]))"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 2,
+              "nonempty": 2
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "sum by (netdata_host_id,netdata_host_name) (irate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval]))"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 2,
+              "nonempty": 2
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "sum by (netdata_dimension_name) (rate(net_drops{netdata_host_name=~\"${host}\"}[$__rate_interval]))"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 2,
+              "nonempty": 2
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "sum by (netdata_dimension_name) (rate(net_errors{netdata_host_name=~\"${host}\"}[$__rate_interval]))"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 2,
+              "nonempty": 2
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "sum by (netdata_host_id,netdata_host_name) (rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval])) / on() group_left sum(rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval])) * 100"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 2,
+              "nonempty": 2
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "sum(rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval])) - sum(rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval] offset 1h))"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "topk(5, sum by (netdata_host_id,netdata_host_name) (rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval])))"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 2,
+              "nonempty": 2
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "avg(sum by (netdata_host_id,netdata_host_name) (rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval])))"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "sum(sum by (netdata_host_id,netdata_host_name) (rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval])) > bool 100000)"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "queries": [
+            {
+              "intervalMs": 30000,
+              "expression": "sum(rate(net_drops{netdata_host_name=~\"${host}\"}[$__rate_interval])) / sum(rate(net_packets{netdata_host_name=~\"${host}\",netdata_dimension_id=~\"received|sent\"}[$__rate_interval]))"
+            }
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        }
+      ],
+      "raw_uuid_in_legend": false
+    },
+    {
+      "dashboard": "nd-pql-fleet-applications",
+      "expected": 14,
+      "received": 14,
+      "rows": [
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 43,
+              "nonempty": 43
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 47,
+              "nonempty": 47
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 47,
+              "nonempty": 47
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 47,
+              "nonempty": 47
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 43,
+              "nonempty": 43
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 10,
+              "nonempty": 10
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 86,
+              "nonempty": 86
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 43,
+              "nonempty": 43
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 43,
+              "nonempty": 43
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 43,
+              "nonempty": 43
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 86,
+              "nonempty": 86
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 70,
+              "nonempty": 70
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "frames": 43,
+              "nonempty": 43
+            }
+          ]
+        },
+        {
+          "http": 400,
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 502,
+              "error": true,
+              "frames": 0,
+              "nonempty": 0
+            }
+          ]
+        }
+      ],
+      "failed_panel": 8,
+      "failure": "Grafana HTTP 400 with datasource status 502; error message was not retained. The same ratio also exceeds the direct-query deadline.",
+      "selected_hosts": 2
+    },
+    {
+      "dashboard": "nd-pql-service-instances",
+      "expected": 12,
+      "received": 12,
+      "rows": [
+        {
+          "http": 200,
+          "request_ids": [
+            "5A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "4A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "1A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "2A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 2,
+              "nonempty": 2
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "3A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 3,
+              "nonempty": 3
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "6A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 7,
+              "nonempty": 7
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "9A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 8,
+              "nonempty": 8
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "10A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "12A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "11A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 0
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "8A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "7A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 80,
+              "nonempty": 80
+            }
+          ]
+        }
+      ],
+      "scope": "fleet"
+    },
+    {
+      "dashboard": "nd-pql-alert-expressions",
+      "expected": 12,
+      "received": 12,
+      "rows": [
+        {
+          "http": 200,
+          "request_ids": [
+            "1A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 0
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "2A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 0
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "4A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 0
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "7A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "9A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 0
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "3A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "10A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 0
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "11A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "12A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 0
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "5A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 2,
+              "nonempty": 2
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "6A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 0
+            }
+          ]
+        },
+        {
+          "http": 200,
+          "request_ids": [
+            "8A"
+          ],
+          "intervals": [
+            30000
+          ],
+          "results": [
+            {
+              "status": 200,
+              "error": false,
+              "error_kind": null,
+              "frames": 1,
+              "nonempty": 1
+            }
+          ]
+        }
+      ],
+      "selected_hosts": 2
+    }
+  ],
+  "reception": {
+    "reporting_hosts": 18,
+    "advancing_hosts": 18,
+    "retained_hosts": 24,
+    "checked_at": 1793032431
+  },
+  "requests_main_cohorts": 360,
+  "measurements": {
+    "file": "practical-measurements.jsonl.gz",
+    "sha256": "2a4c0db1554c69ab037607151b5b92b23f863972d51c278d3557c7c30a7f556c",
+    "uncompressed_sha256": "ec472271e5690cf14d93b26ad21b922b4ffac08e40e107dbef9c2de6dea2dfd4",
+    "records": 391,
+    "compressed_bytes": 93320
+  }
+}

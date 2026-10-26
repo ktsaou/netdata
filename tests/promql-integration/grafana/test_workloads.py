@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 from measure import interpolate, workloads
-from workloads import HERE, build, catalogue
+from workloads import EXISTING_DASHBOARDS, HERE, build, catalogue
 
 
 class WorkloadTests(unittest.TestCase):
@@ -89,8 +89,8 @@ class WorkloadTests(unittest.TestCase):
         generated = build()
         for name, value in generated.items():
             self.assertEqual(json.loads((HERE / name).read_text()), value)
-        all_dashboards = {p.name: json.loads(p.read_text()) for p in HERE.glob('*.json')
-                          if p.name != 'workload-catalogue.json'}
+        all_dashboards = {name: json.loads((HERE / name).read_text()) for name in EXISTING_DASHBOARDS}
+        all_dashboards.update(generated)
         self.assertEqual(json.loads((HERE / 'workload-catalogue.json').read_text()), catalogue(all_dashboards))
 
 
