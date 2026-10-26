@@ -308,6 +308,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   Check physical side-row order, empty sides, tail padding, zero-word and final reconstruction controls, original
   aliases, exact keys and successful preparation clearing; calibrate control budgets against actual traversal. See
   `src/crates/promql-engine/tests/promql-conformance/README.md#completed-set-input-discovery`.
+- Fixed grouped ranking qualification follows
+  `src/crates/promql-engine/tests/promql-conformance/README.md#fixed-end-of-range-grouped-ranking` for collapsed
+  ranking demand, exact source/value clocks, fresh selected reads and sparse endpoint membership.
 - Completed set-prefix reuse MUST grant credit only after successful operand/label/hash/seen/control phases, retain
   fresh requested values, reuse only canonical immutable descriptor hashes, calibrate post-seen controls and preserve
   deferred duplicates, All/Done and serial same-Plan ownership; see

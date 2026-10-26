@@ -286,6 +286,25 @@ def native_records(name, output):
     at = tail.index({"instant_numeric_folds": "pass", "cases": 6, "page_sizes": 3})
     set_witnesses = instant_set_records(name, values[12 + at : 12 + at + 55])
     tail[at:at] = set_witnesses
+    at = tail.index({"average_read_reuse": "pass", "cases": 15, "page_sizes": 3})
+    empty = values[12 + at : 12 + at + 105]
+    expected_empty = [(shape, page, scenario) for shape in range(5)
+                      for page in (1, 17, 1024) for scenario in range(7)]
+    if [(row.get("shape"), row.get("page"), row.get("scenario")) for row in empty] != expected_empty:
+        raise ValueError(name + ": incomplete empty-group witnesses")
+    for row in empty:
+        scenario = row["scenario"]
+        status = (0, 0, 6, 6, 7, 3, 3)[scenario]
+        memory = row.get("memory", [])
+        statistics = row.get("statistics", [])
+        if (set(row) != {"empty_group_owner", "shape", "page", "scenario", "status", "work", "memory", "statistics"}
+                or row["empty_group_owner"] != "pass" or row["status"] != status
+                or len(memory) != 8 or any(len(m) != 4 or any(type(n) is not int or n < 0 for n in m)
+                                          or m[0] > m[1] or m[2] - m[3] != m[0] for m in memory)
+                or len(statistics) != 3 or statistics[:2] != [0, 0]
+                or (scenario in (0, 1, 3) and statistics[2] <= 0)):
+            raise ValueError(name + ": invalid empty-group witness")
+    tail[at:at] = empty
     expected = [(rows, size) for size in (1, 7, 1024) for rows in (8192, 65536)]
     actual = [(value.get("rows"), value.get("page_size")) for value in values[:6]]
     temporary = [

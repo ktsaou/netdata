@@ -3418,3 +3418,16 @@ their Float and informational diagnostic; native-only windows produce no value. 
 statistics and sample credits precede label borrowing. `absent_over_time` has an intervening absence
 frame and remains structurally excluded despite sharing the Present reducer. See the
 [measured qualification](README.md#borrowed-mapped-reducer-labels).
+
+## Fixed ranking over grouped histories
+
+A common dashboard expression selects full group histories with `sum by(...)(m) and topk(k, sum by(...)(m @ end()))`.
+Preparation can certify completed set discovery for direct SUM selectors, optionally through `abs()`, and a fixed
+literal TOPK over that shape. Every admitted edge must retain its exact source, producer and value clock. An invariant
+boundary collapses only its value clock; selector time still follows the original request's `@` modifier.
+
+The implementation reuses existing membership bits and completed contributor identities. It does not cache raw
+history or selected values. Root intersections request the existing left-group contributor plan; fixed literal TOPK
+uses a separate demand for its collapsed SUM child. Other contributor consumers retain their prior admission rules.
+Selected values are read again, and completion credit is cleared before final execution. Existing alias and Float-kind
+checks remain mandatory; unsupported shapes use ordinary evaluation. See the finite qualification in the README.

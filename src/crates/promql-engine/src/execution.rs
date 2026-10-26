@@ -1881,10 +1881,28 @@ impl CompiledQuery {
         if !crate::aggregation::ordinary(*operator) {
             return Ok(None);
         }
-        let child =
+        let mut child =
             prepared
                 .preprocessing
                 .child(&self.expression, node, *child, control, account)?;
+        if prepared.flags().invariants[node.0]
+            && header.start_ms == header.end_ms
+            && let Expr::Call {
+                function: Some(function),
+                arguments,
+            } = &self.expression.arena[child].expression
+            && function.name == "abs"
+            && arguments.len() == 1
+            && rosters.replay_grid_matches(child, header, prepared)
+        {
+            child = prepared.preprocessing.child(
+                &self.expression,
+                child,
+                arguments[0],
+                control,
+                account,
+            )?;
+        }
         let Some(selector) =
             self.binary_replay_operand(child, header, prepared, rosters, control, account)?
         else {
@@ -2025,6 +2043,94 @@ impl CompiledQuery {
         Some(selector)
     }
 
+    fn grouped_set_discovery_child(
+        &self,
+        mut node: NodeId,
+        header: OutputHeader,
+        prepared: &Prepared,
+        rosters: &Rosters,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        let fixed = prepared.flags().invariants[node.0];
+        let mut grid = crate::query_scopes::Grid::from(header);
+        let mut ranked = false;
+        let mut grouped = false;
+        let mut mapped = false;
+        let mut collapsed = false;
+        loop {
+            control.check()?;
+            account.work(1);
+            if prepared.flags().invariants[node.0] != fixed
+                || rosters.matrix(node).is_some()
+                || rosters
+                    .producer_clock(node)
+                    .is_none_or(|clock| clock.grid != grid)
+                || crate::query_scopes::Grid::from(prepared.source_header(node, header)) != grid
+            {
+                return Ok(false);
+            }
+            if prepared.flags().boundaries[node.0] {
+                if !fixed || collapsed {
+                    return Ok(false);
+                }
+                grid.end_ms = grid.start_ms;
+                collapsed = true;
+            }
+            if crate::query_scopes::Grid::from(prepared.scope_header(node, header)) != grid {
+                return Ok(false);
+            }
+            let child = match &self.expression.arena[node].expression {
+                Expr::Paren(child) => *child,
+                Expr::Aggregate {
+                    operator: TokenKind::TOPK,
+                    expression: Some(child),
+                    parameter: Some(parameter),
+                    ..
+                } if fixed
+                    && !ranked
+                    && !grouped
+                    && matches!(
+                        self.expression.arena[*parameter].expression,
+                        Expr::Number { .. }
+                    ) =>
+                {
+                    ranked = true;
+                    *child
+                }
+                Expr::Aggregate {
+                    operator: TokenKind::SUM,
+                    expression: Some(child),
+                    parameter: None,
+                    ..
+                } if !grouped => {
+                    grouped = true;
+                    *child
+                }
+                Expr::Call {
+                    function: Some(function),
+                    arguments,
+                } if grouped && !mapped && function.name == "abs" && arguments.len() == 1 => {
+                    mapped = true;
+                    arguments[0]
+                }
+                Expr::Selector(selector) if grouped => {
+                    // Reuse discovery, never the selected values or their provider reads.
+                    return Ok(!selector.smoothed
+                        && !selector.anchored
+                        && selector.modifiers.original_offset == 0
+                        && selector.modifiers.original_offset_expression.is_none()
+                        && prepared.timestamp(node, &selector.modifiers).is_some() == fixed
+                        && collapsed == fixed);
+                }
+                _ => return Ok(false),
+            };
+            node = prepared
+                .preprocessing
+                .child(&self.expression, node, child, control, account)?;
+        }
+    }
+
     fn set_discovery_child(
         &self,
         mut node: NodeId,
@@ -2034,6 +2140,16 @@ impl CompiledQuery {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<bool, Interrupted> {
+        if matches!(
+            self.expression.arena[node].expression,
+            Expr::Aggregate {
+                operator: TokenKind::SUM | TokenKind::TOPK,
+                ..
+            }
+        ) {
+            return self
+                .grouped_set_discovery_child(node, header, prepared, rosters, control, account);
+        }
         let grid = crate::query_scopes::Grid::from(header);
         let mut allow_window = grid.steps().is_ok_and(|steps| steps > 1);
         let mut allow_comparison = allow_window;
@@ -2448,6 +2564,7 @@ impl CompiledQuery {
         enum Demand {
             None,
             Contributors,
+            FixedRankContributors,
             SubqueryContributors,
             GroupedSubquery,
             ScalarResult,
@@ -2570,9 +2687,24 @@ impl CompiledQuery {
                     && crate::query_scopes::Grid::from(prepared.source_header(node, header))
                         == grid
                     && crate::query_scopes::Grid::from(prepared.scope_header(node, header)) == grid;
-                let contributor_demand =
-                    matches!(demand, Demand::Contributors | Demand::GroupedSubquery)
-                        && contributor_clock;
+                let fixed_contributor_clock = matches!(demand, Demand::FixedRankContributors)
+                    && prepared.flags().invariants[node.0]
+                    && !prepared.flags().boundaries[node.0]
+                    && header.start_ms == header.end_ms
+                    && matches!(
+                        expression,
+                        Expr::Aggregate {
+                            operator: TokenKind::SUM,
+                            ..
+                        }
+                    )
+                    && crate::query_scopes::Grid::from(prepared.source_header(node, header))
+                        == grid
+                    && crate::query_scopes::Grid::from(prepared.scope_header(node, header)) == grid;
+                let contributor_demand = matches!(
+                    demand,
+                    Demand::Contributors | Demand::FixedRankContributors | Demand::GroupedSubquery
+                ) && (contributor_clock || fixed_contributor_clock);
                 let scalar_result = matches!(demand, Demand::ScalarResult) && contributor_clock;
                 header = prepared.source_header(node, header);
                 if prepared.activate(header, control, account)?.is_none() {
@@ -2696,8 +2828,24 @@ impl CompiledQuery {
                         )?,
                         header,
                         child_primary,
-                        // Numeric aggregate controllers repeatedly request input groups.
-                        Demand::Contributors,
+                        // Fixed ranking owns a distinct collapsed-clock contributor demand.
+                        if prepared.flags().invariants[node.0]
+                            && matches!(
+                                expression,
+                                Expr::Aggregate {
+                                    operator: TokenKind::TOPK,
+                                    ..
+                                }
+                            )
+                            && matches!(
+                                self.expression.arena[*parameter].expression,
+                                Expr::Number { .. }
+                            )
+                        {
+                            Demand::FixedRankContributors
+                        } else {
+                            Demand::Contributors
+                        },
                     ));
                     tasks.push(Task::AggregateParameter(node, header));
                     tasks.push(Task::Visit(
@@ -2917,7 +3065,32 @@ impl CompiledQuery {
                     } else {
                         None
                     };
-                    let contributor_pair = if node != self.expression.root
+                    let contributor_pair = if node == self.expression.root
+                        && contributor_clock
+                        && let Expr::Binary {
+                            operator: TokenKind::LAND,
+                            left,
+                            right,
+                            ..
+                        } = expression
+                        && matches!(
+                            self.expression.arena[*left].expression,
+                            Expr::Aggregate {
+                                operator: TokenKind::SUM,
+                                parameter: None,
+                                ..
+                            }
+                        )
+                        && prepared.flags().invariants[right.0]
+                        && let Expr::Aggregate {
+                            operator: TokenKind::TOPK,
+                            parameter: Some(k),
+                            ..
+                        } = self.expression.arena[*right].expression
+                        && matches!(self.expression.arena[k].expression, Expr::Number { .. })
+                    {
+                        Some([*left, *right])
+                    } else if node != self.expression.root
                         && contributor_clock
                         && let Some((left, right, _)) = self.binary_replay_children(node, header)
                     {
@@ -11090,7 +11263,7 @@ mod tests {
                             ("limit_ratio(.5,sum by(id)(m_total))", 1),
                             ("topk(0,sum by(id)(m_total))", 1),
                             ("limit_ratio(0,sum by(id)(m_total))", 1),
-                            ("topk(1,sum by(id)(m_total @ 2))", 0),
+                            ("topk(1,sum by(id)(m_total @ 2))", 1),
                             ("bottomk(1,sum by(id)(m_total @ 2))", 0),
                             ("limitk(1,sum by(id)(m_total @ 2))", 0),
                             ("limit_ratio(.5,sum by(id)(m_total @ 2))", 0),
@@ -20414,6 +20587,67 @@ mod tests {
     }
 
     #[test]
+    fn grouped_fixed_ranking_set_discovery_admission() {
+        for (expression, admitted) in [
+            (
+                "sum by(instance)(counter_total) and topk(2,sum by(instance)(counter_total @ end()))",
+                true,
+            ),
+            (
+                "sum by(instance)(abs(counter_total)) and topk(2,sum by(instance)(abs(counter_total @ end())))",
+                true,
+            ),
+            (
+                "sum by(instance)(counter_total) and sum by(instance)(counter_total @ end())",
+                true,
+            ),
+            (
+                "sum by(instance)(counter_total) and topk(2,sum by(instance)(counter_total))",
+                false,
+            ),
+            (
+                "sum by(instance)(counter_total) and topk(scalar(vector(2)),sum by(instance)(counter_total @ end()))",
+                false,
+            ),
+            (
+                "sum by(instance)(counter_total offset 1s) and topk(2,sum by(instance)(counter_total @ end()))",
+                false,
+            ),
+            (
+                "sum by(instance)(sum by(instance)(counter_total)) and topk(2,sum by(instance)(counter_total @ end()))",
+                false,
+            ),
+            (
+                "sum by(instance)(rate(counter_total[2s])) and topk(2,sum by(instance)(counter_total @ end()))",
+                false,
+            ),
+        ] {
+            for page in [1, 17, 1024] {
+                for delayed in [false, true] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let compiled = engine
+                        .compile(expression.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let provider = FixtureProvider::new(8, page, 8);
+                    let request = QueryRequest::Range {
+                        start_ms: 2000,
+                        end_ms: 7000,
+                        step_ms: 1000,
+                    };
+                    assert_eq!(
+                        prepared_set_discovery_count(&compiled, &provider, request, &control),
+                        usize::from(admitted),
+                        "{expression},page={page},delayed={delayed}",
+                    );
+                    drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
     fn window_set_discovery_admission() {
         let mut bodies = Vec::new();
         for function in [
@@ -20608,6 +20842,18 @@ mod tests {
     }
 
     #[test]
+    fn grouped_fixed_ranking_keeps_required_final_acquisitions() {
+        for count in [2, 4] {
+            set_discovery_final_acquisitions_with_count(
+                &format!(
+                    "sum by(instance)(m_total) and on(instance) topk({count},sum by(instance)(n_total @ end()))"
+                ),
+                count,
+            );
+        }
+    }
+
+    #[test]
     fn window_set_discovery_keeps_required_final_acquisitions() {
         for expression in [
             "(rate(m_total[3s]) > bool 0) and on(instance) n_total",
@@ -20618,6 +20864,10 @@ mod tests {
     }
 
     fn set_discovery_final_acquisitions(expression: &str) {
+        set_discovery_final_acquisitions_with_count(expression, 4);
+    }
+
+    fn set_discovery_final_acquisitions_with_count(expression: &str, expected_count: usize) {
         let request = QueryRequest::Range {
             start_ms: 1000,
             end_ms: 3000,
@@ -20635,7 +20885,7 @@ mod tests {
                 request,
                 &control,
             );
-            assert_eq!(count, 4);
+            assert_eq!(count, expected_count);
             let healthy = comparison_set_provider(page);
             let report = query.collect_reported(&healthy, request, &control);
             report.result.as_ref().unwrap();

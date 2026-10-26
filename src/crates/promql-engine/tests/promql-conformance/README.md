@@ -12997,3 +12997,29 @@ Use the [corpus](mapped_reducer_label_cases.py) and [C consumer](mapped_reducer_
 these fixture panels. Timings exclude parsing, compilation, JSON transport and the HTTP API. These
 finite checks do not establish universal speed, concurrent throughput, process RSS or physical ARM
 performance. Original disagreements and earlier rejected experiments remain recorded as failures.
+
+## Fixed end-of-range grouped ranking
+
+`fixed_ranking_cases.py` defines 464 instant/range cases covering both option profiles: fixed grouped TOPK, `abs`,
+sparse and stale histories, missing winners at earlier times, NaNs, infinities, signed zero, native/mixed values,
+empty inputs and ordinary/offset/dynamic-parameter/nested controls. Tie controls retain all tied groups rather than
+asserting an upstream-unspecified cutoff order. Run its `cases()` through the existing `dataset_hex`, `request_hex`
+and `result_base64` interchange helpers and the pinned Go oracle.
+
+The retained release run at pages 1/17/1024 has 1,392 complete-result comparisons, with no baseline differences or
+pinned-Go numeric/structural differences. Focused units cover admission and rejected shapes plus every final read
+acquisition for two and four retained groups; injected failures must abort output, close cursors and release memory.
+Both release profiles pass 1,042 tests with two pre-existing ignored tests, and both pass the 1,392-case differential
+cohort. Native C/C++ callers pass under GCC and Clang in both profiles. Source/binary bindings and detailed results
+are recorded in `fixed-ranking-qualification.json`.
+
+In the 40-group, two-member, 31-step synthetic panel, fixed-ranking fetched entries decrease from 11,789,680 to
+235,060. Median elapsed time over three paired runs decreases from 1,334.57 ms to 26.26 ms. Query workspace peak
+increases from 124,120 to 129,104 bytes; provider-page peak stays 4,624 bytes. The `abs` variant decreases from
+1,486.93 ms to 37.41 ms, with workspace 205,584 to 207,936 bytes. Raw SUM and ordinary TOPK controls remain on their
+existing paths. These local timings were observed alongside compiler activity, so they establish the large benefit,
+not precise throughput guarantees. The actual dashboard/VM checks are documented separately.
+
+The C harness now recognizes its existing 105 empty-group ownership records (five shapes, three pages, seven
+success/failure scenarios) and checks their roster, statuses, statistics and accounting shape. This repairs a stale
+Python output roster; the C assertions remain intact. An intentional split hex escape is parenthesized for Clang 23.

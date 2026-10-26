@@ -1,0 +1,316 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "a6b0da564dd232e6239738dfa9031e5f5f50b83d",
+  "scope": "Fixed end-of-range grouped ranking; paged reads and exact clock-scoped contributor/membership reuse.",
+  "source_sha256": {
+    "src/crates/promql-engine/src/execution.rs": "77be9e347026c73ed0b0bd49403d35b051a512f6507f7d6c16c13c5b9646f16b",
+    "src/crates/promql-engine/tests/promql-conformance/fixed_ranking_cases.py": "115396f172799e8fd3e3682ced49bc2d67d520d42bb06a91ffa3a47625cb2baa",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "f057e39ba24d868ea1b8aa4a4f37bdffe407bcdbf3c336c8519f8108a7ab4dd2",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "fad280bc3aa005c66ad67a4a7d05385d180d9e1eaa61617c82fbbe528b9022a8"
+  },
+  "reference": "Prometheus v0.315.0, Go1.27.1, AMD64 FMA-on",
+  "compiler": "Rust stable1.97.1; effective compiler commands retained in build logs",
+  "units": {
+    "release": {
+      "passed": 1042,
+      "ignored": 2
+    },
+    "release-min": {
+      "passed": 1042,
+      "ignored": 2
+    }
+  },
+  "differential": {
+    "cases": 464,
+    "pages": [
+      1,
+      17,
+      1024
+    ],
+    "profiles": [
+      "release",
+      "release-min"
+    ],
+    "comparisons": 2784,
+    "baseline_mismatches": 0,
+    "oracle_mismatches": 0,
+    "paired_bit_differences": 0
+  },
+  "final_read_faults": {
+    "cases": 234,
+    "after_output": 168,
+    "retained_groups": [
+      2,
+      4
+    ],
+    "pages": [
+      1,
+      17,
+      1024
+    ]
+  },
+  "c_embedding": {
+    "profiles": [
+      "release",
+      "release-min"
+    ],
+    "compilers": [
+      "gcc",
+      "g++",
+      "clang",
+      "clang++"
+    ],
+    "structures": 58,
+    "callbacks": 17,
+    "shared_constants": 33,
+    "manifest_sha256": "db71fe05f76bae339921463814c89922bee13016c965cf659bd26f26013f6e18",
+    "empty_group_records_per_caller": 105,
+    "scope": "Native callers, layouts, cleanup and ABI3 rejection; no fresh cross-architecture run."
+  },
+  "timing": [
+    {
+      "groups": 8,
+      "shape": "fixed",
+      "baseline-release": {
+        "median_ms": 165.244637,
+        "samples_fetched": 1497840,
+        "workspace_peak": 36304,
+        "provider_peak": 4624
+      },
+      "candidate3-release": {
+        "median_ms": 9.537439,
+        "samples_fetched": 81684,
+        "workspace_peak": 37464,
+        "provider_peak": 4624
+      }
+    },
+    {
+      "groups": 8,
+      "shape": "abs",
+      "baseline-release": {
+        "median_ms": 186.702554,
+        "samples_fetched": 1498624,
+        "workspace_peak": 49744,
+        "provider_peak": 4624
+      },
+      "candidate3-release": {
+        "median_ms": 13.179748,
+        "samples_fetched": 82468,
+        "workspace_peak": 50744,
+        "provider_peak": 4624
+      }
+    },
+    {
+      "groups": 8,
+      "shape": "raw",
+      "baseline-release": {
+        "median_ms": 2.238211,
+        "samples_fetched": 20720,
+        "workspace_peak": 14888,
+        "provider_peak": 4624
+      },
+      "candidate3-release": {
+        "median_ms": 2.248381,
+        "samples_fetched": 20720,
+        "workspace_peak": 14888,
+        "provider_peak": 4624
+      }
+    },
+    {
+      "groups": 8,
+      "shape": "ordinary",
+      "baseline-release": {
+        "median_ms": 24.64992,
+        "samples_fetched": 245712,
+        "workspace_peak": 22152,
+        "provider_peak": 4624
+      },
+      "candidate3-release": {
+        "median_ms": 25.887,
+        "samples_fetched": 245712,
+        "workspace_peak": 22152,
+        "provider_peak": 4624
+      }
+    },
+    {
+      "groups": 24,
+      "shape": "fixed",
+      "baseline-release": {
+        "median_ms": 790.391007,
+        "samples_fetched": 6902736,
+        "workspace_peak": 77513,
+        "provider_peak": 4624
+      },
+      "candidate3-release": {
+        "median_ms": 18.379104,
+        "samples_fetched": 164540,
+        "workspace_peak": 80208,
+        "provider_peak": 4624
+      }
+    },
+    {
+      "groups": 24,
+      "shape": "abs",
+      "baseline-release": {
+        "median_ms": 845.803476,
+        "samples_fetched": 6905088,
+        "workspace_peak": 117704,
+        "provider_peak": 4624
+      },
+      "candidate3-release": {
+        "median_ms": 26.109198,
+        "samples_fetched": 166892,
+        "workspace_peak": 119032,
+        "provider_peak": 4624
+      }
+    },
+    {
+      "groups": 24,
+      "shape": "raw",
+      "baseline-release": {
+        "median_ms": 6.412975,
+        "samples_fetched": 62160,
+        "workspace_peak": 38468,
+        "provider_peak": 4624
+      },
+      "candidate3-release": {
+        "median_ms": 6.419275,
+        "samples_fetched": 62160,
+        "workspace_peak": 38468,
+        "provider_peak": 4624
+      }
+    },
+    {
+      "groups": 24,
+      "shape": "ordinary",
+      "baseline-release": {
+        "median_ms": 82.46366,
+        "samples_fetched": 828144,
+        "workspace_peak": 43045,
+        "provider_peak": 4624
+      },
+      "candidate3-release": {
+        "median_ms": 82.34466,
+        "samples_fetched": 828144,
+        "workspace_peak": 43045,
+        "provider_peak": 4624
+      }
+    },
+    {
+      "groups": 40,
+      "shape": "fixed",
+      "baseline-release": {
+        "median_ms": 1334.570602,
+        "samples_fetched": 11789680,
+        "workspace_peak": 124120,
+        "provider_peak": 4624
+      },
+      "candidate3-release": {
+        "median_ms": 26.259397,
+        "samples_fetched": 235060,
+        "workspace_peak": 129104,
+        "provider_peak": 4624
+      }
+    },
+    {
+      "groups": 40,
+      "shape": "abs",
+      "baseline-release": {
+        "median_ms": 1486.926835,
+        "samples_fetched": 11793600,
+        "workspace_peak": 205584,
+        "provider_peak": 4624
+      },
+      "candidate3-release": {
+        "median_ms": 37.406202,
+        "samples_fetched": 238980,
+        "workspace_peak": 207936,
+        "provider_peak": 4624
+      }
+    },
+    {
+      "groups": 40,
+      "shape": "raw",
+      "baseline-release": {
+        "median_ms": 10.964217,
+        "samples_fetched": 103600,
+        "workspace_peak": 70213,
+        "provider_peak": 4624
+      },
+      "candidate3-release": {
+        "median_ms": 10.939217,
+        "samples_fetched": 103600,
+        "workspace_peak": 70213,
+        "provider_peak": 4624
+      }
+    },
+    {
+      "groups": 40,
+      "shape": "ordinary",
+      "baseline-release": {
+        "median_ms": 140.484337,
+        "samples_fetched": 1390352,
+        "workspace_peak": 71005,
+        "provider_peak": 4624
+      },
+      "candidate3-release": {
+        "median_ms": 140.132049,
+        "samples_fetched": 1390352,
+        "workspace_peak": 71005,
+        "provider_peak": 4624
+      }
+    }
+  ],
+  "timing_limitations": [
+    "Three paired release runs; compiler activity overlapped.",
+    "Ordinary TOPK at8groups median increased5.02%; other ordinary/raw medians are near unchanged.",
+    "Synthetic workload results are not live latency guarantees."
+  ],
+  "compiled_release_fixture": {
+    "baseline": {
+      "text": 4424086,
+      "data": 263272,
+      "bss": 564
+    },
+    "candidate": {
+      "text": 4428974,
+      "data": 263656,
+      "bss": 3492
+    },
+    "total_delta_bytes": 8200,
+    "total_delta_percent": 0.1749,
+    "scope": "Linked Rust test executable, not per-query memory; cumulative relative to integration baseline a6b0da564d."
+  },
+  "evidence_root": ".tmp/application-fixed-ranking-fx9eb53a",
+  "evidence_sha256": {
+    "qualification-core.json": "6dfee32d0f7262666c4e15593de23f4e4c91b02311cbed8091396320c82007f4",
+    "qualification-min.json": "6f9bc64bdea30cade8b7dfbb10d75007c578a577fb82e21866a2a56b6b563bf8",
+    "cohort-input.json.gz": "70f61953ca8e73de28b50ccacf00d035499eaf40f9233c1b91e617fde93b9505",
+    "oracle-results.json.gz": "7d48c24831560da873c1d08c3863c4be3061f79b4c9243cfd385fbb04492bc45",
+    "timing.json.gz": "2a3c36b0c6f6e74b95c0ff3e3e88f85f216000b4cee96393e04ba636ed699334",
+    "timing-summary.json": "f6ebe90d4d1524610b74b3dc674528e516949e5b00daa04b7ab42ec1cc252c6a",
+    "full-release-final.log": "0baabc46c236b1715951a82edc33abfc5f974faa6257cd0a17c0084763fa4483",
+    "full-release-min.log": "30e8330497334fdd2618655bc5cd1e2c627bc0112544b10e5611c010c6a763b8",
+    "final-faults.log": "c6ffdf3cf9f1e544b08c40662c50717ce682c676a9beed48db892143b5142bed",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "clippy.log": "d102021ad0719d9f9360fc41091d7a517315ecc709c1fa006f0206b514edb878",
+    "qualify.py": "118eef82904cb6ed8bcebce9fec43d828352b2158156ce356132bb3677762ce1",
+    "qualify-min.py": "58042336bf3426e728e3e48e9357edac81d693978db22d6d0c7508ead457b243",
+    "timing.py": "9d3792e694c863c0d538592481a67db39c64d7d4fbc68df724a8879999b25fde",
+    "build-baseline-v2.log": "2a68b1716347bf274b2afdb3124de83157d6c5624bea95c1a3983feeff65a906",
+    "build-candidate3-v2.log": "3e1217f52737bc1fc6fca33dd37b85e522c57d46020417fd647752cefd869cfa",
+    "build-min.log": "734723935fcbe1b4799b607e97a81e022cf939d5a09200dd257f7cdbd2a7ee48",
+    "qualification-final-release.json": "7fb486422cd96e85abe11daf5c8125d29bbfd42721aa2110d1ce50b3bce2aab0",
+    "qualify-final-release.py": "a9ee4f06e662dcc8b0a9604179641419f4e6ee78ff6ccff393ba3536e0d009b5",
+    "build-release-final.log": "81839359482338262732685174f9b9839f98d63be79de91366e10073fecf38b4"
+  },
+  "binary_sha256": {
+    "baseline-release": "b4b827edb17d5fb03e030db281898b269ff7cf7711d4ee7a05b18d8f5f626a19",
+    "candidate-release": "f1c0742a814555882de4885adc9a0657fb8d77f4cc46f764c4317003d73b1738",
+    "candidate-release-min": "c29d13039d2b970aa9def50db13f1bcecb3176dcee28f79d4a285f993a89ddd4",
+    "oracle": "50109f756effcb31c923deb8d5e1a66f6b2d921d79d02f6cc763357d7a272b0c",
+    "timed-candidate-release": "dfd73c072a3e517ed1cffcc5b4bf050c6beb1963fb647c8e2f07642c7a902b42"
+  },
+  "live_validation": "Recorded separately in the Grafana dashboard README after deployment.",
+  "final_release_rebuild": "Test-only source edits changed binary identity; repeated all1392 cases, exact complete results and all non-time observations equal timed candidate. Section sizes unchanged."
+}

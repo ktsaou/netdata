@@ -60,10 +60,12 @@ query grouping. Legends show the names.
 
 The CPU peak and percentile panels use explicitly sampled subqueries: 30-second samples over 5 minutes and 1-minute samples
 over 30 minutes. They do not claim to capture every one-second spike. CPU busy includes I/O wait because it is 100 minus idle.
-Ranking is evaluated at every time step, so a top-10 trend can have more than 10 different series across its full range.
-A line disappears whenever it falls outside that step's top ten, even if its underlying data is continuous. The panels
-do not connect these omitted points or replace them with zero. Select a smaller application set to inspect its history
-without competition from the other groups (I/O and faults rank individual dimension streams).
+Application trends select the top ten at the **end of the selected range**, using `@ end()`, and show their available
+history throughout that range. Changing rank no longer creates holes in a line. Actual source gaps remain visible;
+points are neither connected across gaps nor replaced with zero. Applications absent at range end are excluded.
+Membership is recalculated when the range changes or refreshes. CPU and RSS rank application groups; I/O and faults
+rank individual dimension streams. Rankings span the selected hosts and applications. The CPU/RSS summary bars use
+the same endpoint as their trend selection.
 Freshness only describes hosts whose samples remain within lookback; absence does not mean healthy. Threshold counts
 are examples of expressions, not installed alert rules.
 
@@ -74,8 +76,8 @@ plus five scoped metadata operations. Explicit counter normalization was used fo
 
 - 57 of 59 requests succeeded with nonempty results.
 - Two 6-hour application top-10 CPU/RSS trend requests exceeded an explicit 25-second deadline. The corresponding
-  15-minute queries succeeded in about 8–11 seconds. Long application rankings are a known performance gap; reducing the
-  selected application set or time range can help while that path is optimized.
+  15-minute queries succeeded in about 8–11 seconds. These are retained measurements of the original per-step ranking queries; the fixed-membership revision below
+  is qualified separately.
 - The 6-hour fleet RAM-ratio query took about 19 seconds. These are live observations during collection/replication,
   not isolated benchmarks or latency guarantees.
 - Scoped host/application/device values, label names and series discovery took about 0.16–0.23 seconds in that cohort.

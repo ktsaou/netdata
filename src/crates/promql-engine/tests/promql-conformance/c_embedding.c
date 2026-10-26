@@ -2214,7 +2214,7 @@ static void protocol_primitives(netdata_promql_engine_t *engine) {
         "{zone=~\"(?P<x>a[^0-9]+c)\"}", "{zone!~\"(?P<x>a[^0-9]+c)\"}",
         "{zone=~\"(([a-c])*)\"}", "{zone!~\"(([a-c])*)\"}"
     };
-    const char *fallback_subjects[] = {"abc", "a9c", "", "a\xff" "bc", "\xef\xbf\xbd"};
+    const char *fallback_subjects[] = {"abc", "a9c", "", ("a\xff" "bc"), "\xef\xbf\xbd"};
     const uint32_t fallback_expected[2][5] = {{1, 0, 0, 1, 0}, {1, 0, 1, 0, 0}};
     for (unsigned p = 0; p < 4; ++p) {
         assert(netdata_promql_selector_compile(engine, text(fallback_selectors[p]), NULL, &selector, &report) == NETDATA_PROMQL_OK);
