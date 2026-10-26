@@ -183,6 +183,13 @@ def qualify(binary, codec, run, observe=None):
                   "fixture_http" in v["infos"][0] and v["infos"][0].endswith("(1:13)"))
             check("form-post", "query", {"query": "2", "time": base + 4}, scalar(1), method="POST", payload="query=1")
             check("label-values", "label/netdata_units/values", {"match[]": "fixture_http"}, {"status": "success", "data": ["KiB"]})
+            for name, scope in [("fleet-names", ""), ("local-names", local), ("child-names", child)]:
+                check(name, "label/__name__/values", {"match[]": '{__name__=~"fixture[._]http"}'},
+                      {"status": "success", "data": ["fixture.http", "fixture_http"]}, prefix=scope)
+            check("unfiltered-names", "label/__name__/values", {"start": base, "end": base + 10},
+                  {"status": "success", "data": ["fixture.http", "fixture_http"]})
+            check("filtered-names", "label/__name__/values", {"match[]": 'fixture_http{netdata_dimension_id="gauge"}'},
+                  {"status": "success", "data": ["fixture_http"]})
             check("dimension-values", "label/netdata_dimension_id/values", {"match[]": "fixture_http"}, {"status": "success", "data": ["counter", "gauge"]})
             check("labels", "labels", {"match[]": "fixture_http"}, inspect=lambda v: v["status"] == "success" and {"__name__", "netdata_host_id", "netdata_units", "fixture_role"} <= set(v["data"]))
             for name, scope, count in [("fleet-series", "", 4), ("local-series", local, 2)]:

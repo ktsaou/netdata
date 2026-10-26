@@ -73,6 +73,7 @@ typedef struct {
     PROMQL_PROVIDER_QUERY *query;
     struct dictionary_foreach hosts, contexts, instances, metrics;
     bool hosts_started, contexts_started, instances_started, metrics_started, scoped_done;
+    bool context_represented, names_only;
     PROMQL_HOST *host;
     PROMQL_PHYSICAL *pending_alias;
     netdata_promql_matcher_t *prefilters;

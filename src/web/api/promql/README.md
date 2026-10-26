@@ -72,6 +72,13 @@ requires a scalar or instant-vector expression. Discovery selectors must contain
 not match an empty value. `options=absolute` leaves gauges and negative expression results unchanged.
 Netdata dashboard shaping options are not supported by these endpoints.
 
+Metric-name discovery (`/api/v1/label/__name__/values`) uses the existing contexts catalogue. With no selector,
+or for each `match[]` containing only `__name__` predicates, it stops at the first metric in each context that has
+retained DBengine data overlapping the requested time range. Both name aliases are still matched by the Rust
+engine, and the usual union, sorting and limit rules apply. This path does not load or validate unrelated chart
+labels, so an unrelated archived-label loading failure does not prevent listing a name. A selector that filters
+other labels uses full series metadata. There is no separate metadata catalogue or persistent discovery cache.
+
 ## Results and errors
 
 Successful JSON uses `status: success` and `data`. Query data contains `resultType` and `result`; discovery data

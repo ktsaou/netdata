@@ -262,6 +262,9 @@ bool promql_api_discovery(PROMQL_API_REQUEST *request, PROMQL_API_KIND kind) {
     if(options.len && (options.len != 8 || memcmp(options.data, "absolute", 8))) {
         promql_api_bad_data(request, "options", "unsupported PromQL option; supported value is absolute"); return false;
     }
+    request->context.names_only = kind == PROMQL_API_VALUES &&
+        request->label_name.len == sizeof("__name__") - 1 &&
+        !memcmp(request->label_name.data, "__name__", sizeof("__name__") - 1);
     DISCOVERY_OUTPUT output = {.request = request, .kind = kind};
     netdata_promql_output_t callbacks = {.header = {NETDATA_PROMQL_ABI_VERSION, sizeof(callbacks)}, .context = &output,
         .begin = begin, .chunk = chunk, .commit = commit, .abort = abort_output};

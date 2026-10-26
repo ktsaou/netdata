@@ -12,6 +12,8 @@ typedef struct {
     const char *host;
     const char *backing_directory;
     bool absolute;
+    // Only metric-name discovery with exclusively name predicates may project metadata.
+    bool names_only;
     uint64_t storage_pages[RRD_STORAGE_TIERS];
     // Cursor reads and provider folds exclude native page-prefix decoding work.
     uint64_t storage_points[RRD_STORAGE_TIERS];

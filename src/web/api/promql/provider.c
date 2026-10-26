@@ -65,6 +65,13 @@ static uint32_t selection_open(void *context, void *query, const netdata_promql_
     PROMQL_SELECTION *selection = promql_malloc(frame.account, NETDATA_PROMQL_MEMORY_PROVIDER_HELD, sizeof(*selection));
     if(!selection) return promql_provider_error(context, "cannot account metadata selection", error);
     selection->query = query;
+    selection->names_only = selection->query->context->names_only;
+    for(uint64_t i = 0; selection->names_only && i < request->matchers.len; i++) {
+        if(!promql_read_poll(&frame)) { promql_selection_destroy(selection); return frame.interrupted; }
+        netdata_promql_bytes_t name = request->matchers.data[i].name;
+        selection->names_only = name.len == sizeof("__name__") - 1 &&
+            !memcmp(name.data, "__name__", sizeof("__name__") - 1);
+    }
     if(!promql_selection_prefilters(selection, request->matchers, frame.account)) {
         promql_selection_destroy(selection);
         return promql_provider_error(context, "cannot account metadata prefilters", error);

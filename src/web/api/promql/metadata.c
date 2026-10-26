@@ -305,7 +305,8 @@ static PROMQL_PHYSICAL *physical_create(PROMQL_SELECTION *selection, RRDCONTEXT 
             if(prefilter_failed) *status = promql_provider_error(query->context, "cannot account metric-name prefilter", error);
             return NULL;
         }
-        if(!instance->rrdset && rrd_flag_check_all(instance, RRD_FLAG_OWN_LABELS | RRD_FLAG_DEMAND_LABELS)) {
+        if(!selection->names_only && !instance->rrdset &&
+           rrd_flag_check_all(instance, RRD_FLAG_OWN_LABELS | RRD_FLAG_DEMAND_LABELS)) {
             rrdinstance_metadata_unlock(instance);
             if(!load_instance_labels_on_demand(instance, promql_read_poll, frame)) {
                 *status = frame->interrupted != NETDATA_PROMQL_OK ? frame->interrupted :
@@ -333,14 +334,16 @@ static PROMQL_PHYSICAL *physical_create(PROMQL_SELECTION *selection, RRDCONTEXT 
             if(physical->alias) prometheus_rrdlabels_sanitize_name(physical->alias, physical->name, bytes);
         }
         LABEL_COPY copy = {.physical = physical, .frame = frame};
+        // This reference also owns physical->name while an alias or returned series remains alive.
         bool copied = physical->name && physical->alias &&
-            label_add(physical, frame->account, "", "netdata_context", NULL, context->id, NULL) &&
+            label_add(physical, frame->account, "", "netdata_context", NULL, context->id, NULL);
+        if(copied && !selection->names_only) copied =
             label_add(physical, frame->account, "", "netdata_chart_id", NULL, instance->id, NULL) &&
             label_add(physical, frame->account, "", "netdata_chart_name", NULL, instance->name, NULL) &&
             label_add(physical, frame->account, "", "netdata_dimension_id", NULL, metric->id, NULL) &&
             label_add(physical, frame->account, "", "netdata_dimension_name", NULL, metric->name, NULL) &&
             label_add(physical, frame->account, "", "netdata_units", NULL, instance->units, NULL);
-        if(copied) {
+        if(copied && !selection->names_only) {
             RRDLABELS *labels = instance->rrdset ? instance->rrdset->rrdlabels : instance->rrdlabels;
             copied = rrdlabels_walkthrough_read_string(labels, labels_reference, &copy) >= 0;
         }
@@ -352,12 +355,14 @@ static PROMQL_PHYSICAL *physical_create(PROMQL_SELECTION *selection, RRDCONTEXT 
             return NULL;
         }
         RRDHOST *host = selection->host->host;
-        RRDHOST_IDENTITY host_identity = rrdhost_identity_acquire(host);
-        copied = label_add(physical, frame->account, "", "netdata_host_id", NULL, NULL, host->machine_guid) &&
-            label_add(physical, frame->account, "", "netdata_host_name", NULL, host_identity.hostname, NULL);
-        rrdhost_identity_release(&host_identity);
-        copy.host = true;
-        if(copied) copied = rrdlabels_walkthrough_read_string(host->rrdlabels, labels_reference, &copy) >= 0;
+        if(!selection->names_only) {
+            RRDHOST_IDENTITY host_identity = rrdhost_identity_acquire(host);
+            copied = label_add(physical, frame->account, "", "netdata_host_id", NULL, NULL, host->machine_guid) &&
+                label_add(physical, frame->account, "", "netdata_host_name", NULL, host_identity.hostname, NULL);
+            rrdhost_identity_release(&host_identity);
+            copy.host = true;
+            if(copied) copied = rrdlabels_walkthrough_read_string(host->rrdlabels, labels_reference, &copy) >= 0;
+        }
         if(!copied || copy.failed) {
             physical_destroy(physical);
             *status = frame->interrupted != NETDATA_PROMQL_OK ? frame->interrupted :
@@ -487,6 +492,15 @@ uint32_t promql_metadata_next(PROMQL_SELECTION *selection, PROMQL_READ_FRAME *fr
     }
     for(;;) {
         if(!promql_read_poll(frame)) return frame->interrupted;
+        if(selection->context_represented) {
+            // Names need one retained witness, not every dimension in this context.
+            dictionary_foreach_done(&selection->metrics);
+            selection->metrics_started = false;
+            dictionary_foreach_done(&selection->instances);
+            selection->instances_started = false;
+            traverse_next(&selection->contexts);
+            selection->context_represented = false;
+        }
         if(!selection->host) {
             uint32_t status = selection_host(selection, frame, error);
             if(status != NETDATA_PROMQL_OK) return status;
@@ -533,6 +547,7 @@ uint32_t promql_metadata_next(PROMQL_SELECTION *selection, PROMQL_READ_FRAME *fr
         traverse_next(&selection->metrics);
         if(status != NETDATA_PROMQL_OK) return status;
         if(!physical) continue;
+        selection->context_represented = selection->names_only;
         PROMQL_SERIES *series = series_create(physical, false, frame->account);
         if(!series) {
             promql_physical_release(physical);

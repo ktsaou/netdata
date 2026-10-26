@@ -42,7 +42,8 @@ DISCOVERY_CASES = {"negative", "reversed", "between-seconds", "zero", "positive-
 OUTPUT_CASES = {"scalar-no-backing", "string-escaping", "vector-no-backing", "large-no-backing",
                 "plain-2049", "plain-100000", "gzip-2049", "gzip-100000"}
 NATIVE_CASES = {"plain-2049", "plain-100000", "gzip-2049", "gzip-100000"}
-METADATA_REF_CASES = {"immutable-source-views", "archived-cold", "archived-hit"}
+METADATA_REF_CASES = {"immutable-source-views", "archived-cold", "archived-hit", "names-one-context", "names-archived-unloaded", "names-first-witness",
+                      "names-later-tier-witness", "names-retention-hole", "names-no-retention"}
 REQUEST_CASES = {"body-first", "escaped-separators", "embedded-nul", "empty-first", "invalid-field", "semicolon-order",
                  "escaped-semicolon", "non-form-body", "mime-error-first", "mime-duplicate-same",
                  "mime-duplicate-different", "body-error-before-url", "mime-unicode-i", "mime-unicode-k"}
@@ -63,6 +64,7 @@ ACLK_SOURCE_CASES = {"plain-8193", "plain-1000000", "gzip-1000000", "long-prefix
 RTC_FRAME_CASES = {"plain-100000", "negotiated-2049", "unicode-205", "unicode-too-small", "stopped-before-send", "send-failure"}
 OPERATION_CASES = {"socket-close", "retired-id-same-fd", "caller-deadline-first", "uri-deadline-first",
                    "cancel-before-activation", "watcher-retirement", "shutdown-admission"}
+API_HANDLER_CASES |= {'names-bounds', 'names-future', 'names-subsecond', 'names-negative', 'names-mixed-union', 'names-exact', 'names-fallback', 'names-reversed', 'names-conjunction-empty', 'names-fallback-empty', 'names-limit', 'names-union', 'names-regex', 'names-original'}
 API_ROUTE_CASES = API_HANDLER_CASES - {"pooled-release"}
 RTC_PEER_CASES = {"connect", "live-gauge", "form-post", "paced-range", "remote-close", "shutdown"}
 
@@ -236,7 +238,7 @@ def main():
                         or {row["api_route_case"] for row in api_routes} != expected_routes
                         or {row["rtc_peer_case"] for row in rtc_peers} != expected_peers
                         or any(row["releases"] != 1 for row in mqtt_sources)
-                        or any(not row["pointer_checks"] or row["remaining_provider"] or row["remaining_views"] for row in metadata_refs)
+                        or any((row["rows"] and not row["pointer_checks"]) or row["remaining_provider"] or row["remaining_views"] for row in metadata_refs)
                         or any(row["remaining_handles"] for row in faults)):
                     raise RuntimeError(f"{codec}/{phase} failed; retained logs in {root}")
         if source_binding() != initial_sources or sha256(binary) != binary_hash:

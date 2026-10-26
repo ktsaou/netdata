@@ -14,7 +14,8 @@ typedef struct {
     STRING *chart_name, *label_name, *label_value;
     uint64_t rows, pointer_checks, sql_reads;
     int errors;
-    bool frozen;
+    bool frozen, names_only, bounded;
+    netdata_promql_bounds_t bounds;
 } REFERENCE_RESULT;
 
 static const netdata_promql_label_t *find_label(netdata_promql_labels_t labels, const char *name) {
@@ -54,7 +55,12 @@ static uint32_t reference_chunk(void *context, const netdata_promql_chunk_t *chu
     if(chunk->kind == NETDATA_PROMQL_CHUNK_ANNOTATIONS) return NETDATA_PROMQL_OK;
     if(chunk->kind != NETDATA_PROMQL_CHUNK_SERIES || chunk->payload.series.points.len) return NETDATA_PROMQL_OUTPUT_ERROR;
     netdata_promql_labels_t labels = chunk->payload.series.labels;
-    if(result->frozen) {
+    if(result->names_only) {
+        STRING *context_name = result->chart ? result->chart->context : result->instance->rc->id;
+        check_pointer(result, labels, "netdata_context", string2str(context_name));
+        result->errors += labels.len != 2 || !find_label(labels, "__name__");
+    }
+    else if(result->frozen) {
         check_pointer(result, labels, "netdata_context", string2str(result->chart->context));
         check_pointer(result, labels, "netdata_chart_name", string2str(result->chart_name));
         check_pointer(result, labels, "netdata_dimension_name", string2str(result->dimension->name));
@@ -90,16 +96,18 @@ static int reference_discover(netdata_promql_engine_t *engine, netdata_promql_se
                                REFERENCE_RESULT *result, const char *name, uint64_t rows, uint64_t reads) {
     result->rows = result->pointer_checks = 0;
     PROMQL_PROVIDER_CONTEXT context = {.scope = PROMQL_HOST_GUID, .host = localhost->machine_guid,
-        .backing_directory = netdata_configured_cache_dir};
+        .backing_directory = netdata_configured_cache_dir, .names_only = result->names_only};
     netdata_promql_provider_t provider = promql_provider(&context);
     netdata_promql_output_t output = {.header = {NETDATA_PROMQL_ABI_VERSION, sizeof(output)}, .context = result,
         .begin = reference_begin, .chunk = reference_chunk, .commit = reference_commit, .abort = reference_abort};
     netdata_promql_report_t *report = NULL;
     const netdata_promql_selector_t *selectors[] = {selector};
     uint32_t status = netdata_promql_discover(engine, &provider,
-        (netdata_promql_bounds_t){REFERENCE_BASE * 1000 + 1, (REFERENCE_BASE + 4097) * 1000},
+        result->bounded ? result->bounds : (netdata_promql_bounds_t){REFERENCE_BASE * 1000 + 1, (REFERENCE_BASE + 4097) * 1000},
         selectors, 1, NULL, &output, &report);
     result->errors += status != NETDATA_PROMQL_OK || result->rows != rows || result->sql_reads != reads;
+    for(size_t tier = 0; tier < RRD_STORAGE_TIERS; tier++)
+        result->errors += context.storage_pages[tier] != 0 || context.storage_points[tier] != 0;
     if(report) netdata_promql_report_release(report);
     netdata_promql_engine_observations_t observations = {0};
     result->errors += netdata_promql_engine_observations(engine, &observations) != NETDATA_PROMQL_OK ||
@@ -130,6 +138,38 @@ static int label_trace(unsigned event, void *context, void *statement, void *unu
     return 0;
 }
 
+static int names_retention_fixture(netdata_promql_engine_t *engine) {
+    RRDSET *chart = rrdset_create(localhost, "promql_fixture", "witness", NULL, "fixture", "fixture.witness",
+        "Name retention fixture", "units", "fixture", "fixture", 1, 1, RRDSET_TYPE_LINE);
+    if(!chart) return 1;
+    RRDDIM *first = rrddim_add(chart, "first", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
+    RRDDIM *later = rrddim_add(chart, "later", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
+    if(!first || !later) { rrdset_free(chart); return 1; }
+    storage_engine_store_metric(first->tiers[0].sch, (REFERENCE_BASE + 1) * USEC_PER_SEC,
+        1, 1, 1, 1, 0, SN_FLAG_NOT_ANOMALOUS | SP_FLAG_ORDINARY_SOURCE);
+    storage_engine_store_change_collection_frequency(later->tiers[1].sch, 60);
+    storage_engine_store_metric(later->tiers[1].sch, (REFERENCE_BASE + 60) * USEC_PER_SEC,
+        60, 1, 1, 60, 0, SN_FLAG_NOT_ANOMALOUS | SP_FLAG_ORDINARY_SOURCE);
+    rrddim_finalize_collection_and_check_retention(first);
+    rrddim_finalize_collection_and_check_retention(later);
+    netdata_promql_selector_t *selector = reference_selector(engine, "{__name__=~\"fixture[._]witness\"}");
+    int errors = !selector;
+    if(selector) {
+        const struct { const char *name; int second; uint64_t rows; } cases[] = {
+            {"names-first-witness", 1, 2}, {"names-later-tier-witness", 60, 2},
+            {"names-retention-hole", 30, 0}, {"names-no-retention", 90, 0},
+        };
+        for(size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+            int64_t when = (REFERENCE_BASE + cases[i].second) * 1000;
+            REFERENCE_RESULT result = {.chart = chart, .names_only = true, .bounded = true, .bounds = {when, when}};
+            errors += reference_discover(engine, selector, &result, cases[i].name, cases[i].rows, 0);
+        }
+        netdata_promql_selector_release(selector);
+    }
+    rrdset_free(chart);
+    return errors;
+}
+
 int promql_metadata_reference_fixture(netdata_promql_engine_t *engine, RRDSET *chart, RRDDIM *dimension) {
     REFERENCE_RESULT result = {.chart = chart, .dimension = dimension, .frozen = true,
         .chart_name = string_dup(chart->name)};
@@ -142,6 +182,13 @@ int promql_metadata_reference_fixture(netdata_promql_engine_t *engine, RRDSET *c
         errors += reference_discover(engine, selector, &result, "immutable-source-views", 2, 0);
         netdata_promql_selector_release(selector);
     }
+    netdata_promql_selector_t *names = reference_selector(engine, "{__name__=~\"fixture[._]provider\"}");
+    if(names) {
+        REFERENCE_RESULT projected = {.chart = chart, .names_only = true};
+        errors += reference_discover(engine, names, &projected, "names-one-context", 2, 0);
+        netdata_promql_selector_release(names);
+    }
+    else errors++;
     rrdset_reset_name(chart, string2str(result.chart_name));
     rrdlabels_add(chart->rrdlabels, "shared_reference", "original-value", RRDLABEL_SRC_AUTO);
     string_freez(result.chart_name);
@@ -176,6 +223,10 @@ int promql_metadata_reference_fixture(netdata_promql_engine_t *engine, RRDSET *c
     result = (REFERENCE_RESULT){.instance = instance};
     selector = reference_selector(engine, "fixture_cached");
     if(seeded && selector && sqlite3_trace_v2(db_context_meta, SQLITE_TRACE_STMT, label_trace, &result) == SQLITE_OK) {
+        result.names_only = true;
+        errors += reference_discover(engine, selector, &result, "names-archived-unloaded", 1, 0);
+        errors += !rrd_flag_check(instance, RRD_FLAG_DEMAND_LABELS);
+        result.names_only = false;
         errors += reference_discover(engine, selector, &result, "archived-cold", 1, 1);
         errors += rrd_flag_check(instance, RRD_FLAG_DEMAND_LABELS);
         errors += reference_discover(engine, selector, &result, "archived-hit", 1, 1);
@@ -187,5 +238,6 @@ int promql_metadata_reference_fixture(netdata_promql_engine_t *engine, RRDSET *c
     string_freez(result.label_value);
     rrdinstance_release(instance_owner);
     rrdcontext_release(context_owner);
+    errors += names_retention_fixture(engine);
     return errors;
 }

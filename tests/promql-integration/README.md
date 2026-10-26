@@ -476,3 +476,20 @@ These warm shared-host results are mixed; they establish no blanket live-query s
 all small controls, full response checks and separate constructor/adapter timings. The Agent gains 29,700 B of
 executable text and 24 B of data, with equal BSS. Heap observations remain equal; no process-memory decrease is
 claimed. Raw samples remain paged, resource caps remain disabled, and no production service or installation changes.
+
+## Context-backed metric-name discovery
+
+The [name-discovery qualification](name-discovery-qualification.json) covers the C integration change that
+answers name-only discovery with one retained metric witness per context. Context-owned name references and
+actual tier retention are retained; generic Rust matching and full metadata for other-label predicates are unchanged.
+
+The Release Agent passes 746 storage/integration records, 68 real HTTP checks and 24 host-readiness checks across
+array and Gorilla codecs. New cases cover alias and regex matching, conjunctions and unions, mixed-label fallback,
+limits, time bounds, a later dimension with higher-tier-only retention, and a hole between two dimensions' retention.
+A nine-dimension context emits two name rows rather than eighteen full series rows. Archived name lookup performs
+zero label SQL reads and leaves demand-loading pending; the existing full-label lookup then loads and caches it.
+All metadata fixtures read zero sample pages and release provider allocations and borrowed views.
+
+These finite fixture checks establish behavior and reduced enumeration, not a production latency guarantee.
+Full-label discovery remains cardinality-dependent, and exact-name prefilters still visit dimensions in rejected
+contexts. The separate `/api/v1/metadata` help/type endpoint remains unsupported.

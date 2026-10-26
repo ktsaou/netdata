@@ -1,0 +1,204 @@
+{
+  "schema": 1,
+  "scope": "C metric-name discovery under decision66A; no Rust engine or ABI changes",
+  "base_commit": "6baef510c7cb71268b8054aa9f8b299a1adfa3bc",
+  "binary_sha256": "c17fa4c5539e2a9b9e6eba3b6655b80682bc035725675627a5d946e159b60dd2",
+  "source_sha256": {
+    "src/web/api/promql/api-test.c": "0e91f9b2419c9f285701bfddaf83c6874a04e96491198d5579a59ea2975f9c74",
+    "src/web/api/promql/discovery.c": "b01929ec47f4f55aed11e6f60fbd0a7b7fcb832ce0d3bb903646655bbaab12e0",
+    "src/web/api/promql/metadata-test.c": "6b244165a29c9b7f57678e3e133889a7ade1637302db446c269de72dff684c1c",
+    "src/web/api/promql/metadata.c": "4914012326447911905f31b65529d59204071baf286483538e9b39cccaa22bb7",
+    "src/web/api/promql/provider-internal.h": "3c7a770aefc55481766337b38d16b26f42143c6d6310715dd3bef173f2616d7c",
+    "src/web/api/promql/provider.c": "2d7c09f6100ce8ee18fcc3bc0b236aebc8bd03c78a5c3118e771988de9639b76",
+    "src/web/api/promql/provider.h": "7d6e549a30106e064abf13f2e2dbf07fa12f64be18f8b3d797b10ff67a23d2dd",
+    "tests/promql-integration/storage.py": "b4a26fa8fd60e065aebd4f7f47e96b1cbb9f1b9d3dd107240d6a894c9e1370a2",
+    "tests/promql-integration/live.py": "86aa5bad05d764d87cb27af9286aeed83762023df6b5883a9519f552d2a94951"
+  },
+  "build": "Release with NETDATA_INTERNAL_CHECKS; GCC native build",
+  "codecs": [
+    "array",
+    "gorilla"
+  ],
+  "storage_records": 746,
+  "http_checks": 68,
+  "readiness_checks": 24,
+  "metadata_checks": {
+    "array": [
+      {
+        "metadata_ref_case": "immutable-source-views",
+        "errors": 0,
+        "rows": 2,
+        "pointer_checks": 12,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "names-one-context",
+        "errors": 0,
+        "rows": 2,
+        "pointer_checks": 2,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "names-archived-unloaded",
+        "errors": 0,
+        "rows": 1,
+        "pointer_checks": 1,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "archived-cold",
+        "errors": 0,
+        "rows": 1,
+        "pointer_checks": 1,
+        "sql_reads": 1,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "archived-hit",
+        "errors": 0,
+        "rows": 1,
+        "pointer_checks": 1,
+        "sql_reads": 1,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "names-first-witness",
+        "errors": 0,
+        "rows": 2,
+        "pointer_checks": 2,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "names-later-tier-witness",
+        "errors": 0,
+        "rows": 2,
+        "pointer_checks": 2,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "names-retention-hole",
+        "errors": 0,
+        "rows": 0,
+        "pointer_checks": 0,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "names-no-retention",
+        "errors": 0,
+        "rows": 0,
+        "pointer_checks": 0,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      }
+    ],
+    "gorilla": [
+      {
+        "metadata_ref_case": "immutable-source-views",
+        "errors": 0,
+        "rows": 2,
+        "pointer_checks": 12,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "names-one-context",
+        "errors": 0,
+        "rows": 2,
+        "pointer_checks": 2,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "names-archived-unloaded",
+        "errors": 0,
+        "rows": 1,
+        "pointer_checks": 1,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "archived-cold",
+        "errors": 0,
+        "rows": 1,
+        "pointer_checks": 1,
+        "sql_reads": 1,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "archived-hit",
+        "errors": 0,
+        "rows": 1,
+        "pointer_checks": 1,
+        "sql_reads": 1,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "names-first-witness",
+        "errors": 0,
+        "rows": 2,
+        "pointer_checks": 2,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "names-later-tier-witness",
+        "errors": 0,
+        "rows": 2,
+        "pointer_checks": 2,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "names-retention-hole",
+        "errors": 0,
+        "rows": 0,
+        "pointer_checks": 0,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      },
+      {
+        "metadata_ref_case": "names-no-retention",
+        "errors": 0,
+        "rows": 0,
+        "pointer_checks": 0,
+        "sql_reads": 0,
+        "remaining_provider": 0,
+        "remaining_views": 0
+      }
+    ]
+  },
+  "passed": true,
+  "receipt_sha256": {
+    "storage": "5eb40350ca72012b3664428e402d58b6ef628a9f28f6f1cb288ecd6e20096f64",
+    "http": "3f955bfbf19814ae3005fa9ae38ee216b9f69c57f687440d511a39b11b1c849a"
+  },
+  "limits": [
+    "Synthetic local fixtures; live VM deployment and throughput are verified separately.",
+    "Requests filtering other labels still construct complete series metadata.",
+    "Existing exact-name prefilters still visit dimensions in rejected contexts.",
+    "No new metric metadata/help endpoint or persistent metadata catalogue."
+  ]
+}

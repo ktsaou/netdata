@@ -131,3 +131,13 @@ routed HTTP and loopback WebRTC independently of the library's same-input PromQL
 contained engine hashes and actual binary. Historical receipts preserve their separate-library pins. Controlled
 MQTT/ACLK tests establish bounded source ownership and framing; they do not substitute for a live Cloud connection.
 Distributed Cloud execution and a separate rule evaluation engine remain subsequent targets.
+
+## Metric-name discovery
+
+Decision66.A permits `/api/v1/label/__name__/values` to validate only metadata relevant to a names-only selection.
+The C adapter qualifies each union component from its borrowed matcher roster, retaining full metadata when a
+predicate uses any other label. Qualified selections use existing contexts and the first actual retained-tier
+witness, then skip the remaining dimensions of that context. Context-wide first/last envelopes are insufficient:
+a requested interval can lie between separate dimensions' retention. Names-only lookup avoids unrelated chart-label
+loads and their errors. Existing name references, aliases, Rust matching, output sorting/deduplication and query
+accounting remain in use; no second catalogue, persistent cache or C ABI extension is introduced.
