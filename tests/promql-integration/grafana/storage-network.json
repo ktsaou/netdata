@@ -81,13 +81,13 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(disk_io{netdata_host_name=~\"${host:regex}\"}, device)",
+        "definition": "label_values(disk_io{netdata_host_name=~\"${host}\"}, device)",
         "query": {
           "qryType": 1,
-          "query": "label_values(disk_io{netdata_host_name=~\"${host:regex}\"}, device)",
+          "query": "label_values(disk_io{netdata_host_name=~\"${host}\"}, device)",
           "refId": "disk-variable",
           "label": "device",
-          "metric": "disk_io{netdata_host_name=~\"${host:regex}\"}"
+          "metric": "disk_io{netdata_host_name=~\"${host}\"}"
         },
         "refresh": 2,
         "sort": 1,
@@ -109,13 +109,13 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(net_net{netdata_host_name=~\"${host:regex}\"}, device)",
+        "definition": "label_values(net_net{netdata_host_name=~\"${host}\"}, device)",
         "query": {
           "qryType": 1,
-          "query": "label_values(net_net{netdata_host_name=~\"${host:regex}\"}, device)",
+          "query": "label_values(net_net{netdata_host_name=~\"${host}\"}, device)",
           "refId": "interface-variable",
           "label": "device",
-          "metric": "net_net{netdata_host_name=~\"${host:regex}\"}"
+          "metric": "net_net{netdata_host_name=~\"${host}\"}"
         },
         "refresh": 2,
         "sort": 1,
@@ -137,13 +137,13 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(disk_space{netdata_host_name=~\"${host:regex}\"}, mount_point)",
+        "definition": "label_values(disk_space{netdata_host_name=~\"${host}\"}, mount_point)",
         "query": {
           "qryType": 1,
-          "query": "label_values(disk_space{netdata_host_name=~\"${host:regex}\"}, mount_point)",
+          "query": "label_values(disk_space{netdata_host_name=~\"${host}\"}, mount_point)",
           "refId": "mount-variable",
           "label": "mount_point",
-          "metric": "disk_space{netdata_host_name=~\"${host:regex}\"}"
+          "metric": "disk_space{netdata_host_name=~\"${host}\"}"
         },
         "refresh": 2,
         "sort": 1,
@@ -231,7 +231,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (netdata_host_id, netdata_host_name) (100 * sum by (netdata_host_id, netdata_host_name, mount_point) (disk_space{netdata_host_name=~\"${host:regex}\",mount_point=~\"${mount:regex}\",netdata_dimension_id=\"used\"}) / on (netdata_host_id, netdata_host_name, mount_point) sum by (netdata_host_id, netdata_host_name, mount_point) (disk_space{netdata_host_name=~\"${host:regex}\",mount_point=~\"${mount:regex}\"}))",
+          "expr": "max by (netdata_host_id, netdata_host_name) (100 * sum by (netdata_host_id, netdata_host_name, mount_point) (disk_space{netdata_host_name=~\"${host}\",mount_point=~\"${mount}\",netdata_dimension_id=\"used\"}) / on (netdata_host_id, netdata_host_name, mount_point) sum by (netdata_host_id, netdata_host_name, mount_point) (disk_space{netdata_host_name=~\"${host}\",mount_point=~\"${mount}\"}))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -300,7 +300,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (netdata_host_id, netdata_host_name) (disk_util{netdata_host_name=~\"${host:regex}\",device=~\"${disk:regex}\"})",
+          "expr": "max by (netdata_host_id, netdata_host_name) (disk_util{netdata_host_name=~\"${host}\",device=~\"${disk}\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -367,7 +367,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name) (rate(system_net{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"InOctets\"}[$__rate_interval]))",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"InOctets\"}[$__rate_interval]))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -434,7 +434,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name) (rate(system_net{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval]))",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval]))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -521,7 +521,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum by (netdata_host_id, netdata_host_name, mount_point) (disk_space{netdata_host_name=~\"${host:regex}\",mount_point=~\"${mount:regex}\",netdata_dimension_id=\"used\"}) / on (netdata_host_id, netdata_host_name, mount_point) sum by (netdata_host_id, netdata_host_name, mount_point) (disk_space{netdata_host_name=~\"${host:regex}\",mount_point=~\"${mount:regex}\"})",
+          "expr": "100 * sum by (netdata_host_id, netdata_host_name, mount_point) (disk_space{netdata_host_name=~\"${host}\",mount_point=~\"${mount}\",netdata_dimension_id=\"used\"}) / on (netdata_host_id, netdata_host_name, mount_point) sum by (netdata_host_id, netdata_host_name, mount_point) (disk_space{netdata_host_name=~\"${host}\",mount_point=~\"${mount}\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{mount_point}}",
           "range": true,
@@ -608,7 +608,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (netdata_host_id, netdata_host_name, device) (disk_util{netdata_host_name=~\"${host:regex}\",device=~\"${disk:regex}\"})",
+          "expr": "max by (netdata_host_id, netdata_host_name, device) (disk_util{netdata_host_name=~\"${host}\",device=~\"${disk}\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{device}}",
           "range": true,
@@ -693,7 +693,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name, device, netdata_dimension_id) (rate(disk_io{netdata_host_name=~\"${host:regex}\",device=~\"${disk:regex}\"}[$__rate_interval]))",
+          "expr": "sum by (netdata_host_id, netdata_host_name, device, netdata_dimension_id) (rate(disk_io{netdata_host_name=~\"${host}\",device=~\"${disk}\"}[$__rate_interval]))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{device}} / {{netdata_dimension_id}}",
           "range": true,
@@ -778,7 +778,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name, device, netdata_dimension_id) (rate(disk_ops{netdata_host_name=~\"${host:regex}\",device=~\"${disk:regex}\"}[$__rate_interval]))",
+          "expr": "sum by (netdata_host_id, netdata_host_name, device, netdata_dimension_id) (rate(disk_ops{netdata_host_name=~\"${host}\",device=~\"${disk}\"}[$__rate_interval]))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{device}} / {{netdata_dimension_id}}",
           "range": true,
@@ -863,7 +863,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name, device, netdata_dimension_id) (rate(net_net{netdata_host_name=~\"${host:regex}\",device=~\"${interface:regex}\"}[$__rate_interval]))",
+          "expr": "sum by (netdata_host_id, netdata_host_name, device, netdata_dimension_id) (rate(net_net{netdata_host_name=~\"${host}\",device=~\"${interface}\"}[$__rate_interval]))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{device}} / {{netdata_dimension_id}}",
           "range": true,
@@ -948,7 +948,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name, device, netdata_dimension_id) (rate(net_packets{netdata_host_name=~\"${host:regex}\",device=~\"${interface:regex}\"}[$__rate_interval]))",
+          "expr": "sum by (netdata_host_id, netdata_host_name, device, netdata_dimension_id) (rate(net_packets{netdata_host_name=~\"${host}\",device=~\"${interface}\"}[$__rate_interval]))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{device}} / {{netdata_dimension_id}}",
           "range": true,

@@ -81,13 +81,13 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(app_cpu_utilization{netdata_host_name=~\"${host:regex}\"}, app_group)",
+        "definition": "label_values(app_cpu_utilization{netdata_host_name=~\"${host}\"}, app_group)",
         "query": {
           "qryType": 1,
-          "query": "label_values(app_cpu_utilization{netdata_host_name=~\"${host:regex}\"}, app_group)",
+          "query": "label_values(app_cpu_utilization{netdata_host_name=~\"${host}\"}, app_group)",
           "refId": "application-variable",
           "label": "app_group",
-          "metric": "app_cpu_utilization{netdata_host_name=~\"${host:regex}\"}"
+          "metric": "app_cpu_utilization{netdata_host_name=~\"${host}\"}"
         },
         "refresh": 2,
         "sort": 1,
@@ -173,7 +173,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name) (app_cpu_utilization{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"})",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (app_cpu_utilization{netdata_host_name=~\"${host}\",app_group=~\"${application}\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -240,7 +240,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name) (app_mem_usage{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"})",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (app_mem_usage{netdata_host_name=~\"${host}\",app_group=~\"${application}\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -307,7 +307,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name) (app_processes{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"})",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (app_processes{netdata_host_name=~\"${host}\",app_group=~\"${application}\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -374,7 +374,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name) (app_threads{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"})",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (app_threads{netdata_host_name=~\"${host}\",app_group=~\"${application}\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -441,7 +441,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_cpu_utilization{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"}))",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\",app_group=~\"${application}\"}))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{app_group}}",
           "range": false,
@@ -508,7 +508,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_mem_usage{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"}))",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_mem_usage{netdata_host_name=~\"${host}\",app_group=~\"${application}\"}))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{app_group}}",
           "range": false,
@@ -593,7 +593,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_cpu_utilization{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"}))",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\",app_group=~\"${application}\"}))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{app_group}}",
           "range": true,
@@ -678,7 +678,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_mem_usage{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"}))",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_mem_usage{netdata_host_name=~\"${host}\",app_group=~\"${application}\"}))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{app_group}}",
           "range": true,
@@ -763,7 +763,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group, netdata_dimension_id) (abs(app_disk_physical_io{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"})))",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group, netdata_dimension_id) (abs(app_disk_physical_io{netdata_host_name=~\"${host}\",app_group=~\"${application}\"})))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{app_group}} / {{netdata_dimension_id}}",
           "range": true,
@@ -848,7 +848,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group, netdata_dimension_id) (app_mem_page_faults{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"}))",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group, netdata_dimension_id) (app_mem_page_faults{netdata_host_name=~\"${host}\",app_group=~\"${application}\"}))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{app_group}} / {{netdata_dimension_id}}",
           "range": true,

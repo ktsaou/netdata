@@ -29,7 +29,9 @@ with standard Prometheus query variables. They were exercised on Grafana 13.2.4.
 [the dashboard resource API](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/dashboard/)
 by placing the JSON in the resource's `spec`. Each file has a distinct stable UID; imports should not overwrite
 unrelated dashboards. The cross-dashboard menu selects dashboards tagged `promql-playground` and carries the current
-variables and time range.
+variables and time range. Label selectors use datasource-default `${variable}` interpolation, which handles both
+PromQL string escaping and multi-value regex escaping. Do not replace it with generic `${variable:regex}` formatting:
+for example, a selected `/` mount otherwise becomes an invalid PromQL string escape.
 
 The default is 15 minutes, with a 30-second minimum panel interval and 1-minute refresh. These are dashboard settings,
 not new engine resource limits. Empty series remain empty; no expression substitutes zero for unavailable data.
@@ -59,6 +61,9 @@ query grouping. Legends show the names.
 The CPU peak and percentile panels use explicitly sampled subqueries: 30-second samples over 5 minutes and 1-minute samples
 over 30 minutes. They do not claim to capture every one-second spike. CPU busy includes I/O wait because it is 100 minus idle.
 Ranking is evaluated at every time step, so a top-10 trend can have more than 10 different series across its full range.
+A line disappears whenever it falls outside that step's top ten, even if its underlying data is continuous. The panels
+do not connect these omitted points or replace them with zero. Select a smaller application set to inspect its history
+without competition from the other groups (I/O and faults rank individual dimension streams).
 Freshness only describes hosts whose samples remain within lookback; absence does not mean healthy. Threshold counts
 are examples of expressions, not installed alert rules.
 
@@ -85,3 +90,7 @@ caches and other activity; it is not a measurement of query-owned allocations.
 
 The dashboards preserve these expressions so they remain useful regression workloads. A successful dashboard does
 not establish full PromQL compatibility, complete retained history or production capacity for every query shape.
+
+After activating the documented datasource option, all ten Storage & Network panels passed Grafana-backend checks.
+Browser testing also exposed and corrected generic variable-formatting errors for mount paths; direct API substitutions
+alone did not exercise that layer. The four dashboards use the Prometheus datasource's default variable interpolation.

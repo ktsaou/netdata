@@ -145,7 +145,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "count(avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"idle\"}))",
+          "expr": "count(avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"}))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -214,7 +214,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max((100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"idle\"})))",
+          "expr": "max((100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -283,7 +283,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "quantile(0.5, (100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"idle\"})))",
+          "expr": "quantile(0.5, (100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -350,7 +350,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum((100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"idle\"})) > bool 80)",
+          "expr": "sum((100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})) > bool 80)",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -437,7 +437,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"idle\"}))",
+          "expr": "(100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"}))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": true,
@@ -524,7 +524,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum by (netdata_host_id, netdata_host_name) (system_ram{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"used\"}) / on (netdata_host_id, netdata_host_name) sum by (netdata_host_id, netdata_host_name) (system_ram{netdata_host_name=~\"${host:regex}\"})",
+          "expr": "100 * sum by (netdata_host_id, netdata_host_name) (system_ram{netdata_host_name=~\"${host}\",netdata_dimension_id=\"used\"}) / on (netdata_host_id, netdata_host_name) sum by (netdata_host_id, netdata_host_name) (system_ram{netdata_host_name=~\"${host}\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": true,
@@ -609,7 +609,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (netdata_host_id, netdata_host_name) (system_load{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"load1\"})",
+          "expr": "max by (netdata_host_id, netdata_host_name) (system_load{netdata_host_name=~\"${host}\",netdata_dimension_id=\"load1\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": true,
@@ -694,7 +694,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "time() - max by (netdata_host_id, netdata_host_name) (timestamp(system_cpu{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"idle\"}))",
+          "expr": "time() - max by (netdata_host_id, netdata_host_name) (timestamp(system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"}))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": true,

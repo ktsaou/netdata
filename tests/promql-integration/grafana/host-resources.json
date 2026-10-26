@@ -147,7 +147,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "(100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"idle\"}))",
+          "expr": "(100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"}))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -214,7 +214,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name) (system_ram{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"used\"})",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (system_ram{netdata_host_name=~\"${host}\",netdata_dimension_id=\"used\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -283,7 +283,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max_over_time(((100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"idle\"})))[5m:30s])",
+          "expr": "max_over_time(((100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[5m:30s])",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -352,7 +352,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "quantile_over_time(0.95, ((100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"idle\"})))[30m:1m])",
+          "expr": "quantile_over_time(0.95, ((100 - avg by (netdata_host_id, netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[30m:1m])",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": false,
@@ -439,7 +439,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "avg by (netdata_host_id, netdata_host_name, netdata_dimension_id) (system_cpu{netdata_host_name=~\"${host:regex}\"})",
+          "expr": "avg by (netdata_host_id, netdata_host_name, netdata_dimension_id) (system_cpu{netdata_host_name=~\"${host}\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{netdata_dimension_id}}",
           "range": true,
@@ -524,7 +524,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name, netdata_dimension_id) (system_ram{netdata_host_name=~\"${host:regex}\"})",
+          "expr": "sum by (netdata_host_id, netdata_host_name, netdata_dimension_id) (system_ram{netdata_host_name=~\"${host}\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{netdata_dimension_id}}",
           "range": true,
@@ -609,7 +609,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (netdata_host_id, netdata_host_name, netdata_dimension_id) (system_load{netdata_host_name=~\"${host:regex}\"})",
+          "expr": "max by (netdata_host_id, netdata_host_name, netdata_dimension_id) (system_load{netdata_host_name=~\"${host}\"})",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{netdata_dimension_id}}",
           "range": true,
@@ -694,7 +694,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (netdata_host_id, netdata_host_name) (rate(system_ctxt{netdata_host_name=~\"${host:regex}\"}[$__rate_interval]))",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (rate(system_ctxt{netdata_host_name=~\"${host}\"}[$__rate_interval]))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}}",
           "range": true,
