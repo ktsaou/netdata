@@ -65,7 +65,9 @@ history throughout that range. Changing rank no longer creates holes in a line. 
 points are neither connected across gaps nor replaced with zero. Applications absent at range end are excluded.
 Membership is recalculated when the range changes or refreshes. CPU and RSS rank application groups; I/O and faults
 rank individual dimension streams. Rankings span the selected hosts and applications. The CPU/RSS summary bars use
-the same endpoint as their trend selection.
+the same aligned endpoint as their trend selection. They request invariant `@ end()` range values and reduce
+them to one value per application before sorting the bars. Instant requests use a different timestamp in Grafana
+and can otherwise disagree with the trend ranking. Summary totals retain their existing instant-query behavior.
 Freshness only describes hosts whose samples remain within lookback; absence does not mean healthy. Threshold counts
 are examples of expressions, not installed alert rules.
 
@@ -96,3 +98,27 @@ not establish full PromQL compatibility, complete retained history or production
 After activating the documented datasource option, all ten Storage & Network panels passed Grafana-backend checks.
 Browser testing also exposed and corrected generic variable-formatting errors for mount paths; direct API substitutions
 alone did not exercise that layer. The four dashboards use the Prometheus datasource's default variable interpolation.
+
+
+## Fixed-ranking deployment
+
+The VM runs the engine from `00e7704947`, installed through the existing helper with configuration and retained data
+preserved. Both services are active; 24 hosts remain available and local/replicated timestamps advance. The saved
+Applications dashboard now shows fixed end-of-range top-ten histories, with CPU/RSS bars using the same aligned
+endpoint. The host/application filters, native units and real source gaps are preserved.
+
+- All eight direct trend checks (four panels at 15 minutes and 6 hours) match the complete unranked histories filtered
+  by the endpoint ranking. Fifteen-minute requests at 30-second steps took 2.68–5.28 seconds; six-hour requests at
+  five-minute steps took 7.46–13.13 seconds. The previous fixed-ranking expressions hit 25-second deadlines.
+- All ten panels pass the four-request concurrent Grafana backend check. Browser checks pass with all applications
+  and with two dotted application names selected. CPU/RSS bars are sorted by their endpoint values.
+- The actual six-hour browser request uses **one-minute steps**. Its four concurrent trends completed in
+  **15.64–28.73 seconds**. Longer-range latency remains a limitation; the coarser serial measurements above are not
+  representative of this heavier browser workload. These are live observations during collection, not guarantees.
+- Separate Grafana endpoint checks at 15 minutes and 6 hours show exact CPU/RSS bar/trend label and value equality.
+  Small selections use bounded bar text/height and a zero baseline for readable physical-value comparisons.
+
+The core's [qualification record](../../../src/crates/promql-engine/tests/promql-conformance/fixed-ranking-qualification.json)
+binds both optimized profiles, 2,784 reference comparisons, read-failure checks and native C/C++ callers. Its synthetic
+read/time savings and query-memory measurements do not measure live per-query RAM. No storage format, collection,
+interpolation or configured query limit changed.

@@ -390,7 +390,7 @@
     {
       "id": 5,
       "title": "Top 10 applications \u00b7 CPU at range end",
-      "description": "End-of-range ranking; CPU is already a percentage gauge.",
+      "description": "End-of-range ranking; CPU is already a percentage gauge. Uses the same aligned range endpoint as the trend.",
       "type": "bargauge",
       "datasource": {
         "type": "prometheus",
@@ -418,38 +418,70 @@
                 "value": null
               }
             ]
-          }
+          },
+          "min": 0
         },
         "overrides": []
       },
       "options": {
         "reduceOptions": {
-          "values": false,
+          "values": true,
           "calcs": [
             "lastNotNull"
           ],
-          "fields": ""
+          "fields": "",
+          "limit": 10
         },
         "orientation": "horizontal",
         "displayMode": "gradient",
         "showUnfilled": true,
         "valueMode": "color",
-        "namePlacement": "left"
+        "namePlacement": "left",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 13
+        },
+        "sizing": "manual",
+        "minVizHeight": 16,
+        "maxVizHeight": 26
       },
       "maxDataPoints": 300,
       "interval": "30s",
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\",app_group=~\"${application}\"}))",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\",app_group=~\"${application}\"} @ end()))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{app_group}}",
-          "range": false,
-          "instant": true,
+          "range": true,
+          "instant": false,
           "format": "time_series",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
+          }
+        }
+      ],
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "lastNotNull"
+            ],
+            "mode": "seriesToRows"
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "field": "Last *",
+                "desc": true
+              }
+            ]
           }
         }
       ]
@@ -457,7 +489,7 @@
     {
       "id": 6,
       "title": "Top 10 applications \u00b7 RSS at range end",
-      "description": "End-of-range resident-memory ranking.",
+      "description": "End-of-range resident-memory ranking. Uses the same aligned range endpoint as the trend.",
       "type": "bargauge",
       "datasource": {
         "type": "prometheus",
@@ -485,38 +517,70 @@
                 "value": null
               }
             ]
-          }
+          },
+          "min": 0
         },
         "overrides": []
       },
       "options": {
         "reduceOptions": {
-          "values": false,
+          "values": true,
           "calcs": [
             "lastNotNull"
           ],
-          "fields": ""
+          "fields": "",
+          "limit": 10
         },
         "orientation": "horizontal",
         "displayMode": "gradient",
         "showUnfilled": true,
         "valueMode": "color",
-        "namePlacement": "left"
+        "namePlacement": "left",
+        "text": {
+          "titleSize": 13,
+          "valueSize": 13
+        },
+        "sizing": "manual",
+        "minVizHeight": 16,
+        "maxVizHeight": 26
       },
       "maxDataPoints": 300,
       "interval": "30s",
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_mem_usage{netdata_host_name=~\"${host}\",app_group=~\"${application}\"}))",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_mem_usage{netdata_host_name=~\"${host}\",app_group=~\"${application}\"} @ end()))",
           "editorMode": "code",
           "legendFormat": "{{netdata_host_name}} / {{app_group}}",
-          "range": false,
-          "instant": true,
+          "range": true,
+          "instant": false,
           "format": "time_series",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
+          }
+        }
+      ],
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "lastNotNull"
+            ],
+            "mode": "seriesToRows"
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "field": "Last *",
+                "desc": true
+              }
+            ]
           }
         }
       ]
