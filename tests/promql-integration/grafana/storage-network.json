@@ -1,0 +1,965 @@
+{
+  "id": null,
+  "uid": "nd-promql-storage",
+  "title": "Netdata / Storage & Network",
+  "description": "Device, filesystem and network views. Configure options=absolute for correct historical sent/write counter rates.",
+  "tags": [
+    "netdata",
+    "promql-playground"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 41,
+  "version": 0,
+  "refresh": "1m",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "1m",
+      "5m",
+      "15m"
+    ],
+    "time_options": [
+      "15m",
+      "1h",
+      "6h",
+      "24h",
+      "7d"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {
+          "text": "Netdata PromQL",
+          "value": "netdata-promql"
+        },
+        "refresh": 1,
+        "options": []
+      },
+      {
+        "name": "host",
+        "label": "Host",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(system_cpu, netdata_host_name)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(system_cpu, netdata_host_name)",
+          "refId": "host-variable",
+          "label": "netdata_host_name",
+          "metric": "system_cpu"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "regex": "",
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "options": [],
+        "current": {
+          "text": "promql",
+          "value": "promql"
+        }
+      },
+      {
+        "name": "disk",
+        "label": "Disk",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(disk_io{netdata_host_name=~\"${host:regex}\"}, device)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(disk_io{netdata_host_name=~\"${host:regex}\"}, device)",
+          "refId": "disk-variable",
+          "label": "device",
+          "metric": "disk_io{netdata_host_name=~\"${host:regex}\"}"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "regex": "",
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "options": [],
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "interface",
+        "label": "Interface",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(net_net{netdata_host_name=~\"${host:regex}\"}, device)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(net_net{netdata_host_name=~\"${host:regex}\"}, device)",
+          "refId": "interface-variable",
+          "label": "device",
+          "metric": "net_net{netdata_host_name=~\"${host:regex}\"}"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "regex": "",
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "options": [],
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "mount",
+        "label": "Mount",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(disk_space{netdata_host_name=~\"${host:regex}\"}, mount_point)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(disk_space{netdata_host_name=~\"${host:regex}\"}, mount_point)",
+          "refId": "mount-variable",
+          "label": "mount_point",
+          "metric": "disk_space{netdata_host_name=~\"${host:regex}\"}"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "regex": "",
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "options": [],
+        "current": {
+          "text": "/",
+          "value": "/"
+        }
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "type": "dashboards",
+      "tags": [
+        "promql-playground"
+      ],
+      "title": "Netdata dashboards",
+      "asDropdown": true,
+      "includeVars": true,
+      "keepTime": true
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Filesystem used",
+      "description": "Highest usage among selected mounts, including reserved space in capacity.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (netdata_host_id, netdata_host_name) (100 * sum by (netdata_host_id, netdata_host_name, mount_point) (disk_space{netdata_host_name=~\"${host:regex}\",mount_point=~\"${mount:regex}\",netdata_dimension_id=\"used\"}) / on (netdata_host_id, netdata_host_name, mount_point) sum by (netdata_host_id, netdata_host_name, mount_point) (disk_space{netdata_host_name=~\"${host:regex}\",mount_point=~\"${mount:regex}\"}))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}}",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Highest disk busy",
+      "description": "Disk utilization is already a percentage gauge.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (netdata_host_id, netdata_host_name) (disk_util{netdata_host_name=~\"${host:regex}\",device=~\"${disk:regex}\"})",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}}",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Physical network received",
+      "description": "Host total of physical interfaces; decimal kilobits/s.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:kbit/s",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (rate(system_net{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"InOctets\"}[$__rate_interval]))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}}",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Physical network sent",
+      "description": "Legacy presentation-negated counters require datasource options=absolute.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:kbit/s",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (rate(system_net{netdata_host_name=~\"${host:regex}\",netdata_dimension_id=\"OutOctets\"}[$__rate_interval]))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}}",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Filesystem usage by mount",
+      "description": "Used / total; selected mounts only.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        }
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum by (netdata_host_id, netdata_host_name, mount_point) (disk_space{netdata_host_name=~\"${host:regex}\",mount_point=~\"${mount:regex}\",netdata_dimension_id=\"used\"}) / on (netdata_host_id, netdata_host_name, mount_point) sum by (netdata_host_id, netdata_host_name, mount_point) (disk_space{netdata_host_name=~\"${host:regex}\",mount_point=~\"${mount:regex}\"})",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}} / {{mount_point}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Disk busy by device",
+      "description": "Percentage of time working, already a gauge.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        }
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (netdata_host_id, netdata_host_name, device) (disk_util{netdata_host_name=~\"${host:regex}\",device=~\"${disk:regex}\"})",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}} / {{device}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Disk throughput",
+      "description": "Rate of cumulative KiB. Historical write counters require options=absolute.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:KiB/s",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        }
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (netdata_host_id, netdata_host_name, device, netdata_dimension_id) (rate(disk_io{netdata_host_name=~\"${host:regex}\",device=~\"${disk:regex}\"}[$__rate_interval]))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}} / {{device}} / {{netdata_dimension_id}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Disk operations",
+      "description": "Rate of operation counters, kept separate from throughput.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:ops/s",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        }
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (netdata_host_id, netdata_host_name, device, netdata_dimension_id) (rate(disk_ops{netdata_host_name=~\"${host:regex}\",device=~\"${disk:regex}\"}[$__rate_interval]))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}} / {{device}} / {{netdata_dimension_id}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Network throughput by interface",
+      "description": "Interface series are separate; virtual and physical interfaces are not summed together.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:kbit/s",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        }
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (netdata_host_id, netdata_host_name, device, netdata_dimension_id) (rate(net_net{netdata_host_name=~\"${host:regex}\",device=~\"${interface:regex}\"}[$__rate_interval]))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}} / {{device}} / {{netdata_dimension_id}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Network packets by interface",
+      "description": "Counter rates; historical presentation-negated sent values require options=absolute.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:packets/s",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        }
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (netdata_host_id, netdata_host_name, device, netdata_dimension_id) (rate(net_packets{netdata_host_name=~\"${host:regex}\",device=~\"${interface:regex}\"}[$__rate_interval]))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}} / {{device}} / {{netdata_dimension_id}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    }
+  ]
+}

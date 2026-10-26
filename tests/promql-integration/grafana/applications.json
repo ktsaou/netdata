@@ -1,0 +1,865 @@
+{
+  "id": null,
+  "uid": "nd-promql-apps",
+  "title": "Netdata / Applications",
+  "description": "Application groups, process/thread counts, CPU, memory and I/O. CPU and I/O are gauges here.",
+  "tags": [
+    "netdata",
+    "promql-playground"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 41,
+  "version": 0,
+  "refresh": "1m",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "1m",
+      "5m",
+      "15m"
+    ],
+    "time_options": [
+      "15m",
+      "1h",
+      "6h",
+      "24h",
+      "7d"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {
+          "text": "Netdata PromQL",
+          "value": "netdata-promql"
+        },
+        "refresh": 1,
+        "options": []
+      },
+      {
+        "name": "host",
+        "label": "Host",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(system_cpu, netdata_host_name)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(system_cpu, netdata_host_name)",
+          "refId": "host-variable",
+          "label": "netdata_host_name",
+          "metric": "system_cpu"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "regex": "",
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "options": [],
+        "current": {
+          "text": "promql",
+          "value": "promql"
+        }
+      },
+      {
+        "name": "application",
+        "label": "Application",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(app_cpu_utilization{netdata_host_name=~\"${host:regex}\"}, app_group)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(app_cpu_utilization{netdata_host_name=~\"${host:regex}\"}, app_group)",
+          "refId": "application-variable",
+          "label": "app_group",
+          "metric": "app_cpu_utilization{netdata_host_name=~\"${host:regex}\"}"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "regex": "",
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "options": [],
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "type": "dashboards",
+      "tags": [
+        "promql-playground"
+      ],
+      "title": "Netdata dashboards",
+      "asDropdown": true,
+      "includeVars": true,
+      "keepTime": true
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Application CPU total",
+      "description": "Already a gauge.100% means one CPU core; total may exceed100%.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:% of one core",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (app_cpu_utilization{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"})",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}}",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Application RSS total",
+      "description": "Sum of resident memory; shared pages can be counted in more than one process.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:MiB",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (app_mem_usage{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"})",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}}",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Processes",
+      "description": "Current process count for selected application groups.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (app_processes{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"})",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}}",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Threads",
+      "description": "Current thread count for selected application groups.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (netdata_host_id, netdata_host_name) (app_threads{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"})",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}}",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Top 10 applications \u00b7 CPU now",
+      "description": "Current ranking; CPU is already a percentage gauge.",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:% of one core",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "left"
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_cpu_utilization{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"}))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}} / {{app_group}}",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Top 10 applications \u00b7 RSS now",
+      "description": "Current resident-memory ranking.",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:MiB",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "left"
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_mem_usage{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"}))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}} / {{app_group}}",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Application CPU \u00b7 top 10 each step",
+      "description": "Ranking can change over time, so the full legend may contain more than ten applications.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:% of one core",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        }
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_cpu_utilization{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"}))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}} / {{app_group}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Application RSS \u00b7 top 10 each step",
+      "description": "Ranking can change over time; gaps mean the group was outside the top ten or had no data.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:MiB",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        }
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group) (app_mem_usage{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"}))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}} / {{app_group}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Application physical I/O \u00b7 top streams",
+      "description": "Application I/O is already a rate gauge. abs() changes the write presentation only; do not apply rate().",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:KiB/s",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        }
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group, netdata_dimension_id) (abs(app_disk_physical_io{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"})))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}} / {{app_group}} / {{netdata_dimension_id}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Application page faults \u00b7 top streams",
+      "description": "Already-computed minor/major page-fault rates.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:faults/s",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "\u2014",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "showLegend": true
+        }
+      },
+      "maxDataPoints": 300,
+      "interval": "30s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (netdata_host_id, netdata_host_name, app_group, netdata_dimension_id) (app_mem_page_faults{netdata_host_name=~\"${host:regex}\",app_group=~\"${application:regex}\"}))",
+          "editorMode": "code",
+          "legendFormat": "{{netdata_host_name}} / {{app_group}} / {{netdata_dimension_id}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    }
+  ]
+}

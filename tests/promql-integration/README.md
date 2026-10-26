@@ -1,6 +1,7 @@
 # Live PromQL integration checks
 
 For a hands-on installation and real query examples, use [Install and try the PromQL branch](GETTING_STARTED.md).
+For live dashboards and reusable query workloads, see [the Grafana dashboard set](grafana/README.md).
 
 The runners use private directories under the repository's ignored `.tmp/` and preserve storage files, process
 identities and logs. They install nothing and change no existing service. Use an existing Agent with DBengine,
