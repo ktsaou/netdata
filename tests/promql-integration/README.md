@@ -17,6 +17,11 @@ command pipe, filter inherited `NETDATA_*` settings, and retire only their verif
 | `backing.py` | Native backing I/O with sparse offsets above 2 GiB |
 | `checkpoints.py` | Exact bounded checkpoint ownership, shared backing and controlled I/O failures |
 
+The storage restart cases include ordinary one-sample pages whose sampling interval was not stored. They
+check metric-interval and profile-default fallback across all five tiers, an already-cached unknown interval,
+and tier0 journal-v2 reads after catalogue eviction. The sample value and endpoint must remain unchanged.
+Descriptor checks also distinguish inferred ordinary intervals from the recorded intervals in counter pages.
+
 Both storage codecs run by default; `--codecs array` or `--codecs gorilla` selects one. Actual peer qualification
 also requires the pinned libdatachannel build. Each runner requires its exact closed case roster, rejects duplicate
 or missing cases and nonzero errors, and binds the source cohort and executable. Fixture timeouts enable no product

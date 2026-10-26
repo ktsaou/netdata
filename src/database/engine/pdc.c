@@ -1739,8 +1739,7 @@ static bool epdl_populate_pages_from_extent_data(
             PGD *selected = pd->private_page ? pd->private_page : pgd;
             if(pd->demand && !pd->error.code &&
                (selected == PGD_EMPTY || pgd_slots_used(selected) < vd.entries ||
-                pd->first_time_s != vd.start_time_s || pd->last_time_s != vd.end_time_s ||
-                pd->update_every_s != vd.update_every_s))
+                !pdc_page_matches_descriptor(pd, &vd)))
                 pd->error = (RRDENG_READ_ERROR){ .code = RRDENG_READ_DESCRIPTOR,
                     .file = epdl->datafile->fileno, .block = epdl->extent_block, .slot = i };
             pd->page = page;

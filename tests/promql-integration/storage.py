@@ -183,6 +183,14 @@ def main():
                         "stderr_sha256": sha256(root / f"{phase}.stderr")}
                 receipt["phases"].append(item)
                 receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
+                geometry = [row for row in rows if "storage_geometry" in row]
+                expected_geometry = {"singleton-intervals"} if phase == "read" else set()
+                singletons = [row for row in rows if "storage_singleton" in row]
+                expected_singletons = {(kind + "-" + cache, tier) for kind in ["known", "default"]
+                                       for cache in ["cold", "warm"] for tier in range(5)} if phase == "read" else set()
+                if phase == "read":
+                    expected_singletons |= {(kind + "-" + cache, 0) for kind in ["known", "default"]
+                                            for cache in ["journal", "journal-warm"]}
                 faults = [row for row in rows if "storage_fault" in row]
                 collections = [row for row in rows if "collection_case" in row]
                 providers = [row for row in rows if "provider_case" in row]
@@ -217,8 +225,10 @@ def main():
                 expected_operations = OPERATION_CASES if phase == "read" else set()
                 expected_routes = API_ROUTE_CASES if phase == "read" else set()
                 expected_peers = RTC_PEER_CASES if phase == "read" and args.rtc_peers else set()
-                if (result or len(rows) != 36 + len(expected_faults) + len(expected_collections) + len(expected_providers) + len(expected_checkpoints) + len(expected_checkpoint_callbacks) + len(expected_discoveries) + len(expected_outputs) + len(expected_natives) + len(expected_refs) + len(expected_requests) + len(expected_api) + len(expected_mqtt) + len(expected_aclk) + len(expected_rtc) + len(expected_operations) + len(expected_routes) + len(expected_peers)
+                if (result or len(rows) != 36 + len(expected_geometry) + len(expected_singletons) + len(expected_faults) + len(expected_collections) + len(expected_providers) + len(expected_checkpoints) + len(expected_checkpoint_callbacks) + len(expected_discoveries) + len(expected_outputs) + len(expected_natives) + len(expected_refs) + len(expected_requests) + len(expected_api) + len(expected_mqtt) + len(expected_aclk) + len(expected_rtc) + len(expected_operations) + len(expected_routes) + len(expected_peers)
+                        or {row["storage_geometry"] for row in geometry} != expected_geometry
                         or any(row["errors"] for row in rows)
+                        or {(row["storage_singleton"], row["tier"]) for row in singletons} != expected_singletons
                         or {row["storage_fault"] for row in faults} != expected_faults
                         or {(row["collection_case"], row["tier"]) for row in collections} != expected_collections
                         or {row["provider_case"] for row in providers} != expected_providers

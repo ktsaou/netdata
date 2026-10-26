@@ -627,6 +627,14 @@ typedef struct validated_page_descriptor {
     bool is_valid;
 } VALIDATED_PAGE_DESCRIPTOR;
 
+static inline bool pdc_page_matches_descriptor(const struct page_details *pd, const VALIDATED_PAGE_DESCRIPTOR *vd) {
+    // Merged readers may infer different intervals for the same legacy singleton timestamp.
+    bool inferred_singleton = vd->entries == 1 && vd->start_time_s == vd->end_time_s &&
+                              !rrdeng_page_type_is_counter(vd->type) && pd->update_every_s;
+    return pd->first_time_s == vd->start_time_s && pd->last_time_s == vd->end_time_s &&
+           (pd->update_every_s == vd->update_every_s || inferred_singleton);
+}
+
 #define page_entries_by_time(start_time_s, end_time_s, update_every_s) \
         ((update_every_s) ? (((end_time_s) - ((start_time_s) - (update_every_s))) / (update_every_s)) : 1)
 

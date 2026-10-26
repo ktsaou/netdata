@@ -345,7 +345,8 @@ static bool journal_candidate(RRDENG_READER *reader, struct rrdengine_datafile *
         return false;
     uint64_t first = (uint64_t)base + page.delta_start_s, last = (uint64_t)base + page.delta_end_s;
     if((time_t)first < 0 || (uint64_t)(time_t)first != first ||
-       (time_t)last < 0 || (uint64_t)(time_t)last != last || first > last || !page.update_every_s)
+       (time_t)last < 0 || (uint64_t)(time_t)last != last || first > last ||
+       (!page.update_every_s && first != last))
         return false;
     if(first > (uint64_t)reader->last)
         return true;
@@ -506,6 +507,11 @@ RRDENG_DEMAND_STATUS rrdeng_reader_acquire(RRDENG_READER *reader, time_t minimum
         goto failed;
     }
     struct page_details *pd = reader->pdc->demand_page;
+    // Legacy singletons do not encode an interval. Match the ordinary cache reader fallback.
+    if(!candidate.cadence && candidate.first == candidate.last) {
+        candidate.cadence = mrg_metric_get_update_every_s(main_mrg, reader->pdc->metric);
+        if(!candidate.cadence) candidate.cadence = nd_profile.update_every;
+    }
     pd->metric_id = mrg_metric_id(main_mrg, reader->pdc->metric);
     pd->first_time_s = candidate.first; pd->last_time_s = candidate.last;
     pd->update_every_s = candidate.cadence;

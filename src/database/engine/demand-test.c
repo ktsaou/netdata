@@ -149,6 +149,165 @@ static void fixture_uuid(unsigned metric, nd_uuid_t *uuid) {
     fatal_assert(uuid_parse(value, *uuid) == 0);
 }
 
+// Legacy singletons have no stored interval; reopening must use the ordinary reader fallback.
+static int fixture_singletons_write(struct rrdengine_instance *ctx) {
+    int errors = 0;
+    for(unsigned metric = 100; metric < 102; metric++) {
+        nd_uuid_t uuid;
+        fixture_uuid(metric, &uuid);
+        bool added;
+        METRIC *handle = mrg_metric_add_and_acquire(main_mrg, (MRG_ENTRY){
+            .uuid = &uuid, .section = (Word_t)ctx,
+        }, &added);
+        if(!handle) { errors++; continue; }
+        STORAGE_COLLECT_HANDLE *collector = rrdeng_store_metric_init((STORAGE_METRIC_HANDLE *)handle, 7, NULL);
+        if(collector) {
+            rrdeng_store_metric_next(collector, (usec_t)FIXTURE_START * USEC_PER_SEC,
+                                    42, 42, 42, 1, 0, SN_FLAG_NOT_ANOMALOUS | SP_FLAG_ORDINARY_SOURCE);
+            rrdeng_store_metric_finalize(collector);
+        }
+        else errors++;
+        mrg_metric_release(main_mrg, handle);
+    }
+    return errors;
+}
+
+static int fixture_evict_clean(PGC *cache, Word_t section, Word_t metric, time_t first);
+
+static int fixture_singleton_unknown_cache(struct rrdengine_instance *ctx, METRIC *metric) {
+    Word_t id = mrg_metric_id(main_mrg, metric);
+    PGC_PAGE *page = pgc_page_get_and_acquire(main_cache, (Word_t)ctx, id, FIXTURE_START, PGC_SEARCH_EXACT);
+    if(!page) return 1;
+    PGD *data = pgc_page_data(page);
+    uint32_t type = pgd_type(data);
+    bool singleton = pgd_slots_used(data) == 1;
+    pgc_page_release(main_cache, page);
+    if(!singleton || fixture_evict_clean(main_cache, (Word_t)ctx, id, FIXTURE_START)) return 1;
+    // Recreate the same fixture value with unknown cached cadence, as an older reader can publish it.
+    PGD *writer = pgd_create(type, 2);
+    pgd_append_point(writer, (usec_t)FIXTURE_START * USEC_PER_SEC, 42, 42, 42, 1, 0,
+                     SN_FLAG_NOT_ANOMALOUS, 0);
+    uint8_t buffer[RRDENG_BLOCK_SIZE];
+    uint32_t size = pgd_disk_footprint(writer);
+    fatal_assert(size <= sizeof(buffer));
+    pgd_copy_to_extent(writer, buffer, size);
+    PGD *copy = pgd_create_from_disk_data(type, buffer, size);
+    pgd_free(writer);
+    RRDENG_PAGE_PROVENANCE provenance = {
+        .origin = RRDENG_PAGE_LOADED, .first = FIXTURE_START, .last = FIXTURE_START, .entries = 1,
+    };
+    bool added;
+    page = pgc_page_add_and_acquire(main_cache, (PGC_ENTRY){
+        .section = (Word_t)ctx, .metric_id = id, .start_time_s = FIXTURE_START, .end_time_s = FIXTURE_START,
+        .data = copy, .size = pgd_memory_footprint(copy), .custom_data = (uint8_t *)&provenance,
+    }, &added);
+    if(!added) pgd_free(copy);
+    pgc_page_release(main_cache, page);
+    return !added;
+}
+
+static int fixture_singleton_geometry(void) {
+    int errors = 0;
+    unsigned checks = 0;
+    for(uint8_t type = 0; type <= RRDENG_PAGE_TYPE_MAX; type++) {
+        bool counter = rrdeng_page_type_is_counter(type);
+        struct rrdeng_extent_page_descr descriptor = {
+            .type = type, .start_time_ut = (usec_t)FIXTURE_START * USEC_PER_SEC,
+            .page_length = rrdeng_page_header_size(type) +
+                (rrdeng_page_type_base(type) == RRDENG_PAGE_TYPE_GORILLA_32BIT ?
+                 RRDENG_GORILLA_32BIT_BUFFER_SIZE : page_type_size[type]),
+        };
+        if(counter) {
+            descriptor.counter.entries = 1;
+            descriptor.counter.update_every_s = 7;
+        }
+        else if(type == RRDENG_PAGE_TYPE_GORILLA_32BIT) descriptor.gorilla.entries = 1;
+        else descriptor.end_time_ut = descriptor.start_time_ut;
+        VALIDATED_PAGE_DESCRIPTOR vd = validate_extent_page_descr(&descriptor, 0, 7, false);
+        struct page_details readers[2] = {
+            {.first_time_s = FIXTURE_START, .last_time_s = FIXTURE_START, .update_every_s = 7},
+            {.first_time_s = FIXTURE_START, .last_time_s = FIXTURE_START, .update_every_s = 5},
+        };
+        errors += !vd.is_valid || vd.entries != 1 || !pdc_page_matches_descriptor(&readers[0], &vd);
+        errors += pdc_page_matches_descriptor(&readers[1], &vd) != !counter;
+        readers[1].update_every_s = 0;
+        errors += pdc_page_matches_descriptor(&readers[1], &vd);
+        readers[1].update_every_s = 5;
+        readers[1].last_time_s++;
+        errors += pdc_page_matches_descriptor(&readers[1], &vd);
+        readers[1].last_time_s--;
+        readers[1].first_time_s--;
+        errors += pdc_page_matches_descriptor(&readers[1], &vd);
+        readers[1].first_time_s++;
+        vd.entries = 2;
+        vd.end_time_s += 7;
+        readers[1].last_time_s += 7;
+        errors += pdc_page_matches_descriptor(&readers[1], &vd);
+        if(counter) descriptor.counter.update_every_s = 0;
+        vd = validate_extent_page_descr(&descriptor, 0, 0, false);
+        errors += vd.is_valid == counter;
+        checks += 7;
+    }
+    printf("{\"storage_geometry\":\"singleton-intervals\",\"checks\":%u,\"errors\":%d}\n", checks, errors);
+    return errors;
+}
+
+static int fixture_singletons_read(struct rrdengine_instance *ctx, unsigned tier, READ_TEST_ACCOUNT *account) {
+    int errors = 0;
+    RRDENG_READ_OPERATION operation = {.context = account, .poll = read_test_poll, .acquire = read_test_acquire};
+    for(unsigned metric = 100; metric < 102; metric++) {
+        nd_uuid_t uuid;
+        fixture_uuid(metric, &uuid);
+        METRIC *handle = mrg_metric_get_and_acquire_by_uuid(main_mrg, &uuid, (Word_t)ctx);
+        if(!handle) { errors++; continue; }
+        int setup_errors = mrg_metric_get_update_every_s(main_mrg, handle) != 0;
+        PGC_PAGE *descriptor = pgc_page_get_and_acquire(open_cache, (Word_t)ctx,
+                mrg_metric_id(main_mrg, handle), FIXTURE_START, PGC_SEARCH_EXACT);
+        bool open = descriptor != NULL;
+        if(descriptor) {
+            setup_errors += pgc_page_update_every_s(descriptor) != 0;
+            pgc_page_release(open_cache, descriptor);
+        }
+        setup_errors += !open;
+        uint32_t cadence = metric == 100 ? 5 : nd_profile.update_every;
+        if(metric == 100) mrg_metric_set_update_every(main_mrg, handle, cadence);
+        for(unsigned warm = 0; warm < (tier ? 2U : 4U); warm++) {
+            if(warm == 1) setup_errors += fixture_singleton_unknown_cache(ctx, handle);
+            // Tier0 has a migrated v2 index; evict its catalogue entry to exercise that route.
+            if(warm == 2) {
+                setup_errors += fixture_evict_clean(main_cache, (Word_t)ctx, mrg_metric_id(main_mrg, handle), FIXTURE_START);
+                setup_errors += fixture_evict_clean(open_cache, (Word_t)ctx, mrg_metric_id(main_mrg, handle), FIXTURE_START);
+            }
+            RRDENG_READER *reader = NULL;
+            RRDENG_READ_ERROR error = {0};
+            RRDENG_DEMAND_PAGE page = {0};
+            STORAGE_POINT point = STORAGE_POINT_UNSET;
+            int failed = setup_errors;
+            if(!rrdeng_reader_open(handle, NULL, FIXTURE_START, FIXTURE_START, &operation, &reader, &error))
+                failed++;
+            else if(rrdeng_reader_acquire(reader, FIXTURE_START, &operation, &page, &error) != RRDENG_DEMAND_READY)
+                failed++;
+            else {
+                failed += page.entries != 1 || page.first != FIXTURE_START || page.last != FIXTURE_START ||
+                          page.cadence != cadence;
+                if(!rrdeng_reader_point(reader, 0, &point, &operation, &error)) failed++;
+                else failed += point.end_time_s != FIXTURE_START || point.start_time_s != FIXTURE_START - cadence ||
+                               point.sum != 42 || point.count != 1;
+            }
+            rrdeng_reader_close(reader, &operation);
+            read_test_drain(account);
+            printf("{\"storage_singleton\":\"%s-%s\",\"tier\":%u,\"source\":\"%s\","
+                   "\"error_code\":%u,\"cadence\":%u,\"errors\":%d}\n",
+                   metric == 100 ? "known" : "default",
+                   warm == 3 ? "journal-warm" : warm == 2 ? "journal" : warm ? "warm" : "cold", tier,
+                   warm == 2 ? "journal" : warm ? "main" : "open", error.code, page.cadence, failed);
+            errors += failed;
+        }
+        mrg_metric_release(main_mrg, handle);
+    }
+    return errors;
+}
+
 static int fixture_write(struct rrdengine_instance *ctx, unsigned tier, unsigned first, unsigned last) {
     int errors = 0;
     for(unsigned metric = 0; metric < FIXTURE_METRICS; metric++) {
@@ -459,10 +618,16 @@ int promql_dbengine_storage_fixture(void) {
     bool writing = strcmp(phase, "read") != 0;
     unsigned last = !strcmp(phase, "append") ? FIXTURE_POINTS + 1 : FIXTURE_POINTS;
     for(unsigned tier = 0; !errors && tier < initialized; tier++) {
+        if(writing && !strcmp(phase, "write")) errors += fixture_singletons_write(contexts[tier]);
         if(writing) errors += fixture_write(contexts[tier], tier, !strcmp(phase, "append") ? last : 1, last);
         for(unsigned metric = 0; !errors && metric < FIXTURE_METRICS; metric++)
             errors += fixture_read_metric(contexts[tier], tier, metric, last, &account);
     }
+    if(!errors && !writing)
+        errors += fixture_singleton_geometry();
+    if(!errors && !writing)
+        for(unsigned tier = 0; tier < initialized; tier++)
+            errors += fixture_singletons_read(contexts[tier], tier, &account);
     if(!errors && !writing)
         errors += fixture_reader_failures(contexts[0], &account);
     if(!errors && !writing)
