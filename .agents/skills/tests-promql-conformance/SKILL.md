@@ -501,3 +501,7 @@ Mapped extrema/count/presence/variance ownership and typed-window checks follow
 Provider-backed completed values, observed-page reuse and reader progress follow
 `src/crates/promql-engine/tests/promql-conformance/INTERMEDIATE_REUSE.md` for phase separation, actual terminal
 completion, backing transfer costs and native/late-cursor qualification.
+
+Direct Count aggregate label borrowing follows
+`src/crates/promql-engine/tests/promql-conformance/COUNT_GROUP_LABELS.md` for completed Float results, current
+group identity, metadata/fallback exclusions, native inputs and actual borrowing/cancellation measurements.

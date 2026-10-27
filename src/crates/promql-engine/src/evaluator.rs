@@ -3257,7 +3257,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         if current.node != node || selector != selector_node {
             return Ok(None);
         }
-        let rate = match (operation, active) {
+        let drops_metadata = match (operation, active) {
             (SelectorOperation::Instant, SelectorOperation::Instant)
                 if node == selector_node && !self.smooths(selector_node) =>
             {
@@ -3270,6 +3270,22 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     range_ns: active_range,
                 },
             ) if kind == active_kind && range_ns == active_range => {
+                let selector = self.selector(selector_node);
+                if selector.anchored || selector.smoothed {
+                    return Ok(None);
+                }
+                true
+            }
+            (
+                SelectorOperation::Fold {
+                    kind: FoldKind::Count,
+                    range_ns,
+                },
+                SelectorOperation::Fold {
+                    kind: FoldKind::Count,
+                    range_ns: active_range,
+                },
+            ) if range_ns == active_range => {
                 let selector = self.selector(selector_node);
                 if selector.anchored || selector.smoothed {
                     return Ok(None);
@@ -3300,7 +3316,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             || *without
             || grouping.as_ref().is_some_and(|names| {
                 names.len() > 1
-                    || !names.is_empty() && (labels.len() <= 1 || rate && metadata(&names[0]))
+                    || !names.is_empty()
+                        && (labels.len() <= 1 || drops_metadata && metadata(&names[0]))
             })
         {
             return Ok(None);

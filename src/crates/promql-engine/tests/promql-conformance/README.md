@@ -26,6 +26,8 @@ provider-owned backing. No second raw-storage page cache or enabled admission li
 
 [C control-state polling](CONTROL_POLLING.md) records the single-clock snapshot contract and its separate
 native C component measurements. Polling locations and explicit deadlines remain unchanged.
+[Direct Count aggregate labels](COUNT_GROUP_LABELS.md) reuse existing group labels after completed Count values,
+with current provider-label validation and ordinary fallbacks preserved.
 
 Retained qualification covers:
 

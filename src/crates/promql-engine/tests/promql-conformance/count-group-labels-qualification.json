@@ -1,0 +1,1494 @@
+{
+  "schema": 1,
+  "baseline_commit": "be36099f3b708ae6baf2436b434aa515011f062c",
+  "sources": {
+    "src/crates/promql-engine/src/absence.rs": "5daad198a2b483ef9c32557667c47005b2c275359128ed0e2d08741a562a28c3",
+    "src/crates/promql-engine/src/accounting.rs": "fc92d3f2cff03975b16ef5d1403e4927a83b46c1ba0b914b6414966195cd23a8",
+    "src/crates/promql-engine/src/aggregate_replay.rs": "9c09fdc5092f3f37f9a4d47b7a3eee23903451ae37dbd6fe3ecf85a3c7ca9707",
+    "src/crates/promql-engine/src/aggregation.rs": "2d5b6cc5381eecc4c717b52b24adf4906fb21571c073e443388cbb9ddb859bb6",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "69912e8872cc0ce1a841390c703f9f9ff13cef9a3c2f4f046f3e681ea436d312",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "0be04c9f34b07ed90859fd3d592c9fa22de0e84c4c8e00fe8b8fb36bab128a82",
+    "src/crates/promql-engine/src/binary_value.rs": "0d953d8182d81691de3951e7722366b21ea75b6941810cecb68759700ab2ea34",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "89f734b6d4ae9e23816c02c7d32b088878984f82dbd07276fb1900ac2afe0796",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "8852b77f9f3ba87b29c14aca6797bedd0a66b2d0a0ec396ad3b66498610b2e29",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "d1493c7b42065532d2f67c4c81978765d4b7af6ee08e564465169f23d8bb623f",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "e311ea2aa775d79ce5d94cfd6e6b83f777307ef61ef092ace38b8e84803d23ed",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/output_points.rs": "8f6e8d0c2f28e536d2258b88c975711415cbe68fd8c2ed5ad3f645fe2fc9a472",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "046ab8fbd5783160210010d72ac04e501dcbb6f369e29628141ef332bcbd085c",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "1dc792ad5cc64c9eb24051afed3ddf115179730f137ba781b5906e8cfccf53c0",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "226848b6c629692e0ad65f02e5394610bd8bc47db491d3f1dc0e20c53a74960a",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "dfc250c0ba0b13984e541e0a4793aef6b67d16059ebabb7fb2f52628d0cf3b78",
+    "src/crates/promql-engine/src/computed_group_tests.rs": "172b7d25847f23aa1ebccb783a3e9743865c182befed6a87ce1b75af289e35b5",
+    "src/crates/promql-engine/src/computed_groups.rs": "2513daf1aeff1176fcfb4f4026a5c1d823d534093a061b97135cf4e9320f0183",
+    "src/crates/promql-engine/src/count_values.rs": "2df2d3bae459d3d46fe0daaeb66f2ffb0a9b320fd3a510bd4ab4f6c28dfc1848",
+    "src/crates/promql-engine/src/count_windows.rs": "e699ffcbcc610404234083bdc82d3d0089064770a58f10d37061f7d2c1adf1c8",
+    "src/crates/promql-engine/src/derived_matrix.rs": "d2266df002da799c20cf6aec14899838773fcb6bc1f825385dd01fcf88404fee",
+    "src/crates/promql-engine/src/derived_progress.rs": "b074082bfc21eb34da9bac8469357f83c75825a22de5396500a6d2569850dbeb",
+    "src/crates/promql-engine/src/derived_range.rs": "e0490aecd0c43e224efae3d688944e6276d2f5d41e6c9bcf2e96cb1f02f60e8e",
+    "src/crates/promql-engine/src/evaluator.rs": "3bfa83b6ad713b6c9942d74bf3dd240de856612deeb2c54496948d189e48a140",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "f1fb6de41fd4a2dd5dfc8b574b37e0581763893c2696a005c6e67f6a6330ce7a",
+    "src/crates/promql-engine/src/execution.rs": "cb22a46556951988a2c3ff8f8990dcab70d1b53248fa3d3cf314e0f1a651873d",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "2467face12149acc1a2b7ebc307ce1c31a27646651b3fa613a6a93d5a2dc9e8e",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "1ee47e3904cd5e706340802f0560f11327abe59267866395f8712ed8d78100d2",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "315b114bb8f0316df5679cd24b8e0b73b621c27430a527504fc4ad70936cf9c8",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "6118d260789de94f9e9d0bfa9fcf858c352e7cc9110acc52a17765f5d0744fbc",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "d3b75b822de67cde42c1a23f3226fd66258557a03dfe0c471c733ada0cec5087",
+    "src/crates/promql-engine/src/instant_select.rs": "8e8111fc9a23c0645ea31614f458a2960d92104d8d3cd99ef91e1727bf6b98b0",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "c6400e9b8cc2258d24346713a769701b4ad7dddfb8ed7f4299c926e5b46880f4",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "4aa83ea74c927b0eb57d5dbb5e87f5814dc0ee89220dd6916ead2dbaefd1dffc",
+    "src/crates/promql-engine/src/lib.rs": "bc1aaa00053502503b2e4b2f8075c3a7c6ed26b37d049bacf4e6abcde39d8363",
+    "src/crates/promql-engine/src/lookup_tests.rs": "fee64cf7682590f1170210052e2015095d32a5bb715398d05340daa2027417a0",
+    "src/crates/promql-engine/src/mad.rs": "042f323d8456a95c2bd0db87d1784e11b014ef2376f1b5fb13a8623a5381317e",
+    "src/crates/promql-engine/src/matrix_heads.rs": "13da507217250efd2687511c6bde7a6225b6148f41c32ec7ef19fec99376e643",
+    "src/crates/promql-engine/src/matrix_reader.rs": "1e3331a195b89f3f1eacb9a37a44306e6d1fe79257670ec628b0f3dc39808d37",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/pair_discovery.rs": "d6597d55938509311bd97a549236255e3da8bfa6ad58039e866fed69a8bac0a6",
+    "src/crates/promql-engine/src/position_index.rs": "52ac34e5b0269eec4d077f4e42f53641f386737688e74d0400e2899986719f4e",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "638ee18593023f3d061d35a11e84846058f28652562e2d650f372a8fbbd194bd",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "f5e4fd8144feeac75e6a0603c38d45bccc8cae61f2c95429451ab04631110458",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "508b51b31593648b81aad26b8595a89ba2456a5c33718db251b1ee7b05633e10",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "0f29c5996c570c3917ff0bc2c2bed9201b08ca7da9fab93b63f5030c1e9bf160",
+    "src/crates/promql-engine/src/range_numeric.rs": "6dd50fbb89d492632c6548322aa3e3d129da27fe9beb6584977862998454aabb",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "16f944188351b3cd2f910d12f8265c998a44ffc80cf3f8dbcfeaf88d7e2047a1",
+    "src/crates/promql-engine/src/range_rates.rs": "eaa5e39f6adaf5eefff906257834f9cfa94abde8fb73b235044a8a38cc963676",
+    "src/crates/promql-engine/src/range_reduce.rs": "09b7bd914929358fef7b4047d306c7ce5bfde133fbf92069c1a70fdc395cfd31",
+    "src/crates/promql-engine/src/result.rs": "ab6196f9b5f383b971fe40486ca0f5f6d95f9d42a4cb4c906b424f4355144aff",
+    "src/crates/promql-engine/src/sample_labels.rs": "7a9ca80e102b56004273f2d7ee545aee8cc248ee00eb30852ce0767bdbe47bb1",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "d4f4131213cc4bfd404a932706d458f8f07745213e47d64e0e88b569e1d6b1a4",
+    "src/crates/promql-engine/src/scheduled_output.rs": "39ec08bc49800551bca460de854fcb8a92fc0f85f83bb48e86e0183aa11c931e",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "f122c40919f18f77bb1b4cfa65aa707ebca0fbfb79858f74ea9c3adebd1392d9",
+    "src/crates/promql-engine/src/storage.rs": "ab935330b58e15b7fdf787288d6b61e4959c8dd9b844b57c2fe124d97bc942ea",
+    "src/crates/promql-engine/src/storage_observed.rs": "9d40586645d00eeb26a99dc379facb6830727934545082f6fa169b43612027c9",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "0b9148bd93be04b8548723ed2f405e6ddd16789e07c7d578e26e09e9e392fc5d",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "b46eae6ad8b7c6ed7f354fcaa58d73be4f55587f4a7215c4a40c610dda40b2ff",
+    "src/crates/promql-engine/src/test_storage.rs": "6ff4404943c6cb7903eadad02acdad93fb3e24d39bb3be94bb6f3320f8672b1f",
+    "src/crates/promql-engine/src/topk.rs": "e0b743caef9c293946583eb716012ca604e456484c3f825d4122fb407038a826",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "7535569f2261604a526e43851b115677aab71e05ec98eb0dc160a600425d7c43",
+    "src/crates/promql-engine/src/vector_sort.rs": "5f43836b63d64e051969c1fbf9bba0ba5480b0ea704d8d322de604b881092788",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/include/netdata-promql.h": "76f22ed64870e0fb06c5b87f4862b13d9687a924fa8e5307315cdda3a1416a68"
+  },
+  "changed_sources": {
+    "src/crates/promql-engine/src/evaluator.rs": {
+      "before": "148901a6e0db3b0141bd27716011d8ffb02b0366c1aa8de7c5f6b298a56cfb48",
+      "after": "3bfa83b6ad713b6c9942d74bf3dd240de856612deeb2c54496948d189e48a140"
+    },
+    "src/crates/promql-engine/src/execution.rs": {
+      "before": "13bf143b7d2bb456d640e5e9162d46840854f5053ae954fc63d61313a2abc4d0",
+      "after": "cb22a46556951988a2c3ff8f8990dcab70d1b53248fa3d3cf314e0f1a651873d"
+    }
+  },
+  "binaries": {
+    "before-release": {
+      "file": "candidate27-release",
+      "sha256": "f178052fe75ea304892e9bdc8490c92105563cc2e9dd44a551e70b9a0f0b56b0"
+    },
+    "before-release-min": {
+      "file": "candidate27min-release",
+      "sha256": "2faa87fda0838832b17b663e922e897ed4444d3c62c899ad606b18487d2620c8"
+    },
+    "after-release": {
+      "file": "candidate29-release",
+      "sha256": "452a0ce0369e563f1a6e02c32978854ed73274b6ed6d55869b99414c3a7227be"
+    },
+    "after-release-min": {
+      "file": "candidate29min-release",
+      "sha256": "3241706ae7918fe3a60df13741f933afce012d6e726eabb0e08767e3aad196fa"
+    }
+  },
+  "units": {
+    "release": 1100,
+    "release-min": 1100,
+    "ignored_per_profile": 2,
+    "strict_clippy": true
+  },
+  "exact_count_comparisons": {
+    "candidate29": 966,
+    "candidate29min": 966
+  },
+  "timing_comparisons": 448,
+  "timing_queries": [
+    "sum by(app_group)(count_over_time(m[5m]))",
+    "avg by(app_group)(count_over_time(m[5m]))",
+    "sum by(app_group,instance)(count_over_time(m[5m]))",
+    "count_over_time(m[5m])"
+  ],
+  "measurements": [
+    {
+      "case": "sources8",
+      "page": 17,
+      "profile": "release",
+      "query_index": 0,
+      "before_ms": [
+        9.370952,
+        9.511931,
+        9.450902,
+        10.091336,
+        9.226743,
+        9.056526
+      ],
+      "after_ms": [
+        8.029345,
+        8.137174,
+        7.743298,
+        7.684478,
+        7.619518,
+        7.591009
+      ],
+      "before_median_ms": 9.410927000000001,
+      "after_median_ms": 7.713888000000001,
+      "before_workspace_acquired": 5421008,
+      "after_workspace_acquired": 2810288,
+      "before_work": 2465727,
+      "after_work": 1608927,
+      "memory_peaks": [
+        0,
+        62962,
+        4296,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 16000
+    },
+    {
+      "case": "sources8",
+      "page": 17,
+      "profile": "release",
+      "query_index": 1,
+      "before_ms": [
+        8.974936,
+        9.160224,
+        9.119115,
+        9.047105,
+        9.002526,
+        8.997586
+      ],
+      "after_ms": [
+        7.721758,
+        7.937646,
+        7.4576,
+        7.448391,
+        7.4683,
+        7.342491
+      ],
+      "before_median_ms": 9.024815499999999,
+      "after_median_ms": 7.46295,
+      "before_workspace_acquired": 5421008,
+      "after_workspace_acquired": 2810288,
+      "before_work": 2465727,
+      "after_work": 1608927,
+      "memory_peaks": [
+        0,
+        62962,
+        4296,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 16000
+    },
+    {
+      "case": "sources8",
+      "page": 17,
+      "profile": "release",
+      "query_index": 2,
+      "before_ms": [
+        9.051725,
+        9.359743,
+        9.230694,
+        9.138294,
+        9.037976,
+        8.980926
+      ],
+      "after_ms": [
+        9.350582,
+        9.63855,
+        9.093095,
+        9.092635,
+        9.012196,
+        8.930196
+      ],
+      "before_median_ms": 9.0950095,
+      "after_median_ms": 9.092865,
+      "before_workspace_acquired": 5467200,
+      "after_workspace_acquired": 5467200,
+      "before_work": 2490338,
+      "after_work": 2490338,
+      "memory_peaks": [
+        0,
+        62962,
+        9048,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 16000
+    },
+    {
+      "case": "sources8",
+      "page": 17,
+      "profile": "release",
+      "query_index": 3,
+      "before_ms": [
+        7.257062,
+        7.50945,
+        7.380981,
+        7.356121,
+        7.231632,
+        7.218763
+      ],
+      "after_ms": [
+        7.540009,
+        7.695728,
+        7.36584,
+        7.53721,
+        7.289312,
+        7.185413
+      ],
+      "before_median_ms": 7.3065915,
+      "after_median_ms": 7.451525,
+      "before_workspace_acquired": 3986440,
+      "after_workspace_acquired": 3986440,
+      "before_work": 1952228,
+      "after_work": 1952228,
+      "memory_peaks": [
+        0,
+        60018,
+        47176,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 16000
+    },
+    {
+      "case": "sources8",
+      "page": 17,
+      "profile": "release-min",
+      "query_index": 0,
+      "before_ms": [
+        12.83629,
+        13.223747,
+        12.674211,
+        12.540423,
+        12.390614,
+        12.213586
+      ],
+      "after_ms": [
+        10.117025,
+        9.872068,
+        9.964187,
+        10.657601,
+        9.852467,
+        9.866707
+      ],
+      "before_median_ms": 12.607317,
+      "after_median_ms": 9.9181275,
+      "before_workspace_acquired": 5421008,
+      "after_workspace_acquired": 2810288,
+      "before_work": 2465727,
+      "after_work": 1608927,
+      "memory_peaks": [
+        0,
+        62962,
+        4296,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 16000
+    },
+    {
+      "case": "sources8",
+      "page": 17,
+      "profile": "release-min",
+      "query_index": 1,
+      "before_ms": [
+        12.511113,
+        12.362134,
+        12.278005,
+        12.302445,
+        12.014688,
+        12.106267
+      ],
+      "after_ms": [
+        9.907237,
+        9.65916,
+        9.741339,
+        9.888247,
+        9.719758,
+        9.582001
+      ],
+      "before_median_ms": 12.290225,
+      "after_median_ms": 9.730548500000001,
+      "before_workspace_acquired": 5421008,
+      "after_workspace_acquired": 2810288,
+      "before_work": 2465727,
+      "after_work": 1608927,
+      "memory_peaks": [
+        0,
+        62962,
+        4296,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 16000
+    },
+    {
+      "case": "sources8",
+      "page": 17,
+      "profile": "release-min",
+      "query_index": 2,
+      "before_ms": [
+        12.749081,
+        12.695862,
+        12.390504,
+        12.638652,
+        12.685981,
+        12.264595
+      ],
+      "after_ms": [
+        12.658372,
+        12.386384,
+        12.478783,
+        12.328795,
+        12.449423,
+        12.302945
+      ],
+      "before_median_ms": 12.6623165,
+      "after_median_ms": 12.4179035,
+      "before_workspace_acquired": 5467200,
+      "after_workspace_acquired": 5467200,
+      "before_work": 2490338,
+      "after_work": 2490338,
+      "memory_peaks": [
+        0,
+        62962,
+        9048,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 16000
+    },
+    {
+      "case": "sources8",
+      "page": 17,
+      "profile": "release-min",
+      "query_index": 3,
+      "before_ms": [
+        9.970467,
+        10.860739,
+        9.720389,
+        9.801959,
+        9.59425,
+        9.556671
+      ],
+      "after_ms": [
+        9.869108,
+        9.7359,
+        9.761779,
+        9.66077,
+        9.824128,
+        9.621051
+      ],
+      "before_median_ms": 9.761174,
+      "after_median_ms": 9.7488395,
+      "before_workspace_acquired": 3986440,
+      "after_workspace_acquired": 3986440,
+      "before_work": 1952228,
+      "after_work": 1952228,
+      "memory_peaks": [
+        0,
+        60018,
+        47176,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 16000
+    },
+    {
+      "case": "sources8",
+      "page": 1024,
+      "profile": "release",
+      "query_index": 0,
+      "before_ms": [
+        11.299744,
+        11.193845,
+        11.385084,
+        11.235555,
+        11.333194,
+        11.265174
+      ],
+      "after_ms": [
+        9.66201,
+        10.718919,
+        9.687619,
+        9.678909,
+        9.767459,
+        9.738959
+      ],
+      "before_median_ms": 11.282459,
+      "after_median_ms": 9.713289,
+      "before_workspace_acquired": 5383120,
+      "after_workspace_acquired": 2772400,
+      "before_work": 2579647,
+      "after_work": 1722847,
+      "memory_peaks": [
+        0,
+        62962,
+        4296,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 129920
+    },
+    {
+      "case": "sources8",
+      "page": 1024,
+      "profile": "release",
+      "query_index": 1,
+      "before_ms": [
+        10.986907,
+        10.900627,
+        11.044806,
+        11.076857,
+        10.991607,
+        11.043967
+      ],
+      "after_ms": [
+        9.427442,
+        10.263584,
+        9.387513,
+        9.401632,
+        9.502401,
+        9.479851
+      ],
+      "before_median_ms": 11.017787,
+      "after_median_ms": 9.4536465,
+      "before_workspace_acquired": 5383120,
+      "after_workspace_acquired": 2772400,
+      "before_work": 2579647,
+      "after_work": 1722847,
+      "memory_peaks": [
+        0,
+        62962,
+        4296,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 129920
+    },
+    {
+      "case": "sources8",
+      "page": 1024,
+      "profile": "release",
+      "query_index": 2,
+      "before_ms": [
+        11.203606,
+        11.194485,
+        11.156685,
+        11.127016,
+        11.588061,
+        11.087957
+      ],
+      "after_ms": [
+        11.118026,
+        11.932858,
+        10.902278,
+        11.062386,
+        11.090526,
+        11.603571
+      ],
+      "before_median_ms": 11.175585,
+      "after_median_ms": 11.104276,
+      "before_workspace_acquired": 5429312,
+      "after_workspace_acquired": 5429312,
+      "before_work": 2604258,
+      "after_work": 2604258,
+      "memory_peaks": [
+        0,
+        62962,
+        9048,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 129920
+    },
+    {
+      "case": "sources8",
+      "page": 1024,
+      "profile": "release",
+      "query_index": 3,
+      "before_ms": [
+        9.309603,
+        9.317963,
+        9.336192,
+        9.352733,
+        9.310764,
+        9.344973
+      ],
+      "after_ms": [
+        9.324582,
+        9.875758,
+        9.190684,
+        9.309633,
+        9.349643,
+        9.62185
+      ],
+      "before_median_ms": 9.327077500000001,
+      "after_median_ms": 9.3371125,
+      "before_workspace_acquired": 3948552,
+      "after_workspace_acquired": 3948552,
+      "before_work": 2066148,
+      "after_work": 2066148,
+      "memory_peaks": [
+        0,
+        60018,
+        47176,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 129920
+    },
+    {
+      "case": "sources8",
+      "page": 1024,
+      "profile": "release-min",
+      "query_index": 0,
+      "before_ms": [
+        14.690043,
+        14.797891,
+        14.740692,
+        14.97806,
+        14.814781,
+        15.203518
+      ],
+      "after_ms": [
+        12.277715,
+        12.506043,
+        12.346635,
+        12.475024,
+        12.316815,
+        12.302875
+      ],
+      "before_median_ms": 14.806336,
+      "after_median_ms": 12.331724999999999,
+      "before_workspace_acquired": 5383120,
+      "after_workspace_acquired": 2772400,
+      "before_work": 2579647,
+      "after_work": 1722847,
+      "memory_peaks": [
+        0,
+        62962,
+        4296,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 129920
+    },
+    {
+      "case": "sources8",
+      "page": 1024,
+      "profile": "release-min",
+      "query_index": 1,
+      "before_ms": [
+        14.580433,
+        14.583494,
+        14.600354,
+        14.662283,
+        14.776762,
+        14.927371
+      ],
+      "after_ms": [
+        12.075897,
+        12.131237,
+        12.132956,
+        12.189686,
+        12.105806,
+        12.040338
+      ],
+      "before_median_ms": 14.631318499999999,
+      "after_median_ms": 12.1185215,
+      "before_workspace_acquired": 5383120,
+      "after_workspace_acquired": 2772400,
+      "before_work": 2579647,
+      "after_work": 1722847,
+      "memory_peaks": [
+        0,
+        62962,
+        4296,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 129920
+    },
+    {
+      "case": "sources8",
+      "page": 1024,
+      "profile": "release-min",
+      "query_index": 2,
+      "before_ms": [
+        14.805182,
+        14.800642,
+        14.861351,
+        14.776521,
+        14.862192,
+        15.218398
+      ],
+      "after_ms": [
+        14.876961,
+        14.856591,
+        14.901071,
+        14.98831,
+        14.803312,
+        14.791142
+      ],
+      "before_median_ms": 14.8332665,
+      "after_median_ms": 14.866776,
+      "before_workspace_acquired": 5429312,
+      "after_workspace_acquired": 5429312,
+      "before_work": 2604258,
+      "after_work": 2604258,
+      "memory_peaks": [
+        0,
+        62962,
+        9048,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 129920
+    },
+    {
+      "case": "sources8",
+      "page": 1024,
+      "profile": "release-min",
+      "query_index": 3,
+      "before_ms": [
+        12.234755,
+        12.092527,
+        12.220826,
+        12.167046,
+        12.269935,
+        12.662632
+      ],
+      "after_ms": [
+        12.539972,
+        12.198726,
+        12.124436,
+        12.311645,
+        12.191836,
+        12.130487
+      ],
+      "before_median_ms": 12.227790500000001,
+      "after_median_ms": 12.195281000000001,
+      "before_workspace_acquired": 3948552,
+      "after_workspace_acquired": 3948552,
+      "before_work": 2066148,
+      "after_work": 2066148,
+      "memory_peaks": [
+        0,
+        60018,
+        47176,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 129920
+    },
+    {
+      "case": "sources128",
+      "page": 17,
+      "profile": "release",
+      "query_index": 0,
+      "before_ms": [
+        149.571334,
+        149.436375,
+        149.585696,
+        148.698634,
+        149.2963,
+        150.100753
+      ],
+      "after_ms": [
+        127.5209,
+        122.070072,
+        127.437482,
+        126.810849,
+        127.117157,
+        125.449293
+      ],
+      "before_median_ms": 149.5038545,
+      "after_median_ms": 126.964003,
+      "before_workspace_acquired": 85466126,
+      "after_workspace_acquired": 43688474,
+      "before_work": 39449519,
+      "after_work": 25734587,
+      "memory_peaks": [
+        0,
+        760188,
+        4296,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 256000
+    },
+    {
+      "case": "sources128",
+      "page": 17,
+      "profile": "release",
+      "query_index": 1,
+      "before_ms": [
+        148.242607,
+        150.682234,
+        149.060331,
+        148.617746,
+        146.09961,
+        147.967793
+      ],
+      "after_ms": [
+        129.473371,
+        121.332418,
+        125.731079,
+        126.288744,
+        128.177406,
+        123.677579
+      ],
+      "before_median_ms": 148.43017650000002,
+      "after_median_ms": 126.00991149999999,
+      "before_workspace_acquired": 85466126,
+      "after_workspace_acquired": 43688474,
+      "before_work": 39449519,
+      "after_work": 25734587,
+      "memory_peaks": [
+        0,
+        760188,
+        4296,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 256000
+    },
+    {
+      "case": "sources128",
+      "page": 17,
+      "profile": "release",
+      "query_index": 2,
+      "before_ms": [
+        153.483059,
+        154.793646,
+        157.660631,
+        156.093576,
+        150.3914,
+        153.492832
+      ],
+      "after_ms": [
+        160.530191,
+        149.780873,
+        159.282725,
+        152.731907,
+        152.791087,
+        153.364843
+      ],
+      "before_median_ms": 154.143239,
+      "after_median_ms": 153.077965,
+      "before_workspace_acquired": 86885624,
+      "after_workspace_acquired": 86885624,
+      "before_work": 40009283,
+      "after_work": 40009283,
+      "memory_peaks": [
+        0,
+        760188,
+        139154,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 256000
+    },
+    {
+      "case": "sources128",
+      "page": 17,
+      "profile": "release",
+      "query_index": 3,
+      "before_ms": [
+        125.41831,
+        131.91227,
+        126.297423,
+        127.999068,
+        123.313942,
+        124.648
+      ],
+      "after_ms": [
+        147.261006,
+        122.14543,
+        129.77076,
+        125.074275,
+        125.417152,
+        127.393515
+      ],
+      "before_median_ms": 125.8578665,
+      "after_median_ms": 126.4053335,
+      "before_workspace_acquired": 63399772,
+      "after_workspace_acquired": 63399772,
+      "before_work": 32687023,
+      "after_work": 32687023,
+      "memory_peaks": [
+        0,
+        757244,
+        749202,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 256000
+    },
+    {
+      "case": "sources128",
+      "page": 17,
+      "profile": "release-min",
+      "query_index": 0,
+      "before_ms": [
+        198.272089,
+        201.067145,
+        204.958689,
+        209.893044,
+        200.270815,
+        200.054548
+      ],
+      "after_ms": [
+        158.247632,
+        160.267336,
+        161.065598,
+        157.215226,
+        159.467975,
+        160.24802
+      ],
+      "before_median_ms": 200.66898,
+      "after_median_ms": 159.8579975,
+      "before_workspace_acquired": 85466126,
+      "after_workspace_acquired": 43688474,
+      "before_work": 39449519,
+      "after_work": 25734587,
+      "memory_peaks": [
+        0,
+        760188,
+        4296,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 256000
+    },
+    {
+      "case": "sources128",
+      "page": 17,
+      "profile": "release-min",
+      "query_index": 1,
+      "before_ms": [
+        197.680506,
+        200.865027,
+        205.085638,
+        205.947792,
+        201.013799,
+        200.813391
+      ],
+      "after_ms": [
+        162.290105,
+        169.422921,
+        160.287436,
+        157.715931,
+        162.899664,
+        158.751743
+      ],
+      "before_median_ms": 200.939413,
+      "after_median_ms": 161.2887705,
+      "before_workspace_acquired": 85466126,
+      "after_workspace_acquired": 43688474,
+      "before_work": 39449519,
+      "after_work": 25734587,
+      "memory_peaks": [
+        0,
+        760188,
+        4296,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 256000
+    },
+    {
+      "case": "sources128",
+      "page": 17,
+      "profile": "release-min",
+      "query_index": 2,
+      "before_ms": [
+        202.027825,
+        203.64211,
+        209.208811,
+        209.027743,
+        209.509759,
+        205.382999
+      ],
+      "after_ms": [
+        205.910908,
+        211.185871,
+        207.932402,
+        209.783186,
+        202.873871,
+        205.931904
+      ],
+      "before_median_ms": 207.205371,
+      "after_median_ms": 206.932153,
+      "before_workspace_acquired": 86885624,
+      "after_workspace_acquired": 86885624,
+      "before_work": 40009283,
+      "after_work": 40009283,
+      "memory_peaks": [
+        0,
+        760188,
+        139154,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 256000
+    },
+    {
+      "case": "sources128",
+      "page": 17,
+      "profile": "release-min",
+      "query_index": 3,
+      "before_ms": [
+        163.089329,
+        165.097609,
+        167.416,
+        168.166604,
+        176.727194,
+        164.206472
+      ],
+      "after_ms": [
+        166.666854,
+        168.165052,
+        163.150069,
+        162.546956,
+        163.062862,
+        166.349403
+      ],
+      "before_median_ms": 166.2568045,
+      "after_median_ms": 164.74973599999998,
+      "before_workspace_acquired": 63399772,
+      "after_workspace_acquired": 63399772,
+      "before_work": 32687023,
+      "after_work": 32687023,
+      "memory_peaks": [
+        0,
+        757244,
+        749202,
+        0,
+        4624,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 256000
+    },
+    {
+      "case": "sources128",
+      "page": 1024,
+      "profile": "release",
+      "query_index": 0,
+      "before_ms": [
+        181.222487,
+        179.419193,
+        178.283867,
+        179.859622,
+        182.031214,
+        234.494198
+      ],
+      "after_ms": [
+        156.423596,
+        159.46532,
+        158.186503,
+        160.391063,
+        164.276898,
+        158.202186
+      ],
+      "before_median_ms": 180.5410545,
+      "after_median_ms": 158.833753,
+      "before_workspace_acquired": 84859918,
+      "after_workspace_acquired": 43082266,
+      "before_work": 41272239,
+      "after_work": 27557307,
+      "memory_peaks": [
+        0,
+        760188,
+        4296,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 2078720
+    },
+    {
+      "case": "sources128",
+      "page": 1024,
+      "profile": "release",
+      "query_index": 1,
+      "before_ms": [
+        178.165985,
+        178.483802,
+        178.599243,
+        184.711207,
+        179.861654,
+        206.008922
+      ],
+      "after_ms": [
+        153.837311,
+        158.885965,
+        159.601919,
+        157.616508,
+        172.831559,
+        159.614032
+      ],
+      "before_median_ms": 179.2304485,
+      "after_median_ms": 159.243942,
+      "before_workspace_acquired": 84859918,
+      "after_workspace_acquired": 43082266,
+      "before_work": 41272239,
+      "after_work": 27557307,
+      "memory_peaks": [
+        0,
+        760188,
+        4296,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 2078720
+    },
+    {
+      "case": "sources128",
+      "page": 1024,
+      "profile": "release",
+      "query_index": 2,
+      "before_ms": [
+        181.633363,
+        186.229011,
+        182.2758,
+        183.715606,
+        185.286073,
+        189.438356
+      ],
+      "after_ms": [
+        187.846075,
+        185.522198,
+        188.336742,
+        187.72695,
+        206.918623,
+        184.644931
+      ],
+      "before_median_ms": 184.50083949999998,
+      "after_median_ms": 187.78651250000001,
+      "before_workspace_acquired": 86279416,
+      "after_workspace_acquired": 86279416,
+      "before_work": 41832003,
+      "after_work": 41832003,
+      "memory_peaks": [
+        0,
+        760188,
+        139154,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 2078720
+    },
+    {
+      "case": "sources128",
+      "page": 1024,
+      "profile": "release",
+      "query_index": 3,
+      "before_ms": [
+        155.446116,
+        156.403468,
+        155.933844,
+        155.790835,
+        160.208516,
+        158.248334
+      ],
+      "after_ms": [
+        155.305817,
+        161.359942,
+        165.490845,
+        159.515581,
+        176.257527,
+        162.351677
+      ],
+      "before_median_ms": 156.168656,
+      "after_median_ms": 161.8558095,
+      "before_workspace_acquired": 62793564,
+      "after_workspace_acquired": 62793564,
+      "before_work": 34509743,
+      "after_work": 34509743,
+      "memory_peaks": [
+        0,
+        757244,
+        749202,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 2078720
+    },
+    {
+      "case": "sources128",
+      "page": 1024,
+      "profile": "release-min",
+      "query_index": 0,
+      "before_ms": [
+        235.076586,
+        239.06454,
+        249.468075,
+        236.039601,
+        236.050874,
+        238.037356
+      ],
+      "after_ms": [
+        197.042019,
+        198.291569,
+        197.355379,
+        201.608561,
+        195.687906,
+        196.042755
+      ],
+      "before_median_ms": 237.04411499999998,
+      "after_median_ms": 197.198699,
+      "before_workspace_acquired": 84859918,
+      "after_workspace_acquired": 43082266,
+      "before_work": 41272239,
+      "after_work": 27557307,
+      "memory_peaks": [
+        0,
+        760188,
+        4296,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 2078720
+    },
+    {
+      "case": "sources128",
+      "page": 1024,
+      "profile": "release-min",
+      "query_index": 1,
+      "before_ms": [
+        239.981711,
+        244.420991,
+        247.144777,
+        236.412578,
+        239.211634,
+        238.6343
+      ],
+      "after_ms": [
+        199.263418,
+        196.907312,
+        195.577455,
+        202.473923,
+        198.235303,
+        196.801868
+      ],
+      "before_median_ms": 239.5966725,
+      "after_median_ms": 197.5713075,
+      "before_workspace_acquired": 84859918,
+      "after_workspace_acquired": 43082266,
+      "before_work": 41272239,
+      "after_work": 27557307,
+      "memory_peaks": [
+        0,
+        760188,
+        4296,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 2078720
+    },
+    {
+      "case": "sources128",
+      "page": 1024,
+      "profile": "release-min",
+      "query_index": 2,
+      "before_ms": [
+        240.430477,
+        315.955937,
+        252.895204,
+        241.62748,
+        242.92391,
+        245.994412
+      ],
+      "after_ms": [
+        251.074197,
+        245.558291,
+        241.887266,
+        248.491407,
+        242.424993,
+        243.396397
+      ],
+      "before_median_ms": 244.459161,
+      "after_median_ms": 244.47734400000002,
+      "before_workspace_acquired": 86279416,
+      "after_workspace_acquired": 86279416,
+      "before_work": 41832003,
+      "after_work": 41832003,
+      "memory_peaks": [
+        0,
+        760188,
+        139154,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 2078720
+    },
+    {
+      "case": "sources128",
+      "page": 1024,
+      "profile": "release-min",
+      "query_index": 3,
+      "before_ms": [
+        199.469047,
+        207.275826,
+        205.488444,
+        202.049687,
+        205.008561,
+        200.684972
+      ],
+      "after_ms": [
+        205.366032,
+        201.383301,
+        200.707788,
+        201.86137,
+        200.807419,
+        199.516733
+      ],
+      "before_median_ms": 203.529124,
+      "after_median_ms": 201.09536,
+      "before_workspace_acquired": 62793564,
+      "after_workspace_acquired": 62793564,
+      "before_work": 34509743,
+      "after_work": 34509743,
+      "memory_peaks": [
+        0,
+        757244,
+        749202,
+        0,
+        244800,
+        0,
+        0,
+        896
+      ],
+      "samples_fetched": 2078720
+    }
+  ],
+  "executable_sections_bytes": {
+    "before-release": {
+      "text": 4593754,
+      "data": 266560,
+      "bss": 3772
+    },
+    "before-release-min": {
+      "text": 2907789,
+      "data": 252304,
+      "bss": 4044
+    },
+    "after-release": {
+      "text": 4593802,
+      "data": 266560,
+      "bss": 3724
+    },
+    "after-release-min": {
+      "text": 2907853,
+      "data": 252304,
+      "bss": 3980
+    }
+  },
+  "retained_receipts": {
+    "candidate29-build.json": "d8f1a54397575d296d5f64dc37ec6074f0c24e9ddbcc53e35ccde2c8f55f492a",
+    "candidate29min-build.json": "cf1d33238a13282c0d3f702991335732ec803a73c7f89c03e3c556c202c264f7",
+    "candidate29-count-units-qualification.json": "0a09cbdfebe3124b2785a764ab1ff9c564dc4db94e2729c5fb6d64f9ca81f35f",
+    "candidate29-count-windows-semantic-receipt.json": "8275e8d6ef14e72b264f028fc131f730c51cf8bda7a5a072f518ee0fbe6829e4",
+    "candidate29-count-labels-timing-receipt.json": "af28adfcd36788d51714f81b6f484b33f8fa50c569b5ab7d153d0f59a494ca17",
+    "candidate28-count-labels-timing-receipt.json": "f6c2715cfe5308c0bee885a910ce51b2f570476c8b2ba2c838312c207bca17fd"
+  },
+  "qualification_scope": [
+    "Existing direct Float group borrowing extended only to matching ordinary Count folds.",
+    "Complete unit outcomes, actual borrowing hits, native/mixed/stale inputs, errors, sparse misses and calibrated post-read cancellation.",
+    "Both name-removal modes and pages 1/17/1024; multi-label/without/metadata grouping remains ordinary.",
+    "Native C interface units run in both profiles; foreign-compiler/platform and broad SRE captures remain historical, not rerun for this bounded admission.",
+    "Timing uses eight or 128 sources with 24 extra labels with 80-character value suffixes, 901 points each, 21 clocks 30 seconds apart.",
+    "One warmup plus six alternating before/after pairs on the shared workstation; all measured complete results match the pinned original.",
+    "No page fetching or memory-peak reduction claimed; workspace allocation traffic and processed label bytes fall.",
+    "Final unaggregated Count release control at 128 sources/page 1024 changes 156.17\u2192161.86ms; preceding trial varied in the opposite direction. No universal speedup or zero overhead claim.",
+    "Live validation is separate from these fixed-input measurements."
+  ]
+}

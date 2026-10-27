@@ -30619,6 +30619,7 @@ mod tests {
                         for child in [
                             "counter_total",
                             "abs(counter_total)",
+                            "count_over_time(counter_total[3s])",
                             "rate(counter_total[3s])",
                             "increase(counter_total[3s])",
                             "delta(counter_total[3s])",
@@ -30667,7 +30668,9 @@ mod tests {
                                     assert_eq!(row.points.len(), if instant { 1 } else { 3 });
                                     for (tick, point) in row.points.iter().enumerate() {
                                         let time = (tick + 3) as f64;
-                                        let value =
+                                        let value = if child.starts_with("count_over_time") {
+                                            3.0
+                                        } else {
                                             (if child.starts_with("rate")
                                                 || child.starts_with("irate")
                                                 || child.starts_with("idelta")
@@ -30679,7 +30682,8 @@ mod tests {
                                                 3.0
                                             } else {
                                                 time
-                                            }) * if group.is_multiple_of(2) { 1.0 } else { 2.0 };
+                                            }) * if group.is_multiple_of(2) { 1.0 } else { 2.0 }
+                                        };
                                         let expected: f64 = match operator {
                                             "sum" => 2.0 * value,
                                             "count" => 2.0,
@@ -30720,8 +30724,88 @@ mod tests {
                 }
             }
         }
-        assert_eq!(queries, 1344);
-        println!("Complete direct/mapped/Rate-family selector queries: {queries}");
+        assert_eq!(queries, 1536);
+        println!("Complete direct/mapped/Rate-family/Count selector queries: {queries}");
+    }
+
+    #[test]
+    fn count_group_labels_borrow_completed_float_results_from_native_and_mixed_inputs() {
+        fn sample<const KIND: u8>(index: usize) -> crate::value::Sample {
+            let mut value = if KIND == 1 || KIND >= 2 && index.is_multiple_of(2) {
+                native_range_sample(index)
+            } else {
+                second_value(index)
+            };
+            value.time_ms = index as i64 * 1000;
+            if KIND == 3 && index == 2 {
+                value.value = crate::value::SampleValue::Float(f64::from_bits(0x7ff0000000000002));
+            }
+            value
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for kind in 0..5 {
+                    let mut provider = mapped_group_provider(page, 1);
+                    for row in &mut provider.series {
+                        row.source.sample = match kind {
+                            1 => sample::<1>,
+                            2 => sample::<2>,
+                            3 => sample::<3>,
+                            _ => sample::<0>,
+                        };
+                    }
+                    if kind == 4 {
+                        provider.series[0].source.fail_page = Some(0);
+                    }
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            b"sum by(instance)(count_over_time(counter_total[3s]))",
+                            options(delayed),
+                            &control,
+                        )
+                        .unwrap();
+                    let (report, observed, _) = crate::evaluator::observe_selector_labels(|| {
+                        query.collect_reported(
+                            &provider,
+                            QueryRequest::Range {
+                                start_ms: 3000,
+                                end_ms: 4000,
+                                step_ms: 1000,
+                            },
+                            &control,
+                        )
+                    });
+                    if kind == 4 {
+                        assert!(matches!(&report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
+                            if &**bytes == b"injected page failure"));
+                    } else {
+                        let result = report.result.as_ref().unwrap();
+                        assert!(report.annotations.is_empty());
+                        assert_eq!(result.series.len(), 1);
+                        let row = &result.series[0];
+                        assert_eq!(row.labels.0.len(), 1);
+                        assert_eq!(&*row.labels.0[0].name, b"instance");
+                        assert_eq!(&*row.labels.0[0].value, b"g0000");
+                        assert_eq!(row.points.len(), 2);
+                        for (point, time) in row.points.iter().zip([3000, 4000]) {
+                            assert_eq!(point.time_ms, time);
+                            assert_eq!(
+                                float_bits(point),
+                                if kind == 3 { 4.0_f64 } else { 6.0_f64 }.to_bits()
+                            );
+                        }
+                        assert!(observed[0] > 0, "kind {kind}: {observed:?}");
+                        assert_eq!(observed[2], 0);
+                    }
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
     }
 
     #[test]
@@ -31084,6 +31168,11 @@ mod tests {
                     "sum by(__name__)(rate(counter_total[3s]))",
                     "sum by(__type__)(rate(counter_total[3s]))",
                     "sum by(__unit__)(increase(counter_total[3s]))",
+                    "sum by(instance,member)(count_over_time(counter_total[3s]))",
+                    "sum without(member)(count_over_time(counter_total[3s]))",
+                    "sum by(__name__)(count_over_time(counter_total[3s]))",
+                    "sum by(__type__)(count_over_time(counter_total[3s]))",
+                    "sum by(__unit__)(count_over_time(counter_total[3s]))",
                 ] {
                     let provider = mapped_group_provider(page, 1);
                     let engine = Engine::default();
@@ -31263,15 +31352,19 @@ mod tests {
                             let label = groups[ordinal].labels.0[0].value.to_vec();
                             let group: usize =
                                 std::str::from_utf8(&label[1..]).unwrap().parse().unwrap();
-                            let value: f64 = (if group.is_multiple_of(2) { 2.0 } else { 4.0 })
-                                * if child.starts_with("rate")
-                                    || child.starts_with("irate")
-                                    || child.starts_with("idelta")
-                                {
-                                    1.0
-                                } else {
-                                    3.0
-                                };
+                            let value: f64 = if child.starts_with("count_over_time") {
+                                6.0
+                            } else {
+                                (if group.is_multiple_of(2) { 2.0 } else { 4.0 })
+                                    * if child.starts_with("rate")
+                                        || child.starts_with("irate")
+                                        || child.starts_with("idelta")
+                                    {
+                                        1.0
+                                    } else {
+                                        3.0
+                                    }
+                            };
                             (ordinal, label, value.to_bits(), 3000)
                         })
                         .collect();
@@ -31293,6 +31386,7 @@ mod tests {
             for delayed in [false, true] {
                 for child in [
                     "counter_total",
+                    "count_over_time(counter_total[3s])",
                     "rate(counter_total[3s])",
                     "increase(counter_total[3s])",
                     "delta(counter_total[3s])",
