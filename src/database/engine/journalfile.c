@@ -130,7 +130,6 @@ restart:
             if(range != PAGE_IS_IN_RANGE) {
                 datafile = NULL;
                 PValue = NULL;
-                if(range == PAGE_IS_IN_THE_FUTURE) break;
                 continue;
             }
         }
@@ -191,19 +190,12 @@ restart:
             PValue = NULL;
             continue;
         }
-        else if(rc == PAGE_IS_IN_THE_PAST) {
-            // continue to get the next
+        else {
+            // The index orders end times; a later journal can start earlier and still overlap.
             datafile_release(datafile, DATAFILE_ACQUIRE_PAGE_DETAILS);
             datafile = NULL;
             PValue = NULL;
             continue;
-        }
-        else /* PAGE_IS_IN_THE_FUTURE */ {
-            // we finished - no more datafiles
-            datafile_release(datafile, DATAFILE_ACQUIRE_PAGE_DETAILS);
-            datafile = NULL;
-            PValue = NULL;
-            break;
         }
     }
 

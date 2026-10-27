@@ -594,10 +594,95 @@ static int fixture_reader_failures(struct rrdengine_instance *ctx, READ_TEST_ACC
     return errors;
 }
 
+static int fixture_journal_order(struct rrdengine_instance *ctx, READ_TEST_ACCOUNT *account) {
+    const time_t first[] = {FIXTURE_START + 200, FIXTURE_START + 100};
+    const time_t last[] = {FIXTURE_START + 250, FIXTURE_START + 300};
+    METRIC *target = NULL;
+    unsigned expected_file = 0;
+    int errors = 0;
+    for(unsigned i = 0; !errors && i < 2; i++) {
+        if(i && create_new_datafile_pair(ctx)) { errors++; break; }
+        nd_uuid_t uuid;
+        fixture_uuid(200 + i, &uuid);
+        bool added;
+        METRIC *metric = mrg_metric_add_and_acquire(main_mrg, (MRG_ENTRY){.uuid = &uuid, .section = (Word_t)ctx}, &added);
+        if(!metric) { errors++; break; }
+        STORAGE_COLLECT_HANDLE *collector = rrdeng_store_metric_init((STORAGE_METRIC_HANDLE *)metric, last[i] - first[i], NULL);
+        if(!collector) { mrg_metric_release(main_mrg, metric); errors++; break; }
+        rrdeng_store_metric_next(collector, (usec_t)first[i] * USEC_PER_SEC, 42, 42, 42, 1, 0,
+                                SN_FLAG_NOT_ANOMALOUS | SP_FLAG_ORDINARY_SOURCE);
+        rrdeng_store_metric_next(collector, (usec_t)last[i] * USEC_PER_SEC, 84, 84, 84, 1, 0,
+                                SN_FLAG_NOT_ANOMALOUS | SP_FLAG_ORDINARY_SOURCE);
+        rrdeng_store_metric_finalize(collector);
+        if(i) target = metric;
+        else mrg_metric_release(main_mrg, metric);
+        pgc_flush_all_hot_and_dirty_pages(main_cache, (Word_t)ctx);
+        netdata_rwlock_rdlock(&ctx->datafiles.rwlock);
+        struct rrdengine_datafile *file = get_last_ctx_datafile(ctx, true);
+        bool acquired = file && datafile_acquire(file, DATAFILE_ACQUIRE_PAGE_DETAILS);
+        netdata_rwlock_rdunlock(&ctx->datafiles.rwlock);
+        if(!acquired) { errors++; break; }
+        bool ready;
+        usec_t until = now_monotonic_usec() + 5 * USEC_PER_SEC;
+        do {
+            spinlock_lock(&file->writers.spinlock);
+            ready = !file->writers.running && !file->writers.flushed_to_open_running;
+            spinlock_unlock(&file->writers.spinlock);
+            if(!ready) sleep_usec(USEC_PER_MS);
+        } while(!ready && now_monotonic_usec() < until);
+        if(ready) {
+            pgc_open_cache_to_journal_v2(open_cache, (Word_t)ctx, file->fileno, ctx->config.page_type,
+                                       journalfile_migrate_to_v2_callback, file->journalfile, true);
+            errors += !journalfile_v2_data_available(file->journalfile);
+            expected_file = file->fileno;
+        }
+        else errors++;
+        datafile_release(file, DATAFILE_ACQUIRE_PAGE_DETAILS);
+    }
+    if(!errors) {
+        for(unsigned checked = 0; checked < 2; checked++) {
+            NJFV2IDX_FIND_STATE state = {
+                .ctx = ctx, .wanted_start_time_s = first[1], .wanted_end_time_s = first[1], .checked = checked,
+            };
+            unsigned found = 0;
+            int failed = 0;
+            struct rrdengine_datafile *file;
+            while((file = njfv2idx_find_and_acquire_j2_header(&state))) {
+                found++;
+                failed += file->fileno != expected_file;
+                journalfile_v2_data_release(file->journalfile);
+                datafile_release(file, DATAFILE_ACQUIRE_PAGE_DETAILS);
+            }
+            failed += state.failed || found != 1;
+            errors += failed;
+            printf("{\"journal_order_case\":\"%s\",\"found\":%u,\"errors\":%d}\n",
+                   checked ? "checked" : "unchecked", found, failed);
+        }
+        Word_t id = mrg_metric_id(main_mrg, target);
+        int failed = fixture_evict_clean(main_cache, (Word_t)ctx, id, first[1]) +
+                     fixture_evict_clean(open_cache, (Word_t)ctx, id, first[1]);
+        RRDENG_READ_OPERATION operation = {.context = account, .poll = read_test_poll, .acquire = read_test_acquire};
+        RRDENG_READER *reader = NULL;
+        RRDENG_READ_ERROR error;
+        RRDENG_DEMAND_PAGE page;
+        STORAGE_POINT point = STORAGE_POINT_UNSET;
+        if(!failed) failed += !rrdeng_reader_open(target, NULL, first[1], first[1], &operation, &reader, &error);
+        if(!failed) failed += rrdeng_reader_acquire(reader, first[1], &operation, &page, &error) != RRDENG_DEMAND_READY;
+        if(!failed) failed += !rrdeng_reader_point(reader, 0, &point, &operation, &error);
+        if(!failed) failed += point.end_time_s != first[1] || point.sum != 42;
+        rrdeng_reader_close(reader, &operation);
+        errors += failed;
+        printf("{\"journal_order_case\":\"demand\",\"errors\":%d}\n", failed);
+    }
+    if(target) mrg_metric_release(main_mrg, target);
+    return errors;
+}
+
 int promql_dbengine_storage_fixture(void) {
     const char *phase = getenv("PROMQL_STORAGE_FIXTURE_PHASE");
     const char *codec = getenv("PROMQL_STORAGE_FIXTURE_CODEC");
-    if(!phase || (strcmp(phase, "write") && strcmp(phase, "read") && strcmp(phase, "append")) ||
+    bool journal_order = phase && !strcmp(phase, "journal-order");
+    if(!phase || (!journal_order && strcmp(phase, "write") && strcmp(phase, "read") && strcmp(phase, "append")) ||
        !codec || (strcmp(codec, "array") && strcmp(codec, "gorilla"))) return 1;
     tier_page_type[0] = !strcmp(codec, "array") ? RRDENG_PAGE_TYPE_ARRAY_32BIT : RRDENG_PAGE_TYPE_GORILLA_32BIT;
     nd_profile.storage_tiers = RRD_STORAGE_TIERS;
@@ -607,7 +692,7 @@ int promql_dbengine_storage_fixture(void) {
     fatal_assert(netdata_cond_init(&account.drained) == 0);
     int errors = 0;
     unsigned initialized = 0;
-    for(unsigned tier = 0; tier < RRD_STORAGE_TIERS; tier++) {
+    for(unsigned tier = 0; tier < (journal_order ? 1 : RRD_STORAGE_TIERS); tier++) {
         char path[PATH_MAX];
         snprintfz(path, sizeof(path) - 1, "%s/storage-tier%u", netdata_configured_cache_dir, tier);
         if(rrdeng_init(NULL, path, 128, tier, 0)) { errors++; break; }
@@ -617,7 +702,8 @@ int promql_dbengine_storage_fixture(void) {
     }
     bool writing = strcmp(phase, "read") != 0;
     unsigned last = !strcmp(phase, "append") ? FIXTURE_POINTS + 1 : FIXTURE_POINTS;
-    for(unsigned tier = 0; !errors && tier < initialized; tier++) {
+    if(!errors && journal_order) errors += fixture_journal_order(contexts[0], &account);
+    for(unsigned tier = 0; !errors && !journal_order && tier < initialized; tier++) {
         if(writing && !strcmp(phase, "write")) errors += fixture_singletons_write(contexts[tier]);
         if(writing) errors += fixture_write(contexts[tier], tier, !strcmp(phase, "append") ? last : 1, last);
         for(unsigned metric = 0; !errors && metric < FIXTURE_METRICS; metric++)

@@ -23,6 +23,19 @@ check metric-interval and profile-default fallback across all five tiers, an alr
 and tier0 journal-v2 reads after catalogue eviction. The sample value and endpoint must remain unchanged.
 Descriptor checks also distinguish inferred ordinary intervals from the recorded intervals in counter pages.
 
+The separate `journal-order` phase creates two persisted journals in fresh storage, with relative time ranges
+`[200,250]` and `[100,300]`. Both ordinary and checked journal lookup must find the second journal for time100,
+and the demand reader must decode its stored value after main/open-cache eviction. The journal index orders
+end times, so a future-only journal cannot prove that all later journals are also outside the query.
+This phase runs for both codecs in the canonical storage runner and preserves its files and logs.
+
+The isolated correction is qualified in [journal-order-qualification.json](journal-order-qualification.json).
+The unchanged finder fails all three checks for both codecs; the corrected normal and internal-check builds
+pass all eight storage phases each, and the internal-check build passes 142 HTTP checks. The production change
+adds no reader state or history buffers. Normal executable text grows by 2,220 bytes (about 0.006%); data/BSS are
+unchanged. Correct lookup may scan more journals than the incorrect early exit. This is a missing-data fix,
+not a throughput claim; the separate checksum-reuse experiment is not included.
+
 Both storage codecs run by default; `--codecs array` or `--codecs gorilla` selects one. Actual peer qualification
 also requires the pinned libdatachannel build. Each runner requires its exact closed case roster, rejects duplicate
 or missing cases and nonzero errors, and binds the source cohort and executable. Fixture timeouts enable no product

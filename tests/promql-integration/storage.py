@@ -176,7 +176,9 @@ def main():
     try:
         for codec in args.codecs:
             root = make_fixture(run, codec)
-            for phase in ["write", "read", "append"]:
+            for phase in ["write", "read", "append", "journal-order"]:
+                if phase == "journal-order":
+                    root = make_fixture(run, codec + "-journal-order")
                 environment = os.environ.copy()
                 environment.update(PROMQL_PROTOTYPE_FIXTURE_ROOT=str(root),
                                    PROMQL_STORAGE_FIXTURE_PHASE=phase, PROMQL_STORAGE_FIXTURE_CODEC=codec)
@@ -196,6 +198,14 @@ def main():
                         "stderr_sha256": sha256(root / f"{phase}.stderr")}
                 receipt["phases"].append(item)
                 receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
+                if phase == "journal-order":
+                    cases = [row for row in rows if "journal_order_case" in row]
+                    if (result or len(rows) != 4 or len(cases) != 3
+                            or {row["journal_order_case"] for row in cases} != {"unchecked", "checked", "demand"}
+                            or any(row["errors"] for row in rows)
+                            or any(row.get("found", 1) != 1 for row in cases)):
+                        raise RuntimeError(f"{codec}/{phase} failed; retained logs in {root}")
+                    continue
                 geometry = [row for row in rows if "storage_geometry" in row]
                 expected_geometry = {"singleton-intervals"} if phase == "read" else set()
                 singletons = [row for row in rows if "storage_singleton" in row]
