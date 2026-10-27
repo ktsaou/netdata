@@ -253,3 +253,24 @@ Historical receipts remain bound to their own binaries. The C harness output-ros
 Count comparison runs; it changes no runtime source or imported comparison helper and is separately bound by
 the final caller manifests. Wider practical remediation and live histogram projection remain open; historical
 bucket-boundary repair is explicitly excluded by decision 71.
+
+#### One-clock admission correction
+
+Review found that a positive range shorter than its step still admitted Count backing, despite producing only one
+timestamp. For example, a one-second request with a one-minute step has no adjacent clock to reuse. A failing
+temporary factory could therefore reject a query that should use ordinary evaluation. The regression reproduced
+that error before the correction.
+
+The layout now requires `end - start >= step` with a positive step. This changes only one-clock admission;
+multiple-clock geometry and the Count implementation remain unchanged. The focused regression uses a failing
+factory, pages 1/17/1,024 and both execution phases, and requires zero factory calls. Whole-expression controls
+cover zero-width, shorter-than-step and exactly-two-clock requests with Float, native and empty inputs. In the
+measured single-clock Float case, stores fall from one to zero and workspace peak from 8,731 to 7,115 bytes.
+Two-clock reuse remains active.
+
+[count-single-clock-qualification.json](count-single-clock-qualification.json) separately binds the corrected
+binaries, 1,097 unit passes per profile (two ignored), strict Clippy, 1,932 repeated Count comparisons and 432 new
+single-/two-clock comparisons. The rebuilt Netdata binary passes six DBengine phases. The broad original/SRE and
+foreign C captures above remain attributed to the preceding Count source; the correction receipt verifies that
+only the admission condition and its regression test changed. The throughput table is also the preceding binary's
+measurement, not a repeated timing claim for this correction.

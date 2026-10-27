@@ -59,7 +59,7 @@ struct Layout {
 impl Layout {
     fn new(rows: usize, grid: Grid) -> Option<Self> {
         let distance = grid.end_ms.checked_sub(grid.start_ms)?;
-        if distance <= 0 || grid.interval_ms <= 0 {
+        if distance < grid.interval_ms || grid.interval_ms <= 0 {
             return None;
         }
         let steps = u64::try_from(distance / grid.interval_ms)
@@ -783,6 +783,47 @@ mod tests {
             OwnedValue::Float(value) => value.to_bits(),
             _ => panic!("Count result kind"),
         })
+    }
+    #[test]
+    fn single_clock_ranges_do_not_open_backing() {
+        for page in [1, 17, 1024] {
+            for distance in [0, 1, 9] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let provider = Provider::default();
+                provider.fail_open.set(true);
+                let query = &provider;
+                let mut request = request(0);
+                request.options.end_ms = request.options.start_ms + distance;
+                let registry = Registry::new(&account);
+                registry.register(
+                    request.owner,
+                    request.selector,
+                    1,
+                    Grid {
+                        start_ms: request.options.start_ms,
+                        end_ms: request.options.end_ms,
+                        interval_ms: request.options.step_ms,
+                    },
+                );
+                let series = GeneratedSeries::new(201, page, sample);
+                let expected = ordinary(&series, request, &control, &account).unwrap();
+                for phase in 0..2 {
+                    if phase != 0 {
+                        registry.start_final();
+                    }
+                    let actual = registry
+                        .evaluate(&query, request, &series, &control, &account)
+                        .unwrap();
+                    assert_eq!(number(&actual), number(&expected));
+                    assert_eq!(provider.opens.get(), 0);
+                }
+                assert!(registry.entries.borrow().is_empty());
+                drop(registry);
+                account.snapshot().assert_memory_released();
+            }
+        }
     }
     #[test]
     fn boundaries_pages_completed_replay_and_fresh_final_generation() {
