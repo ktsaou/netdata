@@ -155,6 +155,10 @@ def qualify(binary, codec, run, observe=None):
                 return {"status": "success", "data": {"resultType": "scalar", "result": [when, str(value)]}}
 
             local, child = "/host/" + ready["host"], "/host/" + ready["child"]
+            for scope_name, scope, count in [("fleet", "", 12), ("local", local, 6), ("child", child, 6)]:
+                check(f"description-samples-{scope_name}", "query",
+                      {"query": "scalar(count(fixture_descriptions == 1))", "time": base + 1},
+                      scalar(count, base + 1), prefix=scope)
             basic_metadata = [{"type": kind, "help": "HTTP collection fixture", "unit": "KiB"}
                               for kind in ("counter", "gauge")]
             # Chart creation normalizes quotes, slashes and trailing whitespace before contexts owns the title.
@@ -245,7 +249,7 @@ def qualify(binary, codec, run, observe=None):
                 check(name, "label/__name__/values", {"match[]": '{__name__=~"fixture[._]http"}'},
                       {"status": "success", "data": ["fixture.http", "fixture_http"]}, prefix=scope)
             check("unfiltered-names", "label/__name__/values", {"start": base, "end": base + 10},
-                  {"status": "success", "data": ["fixture.http", "fixture_http"]})
+                  {"status": "success", "data": ["fixture.descriptions", "fixture.http", "fixture_descriptions", "fixture_http"]})
             check("filtered-names", "label/__name__/values", {"match[]": 'fixture_http{netdata_dimension_id="gauge"}'},
                   {"status": "success", "data": ["fixture_http"]})
             check("dimension-values", "label/netdata_dimension_id/values", {"match[]": "fixture_http"}, {"status": "success", "data": ["counter", "gauge"]})

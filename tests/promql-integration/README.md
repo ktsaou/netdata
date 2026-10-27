@@ -352,11 +352,28 @@ The receiver compares the 17,000,087-byte range body using fixed windows, valida
 and UTF-8, and pauses a callback to observe native SDK buffering. Frames must stay below the negotiated 2,049-byte
 size. Close/shutdown require retired owners, zero active operations and released query allocations.
 
+## DBengine read allocation handles
+
+The C adapter stores the Rust allocation handle directly in each DBengine read lease. This removes one C
+allocation and its extra accounting handle per lease, including the six leases created for each demand-page
+operation. Categories, resize results and release ownership remain unchanged.
+
+The [qualification](allocation-handles-qualification.json) retains the failing wrapper baseline and passing
+normal/internal storage checks. Actual C callbacks compare all current-memory categories with a direct handle,
+exercise zero/nonzero sizes, resizing and refusal cleanup, and retain a handle beyond its query/report lifetime.
+Both codecs pass all eight storage phases per build; the corrected HTTP fixture passes 148 HTTP checks and
+24 host-readiness cases. Normal executable text grows by 5,036 bytes, including the regression tests; data/BSS
+are unchanged. These checks establish behavior and removal of redundant ownership, not a live speedup.
+
 ## Actual HTTP server
 
 `live.py` starts an isolated foreground Agent with a kernel-selected loopback HTTP port, private configuration,
 claim state, caches and logs. Unrelated collection, streaming, ML, health and RTC activity is disabled. Two real
 hosts are seeded with gauge and incremental dimensions through Netdata's fixed-clock collection path.
+Description charts also collect gauge samples, and both hosts undergo retention processing before readiness.
+Without samples, the contexts worker can mark these fixture charts deleted before the metadata checks run.
+The runner verifies their stored values as well as their descriptions; this fixture requirement does not change
+the metadata endpoint's treatment of existing, non-deleted entries without retained samples.
 
 Ordinary HTTP requests check fleet/host scope, exact/underscore names, gauge sums, instant/range averages,
 counter resets/rates, form precedence, discovery, plain/gzip 100,000-point ranges, syntax errors and explicit

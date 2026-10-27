@@ -65,35 +65,26 @@ typedef struct {
     uint32_t interrupted;
 } PROMQL_READ_FRAME;
 
-typedef struct {
-    netdata_promql_allocation_handle_t *lease;
-} PROMQL_READ_ALLOCATION;
-
 static inline bool promql_read_resize(void *allocation, uint64_t bytes) {
-    return netdata_promql_allocation_resize(((PROMQL_READ_ALLOCATION *)allocation)->lease, bytes) == NETDATA_PROMQL_OK;
+    return netdata_promql_allocation_resize(allocation, bytes) == NETDATA_PROMQL_OK;
 }
 
 static inline void promql_read_release(void *allocation) {
-    PROMQL_READ_ALLOCATION *owner = allocation;
-    netdata_promql_allocation_handle_t *lease = owner->lease;
-    promql_free(owner);
-    netdata_promql_allocation_release(lease);
+    netdata_promql_allocation_release(allocation);
 }
 
 static inline bool promql_read_acquire(void *context, RRDENG_READ_MEMORY_KIND kind, uint64_t bytes,
                                       RRDENG_READ_LEASE *out) {
     PROMQL_READ_FRAME *frame = context;
     *out = (RRDENG_READ_LEASE){0};
-    PROMQL_READ_ALLOCATION *owner = promql_malloc(frame->account, NETDATA_PROMQL_MEMORY_WORKSPACE, sizeof(*owner));
-    if(!owner) return false;
     const uint32_t categories[] = {NETDATA_PROMQL_MEMORY_WORKSPACE, NETDATA_PROMQL_MEMORY_PROVIDER_HELD,
                                    NETDATA_PROMQL_MEMORY_BORROWED_VIEW};
-    if((unsigned)kind >= sizeof(categories) / sizeof(categories[0]) ||
-       netdata_promql_allocation_acquire(frame->account, categories[kind], bytes, &owner->lease) != NETDATA_PROMQL_OK) {
-        promql_free(owner);
+    if((unsigned)kind >= sizeof(categories) / sizeof(categories[0]))
         return false;
-    }
-    *out = (RRDENG_READ_LEASE){.allocation = owner, .resize = promql_read_resize, .release = promql_read_release};
+    netdata_promql_allocation_handle_t *lease = NULL;
+    if(netdata_promql_allocation_acquire(frame->account, categories[kind], bytes, &lease) != NETDATA_PROMQL_OK)
+        return false;
+    *out = (RRDENG_READ_LEASE){.allocation = lease, .resize = promql_read_resize, .release = promql_read_release};
     return true;
 }
 

@@ -2,6 +2,7 @@
 
 #include "database/rrd.h"
 #include "database/rrddim-collection.h"
+#include "database/contexts/rrdcontext-internal.h"
 #include "daemon/config/netdata-conf-directories.h"
 
 #define LIVE_BASE ((time_t)1700002800)
@@ -9,6 +10,26 @@
 
 extern LISTEN_SOCKETS api_sockets;
 int promql_host_readiness_fixture(void);
+
+static int seed_description_values(RRDSET *chart) {
+    if(!chart) return 1;
+    RRDDIM *dimension = rrddim_add(chart, "value", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
+    if(!dimension) return 1;
+    chart->last_collected_time = chart->last_updated = dimension->collector.last_collected_time =
+        (struct timeval){.tv_sec = LIVE_BASE - 1};
+    // Metadata fixtures need retained samples to survive normal contexts processing.
+    for(unsigned i = 0; i < 2; i++) {
+        dimension->collector.last_collected_time = (struct timeval){.tv_sec = LIVE_BASE + i};
+        rrddim_set_collected_int(dimension, 1);
+        rrddim_set_updated(dimension);
+        dimension->collector.counter++;
+        rrddim_update_collected_max_from_int(dimension, 1);
+        chart->usec_since_last_update = USEC_PER_SEC;
+        rrdset_timed_done(chart, (struct timeval){.tv_sec = LIVE_BASE + i}, false);
+    }
+    rrddim_finalize_collection_and_check_retention(dimension);
+    return rrddim_first_entry_s(dimension) != LIVE_BASE + 1 || rrddim_last_entry_s(dimension) != LIVE_BASE + 1;
+}
 
 static int seed_descriptions(RRDHOST *host, bool local) {
     char long_title[9050];
@@ -21,11 +42,11 @@ static int seed_descriptions(RRDHOST *host, bool local) {
         snprintfz(id, sizeof(id) - 1, "description_%zu", i);
         RRDSET *chart = rrdset_create(host, "promql_fixture", id, NULL, "fixture", "fixture.descriptions",
             titles[i], i == 3 ? "MiB" : "KiB", "fixture", "fixture", 1, 1, RRDSET_TYPE_LINE);
-        if(!chart || !rrddim_add(chart, "value", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE)) return 1;
+        if(seed_description_values(chart)) return 1;
     }
     RRDSET *collision = rrdset_create(host, "promql_fixture", "description_collision", NULL, "fixture", "fixture_descriptions",
         "Alias collision", "KiB", "fixture", "fixture", 1, 1, RRDSET_TYPE_LINE);
-    return !collision || !rrddim_add(collision, "value", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
+    return seed_description_values(collision);
 }
 
 static int seed_host(RRDHOST *host, collected_number gauge_value, collected_number increment) {
@@ -66,7 +87,12 @@ int promql_http_fixture_seed(void) {
     RRDHOST *child = rrdhost_find_or_create("promql-fixture-child", "promql-fixture-child", LIVE_CHILD_GUID,
         "linux", "UTC", "UTC", 0, "fixture", "fixture", 1, default_rrd_history_entries, RRD_DB_MODE_DBENGINE,
         false, false, NULL, NULL, NULL, false, 0, 0, NULL, false);
-    return seed_host(localhost, 5, 2) + seed_host(child, 7, 4);
+    int errors = seed_host(localhost, 5, 2) + seed_host(child, 7, 4);
+    if(errors) return errors;
+    // Exercise retention before readiness instead of racing the background contexts worker.
+    rrdcontext_recalculate_host_retention(localhost, RRD_FLAG_UPDATE_REASON_DB_ROTATION, false);
+    rrdcontext_recalculate_host_retention(child, RRD_FLAG_UPDATE_REASON_DB_ROTATION, false);
+    return 0;
 }
 
 int promql_http_fixture_ready(void) {

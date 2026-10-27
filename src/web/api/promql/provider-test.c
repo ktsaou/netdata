@@ -145,7 +145,70 @@ typedef struct {
     uint32_t open_error, seek_error, next_error;
     unsigned cold_first_samples, cold_target;
     uint64_t storage_points, reconstruction_points;
+    RRDENG_READ_LEASE retained_allocation;
 } CHECKPOINT_SCENARIO;
+
+static int read_allocation_fixture(netdata_promql_engine_t *engine,
+                                   const netdata_promql_accounting_context_t *account,
+                                   RRDENG_READ_LEASE *retained) {
+    const struct { RRDENG_READ_MEMORY_KIND kind; uint32_t category; } kinds[] = {
+        {RRDENG_READ_MEMORY_WORKSPACE, NETDATA_PROMQL_MEMORY_WORKSPACE},
+        {RRDENG_READ_MEMORY_PAGE, NETDATA_PROMQL_MEMORY_PROVIDER_HELD},
+        {RRDENG_READ_MEMORY_BORROWED, NETDATA_PROMQL_MEMORY_BORROWED_VIEW},
+    };
+    const uint64_t sizes[] = {0, 257};
+    PROMQL_READ_FRAME frame = {.account = account};
+    int errors = 0;
+    for(size_t kind = 0; kind < sizeof(kinds) / sizeof(kinds[0]); kind++) {
+        for(size_t size = 0; size < sizeof(sizes) / sizeof(sizes[0]); size++) {
+            int before_errors = errors;
+            netdata_promql_engine_observations_t before = {0}, reference = {0}, actual = {0};
+            errors += netdata_promql_engine_observations(engine, &before) != NETDATA_PROMQL_OK;
+            netdata_promql_allocation_handle_t *direct = NULL;
+            if(netdata_promql_allocation_acquire(account, kinds[kind].category, sizes[size], &direct) != NETDATA_PROMQL_OK) {
+                errors++;
+                continue;
+            }
+            errors += netdata_promql_engine_observations(engine, &reference) != NETDATA_PROMQL_OK;
+            netdata_promql_allocation_release(direct);
+
+            RRDENG_READ_LEASE lease = {0};
+            if(!promql_read_acquire(&frame, kinds[kind].kind, sizes[size], &lease)) {
+                errors++;
+                continue;
+            }
+            errors += !lease.allocation || !lease.resize || !lease.release;
+            errors += netdata_promql_engine_observations(engine, &actual) != NETDATA_PROMQL_OK;
+            // The adapter should cost exactly the public handle it owns.
+            for(size_t category = 0; category < NETDATA_PROMQL_MEMORY_KINDS; category++)
+                errors += actual.memory[category].current != reference.memory[category].current;
+            errors += !rrdeng_read_lease_resize(&lease, 1025);
+            errors += netdata_promql_engine_observations(engine, &actual) != NETDATA_PROMQL_OK;
+            errors += actual.memory[kinds[kind].category].current != before.memory[kinds[kind].category].current + 1025;
+            errors += !rrdeng_read_lease_resize(&lease, 0);
+            errors += netdata_promql_engine_observations(engine, &actual) != NETDATA_PROMQL_OK;
+            errors += actual.memory[kinds[kind].category].current != before.memory[kinds[kind].category].current;
+            rrdeng_read_lease_release(&lease);
+            rrdeng_read_lease_release(&lease);
+            errors += lease.allocation != NULL || lease.resize != NULL || lease.release != NULL;
+            errors += netdata_promql_engine_observations(engine, &actual) != NETDATA_PROMQL_OK;
+            for(size_t category = 0; category < NETDATA_PROMQL_MEMORY_KINDS; category++)
+                errors += actual.memory[category].current != before.memory[category].current;
+            if(errors != before_errors)
+                fprintf(stderr, "read allocation mismatch: kind%u bytes%"PRIu64" errors%d\n",
+                        (unsigned)kinds[kind].kind, sizes[size], errors - before_errors);
+        }
+    }
+    RRDENG_READ_LEASE refused = {.allocation = &frame, .resize = promql_read_resize, .release = promql_read_release};
+    errors += promql_read_acquire(&frame, (RRDENG_READ_MEMORY_KIND)99, 1, &refused);
+    errors += refused.allocation != NULL || refused.resize != NULL || refused.release != NULL;
+    PROMQL_READ_FRAME missing = {0};
+    refused = (RRDENG_READ_LEASE){.allocation = &frame, .resize = promql_read_resize, .release = promql_read_release};
+    errors += promql_read_acquire(&missing, RRDENG_READ_MEMORY_WORKSPACE, 1, &refused);
+    errors += refused.allocation != NULL || refused.resize != NULL || refused.release != NULL;
+    errors += !promql_read_acquire(&frame, RRDENG_READ_MEMORY_BORROWED, 64, retained);
+    return errors;
+}
 
 static bool checkpoint_series(netdata_promql_provider_t *provider, void *query, const char *dimension,
                                bool alias, netdata_promql_bounds_t bounds,
@@ -230,6 +293,8 @@ static uint32_t checkpoint_begin(void *handle, const netdata_promql_output_heade
        provider.cursor_open(provider.context, series.handle, cursor_bounds, control, &cursor, error) != NETDATA_PROMQL_OK) {
         test->errors++; goto finished;
     }
+    if(test->mode == 0)
+        test->errors += read_allocation_fixture(test->engine, account, &test->retained_allocation);
     if(test->mode >= 9) {
         int64_t when = (int64_t)(PROVIDER_BASE + test->cold_target) * 1000;
         double expected = 2.0 * (test->cold_target - (test->mode == 11 ? 73 : 0));
@@ -391,8 +456,19 @@ static int checkpoint_callbacks(netdata_promql_engine_t *engine, unsigned points
         if(report) netdata_promql_report_release(report);
         if(query) netdata_promql_query_release(query);
         netdata_promql_engine_observations_t remaining = {0};
+        if(mode == 0) {
+            test.errors += !test.retained_allocation.allocation;
+            test.errors += netdata_promql_engine_observations(engine, &remaining) != NETDATA_PROMQL_OK;
+            test.errors += remaining.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current != 64;
+            test.errors += !rrdeng_read_lease_resize(&test.retained_allocation, 128);
+            test.errors += netdata_promql_engine_observations(engine, &remaining) != NETDATA_PROMQL_OK;
+            test.errors += remaining.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current != 128;
+        }
+        rrdeng_read_lease_release(&test.retained_allocation);
+        rrdeng_read_lease_release(&test.retained_allocation);
         test.errors += netdata_promql_engine_observations(engine, &remaining) != NETDATA_PROMQL_OK;
-        test.errors += status != NETDATA_PROMQL_OK || remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current != 0;
+        test.errors += status != NETDATA_PROMQL_OK || remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current != 0 ||
+                       remaining.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current != 0;
         printf("{\"checkpoint_callback\":\"%s\",\"errors\":%d,\"status\":%u,\"open_error\":%u,\"seek_error\":%u,"
                "\"next_error\":%u,\"alias_shared\":%s,\"file_shared\":%s,\"provider_peak\":%"PRIu64
                ",\"remaining_provider\":%"PRIu64",\"cold_first_samples\":%u,\"cold_target\":%u"
