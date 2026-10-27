@@ -1178,5 +1178,100 @@
     "Rust core and ABI are unchanged; these checks do not requalify the complete PromQL language.",
     "Histogram representation remains unapproved under decision73; descriptions use the approved counter/gauge mapping."
   ],
-  "generator_sha256": "62acf984dcaaf0891c35b91f14ac0f0a005798e4cadcad0b5306d74927c59284"
+  "generator_sha256": "62acf984dcaaf0891c35b91f14ac0f0a005798e4cadcad0b5306d74927c59284",
+  "internal_check_revision": "6ea2224fdec43da83f5f7a9b96f77db49b0355e7",
+  "normal_build_followup": {
+    "reason": "The first normal VM build exposed an unconditional caller of an internal-check-only test helper. The declaration and call now use the same guard.",
+    "binary_sha256": "f5d9443046b44877ff6c6cfdb6e52add3c9c3ca49040ef75d213ac554033d064",
+    "source_delta": {
+      "src/web/api/promql/provider-test.c": {
+        "internal_check": "d73a5e8f55795a0ec3346f6c27b6ba8ce713f3e7d5c60d182868e95dd62426fd",
+        "normal": "c6af373140b0bdd59e01a574a5c8c8bdebfa3081b41eb68bea2f4d2d096606de"
+      }
+    },
+    "build_receipt": ".tmp/practical-replay-j32eeh4e/metadata72g-normal-build.json",
+    "build_receipt_sha256": "fee824ca74237496328beb91949ce1a9a3a3cb7f6a79c3ec335eca6627e9f62c",
+    "storage_receipt": ".tmp/dbengine-storage-eaz_d39y/receipt.json",
+    "storage_receipt_sha256": "5a12f13aa73adae312450d5f22b96700cf97100f2f6b81d69f2a914f977e2021",
+    "phases": [
+      {
+        "codec": "array",
+        "phase": "write",
+        "exit": 0,
+        "records": 36,
+        "metadata_checks": 0,
+        "stdout_sha256": "ca9da7ef83837230db96ecdb2003d2a2c6bd28977bddfbb2f9a06369f659870b",
+        "stderr_sha256": "ad08b103c649bde416a07413167a111aafb096abccf39b98cb75ddac00a1c7d7"
+      },
+      {
+        "codec": "array",
+        "phase": "read",
+        "exit": 0,
+        "records": 379,
+        "metadata_checks": 29,
+        "stdout_sha256": "88f183c6cbfd8833b63b36d945fd6e799a9bc2f6b28423c34bbeb0de8253653b",
+        "stderr_sha256": "0b3b20855c9d7e66f62740dac8f61a813f42897aee2671f60743878e2a604cdf"
+      },
+      {
+        "codec": "array",
+        "phase": "append",
+        "exit": 0,
+        "records": 36,
+        "metadata_checks": 0,
+        "stdout_sha256": "fe7325922d77d339c3f75635bf8bc98a691c5db2d62dfbba06d5701a655efcb3",
+        "stderr_sha256": "4caf565422f73348f77baf1b84a7a63850f417d31ca915c68742e823d8e7c233"
+      },
+      {
+        "codec": "gorilla",
+        "phase": "write",
+        "exit": 0,
+        "records": 36,
+        "metadata_checks": 0,
+        "stdout_sha256": "1c4f9177a2b405ecd16f9b8f8520f88283e28f17f3c27ede183b86f050bed538",
+        "stderr_sha256": "a63ff167f3d034f9b9425f1ad2c3601b91e0766aaa61ecc58c0a397047ddf262"
+      },
+      {
+        "codec": "gorilla",
+        "phase": "read",
+        "exit": 0,
+        "records": 379,
+        "metadata_checks": 29,
+        "stdout_sha256": "cac1772f0390c93f962fedf346b4d2715d2f645b0bb6d1f7d33e3839f20212b5",
+        "stderr_sha256": "f7840d03b5c618f802d1b739e79d46f8ce3001c082a089d48a9a3cd632c03109"
+      },
+      {
+        "codec": "gorilla",
+        "phase": "append",
+        "exit": 0,
+        "records": 36,
+        "metadata_checks": 0,
+        "stdout_sha256": "4f09ea564a9f3f8c5e1db1f536b5ec7f996a94caf55b19e60abcadab82517383",
+        "stderr_sha256": "88b8563ffee29d30362fb6c01056d230cf84c22af46874b55ec6891a0fc1d7cf"
+      }
+    ],
+    "normal_c_flags": "",
+    "normal_cxx_flags": "",
+    "cache_after_sha256": "8af89d116d83f48e281aefc6b88695d5c159b5b7fdd341858f615d325ac6f0cf",
+    "qualification_wrapper_sha256": "8b338a15068f8f9ec27b0e6c3975b8507adf4fbd36050a0db3160b3a4926c625",
+    "wrapper_scope": "Existing storage runner with DESCRIPTION_SORT_CASES empty because those eight internal-only probes are absent in a normal build; all other expected rosters unchanged.",
+    "failed_deployment": {
+      "revision": "6ea2224fdec43da83f5f7a9b96f77db49b0355e7",
+      "unit": "promql-deploy-6ea2224fde",
+      "exit_status": 1,
+      "failure": "Normal build link: unconditional caller references internal-check-only promql_description_sort_fixture.",
+      "phase": "build before install and restart",
+      "old_service_pid": 421140,
+      "old_binary_sha256": "1a6cffa1449be774a1ea503d49286245901fe3236f65b1db26bbab471ed57131",
+      "configuration_comparisons": "both passed",
+      "services": "Netdata and Grafana active",
+      "approximate_disk_free_gib": 51,
+      "artifacts": {
+        "metadata72-deployment-journal.stdout": "05109c75bc4d0e6d6073150a731316d17ab97369399d381e8f802107bcb35279",
+        "metadata72-deployment-journal.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "metadata72-failed-postcheck.stdout": "dc0069dc0ef5b2887c94897ef2419e33f324aa2405803512067bf74060064fa7",
+        "metadata72-failed-postcheck.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "production_source_changes": "None; only test-helper declaration/call guards change."
+  }
 }

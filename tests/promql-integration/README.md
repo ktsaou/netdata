@@ -524,3 +524,8 @@ The [qualification receipt](metadata-descriptions-qualification.json) binds 300 
 (25 metadata-specific). HTTP evidence uses identical production sources before the final test-only cancellation
 addition; both binary identities and the two-file test delta are retained explicitly. This is fixture qualification,
 not a deployed latency measurement.
+
+A follow-up normal build exposed and corrected an unconditional call to an internal-check-only sort probe.
+The receipt retains that failed VM link and the successful normal build plus all six normal storage/API phases
+(379 read records per codec). Normal qualification omits only the eight internal sort probes; their earlier
+internal-check results remain separately attributed. The normal build does not enable the HTTP fixture switch.
