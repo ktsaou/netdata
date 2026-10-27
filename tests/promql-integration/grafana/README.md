@@ -41,6 +41,13 @@ variables and time range. Label selectors use datasource-default `${variable}` i
 PromQL string escaping and multi-value regex escaping. Do not replace it with generic `${variable:regex}` formatting:
 for example, a selected `/` mount otherwise becomes an invalid PromQL string escape.
 
+The measurement helper records the result type, its original order-sensitive hash, and a separate hash of sorted
+complete vector/matrix row encodings. The latter preserves duplicates, labels, timestamps, values and histograms;
+it separates row order from content without discarding the original ordering check. Scalar/string order remains
+unchanged. Older captures containing only `result_sha256` cannot distinguish reordering from changed contents.
+Use private compressed complete-response captures when diagnosing a mismatch; counts and hashes alone cannot
+reconstruct absent historical values. See [the findings](FINDINGS.md) for the current comparison limitations.
+
 The default is 15 minutes, with a 30-second minimum panel interval and 1-minute refresh. These are dashboard settings,
 not new engine resource limits. Empty series remain empty; no expression substitutes zero for unavailable data.
 Native MiB, GiB, KiB/s and decimal kbit/s magnitudes are retained without additional byte conversions.

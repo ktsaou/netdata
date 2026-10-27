@@ -11,9 +11,40 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
-## Follow-up: Count summaries from validated page tails — 2026-10-27
+## Follow-up: resolved aggregate inputs — 2026-10-27
 
-Engine `73313c6f69` is installed. It reuses bounded integer summaries from already validated pages, without keeping
+Engine `4fdd8413bb` is installed. Direct selector, rate-family and Count inputs can reuse an aggregate's resolved
+position and labels with multiple grouping keys. [Controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/RESOLVED_GROUP_INPUTS.md)
+records 20–26% faster wide-label disappearance queries, lower allocation traffic and unchanged measured memory peaks.
+
+[The full live replay](resolved-group-inputs-live.json) repeats all 360 requests against a fresh unchanged-engine
+baseline, preserving windows, steps, scopes and deadlines:
+
+- Fleet panels at four clients: **0/136 timeouts**, previously 1; cohort **119.53→106.81 seconds**.
+- Disappearance detection completes in **23.09 seconds**. This remains close to its 25-second deadline.
+- All 136 instant requests and selected short-range cohorts complete without timeouts.
+- Selected 6h/24h/7d: **2/8, 3/8 and 5/8 timeouts**; the preceding seven-day result was 6/8.
+- Total: **10/360 timeouts**, previously 12. Seven-day bandwidth now completes in 22.79 seconds.
+
+Among 348 successful pairs, 270 raw-result hashes match and 78 differ, with unchanged series/point counts.
+There are **76 instant and two range differences**; the latter are application averages and mean outbound bandwidth.
+The bandwidth range has one series, so result-array order alone cannot explain every difference. Context traversal
+can change across restart and alter sequential floating-point rounding, but that remains a hypothesis for these
+historical differences. Complete historical bodies were not captured, so **live value equivalence is unverified**.
+
+The affected current queries repeat stably. Captured inner-reduction values produce identical results in the old
+and new engines in 72 fixed-input pairs, covering both profiles, three page sizes and reversed source order.
+These checks do not reconstruct missing historical bodies. Future measurements retain both the original ordered
+hash and a separate complete-row order-independent hash; neither drops duplicate rows or sample fields.
+
+Grafana application share returns 79 frames in 1.40 seconds; all 18 reporting CPU hosts advance. Both services are
+active, configuration checks passed, data was preserved and approximately 51 GiB remains free. Long-history latency,
+the historical comparison uncertainty, live histogram representation and help/type metadata remain open. Historical
+histogram bucket-boundary repair stays excluded by decision 71.
+
+## Earlier follow-up: Count summaries from validated page tails — 2026-10-27
+
+Engine `73313c6f69` was installed for this checkpoint. It reuses bounded integer summaries from already validated pages, without keeping
 raw history. [Controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/INTERMEDIATE_REUSE.md#count-summaries-from-validated-page-tails)
 records 70.4% fewer fetched entries and 31.8–34.1% faster grouped Count sums in the large-page fixture, with a
 32-byte query-workspace increase. [Live measurements](count-page-prefixes-live.json) repeat all 136 fleet panel

@@ -1,0 +1,4405 @@
+{
+  "schema": 1,
+  "date": "2026-10-27",
+  "engine_commit": "4fdd8413bbd8e96f3536660d8b5e2f987cd0711f",
+  "previous_engine_commit": "73313c6f697b5facf36c937ec5851e69578707c1",
+  "installed_binary_sha256": "c7bd67f9341142ffbb3b34286a098dda6f1cfc474329bb7be3a8e2f66b88e830",
+  "vm_compiler": "Rust1.93.1",
+  "cohorts": [
+    {
+      "name": "fleet4",
+      "before": {
+        "cohort": "fleet4",
+        "requests": 136,
+        "outcomes": {
+          "nonempty": 126,
+          "error": 1,
+          "empty": 9
+        },
+        "seconds": 119.53246785700321
+      },
+      "after": {
+        "cohort": "fleet4",
+        "requests": 136,
+        "outcomes": {
+          "empty": 9,
+          "nonempty": 127
+        },
+        "seconds": 106.81447933099116
+      }
+    },
+    {
+      "name": "instant-fleet",
+      "before": {
+        "cohort": "instant-fleet",
+        "requests": 136,
+        "outcomes": {
+          "nonempty": 124,
+          "empty": 12
+        },
+        "seconds": 53.40378197102109
+      },
+      "after": {
+        "cohort": "instant-fleet",
+        "requests": 136,
+        "outcomes": {
+          "empty": 12,
+          "nonempty": 124
+        },
+        "seconds": 49.86282569897594
+      }
+    },
+    {
+      "name": "focus-host",
+      "before": {
+        "cohort": "focus-host",
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 10,
+          "empty": 6
+        },
+        "seconds": 8.187429164012428
+      },
+      "after": {
+        "cohort": "focus-host",
+        "requests": 16,
+        "outcomes": {
+          "empty": 6,
+          "nonempty": 10
+        },
+        "seconds": 9.120637501997408
+      }
+    },
+    {
+      "name": "focus-group",
+      "before": {
+        "cohort": "focus-group",
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 12,
+          "empty": 4
+        },
+        "seconds": 13.514074368984438
+      },
+      "after": {
+        "cohort": "focus-group",
+        "requests": 16,
+        "outcomes": {
+          "empty": 4,
+          "nonempty": 12
+        },
+        "seconds": 13.491274303989485
+      }
+    },
+    {
+      "name": "focus-fleet",
+      "before": {
+        "cohort": "focus-fleet",
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 14,
+          "empty": 2
+        },
+        "seconds": 31.913925392000237
+      },
+      "after": {
+        "cohort": "focus-fleet",
+        "requests": 16,
+        "outcomes": {
+          "empty": 2,
+          "nonempty": 14
+        },
+        "seconds": 30.344235155003844
+      }
+    },
+    {
+      "name": "focus-fleet8",
+      "before": {
+        "cohort": "focus-fleet8",
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 14,
+          "empty": 2
+        },
+        "seconds": 19.767053459014278
+      },
+      "after": {
+        "cohort": "focus-fleet8",
+        "requests": 16,
+        "outcomes": {
+          "empty": 2,
+          "nonempty": 14
+        },
+        "seconds": 18.980958695989102
+      }
+    },
+    {
+      "name": "focus-6h",
+      "before": {
+        "cohort": "focus-6h",
+        "requests": 8,
+        "outcomes": {
+          "nonempty": 4,
+          "error": 2,
+          "empty": 2
+        },
+        "seconds": 79.3878110049991
+      },
+      "after": {
+        "cohort": "focus-6h",
+        "requests": 8,
+        "outcomes": {
+          "empty": 2,
+          "error": 2,
+          "nonempty": 4
+        },
+        "seconds": 78.69960075902054
+      }
+    },
+    {
+      "name": "focus-24h",
+      "before": {
+        "cohort": "focus-24h",
+        "requests": 8,
+        "outcomes": {
+          "nonempty": 4,
+          "error": 3,
+          "empty": 1
+        },
+        "seconds": 107.79098602102022
+      },
+      "after": {
+        "cohort": "focus-24h",
+        "requests": 8,
+        "outcomes": {
+          "empty": 1,
+          "error": 3,
+          "nonempty": 4
+        },
+        "seconds": 104.47802195700933
+      }
+    },
+    {
+      "name": "focus-7d",
+      "before": {
+        "cohort": "focus-7d",
+        "requests": 8,
+        "outcomes": {
+          "nonempty": 2,
+          "error": 6
+        },
+        "seconds": 167.84071289899293
+      },
+      "after": {
+        "cohort": "focus-7d",
+        "requests": 8,
+        "outcomes": {
+          "error": 5,
+          "nonempty": 3
+        },
+        "seconds": 164.88714966899715
+      }
+    }
+  ],
+  "captures": {
+    "before": {
+      "file": "resolved-group-inputs-before-measurements.jsonl.gz",
+      "sha256": "e7dade004ae4817728031c048bc186a795dd2ccd96e6f8702db5c47f289d92d8",
+      "uncompressed_sha256": "89aced8e8271385bc9b5e721798786a1600e881b6f7308e2b3069740599621f5",
+      "records": 380,
+      "queries": 360,
+      "bindings": {
+        "tests/promql-integration/grafana/practical-qualification.json": "ed071d08030a56258a008ba0a9e1d3ddcf68bf09e2060059be5153cd129e0053",
+        "tests/promql-integration/grafana/practical-measurements.jsonl.gz": "2a4c0db1554c69ab037607151b5b92b23f863972d51c278d3557c7c30a7f556c",
+        ".tmp/practical-replay-j32eeh4e/live_after.py": "2c825d350b50e22915409bf6b3c205233cf34730dc7a988ed5a94d0a214559de",
+        "tests/promql-integration/grafana/measure.py": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+        "tests/promql-integration/grafana/workload-catalogue.json": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a",
+        "tests/promql-integration/grafana/alert-expressions.json": "9c0f1d0a94cc861fee56a33c66b0083c2544ac1735be7ff2167e3bab6f3d0989",
+        "tests/promql-integration/grafana/applications.json": "c28631f6868ec68795f4a8a65280ef3e69519bf830fbe983ceb3603306fa576e",
+        "tests/promql-integration/grafana/data-availability.json": "b36278593b93ff2ade0fd11c81c338ceedde5cd6b1036bc38368b4657a18022d",
+        "tests/promql-integration/grafana/database-instances.json": "12ec0370af032e8eb5f45a4f427fc6d714a2f336ec8b81c40db8b686a1f4c3a2",
+        "tests/promql-integration/grafana/fleet-applications.json": "3311f09898b05d67894cfa32a43a7aac78f2c30122dc8d6d4d1bf24d977a072f",
+        "tests/promql-integration/grafana/fleet-bandwidth.json": "5a8481d1dcd149a5db45bf2c1187a85eae584e37caed09bc061d054cb040f1fc",
+        "tests/promql-integration/grafana/fleet-capacity.json": "11172bb6489f1ab1e59ef4ccac4d87fafef258966fe3fa735a1b85b6476bbfc2",
+        "tests/promql-integration/grafana/fleet-overview.json": "4d1e1a3ab2b060b9db8edbc8909988990b1f41d6db88d17ab2eeb088542ee066",
+        "tests/promql-integration/grafana/history-comparisons.json": "b14d4c97686709a17bffc99f5e7d11fab180603536e1ba802a3f2447e2e4f0f6",
+        "tests/promql-integration/grafana/host-resources.json": "cd0315d3ff956a71506aa8fa3e8abef014a3690d083688c4fd975c5943299043",
+        "tests/promql-integration/grafana/service-instances.json": "95c24813b53ebb6af7929cd18c0d37cf8f5a1f4bd164726929e264ed93128d52",
+        "tests/promql-integration/grafana/storage-network.json": "689baf3eac66b836f744d10e9ff039b96068190d09fc777ec79db69270679560",
+        ".tmp/practical-workloads-csukpli2/fleet4.jsonl.gz": "9c223bb3c11829154007dee6be684feffb827d65f5442d66d1eee0c2f9d876e7",
+        ".tmp/practical-workloads-csukpli2/instant-fleet.jsonl.gz": "57d65915114d766582a4d8d3f938544fd37b1f95f7fd34face47a36458470d82",
+        ".tmp/practical-workloads-csukpli2/instant-fleet-process.json": "522d2f26d3fa281ca1adbf63e55c2f448531b99bbff1c4e9356ddedeb5754a29",
+        ".tmp/practical-workloads-csukpli2/focus-host.jsonl.gz": "c650f2bc10a55ed68ac738875eee52b50b3133e18ce89644f1e61e5fd0c71d3b",
+        ".tmp/practical-workloads-csukpli2/focus-host-process.json": "814889d4bdbf36305d463f0bb40c96471013b827e9c31cecad274fce4ad876ad",
+        ".tmp/practical-workloads-csukpli2/focus-group.jsonl.gz": "c021fa29ed842dbefdbdf4900cfda698577c37dc51db7261b17d10172c177f60",
+        ".tmp/practical-workloads-csukpli2/focus-group-process.json": "969b5e0e49be48592bc03c6a14b942bbdc52ba206df91b28889c31bd933adac2",
+        ".tmp/practical-workloads-csukpli2/focus-fleet.jsonl.gz": "d5c392ec654fa8fae338d21c7b0243fc478868d136f396b45e3fea537a25043a",
+        ".tmp/practical-workloads-csukpli2/focus-fleet-process.json": "a3892684e6b3cbcea1743606131bccf6bb9a7564319bb7848cc737edf4ef20d5",
+        ".tmp/practical-workloads-csukpli2/focus-fleet8.jsonl.gz": "fc610ab716f1a1523a7094b96bfc79eef437c3654732442316f621e4ba31ff25",
+        ".tmp/practical-workloads-csukpli2/focus-fleet8-process.json": "21e0ec41e2e8ea89fb89a22529b2c9c22511252f94443709372be87ccc455b41",
+        ".tmp/practical-workloads-csukpli2/focus-6h.jsonl.gz": "5158796bc63c0da5068d5303b3434152bc10ec0fd183bcb2995d67b622ac7f84",
+        ".tmp/practical-workloads-csukpli2/focus-6h-process.json": "22c75edc3884b8e816f6bf046a459d2e0f5cfcd2dcfc02db4c4be1f128d67b01",
+        ".tmp/practical-workloads-csukpli2/focus-24h.jsonl.gz": "3049516dc179e778349437004cbbadbcff535e40400433407bd6fbface4e9ff9",
+        ".tmp/practical-workloads-csukpli2/focus-24h-process.json": "8e8d861c0e4a904e21deb7143bd69227748bb01b01c9c19bb6cc134800fdac29",
+        ".tmp/practical-workloads-csukpli2/focus-7d.jsonl.gz": "3ca6a55c1846d75470d7d3543ef4b4d8c4d71d4fb2187a57a921010278919cd7",
+        ".tmp/practical-workloads-csukpli2/focus-7d-process.json": "db339cc0d6e6cbc5e1bf5f7aa21c47e6f3696561328c737b75426b22bfea07af",
+        ".tmp/practical-replay-j32eeh4e/grafana-share-diagnosis.json": "c25efd0940389e63c499674d10649cd73c7605922ff892908d6623fd5c44539e"
+      }
+    },
+    "after": {
+      "file": "resolved-group-inputs-after-measurements.jsonl.gz",
+      "sha256": "f7e55bb3058df760c4472a7cdcff692cfcf542719c4ed5c449ff14b5443d246a",
+      "uncompressed_sha256": "f96e207de4ce4ad3862b0c1956f35dc2c8d8aae062e555085d2557d23b71e2f9",
+      "records": 380,
+      "queries": 360,
+      "bindings": {
+        "tests/promql-integration/grafana/practical-qualification.json": "ed071d08030a56258a008ba0a9e1d3ddcf68bf09e2060059be5153cd129e0053",
+        "tests/promql-integration/grafana/practical-measurements.jsonl.gz": "2a4c0db1554c69ab037607151b5b92b23f863972d51c278d3557c7c30a7f556c",
+        ".tmp/practical-replay-j32eeh4e/live_after.py": "2c825d350b50e22915409bf6b3c205233cf34730dc7a988ed5a94d0a214559de",
+        "tests/promql-integration/grafana/measure.py": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+        "tests/promql-integration/grafana/workload-catalogue.json": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a",
+        "tests/promql-integration/grafana/alert-expressions.json": "9c0f1d0a94cc861fee56a33c66b0083c2544ac1735be7ff2167e3bab6f3d0989",
+        "tests/promql-integration/grafana/applications.json": "c28631f6868ec68795f4a8a65280ef3e69519bf830fbe983ceb3603306fa576e",
+        "tests/promql-integration/grafana/data-availability.json": "b36278593b93ff2ade0fd11c81c338ceedde5cd6b1036bc38368b4657a18022d",
+        "tests/promql-integration/grafana/database-instances.json": "12ec0370af032e8eb5f45a4f427fc6d714a2f336ec8b81c40db8b686a1f4c3a2",
+        "tests/promql-integration/grafana/fleet-applications.json": "3311f09898b05d67894cfa32a43a7aac78f2c30122dc8d6d4d1bf24d977a072f",
+        "tests/promql-integration/grafana/fleet-bandwidth.json": "5a8481d1dcd149a5db45bf2c1187a85eae584e37caed09bc061d054cb040f1fc",
+        "tests/promql-integration/grafana/fleet-capacity.json": "11172bb6489f1ab1e59ef4ccac4d87fafef258966fe3fa735a1b85b6476bbfc2",
+        "tests/promql-integration/grafana/fleet-overview.json": "4d1e1a3ab2b060b9db8edbc8909988990b1f41d6db88d17ab2eeb088542ee066",
+        "tests/promql-integration/grafana/history-comparisons.json": "b14d4c97686709a17bffc99f5e7d11fab180603536e1ba802a3f2447e2e4f0f6",
+        "tests/promql-integration/grafana/host-resources.json": "cd0315d3ff956a71506aa8fa3e8abef014a3690d083688c4fd975c5943299043",
+        "tests/promql-integration/grafana/service-instances.json": "95c24813b53ebb6af7929cd18c0d37cf8f5a1f4bd164726929e264ed93128d52",
+        "tests/promql-integration/grafana/storage-network.json": "689baf3eac66b836f744d10e9ff039b96068190d09fc777ec79db69270679560",
+        ".tmp/practical-workloads-csukpli2/fleet4.jsonl.gz": "9c223bb3c11829154007dee6be684feffb827d65f5442d66d1eee0c2f9d876e7",
+        ".tmp/practical-workloads-csukpli2/instant-fleet.jsonl.gz": "57d65915114d766582a4d8d3f938544fd37b1f95f7fd34face47a36458470d82",
+        ".tmp/practical-workloads-csukpli2/instant-fleet-process.json": "522d2f26d3fa281ca1adbf63e55c2f448531b99bbff1c4e9356ddedeb5754a29",
+        ".tmp/practical-workloads-csukpli2/focus-host.jsonl.gz": "c650f2bc10a55ed68ac738875eee52b50b3133e18ce89644f1e61e5fd0c71d3b",
+        ".tmp/practical-workloads-csukpli2/focus-host-process.json": "814889d4bdbf36305d463f0bb40c96471013b827e9c31cecad274fce4ad876ad",
+        ".tmp/practical-workloads-csukpli2/focus-group.jsonl.gz": "c021fa29ed842dbefdbdf4900cfda698577c37dc51db7261b17d10172c177f60",
+        ".tmp/practical-workloads-csukpli2/focus-group-process.json": "969b5e0e49be48592bc03c6a14b942bbdc52ba206df91b28889c31bd933adac2",
+        ".tmp/practical-workloads-csukpli2/focus-fleet.jsonl.gz": "d5c392ec654fa8fae338d21c7b0243fc478868d136f396b45e3fea537a25043a",
+        ".tmp/practical-workloads-csukpli2/focus-fleet-process.json": "a3892684e6b3cbcea1743606131bccf6bb9a7564319bb7848cc737edf4ef20d5",
+        ".tmp/practical-workloads-csukpli2/focus-fleet8.jsonl.gz": "fc610ab716f1a1523a7094b96bfc79eef437c3654732442316f621e4ba31ff25",
+        ".tmp/practical-workloads-csukpli2/focus-fleet8-process.json": "21e0ec41e2e8ea89fb89a22529b2c9c22511252f94443709372be87ccc455b41",
+        ".tmp/practical-workloads-csukpli2/focus-6h.jsonl.gz": "5158796bc63c0da5068d5303b3434152bc10ec0fd183bcb2995d67b622ac7f84",
+        ".tmp/practical-workloads-csukpli2/focus-6h-process.json": "22c75edc3884b8e816f6bf046a459d2e0f5cfcd2dcfc02db4c4be1f128d67b01",
+        ".tmp/practical-workloads-csukpli2/focus-24h.jsonl.gz": "3049516dc179e778349437004cbbadbcff535e40400433407bd6fbface4e9ff9",
+        ".tmp/practical-workloads-csukpli2/focus-24h-process.json": "8e8d861c0e4a904e21deb7143bd69227748bb01b01c9c19bb6cc134800fdac29",
+        ".tmp/practical-workloads-csukpli2/focus-7d.jsonl.gz": "3ca6a55c1846d75470d7d3543ef4b4d8c4d71d4fb2187a57a921010278919cd7",
+        ".tmp/practical-workloads-csukpli2/focus-7d-process.json": "db339cc0d6e6cbc5e1bf5f7aa21c47e6f3696561328c737b75426b22bfea07af",
+        ".tmp/practical-replay-j32eeh4e/grafana-share-diagnosis.json": "c25efd0940389e63c499674d10649cd73c7605922ff892908d6623fd5c44539e"
+      }
+    }
+  },
+  "successful_comparisons": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.5908512749883812,
+      "after_seconds": 0.575556666997727
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.621865841007093,
+      "after_seconds": 1.3123711769876536
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7949999819975346,
+      "after_seconds": 0.7480899129877798
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.9491159350145608,
+      "after_seconds": 0.9095674460113514
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/11/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.218966910004383,
+      "after_seconds": 0.8733446389960591
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/12/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.5649197360035032,
+      "after_seconds": 0.3823383100097999
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 3.200890279986197,
+      "after_seconds": 2.621688772982452
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/1/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.5378042520023882,
+      "after_seconds": 1.2278280600148719
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/2/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.0363859529898036,
+      "after_seconds": 1.7683919410046656
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/3/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.3156508450047113,
+      "after_seconds": 1.8941784119815566
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/4/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.1921659919898957,
+      "after_seconds": 1.9692113030178007
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.98724998900434,
+      "after_seconds": 1.5161495649954304
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 8.572705992992269,
+      "after_seconds": 11.319570665014908
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.753717111016158,
+      "after_seconds": 11.320956134004518
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7654214810172562,
+      "after_seconds": 0.686633395991521
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 2.6646343909960706,
+      "after_seconds": 2.4684747220017016
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 6.422712105006212,
+      "after_seconds": 7.033649052988039
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.4580319880042225,
+      "after_seconds": 0.4492187610012479
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 11.671550693979952,
+      "after_seconds": 6.590912501997082
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.8211776269890834,
+      "after_seconds": 0.45714657299686223
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.9487646570196375,
+      "after_seconds": 0.8390871580049861
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 18.021819566987688,
+      "after_seconds": 10.407450369995786
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.6336515500152018,
+      "after_seconds": 0.4436070999945514
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 16.42553068199777,
+      "after_seconds": 11.481885901011992
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 4.195850383985089,
+      "after_seconds": 3.213053012994351
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 2.8070638249919284,
+      "after_seconds": 3.6726060879882425
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 3.2321150539792143,
+      "after_seconds": 3.22051600200939
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 17.2996426380123,
+      "after_seconds": 13.25817143599852
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.5253354750166181,
+      "after_seconds": 0.4815291039994918
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.5577601480181329,
+      "after_seconds": 0.5024399030080531
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7455066090042237,
+      "after_seconds": 0.37440252999658696
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/11/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 2.9320342120190617,
+      "after_seconds": 3.021810442995047
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7367665360216051,
+      "after_seconds": 0.5653028679953422
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.266029498015996,
+      "after_seconds": 0.7955158359836787
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.3521881359920371,
+      "after_seconds": 0.7068066940119024
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.1570818729815073,
+      "after_seconds": 0.9300365330127534
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.1515289020026103,
+      "after_seconds": 0.6940285059972666
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 22.55604707202292,
+      "after_seconds": 23.916003357997397
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.9623728839796968,
+      "after_seconds": 1.1557263099821284
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.112744454992935,
+      "after_seconds": 1.5880287799809594
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/11/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.4639513120055199,
+      "after_seconds": 1.9151821600098629
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/12/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.8649665960110724,
+      "after_seconds": 0.8868164070008788
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 3.007048161001876,
+      "after_seconds": 3.655198955995729
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 6.585690089006675,
+      "after_seconds": 4.460963044984965
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 4.836608936981065,
+      "after_seconds": 4.998573513003066
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 3.991858074994525,
+      "after_seconds": 4.032906569977058
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 3.734851085988339,
+      "after_seconds": 4.394631263974588
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 6.30407381997793,
+      "after_seconds": 4.981189979996998
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 9.739633246004814,
+      "after_seconds": 9.783008690021234
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/12/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 12.605243308003992,
+      "after_seconds": 12.502133528993
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/6/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 13.280814308003755,
+      "after_seconds": 7.267495256994152
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 13.137680246989476,
+      "after_seconds": 6.797280225990107
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 12.11316672200337,
+      "after_seconds": 10.217373646999476
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7394559050153475,
+      "after_seconds": 0.7555503259936813
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.6104362119804136,
+      "after_seconds": 0.6321975929895416
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/11/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 10.642966719984543,
+      "after_seconds": 5.82982178000384
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.6361137869826052,
+      "after_seconds": 0.585670435015345
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.4284883859800175,
+      "after_seconds": 1.0344827429798897
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7897352940053679,
+      "after_seconds": 0.6665213060041424
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.3629404780222103,
+      "after_seconds": 1.26440715501667
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 15.81365785500384,
+      "after_seconds": 14.441891976020997
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.4052426419802941,
+      "after_seconds": 1.5654371519922279
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 15.597058799001388,
+      "after_seconds": 13.72403907001717
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.6584416849946138,
+      "after_seconds": 0.9431253250222653
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/13/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 5.630613152985461,
+      "after_seconds": 5.425272685009986
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/12/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.6213791620102711,
+      "after_seconds": 0.7368460180005059
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/11/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.6062656950089149,
+      "after_seconds": 0.7985910139977932
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/14/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.1035999109735712,
+      "after_seconds": 0.9379140899982303
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 3.228604281001026,
+      "after_seconds": 4.511099772003945
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.32713082199916244,
+      "after_seconds": 0.32011380200856365
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.33114930702140555,
+      "after_seconds": 0.3710577820020262
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/12/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 14.213664378010435,
+      "after_seconds": 11.263982144999318
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.2563980090199038,
+      "after_seconds": 0.7413914390199352
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.45692532099201344,
+      "after_seconds": 0.5041872400033753
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.42371927297790535,
+      "after_seconds": 0.4552072040096391
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.9584144510154147,
+      "after_seconds": 1.044337600003928
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 4.5845836749940645,
+      "after_seconds": 3.5877705269958824
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.3907985340047162,
+      "after_seconds": 0.4369416520057712
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.45622922797338106,
+      "after_seconds": 0.47389652198762633
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/11/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.4233799969952088,
+      "after_seconds": 0.4193246639915742
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.46718181198230013,
+      "after_seconds": 0.4454989580262918
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.31359335299930535,
+      "after_seconds": 0.3528334689908661
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.2542105439933948,
+      "after_seconds": 0.36456632701447234
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.26487020100466907,
+      "after_seconds": 0.42342277002171613
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.26887121601612307,
+      "after_seconds": 0.3727048879954964
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.4690073259989731,
+      "after_seconds": 0.43902074499055743
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.47653134001302533,
+      "after_seconds": 0.4430699789954815
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.9536361930076964,
+      "after_seconds": 1.3424672319961246
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.7979996819922235,
+      "after_seconds": 1.345235909015173
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.6929327380203176,
+      "after_seconds": 0.5949727650149725
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.0770674019877333,
+      "after_seconds": 1.1031300419999752
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.083287946996279,
+      "after_seconds": 1.443564808985684
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.5178863269975409,
+      "after_seconds": 0.6429233119997662
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.1002729489991907,
+      "after_seconds": 1.178057515004184
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.5021216179884505,
+      "after_seconds": 0.6238836559932679
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.7662806860171258,
+      "after_seconds": 2.1158008470083587
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/14/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 14.465088943979936,
+      "after_seconds": 11.463955048006028
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/11/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.0533710239978973,
+      "after_seconds": 0.7780989030143246
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.0584437790093943,
+      "after_seconds": 1.135729841014836
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/12/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 2.874083984992467,
+      "after_seconds": 2.533718813996529
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/13/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 7.937705573014682,
+      "after_seconds": 7.491132892988389
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/12/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.013322937011253,
+      "after_seconds": 1.340839207987301
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/1/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.28046691601048224,
+      "after_seconds": 0.3215300799929537
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/2/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.27700228700996377,
+      "after_seconds": 0.3226066810020711
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.41081698102061637,
+      "after_seconds": 0.7797430389910005
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.6214491699938662,
+      "after_seconds": 0.9385575149790384
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.3179086429881863,
+      "after_seconds": 1.5741706409899052
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.8564189070020802,
+      "after_seconds": 0.9307915440003853
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.0818460980081,
+      "after_seconds": 0.4972655309829861
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.663899262988707,
+      "after_seconds": 1.6264419390063267
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.5462988879880868,
+      "after_seconds": 0.7783440010098275
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7800026290060487,
+      "after_seconds": 0.6026754399936181
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.3616519100032747,
+      "after_seconds": 0.8984601330012083
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.9361782179912552,
+      "after_seconds": 0.5277396079909522
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.118124620988965,
+      "after_seconds": 0.626925670017954
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.9315725689812098,
+      "after_seconds": 0.689835507015232
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.1927425550238695,
+      "after_seconds": 0.7617366350023076
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.0027708240086213,
+      "after_seconds": 0.7413910910254344
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.8641616109816823,
+      "after_seconds": 0.5859230550122447
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/12/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.6520760350103956,
+      "after_seconds": 0.559788390994072
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/11/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.9873339300102089,
+      "after_seconds": 1.1982104420021642
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/1/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.7741198719886597,
+      "after_seconds": 1.0858617929916363
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/3/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3268389099976048,
+      "after_seconds": 0.32993255800101906
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/2/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.137154185998952,
+      "after_seconds": 0.8364040489832405
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/4/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3544057690014597,
+      "after_seconds": 0.3678991600172594
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.2070900330145378,
+      "after_seconds": 1.5432929189992137
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.7981548160023522,
+      "after_seconds": 1.3724071670148987
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 11.799029796995455,
+      "after_seconds": 11.775114196992945
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 4.073472535004839,
+      "after_seconds": 5.297296228993218
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 5.085609403002309,
+      "after_seconds": 5.490048263018252
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 3.2351867399993353,
+      "after_seconds": 2.5179764649947174
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 4.573768705013208,
+      "after_seconds": 4.528908402979141
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 6.450509151996812,
+      "after_seconds": 5.434481547999894
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 8.189078082010383,
+      "after_seconds": 8.109242508973693
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 8.95164760298212,
+      "after_seconds": 7.919570558005944
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7053935750154778,
+      "after_seconds": 0.8040890700067393
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.1907302410108969,
+      "after_seconds": 0.9915358209982514
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7386843040003441,
+      "after_seconds": 0.8966080710233655
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.6269649259920698,
+      "after_seconds": 2.1213366059819236
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.401935506000882,
+      "after_seconds": 2.1229803719907068
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.6430379929952323,
+      "after_seconds": 0.6221512030169833
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 2.652018532011425,
+      "after_seconds": 1.899163565976778
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/12/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7600770379940514,
+      "after_seconds": 1.2781809640000574
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/11/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.4684029880154412,
+      "after_seconds": 2.077776813006494
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/5/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.9192244769947138,
+      "after_seconds": 2.4303213759849314
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/8/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 2.6508976859913673,
+      "after_seconds": 2.7030628389911726
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/2/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 2.0624226139916573,
+      "after_seconds": 1.949951307993615
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/1/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 2.2513462089991663,
+      "after_seconds": 2.2354195109801367
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/3/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.856181823008228,
+      "after_seconds": 1.9834470989881083
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/4/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 2.3054501279839315,
+      "after_seconds": 1.5070354960043915
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 3.307965656014858,
+      "after_seconds": 1.7690791320055723
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.2802421649976168,
+      "after_seconds": 0.34175287702237256
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.34691132098669186,
+      "after_seconds": 0.3657078699907288
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7038504939991981,
+      "after_seconds": 0.700610215018969
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 4.141967030998785,
+      "after_seconds": 2.916409827012103
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/8/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 3.9376872300053947,
+      "after_seconds": 3.045388783008093
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/5/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.9944915979867801,
+      "after_seconds": 1.210212011996191
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.8066791939781979,
+      "after_seconds": 1.0768336250039283
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/7/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.27676937499199994,
+      "after_seconds": 0.3360741359938402
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/7/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 5.386563407984795,
+      "after_seconds": 4.011244665976847
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.3055929859983735,
+      "after_seconds": 1.2037460879946593
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.0397805529937614,
+      "after_seconds": 1.2446967050200328
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/11/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3944951459998265,
+      "after_seconds": 0.44564195998827927
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7699021880107466,
+      "after_seconds": 0.7725961440009996
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7378290990018286,
+      "after_seconds": 1.1800269329978619
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/9/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.9540100609883666,
+      "after_seconds": 1.8493301199923735
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.8423838049930055,
+      "after_seconds": 0.6452333249908406
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.0632587410218548,
+      "after_seconds": 0.7485536620079074
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.0529523820150644,
+      "after_seconds": 0.7535988680028822
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.315478283999255,
+      "after_seconds": 0.6925354860140942
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.1412074000108987,
+      "after_seconds": 0.6679586280079093
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.1351226730039343,
+      "after_seconds": 0.7415601419925224
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/10/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 6.003294442984043,
+      "after_seconds": 6.1187626979954075
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/9/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 7.1190233289962634,
+      "after_seconds": 8.232255554001313
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.8018413509998936,
+      "after_seconds": 1.169190977991093
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.8026885139988735,
+      "after_seconds": 1.1556447939947248
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.0720180369971786,
+      "after_seconds": 1.2031641539942939
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/12/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7691754180123098,
+      "after_seconds": 0.7458271759969648
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/12/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 2.4585869899892714,
+      "after_seconds": 2.6261386789847165
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/11/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.5810367929807398,
+      "after_seconds": 1.5947708309977315
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/2/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.322557314997539,
+      "after_seconds": 1.3324748770100996
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/3/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.768690381984925,
+      "after_seconds": 1.4753134030033834
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 2.1837289800168946,
+      "after_seconds": 1.776387912017526
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/4/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.9259589959983714,
+      "after_seconds": 1.215970353980083
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/5/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.7841198289825115,
+      "after_seconds": 1.192884573014453
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/6/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.7548862950061448,
+      "after_seconds": 1.4718664629908744
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/7/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.6173887889890466,
+      "after_seconds": 1.4052874179906212
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/11/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 2.166715045023011,
+      "after_seconds": 1.4895536409749184
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/13/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.7521226619719528,
+      "after_seconds": 1.6849462219979614
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/10/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 3.389177973003825,
+      "after_seconds": 3.3626448180002626
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/12/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 2.4404685240006074,
+      "after_seconds": 2.744698166003218
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.30160912199062295,
+      "after_seconds": 0.3813927749870345
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.3325239619880449,
+      "after_seconds": 0.3702528620196972
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/4/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.34495081298518926,
+      "after_seconds": 0.3651246359804645
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 7.448597088019596,
+      "after_seconds": 6.665296152990777
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.530203104019165,
+      "after_seconds": 0.5987777569971513
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/5/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3757994729967322,
+      "after_seconds": 0.3913111299916636
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7714735830086283,
+      "after_seconds": 0.6088267499872018
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/6/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.6241869810037315,
+      "after_seconds": 0.7946514550130814
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.9020027320075314,
+      "after_seconds": 0.6690999389975332
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/10/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3499850390071515,
+      "after_seconds": 0.3753679170040414
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/11/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.38144484400982037,
+      "after_seconds": 0.35610647400608286
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.6942314600164536,
+      "after_seconds": 0.83957909597666
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/14/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.3663041869876906,
+      "after_seconds": 0.3647895689937286
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/14/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.7293016590119805,
+      "after_seconds": 1.3670123800111469
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/12/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.4832295650267042,
+      "after_seconds": 0.47193326300475746
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/9/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 5.268302879005205,
+      "after_seconds": 4.822863262001192
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.35714978698524646,
+      "after_seconds": 0.40869835001649335
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.4370247090118937,
+      "after_seconds": 0.42079557399847545
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.37069892798899673,
+      "after_seconds": 0.3361153660225682
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.3318068789958488,
+      "after_seconds": 0.3876210809976328
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.3330374689830933,
+      "after_seconds": 0.3355875810084399
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.6350502260029316,
+      "after_seconds": 1.3896916039811913
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.0567290520120878,
+      "after_seconds": 1.0419308979762718
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.3682246309763286,
+      "after_seconds": 0.3432910940027796
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.36670182502712123,
+      "after_seconds": 0.35181793000083417
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/11/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3239326879847795,
+      "after_seconds": 0.3787724679859821
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/13/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.7843655000033323,
+      "after_seconds": 1.6203072219796013
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.3360431030159816,
+      "after_seconds": 0.34915833300328813
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.33666252699913457,
+      "after_seconds": 0.3319847420207225
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.4196781319915317,
+      "after_seconds": 0.33396787501988
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.35872481399565004,
+      "after_seconds": 0.33066350300214253
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/5/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3472232350031845,
+      "after_seconds": 0.31088836397975683
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7828214070177637,
+      "after_seconds": 0.7424281069834251
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/7/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3641558660019655,
+      "after_seconds": 0.3086826830112841
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/8/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.391472237999551,
+      "after_seconds": 0.3953733640082646
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/2/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.4009613950038329,
+      "after_seconds": 0.46338839700911194
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/3/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.39577157999156043,
+      "after_seconds": 0.42542558498098515
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/6/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.9267146100173704,
+      "after_seconds": 1.1554010190011468
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/4/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.36540528599289246,
+      "after_seconds": 0.46815967600559816
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/1/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.7169805229932535,
+      "after_seconds": 0.8283710939867888
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/12/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.0753207700036,
+      "after_seconds": 1.3972239190188702
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/7/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3399510479939636,
+      "after_seconds": 0.4239395080076065
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/10/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.35151607799343765,
+      "after_seconds": 0.44710765799391083
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/11/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3683387909841258,
+      "after_seconds": 0.40866559999994934
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/5/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.4529947999981232,
+      "after_seconds": 0.7146362560160924
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/12/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3828259640140459,
+      "after_seconds": 0.34899859500001185
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/1/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.36445958499098197,
+      "after_seconds": 0.35017868399154395
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/6/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.8011005079897586,
+      "after_seconds": 1.0184100930055138
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/2/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3648590809898451,
+      "after_seconds": 0.31252581998705864
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.9958691459905822,
+      "after_seconds": 0.7556976419873536
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/6/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.5261744819872547,
+      "after_seconds": 1.0066391549771652
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.9777529750135727,
+      "after_seconds": 1.1158492100075819
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/5/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.0678010779956821,
+      "after_seconds": 1.097307151008863
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/7/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.5216866619884968,
+      "after_seconds": 1.531684399000369
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/8/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.5504539810062852,
+      "after_seconds": 1.4960304069973063
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/2/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.4942660520027857,
+      "after_seconds": 1.7329281200072728
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.5972023920039646,
+      "after_seconds": 1.9263197600084823
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.3645147170173004,
+      "after_seconds": 1.5001220119884238
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.5657947690051515,
+      "after_seconds": 1.3853128030023072
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/5/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.4112009299860802,
+      "after_seconds": 1.2552701570093632
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.3887354869802948,
+      "after_seconds": 1.2171757349860854
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.3275043920148164,
+      "after_seconds": 1.0192680249747355
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/10/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.3397489560011309,
+      "after_seconds": 1.0793508170172572
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 2.9447055159835145,
+      "after_seconds": 2.151423364994116
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 2.677245402999688,
+      "after_seconds": 1.999692336015869
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/12/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.234925522992853,
+      "after_seconds": 0.776796430000104
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/11/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 2.457244286983041,
+      "after_seconds": 1.665648741996847
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/2/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.5025594869803172,
+      "after_seconds": 0.879810059996089
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/1/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.6627411769877654,
+      "after_seconds": 1.1561491129978094
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/3/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3457350709941238,
+      "after_seconds": 0.3018992330180481
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/4/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 0.3121943629812449,
+      "after_seconds": 0.2837159789924044
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/6/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.5138429689977784,
+      "after_seconds": 0.7670544139982667
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/7/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 2.0189153300016187,
+      "after_seconds": 1.13184482298675
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/5/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 2.14762246600003,
+      "after_seconds": 1.3111201449937653
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/8/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.734271407010965,
+      "after_seconds": 0.9828651999996509
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/9/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.271501167997485,
+      "after_seconds": 0.7265926639956888
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/10/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 1.278477407002356,
+      "after_seconds": 0.7481639780162368
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/9/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.9113514829950873,
+      "after_seconds": 1.0253101540147327
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/4/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.8686717159871478,
+      "after_seconds": 0.9669770679902285
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/8/A",
+      "repeat": 0,
+      "same_result_digest": false,
+      "before_seconds": 12.266246443003183,
+      "after_seconds": 10.881370283983415
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.5929632259940263,
+      "after_seconds": 0.7086382299894467
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.5730060100031551,
+      "after_seconds": 0.8383979089849163
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.3065684340253938,
+      "after_seconds": 0.35869252201518975
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.853006897988962,
+      "after_seconds": 0.9314526060188655
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.3476781469944399,
+      "after_seconds": 0.32335329698980786
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.6491625970229506,
+      "after_seconds": 0.6629417650110554
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.2843274589977227,
+      "after_seconds": 0.2761892849812284
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.4658446770044975,
+      "after_seconds": 0.5267729499901179
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.493261028022971,
+      "after_seconds": 0.5675969479780179
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.5462315259792376,
+      "after_seconds": 0.6181913610198535
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.3009798649873119,
+      "after_seconds": 0.3122000150033273
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.9818516270024702,
+      "after_seconds": 0.9770150629919954
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.32936014799633995,
+      "after_seconds": 0.37001802399754524
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.7023800149909221,
+      "after_seconds": 0.7159830470045563
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.29064689500955865,
+      "after_seconds": 0.30911514098988846
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.4629190039995592,
+      "after_seconds": 0.616589515004307
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.6142527839983813,
+      "after_seconds": 0.6803787839889992
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.5996134409797378,
+      "after_seconds": 0.6275861499889288
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.33729793000384234,
+      "after_seconds": 0.369181132002268
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.8251592390006408,
+      "after_seconds": 1.571577338007046
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.4670752979873214,
+      "after_seconds": 0.481856208993122
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7160639479989186,
+      "after_seconds": 0.6677603939897381
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.2929811060021166,
+      "after_seconds": 0.3181037330068648
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 2.240153766993899,
+      "after_seconds": 2.314313395996578
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.5957036990148481,
+      "after_seconds": 0.6573040839866735
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.6269703169818968,
+      "after_seconds": 0.6020668910059612
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.36874804701074027,
+      "after_seconds": 0.3678962530102581
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 1.374855831003515,
+      "after_seconds": 1.4749053050181828
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.3411559079831932,
+      "after_seconds": 0.31173827798920684
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.7169961940089706,
+      "after_seconds": 0.6586410629970487
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.2881133200135082,
+      "after_seconds": 0.2809715940093156
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 2.0971827220055275,
+      "after_seconds": 2.0970501030096784
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7101126649940852,
+      "after_seconds": 0.7223540930135641
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.1180131729925051,
+      "after_seconds": 0.7982914680032991
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.5731268090021331,
+      "after_seconds": 0.4005587509891484
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 8.1797660139855,
+      "after_seconds": 7.760917248000624
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.7016566439997405,
+      "after_seconds": 0.5889901950140484
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.8310997789958492,
+      "after_seconds": 0.8190055890008807
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 0.5635028879914898,
+      "after_seconds": 0.5365643280092627
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 3.8587712210137397,
+      "after_seconds": 3.5397413020255044
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.8108630070055369,
+      "after_seconds": 0.704364549019374
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.8080232919892296,
+      "after_seconds": 0.7821203890198376
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.344889880012488,
+      "after_seconds": 0.3610191829793621
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 7.681336706998991,
+      "after_seconds": 7.858795223990455
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.5414342139847577,
+      "after_seconds": 0.5026862419908866
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.924181419017259,
+      "after_seconds": 0.8905335140007082
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 0.6158662880188785,
+      "after_seconds": 0.5777243439806625
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 3.6353162529994734,
+      "after_seconds": 3.4865647770056967
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.1419647599977907,
+      "after_seconds": 1.061336040002061
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.511319580982672,
+      "after_seconds": 1.132223417982459
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.730336848006118,
+      "after_seconds": 1.4872149139991961
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 2.8882530609844252,
+      "after_seconds": 1.506024731992511
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.8261938259820454,
+      "after_seconds": 1.6401794439880177
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 2.887218499003211,
+      "after_seconds": 2.129710848996183
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 5.589758709014859,
+      "after_seconds": 4.939849846006837
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 9.347496760979993,
+      "after_seconds": 9.112306507013272
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 1.1203467840095982,
+      "after_seconds": 1.2493971470103133
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 1.7140902999963146,
+      "after_seconds": 1.2655556889949366
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 2.070124810008565,
+      "after_seconds": 1.468584986985661
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 2.282893472001888,
+      "after_seconds": 1.5842213190044276
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 2.3867486710078083,
+      "after_seconds": 1.6281968189869076
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 2.7853501019999385,
+      "after_seconds": 2.4054782509920187
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 6.33387581599527,
+      "after_seconds": 6.131749575026333
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 1,
+      "same_result_digest": true,
+      "before_seconds": 10.40668342000572,
+      "after_seconds": 9.854380732984282
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 3.2162844729900826,
+      "after_seconds": 2.7732464899891056
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 2.1482620110036805,
+      "after_seconds": 1.8670230499992613
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.2383901019929908,
+      "after_seconds": 1.1324206890130881
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 5.781450031994609,
+      "after_seconds": 5.2005916310008615
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 4.141619333997369,
+      "after_seconds": 3.953905536007369
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 12.813013528997544,
+      "after_seconds": 13.714998897019541
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 8.604805893992307,
+      "after_seconds": 6.901713158003986
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 5.1329682679788675,
+      "after_seconds": 4.9117619569879025
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 1.2293428840057459,
+      "after_seconds": 1.07612190299551
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 7.1368940620159265,
+      "after_seconds": 6.3576773990062065
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 10.630084313976113,
+      "after_seconds": 10.186243169999216
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 15.242770309007028,
+      "after_seconds": 15.029429962014547
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_result_digest": true,
+      "before_seconds": 2.5297927650099155,
+      "after_seconds": 2.0040893589903135
+    }
+  ],
+  "remaining": [
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "expression_template": "(sum by (app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\"})) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.035277857008623,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 522912,
+          "providerCalls": 43384,
+          "sampleBatches": 35906,
+          "samplesFetched": 30322241,
+          "work": 174304337,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 14718490,
+              "acquired": 3935567437,
+              "released": 3935567437,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 17486,
+              "acquired": 17486,
+              "released": 16678,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 16034171,
+              "acquired": 101069580,
+              "released": 101069580,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 2121889,
+              "acquired": 19522049866,
+              "released": 19522049866,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 4936000,
+              "acquired": 62652672,
+              "released": 62651776,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 19153216,
+              "acquired": 19153216,
+              "released": 19153216,
+              "overflowed": 0
+            },
+            "readCalls": 0,
+            "writeCalls": 2317,
+            "readBytes": 0,
+            "writtenBytes": 18980864,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 35904,
+                "points": 30320739
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-service-instances/7/A",
+      "expression_template": "sum by (netdata_host_id,netdata_host_name,netdata_chart_id) (rate(cgroup_cpu{netdata_host_name=~\"${host}\"}[$__rate_interval])) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.016294867993565,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 3099393,
+          "providerCalls": 674527,
+          "sampleBatches": 108494,
+          "samplesFetched": 32902296,
+          "work": 897276362,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 6806834,
+              "acquired": 2626161858,
+              "released": 2626161858,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 18959,
+              "acquired": 30464126,
+              "released": 30463318,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 9355666,
+              "acquired": 7414762607,
+              "released": 7414762607,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 1507898,
+              "acquired": 3428959702,
+              "released": 3428959702,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 2839680,
+              "acquired": 314408640,
+              "released": 314407744,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "readCalls": 0,
+            "writeCalls": 0,
+            "readBytes": 0,
+            "writtenBytes": 0,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 225296,
+                "points": 71903864
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 71903726,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "expression_template": "(sum by (app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\"})) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.019813113001874,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 88900,
+          "providerCalls": 32001,
+          "sampleBatches": 27775,
+          "samplesFetched": 26695841,
+          "work": 143736465,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 6524390,
+              "acquired": 2560816939,
+              "released": 2560816939,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 17486,
+              "acquired": 17486,
+              "released": 16678,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 16651653,
+              "acquired": 58742880,
+              "released": 58742880,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 2221021,
+              "acquired": 12784016941,
+              "released": 12784016941,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 5126976,
+              "acquired": 54973760,
+              "released": 54972864,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 15925056,
+              "acquired": 15925056,
+              "released": 15925056,
+              "overflowed": 0
+            },
+            "readCalls": 0,
+            "writeCalls": 395,
+            "readBytes": 0,
+            "writtenBytes": 3235840,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 27776,
+                "points": 26696068
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-history-comparisons/8/A",
+      "expression_template": "max_over_time(((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[5m:30s])",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.004293889011024,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 73997,
+          "providerCalls": 124494,
+          "sampleBatches": 3201,
+          "samplesFetched": 2479040,
+          "work": 2128384933,
+          "outputSamples": 2256,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 227551,
+              "acquired": 6825696160,
+              "released": 6825696160,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 22110,
+              "acquired": 22654,
+              "released": 21846,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 208164,
+              "acquired": 37811822,
+              "released": 37811822,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 48988,
+              "acquired": 89061180,
+              "released": 89061180,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 58176,
+              "acquired": 3279936,
+              "released": 3279040,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 3331728,
+              "acquired": 3331728,
+              "released": 3331728,
+              "overflowed": 0
+            },
+            "readCalls": 93516,
+            "writeCalls": 26593,
+            "readBytes": 13108520,
+            "writtenBytes": 6837072,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 3179,
+                "points": 2478961
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-service-instances/7/A",
+      "expression_template": "sum by (netdata_host_id,netdata_host_name,netdata_chart_id) (rate(cgroup_cpu{netdata_host_name=~\"${host}\"}[$__rate_interval])) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.01699098700192,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 11977536,
+          "providerCalls": 245200,
+          "sampleBatches": 61934,
+          "samplesFetched": 32656740,
+          "work": 543141045,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 6591796,
+              "acquired": 2311192564,
+              "released": 2311192564,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 18959,
+              "acquired": 23743610,
+              "released": 23742802,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 20354354,
+              "acquired": 2592643425,
+              "released": 2592643425,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 2659954,
+              "acquired": 6961441258,
+              "released": 6961441258,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 6208704,
+              "acquired": 144949120,
+              "released": 144948224,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "readCalls": 0,
+            "writeCalls": 0,
+            "readBytes": 0,
+            "writtenBytes": 0,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 88372,
+                "points": 54219770
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 54219640,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-alert-expressions/6/A",
+      "expression_template": "(avg_over_time(((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[5m:1m]) > 80) and (avg_over_time(((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[30m:1m]) > 70)",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.00773477900657,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 322293,
+          "providerCalls": 300866,
+          "sampleBatches": 17678,
+          "samplesFetched": 17425335,
+          "work": 929543439,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 727520,
+              "acquired": 2591404340,
+              "released": 2591404340,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 17486,
+              "acquired": 17486,
+              "released": 16678,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 239214,
+              "acquired": 1507228,
+              "released": 1507228,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 835983,
+              "acquired": 5048732192,
+              "released": 5048732192,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 59584,
+              "acquired": 15519040,
+              "released": 15518144,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 23267088,
+              "acquired": 23267088,
+              "released": 23267088,
+              "overflowed": 0
+            },
+            "readCalls": 267852,
+            "writeCalls": 15199,
+            "readBytes": 62246128,
+            "writtenBytes": 21323456,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 17228,
+                "points": 17424797
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-applications/1/A",
+      "expression_template": "(sum by (app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\"})) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.02377096901182,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 23076,
+          "providerCalls": 56882,
+          "sampleBatches": 30046,
+          "samplesFetched": 18615976,
+          "work": 89890108,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 4944493,
+              "acquired": 2738852344,
+              "released": 2738852344,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 17486,
+              "acquired": 17486,
+              "released": 16678,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 16651861,
+              "acquired": 51931802,
+              "released": 51931802,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 2213622,
+              "acquired": 14167251806,
+              "released": 14167251806,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 5127104,
+              "acquired": 56943680,
+              "released": 56942784,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 18570048,
+              "acquired": 18570048,
+              "released": 18570048,
+              "overflowed": 0
+            },
+            "readCalls": 0,
+            "writeCalls": 189,
+            "readBytes": 0,
+            "writtenBytes": 1548288,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 30046,
+                "points": 18615854
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "expression_template": "100 * sum(system_ram{netdata_host_name=~\"${host}\",netdata_dimension_id=\"used\"}) / sum(system_ram{netdata_host_name=~\"${host}\"})",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.00531980098458,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 29365,
+          "providerCalls": 99598,
+          "sampleBatches": 37122,
+          "samplesFetched": 23198468,
+          "work": 168104824,
+          "outputSamples": 30,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 1056327,
+              "acquired": 2606171924,
+              "released": 2606171924,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 19214,
+              "acquired": 19214,
+              "released": 18406,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 759196,
+              "acquired": 105963880,
+              "released": 105963880,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 926002,
+              "acquired": 13841574894,
+              "released": 13841574894,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 220672,
+              "acquired": 58637504,
+              "released": 58636608,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 992128,
+              "acquired": 992128,
+              "released": 992128,
+              "overflowed": 0
+            },
+            "readCalls": 31472,
+            "writeCalls": 1637,
+            "readBytes": 1121344,
+            "writtenBytes": 1105856,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 37098,
+                "points": 23198193
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-history-comparisons/8/A",
+      "expression_template": "max_over_time(((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[5m:30s])",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.00881883999682,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 380059,
+          "providerCalls": 508831,
+          "sampleBatches": 15503,
+          "samplesFetched": 13453227,
+          "work": 1656620386,
+          "outputSamples": 2,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 227551,
+              "acquired": 2780573483,
+              "released": 2780573483,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 19214,
+              "acquired": 19214,
+              "released": 18406,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 208164,
+              "acquired": 171895310,
+              "released": 171895310,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 49500,
+              "acquired": 477096796,
+              "released": 477096796,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 58112,
+              "acquired": 15425024,
+              "released": 15424128,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 23238288,
+              "acquired": 23238288,
+              "released": 23238288,
+              "overflowed": 0
+            },
+            "readCalls": 427991,
+            "writeCalls": 60079,
+            "readBytes": 81620776,
+            "writtenBytes": 29846320,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 15279,
+                "points": 13452910
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-service-instances/7/A",
+      "expression_template": "sum by (netdata_host_id,netdata_host_name,netdata_chart_id) (rate(cgroup_cpu{netdata_host_name=~\"${host}\"}[$__rate_interval])) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.017733051005052,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 17755065,
+          "providerCalls": 56466,
+          "sampleBatches": 29131,
+          "samplesFetched": 24126676,
+          "work": 189043339,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 5150137,
+              "acquired": 2081044570,
+              "released": 2081044570,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 18959,
+              "acquired": 5879654,
+              "released": 5878846,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 20059624,
+              "acquired": 468887433,
+              "released": 468887433,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 2549813,
+              "acquired": 10269629168,
+              "released": 10269629168,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 6117504,
+              "acquired": 72736832,
+              "released": 72735936,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "readCalls": 0,
+            "writeCalls": 0,
+            "readBytes": 0,
+            "writtenBytes": 0,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 30822,
+                "points": 30286229
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 30286194,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    }
+  ],
+  "share": {
+    "route": "grafana-backend",
+    "http_status": 200,
+    "query_status": 200,
+    "frames": 79,
+    "seconds": 1.3973696870089043,
+    "has_error": false
+  },
+  "reception": {
+    "hosts_before": 18,
+    "hosts_after": 18,
+    "common": 18,
+    "advanced": 18,
+    "before_seconds": 0.5349883479939308,
+    "after_seconds": 0.45443034599884413
+  },
+  "deployment": {
+    "revision": "4fdd8413bbd8e96f3536660d8b5e2f987cd0711f",
+    "unit": "promql-deploy-4fdd8413bb",
+    "exit_status": 0,
+    "wall_seconds": 253.235,
+    "reported_build_memory_peak": "3G",
+    "binary_sha256": "c7bd67f9341142ffbb3b34286a098dda6f1cfc474329bb7be3a8e2f66b88e830",
+    "configuration_comparisons": "both passed",
+    "protected_copies": ".tmp/install.sD0GBDnW",
+    "data_preserved": true,
+    "services": "Netdata and Grafana active",
+    "constant_routes": "direct and Grafana proxy pass",
+    "approximate_disk_free_gib": 51,
+    "journal_sha256": "08f2494a45d2c70c61d7e0edb3fc6c54d9875b5ecd14d088898c205bf6af9131",
+    "postcheck_sha256": "142b9ae1ea113fb45c2f34cfe0c0bf0afccb03376329f2cd26940ed04b56544f"
+  },
+  "interpretation": [
+    "Identical retained scopes, windows, steps and deadlines; live samples and caches are not immutable.",
+    "The fleet4 panel cohort contains120range and16instant requests; instant-fleet separately evaluates all136targets instantly.",
+    "All failed requests remain visible. Timeout counters describe partial execution, not equal completed work.",
+    "Historical histogram boundary repair is excluded by decision71; remaining practical issues stay open.",
+    "76instant and2range successful raw-result hashes differ. Range bandwidth has one series, so array order alone cannot explain all differences.",
+    "Context traversal can change across restart; sequential floating-point folds can then round differently. This is a hypothesis for the historical differences, not a verified cause.",
+    "Captured current reducer inputs match exactly in the prior and deployed engines in72pairs across bothprofiles/pages1,17,1024/forwardandreversedsourceorder. This does not reconstruct absent historical input or output bodies.",
+    "Future measurements retain result type and a separate complete-row order-independent fingerprint. The historical captures retain their original helper revision."
+  ],
+  "generator_sha256": "4843aa102243ee73f88cca84085149ae7aa1a6872411ef6b5ff7260771b346ad",
+  "capture_source_revision": "4fdd8413bbd8e96f3536660d8b5e2f987cd0711f",
+  "comparison_summary": {
+    "successful_pairs": 348,
+    "same_raw_result_digest": 270,
+    "different_raw_result_digest": 78,
+    "different_instant_requests": 76,
+    "different_range_requests": 2,
+    "different_range_ids": [
+      "nd-pql-fleet-applications/6/A",
+      "nd-pql-fleet-bandwidth/12/A"
+    ],
+    "series_and_point_counts_unchanged": true,
+    "historical_value_equivalence": "unverified: complete historical response bodies were not retained"
+  },
+  "current_diagnostics": {
+    "fixed_input_old_new_pairs": 72,
+    "exact_pairs_passed": 72,
+    "scope": [
+      "Complete current responses are private; raw historical before bodies were not captured.",
+      "Fixed current inner-reduction values are replayed through both engines in forward and reversed order.",
+      "This qualifies the changed outer reducer path on fixed inputs, not historical live-value equality or source stability."
+    ],
+    "observations": [
+      {
+        "name": "apps-complete-0",
+        "seconds": 7.882668837002711,
+        "result_type": "matrix",
+        "result_sha256": "af4fcf304882b1b0bc48f85dd57570ce48bdfd789a11d41ef227f64c6e314dd0",
+        "result_unordered_sha256": "05f20732495c1ddb50aafe3ab675b9dcd4ae810731b471f39506d7aac993ec9a"
+      },
+      {
+        "name": "apps-complete-1",
+        "seconds": 6.282304247986758,
+        "result_type": "matrix",
+        "result_sha256": "af4fcf304882b1b0bc48f85dd57570ce48bdfd789a11d41ef227f64c6e314dd0",
+        "result_unordered_sha256": "05f20732495c1ddb50aafe3ab675b9dcd4ae810731b471f39506d7aac993ec9a"
+      },
+      {
+        "name": "apps-inner",
+        "seconds": 5.727127578982618,
+        "result_type": "matrix",
+        "result_sha256": "4fe5c6dff45f03aadbb3fc76d8a1f2fb9399527b3baf799077c7b20137edd07b",
+        "result_unordered_sha256": "e0efb41553b866067de25d2d00632ca9defb584c9d566a1565ccd1648e07faf1"
+      },
+      {
+        "name": "bandwidth-complete-0",
+        "seconds": 0.6731734499917366,
+        "result_type": "matrix",
+        "result_sha256": "e38e485938a6f429261c9148f28f4acfc8189cbd5e2c70fe3bb663059cdaa5f6",
+        "result_unordered_sha256": "e00ffa290fa3ba0e9170046366f78e8e77c9cb31ced0afd9de231af75f199fc3"
+      },
+      {
+        "name": "bandwidth-complete-1",
+        "seconds": 0.5902884950046428,
+        "result_type": "matrix",
+        "result_sha256": "e38e485938a6f429261c9148f28f4acfc8189cbd5e2c70fe3bb663059cdaa5f6",
+        "result_unordered_sha256": "e00ffa290fa3ba0e9170046366f78e8e77c9cb31ced0afd9de231af75f199fc3"
+      },
+      {
+        "name": "bandwidth-inner",
+        "seconds": 0.6612633159966208,
+        "result_type": "matrix",
+        "result_sha256": "ff9e42a3b751d9154940ab25de2fc57acfcff53a1cf26985eeb75a7e6aab8009",
+        "result_unordered_sha256": "4f2713d4d9c27a8274f2b59dd0d4aa27279ec8fd92c39a6b4410df17ab9dbf53"
+      },
+      {
+        "name": "cpu-complete-0",
+        "seconds": 0.3254340710118413,
+        "result_type": "vector",
+        "result_sha256": "11f4b15fad3978339f925f6d729c004965502b399e975ea09e675052be354f35",
+        "result_unordered_sha256": "1b5e423001a65dca86c276cdd84a4c6940d09beb3722b371b00c9e0806e2c4a2"
+      },
+      {
+        "name": "cpu-complete-1",
+        "seconds": 0.31187566099106334,
+        "result_type": "vector",
+        "result_sha256": "11f4b15fad3978339f925f6d729c004965502b399e975ea09e675052be354f35",
+        "result_unordered_sha256": "1b5e423001a65dca86c276cdd84a4c6940d09beb3722b371b00c9e0806e2c4a2"
+      },
+      {
+        "name": "cpu-inner",
+        "seconds": 0.3478103179950267,
+        "result_type": "vector",
+        "result_sha256": "92a53f70c5888d0609c71b2600b0a3b42ad83d61b65e907c69acb736c388223a",
+        "result_unordered_sha256": "e4646f826828e198f18eac43f8e2745d35c29eedcdc2c6d560e899a3ddb54c50"
+      }
+    ],
+    "receipt": ".tmp/practical-replay-j32eeh4e/candidate31-result-diagnosis.json",
+    "receipt_sha256": "26e97af4bfb51f5581339e009f2262ee2acd0b3eedb3e17ed4e4988c5f0fb57a"
+  }
+}

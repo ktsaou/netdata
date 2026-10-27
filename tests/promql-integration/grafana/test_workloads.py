@@ -3,6 +3,7 @@
 """Check catalogue binding and interpolation before making live requests."""
 
 import json
+import copy
 import os
 import struct
 import subprocess
@@ -10,11 +11,43 @@ import sys
 import unittest
 from pathlib import Path
 
-from measure import interpolate, workloads
+from measure import interpolate, result_fingerprints, workloads
 from workloads import EXISTING_DASHBOARDS, HERE, build, catalogue
 
 
 class WorkloadTests(unittest.TestCase):
+    def test_complete_result_fingerprints_preserve_content_and_duplicates(self):
+        for kind, field, sample in [('vector', 'value', [1, '2']),
+                                     ('matrix', 'values', [[1, '2'], [2, '3']])]:
+            histogram_field = 'histogram' if kind == 'vector' else 'histograms'
+            histogram = [1, {'count': '2', 'sum': '3', 'buckets': [[0, '0', '1', '2']]}]
+            rows = [{'metric': {'id': 'a'}, field: sample},
+                    {'metric': {'id': 'b'}, histogram_field: histogram if kind == 'vector' else [histogram]}]
+            baseline = result_fingerprints({'resultType': kind, 'result': rows})
+            reordered = result_fingerprints({'resultType': kind, 'result': rows[::-1]})
+            self.assertNotEqual(baseline['result_sha256'], reordered['result_sha256'])
+            self.assertEqual(baseline['result_unordered_sha256'], reordered['result_unordered_sha256'])
+            changes = [rows + [rows[0]], rows[:1]]
+            changed = copy.deepcopy(rows)
+            changed[0]['metric']['id'] = 'changed'
+            changes.append(changed)
+            for position, value in [(0, 9), (1, 'NaN'), (1, '+Inf'), (1, '2.0000000000000004')]:
+                changed = copy.deepcopy(rows)
+                point = changed[0][field] if kind == 'vector' else changed[0][field][0]
+                point[position] = value
+                changes.append(changed)
+            changed = copy.deepcopy(rows)
+            point = changed[1][histogram_field] if kind == 'vector' else changed[1][histogram_field][0]
+            point[1]['buckets'][0][-1] = '3'
+            changes.append(changed)
+            for changed in changes:
+                self.assertNotEqual(baseline['result_unordered_sha256'],
+                                    result_fingerprints({'resultType': kind, 'result': changed})['result_unordered_sha256'])
+        for kind in ['scalar', 'string']:
+            result = result_fingerprints({'resultType': kind, 'result': [1, '2']})
+            self.assertEqual(result['result_sha256'], result['result_unordered_sha256'])
+            self.assertEqual(result['result_type'], kind)
+
     def test_every_target_resolves(self):
         cases = workloads([])
         self.assertEqual(len(cases), 136)

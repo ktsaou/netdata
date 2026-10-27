@@ -46,6 +46,17 @@ def workloads(selected):
     return result
 
 
+def result_fingerprints(data):
+    rows = data.get('result', [])
+    ordered = json.dumps(rows, sort_keys=True).encode()
+    # Preserve complete rows and duplicates while separating emission order from content.
+    unordered = (json.dumps(sorted(json.dumps(row, sort_keys=True) for row in rows)).encode()
+                 if data.get('resultType') in ('vector', 'matrix') else ordered)
+    return {'result_type': data.get('resultType'),
+            'result_sha256': hashlib.sha256(ordered).hexdigest(),
+            'result_unordered_sha256': hashlib.sha256(unordered).hexdigest()}
+
+
 def request(base, expression, instant, start, end, step, deadline):
     endpoint = '/api/v1/query' if instant else '/api/v1/query_range'
     params = {'query': expression, 'timeout': f'{deadline}s', 'stats': 'all', 'options': 'absolute'}
@@ -75,7 +86,7 @@ def request(base, expression, instant, start, end, step, deadline):
             return {'http_status': response.status, 'status': value.get('status'),
                     'error_type': value.get('errorType'), 'seconds': time.monotonic() - before,
                     'wire_bytes': size, 'series': series, 'points': points,
-                    'result_sha256': hashlib.sha256(json.dumps(rows, sort_keys=True).encode()).hexdigest(),
+                    **result_fingerprints(data),
                     'stats': data.get('stats', value.get('stats')), 'warning_count': len(value.get('warnings', [])),
                     'info_count': len(value.get('infos', [])),
                     'outcome': 'error' if value.get('status') != 'success' else ('nonempty' if series else 'empty')}
