@@ -563,3 +563,23 @@ independently acquired sealed-body readers. Snapshots are not transactions acros
 read them after synchronous work. The receipt records fresh normal/internal storage and HTTP qualification for
 the correction. The timings above retain their original non-atomic diagnostic instrumentation and source identity;
 the buffered comparison algorithm and normal-build code are unchanged by this follow-up.
+
+### Unselected validated-page search experiment
+
+The [retained experiment](validated-page-search-experiment.json) measured a search within already validated
+storage pages. A 1,024-point adapted-page fixture reduced first-to-last walker accesses from 2,047 to 1,044,
+while retaining complete initial validation. Both profiles passed 1,108 units and 6,048 repeated exact comparisons
+against the pinned original passed across baseline and candidate binaries. Recorded allocation and provider
+resources matched in all 432 timed query/profile/page configurations; stack usage was not measured.
+
+The result did not justify deployment. Common 60-second and 300-second steps with five-minute lookback continued
+chronological traversal and saved no work. Dense 1,024-point pages with 1,800-second steps improved roughly 5–9%,
+but several unchanged-work controls were slower. These shared-workstation measurements do not prove every small
+timing difference is causal. Native fixture timings also omit C-adapter conversion costs and live DBengine reads.
+The committed Rust sources were restored exactly; candidate sources, binaries, tests and measurements remain
+retained. The experiment does not resolve the practical long-history latency findings.
+
+Two failed qualification steps remain visible: a final-probe cancellation test before its terminal poll correction,
+and an orchestration overwrite guard that preserved an existing baseline. The final measurements use verified
+candidate32 baseline binaries and candidate33 experimental binaries; an older candidate32-labelled diagnostic
+capture had used candidate31 and is not the causal baseline for this comparison.
