@@ -8,9 +8,38 @@ long-range performance is not yet suitable for these workloads under a 25-second
 This is a baseline and an optimization priority list, not a claim that all dashboards are fast or that the live adapter
 supports every PromQL input type. Alert-expression testing does not install an alert scheduler or notification system.
 
-## Follow-up: completed intermediate reuse — 2026-10-27
+## Follow-up: mapped and adjacent-window reuse — 2026-10-27
 
-Engine `306f6e4c71` is now installed on the playground. The
+Engine `019cc2bffa` is installed on the playground. The new
+[same-window results](adjacent-windows-live.json) and [compressed measurements](adjacent-windows-measurements.jsonl.gz)
+repeat all 360 requests after adding scalar-mapped aggregate reuse and forward traversal for overlapping Float
+windows. The 25-second deadline, scopes, time windows and resolutions are unchanged.
+
+| Cohort | Before either optimization | Previous deployment | Current deployment |
+| --- | ---: | ---: | ---: |
+| Fleet, 136 range queries, 4 clients | 28 timeouts | 2 | 2 |
+| Fleet, 136 instant queries, 4 clients | 4 timeouts | 0 | 0 |
+| Selected 6-hour queries, 8 requests | 7 timeouts | 6 | 2 |
+| Selected 24-hour queries, 8 requests | 7 timeouts | 6 | 3 |
+| Selected 7-day queries, 8 requests | 8 timeouts | 8 | 7 |
+
+The six-hour bandwidth query now finishes in 5.91 seconds and the mapped history-quantile query in 11.89 seconds;
+both timed out previously. The fleet range cohort takes 134.8 seconds, versus 149.4 seconds on the previous
+deployment and 298.3 seconds at baseline. The same two-host application-share request returns 79 Grafana frames
+in 1.54 seconds. All 18 reporting CPU hosts advanced their timestamps, both services are active, and approximately
+53 GiB remains free. Configuration comparisons passed and retained data was preserved.
+
+The two short-range failures are still the one-hour application disappearance query and five-minute application
+sample-count query. They time out before producing output and report no temporary backing use. Six-hour application
+CPU totals and service-instance history also remain too slow; most seven-day cases still time out. Wide Count
+windows still rescan their current samples, and dense computed-window reads still incur excess backing traffic.
+These remain remediation work, together with live histogram representation. Empty alert predicates are successful
+requests, not proof of healthy infrastructure. Live input data and caches are not frozen, so these observations
+cannot substitute for the core's separate exact-input qualification.
+
+## Earlier follow-up: completed intermediate reuse — 2026-10-27
+
+Engine `306f6e4c71` was installed for this earlier checkpoint. The
 [same-window follow-up](intermediate-reuse-live.json) and [compressed measurements](intermediate-reuse-measurements.jsonl.gz)
 repeat all 360 main requests with the original scopes, steps, concurrency and 25-second deadline.
 
