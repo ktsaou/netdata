@@ -242,6 +242,7 @@ def native_records(name, output):
     values = records(output)
     tail = [
         {"temporary_failures": "pass", "cases": 11, "callback_phases": 5},
+        {"completed_count_windows": "pass", "cases": 42},
         {"basic_statistics": "pass", "cases": 21, "page_sizes": 3},
         {
             "foreign_accounting": "pass",

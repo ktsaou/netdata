@@ -183,6 +183,11 @@ This is an integration gap, distinct from the Rust evaluator's controlled histog
 queries are production-relevant and should remain on the completion plan. The representation/projection design needs its
 own decision; this milestone does not invent new storage, collection or metadata ownership behavior.
 
+**Decision 71:** changes to histogram bucket boundaries retain Netdata's existing undefined historical behavior.
+Repairing that limitation is explicitly outside this PromQL work: no schema-versioned chart identities or metadata
+history will be introduced for it. This accepted limitation does not qualify the missing cumulative-bucket projection
+or native-histogram ingestion.
+
 ## Browser and metadata checks
 
 - Two-node Fleet Bandwidth: all 14 panels return nonempty results through Grafana. Its actual 30-second step and rendered

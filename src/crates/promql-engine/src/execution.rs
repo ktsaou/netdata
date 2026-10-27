@@ -3953,6 +3953,40 @@ impl CompiledQuery {
                     }
                 }
             }
+            if range_function == Some(RangeFunction::Fold(crate::range_reduce::FoldKind::Count))
+                && let Some(selector_node) = site
+                && !prepared.flags().boundaries[selector_node.0]
+                && !prepared.flags().invariants[selector_node.0]
+            {
+                let Expr::Selector(selector) = &self.expression.arena[selector_node].expression
+                else {
+                    unreachable!("Count selector expression")
+                };
+                let (_, argument) = crate::evaluator::matrix_argument(
+                    &self.expression,
+                    prepared,
+                    node,
+                    control,
+                    account,
+                )?
+                .expect("Count matrix argument");
+                let Expr::Matrix { range, .. } = self.expression.arena[argument].expression else {
+                    unreachable!("Count direct matrix")
+                };
+                if !selector.anchored
+                    && !selector.smoothed
+                    && !selector.skip_histogram_buckets
+                    && header.step_ms > 0
+                    && header.step_ms < prepared.range(argument, range) / 1_000_000
+                {
+                    catalog.count_windows.register(
+                        node,
+                        selector_node,
+                        catalog.len(selector_node),
+                        header.into(),
+                    );
+                }
+            }
             if (raw_selector || clock_selector.is_some()) && node != self.expression.root {
                 let selector_node = site.expect("instant selector site");
                 let mut computed_input = false;

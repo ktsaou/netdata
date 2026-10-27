@@ -772,6 +772,42 @@ fn present<S: Series>(
     Ok(result)
 }
 
+/// Complete an already validated Count acquisition without probing the Float window again.
+pub(crate) fn finish_count<S: Series>(
+    series: &S,
+    bounds: Option<TimeBounds>,
+    window: MatrixWindow,
+    acquisition: crate::matrix_reader::Acquisition,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<FoldResult, StorageError> {
+    let mut step = FoldStep::new(FoldKind::Count, false);
+    let progress = if acquisition.populated && acquisition.histograms_allocated {
+        crate::matrix_reader::consume::<_, StorageError>(
+            series,
+            bounds,
+            window.with_progress(Some(acquisition.progress)),
+            control,
+            account,
+            |sample| {
+                step.receive(sample, control, account)
+                    .map_err(FoldError::storage)
+            },
+        )?
+        .progress
+    } else {
+        step.count = acquisition.progress.sample_units;
+        account.samples_read(acquisition.progress.sample_units);
+        acquisition.progress
+    };
+    let mut result = step
+        .finish_pass(control, account)
+        .map_err(FoldError::storage)?
+        .expect("Count completes in one pass");
+    result.progress = Some(progress);
+    Ok(result)
+}
+
 pub(crate) fn fold<S: Series>(
     series: &S,
     bounds: impl Into<Option<TimeBounds>>,
@@ -788,6 +824,22 @@ pub(crate) fn fold<S: Series>(
             .filter(|window| window.can_reuse_acquisition(bounds))
     {
         return present(series, bounds, window, control, account);
+    }
+    if kind == FoldKind::Count
+        && options.anchor_start_ms.is_none()
+        && let Some(window) = options
+            .matrix
+            .filter(|window| window.can_reuse_acquisition(bounds))
+    {
+        let acquisition = crate::matrix_reader::probe::<_, StorageError>(
+            series,
+            bounds,
+            window,
+            control,
+            account,
+            crate::matrix_reader::ignore_sample::<StorageError>,
+        )?;
+        return finish_count(series, bounds, window, acquisition, control, account);
     }
     let mut anchor = None::<(i64, bool, u64)>;
     let mut full_nonempty = false;
@@ -890,48 +942,7 @@ pub(crate) fn fold<S: Series>(
                 }
                 Ok(())
             };
-            if kind == FoldKind::Count
-                && options.anchor_start_ms.is_none()
-                && let Some(window) = options
-                    .matrix
-                    .filter(|window| window.can_reuse_acquisition(bounds))
-            {
-                let acquisition = crate::matrix_reader::probe::<_, StorageError>(
-                    series,
-                    bounds,
-                    window,
-                    control,
-                    account,
-                    crate::matrix_reader::ignore_sample::<StorageError>,
-                )?;
-                Some(
-                    if acquisition.populated && acquisition.histograms_allocated {
-                        crate::matrix_reader::consume::<_, StorageError>(
-                            series,
-                            bounds,
-                            window.with_progress(Some(acquisition.progress)),
-                            control,
-                            account,
-                            visit,
-                        )?
-                        .progress
-                    } else {
-                        // Completed float acquisition credits one unit per emitted value.
-                        step.count = acquisition.progress.sample_units;
-                        account.samples_read(acquisition.progress.sample_units);
-                        acquisition.progress
-                    },
-                )
-            } else {
-                scan_matrix::<_, StorageError>(
-                    series,
-                    bounds,
-                    options.matrix,
-                    control,
-                    account,
-                    visit,
-                )?
-            }
+            scan_matrix::<_, StorageError>(series, bounds, options.matrix, control, account, visit)?
         };
         if let Some(mut result) = step
             .finish_pass(control, account)

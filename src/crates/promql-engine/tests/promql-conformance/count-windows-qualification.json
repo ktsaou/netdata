@@ -1,0 +1,4369 @@
+{
+  "schema_version": 1,
+  "scope": "Exact Count boundary prefixes under decision70.A. Full practical remediation remains open; decision71 excludes historical histogram bucket-boundary repair.",
+  "reference": "Pinned Prometheus v0.315.0, Go1.27.1 AMD64/FMA-on; existing deterministic-order exceptions retained.",
+  "sources": {
+    "src/crates/promql-engine/src/absence.rs": "5daad198a2b483ef9c32557667c47005b2c275359128ed0e2d08741a562a28c3",
+    "src/crates/promql-engine/src/accounting.rs": "fc92d3f2cff03975b16ef5d1403e4927a83b46c1ba0b914b6414966195cd23a8",
+    "src/crates/promql-engine/src/aggregate_replay.rs": "9c09fdc5092f3f37f9a4d47b7a3eee23903451ae37dbd6fe3ecf85a3c7ca9707",
+    "src/crates/promql-engine/src/aggregation.rs": "2d5b6cc5381eecc4c717b52b24adf4906fb21571c073e443388cbb9ddb859bb6",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "69912e8872cc0ce1a841390c703f9f9ff13cef9a3c2f4f046f3e681ea436d312",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "0be04c9f34b07ed90859fd3d592c9fa22de0e84c4c8e00fe8b8fb36bab128a82",
+    "src/crates/promql-engine/src/binary_value.rs": "0d953d8182d81691de3951e7722366b21ea75b6941810cecb68759700ab2ea34",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "88bc5a7dc52ffd75263794aaedf2228dc55fe4d226d4c5caa03bd7a29ccd67fc",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "8852b77f9f3ba87b29c14aca6797bedd0a66b2d0a0ec396ad3b66498610b2e29",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "d1493c7b42065532d2f67c4c81978765d4b7af6ee08e564465169f23d8bb623f",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "e311ea2aa775d79ce5d94cfd6e6b83f777307ef61ef092ace38b8e84803d23ed",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/output_points.rs": "8f6e8d0c2f28e536d2258b88c975711415cbe68fd8c2ed5ad3f645fe2fc9a472",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "046ab8fbd5783160210010d72ac04e501dcbb6f369e29628141ef332bcbd085c",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "1dc792ad5cc64c9eb24051afed3ddf115179730f137ba781b5906e8cfccf53c0",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "7e0128246fe0f6b8bb7acb63e939c3c9e2c58449eb11a07275f116b6d3890e03",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "dfc250c0ba0b13984e541e0a4793aef6b67d16059ebabb7fb2f52628d0cf3b78",
+    "src/crates/promql-engine/src/computed_group_tests.rs": "172b7d25847f23aa1ebccb783a3e9743865c182befed6a87ce1b75af289e35b5",
+    "src/crates/promql-engine/src/computed_groups.rs": "2513daf1aeff1176fcfb4f4026a5c1d823d534093a061b97135cf4e9320f0183",
+    "src/crates/promql-engine/src/count_values.rs": "2df2d3bae459d3d46fe0daaeb66f2ffb0a9b320fd3a510bd4ab4f6c28dfc1848",
+    "src/crates/promql-engine/src/count_windows.rs": "35d221b2c1f024a0014e865f2166bff7395827b1e6fe090ee87e93bf50ec0dcc",
+    "src/crates/promql-engine/src/derived_matrix.rs": "d2266df002da799c20cf6aec14899838773fcb6bc1f825385dd01fcf88404fee",
+    "src/crates/promql-engine/src/derived_progress.rs": "b074082bfc21eb34da9bac8469357f83c75825a22de5396500a6d2569850dbeb",
+    "src/crates/promql-engine/src/derived_range.rs": "e0490aecd0c43e224efae3d688944e6276d2f5d41e6c9bcf2e96cb1f02f60e8e",
+    "src/crates/promql-engine/src/evaluator.rs": "148901a6e0db3b0141bd27716011d8ffb02b0366c1aa8de7c5f6b298a56cfb48",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "f1fb6de41fd4a2dd5dfc8b574b37e0581763893c2696a005c6e67f6a6330ce7a",
+    "src/crates/promql-engine/src/execution.rs": "13bf143b7d2bb456d640e5e9162d46840854f5053ae954fc63d61313a2abc4d0",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "2467face12149acc1a2b7ebc307ce1c31a27646651b3fa613a6a93d5a2dc9e8e",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "1ee47e3904cd5e706340802f0560f11327abe59267866395f8712ed8d78100d2",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "315b114bb8f0316df5679cd24b8e0b73b621c27430a527504fc4ad70936cf9c8",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "6118d260789de94f9e9d0bfa9fcf858c352e7cc9110acc52a17765f5d0744fbc",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "d3b75b822de67cde42c1a23f3226fd66258557a03dfe0c471c733ada0cec5087",
+    "src/crates/promql-engine/src/instant_select.rs": "8e8111fc9a23c0645ea31614f458a2960d92104d8d3cd99ef91e1727bf6b98b0",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "c6400e9b8cc2258d24346713a769701b4ad7dddfb8ed7f4299c926e5b46880f4",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "4aa83ea74c927b0eb57d5dbb5e87f5814dc0ee89220dd6916ead2dbaefd1dffc",
+    "src/crates/promql-engine/src/lib.rs": "bc1aaa00053502503b2e4b2f8075c3a7c6ed26b37d049bacf4e6abcde39d8363",
+    "src/crates/promql-engine/src/lookup_tests.rs": "fee64cf7682590f1170210052e2015095d32a5bb715398d05340daa2027417a0",
+    "src/crates/promql-engine/src/mad.rs": "042f323d8456a95c2bd0db87d1784e11b014ef2376f1b5fb13a8623a5381317e",
+    "src/crates/promql-engine/src/matrix_heads.rs": "13da507217250efd2687511c6bde7a6225b6148f41c32ec7ef19fec99376e643",
+    "src/crates/promql-engine/src/matrix_reader.rs": "1e3331a195b89f3f1eacb9a37a44306e6d1fe79257670ec628b0f3dc39808d37",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/pair_discovery.rs": "d6597d55938509311bd97a549236255e3da8bfa6ad58039e866fed69a8bac0a6",
+    "src/crates/promql-engine/src/position_index.rs": "52ac34e5b0269eec4d077f4e42f53641f386737688e74d0400e2899986719f4e",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "638ee18593023f3d061d35a11e84846058f28652562e2d650f372a8fbbd194bd",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "f5e4fd8144feeac75e6a0603c38d45bccc8cae61f2c95429451ab04631110458",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "508b51b31593648b81aad26b8595a89ba2456a5c33718db251b1ee7b05633e10",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "0f29c5996c570c3917ff0bc2c2bed9201b08ca7da9fab93b63f5030c1e9bf160",
+    "src/crates/promql-engine/src/range_numeric.rs": "6dd50fbb89d492632c6548322aa3e3d129da27fe9beb6584977862998454aabb",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "16f944188351b3cd2f910d12f8265c998a44ffc80cf3f8dbcfeaf88d7e2047a1",
+    "src/crates/promql-engine/src/range_rates.rs": "eaa5e39f6adaf5eefff906257834f9cfa94abde8fb73b235044a8a38cc963676",
+    "src/crates/promql-engine/src/range_reduce.rs": "09b7bd914929358fef7b4047d306c7ce5bfde133fbf92069c1a70fdc395cfd31",
+    "src/crates/promql-engine/src/result.rs": "ab6196f9b5f383b971fe40486ca0f5f6d95f9d42a4cb4c906b424f4355144aff",
+    "src/crates/promql-engine/src/sample_labels.rs": "7a9ca80e102b56004273f2d7ee545aee8cc248ee00eb30852ce0767bdbe47bb1",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "d4f4131213cc4bfd404a932706d458f8f07745213e47d64e0e88b569e1d6b1a4",
+    "src/crates/promql-engine/src/scheduled_output.rs": "39ec08bc49800551bca460de854fcb8a92fc0f85f83bb48e86e0183aa11c931e",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "f122c40919f18f77bb1b4cfa65aa707ebca0fbfb79858f74ea9c3adebd1392d9",
+    "src/crates/promql-engine/src/storage.rs": "abebab8eadc99dd961b70096b3c45c4524a54d25ceca6c674add5cee482e5490",
+    "src/crates/promql-engine/src/storage_observed.rs": "9d40586645d00eeb26a99dc379facb6830727934545082f6fa169b43612027c9",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "0b9148bd93be04b8548723ed2f405e6ddd16789e07c7d578e26e09e9e392fc5d",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "b46eae6ad8b7c6ed7f354fcaa58d73be4f55587f4a7215c4a40c610dda40b2ff",
+    "src/crates/promql-engine/src/test_storage.rs": "6ff4404943c6cb7903eadad02acdad93fb3e24d39bb3be94bb6f3320f8672b1f",
+    "src/crates/promql-engine/src/topk.rs": "e0b743caef9c293946583eb716012ca604e456484c3f825d4122fb407038a826",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "7535569f2261604a526e43851b115677aab71e05ec98eb0dc160a600425d7c43",
+    "src/crates/promql-engine/src/vector_sort.rs": "5f43836b63d64e051969c1fbf9bba0ba5480b0ea704d8d322de604b881092788",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/include/netdata-promql.h": "76f22ed64870e0fb06c5b87f4862b13d9687a924fa8e5307315cdda3a1416a68"
+  },
+  "builds": {
+    "candidate22": {
+      "binary_sha256": "d901b8b54c483cd8edd4fe32ff65a08ad2d8103a0f4f4fecc1d0035b6f9295dc",
+      "profile": "release",
+      "sources_after_match": true,
+      "environment_allowlist": {
+        "CARGO_TARGET_DIR": "<repo>/src/crates/promql-engine/tests/promql-conformance/.tmp/core-target",
+        "RUSTUP_TOOLCHAIN": "stable",
+        "CARGO_BUILD_JOBS": "4",
+        "PATH": "<home>/.cargo/bin:<home>/.local/bin:/usr/lib/ccache:/usr/local/bin:/usr/bin:/bin"
+      },
+      "toolchains": {
+        "cargo": {
+          "command": [
+            "<home>/.cargo/bin/cargo",
+            "+stable",
+            "--version",
+            "--verbose"
+          ],
+          "output": "cargo 1.97.1 (c980f4866 2026-06-30)\nrelease: 1.97.1\ncommit-hash: c980f4866141969fab6254a680546a277789d6f0\ncommit-date: 2026-06-30\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.9.2 (sys:0.20.4 vendored)\nlibcurl: 8.20.0-DEV (sys:0.4.88+curl-8.20.0 vendored ssl:OpenSSL/3.6.2)\nssl: OpenSSL 3.6.2 7 Apr 2026\nos: Ubuntu 24.4.0 (noble) [64-bit]\n"
+        },
+        "rustc": {
+          "command": [
+            "<home>/.cargo/bin/rustc",
+            "+stable",
+            "--version",
+            "--verbose"
+          ],
+          "output": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.6\n"
+        }
+      },
+      "command": [
+        "<home>/.cargo/bin/cargo",
+        "+stable",
+        "build",
+        "--locked",
+        "--features",
+        "fixtures",
+        "--profile",
+        "release",
+        "--bin",
+        "promql-query-fixture",
+        "-vv"
+      ]
+    },
+    "candidate24": {
+      "binary_sha256": "6883693c046e428e31708d99014b55c1542fab2003f51ee230f6099a6d041004",
+      "profile": "release",
+      "sources_after_match": true,
+      "environment_allowlist": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+        "RUSTUP_TOOLCHAIN": "stable",
+        "CARGO_BUILD_JOBS": "4",
+        "CARGO_TARGET_DIR": "<repo>/src/crates/promql-engine/tests/promql-conformance/.tmp/core-target"
+      },
+      "toolchains": {
+        "cargo": {
+          "command": [
+            "<home>/.cargo/bin/cargo",
+            "+stable",
+            "--version",
+            "--verbose"
+          ],
+          "output": "cargo 1.97.1 (c980f4866 2026-06-30)\nrelease: 1.97.1\ncommit-hash: c980f4866141969fab6254a680546a277789d6f0\ncommit-date: 2026-06-30\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.9.2 (sys:0.20.4 vendored)\nlibcurl: 8.20.0-DEV (sys:0.4.88+curl-8.20.0 vendored ssl:OpenSSL/3.6.2)\nssl: OpenSSL 3.6.2 7 Apr 2026\nos: Ubuntu 24.4.0 (noble) [64-bit]\n"
+        },
+        "rustc": {
+          "command": [
+            "<home>/.cargo/bin/rustc",
+            "+stable",
+            "--version",
+            "--verbose"
+          ],
+          "output": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.6\n"
+        }
+      },
+      "command": [
+        "<home>/.cargo/bin/cargo",
+        "+stable",
+        "build",
+        "--locked",
+        "--features",
+        "fixtures",
+        "--profile",
+        "release",
+        "--bin",
+        "promql-query-fixture",
+        "-vv"
+      ]
+    },
+    "candidate24min": {
+      "binary_sha256": "a25589aa2b98a24166951aea344cce5c1c9e777f82f54443cc5ead5c56e523bb",
+      "profile": "release-min",
+      "sources_after_match": true,
+      "environment_allowlist": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin",
+        "RUSTUP_TOOLCHAIN": "stable",
+        "CARGO_BUILD_JOBS": "4",
+        "CARGO_TARGET_DIR": "<repo>/src/crates/promql-engine/tests/promql-conformance/.tmp/core-target"
+      },
+      "toolchains": {
+        "cargo": {
+          "command": [
+            "<home>/.cargo/bin/cargo",
+            "+stable",
+            "--version",
+            "--verbose"
+          ],
+          "output": "cargo 1.97.1 (c980f4866 2026-06-30)\nrelease: 1.97.1\ncommit-hash: c980f4866141969fab6254a680546a277789d6f0\ncommit-date: 2026-06-30\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.9.2 (sys:0.20.4 vendored)\nlibcurl: 8.20.0-DEV (sys:0.4.88+curl-8.20.0 vendored ssl:OpenSSL/3.6.2)\nssl: OpenSSL 3.6.2 7 Apr 2026\nos: Ubuntu 24.4.0 (noble) [64-bit]\n"
+        },
+        "rustc": {
+          "command": [
+            "<home>/.cargo/bin/rustc",
+            "+stable",
+            "--version",
+            "--verbose"
+          ],
+          "output": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.6\n"
+        }
+      },
+      "command": [
+        "<home>/.cargo/bin/cargo",
+        "+stable",
+        "build",
+        "--locked",
+        "--features",
+        "fixtures",
+        "--profile",
+        "release-min",
+        "--bin",
+        "promql-query-fixture",
+        "-vv"
+      ]
+    }
+  },
+  "units": {
+    "passed_per_profile": 1096,
+    "ignored_per_profile": 2,
+    "strict_clippy_passed": true
+  },
+  "cohorts": {
+    "candidate24": {
+      "builtin": 64326,
+      "retained-cursor": 9096,
+      "remaining_executions": 15786,
+      "count_windows": 966
+    },
+    "candidate24min": {
+      "builtin": 64326,
+      "retained-cursor": 9096,
+      "remaining_executions": 15786,
+      "count_windows": 966
+    }
+  },
+  "predecessor_new_count_checks": 966,
+  "sre": {
+    "complete_roster_selection": true,
+    "complete_two_build_three_page_fixture_replay": true,
+    "exact_gate_pass": true,
+    "failed": 0,
+    "go_parent_payloads_consumed": 0,
+    "open": 0,
+    "paired_bit_differences": 0,
+    "passed": 231540,
+    "recording_bridge_failures": 0,
+    "required": 231540,
+    "variant_pages": {
+      "release-min/page1": {
+        "failed": 0,
+        "open": 0,
+        "paired_bit_differences": 0,
+        "passed": 38590,
+        "query_elapsed_ns_sum": 25812929196,
+        "required": 38590
+      },
+      "release-min/page1024": {
+        "failed": 0,
+        "open": 0,
+        "paired_bit_differences": 0,
+        "passed": 38590,
+        "query_elapsed_ns_sum": 30779996602,
+        "required": 38590
+      },
+      "release-min/page17": {
+        "failed": 0,
+        "open": 0,
+        "paired_bit_differences": 0,
+        "passed": 38590,
+        "query_elapsed_ns_sum": 21743549640,
+        "required": 38590
+      },
+      "release/page1": {
+        "failed": 0,
+        "open": 0,
+        "paired_bit_differences": 0,
+        "passed": 38590,
+        "query_elapsed_ns_sum": 17982031298,
+        "required": 38590
+      },
+      "release/page1024": {
+        "failed": 0,
+        "open": 0,
+        "paired_bit_differences": 0,
+        "passed": 38590,
+        "query_elapsed_ns_sum": 20701253858,
+        "required": 38590
+      },
+      "release/page17": {
+        "failed": 0,
+        "open": 0,
+        "paired_bit_differences": 0,
+        "passed": 38590,
+        "query_elapsed_ns_sum": 14748316987,
+        "required": 38590
+      }
+    },
+    "whole_core_readiness": false
+  },
+  "remaining_policy": {
+    "executions": 31572,
+    "strict_order_disagreements": 924,
+    "retained_9a_numeric_witness_copies": 6,
+    "all_strict_pass": false
+  },
+  "protocol_per_profile": {
+    "precision": 27,
+    "primitives": 230,
+    "selector_labelsets": 528,
+    "limits": 34,
+    "excluded_time_parameters": 2,
+    "excluded_selector_batches": 12,
+    "http_routing_executed": false
+  },
+  "callers": [
+    {
+      "target": null,
+      "manifest": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-lttj7uu1/manifest.json",
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "structures": 58,
+      "callbacks": 17,
+      "shared_constants": 33,
+      "abort_negative": true
+    },
+    {
+      "target": "aarch64-unknown-linux-gnu",
+      "manifest": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-l8vwg6ps/manifest.json",
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "structures": 58,
+      "callbacks": 17,
+      "shared_constants": 33,
+      "abort_negative": false
+    },
+    {
+      "target": "armv7-unknown-linux-gnueabihf",
+      "manifest": "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-13yd45dg/manifest.json",
+      "profiles": [
+        "release",
+        "release-min"
+      ],
+      "structures": 58,
+      "callbacks": 17,
+      "shared_constants": 33,
+      "abort_negative": false
+    }
+  ],
+  "c_count_panel": {
+    "cases_per_c_run": 42,
+    "pages": [
+      1,
+      17,
+      1024
+    ],
+    "direct_and_grouped": true,
+    "working_missing_failing_cancelled_backing": true,
+    "window_logical_samples": 660,
+    "optimized_physical_samples": 320,
+    "ordinary_physical_samples": [
+      1320,
+      1980
+    ]
+  },
+  "storage": {
+    "binary_sha256": "b15b587cee6d2421d09d604b943396d28d9f7214e2f51902419feeb0c669200f",
+    "phases": 6,
+    "passed": true,
+    "receipt": ".tmp/dbengine-storage-3st4rpcw/receipt.json",
+    "source_identity": "Use source manifest; receipt HEAD is parent commit while changes were uncommitted."
+  },
+  "queries": [
+    "count_over_time(m[1h])",
+    "sum by(id)(count_over_time(m[1h]))",
+    "count_over_time(m[5m])",
+    "sum by(id)(count_over_time(m[5m]))",
+    "count_over_time(m[30s])",
+    "sum_over_time(m[5m])"
+  ],
+  "timing_policy": "Alternating binary order; iteration0 warmup, remaining6 measured. Shared workstation, engine elapsed counters; exact original outcomes and traffic recorded separately. Shared workstation with overlapping qualification jobs; not isolated capacity or live latency.",
+  "measurements": [
+    {
+      "case": "s1-n4501",
+      "query_index": 0,
+      "variants": {
+        "candidate22": {
+          "elapsed_median_ms": 11.380400999999999,
+          "elapsed_samples_ms": [
+            11.784497,
+            11.126574,
+            11.44704,
+            11.513319,
+            11.313762,
+            11.251232
+          ],
+          "samples_fetched": 223476,
+          "work": 452135,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 964606,
+              "current": 0,
+              "overflowed": false,
+              "peak": 7657,
+              "released": 964606
+            },
+            {
+              "acquired": 2060,
+              "current": 1388,
+              "overflowed": false,
+              "peak": 1772,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 60785472,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 60785472
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24": {
+          "elapsed_median_ms": 1.5546090000000001,
+          "elapsed_samples_ms": [
+            1.600454,
+            1.523924,
+            1.504144,
+            1.627103,
+            1.552874,
+            1.556344
+          ],
+          "samples_fetched": 9276,
+          "work": 24546,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 159822,
+              "current": 0,
+              "overflowed": false,
+              "peak": 9273,
+              "released": 159822
+            },
+            {
+              "acquired": 2060,
+              "current": 1388,
+              "overflowed": false,
+              "peak": 1772,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 2523072,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 2523072
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 536,
+              "current": 0,
+              "overflowed": false,
+              "peak": 536,
+              "released": 536
+            },
+            "read_bytes": 520,
+            "read_calls": 61,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 127,
+            "written_bytes": 3512
+          }
+        },
+        "candidate24min": {
+          "elapsed_median_ms": 1.743112,
+          "elapsed_samples_ms": [
+            1.721852,
+            1.758831,
+            1.741762,
+            1.744462,
+            1.700562,
+            1.750251
+          ],
+          "samples_fetched": 9276,
+          "work": 24546,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 159822,
+              "current": 0,
+              "overflowed": false,
+              "peak": 9273,
+              "released": 159822
+            },
+            {
+              "acquired": 2060,
+              "current": 1388,
+              "overflowed": false,
+              "peak": 1772,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 2523072,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 2523072
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 536,
+              "current": 0,
+              "overflowed": false,
+              "peak": 536,
+              "released": 536
+            },
+            "read_bytes": 520,
+            "read_calls": 61,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 127,
+            "written_bytes": 3512
+          }
+        }
+      }
+    },
+    {
+      "case": "s1-n4501",
+      "query_index": 1,
+      "variants": {
+        "candidate22": {
+          "elapsed_median_ms": 16.796029,
+          "elapsed_samples_ms": [
+            17.361258,
+            16.537477,
+            16.981452,
+            16.946722,
+            16.645336,
+            16.640606
+          ],
+          "samples_fetched": 335214,
+          "work": 679067,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1471180,
+              "current": 0,
+              "overflowed": false,
+              "peak": 11395,
+              "released": 1471180
+            },
+            {
+              "acquired": 1955,
+              "current": 1283,
+              "overflowed": false,
+              "peak": 1667,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 91178208,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 91178208
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24": {
+          "elapsed_median_ms": 1.525079,
+          "elapsed_samples_ms": [
+            1.545163,
+            1.514984,
+            1.507794,
+            1.514885,
+            1.535174,
+            1.538344
+          ],
+          "samples_fetched": 9276,
+          "work": 28326,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 245724,
+              "current": 0,
+              "overflowed": false,
+              "peak": 13011,
+              "released": 245724
+            },
+            {
+              "acquired": 1955,
+              "current": 1283,
+              "overflowed": false,
+              "peak": 1667,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 2523072,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 2523072
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 536,
+              "current": 0,
+              "overflowed": false,
+              "peak": 536,
+              "released": 536
+            },
+            "read_bytes": 1016,
+            "read_calls": 123,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 127,
+            "written_bytes": 3512
+          }
+        },
+        "candidate24min": {
+          "elapsed_median_ms": 1.8015059999999998,
+          "elapsed_samples_ms": [
+            1.806201,
+            1.785441,
+            1.837721,
+            1.809961,
+            1.796811,
+            1.793421
+          ],
+          "samples_fetched": 9276,
+          "work": 28326,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 245724,
+              "current": 0,
+              "overflowed": false,
+              "peak": 13011,
+              "released": 245724
+            },
+            {
+              "acquired": 1955,
+              "current": 1283,
+              "overflowed": false,
+              "peak": 1667,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 2523072,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 2523072
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 536,
+              "current": 0,
+              "overflowed": false,
+              "peak": 536,
+              "released": 536
+            },
+            "read_bytes": 1016,
+            "read_calls": 123,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 127,
+            "written_bytes": 3512
+          }
+        }
+      }
+    },
+    {
+      "case": "s1-n4501",
+      "query_index": 2,
+      "variants": {
+        "candidate22": {
+          "elapsed_median_ms": 1.0826835,
+          "elapsed_samples_ms": [
+            1.102508,
+            1.061409,
+            1.070289,
+            1.095078,
+            1.151198,
+            1.061279
+          ],
+          "samples_fetched": 18996,
+          "work": 43055,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 194814,
+              "current": 0,
+              "overflowed": false,
+              "peak": 7657,
+              "released": 194814
+            },
+            {
+              "acquired": 2060,
+              "current": 1388,
+              "overflowed": false,
+              "peak": 1772,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 5166912,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 5166912
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24": {
+          "elapsed_median_ms": 1.0864585,
+          "elapsed_samples_ms": [
+            1.107429,
+            1.086988,
+            1.085929,
+            1.074969,
+            1.141959,
+            1.077138
+          ],
+          "samples_fetched": 2680,
+          "work": 11350,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 134990,
+              "current": 0,
+              "overflowed": false,
+              "peak": 9273,
+              "released": 134990
+            },
+            {
+              "acquired": 2060,
+              "current": 1388,
+              "overflowed": false,
+              "peak": 1772,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 728960,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 728960
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 536,
+              "current": 0,
+              "overflowed": false,
+              "peak": 536,
+              "released": 536
+            },
+            "read_bytes": 520,
+            "read_calls": 61,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 167,
+            "written_bytes": 3512
+          }
+        },
+        "candidate24min": {
+          "elapsed_median_ms": 1.2076324999999999,
+          "elapsed_samples_ms": [
+            1.207037,
+            1.217357,
+            1.270976,
+            1.196137,
+            1.208228,
+            1.199068
+          ],
+          "samples_fetched": 2680,
+          "work": 11350,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 134990,
+              "current": 0,
+              "overflowed": false,
+              "peak": 9273,
+              "released": 134990
+            },
+            {
+              "acquired": 2060,
+              "current": 1388,
+              "overflowed": false,
+              "peak": 1772,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 728960,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 728960
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 536,
+              "current": 0,
+              "overflowed": false,
+              "peak": 536,
+              "released": 536
+            },
+            "read_bytes": 520,
+            "read_calls": 61,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 167,
+            "written_bytes": 3512
+          }
+        }
+      }
+    },
+    {
+      "case": "s1-n4501",
+      "query_index": 3,
+      "variants": {
+        "candidate22": {
+          "elapsed_median_ms": 1.636723,
+          "elapsed_samples_ms": [
+            1.678983,
+            1.629183,
+            1.641363,
+            1.673383,
+            1.632083,
+            1.619093
+          ],
+          "samples_fetched": 28494,
+          "work": 65447,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 316492,
+              "current": 0,
+              "overflowed": false,
+              "peak": 11395,
+              "released": 316492
+            },
+            {
+              "acquired": 1955,
+              "current": 1283,
+              "overflowed": false,
+              "peak": 1667,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 7750368,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 7750368
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24": {
+          "elapsed_median_ms": 1.240027,
+          "elapsed_samples_ms": [
+            1.250717,
+            1.225727,
+            1.243827,
+            1.241227,
+            1.238827,
+            1.238267
+          ],
+          "samples_fetched": 2680,
+          "work": 15130,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 220892,
+              "current": 0,
+              "overflowed": false,
+              "peak": 13011,
+              "released": 220892
+            },
+            {
+              "acquired": 1955,
+              "current": 1283,
+              "overflowed": false,
+              "peak": 1667,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 728960,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 728960
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 536,
+              "current": 0,
+              "overflowed": false,
+              "peak": 536,
+              "released": 536
+            },
+            "read_bytes": 1016,
+            "read_calls": 123,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 167,
+            "written_bytes": 3512
+          }
+        },
+        "candidate24min": {
+          "elapsed_median_ms": 1.4214255,
+          "elapsed_samples_ms": [
+            1.408535,
+            1.444295,
+            1.445015,
+            1.414825,
+            1.422425,
+            1.420426
+          ],
+          "samples_fetched": 2680,
+          "work": 15130,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 220892,
+              "current": 0,
+              "overflowed": false,
+              "peak": 13011,
+              "released": 220892
+            },
+            {
+              "acquired": 1955,
+              "current": 1283,
+              "overflowed": false,
+              "peak": 1667,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 728960,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 728960
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 536,
+              "current": 0,
+              "overflowed": false,
+              "peak": 536,
+              "released": 536
+            },
+            "read_bytes": 1016,
+            "read_calls": 123,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 167,
+            "written_bytes": 3512
+          }
+        }
+      }
+    },
+    {
+      "case": "s1-n4501",
+      "query_index": 4,
+      "variants": {
+        "candidate22": {
+          "elapsed_median_ms": 0.24979200000000001,
+          "elapsed_samples_ms": [
+            0.252207,
+            0.247377,
+            0.246757,
+            0.253947,
+            0.245308,
+            0.254467
+          ],
+          "samples_fetched": 2136,
+          "work": 9455,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 131326,
+              "current": 0,
+              "overflowed": false,
+              "peak": 7657,
+              "released": 131326
+            },
+            {
+              "acquired": 2060,
+              "current": 1388,
+              "overflowed": false,
+              "peak": 1772,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 580992,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 580992
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24": {
+          "elapsed_median_ms": 0.257133,
+          "elapsed_samples_ms": [
+            0.260108,
+            0.252118,
+            0.254158,
+            0.253948,
+            0.269517,
+            0.265577
+          ],
+          "samples_fetched": 2136,
+          "work": 9455,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 131326,
+              "current": 0,
+              "overflowed": false,
+              "peak": 7657,
+              "released": 131326
+            },
+            {
+              "acquired": 2060,
+              "current": 1388,
+              "overflowed": false,
+              "peak": 1772,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 580992,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 580992
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24min": {
+          "elapsed_median_ms": 0.39048550000000004,
+          "elapsed_samples_ms": [
+            0.405666,
+            0.422205,
+            0.380486,
+            0.382086,
+            0.397235,
+            0.383736
+          ],
+          "samples_fetched": 2136,
+          "work": 9455,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 131326,
+              "current": 0,
+              "overflowed": false,
+              "peak": 7657,
+              "released": 131326
+            },
+            {
+              "acquired": 2060,
+              "current": 1388,
+              "overflowed": false,
+              "peak": 1772,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 580992,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 580992
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        }
+      }
+    },
+    {
+      "case": "s1-n4501",
+      "query_index": 5,
+      "variants": {
+        "candidate22": {
+          "elapsed_median_ms": 1.4470195000000001,
+          "elapsed_samples_ms": [
+            1.472955,
+            1.426616,
+            1.452304,
+            1.463785,
+            1.441735,
+            1.431015
+          ],
+          "samples_fetched": 18996,
+          "work": 43055,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 194814,
+              "current": 0,
+              "overflowed": false,
+              "peak": 7657,
+              "released": 194814
+            },
+            {
+              "acquired": 2060,
+              "current": 1388,
+              "overflowed": false,
+              "peak": 1772,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 5166912,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 5166912
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24": {
+          "elapsed_median_ms": 1.4279600000000001,
+          "elapsed_samples_ms": [
+            1.506514,
+            1.425605,
+            1.494824,
+            1.430315,
+            1.410735,
+            1.422535
+          ],
+          "samples_fetched": 18996,
+          "work": 43055,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 194814,
+              "current": 0,
+              "overflowed": false,
+              "peak": 7657,
+              "released": 194814
+            },
+            {
+              "acquired": 2060,
+              "current": 1388,
+              "overflowed": false,
+              "peak": 1772,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 5166912,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 5166912
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24min": {
+          "elapsed_median_ms": 1.804036,
+          "elapsed_samples_ms": [
+            1.789391,
+            1.88475,
+            1.813721,
+            1.787271,
+            1.87134,
+            1.794351
+          ],
+          "samples_fetched": 18996,
+          "work": 43055,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 194814,
+              "current": 0,
+              "overflowed": false,
+              "peak": 7657,
+              "released": 194814
+            },
+            {
+              "acquired": 2060,
+              "current": 1388,
+              "overflowed": false,
+              "peak": 1772,
+              "released": 672
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 5166912,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 5166912
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        }
+      }
+    },
+    {
+      "case": "s8-n4501",
+      "query_index": 0,
+      "variants": {
+        "candidate22": {
+          "elapsed_median_ms": 89.9647375,
+          "elapsed_samples_ms": [
+            89.991657,
+            89.535962,
+            89.937818,
+            90.326074,
+            88.980658,
+            90.195166
+          ],
+          "samples_fetched": 1787808,
+          "work": 3617930,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 7463880,
+              "current": 0,
+              "overflowed": false,
+              "peak": 13949,
+              "released": 7463880
+            },
+            {
+              "acquired": 14400,
+              "current": 8608,
+              "overflowed": false,
+              "peak": 8992,
+              "released": 5792
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 486283776,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 486283776
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24": {
+          "elapsed_median_ms": 10.934225,
+          "elapsed_samples_ms": [
+            10.940405,
+            11.043704,
+            10.908636,
+            10.924946,
+            10.928045,
+            11.581219
+          ],
+          "samples_fetched": 74208,
+          "work": 197218,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1014296,
+              "current": 0,
+              "overflowed": false,
+              "peak": 15565,
+              "released": 1014296
+            },
+            {
+              "acquired": 14400,
+              "current": 8608,
+              "overflowed": false,
+              "peak": 8992,
+              "released": 5792
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 20184576,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 20184576
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 4288,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4288,
+              "released": 4288
+            },
+            "read_bytes": 14080,
+            "read_calls": 736,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 1009,
+            "written_bytes": 28096
+          }
+        },
+        "candidate24min": {
+          "elapsed_median_ms": 13.1413875,
+          "elapsed_samples_ms": [
+            12.838886,
+            13.266161,
+            13.196372,
+            13.086403,
+            12.835616,
+            13.204982
+          ],
+          "samples_fetched": 74208,
+          "work": 197218,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1014296,
+              "current": 0,
+              "overflowed": false,
+              "peak": 15565,
+              "released": 1014296
+            },
+            {
+              "acquired": 14400,
+              "current": 8608,
+              "overflowed": false,
+              "peak": 8992,
+              "released": 5792
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 20184576,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 20184576
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 4288,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4288,
+              "released": 4288
+            },
+            "read_bytes": 14080,
+            "read_calls": 736,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 1009,
+            "written_bytes": 28096
+          }
+        }
+      }
+    },
+    {
+      "case": "s8-n4501",
+      "query_index": 1,
+      "variants": {
+        "candidate22": {
+          "elapsed_median_ms": 134.55981,
+          "elapsed_samples_ms": [
+            134.981326,
+            134.138294,
+            136.399131,
+            136.703179,
+            132.685032,
+            133.967608
+          ],
+          "samples_fetched": 2681712,
+          "work": 5431300,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 11092668,
+              "current": 0,
+              "overflowed": false,
+              "peak": 16893,
+              "released": 11092668
+            },
+            {
+              "acquired": 6572,
+              "current": 3884,
+              "overflowed": false,
+              "peak": 4268,
+              "released": 2688
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 729425664,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 729425664
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24": {
+          "elapsed_median_ms": 11.607244000000001,
+          "elapsed_samples_ms": [
+            11.47898,
+            11.696948,
+            11.866045,
+            11.51754,
+            11.45058,
+            12.208242
+          ],
+          "samples_fetched": 74208,
+          "work": 225372,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1277708,
+              "current": 0,
+              "overflowed": false,
+              "peak": 18509,
+              "released": 1277708
+            },
+            {
+              "acquired": 6572,
+              "current": 3884,
+              "overflowed": false,
+              "peak": 4268,
+              "released": 2688
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 20184576,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 20184576
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 4288,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4288,
+              "released": 4288
+            },
+            "read_bytes": 27968,
+            "read_calls": 1480,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 1009,
+            "written_bytes": 28096
+          }
+        },
+        "candidate24min": {
+          "elapsed_median_ms": 14.3679995,
+          "elapsed_samples_ms": [
+            13.684137,
+            14.513298,
+            14.647136,
+            14.016814,
+            14.810765,
+            14.222701
+          ],
+          "samples_fetched": 74208,
+          "work": 225372,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1277708,
+              "current": 0,
+              "overflowed": false,
+              "peak": 18509,
+              "released": 1277708
+            },
+            {
+              "acquired": 6572,
+              "current": 3884,
+              "overflowed": false,
+              "peak": 4268,
+              "released": 2688
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 20184576,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 20184576
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 4288,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4288,
+              "released": 4288
+            },
+            "read_bytes": 27968,
+            "read_calls": 1480,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 1009,
+            "written_bytes": 28096
+          }
+        }
+      }
+    },
+    {
+      "case": "s8-n4501",
+      "query_index": 2,
+      "variants": {
+        "candidate22": {
+          "elapsed_median_ms": 8.445267000000001,
+          "elapsed_samples_ms": [
+            8.379623,
+            8.436172,
+            8.66734,
+            8.452712,
+            8.437822,
+            8.520211
+          ],
+          "samples_fetched": 151968,
+          "work": 345290,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1305544,
+              "current": 0,
+              "overflowed": false,
+              "peak": 13949,
+              "released": 1305544
+            },
+            {
+              "acquired": 14400,
+              "current": 8608,
+              "overflowed": false,
+              "peak": 8992,
+              "released": 5792
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 41335296,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 41335296
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24": {
+          "elapsed_median_ms": 8.288978499999999,
+          "elapsed_samples_ms": [
+            8.322303,
+            8.197714,
+            8.335893,
+            8.255654,
+            8.230394,
+            8.401922
+          ],
+          "samples_fetched": 21440,
+          "work": 91650,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 815640,
+              "current": 0,
+              "overflowed": false,
+              "peak": 15565,
+              "released": 815640
+            },
+            {
+              "acquired": 14400,
+              "current": 8608,
+              "overflowed": false,
+              "peak": 8992,
+              "released": 5792
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 5831680,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 5831680
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 4288,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4288,
+              "released": 4288
+            },
+            "read_bytes": 14080,
+            "read_calls": 736,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 1329,
+            "written_bytes": 28096
+          }
+        },
+        "candidate24min": {
+          "elapsed_median_ms": 9.332402,
+          "elapsed_samples_ms": [
+            9.256543,
+            9.318612,
+            9.713248,
+            9.331752,
+            9.900916,
+            9.333052
+          ],
+          "samples_fetched": 21440,
+          "work": 91650,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 815640,
+              "current": 0,
+              "overflowed": false,
+              "peak": 15565,
+              "released": 815640
+            },
+            {
+              "acquired": 14400,
+              "current": 8608,
+              "overflowed": false,
+              "peak": 8992,
+              "released": 5792
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 5831680,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 5831680
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 4288,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4288,
+              "released": 4288
+            },
+            "read_bytes": 14080,
+            "read_calls": 736,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 1329,
+            "written_bytes": 28096
+          }
+        }
+      }
+    },
+    {
+      "case": "s8-n4501",
+      "query_index": 3,
+      "variants": {
+        "candidate22": {
+          "elapsed_median_ms": 12.897065000000001,
+          "elapsed_samples_ms": [
+            13.193152,
+            12.684747,
+            13.122643,
+            12.915504,
+            12.723246,
+            12.878626
+          ],
+          "samples_fetched": 227952,
+          "work": 522340,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1855164,
+              "current": 0,
+              "overflowed": false,
+              "peak": 16893,
+              "released": 1855164
+            },
+            {
+              "acquired": 6572,
+              "current": 3884,
+              "overflowed": false,
+              "peak": 4268,
+              "released": 2688
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 62002944,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 62002944
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24": {
+          "elapsed_median_ms": 9.4272865,
+          "elapsed_samples_ms": [
+            9.421641,
+            9.376362,
+            9.402752,
+            9.446521,
+            9.432932,
+            9.512801
+          ],
+          "samples_fetched": 21440,
+          "work": 119804,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1079052,
+              "current": 0,
+              "overflowed": false,
+              "peak": 18509,
+              "released": 1079052
+            },
+            {
+              "acquired": 6572,
+              "current": 3884,
+              "overflowed": false,
+              "peak": 4268,
+              "released": 2688
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 5831680,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 5831680
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 4288,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4288,
+              "released": 4288
+            },
+            "read_bytes": 27968,
+            "read_calls": 1480,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 1329,
+            "written_bytes": 28096
+          }
+        },
+        "candidate24min": {
+          "elapsed_median_ms": 11.00456,
+          "elapsed_samples_ms": [
+            10.930776,
+            10.761257,
+            11.148584,
+            11.078344,
+            11.995814,
+            10.927556
+          ],
+          "samples_fetched": 21440,
+          "work": 119804,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1079052,
+              "current": 0,
+              "overflowed": false,
+              "peak": 18509,
+              "released": 1079052
+            },
+            {
+              "acquired": 6572,
+              "current": 3884,
+              "overflowed": false,
+              "peak": 4268,
+              "released": 2688
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 5831680,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 5831680
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 4288,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4288,
+              "released": 4288
+            },
+            "read_bytes": 27968,
+            "read_calls": 1480,
+            "stores": {
+              "acquired": 1,
+              "current": 0,
+              "overflowed": false,
+              "peak": 1,
+              "released": 1
+            },
+            "write_calls": 1329,
+            "written_bytes": 28096
+          }
+        }
+      }
+    },
+    {
+      "case": "s8-n4501",
+      "query_index": 4,
+      "variants": {
+        "candidate22": {
+          "elapsed_median_ms": 1.8823055,
+          "elapsed_samples_ms": [
+            1.89123,
+            1.863241,
+            1.973009,
+            1.86968,
+            2.011589,
+            1.873381
+          ],
+          "samples_fetched": 17088,
+          "work": 76490,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 797640,
+              "current": 0,
+              "overflowed": false,
+              "peak": 13949,
+              "released": 797640
+            },
+            {
+              "acquired": 14400,
+              "current": 8608,
+              "overflowed": false,
+              "peak": 8992,
+              "released": 5792
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 4647936,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 4647936
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24": {
+          "elapsed_median_ms": 1.8811404999999999,
+          "elapsed_samples_ms": [
+            1.895351,
+            1.870441,
+            1.88499,
+            1.877291,
+            1.869621,
+            1.91714
+          ],
+          "samples_fetched": 17088,
+          "work": 76490,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 797640,
+              "current": 0,
+              "overflowed": false,
+              "peak": 13949,
+              "released": 797640
+            },
+            {
+              "acquired": 14400,
+              "current": 8608,
+              "overflowed": false,
+              "peak": 8992,
+              "released": 5792
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 4647936,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 4647936
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24min": {
+          "elapsed_median_ms": 2.8472105,
+          "elapsed_samples_ms": [
+            2.805581,
+            2.80691,
+            2.976849,
+            2.91487,
+            2.85199,
+            2.842431
+          ],
+          "samples_fetched": 17088,
+          "work": 76490,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 797640,
+              "current": 0,
+              "overflowed": false,
+              "peak": 13949,
+              "released": 797640
+            },
+            {
+              "acquired": 14400,
+              "current": 8608,
+              "overflowed": false,
+              "peak": 8992,
+              "released": 5792
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 4647936,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 4647936
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        }
+      }
+    },
+    {
+      "case": "s8-n4501",
+      "query_index": 5,
+      "variants": {
+        "candidate22": {
+          "elapsed_median_ms": 11.407600500000001,
+          "elapsed_samples_ms": [
+            11.374611,
+            11.243663,
+            12.44984,
+            11.318851,
+            11.684877,
+            11.44059
+          ],
+          "samples_fetched": 151968,
+          "work": 345290,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1305544,
+              "current": 0,
+              "overflowed": false,
+              "peak": 13949,
+              "released": 1305544
+            },
+            {
+              "acquired": 14400,
+              "current": 8608,
+              "overflowed": false,
+              "peak": 8992,
+              "released": 5792
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 41335296,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 41335296
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24": {
+          "elapsed_median_ms": 11.415126,
+          "elapsed_samples_ms": [
+            11.417961,
+            11.398491,
+            12.141363,
+            11.412291,
+            11.378151,
+            11.931415
+          ],
+          "samples_fetched": 151968,
+          "work": 345290,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1305544,
+              "current": 0,
+              "overflowed": false,
+              "peak": 13949,
+              "released": 1305544
+            },
+            {
+              "acquired": 14400,
+              "current": 8608,
+              "overflowed": false,
+              "peak": 8992,
+              "released": 5792
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 41335296,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 41335296
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        },
+        "candidate24min": {
+          "elapsed_median_ms": 14.449469,
+          "elapsed_samples_ms": [
+            14.29202,
+            14.278381,
+            16.117642,
+            14.437389,
+            14.461549,
+            14.492728
+          ],
+          "samples_fetched": 151968,
+          "work": 345290,
+          "memory": [
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 1305544,
+              "current": 0,
+              "overflowed": false,
+              "peak": 13949,
+              "released": 1305544
+            },
+            {
+              "acquired": 14400,
+              "current": 8608,
+              "overflowed": false,
+              "peak": 8992,
+              "released": 5792
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 41335296,
+              "current": 0,
+              "overflowed": false,
+              "peak": 4624,
+              "released": 41335296
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            {
+              "acquired": 896,
+              "current": 896,
+              "overflowed": false,
+              "peak": 896,
+              "released": 0
+            }
+          ],
+          "temporary_storage": {
+            "counter_overflowed": false,
+            "extent": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "read_bytes": 0,
+            "read_calls": 0,
+            "stores": {
+              "acquired": 0,
+              "current": 0,
+              "overflowed": false,
+              "peak": 0,
+              "released": 0
+            },
+            "write_calls": 0,
+            "written_bytes": 0
+          }
+        }
+      }
+    }
+  ],
+  "memory_policy": "Admitted Count workspace peak grows1616bytes. Other category peaks and equal-width/SUM controls unchanged. Category peaks are not simultaneous total RAM. Temporary extent is backing, not raw history in RAM.",
+  "compiled_fixture_bytes": {
+    "release": {
+      "before": {
+        "text": 4537714,
+        "data": 265928,
+        "bss": 3092
+      },
+      "after": {
+        "text": 4593762,
+        "data": 266560,
+        "bss": 3756
+      }
+    },
+    "release-min": {
+      "before": {
+        "text": 2869925,
+        "data": 251920,
+        "bss": 1340
+      },
+      "after": {
+        "text": 2907701,
+        "data": 252304,
+        "bss": 4140
+      }
+    }
+  },
+  "helper_drift_after_completed_runs": {
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": {
+      "captured_sha256": "fad280bc3aa005c66ad67a4a7d05385d180d9e1eaa61617c82fbbe528b9022a8",
+      "current_sha256": "49fbcf1166b7d6c26b7fbd34ec5f640008ea5bf7ab597a284b65a86de56a1eb3",
+      "reason": "Later C output-roster correction; not imported by Count comparison/timing."
+    }
+  },
+  "preserved_failures": [
+    "First unit geometry mismatch case used an invalid ordinary schedule; corrected fixture to a valid different first endpoint, with failed source/log retained.",
+    "Initial candidate23 short five-minute bare Count timing regressed8-14%; retained unchanged. Candidate24 amortizes lower-prefix writes and caches one clean header; repeated current timings are separate.",
+    "Initial native/ARM C runtime assertions passed, but Python output roster omitted the new Count line; final actual callers use the corrected parser, independently bound in their manifests."
+  ],
+  "limits": [
+    "No candidate24 live deployment measurement yet.",
+    "Only ordinary direct overlapping Float Count windows qualify; other functions/native/unsupported geometry replay.",
+    "Tiny, empty or sparse Count workloads can pay temporary-store overhead; no universal speed claim.",
+    "Dense computed-window backing traffic, other long-history timeouts and live histogram projection remain open."
+  ],
+  "artifacts": {
+    ".tmp/practical-replay-j32eeh4e/candidate22-build.json": "ad87d22238c946b06ef7cc2f654bee162c17fc529ba95ecebdd9bb51e71dc8d2",
+    ".tmp/practical-replay-j32eeh4e/candidate24-build.json": "fc5cdfed62c62181af2bf261adbc46252e516a8e93bfe32051be41031262da7b",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-build.json": "b0ec7ae8f0105b1cd4c82717e4be808d05ed0d70745282bdd3a85914fc14c1e6",
+    ".tmp/practical-replay-j32eeh4e/candidate24-builtin-receipt.json": "0fc3f9b015de9db40c9daf85aebda196cd6a65fc8c74696e1573b2b2fd526827",
+    ".tmp/practical-replay-j32eeh4e/candidate24-builtin-p1-report.json": "9f0c8cc01134ccd4ee9c20df35ea6fb818e224be793e220190756222b1e22db8",
+    ".tmp/practical-replay-j32eeh4e/candidate24-builtin-p17-report.json": "2490bc4f7825f65abf862aca0a613733338938f7bc45e022563cf1910500a7b0",
+    ".tmp/practical-replay-j32eeh4e/candidate24-builtin-p1024-report.json": "33279dda75c44113c0d74007a30487eada1d125659f9d852eca28ffb80e582d2",
+    ".tmp/practical-replay-j32eeh4e/candidate24-retained-cursor-receipt.json": "b1af080df6047ba31230cb764b9c5b90d14de6bbf663fcdc89d27b9df31c5d79",
+    ".tmp/practical-replay-j32eeh4e/candidate24-retained-temporal-p1-report.json": "67b489b0fec906dbd9603c660ee0ca265d8d2161c96225d30fc47fbcf8abd389",
+    ".tmp/practical-replay-j32eeh4e/candidate24-retained-temporal-p17-report.json": "1b8a6e1c66101c7bb39e75833c1dad3a60f381a15cedb855a1ed33b41351a96d",
+    ".tmp/practical-replay-j32eeh4e/candidate24-retained-temporal-p1024-report.json": "a993077fa337498093865d643309518a0b2b74a534851b5c51b9b9cba89d73d2",
+    ".tmp/practical-replay-j32eeh4e/candidate24-retained-temporary-p1-report.json": "9ef67173eaea0138590ec2df65f6b545869311ac0037d2a6d8d7451aa47f7b8f",
+    ".tmp/practical-replay-j32eeh4e/candidate24-retained-temporary-p17-report.json": "f3bcb97f3b30b7f8a859ffb6eab62f180d4994b43df3b8018becbeea0a555248",
+    ".tmp/practical-replay-j32eeh4e/candidate24-retained-temporary-p1024-report.json": "6341deb41dc814881c66476cd2b41e9738e0dd51f92d097f2a82a03694cd60d7",
+    ".tmp/practical-replay-j32eeh4e/candidate24-retained-countvalues-p1-report.json": "ca6d052da4fb09e00e3b857fc7123caec4364d310cbce2a18f6de8f274d69f84",
+    ".tmp/practical-replay-j32eeh4e/candidate24-retained-countvalues-p17-report.json": "748f9e8be6b7c1ad0e53a39d52e024d772abe29fcd9ade42a37e4203068c109e",
+    ".tmp/practical-replay-j32eeh4e/candidate24-retained-countvalues-p1024-report.json": "3d8f367854f1fd06ff11da8b2348458aca2648b897ecdd5343191d9f8c2ff384",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-receipt.json": "9bdc644430944ff3244eee78a8eb534303c4040b282eb75d98fac12bc099e940",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-scheduled-p1-report.json": "d7a8bc7c739fd521a7c11fc8a09da9b80e83d94c631f687fa76e22849c90ca87",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-scheduled-p17-report.json": "7bff9a8f9d6bfc196c957443bd53468f2b010d35ed07817529e483303c32d4d0",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-scheduled-p1024-report.json": "57e4620606a53750318e518ba5adb036e60f49f0f6f3b31467d5e7efdbcd1939",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-plural-p1-report.json": "b78a043a96f564c5be5f464b9b3c5f3c83c69ab44f7cef27e4fbbc8c74f585c3",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-plural-p17-report.json": "6eb6050bdec1d4619f00fe725c6319bca1cde635f88048f4f9304232094c48db",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-plural-p1024-report.json": "ef2a4068e7488d19d7705befbd610d7c15e07678948ca260fa7583c5d896e819",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-grouping-p1-report.json": "5824ba3448265c710804d1e0b2cf37d698068b5f76e9a584f19e26c1b5990818",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-grouping-p17-report.json": "1fe7d686752cfffffe0a7f15626b7b7395734fb319577695fb613e2510dce4c3",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-grouping-p1024-report.json": "cc737c24bb1582f591d40f2a0379d32dae009b2c919df268122911c83a3b1a2c",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-retained-p1-report.json": "f20aae3321d36f1de3872fb3eb85cd716ef9aee7b2babdfc5527e6c883a9160b",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-retained-p17-report.json": "b55dd24b57bfd1b9bdb3075c36603e2481c8bf604e827917cc7d75519cf17a51",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-retained-p1024-report.json": "001e76ab9832d29a8af22964a8f81e008717b1d4fab63d49dfe438720899b39d",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-supplemental-p1-report.json": "25e3e3e050cf4397fe81cb8512b32a617b691d1acf939225518f21b0782ba673",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-supplemental-p17-report.json": "8ae5b513b5b0251a775448eee627af68abad608f522a847d2f1df87cf7a7133d",
+    ".tmp/practical-replay-j32eeh4e/candidate24-remaining-supplemental-p1024-report.json": "8390d652026216ccafaf4f5657e0edc5f78f1fdea4f5e44476a4d0c8742ce635",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-builtin-receipt.json": "0723cdb569bec668ef6793aa15ee05fbeb33637f1a1797bb61f7cfc55029ffd6",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-builtin-p1-report.json": "7d2bb0e82ee64083b4321728b019d6301230b2a34f60607a386bb50f7b16efd1",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-builtin-p17-report.json": "e5f57cc7fa9d62bf893cd25f2a13f693835c018e769394c0ce76c745496f48cf",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-builtin-p1024-report.json": "128a223727eecbd446b9c44a9c19c0adc781f87c5d6c6e3ef2e826ce1230bc60",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-retained-cursor-receipt.json": "1efe6593f98c5725bd0b76dc6ae1cfa0eabd56b8226b90994cbc9145bb366eac",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-retained-temporal-p1-report.json": "49b88d6bcc4211f1c9ae990a6d2e7c102eca68ed86fbb76444c1f22d3d89a3db",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-retained-temporal-p17-report.json": "2c433536ba194d8cb06abb360be6de4360c5959109bce74e63598a3d7e31c1cc",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-retained-temporal-p1024-report.json": "b581a6b665ad83589ae19b9943a2b5cdb82e7e46c45dbf7689ee99bfcf805ed8",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-retained-temporary-p1-report.json": "dd55d5d5e1c36a2e987511afae93fc5b1870adc7c7f103709f7a4145e5423aa3",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-retained-temporary-p17-report.json": "d3f6258307bc674728c891812b43daef330473aedf3e055998f8c5f37aad4070",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-retained-temporary-p1024-report.json": "340b2a25b0c33f093cad5ea6d1a45a32c3ed7b86552c45233fd5a858abe7b9fb",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-retained-countvalues-p1-report.json": "513ecaa88ffea6f31fef114e5dcae8d3fa7e7eb3cda2aa58df4521aca59a46b2",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-retained-countvalues-p17-report.json": "d26ddf0d08da142efe472504f4b382dac0386fb1c9cf45be9c7b89920c14b094",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-retained-countvalues-p1024-report.json": "3319b2455335d3df1567c18b27220153391be96fae9a3c546fe180632f0f4964",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-receipt.json": "71bc7bc8c3f34250d3df1619806cc69a602dc059ad65843c176079b8684348c5",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-scheduled-p1-report.json": "63f047f315bc4b3ea9cf88a548cea981d43150723435eaa64360fa666c4045b5",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-scheduled-p17-report.json": "70b3b4e79dc625fe5c5cf2a2b871c5336f51c428ce20ef6ef904fc90f1195cdd",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-scheduled-p1024-report.json": "59413d6bd5dd4d3184fe6015980a2c2da13832e8e7dc31d292e0a55150bacf35",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-plural-p1-report.json": "bc8a87ceb1869a90a77c2eef5ee75b99c3ac027b71a90e85e89666f96fc3d765",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-plural-p17-report.json": "c1d456ba86f788fe87a496948928f7a473433b20555b3a971651a3c322714515",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-plural-p1024-report.json": "453753eec26aeeece01f7f997c77bbe02452ad8bcc30c10c932f477bf8319e92",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-grouping-p1-report.json": "f36c5b2a3b5bf21d55d1fc298be0e82e2d588a569b099dba29466c8b1a6ac4c8",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-grouping-p17-report.json": "178296ee8b37510feb99a9cbd05368598decf5e0c2226f225bf877c3b3fe5780",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-grouping-p1024-report.json": "4767c67f271259c992549892f4db33f867a72c5956b1ebd4914b7a948754ced2",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-retained-p1-report.json": "8bd3f431df0b6de9b8054af5f9b15ed9df4ce2217c4e3700bc81d4f91545166f",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-retained-p17-report.json": "4ed91e73fde4891b6b95b6dd3f7d7fd648d4231944f880302a577f70bd7caf12",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-retained-p1024-report.json": "dc24a3af63ef7d1fd815e68e26fd6945549b6ff06dac3e15f13985814b4bc51d",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-supplemental-p1-report.json": "f22655542eae8b122eb47722ef78d296e10950b2bfacc4aca8116bbbc97fedfb",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-supplemental-p17-report.json": "b6787683730bec74fb2c920b541da22627e58ee8856c7df1a408f280910437d1",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-remaining-supplemental-p1024-report.json": "49620d2ef2ef63ba058773a0e3ade268003ea222d9504d39a2377e6ee93dbc91",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-receipt.json": "0a0002c1ccc96e5809e4372120a48ae083d61fc6630587986ed39ff504752529",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-data.json": "c1f57ed5ee8cf5f812fdc9583e1b4ab79b1c89b9e42df349f2cbb804b14c33fe",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-requests.json": "947eb7761226f78513e6254bc5737b78095c52666b8b18151a767bdd09797935",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-original.json.gz": "38048e6fa91bfc4cbba0416d7b792343e32af599e66ec9ec6ee9fbfed21c24e5",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-p1-input.jsonl.gz": "2ae1d4c78b5f1744a58b836ceab218789f736168d59bbd2588f894359c3e0e52",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-p1-candidate22-r0.jsonl.gz": "b0ed7639873785dcaf2e0448a5b3676913f0c1952d027df4609d0fe9d09b0c35",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-p1-candidate24-r0.jsonl.gz": "93d25c0c3298ed8bebccfac6b104655da88ad6917c7cf46da2ed442f72c2c84a",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-p1-candidate24min-r0.jsonl.gz": "f084fca252a50b936f2d65e94062c2104b3a2b5b6c47c1b055cc993426284d7a",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-p17-input.jsonl.gz": "44aa38be25666c89b13c1b12a23fd14aabb96f5e55b8e11502c6bc44658996d0",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-p17-candidate22-r0.jsonl.gz": "2edce49128ca53ff5cd2eb705c83406c8ed273876ce358d116c10073171e3381",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-p17-candidate24-r0.jsonl.gz": "674352753711c4b2c3bd1226a43387c371cdfdcad9776253b4a5aa420c9469c8",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-p17-candidate24min-r0.jsonl.gz": "2511e1d2a0ea7aca124473f39c1dcfd16f51c09f9ae959c3acd9f6666dccb766",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-p1024-input.jsonl.gz": "6069639719937975365be60465300d5c81ded113d91ef0b1babaae03b54c408f",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-p1024-candidate22-r0.jsonl.gz": "863c9db4de8ea2d6d3cc9fd880db4896cd52b3f317c9581b8af7333c63138f12",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-p1024-candidate24-r0.jsonl.gz": "3f7901bcc562924daaec0dc2f36021c7c4fd7fc93b566c01e1b7de5d2a52cdac",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v0-p1024-candidate24min-r0.jsonl.gz": "100a3c753c271db133ecbbefa336f17610b5b127a26a783c3213479b380f09bb",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-data.json": "637b56faf2483743895cbdcdee8af936fcc6f2c2c0d5451be356a598217744bf",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-requests.json": "10ccdea785babd58aefbc3d6af911d956bcc62a272f88b60835b03f81ca69078",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-original.json.gz": "3a66635f9cb35cced40038610635fb058cab73fcc371045dfd8cda2fa0866b65",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-p1-input.jsonl.gz": "e386a350501a10f1b51a302870734720080b8340f68f3bcfd03d2241de87c0ea",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-p1-candidate22-r0.jsonl.gz": "2432294c95a904ab22bc0d0806bf02d49576ef9704ed58a9f976256f085caaf0",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-p1-candidate24-r0.jsonl.gz": "13841a646ca6a31dcfed495b747b7abd34192874a46555592e84218cd2be947d",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-p1-candidate24min-r0.jsonl.gz": "aa835bab3c2bbf9e8bc2110e7a6dbaeb43749f9c82ea428c838d8a49f78f431e",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-p17-input.jsonl.gz": "28c648ef5aafa136a0367184abddb3b310da136ab08a0f9d885006a743d58449",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-p17-candidate22-r0.jsonl.gz": "e67e7ab40419d3d04d9555a02a5af59ffb2bd184c3d24ab56e2fd2cdc2b2ec4f",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-p17-candidate24-r0.jsonl.gz": "188944428b8b99c250e6bc4481e61ee8bd147bafc7bd58678d1e20c2c6195ef0",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-p17-candidate24min-r0.jsonl.gz": "980534013c4ae9db7f6f189e2e09a53cd1d0dfe07216dde090f89b1a78f8be39",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-p1024-input.jsonl.gz": "416fd3055036b7a27938e4bc1cf2372324d28f1c7003c5a7546b55a46575233a",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-p1024-candidate22-r0.jsonl.gz": "422766c000eb3ddfd1984465ecef448463353defe881f8d81ced954b2789cf8c",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-p1024-candidate24-r0.jsonl.gz": "217745620729b197742567b2751a50e12fa2c7d6150164005744af88f35e38f4",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v1-p1024-candidate24min-r0.jsonl.gz": "790263150781eb82a00bc8429035ff3c70ca965191e65ce1b60bd451ead09a17",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-data.json": "0010768fffce6ef8b768208cdf94fda95e4faf625b176ff14f5f9d9e8f85f67a",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-requests.json": "d2484fdb3415fddd81a98bf93d67c8ba493cf475f7ea804ccc9b8149c827df5c",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-original.json.gz": "3bcd41779e0015ee26b9f576b62d85ec058afef534cb4b58e41f5ae72058c7c7",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-p1-input.jsonl.gz": "93bd71256fb2664d996ae95b0c7d6a9ca2da70f9c847d72cc053745af7be187c",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-p1-candidate22-r0.jsonl.gz": "18e8989548d9634b64430acfdab62696a30745655b7e2c8c0887b4cad3202b3b",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-p1-candidate24-r0.jsonl.gz": "f4ec7fabec143c973ecd062bf621d8fd660e76d3bdfecaae7ddd6bb9d7a031be",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-p1-candidate24min-r0.jsonl.gz": "5f606bc3db8fb599dfa00f7adcb57c8f7dd793c437760a689724901629a4d5f0",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-p17-input.jsonl.gz": "9df7f2fac84cb04347a2730bce6a7b7a0712d6432f607b9abc2ed65086f18989",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-p17-candidate22-r0.jsonl.gz": "6638b06dbae7b4379d5788e52e35de8992d99fbb8ccb2f4245399fe2fd558873",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-p17-candidate24-r0.jsonl.gz": "5e072cba097a6ff91fc397778861ec3c1703c5e916ad47aa3ffb48797491846d",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-p17-candidate24min-r0.jsonl.gz": "2ab37702f3a2c723c952993e4037236aed5efe75b4724e13321f7d87f71bc371",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-p1024-input.jsonl.gz": "0ee4e6496de2aa50059a6cc8faffb45de71c65364de1d3dc26fb582d757b290e",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-p1024-candidate22-r0.jsonl.gz": "bc01a580ee31879e4bccfdd983a4323c3583cfd50def388c3af5a26c335276e9",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-p1024-candidate24-r0.jsonl.gz": "6f42e71f268ae027893bf76d7de716f1e86537bf72375f6f9e4b3b63370604cd",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v2-p1024-candidate24min-r0.jsonl.gz": "d15a5e6e14e6047348e6207e824e9762f09a537a5eb24fabff3584e32fbe0426",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-data.json": "fbc9368b95833d3fa957f66228dca6298f7c617f026bc958b26348982101a1ea",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-requests.json": "affd762677e3fbbf8226343e3aebfd6a90e21bf6d433d3791ccfde86b4b1a0c5",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-original.json.gz": "d18b1cb3630333da098aa7ffa3a91fb723153a99c97584f5a140856728dca19d",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-p1-input.jsonl.gz": "97a4f3ed32abb2c1a361e48cc8b247462f4b22b6f0653eb85a80b181674d72a8",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-p1-candidate22-r0.jsonl.gz": "35f1d94642436638c5c636ddf9da7c4ab11908d0bdcf4d199d89abdcf35ad8c8",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-p1-candidate24-r0.jsonl.gz": "07717eda9366d16c6641378d7afc72a215f8d0b159ec82356c8bf0dcf024f6a9",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-p1-candidate24min-r0.jsonl.gz": "a6c3454ab661be0925d909f5c4a25d4c479fb0b17c64ed11f7422d2f39b0267a",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-p17-input.jsonl.gz": "75207dff00e901e19e29e6e00c83cabd0adb1afeb133ae173df0c4deb678d86d",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-p17-candidate22-r0.jsonl.gz": "07106c7751f06483aefc6577a5e94cfc13881d24f0d05bafb7be4cd232a1696d",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-p17-candidate24-r0.jsonl.gz": "0ac29439e50fc30c90cd787214ed616d15449f05dbcf0deef8b32152a59cd84b",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-p17-candidate24min-r0.jsonl.gz": "7ef66ed6b56c586c3ec0ca9def24017ed1b65288361b15695d81bb5c50434797",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-p1024-input.jsonl.gz": "c0af1d118195c524d34dd8ecb2b89fcacfcd195a9f6121c510437cbe57f535a3",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-p1024-candidate22-r0.jsonl.gz": "ba65b6b57b1ab793a2a6c7ac0a18f650f15746cc82a7dd987a5b2d1c59faf5f2",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-p1024-candidate24-r0.jsonl.gz": "fa50455f97509909cb0390a597c2826e2cf68bcc6eadcc9e867e2782c120dc93",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v3-p1024-candidate24min-r0.jsonl.gz": "6d02a184b0f082e52ab2a3b502af1cad80629342e578a25477a114a3601015fd",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-data.json": "ad9a21973a90100fb2e3c2929b26ad00e480f21a2924914f3a5b8e5ea9c0138e",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-requests.json": "235a8ab870d4de3987b34013815d4c816e897ce260e86a31ee83887bbdb3e913",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-original.json.gz": "b83e832cbdc294c971644646e88a128643178add2b196a4186aaa6249d19729d",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-p1-input.jsonl.gz": "179eb620c4cb6df97e8edd163c56d782ef1e5ab1ebe730b9543ba092198d17c2",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-p1-candidate22-r0.jsonl.gz": "4b7718fd92308a40166f8125380442fc90b79e01cc34fa6e503c1f2f25b6f0a3",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-p1-candidate24-r0.jsonl.gz": "2494f20e330c71a3481918656a5fad0dbbeeebd0dadfd0a2f36028a9651c3c0b",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-p1-candidate24min-r0.jsonl.gz": "0ae67c173789120cd77627be8353536b45be32e4f58ced124381111781d56417",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-p17-input.jsonl.gz": "3d28addcaf00a9d177129b64c8d96fbbbb514132649e6e63ad40e37ec81f33f9",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-p17-candidate22-r0.jsonl.gz": "00149be85fc9fe58b92a49a6441f67f6b2dd62545e7d3c979661270cb6996da3",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-p17-candidate24-r0.jsonl.gz": "cda74c036bf91d190885874149fe6f322f7a0b589c78cd4d2cfed98ec7095f56",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-p17-candidate24min-r0.jsonl.gz": "a1e2e2c815a16023c0a53bed5d25a00e70156ce0fa009366f2520c794644952f",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-p1024-input.jsonl.gz": "759fc4ed9a3ee4c4c5b6d414a28d9c6e46e23cb79b1dcb13dd6e6b290a6c8474",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-p1024-candidate22-r0.jsonl.gz": "1099e0fd837829138e9aacee0017df5c94c850c8fe64c3db56a44b5f2934beb9",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-p1024-candidate24-r0.jsonl.gz": "9b2883dc52703323836e8c61516616d50c5f3c9d02f069ee779432744c4c3a00",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v4-p1024-candidate24min-r0.jsonl.gz": "e899880befdc40e1d2c7e6c84437112df54cdcc49c350602290c37531c20c185",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-data.json": "ac57b67a4b4dafed894c2d86aa8d705945c35c4d061a66e12e4253a7b0b753cf",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-requests.json": "e13f960305213b2ac629001d088b3d674f22b7c9fadb1c41efc74c93cf3932a8",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-original.json.gz": "1553c6f385a786452f4bc549289e73f972abcbc32b391e4d8791a49c8c1403b2",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-p1-input.jsonl.gz": "0487711d6428f5c4ee529b88b2f8ac5ce1cbcf4e55cdfd967eb6baf65e04dfc8",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-p1-candidate22-r0.jsonl.gz": "d3ff8176adaff7253b350a4471d56fcc440069483987a8e532303db8b9515620",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-p1-candidate24-r0.jsonl.gz": "8cb4d809a254a371c8ce360159c5b73e549f5d10fd83196af03469926f64c27f",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-p1-candidate24min-r0.jsonl.gz": "a742cf81a9f3ba03e1f700108b72b8963d295956a67d25c2418ff710de46a02d",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-p17-input.jsonl.gz": "a1ed3d1fdf94b64bf61c024b7957280ae073e47ccee1f5eb971a3553dffb8572",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-p17-candidate22-r0.jsonl.gz": "49fd6ec2614878972c4d8b1138d26496b02e7864281cd03205c1184a02b6c2af",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-p17-candidate24-r0.jsonl.gz": "0ebf892e10d85d9383c4a5a45a56bf972a2c55f8048aa66cc5a26a4373524c98",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-p17-candidate24min-r0.jsonl.gz": "3b83252f616700182581414c35779f8de66ea6f6dcefda6d0c3d8b30a2b69125",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-p1024-input.jsonl.gz": "ffe27d6549306d50ed6e4dfe4d1c2980ee246fb73bb05698b71068c914140552",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-p1024-candidate22-r0.jsonl.gz": "6ba377f06a4c70a8c7f08d1d5eee2c3bb149ed7458d9054a861958ad17a25050",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-p1024-candidate24-r0.jsonl.gz": "84299310134dc021ee544b4cbd385f8cd49415c1086a51cabf690d0fbf9ee50f",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v5-p1024-candidate24min-r0.jsonl.gz": "ace1129e389551bd97c8e6bb2551cd95184ce6b4d939e74b5285293775e0f581",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-data.json": "eb28ca5505fe200d7c0549071a05170964f99017ee11ad8d0fb88699167639eb",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-requests.json": "11cadd524d1108f61cde5750f668920635fe8691fb5c5751bad2af50abf903f3",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-original.json.gz": "18895a231fde66645683b7fabcf95a27dd78db251287cd921930635d1d578989",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-p1-input.jsonl.gz": "fff52f3b827aefacd8f0c28085e3f80dd87d86fdf2787991e36046710842ce86",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-p1-candidate22-r0.jsonl.gz": "ed0bce59944164d5eaa1d7d60099206b9340e79d8b8dc5e82bff632137135518",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-p1-candidate24-r0.jsonl.gz": "e59434511b3fe75b6c26541061564ab0efb59b4ab5cdd3d8339543af3e11ba04",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-p1-candidate24min-r0.jsonl.gz": "997504462381bd0c4469185945e1fafcc2c656f99090cb9eefd5bc1a70639c66",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-p17-input.jsonl.gz": "dcfd02a1c53b231136f31b5ffef89559b91319b59cc4d99ed3ec6c6e69c61e9a",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-p17-candidate22-r0.jsonl.gz": "b7b0ad2d0fed8d52c3edaffb67e6956225a1116a5ab939fcc2d2b059910c7310",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-p17-candidate24-r0.jsonl.gz": "2ed1b89a24c479bb22f813018460ac0d84c7ae91edce18de516e887e0584b81e",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-p17-candidate24min-r0.jsonl.gz": "d981ad6a9b976b4ec80e862add81a61acfb684fadb2dc6080cb37144e828156b",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-p1024-input.jsonl.gz": "f86b5673a47f384483f71b716abd1e713d6b8ec0b56c8723cf79bf6de3e91c37",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-p1024-candidate22-r0.jsonl.gz": "83c910b0935de61fbd756503ca86540b6805e0fdf267e1f130cc5ea4febf5283",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-p1024-candidate24-r0.jsonl.gz": "30bd91865148b8bf669e0a3f6682b31272a5e8819e52c86254cdc2c8a9ae6b29",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-semantic-v6-p1024-candidate24min-r0.jsonl.gz": "5b517400c35c0357e331951740d3eebaa4d51ae0503194ee3a257b98ebe28245",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-receipt.json": "50adb2e9b8afd8358bf4729d0cdc7d4794ef6184509e0452fc21549d5c5b2678",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-data.json": "692d9dbfb590d777281fd270e3dae8bbde8b641cf5a06183982d2ca36b8e6c3c",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-requests.json": "ee6fd3d6b01196210e42b705876a7abf982183794f3751955f84d6be3e654e8d",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-original.json.gz": "6ee0f32306d7b4136a154dd27984d795df4937169ef45a0f5d65c28123c2c8c8",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-input.jsonl.gz": "110bb0f43b9f8d5b2e0fbe698997c7f5efb71dc70c1b8a20e84aded8f8ecfc95",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate22-r0.jsonl.gz": "4e8e7e75907f5b17fba1b9c67c95b0ddf0de9f74eba059f051b3763dde3be63b",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24-r0.jsonl.gz": "25b1b22da56e250972c96de4f655d4ecd347f4b7dbb93cab84df46b131577a39",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24min-r0.jsonl.gz": "86379c5b04141bd56fdfa93225016600eb48e5d1fa0bc97dc5864accbbe9dc50",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24min-r1.jsonl.gz": "540d2a8c933c30c18432a792a0c83f3f772d49ec88c549786ee47aad975eb380",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24-r1.jsonl.gz": "d998f8c65fb6ab51960d9b1ab0393ed41a62e817beac0af3583940acb4b6b391",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate22-r1.jsonl.gz": "c07aabd6096932fe291b7647ffef5d1fb90caef43f293c900e492ea322176df0",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate22-r2.jsonl.gz": "e48af322ad9d4cbb3ef2c7e753f00f2c9bfebece9368f91141103f2a5bd5fb61",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24-r2.jsonl.gz": "07a429fc881fe1f5928abaf64ecf447b34206d859402a8227d594274e848c940",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24min-r2.jsonl.gz": "c3fe052adacd3455d1290ccc2bb6fe78f7436067b8e62d0c57bb60a991126484",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24min-r3.jsonl.gz": "6c1c0b6e562f160f1d54d703e6327d7e390a4deccbc870d1220c0678954eef64",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24-r3.jsonl.gz": "6d6a007d106bdaca72e0551320824884a6b18be57b29615fe497255272a19bae",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate22-r3.jsonl.gz": "e54260c0be1784a91fdf662fcab30fbf04bb945cdc9d7967af41f120be26a83e",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate22-r4.jsonl.gz": "874061208f40df67acda713e965a14331e93ee50555082df6eb13f3f7562c194",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24-r4.jsonl.gz": "069ef4eb61daf200bf6f4266f68e38f44f9481c64e4638e67208bc2cae11fcd7",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24min-r4.jsonl.gz": "42ac5caf0d9611b5dad3c79d05937376311262f1c0c7f1f7f128ed4b43f34cdc",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24min-r5.jsonl.gz": "95db2d4080136b171daced33546c38f503c7ac7b8d7bb9e3fb0b306003977f3e",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24-r5.jsonl.gz": "508b423a4c344b2a5e72a21ba5981545c76f030a1b7bf869b7d5da35d1ee0d8a",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate22-r5.jsonl.gz": "96423fdec5b36c475da03f6cea26f19b1b69936064f5988e36fa9a5c9ddb4417",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate22-r6.jsonl.gz": "b85662f4f02aa8d31756cd8f3f479e789a70375c7c2e74d2f0c0a234814aeb6a",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24-r6.jsonl.gz": "a09e6987fea1bb572264429f22e78d882a27727a797b58b8213b6d255566e7f8",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s1-n4501-p17-candidate24min-r6.jsonl.gz": "fc28e2d19e7ab93962003581ca93559396ffe94a5f6672270f2af87a11cf976e",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-data.json": "9aaabb54fce34dcf27494657f7565a58fed457904ccae14af26c8a4c79274003",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-requests.json": "4dc1bcd10720b5981ec13678b8482cac747457eaac671ecd4bd3d82513b4f093",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-original.json.gz": "5eadb2e18eb2801b6b4ea93a07e93b15b694bbd058fc8d9c5d55762582d4d218",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-input.jsonl.gz": "a30959937749b8beef00f87963076192ab8c40c890124a0042fd4be220d902ab",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate22-r0.jsonl.gz": "325f8dcee03d012aeadf13e6be09466a0a86b5c73a1e941dfcce99599aa8383d",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24-r0.jsonl.gz": "65767fef0a5c05e09ceedc0a628bb7576fcbc64d22d274d600a9c98e8bf526dc",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24min-r0.jsonl.gz": "639d15a238cf2bf3163865083745aabab44826aaaf75fd1c8fa1410b159daa8c",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24min-r1.jsonl.gz": "bd745b515f423a72eb303943b0ca8711a408cbc3a4380aa6a0be80ffe850d2d7",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24-r1.jsonl.gz": "a27269592ff7fc502a6bb7b833f1d581f6f65ed6e54dd2c868461e4c8331ab6e",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate22-r1.jsonl.gz": "899c65801ec7e325ac0339df4120df475ef056d96c5d29579d7bee0c79a93d46",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate22-r2.jsonl.gz": "62d2c4e5ba6234d12ab7fe8f647e6b133350bf030133cb53ef6227cbe121befa",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24-r2.jsonl.gz": "9b5e4c7091c749c23570dfd76af5b1585d4eafd6629e3e41bccffde3f4ada8d5",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24min-r2.jsonl.gz": "fcfb0feebc6017ee5eeac7da5df8b24d746dd841961b51a6fffc7e244d511269",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24min-r3.jsonl.gz": "e01678188d5b752031f7abaaed5aed6da4c2cc1e89385543f45a49a6679107b8",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24-r3.jsonl.gz": "7b91181a3a62e8a4a006f51ab724c8a865435a91bdcf266bde907b3f77a75821",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate22-r3.jsonl.gz": "dc9e41d7f4510fc79e9ac106f7d1ef91ecde72fba0fed192a8301507f79875c8",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate22-r4.jsonl.gz": "f1665c49ea669e3a627e4906118842b50746a14c43d50d7b08780b0138a955b9",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24-r4.jsonl.gz": "3a98b70a67de9ecfde7edeb8243253879cb3caa39ec325e82d37c4124bf9f8eb",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24min-r4.jsonl.gz": "d54b049c84f4f98bc35cbce14ba21b6c37c928b876dac0eab11c0ad2e3d2f848",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24min-r5.jsonl.gz": "2b760653abd696d8763a75032318b862f4f5dbc3cc14fb39de1e74f9ab40f9e0",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24-r5.jsonl.gz": "3ae12c76824fd4ff05bd01f0c3d18a7bec04b620837f4524f62fae591c3c490c",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate22-r5.jsonl.gz": "d0d010e229f31348e70cb396a214aed7c387d010e02d379065d516a9105d0861",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate22-r6.jsonl.gz": "44345becdbcaa88f02d013c79202ba59f1c60400652d099c4722297cc14e9f2b",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24-r6.jsonl.gz": "a93957ba1217a7b017211a5a053e68df0a4c879939efc512258d08b36e344b09",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-windows-timing-s8-n4501-p17-candidate24min-r6.jsonl.gz": "c0f60a82cf0c5f44945de4ac6bed0b58d01b1f74126bc8c0b5288dcc5adf94a7",
+    ".tmp/practical-replay-j32eeh4e/sre-causal-v2-kpwbmhc5/invocation-000-summary.json": "45722127ba2e97d410ab1aef9d6a0e9a37dd4ed62973cef2f194faca6c3627a2",
+    ".tmp/practical-replay-j32eeh4e/sre-causal-v2-kpwbmhc5/run-binding.json": "1df879c727d30e6d9a4b2bf2cb1c881de18567dca7fa3360063e7f00d501b2e3",
+    ".tmp/practical-replay-j32eeh4e/candidate24-protocol-checks.json": "701972f157e3cf6741cd831786983c41f3944aa76127b8e5b1b2bcfdd09600e4",
+    ".tmp/practical-replay-j32eeh4e/protocol_checks.py": "47b7d7e54f0f8594302820880844db145ab66597a6e4956e3b355adf3d44b9d5",
+    "src/crates/promql-engine/tests/promql-conformance/absence_argument_cases.py": "4707d46ef3951ab6640a50dd234731eceb14e1b296a9859d1780fd4aeddd4c8e",
+    "src/crates/promql-engine/tests/promql-conformance/aligned_merge_cases.py": "671652fb25a6ec16468c4685efb748b5cb229bca234b23ec3ba0160832378233",
+    "src/crates/promql-engine/tests/promql-conformance/api_limit_capture.py": "af00ff72ca616007805ead3da0eb80920a2a2db1f7404eba44b295242710723c",
+    "src/crates/promql-engine/tests/promql-conformance/atomic_work_cases.py": "27a3ac54eab2c5c28d12799ffa4042f74c61faf7c7d789748d40077322894d7f",
+    "src/crates/promql-engine/tests/promql-conformance/boolean_rate_cases.py": "7d97595e4e4f97bbf6ebeff2929824030c94d2d88e35374f34cf7c2920074c44",
+    "src/crates/promql-engine/tests/promql-conformance/borrowed_cleanup_hash_cases.py": "f544777e6a42b38bdfba244c5ecc8bca47badaf2f827acba3eb9cb4ab50a3477",
+    "src/crates/promql-engine/tests/promql-conformance/build.py": "8304e774ac5d329b2c1f68c24de70a6b0cfb671d4962165b2a696caf93163f86",
+    "src/crates/promql-engine/tests/promql-conformance/build_frontend.py": "4bd1bcbe5944eb9c703a4d048c9fa16eef0a4f93b26babfd5605eb5cd7bf6ffe",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.py": "49fbcf1166b7d6c26b7fbd34ec5f640008ea5bf7ab597a284b65a86de56a1eb3",
+    "src/crates/promql-engine/tests/promql-conformance/calendar_dispatch_cases.py": "2320c9acbaec0712bd9fb6b7e69027c3d635595c182b3fcd0375ab44bd14117b",
+    "src/crates/promql-engine/tests/promql-conformance/capture.py": "99e02e4dcd0fe33463a93603ccb08f40654c90c472c63f5650dbbfbe3dde3d47",
+    "src/crates/promql-engine/tests/promql-conformance/checked_label_view_cases.py": "1b64fb71b25424051f5795681202b4c90184505dff51f7b0456332556aba81e3",
+    "src/crates/promql-engine/tests/promql-conformance/classic.py": "b8496625f1e3913ba8b828604d15c587fc9c80cf7562deba7992cb3552bbb0b7",
+    "src/crates/promql-engine/tests/promql-conformance/classic_capture.py": "6aae0eeac553b161b30de7d31e4934c37bc4c0a1ef9045d7e0945fea6384c95b",
+    "src/crates/promql-engine/tests/promql-conformance/classic_mutation.py": "0d6ebdbb6da82d803eea7208e5703c9dae92e218ee30f4fb56583ab1619b8ede",
+    "src/crates/promql-engine/tests/promql-conformance/classic_reference.py": "608e24cd7aec90e69dbf1f0b8d30aa6f38dd0a27973f8dbfb4c6283851921a31",
+    "src/crates/promql-engine/tests/promql-conformance/classic_replay.py": "94a64fcd0ccc034caa5a4b6740111dd5ea50b0ea61ba59804f5bc53915a31a4d",
+    "src/crates/promql-engine/tests/promql-conformance/classic_replay_cases.py": "ae295d127965fc7020b46d73c23876b8fe7804851db8aeba82ce202cbf2c1bb9",
+    "src/crates/promql-engine/tests/promql-conformance/compare.py": "65893c406c1eee8428968e8fe8d9b0f5215d3dc2fdb36e7042eaae442492ce76",
+    "src/crates/promql-engine/tests/promql-conformance/comparison_map_label_borrow_cases.py": "7b894d794cc21408f2ba1ef4d6bd6dc5f3d78439da0137e2f3049b0973f75d2a",
+    "src/crates/promql-engine/tests/promql-conformance/count_values_calls.py": "3b19eea56fe5e4b081bbad0c607eb2c74c2c00bc11444d551e3d37b4e609120c",
+    "src/crates/promql-engine/tests/promql-conformance/count_values_cases.py": "68c76dacb23c1bba03c949062d11e9fa7380dac7c0cb698bd5c3cce89885aefd",
+    "src/crates/promql-engine/tests/promql-conformance/cursor_calls.py": "42e0f93b5bec4c7f73a44288f2981b7fc01d936fb57d09c45aaa63d2a4cedaa1",
+    "src/crates/promql-engine/tests/promql-conformance/cursor_policy_calls.py": "f873318d36b3b1c86c69477046a8b3d860c24730178fe506dd7e883a337640c0",
+    "src/crates/promql-engine/tests/promql-conformance/default_profile_calls.py": "0b5d39be5ecbefd54a92af6738d110953612d21d1f5b4dc1f1fb0c03372a59ed",
+    "src/crates/promql-engine/tests/promql-conformance/default_profile_cases.py": "a55d297abc896f546cad2bbe0679fa2d7e5010dc34d05d1f3a451d49416958ef",
+    "src/crates/promql-engine/tests/promql-conformance/delayed_group_cases.py": "6b9081f0e503b97edc2717a5bb9f611ecb74c3b9dcf25e5118e61c8c4d2fd7da",
+    "src/crates/promql-engine/tests/promql-conformance/delayed_nested_cases.py": "0b66b44990340ad78faf5b7d44f3338b48258eeafa95b54153c39e4fbe7c1ca6",
+    "src/crates/promql-engine/tests/promql-conformance/delayed_ratio_cases.py": "3678025ca99b09bceaa70020748d392caf80773e1886dfef6ff625503c8dc566",
+    "src/crates/promql-engine/tests/promql-conformance/delayed_raw_pair_cases.py": "3ef54067b6403a5e3a89c5d037e77a1a87016ceb61426c14c14f4364f41802a2",
+    "src/crates/promql-engine/tests/promql-conformance/dense_compaction_cases.py": "f3e6bf2998f92fee898572a679297ea107a30abf08c4c72fc32a7c402b6720f7",
+    "src/crates/promql-engine/tests/promql-conformance/descriptor_hash_cases.py": "bb0a84a656de7b3a57deee55ba2800e00a20fbf33876cb2d8a79535b2b1a9b7f",
+    "src/crates/promql-engine/tests/promql-conformance/direct_rate_family_label_cases.py": "d19e8a1a01ea8f7b4f9cc7074b175e1f56e76c8cb76a4390bae35af8dcf9d9ff",
+    "src/crates/promql-engine/tests/promql-conformance/empty_merge_guard_cases.py": "2bb46f4cf9a3103a01e16fa67778d8e9392946d199b25e004db9a9537bbf82ba",
+    "src/crates/promql-engine/tests/promql-conformance/float_literal_cases.py": "1fbc86d85da4743805e555fc669c592802c35ea268afde5e95472412e9369df4",
+    "src/crates/promql-engine/tests/promql-conformance/float_literals.py": "389d9c7d8d32988facd26a70be2bd60c1e7f9144c96f31f8178ea4802aedbb04",
+    "src/crates/promql-engine/tests/promql-conformance/float_map_label_borrow_cases.py": "a1c90d5421a56218999b49c33143ad0c32cd57556ca5b96195977b4af232b17e",
+    "src/crates/promql-engine/tests/promql-conformance/float_text.py": "ccd28493da38d3d14db56b8404bfa3bf291744b0a6e43ab8793cc8e74d44c83b",
+    "src/crates/promql-engine/tests/promql-conformance/float_text_cases.py": "189da82726b71a9af98cd116c6f4c3a695a3edfb59ef7bb3349480e362a1f56b",
+    "src/crates/promql-engine/tests/promql-conformance/fold_endpoint_key_cases.py": "3592dab8e1642c96464aa8d1b0f96a1668f4bfb0f092a0f3e12a6a485caf93ce",
+    "src/crates/promql-engine/tests/promql-conformance/fold_geometry_cases.py": "5f60bbd55fd11187783977891faaeb48e0ceb3fed53464d768dc9f8848291192",
+    "src/crates/promql-engine/tests/promql-conformance/fold_group_label_cases.py": "9944e2dc7a7263a2f01ab8141fdc7905433ce08bc2e3a010292a6f97b7e9377c",
+    "src/crates/promql-engine/tests/promql-conformance/fold_join_cases.py": "0d3165675202a19ef730288ded338c441471840db5958808f0db1a06e70fd56b",
+    "src/crates/promql-engine/tests/promql-conformance/fold_position_cases.py": "4fa2f5d3f9daea8bcba78e8274f5ca50eccecf26667d2508848e6b43ea6c64ef",
+    "src/crates/promql-engine/tests/promql-conformance/fold_range_key_cases.py": "e6f0113b97bc1786d930ace9553d0658f21f6e5d01da5e77296403c43bbac0f6",
+    "src/crates/promql-engine/tests/promql-conformance/frame_cases.py": "d819081339be51d091023803741d1b7e76ab0e54c8099b89448f3c29985b72f5",
+    "src/crates/promql-engine/tests/promql-conformance/frontend.py": "88d3122006f74357408141cce97ad43e0dae9c96cf749fffd4a64841657fe670",
+    "src/crates/promql-engine/tests/promql-conformance/frozen_pair_ordinal_cases.py": "45891406e1aa9ab7aafcf4a979e0643d78b1312f127310e2df5a108653bbfebc",
+    "src/crates/promql-engine/tests/promql-conformance/generated_label_cases.py": "54619789eef5b1d3ab0cfe886c7503e15f6df78791c129bd29ec2a5fc5c6cc0b",
+    "src/crates/promql-engine/tests/promql-conformance/go_sort.py": "bb48caf4d5a3b6ebf90ffb99aa32409db8eba85cff051d8b55b4b5c9fae5575f",
+    "src/crates/promql-engine/tests/promql-conformance/go_sort_cases.py": "51f701669a15cbf39fd81d5f3f48faede30a8cd2ecd735d37b0f9bb3194c6047",
+    "src/crates/promql-engine/tests/promql-conformance/group_contributor_cases.py": "f629bbe9e26619b94552fc7f1e617dab978fcc4cc1a44dcdb7570032531191a0",
+    "src/crates/promql-engine/tests/promql-conformance/grouped_join_cases.py": "d1441e3fa28e940f901037130b87d83d8ed75fcff739ab536da208328c734d78",
+    "src/crates/promql-engine/tests/promql-conformance/histogram.py": "fa608de40132cc7a051a4d91d691ce2c179a85c789765f93af272b5079df73bd",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_annotations.py": "c1a92fc7f7cffdde1392988246788436428d124baeb8c389679726a9ea3264c7",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_annotations_cases.py": "7b463d82a00cfb88300fd5f3d55bcacf72299aeaaf823f3c469cd2ca7db6fc00",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_bounds.py": "10c3d764862ec24a12fbfd2bc0eb356f44a7abb96192a47dae6bec276353ee2a",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_call_cases.py": "63a8630adcfa9126eed4c5e3be607c36d8b359c7c2ccdee4b3509f83ef04535f",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_calls.py": "eac7649d2d6fc86ab73aa75520fc4f1f3a7b1c16d8bd8fb00e3ded3e638511d2",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_capture.py": "f3b9b34b7c71ca40130f8a172ccbc8e0624d5360cb3cb5e2be6cf48c27742257",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_contributor_cases.py": "c5d0c4b3524d0f845c7d08e5da1da0086965b31e85b68645f46b42b8a3b153f5",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_functions.py": "e726d72dfa80887bedf70c0602be57058c1787b7fede9b484629348c07d4ac3c",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_functions_capture.py": "272b00299ae570545e99c16b7551c88f7d2666f6989bff378dc9864033c2a601",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_functions_reference.py": "874235bc4585392060dbf3c077770437f049e1487c1ee521ed9818e83b9b21c7",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_reference.py": "2461c8e1efb5530e4f5fc757a011fb723a24c843d821dc0c55b9fde6471d6970",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_statistics.py": "a3d85782486163a471894671f785f66987adc91a8200c55d3f353cc8f9ed2044",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_statistics_capture.py": "db06218966f5e1a4a59636c41ba22b641a1cc7bdec6eb0371ffa228dd6fad8d0",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_statistics_reference.py": "a40eec3d0f2bcb1207423965489cfbe24761605fd76cb952a96a590626951fce",
+    "src/crates/promql-engine/tests/promql-conformance/histogram_streaming_cases.py": "2b5a1f5cfe6f36e7915ae955a0d9ad2ef8de1a7cfc4b1a12cb447dc184a7ec30",
+    "src/crates/promql-engine/tests/promql-conformance/info_calls.py": "b7ee3ef5ce3f91603bc9f4ffad5d4ead9f1e85bafbad57c4c34a5136461116ea",
+    "src/crates/promql-engine/tests/promql-conformance/info_cases.py": "b27c6c895434608a38c3ae3ab0bb4b4cb8008acc2deccf91ca43808598d4fc02",
+    "src/crates/promql-engine/tests/promql-conformance/instant_set_cases.py": "cb31bd07f927d815fce995181963a3f72b49b1887409f6402943e688dcd5a4f1",
+    "src/crates/promql-engine/tests/promql-conformance/limit_calls.py": "c404f2f1e99c36f9c0a350a668a1b871be35de16a3e3d0f9ea30a8a25423c52c",
+    "src/crates/promql-engine/tests/promql-conformance/limit_cases.py": "7c0dd1b6acfb5e5965eb8fcf8fb7c2966dc7ec99d403decd6f53eafa3baee33d",
+    "src/crates/promql-engine/tests/promql-conformance/limit_policy.py": "3c824d8e19a11b46d84b8813111814d65f6b7ab615b7a2e29c05bf7c9b34b9f3",
+    "src/crates/promql-engine/tests/promql-conformance/literal_count_extrema_cases.py": "4506a8e1abd6bdf2b49d512acde0e018912b38e0e66954001554d7f2dc97f67c",
+    "src/crates/promql-engine/tests/promql-conformance/literal_deriv_cases.py": "12519378480eb385b513ab4720a5eab0dbcd89b2b3c996c5f3e881372a08312f",
+    "src/crates/promql-engine/tests/promql-conformance/literal_filter_cases.py": "f953038f4da9ff1a1674a2faa783d6a4c381f0100ed997801c4e08bf188d41a8",
+    "src/crates/promql-engine/tests/promql-conformance/literal_fold_cases.py": "173ff7bb08857ca9456f3d2d2ccd66d4a2908735afc89e0d6d2c2297a2d0d6d4",
+    "src/crates/promql-engine/tests/promql-conformance/literal_predecessor_cases.py": "c162fa0780cd8c601c1cd6cbc0c68e025e0c5fc48a3b6c482915a9a3c9022a53",
+    "src/crates/promql-engine/tests/promql-conformance/literal_rate_cases.py": "dbca0b83869e6771f62824683c41be233a6165eceb069a59c163881ad8aae6fa",
+    "src/crates/promql-engine/tests/promql-conformance/literal_variance_cases.py": "e85639d12c6d540583dc347a41e84564920fe5f9a48335f6953774f67a32272c",
+    "src/crates/promql-engine/tests/promql-conformance/literals.py": "c92fb75370a3de2df2e11f41c0a4ace73aad695d4a75fc98db44a3619c11720a",
+    "src/crates/promql-engine/tests/promql-conformance/logical_bucket_calls.py": "0a358fafc9e23537bbeae1a1d40a4c2b18b70877dc2c64217201fb0924b01b9e",
+    "src/crates/promql-engine/tests/promql-conformance/mad_calls.py": "f25acf067aa4a83c2c8bea9ac44c87f59d1af0bdcee964e89119ce9a4e480857",
+    "src/crates/promql-engine/tests/promql-conformance/mad_cases.py": "a0c876c10fbcbba8ebdba14fac7de12fbf3e924e224f3fa3ace2e1cadaf5a291",
+    "src/crates/promql-engine/tests/promql-conformance/mapped_fold_label_cases.py": "509b98cce85d70debbbb706ec8d72edea071e53b9ce6512899862ac8bfd4b42f",
+    "src/crates/promql-engine/tests/promql-conformance/mapped_label_borrow_cases.py": "27d751e4adbc7a6520357bcd4b2d8968473b9a926ff3666559b1a3040525e1b2",
+    "src/crates/promql-engine/tests/promql-conformance/mapped_rate_cases.py": "be24d8ca35317478ca86f2297b627e5001157a7448ba3f3bbe75c346a459d058",
+    "src/crates/promql-engine/tests/promql-conformance/mapped_rate_label_borrow_cases.py": "34cb7374cf9a5ffbb394a2e0209d1aabc93e048dca610919b2f9d609389f13a2",
+    "src/crates/promql-engine/tests/promql-conformance/matrix_reader_calls.py": "ab81da593eefe19ca7dbae569ce7db3a0d1bf10fd4085d544c403e26f11afc6b",
+    "src/crates/promql-engine/tests/promql-conformance/matrix_reader_cases.py": "dcd1a2f0369b30d8d1c5935a7a780acc09e2f64aecddfe1cc53c7b8b26ce7bb4",
+    "src/crates/promql-engine/tests/promql-conformance/native_endpoint_cases.py": "e60de13dfd7d8869efdd2448c6967759e2d872b979186ce798a8ea6f0d5da48e",
+    "src/crates/promql-engine/tests/promql-conformance/native_final_cases.py": "afe0c8ac62e5e9f42172e6a5821f0caf1e66add79255a9f81bc09d0237ff0004",
+    "src/crates/promql-engine/tests/promql-conformance/native_group_map_cases.py": "e56cf67118a922e49461aaee8c8c9524f9d4724d2a5d645903abc8e899e1e193",
+    "src/crates/promql-engine/tests/promql-conformance/native_group_owner_cases.py": "3f79dea9cc5d7ad023ae7251ee8787307d33bf4b730368b6415850b3880c2816",
+    "src/crates/promql-engine/tests/promql-conformance/native_matrix_calls.py": "d729cf80add03e88799065b384e78877a4a656ef81f476ecfd8f1badfb7e8233",
+    "src/crates/promql-engine/tests/promql-conformance/native_matrix_cases.py": "7a5e29c7dd82dd5ae4eb0cc2caa10f677e095b98caee57cbc6d4ab2ce450c858",
+    "src/crates/promql-engine/tests/promql-conformance/native_second_cases.py": "45ca6de44cdd27a1ddc3069b4a65b2493dc8298aef858463e88f45aa537201f8",
+    "src/crates/promql-engine/tests/promql-conformance/native_terminal_cases.py": "5deeb1fbd9a7686a1ab461c7f9f831b0aaadf1d949b1efea54bde6ad97413255",
+    "src/crates/promql-engine/tests/promql-conformance/numerical.py": "3b7eb33a5f825083ad748dfbe04819ab4818ccd0c8e38c711fbd05c1c5a0d16d",
+    "src/crates/promql-engine/tests/promql-conformance/numerical_capture.py": "8e1dabab98ab6972ef3349c4695452e4cff631fd2ab1826096916601e87789ec",
+    "src/crates/promql-engine/tests/promql-conformance/numerical_reference.py": "8667f0a68092b2f3cf09309373da023917ff1e13d87beab4e627dfc353750604",
+    "src/crates/promql-engine/tests/promql-conformance/observed_filter_cases.py": "5fb72d2f55463ccd70d2117432af7b7bac2f80caf8dcb77a01049c88a5c6aa2c",
+    "src/crates/promql-engine/tests/promql-conformance/ordered_label_identity_cases.py": "03dc960ea6592d46b4f3f500342c786e36fae094e9dd437c10f8ee93639bd2d1",
+    "src/crates/promql-engine/tests/promql-conformance/output_label_calls.py": "c343049f160268b3fbafb08f73a5a0445d774b739cd8b586e3af8243ab9573e2",
+    "src/crates/promql-engine/tests/promql-conformance/owned_label_cases.py": "65121b04ab899c12a539edb6b83d2c3d91411e874bc2b2a7453f6d33fe5fc0fb",
+    "src/crates/promql-engine/tests/promql-conformance/pair_frontier_cases.py": "de3f34c241197e7370643b1005ce3a15573928aff407f4e728e82461fc9f76fc",
+    "src/crates/promql-engine/tests/promql-conformance/parser.py": "54f61b7a66ba1453dfa0db0ef1e4f4f96b8074c234156a4ec2a39205aa8ddd90",
+    "src/crates/promql-engine/tests/promql-conformance/parser_cases.py": "76f0c0e1ed7029c844b80eb472d35e16e9b06db3a2dc4fc30eb590333a548a2f",
+    "src/crates/promql-engine/tests/promql-conformance/plural_histogram.py": "f3fdf26b895fcb900a0ffa6bd717fc281138bf2dd6792410b15214fd49b2e2c4",
+    "src/crates/promql-engine/tests/promql-conformance/plural_histogram_cases.py": "883be6351da05ecf36211dde887524c54f9279561e1c58dad8c59cd813bd0644",
+    "src/crates/promql-engine/tests/promql-conformance/portable_arithmetic.py": "6b1ec9cc50dbb28c0f6e826053b1ffcb02e67ab01cb0b6640af30b522ce87c79",
+    "src/crates/promql-engine/tests/promql-conformance/portable_arithmetic_cases.py": "2bf1c1216fe0ebd596704f9042d69dcd60a0e803b1201b999eb57a3f67095b3d",
+    "src/crates/promql-engine/tests/promql-conformance/portable_arithmetic_native.py": "720b23d8e3caedbe01e75e78929bb8a6187ac1d7d715e30191c193690c961b55",
+    "src/crates/promql-engine/tests/promql-conformance/precision.py": "aa957b379af75098220820cffa6dc38750308eb034e5e68e21934068da703bdb",
+    "src/crates/promql-engine/tests/promql-conformance/prepared_root_index_cases.py": "eff8e3fd3b0ca8d30ff8e74985c893b7c7643bcff66790d9eb6abb23698ce74d",
+    "src/crates/promql-engine/tests/promql-conformance/preprocessing_flags.py": "743c191b75cebda8cd89a90638863714bcd7505ce5343371c1751d240b6eea91",
+    "src/crates/promql-engine/tests/promql-conformance/protocol_primitives.py": "fad7c930759f4f9a0747a85a304b5c82558ab17172ff09ec47ebca7a50ec1ed0",
+    "src/crates/promql-engine/tests/promql-conformance/public_hour_calls.py": "6b80a128eef2280522309cf473ba88ced1387666a5ebae1e74d0885d81002d69",
+    "src/crates/promql-engine/tests/promql-conformance/quantile_aggregate_calls.py": "c44f4d2e2fd5cbdc198b5bb24aa8eb7309a37e59d281122537bcf2afe3238372",
+    "src/crates/promql-engine/tests/promql-conformance/quantile_aggregate_cases.py": "0e292dba4d17b9d3e7aae595c39ad3b1e467a38ffd8ec5d88b7327273814b91c",
+    "src/crates/promql-engine/tests/promql-conformance/quantile_policy.py": "2d82c803e5397b10d32134e0898e433547d40f9cd3d48b6ffdb995ec6afe6dde",
+    "src/crates/promql-engine/tests/promql-conformance/query.py": "863051b7f21cffc1c74630403540a4905ed3e3410496454808591a97eabf5bbd",
+    "src/crates/promql-engine/tests/promql-conformance/range_rate_cases.py": "4c8bd0552f1b742dac5060b6501056d25150a97d231ec09e530f0508ea8e7eeb",
+    "src/crates/promql-engine/tests/promql-conformance/rank_completion_cases.py": "70e76d65c72724f2eca97ef7a304969742a6f2341701ca91b1413f15ef66194f",
+    "src/crates/promql-engine/tests/promql-conformance/rank_prefix_cases.py": "46a341d8c01ea0404b55cfa66992e0d4e52b469d4be915286a66108de1064ff5",
+    "src/crates/promql-engine/tests/promql-conformance/rate_acquisition_cases.py": "1d66af5f8e6f190a749f7264f70a92e7d2cae11f71386bd863f06e0776d830d6",
+    "src/crates/promql-engine/tests/promql-conformance/rate_family_label_borrow_cases.py": "0ac9a1a54df9a32708bda8380e3304d728ddc517124d2b2389957bc5380a1572",
+    "src/crates/promql-engine/tests/promql-conformance/rate_group_label_cases.py": "9c8ccfe682b57f74533b8dd77157402ceb4d458cc0ea0c19ac767ef5c8556653",
+    "src/crates/promql-engine/tests/promql-conformance/rate_root_label_cases.py": "1c0f27a2eb6c5ba90b2cead145e6f236956eede7141c78e807f2a7be7fd7b311",
+    "src/crates/promql-engine/tests/promql-conformance/ratio_sampler.py": "7da0a5525abf8267a88b1210208aa2f65d86157d348d028d2e23b1df35a2f37c",
+    "src/crates/promql-engine/tests/promql-conformance/regex_capture.py": "8d6086678333af73a826a4dfb5456ea75c9719f2989b7950b45660ae728a7f45",
+    "src/crates/promql-engine/tests/promql-conformance/regex_cases.py": "222adab1765ff9d13d786b6f4fb7c416ddfc77c09fd34ca3ceb708c0654c8bbe",
+    "src/crates/promql-engine/tests/promql-conformance/regex_reference.py": "01965cfec40850fac3a04dea681f3403acb839921d2e77099bef0b171977c908",
+    "src/crates/promql-engine/tests/promql-conformance/regex_unicode.py": "99da2b51e145befdba6a811fbf94609d9e9b2e60a893d89e3bc6a23857a478be",
+    "src/crates/promql-engine/tests/promql-conformance/scalar_arithmetic_cases.py": "cd0b9b8bfd7b6be4bc04f5a61150938e968c0dc26b17e8ccf2ebcfab92315094",
+    "src/crates/promql-engine/tests/promql-conformance/scalar_group_cases.py": "684dc5e5d8a344ed6b4a15668f6028d5ef243df65570a06ed9669f6a5ed5e118",
+    "src/crates/promql-engine/tests/promql-conformance/scalar_map_label_borrow_cases.py": "a266091487c22c0a6f77ada5be6ed6313900b738ae8c4591416d97c31115e09b",
+    "src/crates/promql-engine/tests/promql-conformance/scalar_trim_calls.py": "1d18081d237b7dc9fd52eaafd37318fea073728fd98ab37f45be1e9ab212f64f",
+    "src/crates/promql-engine/tests/promql-conformance/scheduled_label_cases.py": "93dd7ae4e74964705e39896a337306f0d5038df6f6473beef7cc3fa9429867fd",
+    "src/crates/promql-engine/tests/promql-conformance/scheduled_selector_calls.py": "51634f4ca9f2b375cc608993c2395d7041e18e816335b43445bc908f2bb3371b",
+    "src/crates/promql-engine/tests/promql-conformance/scheduled_selector_cases.py": "a157dfae2c5531237d206674a6809fddd063a735455b37f0f167174f8f0832bd",
+    "src/crates/promql-engine/tests/promql-conformance/selection_order.py": "82e886d29a75cd0808a51031025cea977768088bc2aa8d812a032cc3e51b839c",
+    "src/crates/promql-engine/tests/promql-conformance/selection_order_cases.py": "980674b4334704bf68d67e17a0ada015c52c428d01ef947d8218de5adb42d6d0",
+    "src/crates/promql-engine/tests/promql-conformance/selector_group_label_cases.py": "83d94b891942d32060f0de660aab895e056a43091942e753ad206b8242ae9515",
+    "src/crates/promql-engine/tests/promql-conformance/selector_prefix_cases.py": "8d45fe62316848cbe693d37e2c46b31a02693cf42007d4adc0f99b8ad325559b",
+    "src/crates/promql-engine/tests/promql-conformance/selector_source_cases.py": "01fb270b775f23d0b5efc50e60c7db730b278c714f9fd22ae83ad89522717af1",
+    "src/crates/promql-engine/tests/promql-conformance/selector_suffix_cases.py": "e8e77ef14bc5ef427f9288bad32d36a780bd4912adfabecad55a9a4d7db69c9a",
+    "src/crates/promql-engine/tests/promql-conformance/single_reset_cases.py": "5a45bc17d36b0a357d8618e93b60aea5634fc2637f3eea3c1fff750be470866f",
+    "src/crates/promql-engine/tests/promql-conformance/sre_inventory.py": "9ff02a30baf23e7ef07be5a13868baf2b9c7404fdb0030c31ccf708668532961",
+    "src/crates/promql-engine/tests/promql-conformance/temporal_quantile_calls.py": "ddd94a8e1f9dd98a05ad09a659b652a88a93087caddb35e64aa2b516f5d2de29",
+    "src/crates/promql-engine/tests/promql-conformance/temporal_quantile_cases.py": "8ce5430915d9bc07390712fc707ef591ba41393be332eae4a10a80c1b3b5524f",
+    "src/crates/promql-engine/tests/promql-conformance/temporary_quantile_calls.py": "a9680295fa142ca7545d74a7e4bf7957752acea2bf48c9aff8c14d8a6f779fc8",
+    "src/crates/promql-engine/tests/promql-conformance/temporary_quantile_cases.py": "c50bc866374f19ef02461ea75bd297419b47776d891bfac00644685c7f373d1e",
+    "src/crates/promql-engine/tests/promql-conformance/test_c_embedding.py": "95d49b48286fe295dde4745d8413446c38ceee203dfcc8a5305dc06d2caf98a7",
+    "src/crates/promql-engine/tests/promql-conformance/test_capture.py": "bb841ab85233574066a7023de5d5ec295e43dc1a10ddec6a4d5f31872a87fcfd",
+    "src/crates/promql-engine/tests/promql-conformance/test_classic_reference.py": "156681faae45dfe0c3e923570dd707308ef70758f03f667f1b4fab0cb9a9b65e",
+    "src/crates/promql-engine/tests/promql-conformance/test_classic_replay_reference.py": "33d73b517d23fb397dd28b28b49fb33a6a8d701f8f587c93c143e926d03f2835",
+    "src/crates/promql-engine/tests/promql-conformance/test_compare.py": "6b6469e8f3af15e9dbaa10f26fa523401c262a45fdf22d77187172eaac01da18",
+    "src/crates/promql-engine/tests/promql-conformance/test_count_values_cases.py": "f2561099f527220e94fb9524474d2f6f8aa18a28e963081c173116995b0ba53c",
+    "src/crates/promql-engine/tests/promql-conformance/test_cursor_calls.py": "827bfb83c4c15a0852a5f157c4357fbaf6744ad09bb11d5e8b953100b01f0af0",
+    "src/crates/promql-engine/tests/promql-conformance/test_cursor_error_capture.py": "c17a9d28b687efd55c0eb89f8e28e1537e0648bbacb733b6288e48dcc247b18f",
+    "src/crates/promql-engine/tests/promql-conformance/test_evaluation_capture.py": "76134b41a1bc2eecb8890a5a72e34748865bb9c1c9de489ec025352477c472b1",
+    "src/crates/promql-engine/tests/promql-conformance/test_go_sort_reference.py": "cca9b9967041a80c1b6ab65f2d366514ad041d7c4ced577f215c9416f4a52c60",
+    "src/crates/promql-engine/tests/promql-conformance/test_histogram_functions_reference.py": "cbae77303083df56d94fa35b3d85041510c4d2ebfd2c5459f0c070ee97f73fd3",
+    "src/crates/promql-engine/tests/promql-conformance/test_histogram_reference.py": "45cbbb86fe91906352d667d552d06c9c405a12fbfd25a0816d1d053175fc3623",
+    "src/crates/promql-engine/tests/promql-conformance/test_histogram_statistics_reference.py": "6e85e07adb12be9950f62de2092edc2b15a945379d42dd6e25dbcd2380227445",
+    "src/crates/promql-engine/tests/promql-conformance/test_info_calls.py": "30724e2a30fab8956fcb85ab5ebd20c6b627e799071984ff423e8b2d0d31ae0b",
+    "src/crates/promql-engine/tests/promql-conformance/test_limit_cases.py": "03a82eec815c5074f74adaa045ad108b03fbf347c622b524f54364e906a928b4",
+    "src/crates/promql-engine/tests/promql-conformance/test_limit_policy.py": "6e2d26729359693ff3bccf09790b8bbefbff9bb95c57b934573ed745b05070e2",
+    "src/crates/promql-engine/tests/promql-conformance/test_mad_cases.py": "574b455a1629c3449eb0782acb2859ead42497e6e5831a7020760258c039e94a",
+    "src/crates/promql-engine/tests/promql-conformance/test_matrix_reader_cases.py": "0868cecbcb81924c6dff89f79ccb8de64d30159e067fec375a61552970fdc0e4",
+    "src/crates/promql-engine/tests/promql-conformance/test_native_matrix_calls.py": "681e2ebd726095af90fcca1522ef3b6d51136612fbf9ab7be788044b80f017e2",
+    "src/crates/promql-engine/tests/promql-conformance/test_numeric_oracle.py": "4bc7ef83a69493523d46c5d6c55e8d122b2ab48de1eadcd2034ae21f64ecacf3",
+    "src/crates/promql-engine/tests/promql-conformance/test_numerical_reference.py": "32146f4ccb7234601fd816ef71bc070ae29aa9cfd22669b583ab2334b852bb87",
+    "src/crates/promql-engine/tests/promql-conformance/test_preprocessing_flags.py": "1cf1c78d8943f1daae8b5a700b935a70d27d94ea07ad303e38508594792c0460",
+    "src/crates/promql-engine/tests/promql-conformance/test_quantile_aggregate_cases.py": "04b358db284b986d2903ae676fd6761b9ad3dc6603b1502fa1cc0b789788231e",
+    "src/crates/promql-engine/tests/promql-conformance/test_quantile_policy.py": "64c2b5498aed5b576b8d7d34728c271e103ff60129bcd8084d265e378ed8ec47",
+    "src/crates/promql-engine/tests/promql-conformance/test_query.py": "078339dedfb9c5ecf9daab94540bd08cb14f4a4d664452b9a3155912d997555c",
+    "src/crates/promql-engine/tests/promql-conformance/test_ratio_sampler.py": "70664360d910f4ce303e3901b9303557a5c47f59f7345e242f9ad996f680be34",
+    "src/crates/promql-engine/tests/promql-conformance/test_regex_reference.py": "2d630f3f61073737e20e50b7f0a150efd83cb11f3b3aace289575030c0490c1b",
+    "src/crates/promql-engine/tests/promql-conformance/test_selection_order.py": "83d19d7c897aa5ce116a564aac8f8e2587456bbd95498678152d3881622b8ca2",
+    "src/crates/promql-engine/tests/promql-conformance/test_selector_prefix_cases.py": "9ca15d4c346138c933cb8e2efff9688140af75ad6b91c95b58248bb28dfd61d6",
+    "src/crates/promql-engine/tests/promql-conformance/test_selector_suffix_cases.py": "30cca846ed054e45b136f15cbb755dbc52327bec6902f5c9b0287c9951865324",
+    "src/crates/promql-engine/tests/promql-conformance/test_sre_inventory.py": "13cb43e0ab6b764b1e28e361e3c87875b9e8d3ab667b56cde753cd73ce3c8047",
+    "src/crates/promql-engine/tests/promql-conformance/test_topk_cases.py": "d0893c8bac7ccce6aab46e8cd3688c638367ed3b5bfd76b6260504b5ae01a68f",
+    "src/crates/promql-engine/tests/promql-conformance/test_topk_policy.py": "f5f37a085f2c4d712bc11b14d03502bbd93a0b7b70849598f9b4e8718558fbbf",
+    "src/crates/promql-engine/tests/promql-conformance/test_trim_reference.py": "e8aa4bb7ebdc436b16ef5a9257b793bbed0883bed3c749d50c081c08a2c1f7fd",
+    "src/crates/promql-engine/tests/promql-conformance/topk_calls.py": "0c2d55929b50e37f4c96643cf8c4d8afedc18cadaf72b9a1405fd37915a824eb",
+    "src/crates/promql-engine/tests/promql-conformance/topk_cases.py": "ad96fbc13bd88c73bf0c3f73a6f133a332722fd6748a561f63519127be07586d",
+    "src/crates/promql-engine/tests/promql-conformance/topk_policy.py": "e6781f7f8e76f5acdcf72eafc3ecc8abfaad0e5967d0fc61556099f9451fe64d",
+    "src/crates/promql-engine/tests/promql-conformance/trim.py": "9a2d654bdff425241ed4f9f8cefb2f312d94bceddc1606e598a1927745d2fd32",
+    "src/crates/promql-engine/tests/promql-conformance/trim_capture.py": "29355f617f25d3ac6ff159c9c9fa696225df2ca1aac9a5583090392f6cd7489e",
+    "src/crates/promql-engine/tests/promql-conformance/trim_reference.py": "37db509820cfb7bb73bbe5ae3ab1eb766e6a73ff5e5028d4df1dab49ec21b564",
+    "src/crates/promql-engine/tests/promql-conformance/unique_group_index_cases.py": "c8890a3ee0eddca31245e3ef64469adaf27eb3a8408540537546b3e3271d1f2a",
+    "src/crates/promql-engine/tests/promql-conformance/unvisited_matrix_calls.py": "0115db1502b7b6e763d8c3b75e4fd5916f86ef0c08ccef181b83ce48e0d30c6b",
+    "src/crates/promql-engine/tests/promql-conformance/unvisited_matrix_cases.py": "27703ef0e2b7d4ae8f61633fa0cc722968ca8472dba2bc334cde81cacc7d89e6",
+    "src/crates/promql-engine/tests/promql-conformance/upstream_inventory.py": "af5ab795fc09f7f2fb7226c2ce33a0fc403b28206a391c8f5e9b3bfc75cf4844",
+    "src/crates/promql-engine/tests/promql-conformance/utf8_work_cases.py": "dad50cbcf415fd36d32aef080bf01eaa06362c91f634074cd6e2e0d9b867f3df",
+    "src/crates/promql-engine/tests/promql-conformance/window_ratio_cases.py": "df230b8acac89e3bba99af9474e22473f2b3fd570b980118cae173e18198e4f7",
+    "src/crates/promql-engine/tests/promql-conformance/wrapped_group_cases.py": "f997225403f87d1542f8fb4e82c21816fbf0de71c1526032656c318052c169f7",
+    "src/crates/promql-engine/tests/promql-conformance/wrapped_group_policy.py": "30a8cdd3204cef4865b950e0290ffc9c754993ca128c24115621ca85b8a937e7",
+    "src/crates/promql-engine/tests/promql-conformance/mapped_reducer_label_cases.py": "070b12888e3a044723162a9885ed9777ab867e46651b3531ff0d252b7065b4bf",
+    "src/crates/promql-engine/tests/promql-conformance/fixed_ranking_cases.py": "115396f172799e8fd3e3682ced49bc2d67d520d42bb06a91ffa3a47625cb2baa",
+    "src/crates/promql-engine/tests/promql-conformance/precision-original.json": "63f936290eeb21f24029cf32f43c54e4b868dbc1fb4be0c15f8be34ab47ac1de",
+    "src/crates/promql-engine/tests/promql-conformance/protocol-original.json": "862ba5861b8fbfc0656ce9daf2423affe028a97f7c14aed95d1ce1c6790f29c5",
+    "src/crates/promql-engine/tests/promql-conformance/api-limit-original.json": "190edfa720e8db05a5a428a6fd7ab3c5fac7a5c86018b718affcf9d8ed9d9516",
+    ".tmp/practical-replay-j32eeh4e/candidate24-protocol-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/practical-replay-j32eeh4e/candidate24-protocol-build.stderr": "cbe25f846aa23e48af558a33f6e998c75ab10c0467e248f99cb16bea2b464ed1",
+    ".tmp/practical-replay-j32eeh4e/candidate24-protocol": "324fbf5a96fd0397382e313ee1a784997a9d18a257708e102307455d0951c701",
+    ".tmp/practical-replay-j32eeh4e/candidate24-precision.stdout": "310a05dec7f1b6bb6fa4123a22ba64e52e022ebcb1e8ba8c60065b3722fb3145",
+    ".tmp/practical-replay-j32eeh4e/candidate24-precision.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/crates/promql-engine/tests/promql-conformance/.tmp/precision-k8iis3d0/comparison.json": "c265f6fb65d5825d953b6f4a71010125947d8acae80c4b2bfbc6f934631169ad",
+    ".tmp/practical-replay-j32eeh4e/candidate24-primitives.stdout": "54c26bb28e65785bd31fa5d4f41e1901c5309af38d015e10f0bc1fd26269e487",
+    ".tmp/practical-replay-j32eeh4e/candidate24-primitives.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/crates/promql-engine/tests/promql-conformance/.tmp/protocol-primitives-1nn3kral/comparison.json": "af7ad21f9cc266e26a6944a8d5f1a8ddb9b08cfd17d10aa683e722f949542150",
+    ".tmp/practical-replay-j32eeh4e/candidate24-limits.stdout": "0041840a9c6890955824d91a7a1f71a473f2f5b954a42036e79cf552b4acc2c1",
+    ".tmp/practical-replay-j32eeh4e/candidate24-limits.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/crates/promql-engine/tests/promql-conformance/.tmp/protocol-primitives-6sbp7cqr/comparison.json": "bc12d5e312b8a3ded021594cb97652b5e93b45e3e3e447f97d7a7ff6c7d4ee9f",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-protocol-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-protocol-build.stderr": "5ab044a31c79411303c9c00f8a3aab4544a5c2b1ad92dc050eb5592489a49f2b",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-protocol": "32caaaf54ff3d1b676bc6c6c14037e741d04d06c799baa4eb6222c9d1192d8c1",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-precision.stdout": "a1c59cda357076804deadc0be9cdaafdb50f6db65156ca4dd3b0dca8121da11a",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-precision.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/crates/promql-engine/tests/promql-conformance/.tmp/precision-y9nqd__f/comparison.json": "9ce2c6e9e9ba057425c74c65f1f72c349462581949ae80e7a8c55fb4039da17b",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-primitives.stdout": "54541828ecc7a020ca5c4a39010cb64f62e053fcef77142163b601cb85bc9bac",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-primitives.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/crates/promql-engine/tests/promql-conformance/.tmp/protocol-primitives-wl43i932/comparison.json": "a4c2877884c0daa7eb6f7fbab7e5b6c00b573efb18230835476f218259c4efe7",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-limits.stdout": "a55f0becfabd4f314be48f73ac4226f2868a7cad0957ec87c0b85a62b6b306f7",
+    ".tmp/practical-replay-j32eeh4e/candidate24min-limits.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/crates/promql-engine/tests/promql-conformance/.tmp/protocol-primitives-we55dytw/comparison.json": "e6ccd699c7cf2c60f980203c88cd403a0ae284b871af2fa7a888fef592c81c4c",
+    "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-lttj7uu1/manifest.json": "a1ccf559a021a28972ef56087677809c82121e9d0e93af864f7cae18b47d9e5b",
+    "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-l8vwg6ps/manifest.json": "4582fa9b911d20f09b344e099f594b02bee0258e4f50af46f8b174465e22b60c",
+    "src/crates/promql-engine/tests/promql-conformance/.tmp/c-embedding-13yd45dg/manifest.json": "308e2e720a993a093c46c9c726e67a7f0c8195f703e377249d81cf7b7c8976e4",
+    ".tmp/dbengine-storage-3st4rpcw/receipt.json": "82b89580a09c3c81ddbf6d39e1d2e661ed136736002e08802307eb3fb91e4b79",
+    ".tmp/practical-replay-j32eeh4e/candidate24-netdata-build.json": "28b45153d99cf3e04b21fea2a972fcbf946b41fe1320488dcf999dbde5e4eb55",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-units-qualification.json": "b9f30bfd9d3f06ff8e5dc783c524b17c491f4329a8c27797eb79d9214f47d293",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-units-release.stdout": "2243f8543458feb2529dcc8cd6629c3655e762024af51c3d6ddf7991895a5eab",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-units-release.stderr": "9f8b12d6c2b1ae974909ef66b192b91f97c802e220dac9c418b54d4ca7f5f22c",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-units-release-min.stdout": "fa7cfcc2c455a9d75a98696736e0349b88f64913914bec7645c6e12b5a9f4d8e",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-units-release-min.stderr": "a4ad18faf77a7ab88543ba69c8434c292833797eabf83f242326e21262aa3dff",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-units-clippy.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".tmp/practical-replay-j32eeh4e/candidate24-count-units-clippy.stderr": "bfadc8cd29e08cea99745c47b44cca620d513c5df9de658fd22245235f0cb1c6",
+    ".tmp/practical-replay-j32eeh4e/count-fixture-sizes.txt": "2647b544b5c20d4d616491b94ead2650e7c19b04f89ae1b4c6544dc38fd92938",
+    ".tmp/practical-replay-j32eeh4e/count-first-units.log": "126546b22dedf07012415c1081b3de5f3eb7d7ffabebab7721f924b9d4c90c52",
+    ".tmp/practical-replay-j32eeh4e/count-first-source.rs.gz": "d66e45b451365351cea8823a1dd69433a762f2686a65882427ebbdd8b1666884",
+    ".tmp/practical-replay-j32eeh4e/count-c-parser-before.py.gz": "27c67751fa6bdf58e688865fc78508c5a4582833a19dfe9e71fd654f5511461b",
+    ".tmp/practical-replay-j32eeh4e/count_windows.py": "d4ae18c48f46d6ad70a7aba94b6a6a430d37927f7700301f704f0eac1e1b6956",
+    ".tmp/practical-replay-j32eeh4e/summarize_count.py": "e6f185cf605adb5b00848c3fbf3919953daa4f9c77a54703f8ce088f4c38fe20",
+    ".tmp/practical-replay-j32eeh4e/candidate23-count-windows-timing-receipt.json": "616127f88f7e6ed1f129f4488d80bcc393e9030b788684c5b7172ebcf04fc645"
+  }
+}

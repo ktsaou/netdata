@@ -178,3 +178,78 @@ The C average fixture's old physical-read assertion failed because Float reads d
 for one-point/larger pages. An actual C diagnostic copy retained every other assertion and confirmed the new
 counts; stale-native reads remained 96/128. The corrected exact expectations preserve values, labels, sample
 credits, cursor counts, calibrated provider failures and cleanup checks. Both original failures remain evidence.
+
+### Exact Count boundaries
+
+Ordinary direct `count_over_time()` windows can reuse exact integer counts at their requested lower and upper
+boundaries. For overlapping windows, the first scan records covered boundaries; subsequent adjacent clocks read
+only the newly reached tail. Parent preparation can reuse already completed clocks. Count is the integer difference
+between two prefixes, converted to Float only afterward. No raw-history array or expiration queue is retained.
+
+The catalog owns a lazy, optional provider-backed table per admitted Count call. Its extent is
+`rows * (5 + 2 * clocks) * 8` bytes: five header words per physical series and two boundary counts per query clock.
+These are completed summaries in backing storage, not a RAM allocation of the full table. Transfers use bounded
+buffers, including 32-word lower-boundary batches and one clean last-row header cache. Query accounting includes
+owners, temporary extents, calls and transfers. Both full and compact Folded progress layouts remain unchanged.
+
+Admission requires the same call, selector, physical series, precise range, query scope and checked clock geometry,
+with `0 < step < range`. Equal-width/disjoint windows, fixed-time selectors, derived matrices, anchored/smoothed
+inputs and statistics projection retain ordinary evaluation. Missing optional backing retains ordinary replay;
+actual backing errors fail. A native allocation, including a stale native value, revokes this optimization for the
+series through the rest of the query. Float NaNs count, stale Float samples do not, and zero samples produce absence.
+
+Preparation and final execution use separate generations. The first final acquisition is fresh. Only successfully
+committed headers make boundary cells readable; EOF and unconsumed page tails do not certify future clocks.
+Backing failures during an ordinary source probe are retained until source validation finishes, so a later source
+error still wins. Cancellation remains immediate. The current pending backing error is returned before native
+fallback, logical credits or publication. Full-window logical sample credits remain distinct from newly read samples
+and from Matrix cursor progress.
+
+Qualification lives in `count_windows`, the typed-provenance `range_cache` tests, and the actual C
+`completed_count_windows` panel. Cover uninitialized backing, boundary equality, sparse/empty/nonfinite data,
+negative clocks, skipped clocks, fresh final data, native transitions, scope mismatch, absent backing, read/write
+failures and cancellation. Include a full 32-word staging failure followed by a later source error, and a partial
+staging failure before native fallback. Run pages 1, 17 and 1,024 and both name-removal modes. General Float reducers
+must not inherit Count's integer subtraction identity.
+
+[count-windows-qualification.json](count-windows-qualification.json) records 1,096 passing units per optimized
+profile (two ignored), strict Clippy, 1,932 new Count comparisons, 128,652 builtin and 231,540 SRE comparisons,
+and 18,192 retained temporal/temporary/count-values comparisons. Those comparisons match complete outcomes and
+numeric bits. The separate 31,572-execution remainder retains 924 ordering disagreements and six copies of the
+established numerical witness; these are not strict passes. Actual native, ARM64 and ARM32 C/C++ callers pass,
+including 42 Count cases per C run, and the Netdata binary passes all six DBengine write/read/append phases.
+
+The controlled fixture has 4,501 points per series, 31 output clocks, a 30-second step and 17-sample pages. Six
+alternating measured repetitions follow one excluded warmup. Release medians compare the preceding adjacent-window
+implementation with the Count boundary implementation:
+
+| Sources | Expression | Before | After | Fetched entries before → after |
+| --- | --- | ---: | ---: | ---: |
+| 1 | `count_over_time(m[1h])` | 11.380 ms | 1.555 ms | 223,476 → 9,276 |
+| 1 | `sum by(id)(count_over_time(m[1h]))` | 16.796 ms | 1.525 ms | 335,214 → 9,276 |
+| 1 | `count_over_time(m[5m])` | 1.083 ms | 1.086 ms | 18,996 → 2,680 |
+| 1 | `sum by(id)(count_over_time(m[5m]))` | 1.637 ms | 1.240 ms | 28,494 → 2,680 |
+| 8 | `count_over_time(m[1h])` | 89.965 ms | 10.934 ms | 1,787,808 → 74,208 |
+| 8 | `sum by(id)(count_over_time(m[1h]))` | 134.560 ms | 11.607 ms | 2,681,712 → 74,208 |
+| 8 | `count_over_time(m[5m])` | 8.445 ms | 8.289 ms | 151,968 → 21,440 |
+| 8 | `sum by(id)(count_over_time(m[5m]))` | 12.897 ms | 9.427 ms | 227,952 → 21,440 |
+
+Admitted queries add 1,616 bytes to the measured workspace peak: the one-source bare query grows from 7,657 to
+9,273 bytes, and eight-source grouped Count from 16,893 to 18,509 bytes. The other seven memory-category peaks
+are unchanged; raw borrowed-page peak stays 4,624 bytes. Eight-source grouped one-hour Count reduces cumulative
+workspace allocation from 11,092,668 to 1,277,708 bytes. Its backing extent is 4,288 bytes. Category peaks are not
+a simultaneous total-RAM measurement; backing extent and compiled code are separate costs.
+
+Equal-width Count and SUM controls retain their memory and fetched-entry counts. Their measured times remain
+within about 0.02 ms of the predecessor. The first unbatched Count implementation regressed bare five-minute
+queries by 8–14%; it is preserved separately. Batching lower boundaries and caching one clean header remove that
+measured regression in the current repeated fixture. Tiny, empty or sparse queries can still pay store overhead;
+these shared-workstation results establish neither universal speedup nor live VM latency.
+
+The native release fixture's text grows by 56,048 bytes (1.24%), with data +632 and BSS +664 bytes. Release-min
+text grows by 37,776 bytes (1.32%), data +384 and BSS +2,800 bytes. Total fixture sizes grow from 4,806,734 to
+4,864,078 bytes and 3,123,185 to 3,164,145 bytes respectively. These are fixed compiled costs, not per-query RAM.
+Historical receipts remain bound to their own binaries. The C harness output-roster correction happened after the
+Count comparison runs; it changes no runtime source or imported comparison helper and is separately bound by
+the final caller manifests. Wider practical remediation and live histogram projection remain open; historical
+bucket-boundary repair is explicitly excluded by decision 71.

@@ -556,6 +556,9 @@ consumer has its own indexed row lookup; this change does not accelerate that lo
 - **Reason:** Netdata already collects and structures these metrics. The new language should use that existing data.
 - **Consequence:** collector transformations, compression/downsampling and retained statistics remain meaningful.
   Language compatibility cannot reconstruct original values, gaps, timestamps or histogram meaning lost before evaluation.
+- **Accepted limitation (decision 71):** historical interpretation when histogram bucket boundaries change retains
+  Netdata's existing undefined behavior. Repairing it through versioned chart identities or metadata history is
+  outside this PromQL work. This does not change the engine's same-input histogram contract.
 - **Status/evidence:** approved production direction; the historical
   [dbengine replay prototype](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/tests/promql-prototype/README.md#implementations-and-input-contract) demonstrates a limited
   retained-data path. The completed typed core does not include the live NIDL/dbengine adapter.
@@ -3503,3 +3506,16 @@ history or selected values. Root intersections request the existing left-group c
 uses a separate demand for its collapsed SUM child. Other contributor consumers retain their prior admission rules.
 Selected values are read again, and completion credit is cleared before final execution. Existing alias and Float-kind
 checks remain mandatory; unsupported shapes use ordinary evaluation. See the finite qualification in the README.
+
+## Completed Count boundary summaries
+
+Ordinary overlapping direct Count windows may store exact integer prefixes at requested lower and upper boundaries
+in optional provider-managed backing. Only committed coverage is readable. First final acquisition is fresh;
+native allocations revoke admission for the series through query completion. Adjacent tails preserve the global
+storage interval. Full-window logical credits are typed separately from Matrix cursor progress. Source validation
+precedes deferred non-interruption staging failures; no partial frontier or result is published after an error.
+
+This is a Count-only integer identity, not a Float subtraction algorithm for SUM or other reducers. Keep raw samples
+paged; use bounded transfer buffers and one clean header cache. Missing backing capability retains ordinary replay,
+while actual backing errors fail. Exact scope, exclusions, error controls and measured costs are documented in
+[Exact Count boundaries](INTERMEDIATE_REUSE.md#exact-count-boundaries).

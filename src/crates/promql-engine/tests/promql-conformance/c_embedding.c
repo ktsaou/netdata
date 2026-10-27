@@ -661,6 +661,68 @@ static uint64_t temporary_window(netdata_promql_engine_t *engine, uint64_t rows,
            observed.temporary_storage.read_calls, observed.temporary_storage.write_calls);
     return observed.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].peak;
 }
+static void completed_count_windows(netdata_promql_engine_t *engine) {
+    const uint64_t pages[] = {1, 17, 1024};
+    for (unsigned page = 0; page < 3; page++) {
+        for (unsigned grouped = 0; grouped < 2; grouped++) {
+            for (unsigned mode = 0; mode < 7; mode++) {
+                fixture f;
+                init_fixture(&f, 201, pages[page]);
+                netdata_promql_query_t *query = compile(engine, grouped ?
+                    "sum(count_over_time(m[60s]))" : "count_over_time(m[60s])");
+                netdata_promql_provider_t p = mode ? temporary_provider(&f) : provider(&f);
+                if (mode >= 2 && mode <= 4) f.temporary_failure = mode - 1;
+                if (mode >= 5) f.temporary_cancel = mode - 3;
+                assert(netdata_promql_control_create(engine, NULL, &f.control) == NETDATA_PROMQL_OK);
+                netdata_promql_request_t request = instant(100000);
+                request.kind = NETDATA_PROMQL_REQUEST_RANGE;
+                request.end_ms = 200000;
+                request.step_ms = 10000;
+                netdata_promql_result_t *result = NULL;
+                netdata_promql_report_t *report = NULL;
+                uint32_t status = netdata_promql_collect(query, &p, &request, f.control, &result, &report);
+                released(&f);
+                assert(f.temporary_opened == f.temporary_closed && !f.temporary_token);
+                netdata_promql_query_observations_t observed;
+                assert(netdata_promql_report_observations(report, &observed) == NETDATA_PROMQL_OK);
+                assert(observed.temporary_storage.extent.current == 0 && observed.temporary_storage.stores.current == 0);
+                assert(observed.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current == 0);
+                assert(observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
+                if (mode < 2) {
+                    assert(status == NETDATA_PROMQL_OK && result);
+                    netdata_promql_result_info_t info;
+                    netdata_promql_series_info_t series;
+                    assert(netdata_promql_result_info(result, &info) == NETDATA_PROMQL_OK);
+                    assert(info.series_count == 1 && info.annotation_count == 0);
+                    assert(info.header.value_type == NETDATA_PROMQL_TYPE_MATRIX);
+                    assert(netdata_promql_result_series_info(result, 0, &series) == NETDATA_PROMQL_OK);
+                    assert(series.label_count == (grouped ? 0u : 1u) && series.point_count == 11);
+                    for (uint64_t point = 0; point < 11; point++) {
+                        netdata_promql_point_info_t value;
+                        assert(netdata_promql_result_point(result, 0, point, &value) == NETDATA_PROMQL_OK);
+                        assert(value.time_ms == 100000 + (int64_t)point * 10000);
+                        assert(value.value_kind == NETDATA_PROMQL_VALUE_FLOAT);
+                        assert(value.value_bits == netdata_promql_double_bits(60.0));
+                    }
+                    statistics_valid(&observed.statistics);
+                    assert(observed.statistics.samples.total_queryable_samples == 660);
+                    assert(observed.statistics.samples.samples_read == (mode ? 320u : grouped ? 1980u : 1320u));
+                    assert(observed.temporary_storage.stores.acquired == (mode ? 1u : 0u));
+                    assert(observed.temporary_storage.extent.peak == (mode ? 216u : 0u));
+                    assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
+                } else {
+                    assert(result == NULL);
+                    assert(status == (mode >= 5 ? NETDATA_PROMQL_CANCELLED : NETDATA_PROMQL_PROVIDER_ERROR));
+                }
+                assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+                assert(netdata_promql_control_release(f.control) == NETDATA_PROMQL_OK);
+                assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+            }
+        }
+    }
+    puts("{\"completed_count_windows\":\"pass\",\"cases\":42}");
+}
+
 static void temporary_failure_cases(netdata_promql_engine_t *engine) {
     const unsigned faults[][4] = {{1,1,0,0}, {2,2,0,0}, {3,3,0,0}, {0,2,0,0}, {0,3,0,0},
                                  {0,0,2,0}, {0,0,2,1}, {0,0,3,0}, {0,0,3,1}, {0,0,0,0}, {0,0,0,0}};
@@ -2819,6 +2881,12 @@ int main(int argc, char **argv) {
         puts("{\"range_rate_embedding\":\"pass\",\"functions\":5,\"cases\":240}");
         return 0;
     }
+    if (argc == 2 && strcmp(argv[1], "--count-windows-only") == 0) {
+        completed_count_windows(engine);
+        balanced(engine, &idle);
+        assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+        return 0;
+    }
     if (argc == 2 && strcmp(argv[1], "--window-folds-only") == 0) {
         const char *functions[] = {
             "rate", "count_over_time", "present_over_time", "first_over_time", "last_over_time",
@@ -2930,6 +2998,8 @@ int main(int argc, char **argv) {
         balanced(engine, &idle);
     }
     temporary_failure_cases(engine);
+    balanced(engine, &idle);
+    completed_count_windows(engine);
     balanced(engine, &idle);
     basic_statistics_cases(engine);
     balanced(engine, &idle);

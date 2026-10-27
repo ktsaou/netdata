@@ -26,6 +26,7 @@ mod classic_mutation;
 mod classic_replay;
 mod computed_groups;
 mod count_values;
+mod count_windows;
 mod derived_matrix;
 mod derived_progress;
 mod derived_range;

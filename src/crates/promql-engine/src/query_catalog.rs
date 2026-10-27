@@ -26,6 +26,7 @@ pub(crate) struct Catalog<'q, Q: QueryProvider + 'q> {
     query: &'q Q,
     sites: RefCell<AccountedVec<Option<Site<'q, Q>>>>,
     info_sites: RefCell<AccountedVec<Site<'q, Q>>>,
+    pub(crate) count_windows: crate::count_windows::Registry<'q>,
     pub(crate) derived_progress: crate::derived_progress::Registry<'q>,
     computed_groups: RefCell<AccountedVec<(NodeId, Option<crate::computed_groups::Store<'q>>)>>,
 }
@@ -102,6 +103,7 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
             sites: RefCell::new(sites),
             info_sites: RefCell::new(AccountedVec::new(account, MemoryKind::Workspace)),
             derived_progress: crate::derived_progress::Registry::new(account),
+            count_windows: crate::count_windows::Registry::new(account),
             computed_groups: RefCell::new(AccountedVec::new(account, MemoryKind::Workspace)),
         })
     }
@@ -166,6 +168,7 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
                 store.start_final();
             }
         }
+        self.count_windows.start_final();
         self.derived_progress.start_final(control, account)
     }
 

@@ -92,6 +92,7 @@ impl Input {
     }
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct Request {
     pub(crate) owner: NodeId,
     pub(crate) selector: NodeId,
@@ -135,13 +136,19 @@ impl From<&Request> for Key {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Provenance<P> {
+    Matrix(P),
+    Count(u64),
+}
+
 pub(crate) struct Folded<P = Progress> {
     float_samples: Option<crate::statistics::OwnedSamples>,
     pub(crate) value: Option<OwnedValue>,
     pub(crate) annotations: [Option<AnnotationKind>; 6],
     pub(crate) invalid_quantile: bool,
     pub(crate) nonempty: bool,
-    progress: Option<P>,
+    progress: Option<Provenance<P>>,
 }
 impl From<RateOutput> for Folded {
     fn from(output: RateOutput) -> Self {
@@ -151,7 +158,7 @@ impl From<RateOutput> for Folded {
             annotations: output.annotations,
             invalid_quantile: false,
             nonempty: output.nonempty,
-            progress: output.progress,
+            progress: output.progress.map(Provenance::Matrix),
         }
     }
 }
@@ -170,7 +177,7 @@ impl From<FoldResult> for Folded {
             ],
             invalid_quantile: false,
             nonempty: output.nonempty,
-            progress: output.progress,
+            progress: output.progress.map(Provenance::Matrix),
         }
     }
 }
@@ -182,11 +189,21 @@ impl From<NumericRangeOutput> for Folded {
             annotations: [output.annotation, None, None, None, None, None],
             invalid_quantile: output.invalid_quantile,
             nonempty: output.nonempty,
-            progress: output.progress,
+            progress: output.progress.map(Provenance::Matrix),
         }
     }
 }
 impl Folded {
+    pub(crate) fn count(units: u64) -> Self {
+        Self {
+            float_samples: None,
+            value: (units != 0).then_some(OwnedValue::Float(units as f64)),
+            annotations: [None; 6],
+            invalid_quantile: false,
+            nonempty: units != 0,
+            progress: Some(Provenance::Count(units)),
+        }
+    }
     pub(crate) fn into_parts(self) -> Option<crate::statistics::ValueParts> {
         self.value.map(|value| crate::statistics::ValueParts {
             value,
@@ -194,12 +211,19 @@ impl Folded {
         })
     }
     pub(crate) fn sample_units(&self) -> u64 {
-        self.progress.map_or(0, |progress| progress.sample_units)
+        match self.progress {
+            Some(Provenance::Matrix(progress)) => progress.sample_units,
+            Some(Provenance::Count(units)) => units,
+            None => 0,
+        }
     }
 }
 impl<P> Folded<P> {
     fn map_progress<Q>(self, map: impl FnOnce(P) -> Q) -> Folded<Q> {
-        let progress = self.progress.map(map);
+        let progress = self.progress.map(|progress| match progress {
+            Provenance::Matrix(progress) => Provenance::Matrix(map(progress)),
+            Provenance::Count(units) => Provenance::Count(units),
+        });
         Folded {
             float_samples: self.float_samples,
             value: self.value,
@@ -248,9 +272,10 @@ struct Snapshot {
 }
 impl Snapshot {
     fn progress(&self) -> Option<Progress> {
-        self.folded
-            .progress
-            .map(|progress| progress.with_geometry(self.key.geometry))
+        match self.folded.progress {
+            Some(Provenance::Matrix(progress)) => Some(progress.with_geometry(self.key.geometry)),
+            _ => None,
+        }
     }
 
     fn copy_checked(
@@ -838,6 +863,49 @@ mod tests {
         result
     }
 
+    #[test]
+    fn count_credit_survives_snapshots_without_claiming_matrix_progress() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let folds = Folds::new(&account);
+        for units in [0, 39] {
+            folds.clear(&control, &account).unwrap();
+            for warm in [false, true] {
+                let result = folds
+                    .evaluate(progress_request(4000), &control, &account, |window| {
+                        assert!(!warm);
+                        assert!(window.resume.is_none());
+                        Ok(Folded::count(units))
+                    })
+                    .unwrap();
+                assert_eq!(result.sample_units(), units);
+                assert_eq!(result.nonempty, units != 0);
+                assert_eq!(result.progress, Some(Provenance::Count(units)));
+            }
+            drop(
+                folds
+                    .evaluate(progress_request(6000), &control, &account, |window| {
+                        assert!(
+                            window.resume.is_none(),
+                            "Count summaries are not cursor positions"
+                        );
+                        Ok(Folded::count(1))
+                    })
+                    .unwrap(),
+            );
+        }
+        println!(
+            "Count provenance bytes: old={} new={}; compact old={} new={}",
+            size_of::<Option<Progress>>(),
+            size_of::<Option<Provenance<Progress>>>(),
+            size_of::<Option<Progress<()>>>(),
+            size_of::<Option<Provenance<Progress<()>>>>()
+        );
+        drop(folds);
+        account.snapshot().assert_memory_released();
+    }
+
     fn scan_progress(window: MatrixWindow, account: &QueryAccounting) -> Progress {
         scan_progress_kind(window, account, false)
     }
@@ -903,12 +971,13 @@ mod tests {
                                 );
                                 let mut result =
                                     completed((!absent).then_some(OwnedValue::Float(3.0)));
-                                result.progress =
-                                    Some(scan_progress_kind(window, &account, native));
+                                result.progress = Some(Provenance::Matrix(scan_progress_kind(
+                                    window, &account, native,
+                                )));
                                 Ok(result)
                             })
                             .unwrap();
-                        assert_eq!(output.progress, Some(expected));
+                        assert_eq!(output.progress, Some(Provenance::Matrix(expected)));
                         assert_eq!(output.sample_units(), expected.sample_units);
                         assert_eq!(output.value.is_none(), absent);
                         assert!(output.nonempty && output.invalid_quantile);
@@ -926,7 +995,9 @@ mod tests {
                                 if changed { None } else { expected.resume(next) }
                             );
                             let mut result = completed(None);
-                            result.progress = Some(scan_progress_kind(window, &account, native));
+                            result.progress = Some(Provenance::Matrix(scan_progress_kind(
+                                window, &account, native,
+                            )));
                             Ok(result)
                         })
                         .unwrap();
@@ -946,8 +1017,11 @@ mod tests {
                         &account,
                         native,
                     );
-                    assert_eq!(next_output.progress, Some(expected_next));
-                    assert_eq!(warm.progress, Some(expected_next));
+                    assert_eq!(
+                        next_output.progress,
+                        Some(Provenance::Matrix(expected_next))
+                    );
+                    assert_eq!(warm.progress, Some(Provenance::Matrix(expected_next)));
                     drop(warm);
                     drop(next_output);
                     drop(folds);
@@ -985,7 +1059,7 @@ mod tests {
                         MemoryKind::Workspace,
                     )?;
                     let mut result = completed(Some(value));
-                    result.progress = Some(scan_progress(window, &account));
+                    result.progress = Some(Provenance::Matrix(scan_progress(window, &account)));
                     Ok(result)
                 })
             }));

@@ -2867,6 +2867,18 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     self.control,
                     self.account,
                     |matrix| {
+                        if kind == FoldKind::Count {
+                            return Ok(self.catalog.count_windows.evaluate(
+                                self.catalog.query(),
+                                crate::range_cache::Request {
+                                    window: matrix,
+                                    ..request
+                                },
+                                series,
+                                self.control,
+                                self.account,
+                            )?);
+                        }
                         Ok(fold(
                             series,
                             bounds,
