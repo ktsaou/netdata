@@ -162,18 +162,11 @@ unsafe fn control<'a>(
     }
 }
 fn control_state(value: &CoreControl) -> types::ControlState {
+    let (status, remaining) = value.check_remaining();
     types::ControlState {
-        status: value
-            .check()
-            .map_or_else(interrupted_status, |()| types::OK),
-        deadline_present: u32::from(value.deadline.is_some()),
-        remaining: observations::duration(
-            value
-                .deadline
-                .map_or(std::time::Duration::ZERO, |deadline| {
-                    deadline.saturating_duration_since(std::time::Instant::now())
-                }),
-        ),
+        status: status.map_or_else(interrupted_status, |()| types::OK),
+        deadline_present: u32::from(remaining.is_some()),
+        remaining: observations::duration(remaining.unwrap_or_default()),
     }
 }
 fn interrupted_status(value: Interrupted) -> u32 {

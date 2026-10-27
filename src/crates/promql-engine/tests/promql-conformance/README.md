@@ -24,6 +24,9 @@ evaluation clock. That fold cache replaces an older fold instead of retaining a 
 provider backing with bounded resident pages. Raw histories remain paged; general temporal quantiles also use
 provider-owned backing. No second raw-storage page cache or enabled admission limit is introduced.
 
+[C control-state polling](CONTROL_POLLING.md) records the single-clock snapshot contract and its separate
+native C component measurements. Polling locations and explicit deadlines remain unchanged.
+
 Retained qualification covers:
 
 - Validated ordinary float rate endpoints reuse their initial acquisition. The

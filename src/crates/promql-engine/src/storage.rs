@@ -10,7 +10,7 @@ use crate::{
 };
 use std::{
     sync::atomic::{AtomicBool, Ordering},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -116,10 +116,15 @@ impl Control {
             _reference: reference,
         }
     }
-    pub fn check(&self) -> Result<(), Interrupted> {
+    fn check_cancellation(&self) -> Result<(), Interrupted> {
         if self.cancellation.cancelled() {
-            return Err(Interrupted::Cancelled);
+            Err(Interrupted::Cancelled)
+        } else {
+            Ok(())
         }
+    }
+    pub fn check(&self) -> Result<(), Interrupted> {
+        self.check_cancellation()?;
         if self
             .deadline
             .is_some_and(|deadline| Instant::now() >= deadline)
@@ -127,6 +132,27 @@ impl Control {
             return Err(Interrupted::Deadline);
         }
         Ok(())
+    }
+    pub(crate) fn check_remaining(&self) -> (Result<(), Interrupted>, Option<Duration>) {
+        self.check_remaining_with(Instant::now)
+    }
+    fn check_remaining_with(
+        &self,
+        now: impl FnOnce() -> Instant,
+    ) -> (Result<(), Interrupted>, Option<Duration>) {
+        let cancellation = self.check_cancellation();
+        // Status and remaining time must describe the same deadline observation.
+        let remaining = self
+            .deadline
+            .map(|deadline| deadline.saturating_duration_since(now()));
+        let status = cancellation.and_then(|()| {
+            if remaining == Some(Duration::ZERO) {
+                Err(Interrupted::Deadline)
+            } else {
+                Ok(())
+            }
+        });
+        (status, remaining)
     }
 }
 #[derive(Debug, Eq, PartialEq)]
@@ -1025,6 +1051,55 @@ fn walk_observed_inner<S: Series, E: From<StorageError> + From<Interrupted>>(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn control_snapshot_samples_one_clock_and_preserves_cancellation_precedence() {
+        let instant = Instant::now();
+        for cancelled in [false, true] {
+            for offset in [None, Some(-1_i32), Some(0), Some(1)] {
+                let control = Control {
+                    cancellation: Cancellation::default(),
+                    deadline: offset.map(|offset| {
+                        if offset < 0 {
+                            instant - Duration::from_nanos(1)
+                        } else {
+                            instant + Duration::from_nanos(offset as u64)
+                        }
+                    }),
+                };
+                if cancelled {
+                    control.cancellation.cancel();
+                }
+                let mut calls = 0;
+                let actual = control.check_remaining_with(|| {
+                    calls += 1;
+                    instant
+                });
+                let remaining = offset.map(|offset| Duration::from_nanos(offset.max(0) as u64));
+                let status = if cancelled {
+                    Err(Interrupted::Cancelled)
+                } else if offset.is_some_and(|offset| offset <= 0) {
+                    Err(Interrupted::Deadline)
+                } else {
+                    Ok(())
+                };
+                assert_eq!(actual, (status, remaining));
+                assert_eq!(calls, usize::from(offset.is_some()));
+            }
+        }
+        let control = Control {
+            cancellation: Cancellation::default(),
+            deadline: Some(instant),
+        };
+        assert_eq!(
+            control.check_remaining_with(|| {
+                control.cancellation.cancel();
+                instant
+            }),
+            (Err(Interrupted::Deadline), Some(Duration::ZERO))
+        );
+        assert_eq!(control.check(), Err(Interrupted::Cancelled));
+    }
+
     #[test]
     fn checked_label_validation_interrupts_long_adjacent_names() {
         let account = crate::accounting::EngineAccounting::default().query();

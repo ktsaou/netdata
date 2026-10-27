@@ -599,6 +599,70 @@ fn legacy_callback_prefixes_reject_before_table_access() {
 }
 
 #[test]
+fn owned_and_borrowed_control_snapshots_preserve_status_and_remaining_time() {
+    unsafe {
+        let engine_value = engine();
+        let core = borrow::<Engine, _>(engine_value).unwrap();
+        let account = core.core.accounting.query();
+        for cancelled in [false, true] {
+            for deadline in [None, Some(0), Some(3600)] {
+                let options = types::ControlOptions {
+                    header: types::Header::of::<types::ControlOptions>(),
+                    deadline_present: u32::from(deadline.is_some()),
+                    nanoseconds: 0,
+                    seconds: deadline.unwrap_or_default(),
+                };
+                let mut token = ptr::null_mut();
+                assert_eq!(
+                    netdata_promql_control_create(engine_value, &options, &mut token),
+                    types::OK
+                );
+                if cancelled {
+                    assert_eq!(netdata_promql_control_cancel(token), types::OK);
+                }
+                let callback =
+                    checked::Callback::new(borrow::<CoreControl, _>(token).unwrap(), &account);
+                let mut owned = types::ControlState::default();
+                let mut borrowed = types::ControlState::default();
+                assert_eq!(netdata_promql_control_state(token, &mut owned), types::OK);
+                assert_eq!(
+                    netdata_promql_callback_control_state(callback.as_ptr(), &mut borrowed),
+                    types::OK
+                );
+                let expected = if cancelled {
+                    types::CANCELLED
+                } else if deadline == Some(0) {
+                    types::DEADLINE
+                } else {
+                    types::OK
+                };
+                for state in [owned, borrowed] {
+                    assert_eq!(
+                        (state.status, state.deadline_present),
+                        (expected, u32::from(deadline.is_some()))
+                    );
+                    assert_eq!(state.remaining.reserved, 0);
+                    assert!(state.remaining.nanoseconds < 1_000_000_000);
+                    let remaining = std::time::Duration::new(
+                        state.remaining.seconds,
+                        state.remaining.nanoseconds,
+                    );
+                    if deadline == Some(3600) {
+                        assert!(remaining > std::time::Duration::ZERO);
+                        assert!(remaining <= std::time::Duration::from_secs(3600));
+                    } else {
+                        assert_eq!(remaining, std::time::Duration::ZERO);
+                    }
+                }
+                assert_eq!(netdata_promql_control_release(token), types::OK);
+            }
+        }
+        drop(account);
+        assert_eq!(netdata_promql_engine_release(engine_value), types::OK);
+    }
+}
+
+#[test]
 fn short_prefixes_and_invalid_deadlines_reject_before_full_access() {
     #[repr(align(16))]
     struct Prefix(types::Header);
