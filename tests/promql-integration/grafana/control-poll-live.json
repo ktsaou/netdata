@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "engine_commit": "be36099f3b708ae6baf2436b434aa515011f062c",
+  "installed_binary_sha256": "497f5b0caf3c61a352ad610c8f573a4bb7f46986eb419c77f8bae7fd62549558",
+  "previous_engine_commit": "916d41269639aeece756b13957e2910796cc2ac3",
+  "scope": "Two fixed-window fleet Count queries, serial, two repetitions each before/after; not a full 360-request replay.",
+  "comparisons": [
+    {
+      "id": "nd-pql-data-availability/4/A",
+      "repeat": 0,
+      "before_seconds": 25.04053763000411,
+      "after_seconds": 25.014157983998302,
+      "before_outcome": "error",
+      "after_outcome": "error",
+      "same_result_digest": true,
+      "successful_results_compared": false
+    },
+    {
+      "id": "nd-pql-data-availability/12/A",
+      "repeat": 0,
+      "before_seconds": 20.008473391004372,
+      "after_seconds": 21.05449528200552,
+      "before_outcome": "nonempty",
+      "after_outcome": "nonempty",
+      "same_result_digest": true,
+      "successful_results_compared": true
+    },
+    {
+      "id": "nd-pql-data-availability/4/A",
+      "repeat": 1,
+      "before_seconds": 25.014629998011515,
+      "after_seconds": 25.01525358200888,
+      "before_outcome": "error",
+      "after_outcome": "error",
+      "same_result_digest": true,
+      "successful_results_compared": false
+    },
+    {
+      "id": "nd-pql-data-availability/12/A",
+      "repeat": 1,
+      "before_seconds": 19.1806055099878,
+      "after_seconds": 17.880264804989565,
+      "before_outcome": "nonempty",
+      "after_outcome": "nonempty",
+      "same_result_digest": true,
+      "successful_results_compared": true
+    }
+  ],
+  "share": {
+    "route": "grafana-backend",
+    "http_status": 200,
+    "query_status": 200,
+    "frames": 79,
+    "seconds": 1.7790013669873588,
+    "has_error": false
+  },
+  "reception": {
+    "hosts_before": 18,
+    "hosts_after": 18,
+    "common": 18,
+    "advanced": 18,
+    "before_seconds": 0.5148859979817644,
+    "after_seconds": 0.4496717820002232
+  },
+  "capture": {
+    "file": "control-poll-measurements.jsonl.gz",
+    "sha256": "ff49000ad99f393e0f994a14ff0c07e5fdade43b061784061ce853b93afb4afd",
+    "uncompressed_sha256": "2a7017dcd4b737a26603d153009b374c34afa6bc43c5c13538eae699608b3e91",
+    "records": 14
+  },
+  "source_captures": {
+    "before": "413334aa494aa34c535b7801967553e5af43d3d9c1cc6ceeb687b80fea005530",
+    "after": "7f8b8bacf7d1a7300c205e6bb56ca1670accd7e153f64b738b6d44d0ffbe88cd"
+  },
+  "bindings": {
+    "tests/promql-integration/grafana/practical-qualification.json": "ed071d08030a56258a008ba0a9e1d3ddcf68bf09e2060059be5153cd129e0053",
+    "tests/promql-integration/grafana/practical-measurements.jsonl.gz": "2a4c0db1554c69ab037607151b5b92b23f863972d51c278d3557c7c30a7f556c",
+    ".tmp/practical-replay-j32eeh4e/control_live_after.py": "af0e57e95f20aee7fd430428764314b176c8a73060e74e5aa88b71bab93a7af5",
+    "tests/promql-integration/grafana/measure.py": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+    "tests/promql-integration/grafana/workload-catalogue.json": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a",
+    "tests/promql-integration/grafana/alert-expressions.json": "9c0f1d0a94cc861fee56a33c66b0083c2544ac1735be7ff2167e3bab6f3d0989",
+    "tests/promql-integration/grafana/applications.json": "c28631f6868ec68795f4a8a65280ef3e69519bf830fbe983ceb3603306fa576e",
+    "tests/promql-integration/grafana/data-availability.json": "b36278593b93ff2ade0fd11c81c338ceedde5cd6b1036bc38368b4657a18022d",
+    "tests/promql-integration/grafana/database-instances.json": "12ec0370af032e8eb5f45a4f427fc6d714a2f336ec8b81c40db8b686a1f4c3a2",
+    "tests/promql-integration/grafana/fleet-applications.json": "3311f09898b05d67894cfa32a43a7aac78f2c30122dc8d6d4d1bf24d977a072f",
+    "tests/promql-integration/grafana/fleet-bandwidth.json": "5a8481d1dcd149a5db45bf2c1187a85eae584e37caed09bc061d054cb040f1fc",
+    "tests/promql-integration/grafana/fleet-capacity.json": "11172bb6489f1ab1e59ef4ccac4d87fafef258966fe3fa735a1b85b6476bbfc2",
+    "tests/promql-integration/grafana/fleet-overview.json": "4d1e1a3ab2b060b9db8edbc8909988990b1f41d6db88d17ab2eeb088542ee066",
+    "tests/promql-integration/grafana/history-comparisons.json": "b14d4c97686709a17bffc99f5e7d11fab180603536e1ba802a3f2447e2e4f0f6",
+    "tests/promql-integration/grafana/host-resources.json": "cd0315d3ff956a71506aa8fa3e8abef014a3690d083688c4fd975c5943299043",
+    "tests/promql-integration/grafana/service-instances.json": "95c24813b53ebb6af7929cd18c0d37cf8f5a1f4bd164726929e264ed93128d52",
+    "tests/promql-integration/grafana/storage-network.json": "689baf3eac66b836f744d10e9ff039b96068190d09fc777ec79db69270679560",
+    ".tmp/practical-replay-j32eeh4e/control-live-before.jsonl.gz": "413334aa494aa34c535b7801967553e5af43d3d9c1cc6ceeb687b80fea005530",
+    ".tmp/practical-replay-j32eeh4e/grafana-share-diagnosis.json": "c25efd0940389e63c499674d10649cd73c7605922ff892908d6623fd5c44539e"
+  },
+  "deployment": {
+    "unit": "promql-deploy-be36099f3b",
+    "wall_seconds": 238.475,
+    "reported_build_memory_peak": "3.1G",
+    "configuration_comparisons": "both passed",
+    "protected_copies": ".tmp/install.dTXlRHWh",
+    "services": "Netdata and Grafana active",
+    "approximate_disk_free_gib": 53,
+    "journal_sha256": "6d217e714848ffc75db07499642331e0aea467314fae3b1b0eba9f8ed7d78627",
+    "postcheck_sha256": "082f6dc1bb6a595c4cae6c8cafdc6965d6c65db232cf20bad797ed6ef6a16f35"
+  },
+  "limitations": [
+    "No clear whole-query improvement established by these uncontrolled live timings.",
+    "Both disappearance requests still time out; matching error-result digests do not qualify full expression results.",
+    "Both successful grouped Count results match their respective baseline digests.",
+    "Component clock gain does not resolve remaining label, traversal and backing costs.",
+    "Historical histogram boundary repair remains excluded by decision71."
+  ]
+}

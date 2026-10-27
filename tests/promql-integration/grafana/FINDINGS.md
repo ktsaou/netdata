@@ -8,9 +8,25 @@ long-range performance is not yet suitable for these workloads under a 25-second
 This is a baseline and an optimization priority list, not a claim that all dashboards are fast or that the live adapter
 supports every PromQL input type. Alert-expression testing does not install an alert scheduler or notification system.
 
-## Follow-up: exact Count boundaries — 2026-10-27
+## Follow-up: single-clock C control snapshots — 2026-10-27
 
-Engine `916d412696` is installed on the playground. The [same-window results](count-windows-live.json)
+Engine `be36099f3b` is installed. Its C control-state interface shares one clock reading for status and remaining
+time, preserving all polling locations and deadline settings. The [component qualification](../../../src/crates/promql-engine/tests/promql-conformance/CONTROL_POLLING.md)
+shows lower polling cost; the [focused live results](control-poll-live.json) do **not establish a whole-query speedup**.
+
+Two fixed-window fleet Count expressions were run serially twice before and after deployment. Grouped Count took
+20.01/19.18 seconds before and 21.05/17.88 seconds after; both successful results match their baseline digests.
+The disappearance expression still timed out at 25 seconds in every run. These are four requests per revision,
+not a new full-suite replay, and live caches/data are uncontrolled. The latest full 360-request results remain below.
+
+Grafana application share returned 79 frames in 1.78 seconds; all 18 reporting CPU hosts advanced. Both services
+are active, both configuration comparisons passed, retained data was preserved and approximately 53 GiB remains
+free. The remaining performance and representation findings remain open. The Count label-reuse experiment on the
+development checkout is not included in this deployment.
+
+## Earlier follow-up: exact Count boundaries — 2026-10-27
+
+Engine `916d412696` was installed for this checkpoint. The [same-window results](count-windows-live.json)
 and [compressed measurements](count-windows-measurements.jsonl.gz) repeat all 360 requests with unchanged
 scopes, time windows, steps and 25-second deadlines. Count now reuses exact completed boundary summaries;
 controlled fixture gains have **not resolved the two fleet Count timeouts**.
