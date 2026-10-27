@@ -48,6 +48,10 @@ unchanged. Older captures containing only `result_sha256` cannot distinguish reo
 Use private compressed complete-response captures when diagnosing a mismatch; counts and hashes alone cannot
 reconstruct absent historical values. See [the findings](FINDINGS.md) for the current comparison limitations.
 
+The latest [mapped aggregate interval replay](mapped-group-intervals-live.json) covers all 360 retained requests.
+The selected 24-hour CPU-history query now completes, but 12 requests still time out overall. These dashboards remain
+an optimization workload, not a claim that every expression is fast at every retention range.
+
 The default is 15 minutes, with a 30-second minimum panel interval and 1-minute refresh. These are dashboard settings,
 not new engine resource limits. Empty series remain empty; no expression substitutes zero for unavailable data.
 Native MiB, GiB, KiB/s and decimal kbit/s magnitudes are retained without additional byte conversions.

@@ -11,9 +11,33 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
-## Follow-up: resolved aggregate inputs — 2026-10-27
+## Follow-up: completed mapped aggregate intervals — 2026-10-27
 
-Engine `4fdd8413bb` is installed. Direct selector, rate-family and Count inputs can reuse an aggregate's resolved
+Engine `e1c932c7ce` is installed. Eligible fixed maps can reuse completed aggregate intervals across output groups.
+[Controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/MAPPED_GROUP_INTERVALS.md)
+records lower work and allocation traffic without retaining raw history. The full
+[360-request live replay](mapped-group-intervals-live.json) preserves the preceding run's windows, scopes and deadlines.
+
+- The selected CPU-history query improves from **13.72 to 3.02 seconds at six hours**. At 24 hours it completes in
+  **9.55 seconds**, versus a 25-second timeout previously. Its seven-day case still times out.
+- Fleet panels at four clients: **2/136 timeouts**, previously zero; cohort **106.81 to 106.34 seconds**.
+  Application physical I/O and disappearance detection time out in this run.
+- All 136 instant requests and selected short-range cohorts complete without timeouts.
+- Selected 6h/24h/7d: **2/8, 2/8 and 6/8 timeouts**, previously 2/8, 3/8 and 5/8.
+- Total: **12/360 timeouts**, previously 10. This is a targeted improvement, not an overall workload success.
+
+Live caches and data are uncontrolled. Among 347 successful pairs, 291 ordered result hashes match and 56 differ;
+all series/point counts match. The baseline lacks the newer row-order-independent hashes, so the remaining historical
+value uncertainty is not resolved by this replay. Controlled same-input qualification remains separate.
+
+Grafana application share returns 79 frames in 1.73 seconds; all 18 reporting CPU hosts advance. Both services remain
+active, configuration comparisons passed, the installed binary remains unchanged after the replay, and approximately
+51 GiB is free. Help/type metadata is separate unfinished work and is not included in this deployment. Live histogram
+projection remains under discussion; historical bucket-boundary repair stays excluded by decision 71.
+
+## Earlier follow-up: resolved aggregate inputs — 2026-10-27
+
+Engine `4fdd8413bb` was installed for this checkpoint. Direct selector, rate-family and Count inputs can reuse an aggregate's resolved
 position and labels with multiple grouping keys. [Controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/RESOLVED_GROUP_INPUTS.md)
 records 20–26% faster wide-label disappearance queries, lower allocation traffic and unchanged measured memory peaks.
 
