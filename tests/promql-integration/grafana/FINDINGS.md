@@ -11,7 +11,32 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
-## Follow-up: C page publication polling — 2026-10-27
+## Follow-up: overlapping journal lookup — 2026-10-27
+
+Runtime `e02563e86b` is installed. DBengine's journal index orders end times; a journal that starts after a
+query cannot prove that every later journal also misses it. Both lookup modes now continue searching.
+The [controlled regression](../journal-order-qualification.json) reproduces missing data with the unchanged
+reader on both codecs and passes with the correction. This adds no reader state or history buffers; necessary
+additional journal scanning is a correctness cost, not a claimed optimization.
+
+The [full before/after replay](journal-order-live.json) completes 351 of 360 requests on both versions.
+The same nine requests time out: two at six hours, two at one day, and five at seven days. All 136 fleet
+panels, 136 instant requests and 64 selected short/concurrent requests complete. Fleet panel batch time is
+103.39 seconds before and 111.35 seconds after; live caches, data and background work are uncontrolled.
+
+All successful pairs preserve series/point and diagnostic counts. Complete row hashes match in 278 pairs
+in emitted order and 348 after removing order differences. Application CPU-average and bandwidth-average
+produce three remaining content differences across range/instant cohorts. This harness retains hashes and
+counts, not the complete response bodies, so those historical differences cannot be reconstructed from this
+capture. Their cause is unproved; no full live-value equivalence or overall speedup is claimed.
+
+Installation completes in 205.73 seconds with 3.1 GiB peak build memory and both configuration comparisons
+passing. The running binary/process remain unchanged during replay, Netdata and Grafana stay active, and
+49 GiB remains free. Grafana returns 79 frames in 1.65 seconds; all 18 reporting CPU hosts advance.
+Long-history latency and histogram representation remain open; historical histogram boundary repair remains
+excluded by decision 71.
+
+## Earlier follow-up: C page publication polling — 2026-10-27
 
 Runtime `72f69b6fd0` is installed. The C adapter no longer walks every validated sample solely to poll control
 and count work. Complete page validation and the final control check remain. The

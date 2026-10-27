@@ -57,9 +57,9 @@ median latency from 2.48 to 0.76 seconds and `limit=1` from 2.44 to 0.73 seconds
 match; four concurrent full-catalogue requests finish in 1.05 seconds as a batch. These are warm playground
 measurements with uncontrolled caches and live data; positive limits still traverse and sort the complete catalogue.
 
-The latest [mapped aggregate interval replay](mapped-group-intervals-live.json) covers all 360 retained requests.
-The selected 24-hour CPU-history query now completes, but 12 requests still time out overall. These dashboards remain
-an optimization workload, not a claim that every expression is fast at every retention range.
+The latest [journal lookup replay](journal-order-live.json) covers all 360 retained requests. Nine long-history
+requests still time out, unchanged by the missing-data correction; all short/concurrent and instant cohorts complete.
+These dashboards remain an optimization workload, not a claim that every expression is fast at every retention range.
 
 The default is 15 minutes, with a 30-second minimum panel interval and 1-minute refresh. These are dashboard settings,
 not new engine resource limits. Empty series remain empty; no expression substitutes zero for unavailable data.
