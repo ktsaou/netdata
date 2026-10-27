@@ -11,9 +11,46 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
-## Follow-up: buffered metadata key comparisons — 2026-10-27
+## Follow-up: C page publication polling — 2026-10-27
 
-Runtime `58f4be2276` is installed. Stored key comparisons reuse the existing 8 KiB scratch window across fields,
+Runtime `72f69b6fd0` is installed. The C adapter no longer walks every validated sample solely to poll control
+and count work. Complete page validation and the final control check remain. The
+[controlled qualification](../adapter-page-polling-qualification.json) records unchanged measured memory and
+I/O, both profiles with 1,107 passing tests, actual GCC/Clang C/C++ callers, and independent review.
+Across 72 controlled C-query configurations, median elapsed ratios are 0.850 with deadlines and 0.964 without.
+Three initial slower cases remain recorded; none reproduces in 15 longer paired blocks.
+
+The [fresh before/after live replay](adapter-page-polling-live.json) covers all 360 requests:
+
+| Cohort | Before timeouts | After timeouts |
+|---|---:|---:|
+| Fleet panels, four clients | 0/136 | 1/136 |
+| Fleet instants | 0/136 | 0/136 |
+| Selected short ranges and eight-client cases | 0/64 | 0/64 |
+| Six hours | 2/8 | 2/8 |
+| One day | 2/8 | 2/8 |
+| Seven days | 6/8 | 5/8 |
+| Total | 10/360 | 10/360 |
+
+Seven-day fleet bandwidth completes in 21.61 seconds instead of timing out. The concurrent application physical-I/O
+panel now times out. The fleet panel batch takes 108.13 seconds versus 105.68 seconds before. These live results do
+not establish an overall workload improvement; caches, retained data and background work are uncontrolled.
+
+All 349 successful pairs retain their series/point and diagnostic counts. Complete row hashes match in 280 pairs
+in emitted order and 347 after removing ordering differences. Application CPU-average and bandwidth-average panels
+have two remaining value-level digest differences; their before/after value equivalence is not established by this
+capture. These are the same query families investigated in the earlier live-comparison analysis, not proof that this
+pair has the same cause. Original observations remain in both compressed captures.
+
+Installation succeeds in 250.71 seconds with 3.1 GiB peak build memory; both persistent configuration comparisons
+pass. Netdata and Grafana remain active with approximately 50 GiB free. Grafana returns 79 frames in 1.62 seconds,
+all 18 reporting CPU hosts advance, and the installed binary/process remain unchanged throughout the replay.
+Long-history and concurrent-query failures remain open. Histogram representation remains under decision 73 discussion;
+historical bucket-boundary repair remains excluded by decision 71.
+
+## Earlier follow-up: buffered metadata key comparisons — 2026-10-27
+
+Runtime `58f4be2276` was installed at this checkpoint. Stored key comparisons reuse the existing 8 KiB scratch window across fields,
 reducing small backing reads during duplicate discovery. Contexts ownership, lexical output, native units and
 paged storage are unchanged. No extra heap buffer or persistent metadata catalogue is added.
 [Controlled qualification](../metadata-buffered-keys-qualification.json) covers both builds, key boundaries,

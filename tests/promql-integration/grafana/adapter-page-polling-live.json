@@ -1,0 +1,5382 @@
+{
+  "schema": 1,
+  "date": "2026-10-27",
+  "engine_commit": "72f69b6fd0f40c161d0f15e6ca20a9c0c110b94d",
+  "previous_engine_commit": "58f4be2276195f5c202fc3aeb6716351a5ec4c4f",
+  "installed_binary_sha256": "e1ce71437b5be153bab3ad89825be342f297c642a3cb22944b02530ee2703304",
+  "deployment": {
+    "unit": "promql-deploy-72f69b6fd0",
+    "invocation": "afcab3064fd94a6bb4c55c830650341e",
+    "vm_compiler": "Rust1.93.1"
+  },
+  "captures": {
+    "before": {
+      "file": "adapter-page-polling-before-measurements.jsonl.gz",
+      "sha256": "edf81cc54ea68ed863dace4d7812f78e413d8d21e706e81a7df772040ed74d7b",
+      "uncompressed_sha256": "07660172f1060e6b50c1168ec3c0789dd15d808977bf7eb7d4282cda7fe8fe25",
+      "records": 380,
+      "queries": 360,
+      "bindings": {
+        "tests/promql-integration/grafana/practical-qualification.json": "ed071d08030a56258a008ba0a9e1d3ddcf68bf09e2060059be5153cd129e0053",
+        "tests/promql-integration/grafana/practical-measurements.jsonl.gz": "2a4c0db1554c69ab037607151b5b92b23f863972d51c278d3557c7c30a7f556c",
+        ".tmp/practical-replay-j32eeh4e/live_after.py": "2c825d350b50e22915409bf6b3c205233cf34730dc7a988ed5a94d0a214559de",
+        "tests/promql-integration/grafana/measure.py": "8b9f6c3e00f7fe2b26345935b21c8454714569ffbfb472ca69844ad79c44f362",
+        "tests/promql-integration/grafana/workload-catalogue.json": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a",
+        "tests/promql-integration/grafana/alert-expressions.json": "9c0f1d0a94cc861fee56a33c66b0083c2544ac1735be7ff2167e3bab6f3d0989",
+        "tests/promql-integration/grafana/applications.json": "c28631f6868ec68795f4a8a65280ef3e69519bf830fbe983ceb3603306fa576e",
+        "tests/promql-integration/grafana/data-availability.json": "b36278593b93ff2ade0fd11c81c338ceedde5cd6b1036bc38368b4657a18022d",
+        "tests/promql-integration/grafana/database-instances.json": "12ec0370af032e8eb5f45a4f427fc6d714a2f336ec8b81c40db8b686a1f4c3a2",
+        "tests/promql-integration/grafana/fleet-applications.json": "3311f09898b05d67894cfa32a43a7aac78f2c30122dc8d6d4d1bf24d977a072f",
+        "tests/promql-integration/grafana/fleet-bandwidth.json": "5a8481d1dcd149a5db45bf2c1187a85eae584e37caed09bc061d054cb040f1fc",
+        "tests/promql-integration/grafana/fleet-capacity.json": "11172bb6489f1ab1e59ef4ccac4d87fafef258966fe3fa735a1b85b6476bbfc2",
+        "tests/promql-integration/grafana/fleet-overview.json": "4d1e1a3ab2b060b9db8edbc8909988990b1f41d6db88d17ab2eeb088542ee066",
+        "tests/promql-integration/grafana/history-comparisons.json": "b14d4c97686709a17bffc99f5e7d11fab180603536e1ba802a3f2447e2e4f0f6",
+        "tests/promql-integration/grafana/host-resources.json": "cd0315d3ff956a71506aa8fa3e8abef014a3690d083688c4fd975c5943299043",
+        "tests/promql-integration/grafana/service-instances.json": "95c24813b53ebb6af7929cd18c0d37cf8f5a1f4bd164726929e264ed93128d52",
+        "tests/promql-integration/grafana/storage-network.json": "689baf3eac66b836f744d10e9ff039b96068190d09fc777ec79db69270679560",
+        ".tmp/practical-workloads-csukpli2/fleet4.jsonl.gz": "9c223bb3c11829154007dee6be684feffb827d65f5442d66d1eee0c2f9d876e7",
+        ".tmp/practical-workloads-csukpli2/instant-fleet.jsonl.gz": "57d65915114d766582a4d8d3f938544fd37b1f95f7fd34face47a36458470d82",
+        ".tmp/practical-workloads-csukpli2/instant-fleet-process.json": "522d2f26d3fa281ca1adbf63e55c2f448531b99bbff1c4e9356ddedeb5754a29",
+        ".tmp/practical-workloads-csukpli2/focus-host.jsonl.gz": "c650f2bc10a55ed68ac738875eee52b50b3133e18ce89644f1e61e5fd0c71d3b",
+        ".tmp/practical-workloads-csukpli2/focus-host-process.json": "814889d4bdbf36305d463f0bb40c96471013b827e9c31cecad274fce4ad876ad",
+        ".tmp/practical-workloads-csukpli2/focus-group.jsonl.gz": "c021fa29ed842dbefdbdf4900cfda698577c37dc51db7261b17d10172c177f60",
+        ".tmp/practical-workloads-csukpli2/focus-group-process.json": "969b5e0e49be48592bc03c6a14b942bbdc52ba206df91b28889c31bd933adac2",
+        ".tmp/practical-workloads-csukpli2/focus-fleet.jsonl.gz": "d5c392ec654fa8fae338d21c7b0243fc478868d136f396b45e3fea537a25043a",
+        ".tmp/practical-workloads-csukpli2/focus-fleet-process.json": "a3892684e6b3cbcea1743606131bccf6bb9a7564319bb7848cc737edf4ef20d5",
+        ".tmp/practical-workloads-csukpli2/focus-fleet8.jsonl.gz": "fc610ab716f1a1523a7094b96bfc79eef437c3654732442316f621e4ba31ff25",
+        ".tmp/practical-workloads-csukpli2/focus-fleet8-process.json": "21e0ec41e2e8ea89fb89a22529b2c9c22511252f94443709372be87ccc455b41",
+        ".tmp/practical-workloads-csukpli2/focus-6h.jsonl.gz": "5158796bc63c0da5068d5303b3434152bc10ec0fd183bcb2995d67b622ac7f84",
+        ".tmp/practical-workloads-csukpli2/focus-6h-process.json": "22c75edc3884b8e816f6bf046a459d2e0f5cfcd2dcfc02db4c4be1f128d67b01",
+        ".tmp/practical-workloads-csukpli2/focus-24h.jsonl.gz": "3049516dc179e778349437004cbbadbcff535e40400433407bd6fbface4e9ff9",
+        ".tmp/practical-workloads-csukpli2/focus-24h-process.json": "8e8d861c0e4a904e21deb7143bd69227748bb01b01c9c19bb6cc134800fdac29",
+        ".tmp/practical-workloads-csukpli2/focus-7d.jsonl.gz": "3ca6a55c1846d75470d7d3543ef4b4d8c4d71d4fb2187a57a921010278919cd7",
+        ".tmp/practical-workloads-csukpli2/focus-7d-process.json": "db339cc0d6e6cbc5e1bf5f7aa21c47e6f3696561328c737b75426b22bfea07af",
+        ".tmp/practical-replay-j32eeh4e/grafana-share-diagnosis.json": "c25efd0940389e63c499674d10649cd73c7605922ff892908d6623fd5c44539e"
+      }
+    },
+    "after": {
+      "file": "adapter-page-polling-after-measurements.jsonl.gz",
+      "sha256": "3a7e6f2c1931809c9a2e15ec70d9eac57b6cb7fe1eaafeb78d6afbc9b2f5eed4",
+      "uncompressed_sha256": "aae7cfa969f6468cd4d1e1a3f7118f7fcd197e292c1f46de7c22e3afa34b16a5",
+      "records": 380,
+      "queries": 360,
+      "bindings": {
+        "tests/promql-integration/grafana/practical-qualification.json": "ed071d08030a56258a008ba0a9e1d3ddcf68bf09e2060059be5153cd129e0053",
+        "tests/promql-integration/grafana/practical-measurements.jsonl.gz": "2a4c0db1554c69ab037607151b5b92b23f863972d51c278d3557c7c30a7f556c",
+        ".tmp/practical-replay-j32eeh4e/live_after.py": "2c825d350b50e22915409bf6b3c205233cf34730dc7a988ed5a94d0a214559de",
+        "tests/promql-integration/grafana/measure.py": "8b9f6c3e00f7fe2b26345935b21c8454714569ffbfb472ca69844ad79c44f362",
+        "tests/promql-integration/grafana/workload-catalogue.json": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a",
+        "tests/promql-integration/grafana/alert-expressions.json": "9c0f1d0a94cc861fee56a33c66b0083c2544ac1735be7ff2167e3bab6f3d0989",
+        "tests/promql-integration/grafana/applications.json": "c28631f6868ec68795f4a8a65280ef3e69519bf830fbe983ceb3603306fa576e",
+        "tests/promql-integration/grafana/data-availability.json": "b36278593b93ff2ade0fd11c81c338ceedde5cd6b1036bc38368b4657a18022d",
+        "tests/promql-integration/grafana/database-instances.json": "12ec0370af032e8eb5f45a4f427fc6d714a2f336ec8b81c40db8b686a1f4c3a2",
+        "tests/promql-integration/grafana/fleet-applications.json": "3311f09898b05d67894cfa32a43a7aac78f2c30122dc8d6d4d1bf24d977a072f",
+        "tests/promql-integration/grafana/fleet-bandwidth.json": "5a8481d1dcd149a5db45bf2c1187a85eae584e37caed09bc061d054cb040f1fc",
+        "tests/promql-integration/grafana/fleet-capacity.json": "11172bb6489f1ab1e59ef4ccac4d87fafef258966fe3fa735a1b85b6476bbfc2",
+        "tests/promql-integration/grafana/fleet-overview.json": "4d1e1a3ab2b060b9db8edbc8909988990b1f41d6db88d17ab2eeb088542ee066",
+        "tests/promql-integration/grafana/history-comparisons.json": "b14d4c97686709a17bffc99f5e7d11fab180603536e1ba802a3f2447e2e4f0f6",
+        "tests/promql-integration/grafana/host-resources.json": "cd0315d3ff956a71506aa8fa3e8abef014a3690d083688c4fd975c5943299043",
+        "tests/promql-integration/grafana/service-instances.json": "95c24813b53ebb6af7929cd18c0d37cf8f5a1f4bd164726929e264ed93128d52",
+        "tests/promql-integration/grafana/storage-network.json": "689baf3eac66b836f744d10e9ff039b96068190d09fc777ec79db69270679560",
+        ".tmp/practical-workloads-csukpli2/fleet4.jsonl.gz": "9c223bb3c11829154007dee6be684feffb827d65f5442d66d1eee0c2f9d876e7",
+        ".tmp/practical-workloads-csukpli2/instant-fleet.jsonl.gz": "57d65915114d766582a4d8d3f938544fd37b1f95f7fd34face47a36458470d82",
+        ".tmp/practical-workloads-csukpli2/instant-fleet-process.json": "522d2f26d3fa281ca1adbf63e55c2f448531b99bbff1c4e9356ddedeb5754a29",
+        ".tmp/practical-workloads-csukpli2/focus-host.jsonl.gz": "c650f2bc10a55ed68ac738875eee52b50b3133e18ce89644f1e61e5fd0c71d3b",
+        ".tmp/practical-workloads-csukpli2/focus-host-process.json": "814889d4bdbf36305d463f0bb40c96471013b827e9c31cecad274fce4ad876ad",
+        ".tmp/practical-workloads-csukpli2/focus-group.jsonl.gz": "c021fa29ed842dbefdbdf4900cfda698577c37dc51db7261b17d10172c177f60",
+        ".tmp/practical-workloads-csukpli2/focus-group-process.json": "969b5e0e49be48592bc03c6a14b942bbdc52ba206df91b28889c31bd933adac2",
+        ".tmp/practical-workloads-csukpli2/focus-fleet.jsonl.gz": "d5c392ec654fa8fae338d21c7b0243fc478868d136f396b45e3fea537a25043a",
+        ".tmp/practical-workloads-csukpli2/focus-fleet-process.json": "a3892684e6b3cbcea1743606131bccf6bb9a7564319bb7848cc737edf4ef20d5",
+        ".tmp/practical-workloads-csukpli2/focus-fleet8.jsonl.gz": "fc610ab716f1a1523a7094b96bfc79eef437c3654732442316f621e4ba31ff25",
+        ".tmp/practical-workloads-csukpli2/focus-fleet8-process.json": "21e0ec41e2e8ea89fb89a22529b2c9c22511252f94443709372be87ccc455b41",
+        ".tmp/practical-workloads-csukpli2/focus-6h.jsonl.gz": "5158796bc63c0da5068d5303b3434152bc10ec0fd183bcb2995d67b622ac7f84",
+        ".tmp/practical-workloads-csukpli2/focus-6h-process.json": "22c75edc3884b8e816f6bf046a459d2e0f5cfcd2dcfc02db4c4be1f128d67b01",
+        ".tmp/practical-workloads-csukpli2/focus-24h.jsonl.gz": "3049516dc179e778349437004cbbadbcff535e40400433407bd6fbface4e9ff9",
+        ".tmp/practical-workloads-csukpli2/focus-24h-process.json": "8e8d861c0e4a904e21deb7143bd69227748bb01b01c9c19bb6cc134800fdac29",
+        ".tmp/practical-workloads-csukpli2/focus-7d.jsonl.gz": "3ca6a55c1846d75470d7d3543ef4b4d8c4d71d4fb2187a57a921010278919cd7",
+        ".tmp/practical-workloads-csukpli2/focus-7d-process.json": "db339cc0d6e6cbc5e1bf5f7aa21c47e6f3696561328c737b75426b22bfea07af",
+        ".tmp/practical-replay-j32eeh4e/grafana-share-diagnosis.json": "c25efd0940389e63c499674d10649cd73c7605922ff892908d6623fd5c44539e"
+      }
+    }
+  },
+  "cohorts": [
+    {
+      "name": "fleet4",
+      "before": {
+        "cohort": "fleet4",
+        "requests": 136,
+        "outcomes": {
+          "nonempty": 127,
+          "empty": 9
+        },
+        "seconds": 105.68100786599098
+      },
+      "after": {
+        "cohort": "fleet4",
+        "requests": 136,
+        "outcomes": {
+          "error": 1,
+          "nonempty": 126,
+          "empty": 9
+        },
+        "seconds": 108.13375369500136
+      }
+    },
+    {
+      "name": "instant-fleet",
+      "before": {
+        "cohort": "instant-fleet",
+        "requests": 136,
+        "outcomes": {
+          "nonempty": 124,
+          "empty": 12
+        },
+        "seconds": 53.89094099699287
+      },
+      "after": {
+        "cohort": "instant-fleet",
+        "requests": 136,
+        "outcomes": {
+          "nonempty": 124,
+          "empty": 12
+        },
+        "seconds": 52.90147828499903
+      }
+    },
+    {
+      "name": "focus-host",
+      "before": {
+        "cohort": "focus-host",
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 10,
+          "empty": 6
+        },
+        "seconds": 8.890343231003499
+      },
+      "after": {
+        "cohort": "focus-host",
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 10,
+          "empty": 6
+        },
+        "seconds": 9.044742974016117
+      }
+    },
+    {
+      "name": "focus-group",
+      "before": {
+        "cohort": "focus-group",
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 12,
+          "empty": 4
+        },
+        "seconds": 13.991923654975835
+      },
+      "after": {
+        "cohort": "focus-group",
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 12,
+          "empty": 4
+        },
+        "seconds": 13.753821481019258
+      }
+    },
+    {
+      "name": "focus-fleet",
+      "before": {
+        "cohort": "focus-fleet",
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 14,
+          "empty": 2
+        },
+        "seconds": 31.022809114016127
+      },
+      "after": {
+        "cohort": "focus-fleet",
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 14,
+          "empty": 2
+        },
+        "seconds": 31.251519615005236
+      }
+    },
+    {
+      "name": "focus-fleet8",
+      "before": {
+        "cohort": "focus-fleet8",
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 14,
+          "empty": 2
+        },
+        "seconds": 19.43636769001023
+      },
+      "after": {
+        "cohort": "focus-fleet8",
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 14,
+          "empty": 2
+        },
+        "seconds": 19.245452952978667
+      }
+    },
+    {
+      "name": "focus-6h",
+      "before": {
+        "cohort": "focus-6h",
+        "requests": 8,
+        "outcomes": {
+          "nonempty": 4,
+          "empty": 2,
+          "error": 2
+        },
+        "seconds": 68.6871499439876
+      },
+      "after": {
+        "cohort": "focus-6h",
+        "requests": 8,
+        "outcomes": {
+          "error": 2,
+          "nonempty": 4,
+          "empty": 2
+        },
+        "seconds": 67.61532062399783
+      }
+    },
+    {
+      "name": "focus-24h",
+      "before": {
+        "cohort": "focus-24h",
+        "requests": 8,
+        "outcomes": {
+          "nonempty": 5,
+          "empty": 1,
+          "error": 2
+        },
+        "seconds": 90.0684178310039
+      },
+      "after": {
+        "cohort": "focus-24h",
+        "requests": 8,
+        "outcomes": {
+          "error": 2,
+          "nonempty": 5,
+          "empty": 1
+        },
+        "seconds": 88.15245228502317
+      }
+    },
+    {
+      "name": "focus-7d",
+      "before": {
+        "cohort": "focus-7d",
+        "requests": 8,
+        "outcomes": {
+          "nonempty": 2,
+          "error": 6
+        },
+        "seconds": 167.19109467498492
+      },
+      "after": {
+        "cohort": "focus-7d",
+        "requests": 8,
+        "outcomes": {
+          "error": 5,
+          "nonempty": 3
+        },
+        "seconds": 163.4797512300138
+      }
+    }
+  ],
+  "successful_comparisons": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6729579069942702,
+      "after_seconds": 0.5457789710198995
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.9052072179911193,
+      "after_seconds": 0.7734848870022688
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.613737221021438,
+      "after_seconds": 1.3775473450077698
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.7451045679918025,
+      "after_seconds": 1.4565589300182182
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.075573581008939,
+      "after_seconds": 0.9788505189935677
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.6084095319965854,
+      "after_seconds": 1.1948371060134377
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/12/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0209720079728868,
+      "after_seconds": 0.975997889006976
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.5905210619966965,
+      "after_seconds": 3.6306337490095757
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/1/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.0123777859844267,
+      "after_seconds": 2.51561895100167
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/2/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.9707512149761897,
+      "after_seconds": 2.1330552739964332
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/3/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.8105413709999993,
+      "after_seconds": 2.020552983012749
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/4/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.0088313820015173,
+      "after_seconds": 1.9723424680123571
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.7935901379969437,
+      "after_seconds": 2.215378116001375
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.9709985570225399,
+      "after_seconds": 0.9339229790202808
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.301244697009679,
+      "after_seconds": 2.7253009359992575
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 11.302946133015212,
+      "after_seconds": 10.285094468999887
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 7.32498565298738,
+      "after_seconds": 7.069953437981894
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3825257990101818,
+      "after_seconds": 0.3978714369877707
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 7.1516171929833945,
+      "after_seconds": 6.97200368301128
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5294060290034395,
+      "after_seconds": 0.6348624319944065
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0079831199836917,
+      "after_seconds": 1.0128540130099282
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 11.03109168400988,
+      "after_seconds": 12.275215205998393
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4913069359899964,
+      "after_seconds": 0.4580649550189264
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-alert-expressions/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 12.342793010990135,
+      "after_seconds": 13.295276438992005
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.0006120720063336,
+      "after_seconds": 3.6820142550277524
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.6846961110131815,
+      "after_seconds": 3.8696140850079246
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 13.186169608990895,
+      "after_seconds": 13.25044538298971
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.796093610988464,
+      "after_seconds": 2.983358293015044
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4448343009862583,
+      "after_seconds": 0.5116364810091909
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.43903191399294883,
+      "after_seconds": 0.5027646090020426
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.726004902011482,
+      "after_seconds": 2.63951909597381
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4685628769802861,
+      "after_seconds": 0.4665154379908927
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6360802309936844,
+      "after_seconds": 0.6656269709928893
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6897354740067385,
+      "after_seconds": 0.7696303630073089
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7836334840103518,
+      "after_seconds": 0.8989433120004833
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6757894209877122,
+      "after_seconds": 0.8485778410104103
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.9371755750034936,
+      "after_seconds": 0.5978451929986477
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7861277330084704,
+      "after_seconds": 0.5785506000102032
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.2133829749946017,
+      "after_seconds": 1.4293327990162652
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/12/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.869064682017779,
+      "after_seconds": 1.4543331330060028
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-database-instances/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.616614024998853,
+      "after_seconds": 2.1649782349995803
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.1227246570051648,
+      "after_seconds": 3.2433705999865197
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 5.081207331997575,
+      "after_seconds": 4.737681536003947
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 4.5957942649838515,
+      "after_seconds": 4.771489033999387
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.731566061003832,
+      "after_seconds": 3.7925262129865587
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 24.299969529005466,
+      "after_seconds": 24.84461338497931
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 4.952831398986746,
+      "after_seconds": 4.561029992008116
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 9.958705616008956,
+      "after_seconds": 9.7498100209923
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 5.310063280980103,
+      "after_seconds": 5.041347236983711
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/12/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 12.575126593001187,
+      "after_seconds": 12.429974230995867
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/6/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": false,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 7.224404020991642,
+      "after_seconds": 7.426754909014562
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 6.960447169985855,
+      "after_seconds": 7.483056499011582
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 11.152125024993438,
+      "after_seconds": 11.316560467006639
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6631566300056875,
+      "after_seconds": 0.7117488170042634
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6719642810057849,
+      "after_seconds": 0.7090376690030098
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 6.038416244002292,
+      "after_seconds": 6.165719302021898
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6935981959977653,
+      "after_seconds": 0.6100547910027672
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.1235489530081395,
+      "after_seconds": 1.386364161997335
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7362000019929837,
+      "after_seconds": 0.6012488990090787
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 14.40113749098964,
+      "after_seconds": 13.760596787993563
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.2591827609867323,
+      "after_seconds": 1.293092236010125
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.4607493730145507,
+      "after_seconds": 1.5915411040186882
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/13/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 5.167842751019634,
+      "after_seconds": 4.777932845026953
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 14.348866187006934,
+      "after_seconds": 14.23202160501387
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 4.168071630992927,
+      "after_seconds": 3.390010540984804
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6571278999908827,
+      "after_seconds": 1.0006257320055738
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/12/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": false,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6761752479942515,
+      "after_seconds": 0.7855837579991203
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8026238169986755,
+      "after_seconds": 0.7752603669941891
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/14/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.81500460501411,
+      "after_seconds": 0.7739290019962937
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.35701137798605487,
+      "after_seconds": 0.34693485000752844
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.34012546099256724,
+      "after_seconds": 0.3560299280215986
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.800699095998425,
+      "after_seconds": 0.7836156999983359
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3946478890138678,
+      "after_seconds": 0.37537393398815766
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.912114881008165,
+      "after_seconds": 1.087336841999786
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/12/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 11.099639705003938,
+      "after_seconds": 11.406463183986489
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.39332988098612987,
+      "after_seconds": 0.41998395399423316
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.9703248490113765,
+      "after_seconds": 4.240037442010362
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.40248631898430176,
+      "after_seconds": 0.428865831985604
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4450230849906802,
+      "after_seconds": 0.47177499398821965
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.44927562700468116,
+      "after_seconds": 0.46511206100694835
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.459470664995024,
+      "after_seconds": 0.4508687029883731
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.35673303200746886,
+      "after_seconds": 0.40278072099317797
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3367606330139097,
+      "after_seconds": 0.38800195598741993
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3640345469757449,
+      "after_seconds": 0.37739109800895676
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3735906199726742,
+      "after_seconds": 0.37777759597520344
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5392655049799941,
+      "after_seconds": 0.5146943519939668
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.42135689899441786,
+      "after_seconds": 0.4887104429944884
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.656358829990495,
+      "after_seconds": 1.85878809998394
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.6750008720264304,
+      "after_seconds": 1.939895018003881
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.780429502017796,
+      "after_seconds": 0.6391968360112514
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.3318380590062588,
+      "after_seconds": 0.970495873974869
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.2272198930149898,
+      "after_seconds": 1.0245708790025674
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-fleet/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5142489029967692,
+      "after_seconds": 0.5969841069891118
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.1516560949967243,
+      "after_seconds": 1.3345105730113573
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-applications/14/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 11.238310671004001,
+      "after_seconds": 10.994971912004985
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.0106512600032147,
+      "after_seconds": 1.9020341580035165
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5330227049998939,
+      "after_seconds": 0.8050923710106872
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0249074989988003,
+      "after_seconds": 1.1331962829863187
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7285783310071565,
+      "after_seconds": 0.7692507669853512
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/12/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.1188550340011716,
+      "after_seconds": 1.0391504839935806
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-capacity/12/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.3230830670217983,
+      "after_seconds": 2.657219526008703
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/1/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4247550309810322,
+      "after_seconds": 0.2862921339983586
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4158904410141986,
+      "after_seconds": 0.364338838000549
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/2/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.35210689599625766,
+      "after_seconds": 0.4249300750088878
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-fleet-bandwidth/13/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 7.81676394699025,
+      "after_seconds": 8.114458514988655
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.493774819013197,
+      "after_seconds": 0.5478468180226628
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6954424119903706,
+      "after_seconds": 0.8655689760053065
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8151574229996186,
+      "after_seconds": 0.9141665210190695
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5915002590045333,
+      "after_seconds": 0.5652724849933293
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.3317025680153165,
+      "after_seconds": 1.3071270110085607
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5231818449974526,
+      "after_seconds": 1.1921527039958164
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7745029689976946,
+      "after_seconds": 1.4540788160229567
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.876704948983388,
+      "after_seconds": 1.4774914089939557
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6996552640048321,
+      "after_seconds": 1.046259300026577
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7915624569868669,
+      "after_seconds": 1.1562296159972902
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8146360980172176,
+      "after_seconds": 1.2438160740130115
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0109253099944908,
+      "after_seconds": 1.2067483659775462
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.063933311990695,
+      "after_seconds": 1.0978001120092813
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.252876840007957,
+      "after_seconds": 1.2824834309867583
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/12/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5597391359915491,
+      "after_seconds": 0.7202055059897248
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.3529300689988304,
+      "after_seconds": 2.007169371994678
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/1/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.1202583459962625,
+      "after_seconds": 1.6569964100199286
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/2/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8707773339992855,
+      "after_seconds": 1.177653974009445
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/3/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3065662080189213,
+      "after_seconds": 0.3244741999951657
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/4/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3616222519776784,
+      "after_seconds": 0.3984229149937164
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-host/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4645465339999646,
+      "after_seconds": 0.45289330699597485
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.4343748670071363,
+      "after_seconds": 1.6089508440054487
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-history-comparisons/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 11.493325632996857,
+      "after_seconds": 11.178552553988993
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.240066275000572,
+      "after_seconds": 2.581644313992001
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 4.5676139339921065,
+      "after_seconds": 4.9640305370267015
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 5.121401237003738,
+      "after_seconds": 5.378408747987123
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 4.193778265995206,
+      "after_seconds": 4.251276611990761
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 5.174501859990414,
+      "after_seconds": 5.028093692992115
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 7.817153706011595,
+      "after_seconds": 7.385567974008154
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-storage/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 7.427677625993965,
+      "after_seconds": 7.228718107973691
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0894011649943423,
+      "after_seconds": 0.9069692829798441
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8061515650188085,
+      "after_seconds": 1.1762812180095352
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4301047190092504,
+      "after_seconds": 1.1786965540086385
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.559249785990687,
+      "after_seconds": 1.2558333869965281
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6645934589905664,
+      "after_seconds": 0.5878471680043731
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7797595819865819,
+      "after_seconds": 0.6887735399941448
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.075443993002409,
+      "after_seconds": 1.194779251003638
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.0293348869890906,
+      "after_seconds": 1.855684286012547
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/12/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0162686840048991,
+      "after_seconds": 0.9248410490108654
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/5/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.399788284994429,
+      "after_seconds": 2.2648342619941104
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/2/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.3110346360190306,
+      "after_seconds": 2.147587248007767
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.005854543996975,
+      "after_seconds": 2.861487280984875
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/1/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.702221176994499,
+      "after_seconds": 2.523900283005787
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/3/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.2491709149908274,
+      "after_seconds": 1.44757431501057
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/4/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.109243623999646,
+      "after_seconds": 1.7131027599971276
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.2015455049986485,
+      "after_seconds": 2.4774686800083145
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.36093437400995754,
+      "after_seconds": 0.320180815004278
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5099534329783637,
+      "after_seconds": 0.46274156399886124
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.119421080016764,
+      "after_seconds": 3.3318639409844764
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.0479946630075574,
+      "after_seconds": 3.73531247099163
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.873085227998672,
+      "after_seconds": 0.8301470649894327
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/5/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.9264873070060275,
+      "after_seconds": 1.0590609089995269
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.9414114129904192,
+      "after_seconds": 1.0063402120140381
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/7/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.33098626299761236,
+      "after_seconds": 0.30196142999920994
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 4.290112945018336,
+      "after_seconds": 4.655113033019006
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.1643345089978538,
+      "after_seconds": 1.4477724519965705
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/11/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.47352580199367367,
+      "after_seconds": 0.4218816210050136
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0693083639780525,
+      "after_seconds": 1.2622889339982066
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8479954350041226,
+      "after_seconds": 0.6817825480247848
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0011606390180532,
+      "after_seconds": 0.7230861589778215
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/9/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.9763231110118795,
+      "after_seconds": 1.2665807620214764
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.1465199220110662,
+      "after_seconds": 0.602481337991776
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0957297190034296,
+      "after_seconds": 0.6531987139896955
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.245789152017096,
+      "after_seconds": 0.6452994999999646
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.41261315200245,
+      "after_seconds": 0.5574445759993978
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.6426699849835131,
+      "after_seconds": 0.6589122969890013
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 8.190375917998608,
+      "after_seconds": 6.84255019199918
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.5417851420061197,
+      "after_seconds": 0.7398566310002934
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-apps/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 6.100565037981141,
+      "after_seconds": 5.40230182101368
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.1075554550043307,
+      "after_seconds": 1.0006973480049055
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.9806480859988369,
+      "after_seconds": 1.0186399889935274
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.2640919399855193,
+      "after_seconds": 1.4369914819835685
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/12/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.9288544919982087,
+      "after_seconds": 1.129264012008207
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/12/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.066372079978464,
+      "after_seconds": 2.828558899986092
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/2/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.4008954210148659,
+      "after_seconds": 2.034844145004172
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-database-instances/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.5754431319946889,
+      "after_seconds": 2.5705157949996646
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/3/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.5593949269969016,
+      "after_seconds": 2.1681680099864025
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.016289261984639,
+      "after_seconds": 2.5224114450102206
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/4/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.686504965997301,
+      "after_seconds": 1.6701887680101208
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/5/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.708800466003595,
+      "after_seconds": 1.6276462390087545
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/6/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.8267464669770561,
+      "after_seconds": 1.8869595519790892
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/7/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.8125077250006143,
+      "after_seconds": 2.3138816519931424
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/11/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.6905928720079828,
+      "after_seconds": 1.967194354016101
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/13/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.791920019983081,
+      "after_seconds": 1.6880549019842874
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/10/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.8177439860010054,
+      "after_seconds": 2.6053114669921342
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/12/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.269273603975307,
+      "after_seconds": 1.9760652330005541
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-data-availability/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 7.760449624009198,
+      "after_seconds": 6.341609235008946
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3823675759776961,
+      "after_seconds": 0.3561344619956799
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4014149650174659,
+      "after_seconds": 0.3471349059836939
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/4/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4828791439940687,
+      "after_seconds": 0.33388175698928535
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7246488519886043,
+      "after_seconds": 0.45787595899309963
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/5/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3428123310150113,
+      "after_seconds": 0.35963213100330904
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/6/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7770892409898806,
+      "after_seconds": 0.7327437489875592
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.280298291996587,
+      "after_seconds": 1.169686979992548
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.266347858007066,
+      "after_seconds": 1.2875795880099759
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/10/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3915741840028204,
+      "after_seconds": 0.5279718620004132
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7134733629936818,
+      "after_seconds": 0.8820961629971862
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/14/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.6379826510092244,
+      "after_seconds": 1.563100689993007
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3354845469875727,
+      "after_seconds": 0.3785625229938887
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/12/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3617888519947883,
+      "after_seconds": 0.40500071199494414
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/14/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.43001409000135027,
+      "after_seconds": 0.36095805899822153
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.42154246399877593,
+      "after_seconds": 0.5383135169977322
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.38289217301644385,
+      "after_seconds": 0.37600543798180297
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3297270189796109,
+      "after_seconds": 0.37486489297589287
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 6.063599908986362,
+      "after_seconds": 4.795154238003306
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3966812390135601,
+      "after_seconds": 0.33092340899747796
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.5320937040087301,
+      "after_seconds": 1.5393556309863925
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.47620157498749904,
+      "after_seconds": 0.3641757560253609
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.1985509500082117,
+      "after_seconds": 1.1398015650047455
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.46432631099014543,
+      "after_seconds": 0.36281111399875954
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.37963156201294623,
+      "after_seconds": 0.3583506119903177
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5206152859900612,
+      "after_seconds": 0.433462896005949
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-bandwidth/13/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.983292604010785,
+      "after_seconds": 1.962188770994544
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4118805119942408,
+      "after_seconds": 0.33325111301383004
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.33455836700159125,
+      "after_seconds": 0.3585012999828905
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3330471799999941,
+      "after_seconds": 0.35208484798204154
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3833688590093516,
+      "after_seconds": 0.4266676959814504
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/7/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.453921155014541,
+      "after_seconds": 0.42977145698387176
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8152013020007871,
+      "after_seconds": 0.9295702019880991
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/5/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.40585436701076105,
+      "after_seconds": 0.5736858659947757
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/8/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.39743111201096326,
+      "after_seconds": 0.4175011510087643
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/2/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.444559179013595,
+      "after_seconds": 0.4683252130053006
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-capacity/12/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.2546093479904812,
+      "after_seconds": 1.1418785720015876
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/3/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5400299829780124,
+      "after_seconds": 0.44571074898703955
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-fleet/6/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.123454035987379,
+      "after_seconds": 1.112429628992686
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/4/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.476617501990404,
+      "after_seconds": 0.43025680200662464
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/7/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.1446363359864336,
+      "after_seconds": 0.3933531359944027
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/1/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.806871458014939,
+      "after_seconds": 0.9002568440046161
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/10/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.41423755200230516,
+      "after_seconds": 0.4202102109848056
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/11/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.43342555899289437,
+      "after_seconds": 0.4406474870047532
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/5/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.144389257999137,
+      "after_seconds": 0.932354005984962
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/12/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4044971289986279,
+      "after_seconds": 0.41122338600689545
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/1/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3831647810002323,
+      "after_seconds": 0.34799477897468023
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/6/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.9904691900010221,
+      "after_seconds": 0.9661973910115194
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/2/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3744759800028987,
+      "after_seconds": 0.3914271059911698
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4456021699879784,
+      "after_seconds": 0.5179302880133037
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4415746169979684,
+      "after_seconds": 0.4220677590055857
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/5/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.2345857300097123,
+      "after_seconds": 1.3609331600018777
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/6/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.361050535022514,
+      "after_seconds": 1.631628705014009
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/7/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.264337832981255,
+      "after_seconds": 1.5550573990039993
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/8/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.2295752950012684,
+      "after_seconds": 1.547301165992394
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.702718719985569,
+      "after_seconds": 1.6645846460014582
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/2/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.553722328011645,
+      "after_seconds": 1.50356961300713
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.6854660749959294,
+      "after_seconds": 1.7858425840095151
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.5458160389971454,
+      "after_seconds": 1.7864851109916344
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/5/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8981555509963073,
+      "after_seconds": 1.6022134439845104
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.031081938999705,
+      "after_seconds": 1.5907011219824199
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.4349494159978349,
+      "after_seconds": 1.6548626529984176
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/10/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.1977825629874133,
+      "after_seconds": 1.4709433109965175
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.494642337987898,
+      "after_seconds": 3.2577262929989956
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.5036454669898376,
+      "after_seconds": 3.5999755959783215
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/12/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.9179587849939708,
+      "after_seconds": 1.3502720289980061
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-service-instances/11/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.029977399011841,
+      "after_seconds": 2.3433263799815904
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/1/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.6660182249906939,
+      "after_seconds": 1.3790061670006253
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/2/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.2848643939942122,
+      "after_seconds": 1.0316449649981223
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/3/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.32512141301413067,
+      "after_seconds": 0.31853927599149756
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/4/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3334534190071281,
+      "after_seconds": 0.30207146701286547
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/6/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8038068099995144,
+      "after_seconds": 0.816092477994971
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/7/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.166072780994,
+      "after_seconds": 1.724521525989985
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/5/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.3469536479969975,
+      "after_seconds": 2.0221498169994447
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/8/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0749607979960274,
+      "after_seconds": 1.7929989240074065
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/9/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8127273709978908,
+      "after_seconds": 0.9196161080035381
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-storage/10/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8392134430177975,
+      "after_seconds": 0.8087963440048043
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-history-comparisons/9/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4936945519875735,
+      "after_seconds": 0.4620954639976844
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-promql-host/4/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4507904470083304,
+      "after_seconds": 0.4010606480005663
+    },
+    {
+      "cohort": "instant-fleet",
+      "id": "nd-pql-fleet-applications/8/A",
+      "repeat": 0,
+      "same_ordered_result": false,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 11.100386434991378,
+      "after_seconds": 11.900635785015766
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7620744890009519,
+      "after_seconds": 0.6148620000167284
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6184086970170029,
+      "after_seconds": 0.5478675419872161
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4800085369788576,
+      "after_seconds": 0.36390504098380916
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8420682330033742,
+      "after_seconds": 0.919767529994715
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.2789123010006733,
+      "after_seconds": 0.3163548620068468
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.658820545009803,
+      "after_seconds": 0.6254304489993956
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3105632369988598,
+      "after_seconds": 0.35668364298180677
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5343839620181825,
+      "after_seconds": 0.5085071270004846
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6171474900038447,
+      "after_seconds": 0.6423968800227158
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.641475172014907,
+      "after_seconds": 0.6785859649826307
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.376544446015032,
+      "after_seconds": 0.42924265199690126
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.9194263819954358,
+      "after_seconds": 0.9243236840120517
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.31903032198897563,
+      "after_seconds": 0.2856116659822874
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.6738777720020153,
+      "after_seconds": 0.8150086959940381
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3422435329994187,
+      "after_seconds": 0.3621663319936488
+    },
+    {
+      "cohort": "focus-host",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5051840039959643,
+      "after_seconds": 0.6426163380092476
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5891497130214702,
+      "after_seconds": 0.6097606180119328
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.610131253983127,
+      "after_seconds": 0.5997716599958949
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4633615989878308,
+      "after_seconds": 0.36805131199071184
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.5598663089913316,
+      "after_seconds": 1.4444795559975319
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.36806797300232574,
+      "after_seconds": 0.3169988360023126
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7189372610009741,
+      "after_seconds": 0.7849798149836715
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3344743649940938,
+      "after_seconds": 0.4058019530202728
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.142043268017005,
+      "after_seconds": 2.288874535996001
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.742865669017192,
+      "after_seconds": 0.5961256469890941
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7199118139978964,
+      "after_seconds": 0.6625953030015808
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.3761985310120508,
+      "after_seconds": 0.3592457869963255
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.5151015750016086,
+      "after_seconds": 1.4427567069942597
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.34836373099824414,
+      "after_seconds": 0.35847119899699464
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8684442059893627,
+      "after_seconds": 0.7571738160040695
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.38058693398488685,
+      "after_seconds": 0.3335130030172877
+    },
+    {
+      "cohort": "focus-group",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.2360175070061814,
+      "after_seconds": 2.405555596022168
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8764953849895392,
+      "after_seconds": 0.847885878989473
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.8127417569921818,
+      "after_seconds": 0.8335511369805317
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.44394971698056906,
+      "after_seconds": 0.4254095630021766
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 7.730776220007101,
+      "after_seconds": 7.865522388980025
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5074811520171352,
+      "after_seconds": 0.5116227889957372
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.2573962450260296,
+      "after_seconds": 0.8739077919744886
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4797614399867598,
+      "after_seconds": 0.4569111989985686
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.586147844995139,
+      "after_seconds": 3.5560471499920823
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7740278100245632,
+      "after_seconds": 0.7258157180040143
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.7933214679942466,
+      "after_seconds": 0.9047183479997329
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4291678139998112,
+      "after_seconds": 0.39294781399075873
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 7.61170690599829,
+      "after_seconds": 8.639441831008298
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5535473640193231,
+      "after_seconds": 0.4974398260237649
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.9110085210122634,
+      "after_seconds": 0.864784505974967
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.4906312170205638,
+      "after_seconds": 0.45860507001634687
+    },
+    {
+      "cohort": "focus-fleet",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.738921873009531,
+      "after_seconds": 3.3647032099834178
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.5559264750045259,
+      "after_seconds": 0.9622982400178444
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.5707501030119602,
+      "after_seconds": 1.0088932040089276
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.3948091030179057,
+      "after_seconds": 1.169046694994904
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.7953185270016547,
+      "after_seconds": 1.4353608610108495
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.3581113410182297,
+      "after_seconds": 1.54258667799877
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.8289979560067877,
+      "after_seconds": 2.0746247119968757
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 5.693001714011189,
+      "after_seconds": 5.032998045993736
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 9.943613003008068,
+      "after_seconds": 9.321470804978162
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0676485020085238,
+      "after_seconds": 0.9206765940180048
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.228795495000668,
+      "after_seconds": 1.1671133369964082
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.1143013650143985,
+      "after_seconds": 1.626943825976923
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.771212032996118,
+      "after_seconds": 1.6284619660000317
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.2280495809973218,
+      "after_seconds": 5.539339776005363
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 0.829055671027163,
+      "after_seconds": 5.538432842004113
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 5.390026490000309,
+      "after_seconds": 5.541765622008825
+    },
+    {
+      "cohort": "focus-fleet8",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 1,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 9.471984572999645,
+      "after_seconds": 9.900465718994383
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 3.2633401030034292,
+      "after_seconds": 2.6425541719945613
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.015092718997039,
+      "after_seconds": 1.938665122987004
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0486879390082322,
+      "after_seconds": 1.0326803629868664
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 5.304700448003132,
+      "after_seconds": 5.182746600010432
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 4.131385582993971,
+      "after_seconds": 3.8821952199796215
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.8723075529851485,
+      "after_seconds": 2.8647425409872085
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 7.482954141974915,
+      "after_seconds": 6.932571343000745
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 4.75908528099535,
+      "after_seconds": 4.548699731007218
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 1.0688197900017258,
+      "after_seconds": 1.056382761016721
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 6.838393357989844,
+      "after_seconds": 5.921944430010626
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 10.519133999972837,
+      "after_seconds": 9.766508478001924
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 9.34973000100581,
+      "after_seconds": 9.85045840300154
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-data-availability/3/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 14.911218965018634,
+      "after_seconds": 14.471570986002916
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-database-instances/1/A",
+      "repeat": 0,
+      "same_ordered_result": true,
+      "same_unordered_result": true,
+      "same_counts": true,
+      "same_diagnostic_counts": true,
+      "before_seconds": 2.21432652202202,
+      "after_seconds": 2.3266141880012583
+    }
+  ],
+  "transitions": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/9/A",
+      "before": "nonempty",
+      "after": "error"
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "before": "error",
+      "after": "nonempty"
+    }
+  ],
+  "remaining": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/9/A",
+      "expression_template": "sum by (netdata_host_id, netdata_host_name, app_group, netdata_dimension_id) (abs(app_disk_physical_io{netdata_host_name=~\"${host}\",app_group=~\"${application}\"})) and topk(10, sum by (netdata_host_id, netdata_host_name, app_group, netdata_dimension_id) (abs(app_disk_physical_io{netdata_host_name=~\"${host}\",app_group=~\"${application}\"} @ end())))",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.129576555016683,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 142262,
+          "providerCalls": 265397,
+          "sampleBatches": 44215,
+          "samplesFetched": 12342341,
+          "work": 1566088357,
+          "outputSamples": 248,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 40551424,
+              "acquired": 1786731950,
+              "released": 1786731950,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 19262,
+              "acquired": 19262,
+              "released": 18454,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 18637528,
+              "acquired": 654257404,
+              "released": 654257404,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 2121876,
+              "acquired": 3060120500,
+              "released": 3060120500,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 4975808,
+              "acquired": 103459136,
+              "released": 103458240,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 3083136,
+              "acquired": 3083136,
+              "released": 3083136,
+              "overflowed": 0
+            },
+            "readCalls": 117928,
+            "writeCalls": 69959,
+            "readBytes": 255462752,
+            "writtenBytes": 234622048,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 44215,
+                "points": 12339723
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "expression_template": "(sum by (app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\"})) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.02631665498484,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 526656,
+          "providerCalls": 132249,
+          "sampleBatches": 36170,
+          "samplesFetched": 30548884,
+          "work": 330195597,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 14984812,
+              "acquired": 4309233180,
+              "released": 4309233180,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 17486,
+              "acquired": 17486,
+              "released": 16678,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 16092215,
+              "acquired": 103494216,
+              "released": 103494216,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 2126695,
+              "acquired": 19665733164,
+              "released": 19665733164,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 4953920,
+              "acquired": 64703808,
+              "released": 64702912,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 21914144,
+              "acquired": 21914144,
+              "released": 21914144,
+              "overflowed": 0
+            },
+            "readCalls": 88481,
+            "writeCalls": 2394,
+            "readBytes": 2831392,
+            "writtenBytes": 19607552,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 36168,
+                "points": 30547382
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-service-instances/7/A",
+      "expression_template": "sum by (netdata_host_id,netdata_host_name,netdata_chart_id) (rate(cgroup_cpu{netdata_host_name=~\"${host}\"}[$__rate_interval])) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.034555089019705,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 2385521,
+          "providerCalls": 980955,
+          "sampleBatches": 195593,
+          "samplesFetched": 35685084,
+          "work": 992661196,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 9023690,
+              "acquired": 3105840591,
+              "released": 3105840591,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 18959,
+              "acquired": 23707376,
+              "released": 23706568,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 9462410,
+              "acquired": 10786542013,
+              "released": 10786542013,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 1507898,
+              "acquired": 3257237489,
+              "released": 3257237489,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 2857920,
+              "acquired": 442251520,
+              "released": 442250624,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "readCalls": 0,
+            "writeCalls": 0,
+            "readBytes": 0,
+            "writtenBytes": 0,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 327432,
+                "points": 70487082
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 70486977,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "expression_template": "(sum by (app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\"})) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.02854623697931,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 93978,
+          "providerCalls": 33629,
+          "sampleBatches": 29334,
+          "samplesFetched": 28203463,
+          "work": 123334811,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 6459622,
+              "acquired": 2753090394,
+              "released": 2753090394,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 17486,
+              "acquired": 17486,
+              "released": 16678,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 16709697,
+              "acquired": 61291400,
+              "released": 61291400,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 2211975,
+              "acquired": 13509341606,
+              "released": 13509341606,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 5145024,
+              "acquired": 58173376,
+              "released": 58172480,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 15980544,
+              "acquired": 15980544,
+              "released": 15980544,
+              "overflowed": 0
+            },
+            "readCalls": 0,
+            "writeCalls": 422,
+            "readBytes": 0,
+            "writtenBytes": 3457024,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 29330,
+                "points": 28202844
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-service-instances/7/A",
+      "expression_template": "sum by (netdata_host_id,netdata_host_name,netdata_chart_id) (rate(cgroup_cpu{netdata_host_name=~\"${host}\"}[$__rate_interval])) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.03892634800286,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 4453556,
+          "providerCalls": 1128141,
+          "sampleBatches": 215158,
+          "samplesFetched": 30089132,
+          "work": 915991921,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 14467257,
+              "acquired": 3342612653,
+              "released": 3342612653,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 18959,
+              "acquired": 9474542,
+              "released": 9473734,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 20729482,
+              "acquired": 12349548589,
+              "released": 12349548589,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 2659954,
+              "acquired": 3985611754,
+              "released": 3985611754,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 6274304,
+              "acquired": 501773440,
+              "released": 501772544,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "readCalls": 0,
+            "writeCalls": 0,
+            "readBytes": 0,
+            "writtenBytes": 0,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 376759,
+                "points": 52225920
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 52225876,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-alert-expressions/6/A",
+      "expression_template": "(avg_over_time(((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[5m:1m]) > 80) and (avg_over_time(((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[30m:1m]) > 70)",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.01000018499326,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 322293,
+          "providerCalls": 284949,
+          "sampleBatches": 17678,
+          "samplesFetched": 17425335,
+          "work": 873086450,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 720749,
+              "acquired": 2523391732,
+              "released": 2523391732,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 17486,
+              "acquired": 17486,
+              "released": 16678,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 239214,
+              "acquired": 1507228,
+              "released": 1507228,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 835983,
+              "acquired": 5048732192,
+              "released": 5048732192,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 59712,
+              "acquired": 15519040,
+              "released": 15518144,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 23267088,
+              "acquired": 23267088,
+              "released": 23267088,
+              "overflowed": 0
+            },
+            "readCalls": 251997,
+            "writeCalls": 15137,
+            "readBytes": 61738768,
+            "writtenBytes": 20815552,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 17228,
+                "points": 17424797
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-applications/1/A",
+      "expression_template": "(sum by (app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\"})) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.014812086010352,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 23084,
+          "providerCalls": 56913,
+          "sampleBatches": 30057,
+          "samplesFetched": 18621888,
+          "work": 71318728,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 4954669,
+              "acquired": 2740775016,
+              "released": 2740775016,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 17486,
+              "acquired": 17486,
+              "released": 16678,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 16709905,
+              "acquired": 53712004,
+              "released": 53712004,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 2218428,
+              "acquired": 14174166751,
+              "released": 14174166751,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 5145152,
+              "acquired": 58779008,
+              "released": 58778112,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 18634752,
+              "acquired": 18634752,
+              "released": 18634752,
+              "overflowed": 0
+            },
+            "readCalls": 0,
+            "writeCalls": 189,
+            "readBytes": 0,
+            "writtenBytes": 1548288,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 30058,
+                "points": 18622545
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "expression_template": "100 * sum(system_ram{netdata_host_name=~\"${host}\",netdata_dimension_id=\"used\"}) / sum(system_ram{netdata_host_name=~\"${host}\"})",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.005323370016413,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 30408,
+          "providerCalls": 103855,
+          "sampleBatches": 39379,
+          "samplesFetched": 24495786,
+          "work": 151699874,
+          "outputSamples": 43,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 1319589,
+              "acquired": 2611995720,
+              "released": 2611995720,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 19214,
+              "acquired": 19214,
+              "released": 18406,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 759196,
+              "acquired": 141055906,
+              "released": 141055906,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 926002,
+              "acquired": 13886724526,
+              "released": 13886724526,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 220672,
+              "acquired": 62800064,
+              "released": 62799168,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 992128,
+              "acquired": 992128,
+              "released": 992128,
+              "overflowed": 0
+            },
+            "readCalls": 31491,
+            "writeCalls": 1656,
+            "readBytes": 1162752,
+            "writtenBytes": 1147264,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 39354,
+                "points": 24495487
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-history-comparisons/8/A",
+      "expression_template": "max_over_time(((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[5m:30s])",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.008797982998658,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 374446,
+          "providerCalls": 498453,
+          "sampleBatches": 14861,
+          "samplesFetched": 12996613,
+          "work": 1611696375,
+          "outputSamples": 2,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 227663,
+              "acquired": 2677374107,
+              "released": 2677374107,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 19214,
+              "acquired": 19214,
+              "released": 18406,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 208164,
+              "acquired": 155505134,
+              "released": 155505134,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 49500,
+              "acquired": 460643900,
+              "released": 460643900,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 58112,
+              "acquired": 14690432,
+              "released": 14689536,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 23238288,
+              "acquired": 23238288,
+              "released": 23238288,
+              "overflowed": 0
+            },
+            "readCalls": 423372,
+            "writeCalls": 55460,
+            "readBytes": 81064968,
+            "writtenBytes": 29290512,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 14637,
+                "points": 12996300
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-service-instances/7/A",
+      "expression_template": "sum by (netdata_host_id,netdata_host_name,netdata_chart_id) (rate(cgroup_cpu{netdata_host_name=~\"${host}\"}[$__rate_interval])) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.026540724997176,
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 18549391,
+          "providerCalls": 58763,
+          "sampleBatches": 30458,
+          "samplesFetched": 25188041,
+          "work": 172164587,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 5166274,
+              "acquired": 2138098555,
+              "released": 2138098555,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 18959,
+              "acquired": 6160616,
+              "released": 6159808,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 20059712,
+              "acquired": 492926965,
+              "released": 492926965,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 2557639,
+              "acquired": 10451290947,
+              "released": 10451290947,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 6117696,
+              "acquired": 77794560,
+              "released": 77793664,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "readCalls": 0,
+            "writeCalls": 0,
+            "readBytes": 0,
+            "writtenBytes": 0,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 32175,
+                "points": 31585289
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 31585253,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    }
+  ],
+  "share": {
+    "route": "grafana-backend",
+    "http_status": 200,
+    "query_status": 200,
+    "frames": 79,
+    "seconds": 1.6164507240173407,
+    "has_error": false
+  },
+  "reception": {
+    "hosts_before": 18,
+    "hosts_after": 18,
+    "common": 18,
+    "advanced": 18,
+    "before_seconds": 0.5738004560116678,
+    "after_seconds": 0.6600921130157076
+  },
+  "interpretation": [
+    "Same expressions, scopes, windows, steps and deadlines; live retained data and caches are not immutable.",
+    "The fleet4 cohort contains120range and16instant requests; instant-fleet separately evaluates all136targets instantly.",
+    "Complete result-row hashes are compared both in emitted order and after order-independent canonicalization. Diagnostic contents are not captured.",
+    "Timeout counters describe partial execution, not equal completed work. All unsuccessful requests remain visible.",
+    "Histogram projection remains under decision73 discussion; historical bucket-boundary repair remains excluded by71."
+  ],
+  "artifacts": {
+    ".tmp/practical-replay-j32eeh4e/publish_adapter_live.py": "a3d852448abfe14f7f9689484b07f3583abe2cc4263ce5c66169e6e9f3bf517b",
+    ".tmp/practical-replay-j32eeh4e/adapter_live.py": "ef1f17e8e0bcc38bb1f9da3a96bb988f257a16c33e5b39a68ba56a9571e9e68d",
+    ".tmp/practical-replay-j32eeh4e/observe_adapter_deployment.py": "678f047b4aeb23c844fc0d3072e9953a7c38ba78ad7c7f50efecb20b28bc27de",
+    ".tmp/practical-replay-j32eeh4e/adapter34Before-runtime.json": "bddbf4227cab105a4b0170dc1bcc12b3127ddeea56787627a3b374fbbda08493",
+    ".tmp/practical-replay-j32eeh4e/adapter34After-runtime.json": "da721001aa590b6fd6b86574bf603027c55a17339c1a1d197b37b76cf00490e4",
+    ".tmp/practical-replay-j32eeh4e/adapter34Before-live-receipt.json": "4e51fb5fe042fc313363f128fea05769d5f8aedfe1669163370d51660dc6cde2",
+    ".tmp/practical-replay-j32eeh4e/adapter34After-live-receipt.json": "f6d648518bb229ba5f41d09d8121e576ea4548f205c87190cfb3f75bbafce66c",
+    ".tmp/practical-replay-j32eeh4e/adapter34-deployment.json": "e1d2f5ea2ac473f5ea14eb969a2749c3de8723e116a01b4c6841a300d844bbbf",
+    ".tmp/practical-replay-j32eeh4e/adapter34-deployment-journal.stdout": "3e2672c9e8ddc9cd4884aec174884e1cb8a8bd5d8bfdc9f404c2df65ea18b07f",
+    ".tmp/practical-replay-j32eeh4e/adapter34-deployment-invocation.stdout": "a26803d52777b63a18a4b8af5e4554a136acec61dd03a91d72847da89d32064e",
+    ".tmp/practical-replay-j32eeh4e/adapter34-deployment-preflight.stdout": "f24995ea3b8343cea41dc9aa3f3da755812c1d0700545db86545235a8a1d9b75",
+    ".tmp/practical-replay-j32eeh4e/adapter34-deployment-preflight.stderr": "7f2a0cc67ea8c8312b83c9647961650f6a78246ad375b80e3db841c964fcae71"
+  }
+}
