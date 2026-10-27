@@ -48,6 +48,10 @@ unchanged. Older captures containing only `result_sha256` cannot distinguish reo
 Use private compressed complete-response captures when diagnosing a mismatch; counts and hashes alone cannot
 reconstruct absent historical values. See [the findings](FINDINGS.md) for the current comparison limitations.
 
+Metric titles, types and native units are now available through `/api/v1/metadata`, including Grafana’s datasource
+proxy. [Live metadata measurements](metadata-descriptions-live.json) record exact-name and full-catalogue latency,
+four-client requests and continuing reception. Small unfiltered output limits still incur a full catalogue scan.
+
 The latest [mapped aggregate interval replay](mapped-group-intervals-live.json) covers all 360 retained requests.
 The selected 24-hour CPU-history query now completes, but 12 requests still time out overall. These dashboards remain
 an optimization workload, not a claim that every expression is fast at every retention range.

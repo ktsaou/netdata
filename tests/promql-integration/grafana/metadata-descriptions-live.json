@@ -1,0 +1,367 @@
+{
+  "schema": 1,
+  "date": "2026-10-27",
+  "engine_commit": "c46a8fbe6a903db4fc3983d1a9033c11e4fa82f0",
+  "deployment": {
+    "revision": "c46a8fbe6a903db4fc3983d1a9033c11e4fa82f0",
+    "unit": "promql-deploy-c46a8fbe6a",
+    "exit_status": 0,
+    "wall_seconds": 199.217,
+    "reported_build_memory_peak": "3G",
+    "binary_sha256": "fa385ebb45d24b5d838452fdda478a1ee711619b71c66c9480083ffa941b3868",
+    "configuration_comparisons": "both passed",
+    "protected_copies": ".tmp/install.ISlR2kE2",
+    "services": "Netdata and Grafana active",
+    "approximate_disk_free_gib": 51,
+    "journal_sha256": "f1ff60cfa0fc7ff1a2355835f9e1f19ce4137aac0e1bed906e4685da89910cda",
+    "postcheck_sha256": "29c0ac9ee0b73ef053e674140c0a731dff898040560cbc15e46210cd9685540c"
+  },
+  "qualification": {
+    "file": "../metadata-descriptions-qualification.json",
+    "sha256": "2391166bc09917425e90b7abcdac03c77aeb175b3cbd4658070c00c499fa531a"
+  },
+  "before": [
+    {
+      "route": "direct",
+      "status": 404,
+      "seconds": 0.02299449499696493,
+      "body_sha256": "6461382712a7bba40c8157e6597aae6cb724d326ce700336ebc8f2133e30f425",
+      "bytes": 33
+    },
+    {
+      "route": "grafana-proxy",
+      "status": 404,
+      "seconds": 0.03287761699175462,
+      "body_sha256": "6461382712a7bba40c8157e6597aae6cb724d326ce700336ebc8f2133e30f425",
+      "bytes": 33
+    }
+  ],
+  "after": {
+    "revision": "c46a8fbe6a903db4fc3983d1a9033c11e4fa82f0",
+    "checks": [
+      {
+        "name": "direct-system.cpu",
+        "status": 200,
+        "seconds": 0.006393749994458631,
+        "wire_bytes": 112,
+        "body_bytes": 112,
+        "encoding": "identity",
+        "body_sha256": "c8d034c8ecef8ba08a75eea30a60f6a832df815273a87d18a69ca82b2d703814",
+        "capture": "metadata72b-direct-system.cpu.json.gz",
+        "capture_sha256": "ab6475440349806e93ee9d4a3790ef5d8412b5804ea1fbf0c35fcd69cfd6eaa3",
+        "descriptions": 1
+      },
+      {
+        "name": "direct-system_cpu",
+        "status": 200,
+        "seconds": 0.004770501982420683,
+        "wire_bytes": 112,
+        "body_bytes": 112,
+        "encoding": "identity",
+        "body_sha256": "97cffc679ad5d452708df09d8561b29608b772c8bb0403ca275127c17d4eec6a",
+        "capture": "metadata72b-direct-system_cpu.json.gz",
+        "capture_sha256": "b0c9fdd8c572acd855c722177a070933f9c37f072ed77c865b26eb56d65d13e4",
+        "descriptions": 1,
+        "exact_alias_descriptions_equal": true
+      },
+      {
+        "name": "direct-empty",
+        "status": 200,
+        "seconds": 2.319522475998383,
+        "wire_bytes": 30,
+        "body_bytes": 30,
+        "encoding": "identity",
+        "body_sha256": "33913d055081924c5e30b81bbab55e0a68df0397f2e3ae3c9606467c2d00da64",
+        "capture": "metadata72b-direct-empty.json.gz",
+        "capture_sha256": "142ec9fd2509a86b04a4ffc9159214c4739ae4c270a924c5cd6894cbaf53f4e6",
+        "names": 0
+      },
+      {
+        "name": "direct-one",
+        "status": 200,
+        "seconds": 2.351796511997236,
+        "wire_bytes": 145,
+        "body_bytes": 145,
+        "encoding": "identity",
+        "body_sha256": "c111d09785bcd97f8056ce5bcc3426f131f0c2673e306143ee1324ca4e4929e0",
+        "capture": "metadata72b-direct-one.json.gz",
+        "capture_sha256": "9dbd2f2a79032ecf5f0b639bb17f3b0bf41a3f0617937be9b54b1517bdf1f998",
+        "names": 1
+      },
+      {
+        "name": "direct-per-one",
+        "status": 200,
+        "seconds": 0.007048235012916848,
+        "wire_bytes": 112,
+        "body_bytes": 112,
+        "encoding": "identity",
+        "body_sha256": "97cffc679ad5d452708df09d8561b29608b772c8bb0403ca275127c17d4eec6a",
+        "capture": "metadata72b-direct-per-one.json.gz",
+        "capture_sha256": "b0c9fdd8c572acd855c722177a070933f9c37f072ed77c865b26eb56d65d13e4",
+        "names": 1
+      },
+      {
+        "name": "direct-all-False",
+        "status": 200,
+        "seconds": 2.4313313780003227,
+        "wire_bytes": 706579,
+        "body_bytes": 706579,
+        "encoding": "identity",
+        "body_sha256": "d619cf7f78d2aae4d756be44210a93cbe5da952383cb624f56ba0d01b325564b",
+        "capture": "metadata72b-direct-all-False.json.gz",
+        "capture_sha256": "4681bdc737b0c84f02cfce8f863335c56800ef79eb4f56d8bdb8a65183377280",
+        "names": 4964,
+        "descriptions": 4972
+      },
+      {
+        "name": "direct-all-True",
+        "status": 200,
+        "seconds": 2.423468777007656,
+        "wire_bytes": 94057,
+        "body_bytes": 706579,
+        "encoding": "gzip",
+        "body_sha256": "d619cf7f78d2aae4d756be44210a93cbe5da952383cb624f56ba0d01b325564b",
+        "capture": "metadata72b-direct-all-True.json.gz",
+        "capture_sha256": "4681bdc737b0c84f02cfce8f863335c56800ef79eb4f56d8bdb8a65183377280",
+        "names": 4964,
+        "descriptions": 4972
+      },
+      {
+        "name": "direct-constant",
+        "status": 200,
+        "seconds": 0.0025862899783533067,
+        "wire_bytes": 105,
+        "body_bytes": 105,
+        "encoding": "identity",
+        "body_sha256": "b1a695a6e33a02451d5d7c409873122db13701d25d77306cc3f349dd06470ce5",
+        "capture": "metadata72b-direct-constant.json.gz",
+        "capture_sha256": "38ebd4e2d45ecec69594a8fe31f449874e5ea46fa14d46074273ce82d340cf3e"
+      },
+      {
+        "name": "proxy-system.cpu",
+        "status": 200,
+        "seconds": 0.009868063003523275,
+        "wire_bytes": 112,
+        "body_bytes": 112,
+        "encoding": "identity",
+        "body_sha256": "c8d034c8ecef8ba08a75eea30a60f6a832df815273a87d18a69ca82b2d703814",
+        "capture": "metadata72b-proxy-system.cpu.json.gz",
+        "capture_sha256": "ab6475440349806e93ee9d4a3790ef5d8412b5804ea1fbf0c35fcd69cfd6eaa3",
+        "descriptions": 1
+      },
+      {
+        "name": "proxy-system_cpu",
+        "status": 200,
+        "seconds": 0.007389421982225031,
+        "wire_bytes": 112,
+        "body_bytes": 112,
+        "encoding": "identity",
+        "body_sha256": "97cffc679ad5d452708df09d8561b29608b772c8bb0403ca275127c17d4eec6a",
+        "capture": "metadata72b-proxy-system_cpu.json.gz",
+        "capture_sha256": "b0c9fdd8c572acd855c722177a070933f9c37f072ed77c865b26eb56d65d13e4",
+        "descriptions": 1,
+        "exact_alias_descriptions_equal": true
+      },
+      {
+        "name": "proxy-empty",
+        "status": 200,
+        "seconds": 2.3198391679907218,
+        "wire_bytes": 30,
+        "body_bytes": 30,
+        "encoding": "identity",
+        "body_sha256": "33913d055081924c5e30b81bbab55e0a68df0397f2e3ae3c9606467c2d00da64",
+        "capture": "metadata72b-proxy-empty.json.gz",
+        "capture_sha256": "142ec9fd2509a86b04a4ffc9159214c4739ae4c270a924c5cd6894cbaf53f4e6",
+        "names": 0
+      },
+      {
+        "name": "proxy-one",
+        "status": 200,
+        "seconds": 2.3720694079820532,
+        "wire_bytes": 145,
+        "body_bytes": 145,
+        "encoding": "identity",
+        "body_sha256": "c111d09785bcd97f8056ce5bcc3426f131f0c2673e306143ee1324ca4e4929e0",
+        "capture": "metadata72b-proxy-one.json.gz",
+        "capture_sha256": "9dbd2f2a79032ecf5f0b639bb17f3b0bf41a3f0617937be9b54b1517bdf1f998",
+        "names": 1
+      },
+      {
+        "name": "proxy-per-one",
+        "status": 200,
+        "seconds": 0.009053549001691863,
+        "wire_bytes": 112,
+        "body_bytes": 112,
+        "encoding": "identity",
+        "body_sha256": "97cffc679ad5d452708df09d8561b29608b772c8bb0403ca275127c17d4eec6a",
+        "capture": "metadata72b-proxy-per-one.json.gz",
+        "capture_sha256": "b0c9fdd8c572acd855c722177a070933f9c37f072ed77c865b26eb56d65d13e4",
+        "names": 1
+      },
+      {
+        "name": "proxy-all-False",
+        "status": 200,
+        "seconds": 2.3927212549897376,
+        "wire_bytes": 706579,
+        "body_bytes": 706579,
+        "encoding": "identity",
+        "body_sha256": "d619cf7f78d2aae4d756be44210a93cbe5da952383cb624f56ba0d01b325564b",
+        "capture": "metadata72b-proxy-all-False.json.gz",
+        "capture_sha256": "4681bdc737b0c84f02cfce8f863335c56800ef79eb4f56d8bdb8a65183377280",
+        "names": 4964,
+        "descriptions": 4972
+      },
+      {
+        "name": "proxy-all-True",
+        "status": 200,
+        "seconds": 2.419489264022559,
+        "wire_bytes": 94057,
+        "body_bytes": 706579,
+        "encoding": "gzip",
+        "body_sha256": "d619cf7f78d2aae4d756be44210a93cbe5da952383cb624f56ba0d01b325564b",
+        "capture": "metadata72b-proxy-all-True.json.gz",
+        "capture_sha256": "4681bdc737b0c84f02cfce8f863335c56800ef79eb4f56d8bdb8a65183377280",
+        "names": 4964,
+        "descriptions": 4972
+      },
+      {
+        "name": "proxy-constant",
+        "status": 200,
+        "seconds": 0.004530525009613484,
+        "wire_bytes": 105,
+        "body_bytes": 105,
+        "encoding": "identity",
+        "body_sha256": "3786a6eb75f0f31c779e3610d51667795c491856549d17b005d6f234c57e5e58",
+        "capture": "metadata72b-proxy-constant.json.gz",
+        "capture_sha256": "d80b9f03d0069965b143c96bf2e8402436edc1d65f2eb73b1c06209225721dbd"
+      },
+      {
+        "name": "concurrent-0",
+        "status": 200,
+        "seconds": 2.501261261990294,
+        "wire_bytes": 94057,
+        "body_bytes": 706579,
+        "encoding": "gzip",
+        "body_sha256": "d619cf7f78d2aae4d756be44210a93cbe5da952383cb624f56ba0d01b325564b",
+        "capture": "metadata72b-concurrent-0.json.gz",
+        "capture_sha256": "4681bdc737b0c84f02cfce8f863335c56800ef79eb4f56d8bdb8a65183377280",
+        "names": 4964,
+        "descriptions": 4972
+      },
+      {
+        "name": "concurrent-1",
+        "status": 200,
+        "seconds": 2.585364433005452,
+        "wire_bytes": 94057,
+        "body_bytes": 706579,
+        "encoding": "gzip",
+        "body_sha256": "d619cf7f78d2aae4d756be44210a93cbe5da952383cb624f56ba0d01b325564b",
+        "capture": "metadata72b-concurrent-1.json.gz",
+        "capture_sha256": "4681bdc737b0c84f02cfce8f863335c56800ef79eb4f56d8bdb8a65183377280",
+        "names": 4964,
+        "descriptions": 4972
+      },
+      {
+        "name": "concurrent-2",
+        "status": 200,
+        "seconds": 2.4226406879897695,
+        "wire_bytes": 94057,
+        "body_bytes": 706579,
+        "encoding": "gzip",
+        "body_sha256": "d619cf7f78d2aae4d756be44210a93cbe5da952383cb624f56ba0d01b325564b",
+        "capture": "metadata72b-concurrent-2.json.gz",
+        "capture_sha256": "4681bdc737b0c84f02cfce8f863335c56800ef79eb4f56d8bdb8a65183377280",
+        "names": 4964,
+        "descriptions": 4972
+      },
+      {
+        "name": "concurrent-3",
+        "status": 200,
+        "seconds": 2.426531236997107,
+        "wire_bytes": 94057,
+        "body_bytes": 706579,
+        "encoding": "gzip",
+        "body_sha256": "d619cf7f78d2aae4d756be44210a93cbe5da952383cb624f56ba0d01b325564b",
+        "capture": "metadata72b-concurrent-3.json.gz",
+        "capture_sha256": "4681bdc737b0c84f02cfce8f863335c56800ef79eb4f56d8bdb8a65183377280",
+        "names": 4964,
+        "descriptions": 4972
+      },
+      {
+        "name": "grafana-data-query",
+        "status": 200,
+        "seconds": 0.5022833659895696,
+        "frames": 18,
+        "capture": "metadata72b-grafana-data.json.gz",
+        "capture_sha256": "d9bf8877d0c3468914c2ca4d10b7ea77bb4d3c5f20a8febda2089b5fb063943b"
+      }
+    ],
+    "passed": true,
+    "reception": {
+      "hosts_before": 18,
+      "hosts_after": 18,
+      "common": 18,
+      "advanced": 18
+    },
+    "reception_requests": [
+      {
+        "name": "reception-before",
+        "status": 200,
+        "seconds": 0.47713871599989943,
+        "wire_bytes": 2006,
+        "body_bytes": 2006,
+        "encoding": "identity",
+        "body_sha256": "a3639d7edafa5dd035669cd10e6b8d708226fcef12b169cf5fc2bbc2f04b0d8e",
+        "capture": "metadata72b-reception-before.json.gz",
+        "capture_sha256": "2a11e46013ed3a1e2ff1f1e4f81c7f60dcd145c3b0c5ccffeecb7225d7e8b472"
+      },
+      {
+        "name": "reception-after",
+        "status": 200,
+        "seconds": 0.5849338620027993,
+        "wire_bytes": 2006,
+        "body_bytes": 2006,
+        "encoding": "identity",
+        "body_sha256": "20456da09414cfed30422cecbed2694d825a6ef3eabeb7da6c9ce32b3e08c17c",
+        "capture": "metadata72b-reception-after.json.gz",
+        "capture_sha256": "31b9c5945aafff6548871ecf821375a4774d76cfdd686c8d031b179c526ec927"
+      }
+    ],
+    "runner_sha256": "2e0d7bd0ae102eb060c4b4ac41bac69464c445094743470bbea0cb0dd000f2f1"
+  },
+  "capture_receipt_sha256": "a06336a0882213cee9636f211f3392be372dd6f81e7fdec394cbbb458d4c40d2",
+  "initial_reception_check": {
+    "common": 18,
+    "advanced": 17,
+    "later_check": {
+      "hosts_before": 18,
+      "hosts_after": 18,
+      "common": 18,
+      "advanced": 18,
+      "unchanged_sample_ages_seconds": [],
+      "capture_sha256": "1d3f4eef008745b31b3e552f543a155ae0bd905ad4dececb45ae5a5c6dbd09d0"
+    },
+    "interpretation": "The initial short check stopped before writing its timing summary because one host had not advanced. Raw bodies remain retained. A later check and the complete repeated run both observe all18advancing.",
+    "captures": {
+      "metadata72-reception-before.json.gz": "9254e56bcfe23495a0f22e49b0e402ac87b0f8eebb3250006f00085cf7c2e52c",
+      "metadata72-reception-after.json.gz": "256976191aa91630cf3835a9d8850969f6e5515c15c0e0e5e93bf85e5feb1eec",
+      "metadata72_live.py": "6952af358709eaba814c9a94ddcd2bbfac493e5dcfe82b3f5fdde3a1eeb5962a",
+      "metadata72-live.stderr": "21c6f6a6c06e6a5e8fecbde459368a2f0e63cde3596cbe95e4b60ebf2d322924"
+    }
+  },
+  "limitations": [
+    "Repeated warm live observations, not isolated throughput or cold-cache guarantees.",
+    "Full metadata includes4964names and4972descriptions in this capture; catalogue contents can change.",
+    "Unfiltered limit0/limit1 still build and sort the full catalogue; measured2.32\u20132.37seconds remains unnecessary output-preparation work.",
+    "No full360-query performance replay for this metadata-only runtime change; existing long-history/concurrency findings remain open.",
+    "Historical histogram boundary repair remains excluded by71; histogram representation73 remains under discussion.",
+    "Raw metadata bodies stay private; this report publishes counts, timings and complete-response hashes."
+  ],
+  "post_live": {
+    "services": "Netdata and Grafana active",
+    "binary_unchanged": true,
+    "process_unchanged": true,
+    "approximate_disk_free_gib": 51,
+    "capture_sha256": "4bad0bb78721369957e31a00e16579ba1924cc81109d47a74ea5595a2048976c"
+  }
+}

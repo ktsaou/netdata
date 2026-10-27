@@ -11,9 +11,33 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
-## Follow-up: completed mapped aggregate intervals — 2026-10-27
+## Follow-up: metric descriptions through Netdata and Grafana — 2026-10-27
 
-Engine `e1c932c7ce` is installed. Eligible fixed maps can reuse completed aggregate intervals across output groups.
+Runtime `c46a8fbe6a` is installed. GET `/api/v1/metadata` now returns context-owned instance titles, native units
+and counter/gauge types under exact and underscore names. Both direct and Grafana-proxy routes previously returned
+404. [Live evidence](metadata-descriptions-live.json) records the implemented endpoint and its remaining cost:
+
+- Exact CPU descriptions: **4.8–9.9 ms** across direct and proxy aliases.
+- Whole catalogue: **4,964 names / 4,972 descriptions**, **706,579 JSON bytes**, **2.39–2.43 seconds**.
+- Four simultaneous catalogue requests: **2.42–2.59 seconds each**, all successful.
+- Unfiltered `limit=0` and `limit=1`: **2.32–2.37 seconds**. They still build the full catalogue before limiting
+  output. This is measured unnecessary work and remains an optimization target.
+- Grafana's real CPU-history query returns **18 frames in 0.50 seconds**. All **18 reporting CPU hosts advance**.
+
+These are repeated warm live observations, not a cold-cache or universal throughput guarantee. The initial short
+reception check saw 17/18 advancing; a later check and the full repeated capture both saw 18/18. Its stopped timing
+capture is retained rather than presented as a successful measurement.
+
+The first normal build found a test-helper compile-guard mismatch missed by internal-check qualification. The
+corrected revision passes a normal build and six normal storage/API phases, with independent review. Installation
+then succeeds in 199.22 seconds; both config comparisons pass, both services remain active and 51 GiB is free.
+[Qualification](../metadata-descriptions-qualification.json) preserves the failed link and separate build modes.
+This endpoint adds no persistent metadata catalogue and reads no metric samples. Long-history and concurrent-query
+findings below remain open; histogram representation remains under discussion.
+
+## Earlier follow-up: completed mapped aggregate intervals — 2026-10-27
+
+Engine `e1c932c7ce` was installed for this checkpoint. Eligible fixed maps can reuse completed aggregate intervals across output groups.
 [Controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/MAPPED_GROUP_INTERVALS.md)
 records lower work and allocation traffic without retaining raw history. The full
 [360-request live replay](mapped-group-intervals-live.json) preserves the preceding run's windows, scopes and deadlines.
