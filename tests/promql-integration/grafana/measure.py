@@ -7,6 +7,7 @@ import gzip
 import hashlib
 import json
 import re
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -57,7 +58,29 @@ def result_fingerprints(data):
             'result_unordered_sha256': hashlib.sha256(unordered).hexdigest()}
 
 
-def request(base, expression, instant, start, end, step, deadline):
+def capture_response(directory, raw):
+    try:
+        with tempfile.NamedTemporaryFile(dir=directory, prefix='response-', suffix='.json.gz', delete=False) as destination:
+            with gzip.GzipFile(fileobj=destination, mode='wb', compresslevel=1, mtime=0) as compressed:
+                compressed.write(raw)
+            path = Path(destination.name)
+        compressed_hash = hashlib.sha256()
+        with path.open('rb') as saved:
+            for chunk in iter(lambda: saved.read(65536), b''):
+                compressed_hash.update(chunk)
+        return {'file': path.name, 'sha256': compressed_hash.hexdigest(),
+                'uncompressed_sha256': hashlib.sha256(raw).hexdigest(),
+                'bytes': len(raw), 'compressed_bytes': path.stat().st_size}
+    except OSError as error:
+        # An incomplete evidence capture must stop the run, not masquerade as an HTTP failure.
+        raise RuntimeError('Could not preserve the query response') from error
+
+
+def request(base, expression, instant, start, end, step, deadline, *, responses=None):
+    if responses is not None:
+        responses = Path(responses).resolve(strict=True)
+        if not responses.is_dir() or len(responses.parts) < 4 or len(str(responses)) < 10:
+            raise ValueError('responses must be an existing private directory')
     endpoint = '/api/v1/query' if instant else '/api/v1/query_range'
     params = {'query': expression, 'timeout': f'{deadline}s', 'stats': 'all', 'options': 'absolute'}
     params.update({'time': end} if instant else {'start': start, 'end': end, 'step': step})
@@ -83,13 +106,16 @@ def request(base, expression, instant, start, end, step, deadline):
                 series = len(rows)
                 points = sum(len(row.get('values', [])) + len(row.get('histograms', [])) +
                              int('value' in row) + int('histogram' in row) for row in rows)
-            return {'http_status': response.status, 'status': value.get('status'),
+            measured = {'http_status': response.status, 'status': value.get('status'),
                     'error_type': value.get('errorType'), 'seconds': time.monotonic() - before,
                     'wire_bytes': size, 'series': series, 'points': points,
                     **result_fingerprints(data),
                     'stats': data.get('stats', value.get('stats')), 'warning_count': len(value.get('warnings', [])),
                     'info_count': len(value.get('infos', [])),
                     'outcome': 'error' if value.get('status') != 'success' else ('nonempty' if series else 'empty')}
+            if responses is not None:
+                measured['response_capture'] = capture_response(responses, raw)
+            return measured
     except (OSError, ValueError, urllib.error.URLError) as error:
         # Exception messages can contain endpoints or returned labels; retain the class only.
         return {'outcome': 'transport-error', 'error_class': type(error).__name__, 'seconds': time.monotonic() - before}
@@ -99,6 +125,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--url', required=True)
     parser.add_argument('--output', type=Path, required=True, help='New .jsonl.gz evidence file; parent must exist')
+    parser.add_argument('--responses', type=Path, help='Existing private directory for complete compressed HTTP response bodies')
     parser.add_argument('--host', action='append', default=[], help='Repeat for selected hosts; omitted means fleet')
     parser.add_argument('--scope', choices=['host', 'group', 'fleet'], required=True)
     parser.add_argument('--select', action='append', default=[], help='Catalogue ID substring; repeat to select a cohort')
@@ -125,6 +152,7 @@ def main():
             'step': args.step, 'deadline': args.deadline, 'concurrency': args.concurrency,
             'repeats': args.repeats, 'cases': len(cases), 'instant_override': args.instant,
             'rate_scrape_interval_seconds': 1,
+            'response_bodies': args.responses is not None,
             'cache_state': 'uncontrolled live cache; repeated passes are warm candidates, not guaranteed cold/warm',
             'runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             'catalogue_sha256': hashlib.sha256((HERE / 'workload-catalogue.json').read_bytes()).hexdigest()}
@@ -145,7 +173,8 @@ def main():
             def run(item, repeat=repeat):
                 case, target = item
                 expression = interpolate(target['expr'], args.host, args.step, args.duration)
-                measured = request(args.url, expression, args.instant or target.get('instant', False), start, end, args.step, args.deadline)
+                measured = request(args.url, expression, args.instant or target.get('instant', False), start, end,
+                                   args.step, args.deadline, responses=args.responses)
                 return {'id': case['id'], 'title': case['title'], 'expression_template': target['expr'], 'repeat': repeat,
                         'template_sha256': hashlib.sha256(target['expr'].encode()).hexdigest(), **measured}
             with ThreadPoolExecutor(max_workers=args.concurrency) as pool:

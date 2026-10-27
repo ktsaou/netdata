@@ -48,6 +48,13 @@ unchanged. Older captures containing only `result_sha256` cannot distinguish reo
 Use private compressed complete-response captures when diagnosing a mismatch; counts and hashes alone cannot
 reconstruct absent historical values. See [the findings](FINDINGS.md) for the current comparison limitations.
 
+For before/after diagnosis, pass `--responses` with an existing private scratch directory. Each completed JSON
+response, including a PromQL error response, is saved as a separate mode-0600 gzip file; its filename, sizes and
+compressed/uncompressed hashes accompany the measurement. These bodies contain real metric labels and values:
+keep them private and out of Git. Per-request latency excludes archival work, while whole-cohort time includes it;
+use the same capture setting on both sides. An archival failure stops the run. This option cannot recover response
+values omitted by historical captures.
+
 Metric titles, types and native units are now available through `/api/v1/metadata`, including Grafana’s datasource
 proxy. [Live metadata measurements](metadata-descriptions-live.json) record exact-name and full-catalogue latency,
 four-client requests and continuing reception. The [zero-limit follow-up](metadata-zero-limit-live.json) reduces
