@@ -814,6 +814,27 @@ pub(crate) fn walk_observed<S: Series, E: From<StorageError> + From<Interrupted>
     walk_observed_inner(series, bounds, start, control, account, false, visit, None)
 }
 
+pub(crate) fn walk_observed_pages<S: Series, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    bounds: TimeBounds,
+    start: WalkStart<'_>,
+    control: &Control,
+    account: &QueryAccounting,
+    visit: impl for<'a> FnMut(SampleRef<'a>, CursorOrigin) -> Result<CursorAction, E>,
+    observer: &mut StopPageObserver<'_, E>,
+) -> Result<std::ops::ControlFlow<()>, E> {
+    walk_observed_inner(
+        series,
+        bounds,
+        start,
+        control,
+        account,
+        false,
+        visit,
+        Some(observer),
+    )
+}
+
 pub(crate) type StopPageObserver<'a, E> = dyn for<'p> FnMut(PageSamples<'p>) -> Result<(), E> + 'a;
 
 #[cfg(test)]

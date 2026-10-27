@@ -187,7 +187,7 @@ only the newly reached tail. Parent preparation can reuse already completed cloc
 between two prefixes, converted to Float only afterward. No raw-history array or expiration queue is retained.
 
 The catalog owns a lazy, optional provider-backed table per admitted Count call. Its extent is
-`rows * (5 + 2 * clocks) * 8` bytes: five header words per physical series and two boundary counts per query clock.
+`rows * (6 + 2 * clocks) * 8` bytes: six header words per physical series and two boundary counts per query clock.
 These are completed summaries in backing storage, not a RAM allocation of the full table. Transfers use bounded
 buffers, including 32-word lower-boundary batches and one clean last-row header cache. Query accounting includes
 owners, temporary extents, calls and transfers. Both full and compact Folded progress layouts remain unchanged.
@@ -199,11 +199,18 @@ actual backing errors fail. A native allocation, including a stale native value,
 series through the rest of the query. Float NaNs count, stale Float samples do not, and zero samples produce absence.
 
 Preparation and final execution use separate generations. The first final acquisition is fresh. Only successfully
-committed headers make boundary cells readable; EOF and unconsumed page tails do not certify future clocks.
+committed headers make boundary cells readable. After an adjacent acquisition, its fully validated Float stopping
+page may certify later boundary counts through its last timestamp. Production is limited to at most one future
+clock per returned sample, including sparse pages. EOF does not certify future clocks, and no raw page is retained.
+The consumed frontier and its prefix remain separate from certified coverage: only adjacent consumption advances
+them and charges newly used samples. Repeated earlier clocks are free replays; skipped clocks remain ordinary.
+An unread native sample suppresses certification without revoking the current Float result. The first acquisition
+in each phase remains fresh and does not produce future summaries.
 Backing failures during an ordinary source probe are retained until source validation finishes, so a later source
 error still wins. Cancellation remains immediate. The current pending backing error is returned before native
 fallback, logical credits or publication. Full-window logical sample credits remain distinct from newly read samples
-and from Matrix cursor progress.
+and from Matrix cursor progress. A backing failure while consuming an already-certified cell propagates directly;
+the engine does not perform another source read merely to discover a hypothetical later error.
 
 Qualification lives in `count_windows`, the typed-provenance `range_cache` tests, and the actual C
 `completed_count_windows` panel. Cover uninitialized backing, boundary equality, sparse/empty/nonfinite data,
@@ -274,3 +281,36 @@ single-/two-clock comparisons. The rebuilt Netdata binary passes six DBengine ph
 foreign C captures above remain attributed to the preceding Count source; the correction receipt verifies that
 only the admission condition and its regression test changed. The throughput table is also the preceding binary's
 measurement, not a repeated timing claim for this correction.
+
+
+### Count summaries from validated page tails
+
+The subsequent page-tail refinement separates six-word consumed/certified headers and reuses integer summaries
+from a fully validated stopping page. A sparse page can complete at most `page.len()` later clocks; new work stops
+at its last certified endpoint. The current result uses its saved prefix rather than the speculative total.
+Only adjacent requests consume the new cells. Skips retain ordinary evaluation, repeated clocks do not receive
+fresh-sample credit, and a new physical acquisition begins after consumption catches certified coverage.
+
+[count-page-prefixes-qualification.json](count-page-prefixes-qualification.json) records the comparison against
+`947ef6c78f`, with exact complete results and all measured costs. Both profiles pass 1,103 unit tests (two ignored),
+strict Clippy, 1,932 Count comparisons and 144 additional dense/sparse/stale comparisons with 601 clocks.
+The latter exercises multiple 32-word transfers. Timing contributes another 448 exact comparisons including the
+predecessor. Tests cover genuinely certified consumption, backing failure/cancellation, malformed tails, skipped
+and repeated requests, stale native future values, bounded sparse production, chunk exhaustion and fresh final data.
+Actual native GCC/Clang C/C++ callers pass in both profiles, including all 42 Count cases per C run, exact
+320 consumed samples and the 216→224-byte backing extent for one series with 11 clocks. Prior broad SRE and
+foreign-platform captures remain historical; this change does not reattribute them.
+
+For 128 sources with 901 points each, 21 clocks and 1,024-sample pages, fetched entries fall from 2,078,720 to
+614,656 (70.4%). Grouped Count sum takes 168.88→111.34 ms in release and 214.92→146.54 ms in release-min.
+These are six alternating-pair medians after a warmup on the shared workstation, with wide source labels.
+The 17-sample-page controls retain the same fetched counts: release sum changes 125.72→128.02 ms and average
+123.76→127.92 ms; compact-profile controls are slightly faster. Small-page workloads do not get a universal gain.
+
+Workspace peak changes 760,188→760,220 bytes in that fixture: **32 bytes per query**. Other memory-category peaks
+are unchanged. Backing extent changes 48,128→49,152 bytes: eight bytes per physical series, held by the provider's
+backing policy. The additional fixed upper-prefix staging buffer is 256 stack bytes; stack use is not a heap-memory
+counter. No raw history or per-series cursor array is added. The fixture executable's text grows 32,044 bytes
+(0.70%) in release and 2,920 bytes (0.10%) in release-min; complete data/BSS sizes are retained in the receipt.
+These fixed costs are assessed proportionally under the existing footprint policy, separately from query RAM.
+Live latency remains a separate deployment measurement.

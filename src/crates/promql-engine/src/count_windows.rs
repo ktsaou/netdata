@@ -8,20 +8,21 @@ use crate::{
     range_cache::{Folded, Input, Request},
     range_reduce::{FoldKind, FoldOptions, RangeFunction, finish_count, fold},
     storage::{
-        Control, CursorAction, OwnedTemporary, QueryProvider, Series, StorageError,
-        TemporaryFloatBits, TemporaryFloatBitsRequest, TimeBounds, WalkStart, walk_observed,
+        Control, CursorAction, OwnedTemporary, PageSamples, QueryProvider, Series, StorageError,
+        TemporaryFloatBits, TemporaryFloatBitsRequest, TimeBounds, WalkStart, walk_observed_pages,
     },
     value::SampleValueRef,
     vector_matching::ReplayKey,
 };
 use std::cell::{Cell, RefCell};
 
-const HEADER_WORDS: u64 = 5;
+const HEADER_WORDS: u64 = 6;
 const GENERATION: usize = 0;
 const REVOKED: usize = 1;
 const UPPER: usize = 2;
 const LOWER: usize = 3;
 const TOTAL: usize = 4;
+const CERTIFIED: usize = 5;
 type Header = [u64; HEADER_WORDS as usize];
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -191,18 +192,19 @@ impl<'q> Store<'q> {
         account.work(words.len() as u64);
         crate::temporary_float_bits::write(&mut self.backing, offset, words, control, account)
     }
-    fn count(
+    fn counted_prefix(
         &mut self,
         row: usize,
         index: u64,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<u64, StorageError> {
+    ) -> Result<(u64, u64), StorageError> {
         let [lower] = self.read(self.layout.cell(row, false, index)?, control, account)?;
         let [upper] = self.read(self.layout.cell(row, true, index)?, control, account)?;
-        upper
+        let units = upper
             .checked_sub(lower)
-            .ok_or(StorageError::Invalid("Count prefix order changed"))
+            .ok_or(StorageError::Invalid("Count prefix order changed"))?;
+        Ok((units, upper))
     }
 }
 
@@ -453,6 +455,81 @@ impl Capture<'_, '_> {
             .ok_or(StorageError::Invalid("Count prefix overflow"))?;
         self.through(time_ms, true, control, account)
     }
+
+    fn future(
+        &mut self,
+        page: PageSamples<'_>,
+        index: u64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<(u64, u64)>, StorageError> {
+        let end = self.window.end_ms;
+        let next = end as i128 + self.window.step_ms as i128;
+        if page.is_empty()
+            || index + 1 >= self.store.layout.steps
+            || next > page.sample(page.len() - 1).time_ms as i128
+        {
+            return Ok(None);
+        }
+        // An unread native sample suppresses eager summaries, not the current Float result.
+        for position in 0..page.len() {
+            control.check()?;
+            account.work(1);
+            if !matches!(page.sample(position).value, SampleValueRef::Float(_)) {
+                return Ok(None);
+            }
+        }
+        self.through(end, true, control, account)?;
+        let current_total = self.total;
+        let last = page.sample(page.len() - 1).time_ms as i128;
+        let mut position = 0;
+        let mut certified = index + 1;
+        let mut upper = [0; 32];
+        let mut length = 0;
+        // Sparse pages must not generate an unbounded number of query-clock records.
+        for _ in 0..page.len() {
+            control.check()?;
+            account.work(1);
+            let time =
+                self.window.first_end_ms as i128 + certified as i128 * self.window.step_ms as i128;
+            if certified >= self.store.layout.steps || time > last {
+                break;
+            }
+            while position < page.len() && page.sample(position).time_ms as i128 <= time {
+                control.check()?;
+                account.work(1);
+                let sample = page.sample(position);
+                if sample.time_ms > end && !sample.value.is_stale() {
+                    self.sample(sample.time_ms, control, account)?;
+                }
+                position += 1;
+            }
+            self.through(time as i64, true, control, account)?;
+            if let Some(error) = self.pending.take() {
+                return Err(error);
+            }
+            upper[length] = self.total;
+            length += 1;
+            certified += 1;
+            if length == upper.len() {
+                let offset = self
+                    .store
+                    .layout
+                    .cell(self.row, true, certified - length as u64)?;
+                self.store.write(offset, &upper, control, account)?;
+                length = 0;
+            }
+        }
+        if length != 0 {
+            let offset = self
+                .store
+                .layout
+                .cell(self.row, true, certified - length as u64)?;
+            self.store
+                .write(offset, &upper[..length], control, account)?;
+        }
+        Ok(Some((current_total, certified)))
+    }
 }
 
 fn evaluate<S: Series>(
@@ -473,13 +550,26 @@ fn evaluate<S: Series>(
         return ordinary(series, request, control, account);
     }
     if header[GENERATION] != generation {
-        header = [generation, 0, 0, 0, 0]
+        header = [generation, 0, 0, 0, 0, 0]
     }
     if index < header[UPPER] {
-        return store.count(row, index, control, account).map(Folded::count);
+        return store
+            .counted_prefix(row, index, control, account)
+            .map(|(units, _)| Folded::count(units));
     }
     if index != header[UPPER] || (index != 0 && index >= header[LOWER]) {
         return ordinary(series, request, control, account);
+    }
+    if index < header[CERTIFIED] {
+        let (units, upper) = store.counted_prefix(row, index, control, account)?;
+        let fresh = upper
+            .checked_sub(header[TOTAL])
+            .ok_or(StorageError::Invalid("Count consumed prefix order changed"))?;
+        header[UPPER] = index + 1;
+        header[TOTAL] = upper;
+        store.commit_header(row, header, control, account)?;
+        account.samples_read(fresh);
+        return Ok(Folded::count(units));
     }
     let lower = if index == 0 {
         0
@@ -500,8 +590,9 @@ fn evaluate<S: Series>(
         words: [0; 32],
         length: 0,
     };
-    let mut native = false;
+    let native;
     let mut acquisition = None;
+    let future = Cell::new(None);
     if index == 0 {
         acquisition = Some(crate::matrix_reader::probe::<_, StorageError>(
             series,
@@ -524,7 +615,16 @@ fn evaluate<S: Series>(
             .end_ms
             .checked_sub(w.step_ms)
             .expect("admitted adjacent clock");
-        let _ = walk_observed::<_, StorageError>(
+        let capture = RefCell::new(&mut capture);
+        let native_tail = Cell::new(false);
+        let mut observer = |page: PageSamples<'_>| {
+            let mut capture = capture.borrow_mut();
+            if !native_tail.get() && capture.pending.is_none() {
+                future.set(capture.future(page, index, control, account)?);
+            }
+            Ok(())
+        };
+        let _ = walk_observed_pages::<_, StorageError>(
             series,
             w.data_bounds,
             WalkStart::Seek(previous),
@@ -539,10 +639,12 @@ fn evaluate<S: Series>(
                 if sample.time_ms > previous {
                     if matches!(sample.value, SampleValueRef::Float(_)) {
                         if !sample.value.is_stale() {
-                            capture.sample(sample.time_ms, control, account)?;
+                            capture
+                                .borrow_mut()
+                                .sample(sample.time_ms, control, account)?;
                         }
                     } else {
-                        native = true;
+                        native_tail.set(true);
                     }
                 }
                 Ok(if sample.time_ms == w.end_ms {
@@ -551,7 +653,9 @@ fn evaluate<S: Series>(
                     CursorAction::Next
                 })
             },
+            &mut observer,
         )?;
+        native = native_tail.get();
     }
     control.check()?;
     if let Some(error) = capture.pending.take() {
@@ -576,16 +680,23 @@ fn evaluate<S: Series>(
     if let Some(error) = capture.pending.take() {
         return Err(error);
     }
-    let units = capture
-        .total
+    let (current_total, certified) = future.get().unwrap_or((capture.total, index + 1));
+    let units = current_total
         .checked_sub(lower)
         .ok_or(StorageError::Invalid("Count prefix order changed"))?;
-    let fresh = capture.total - header[TOTAL];
+    let fresh = current_total - header[TOTAL];
     let upper = capture.store.layout.cell(row, true, index)?;
     capture
         .store
-        .write(upper, &[capture.total], control, account)?;
-    let header = [generation, 0, index + 1, capture.next_lower, capture.total];
+        .write(upper, &[current_total], control, account)?;
+    let header = [
+        generation,
+        0,
+        index + 1,
+        capture.next_lower,
+        current_total,
+        certified,
+    ];
     capture.store.commit_header(row, header, control, account)?;
     account.samples_read(fresh);
     Ok(Folded::count(units))
@@ -963,7 +1074,7 @@ mod tests {
                     let mut entries = registry.entries.borrow_mut();
                     let store = entries[0].store.as_mut().unwrap();
                     let header: Header = store.read(0, &control, &account).unwrap();
-                    assert_eq!(header, [0; 5]);
+                    assert_eq!(header, [0; 6]);
                 }
                 drop(registry);
                 assert_eq!(series.counters.active.load(Ordering::Relaxed), 0);
@@ -1087,6 +1198,226 @@ mod tests {
         drop(expected);
         drop(registry);
         account.snapshot().assert_memory_released();
+    }
+    #[test]
+    fn certified_pages_preserve_skipped_replayed_and_consumed_credits() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let expected_account = engine.query();
+        let control = Control::default();
+        let provider = Provider::default();
+        let query = &provider;
+        let registry = registry(&account);
+        let series = GeneratedSeries::new(201, 1024, sample);
+        let mut consumed = 0;
+        for index in [0, 1, 1, 3, 2, 3, 0] {
+            let expected = ordinary(&series, request(index), &control, &expected_account).unwrap();
+            let before = account.snapshot().statistics.samples.samples_read;
+            let opened = series.counters.opened.load(Ordering::Relaxed);
+            let result = registry
+                .evaluate(&query, request(index), &series, &control, &account)
+                .unwrap();
+            assert_eq!(number(&result), number(&expected));
+            assert_eq!(result.sample_units(), expected.sample_units());
+            let fresh = if index < consumed {
+                0
+            } else if index == consumed {
+                let lower = if index == 0 { -50 } else { -20 + index * 10 };
+                consumed += 1;
+                (0..201)
+                    .map(sample)
+                    .filter(|sample| {
+                        sample.time_ms > lower
+                            && sample.time_ms <= -10 + index * 10
+                            && !sample.as_ref().value.is_stale()
+                    })
+                    .count() as u64
+            } else {
+                expected.sample_units()
+            };
+            assert_eq!(
+                account.snapshot().statistics.samples.samples_read - before,
+                fresh
+            );
+            if index < consumed && index != 0 && index != 1 {
+                assert_eq!(series.counters.opened.load(Ordering::Relaxed), opened);
+            }
+            let header = registry.entries.borrow_mut()[0]
+                .store
+                .as_mut()
+                .unwrap()
+                .header(0, &control, &account)
+                .unwrap();
+            assert_eq!(header[UPPER], consumed as u64);
+            if consumed >= 2 {
+                assert_eq!(header[CERTIFIED], 11);
+            }
+        }
+        drop(registry);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn sparse_page_certification_is_bounded_and_native_tails_do_not_revoke_current_count() {
+        fn sparse_page(index: usize) -> Sample {
+            Sample {
+                time_ms: [-50, -10, 0, 100][index],
+                start_time_ms: 0,
+                value: SampleValue::Float(1.0),
+            }
+        }
+        fn future_native(index: usize) -> Sample {
+            let mut value = sample(index);
+            if value.time_ms == 50 {
+                value.value = first_native(60).value;
+            }
+            value
+        }
+        fn future_stale_native(index: usize) -> Sample {
+            let mut value = sample(index);
+            if value.time_ms == 50 {
+                value.value = tail_stale_native(95).value;
+            }
+            value
+        }
+        for (native, make) in [
+            (false, sparse_page as fn(usize) -> Sample),
+            (true, future_native),
+            (true, future_stale_native),
+        ] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let provider = Provider::default();
+            let query = &provider;
+            let registry = registry(&account);
+            let series = GeneratedSeries::new(if native { 201 } else { 4 }, 1024, make);
+            for index in 0..2 {
+                let result = registry
+                    .evaluate(&query, request(index), &series, &control, &account)
+                    .unwrap();
+                assert!(result.sample_units() > 0);
+            }
+            let header = registry.entries.borrow_mut()[0]
+                .store
+                .as_mut()
+                .unwrap()
+                .header(0, &control, &account)
+                .unwrap();
+            assert_eq!(header[UPPER], 2);
+            assert_eq!(header[CERTIFIED], if native { 2 } else { 5 });
+            assert_eq!(header[REVOKED], 0);
+            if !native {
+                assert_eq!(header[TOTAL], 2);
+                let opened = series.counters.opened.load(Ordering::Relaxed);
+                for index in 2..5 {
+                    let result = registry
+                        .evaluate(&query, request(index), &series, &control, &account)
+                        .unwrap();
+                    assert_eq!(result.sample_units(), if index == 4 { 1 } else { 2 });
+                }
+                assert_eq!(series.counters.opened.load(Ordering::Relaxed), opened);
+                for index in 5..11 {
+                    let result = registry
+                        .evaluate(&query, request(index), &series, &control, &account)
+                        .unwrap();
+                    assert_eq!(result.sample_units(), 0);
+                }
+                assert!(series.counters.opened.load(Ordering::Relaxed) > opened);
+            }
+            drop(registry);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn certified_failures_preserve_frontiers_credits_and_source_validation() {
+        fn malformed(index: usize) -> Sample {
+            let mut value = sample(index);
+            if value.time_ms == 50 {
+                value.time_ms = 0;
+            }
+            value
+        }
+        for mode in [
+            "future-write",
+            "malformed",
+            "cached-read",
+            "cached-write",
+            "cached-cancel",
+        ] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let provider = Provider::default();
+            let query = &provider;
+            let registry = registry(&account);
+            let mut series = GeneratedSeries::new(201, 1024, sample);
+            let cached = mode.starts_with("cached");
+            for index in 0..if cached { 2 } else { 1 } {
+                registry
+                    .evaluate(&query, request(index), &series, &control, &account)
+                    .unwrap();
+            }
+            let before = account.snapshot().statistics.samples.samples_read;
+            let opened = series.counters.opened.load(Ordering::Relaxed);
+            let old_header = registry.entries.borrow_mut()[0]
+                .store
+                .as_mut()
+                .unwrap()
+                .header(0, &control, &account)
+                .unwrap();
+            match mode {
+                "cached-read" => provider.fail_read.set(true),
+                "cached-cancel" => provider.cancel_write.set(true),
+                _ => provider.fail_write.set(Some(provider.writes.get() + 1)),
+            }
+            if mode == "malformed" {
+                series.sample = malformed;
+            }
+            if cached {
+                series.fail_page = Some(1);
+            }
+            let error = registry
+                .evaluate(
+                    &query,
+                    request(if cached { 2 } else { 1 }),
+                    &series,
+                    &control,
+                    &account,
+                )
+                .err()
+                .unwrap();
+            match mode {
+                "malformed" => assert_eq!(
+                    error,
+                    StorageError::Invalid("sample timestamps are not strictly increasing")
+                ),
+                "cached-read" => assert_eq!(error, StorageError::Invalid("Count test read")),
+                "cached-cancel" => assert!(matches!(error, StorageError::Interrupted(_))),
+                _ => assert_eq!(error, StorageError::Invalid("Count test write")),
+            }
+            assert_eq!(account.snapshot().statistics.samples.samples_read, before);
+            assert_eq!(
+                series.counters.opened.load(Ordering::Relaxed),
+                opened + usize::from(!cached)
+            );
+            if mode != "cached-cancel" {
+                provider.fail_read.set(false);
+                let header = registry.entries.borrow_mut()[0]
+                    .store
+                    .as_mut()
+                    .unwrap()
+                    .header(0, &control, &account)
+                    .unwrap();
+                assert_eq!(header, old_header);
+            }
+            drop(error);
+            drop(registry);
+            assert_eq!(provider.opens.get(), provider.closes.get());
+            assert_eq!(series.counters.active.load(Ordering::Relaxed), 0);
+            account.snapshot().assert_memory_released();
+        }
     }
     #[test]
     fn cancellation_during_backing_and_read_failures_release_every_owner() {
@@ -1279,7 +1610,10 @@ mod tests {
                     &account,
                 )
                 .unwrap();
-            assert_eq!(store.count(row, 0, &control, &account).unwrap(), 1);
+            assert_eq!(
+                store.counted_prefix(row, 0, &control, &account).unwrap().0,
+                1
+            );
         }
         drop(store);
         account.snapshot().assert_memory_released();

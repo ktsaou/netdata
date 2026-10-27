@@ -3515,6 +3515,10 @@ native allocations revoke admission for the series through query completion. Adj
 storage interval. Full-window logical credits are typed separately from Matrix cursor progress. Source validation
 precedes deferred non-interruption staging failures; no partial frontier or result is published after an error.
 
+A validated Float stopping page from an adjacent acquisition may supply bounded future integer summaries. Keep
+certified coverage separate from consumed coverage and sample credits; skipped clocks do not advance consumption.
+Do not retain the raw page, infer future completion from EOF, or reuse preparation cells for the first final read.
+
 This is a Count-only integer identity, not a Float subtraction algorithm for SUM or other reducers. Keep raw samples
 paged; use bounded transfer buffers and one clean header cache. Missing backing capability retains ordinary replay,
 while actual backing errors fail. Exact scope, exclusions, error controls and measured costs are documented in

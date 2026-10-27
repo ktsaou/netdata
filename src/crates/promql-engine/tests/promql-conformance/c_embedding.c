@@ -708,7 +708,7 @@ static void completed_count_windows(netdata_promql_engine_t *engine) {
                     assert(observed.statistics.samples.total_queryable_samples == 660);
                     assert(observed.statistics.samples.samples_read == (mode ? 320u : grouped ? 1980u : 1320u));
                     assert(observed.temporary_storage.stores.acquired == (mode ? 1u : 0u));
-                    assert(observed.temporary_storage.extent.peak == (mode ? 216u : 0u));
+                    assert(observed.temporary_storage.extent.peak == (mode ? 224u : 0u));
                     assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
                 } else {
                     assert(result == NULL);
