@@ -1,0 +1,373 @@
+{
+  "schema": 1,
+  "date": "2026-10-27",
+  "engine_commit": "306f6e4c714712613ae032092c376b81f30fe9d3",
+  "installed_binary_sha256": "c96b12e198fcd4b80a07a0cc94404eb28e7dde3860e54da20183accd7f3a201c",
+  "vm_compiler": "Rust1.93.1",
+  "baseline_engine_commit": "4b2fd852b8",
+  "cohorts": [
+    {
+      "name": "fleet4",
+      "before": {
+        "requests": 136,
+        "outcomes": {
+          "nonempty": 100,
+          "empty": 8,
+          "error": 28
+        },
+        "seconds": 298.28966168899206
+      },
+      "after": {
+        "requests": 136,
+        "outcomes": {
+          "error": 2,
+          "nonempty": 125,
+          "empty": 9
+        },
+        "seconds": 149.3831084669946
+      }
+    },
+    {
+      "name": "instant-fleet",
+      "before": {
+        "requests": 136,
+        "outcomes": {
+          "empty": 11,
+          "nonempty": 121,
+          "error": 4
+        },
+        "seconds": 74.20891137199942
+      },
+      "after": {
+        "requests": 136,
+        "outcomes": {
+          "nonempty": 124,
+          "empty": 12
+        },
+        "seconds": 47.64700815899414
+      }
+    },
+    {
+      "name": "focus-host",
+      "before": {
+        "requests": 16,
+        "outcomes": {
+          "empty": 6,
+          "nonempty": 10
+        },
+        "seconds": 29.875893048010767
+      },
+      "after": {
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 10,
+          "empty": 6
+        },
+        "seconds": 7.817024310003035
+      }
+    },
+    {
+      "name": "focus-group",
+      "before": {
+        "requests": 16,
+        "outcomes": {
+          "empty": 4,
+          "nonempty": 12
+        },
+        "seconds": 91.51090054499218
+      },
+      "after": {
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 12,
+          "empty": 4
+        },
+        "seconds": 19.774346371996216
+      }
+    },
+    {
+      "name": "focus-fleet",
+      "before": {
+        "requests": 16,
+        "outcomes": {
+          "error": 6,
+          "nonempty": 10
+        },
+        "seconds": 192.66900527499092
+      },
+      "after": {
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 14,
+          "empty": 2
+        },
+        "seconds": 47.92019957599405
+      }
+    },
+    {
+      "name": "focus-fleet8",
+      "before": {
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 10,
+          "error": 6
+        },
+        "seconds": 50.24962296499871
+      },
+      "after": {
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 14,
+          "empty": 2
+        },
+        "seconds": 20.49737764299789
+      }
+    },
+    {
+      "name": "focus-6h",
+      "before": {
+        "requests": 8,
+        "outcomes": {
+          "error": 7,
+          "nonempty": 1
+        },
+        "seconds": 178.67167931000586
+      },
+      "after": {
+        "requests": 8,
+        "outcomes": {
+          "error": 6,
+          "nonempty": 2
+        },
+        "seconds": 158.09367486200063
+      }
+    },
+    {
+      "name": "focus-24h",
+      "before": {
+        "requests": 8,
+        "outcomes": {
+          "error": 7,
+          "nonempty": 1
+        },
+        "seconds": 187.3312311720074
+      },
+      "after": {
+        "requests": 8,
+        "outcomes": {
+          "error": 6,
+          "nonempty": 2
+        },
+        "seconds": 174.19163778300572
+      }
+    },
+    {
+      "name": "focus-7d",
+      "before": {
+        "requests": 8,
+        "outcomes": {
+          "error": 8
+        },
+        "seconds": 200.08039703199756
+      },
+      "after": {
+        "requests": 8,
+        "outcomes": {
+          "error": 8
+        },
+        "seconds": 200.0799600390019
+      }
+    }
+  ],
+  "grafana_share": {
+    "route": "grafana-backend",
+    "http_status": 200,
+    "query_status": 200,
+    "frames": 79,
+    "seconds": 1.5514323560055345,
+    "has_error": false
+  },
+  "reception": {
+    "hosts_before": 18,
+    "hosts_after": 18,
+    "common": 18,
+    "advanced": 18,
+    "before_seconds": 0.6555981960118515,
+    "after_seconds": 0.4612160499964375
+  },
+  "measurements": {
+    "file": "intermediate-reuse-measurements.jsonl.gz",
+    "sha256": "bc88744d3223248eecbc9f1e7a9c5bdd7b87dae8f75995b97adae7387516ff04",
+    "uncompressed_sha256": "8ef52435aaecb9a02cba6f537f04fa3f7fa38df77cd96fd78c919facbff33449",
+    "records": 380,
+    "requests": 360,
+    "compressed_bytes": 153718
+  },
+  "bindings": {
+    "tests/promql-integration/grafana/practical-qualification.json": "ed071d08030a56258a008ba0a9e1d3ddcf68bf09e2060059be5153cd129e0053",
+    "tests/promql-integration/grafana/practical-measurements.jsonl.gz": "2a4c0db1554c69ab037607151b5b92b23f863972d51c278d3557c7c30a7f556c",
+    ".tmp/practical-replay-j32eeh4e/live_after.py": "2c825d350b50e22915409bf6b3c205233cf34730dc7a988ed5a94d0a214559de",
+    "tests/promql-integration/grafana/measure.py": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+    "tests/promql-integration/grafana/workload-catalogue.json": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a",
+    "tests/promql-integration/grafana/alert-expressions.json": "9c0f1d0a94cc861fee56a33c66b0083c2544ac1735be7ff2167e3bab6f3d0989",
+    "tests/promql-integration/grafana/applications.json": "c28631f6868ec68795f4a8a65280ef3e69519bf830fbe983ceb3603306fa576e",
+    "tests/promql-integration/grafana/data-availability.json": "b36278593b93ff2ade0fd11c81c338ceedde5cd6b1036bc38368b4657a18022d",
+    "tests/promql-integration/grafana/database-instances.json": "12ec0370af032e8eb5f45a4f427fc6d714a2f336ec8b81c40db8b686a1f4c3a2",
+    "tests/promql-integration/grafana/fleet-applications.json": "3311f09898b05d67894cfa32a43a7aac78f2c30122dc8d6d4d1bf24d977a072f",
+    "tests/promql-integration/grafana/fleet-bandwidth.json": "5a8481d1dcd149a5db45bf2c1187a85eae584e37caed09bc061d054cb040f1fc",
+    "tests/promql-integration/grafana/fleet-capacity.json": "11172bb6489f1ab1e59ef4ccac4d87fafef258966fe3fa735a1b85b6476bbfc2",
+    "tests/promql-integration/grafana/fleet-overview.json": "4d1e1a3ab2b060b9db8edbc8909988990b1f41d6db88d17ab2eeb088542ee066",
+    "tests/promql-integration/grafana/history-comparisons.json": "b14d4c97686709a17bffc99f5e7d11fab180603536e1ba802a3f2447e2e4f0f6",
+    "tests/promql-integration/grafana/host-resources.json": "cd0315d3ff956a71506aa8fa3e8abef014a3690d083688c4fd975c5943299043",
+    "tests/promql-integration/grafana/service-instances.json": "95c24813b53ebb6af7929cd18c0d37cf8f5a1f4bd164726929e264ed93128d52",
+    "tests/promql-integration/grafana/storage-network.json": "689baf3eac66b836f744d10e9ff039b96068190d09fc777ec79db69270679560",
+    ".tmp/practical-workloads-csukpli2/fleet4.jsonl.gz": "9c223bb3c11829154007dee6be684feffb827d65f5442d66d1eee0c2f9d876e7",
+    ".tmp/practical-workloads-csukpli2/instant-fleet.jsonl.gz": "57d65915114d766582a4d8d3f938544fd37b1f95f7fd34face47a36458470d82",
+    ".tmp/practical-workloads-csukpli2/instant-fleet-process.json": "522d2f26d3fa281ca1adbf63e55c2f448531b99bbff1c4e9356ddedeb5754a29",
+    ".tmp/practical-workloads-csukpli2/focus-host.jsonl.gz": "c650f2bc10a55ed68ac738875eee52b50b3133e18ce89644f1e61e5fd0c71d3b",
+    ".tmp/practical-workloads-csukpli2/focus-host-process.json": "814889d4bdbf36305d463f0bb40c96471013b827e9c31cecad274fce4ad876ad",
+    ".tmp/practical-workloads-csukpli2/focus-group.jsonl.gz": "c021fa29ed842dbefdbdf4900cfda698577c37dc51db7261b17d10172c177f60",
+    ".tmp/practical-workloads-csukpli2/focus-group-process.json": "969b5e0e49be48592bc03c6a14b942bbdc52ba206df91b28889c31bd933adac2",
+    ".tmp/practical-workloads-csukpli2/focus-fleet.jsonl.gz": "d5c392ec654fa8fae338d21c7b0243fc478868d136f396b45e3fea537a25043a",
+    ".tmp/practical-workloads-csukpli2/focus-fleet-process.json": "a3892684e6b3cbcea1743606131bccf6bb9a7564319bb7848cc737edf4ef20d5",
+    ".tmp/practical-workloads-csukpli2/focus-fleet8.jsonl.gz": "fc610ab716f1a1523a7094b96bfc79eef437c3654732442316f621e4ba31ff25",
+    ".tmp/practical-workloads-csukpli2/focus-fleet8-process.json": "21e0ec41e2e8ea89fb89a22529b2c9c22511252f94443709372be87ccc455b41",
+    ".tmp/practical-workloads-csukpli2/focus-6h.jsonl.gz": "5158796bc63c0da5068d5303b3434152bc10ec0fd183bcb2995d67b622ac7f84",
+    ".tmp/practical-workloads-csukpli2/focus-6h-process.json": "22c75edc3884b8e816f6bf046a459d2e0f5cfcd2dcfc02db4c4be1f128d67b01",
+    ".tmp/practical-workloads-csukpli2/focus-24h.jsonl.gz": "3049516dc179e778349437004cbbadbcff535e40400433407bd6fbface4e9ff9",
+    ".tmp/practical-workloads-csukpli2/focus-24h-process.json": "8e8d861c0e4a904e21deb7143bd69227748bb01b01c9c19bb6cc134800fdac29",
+    ".tmp/practical-workloads-csukpli2/focus-7d.jsonl.gz": "3ca6a55c1846d75470d7d3543ef4b4d8c4d71d4fb2187a57a921010278919cd7",
+    ".tmp/practical-workloads-csukpli2/focus-7d-process.json": "db339cc0d6e6cbc5e1bf5f7aa21c47e6f3696561328c737b75426b22bfea07af",
+    ".tmp/practical-replay-j32eeh4e/grafana-share-diagnosis.json": "c25efd0940389e63c499674d10649cd73c7605922ff892908d6623fd5c44539e"
+  },
+  "deployment": {
+    "unit": "promql-deploy-306f6e4c71",
+    "exit": 0,
+    "seconds": 253.424,
+    "config_comparisons": "both passed",
+    "services": "Netdata and Grafana active",
+    "disk_free_approx_gib": 54,
+    "journal_sha256": "2401dc6cbbd0b5f64f2409c9a0f25d7fefa838e9ad16354bead08328d3387c77",
+    "postcheck_sha256": "dedf8cd5058dde065bc6db87ca89cba5d5dae25ae034b8c7fad346ad41f3eb0b"
+  },
+  "remaining": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/4/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/12/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-alert-expressions/6/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-data-availability/3/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-history-comparisons/8/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-service-instances/7/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-alert-expressions/6/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-data-availability/3/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-history-comparisons/8/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-service-instances/7/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-alert-expressions/6/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-data-availability/3/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-database-instances/1/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-applications/1/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-history-comparisons/8/A",
+      "error_type": "timeout"
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-service-instances/7/A",
+      "error_type": "timeout"
+    }
+  ],
+  "limits": [
+    "Same retained windows, steps, scopes, concurrency and25second deadline; cache and live retained data are not frozen.",
+    "Original range cohort preserves two historical offset templates; current corrected dashboards are unchanged.",
+    "Successful empty predicates do not prove infrastructure health or complete temporal input coverage.",
+    "7day requests do not establish7days of available data.",
+    "Long-history timeouts, overlappingraw-window work, mappedsubquery replay, and live histogram representation remain open.",
+    "Grafana POSTbackend was tested; this follow-up does not claim a fresh browservisual review."
+  ]
+}
