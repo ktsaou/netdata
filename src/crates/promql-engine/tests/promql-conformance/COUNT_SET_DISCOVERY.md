@@ -41,7 +41,9 @@ Normal Netdata executable text grows by 1,192 bytes, from 36,709,579 to 36,710,7
 Timing uses five alternating baseline/candidate blocks, three repeats per binary and two profiles: 300 queries
 including warmups. Repeat zero is excluded within each binary/block. The standalone operand controls have
 unchanged accounted work, but are 3.1–4.4% slower in release and 3.7–4.5% faster in release-min in this run.
-These shared-host measurements exclude fixture transport and do not establish live concurrent throughput.
+The query fixture uses `Control::default()`, so these timings have no query deadline polling. HTTP requests
+exercise a different control path. These shared-host measurements exclude fixture transport and do not
+establish live concurrent throughput.
 The work reduction is larger than the measured speedup and must not be presented as equivalent to it.
 
 ## Qualification and reproduction

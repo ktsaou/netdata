@@ -2423,6 +2423,7 @@
     "tests/promql-integration/allocation-handles-qualification.json": "370a277f2ba33c90af7b3378dd14a71dc4826f7de0541512d04a0752a4311163"
   },
   "limitations": [
+    "Synthetic timings use Control::default() without deadline polling; HTTP requests exercise a different control path.",
     "Finite baseline/candidate comparisons, not a new exhaustive upstream qualification.",
     "Shared-host timings exclude fixture transport and do not establish live concurrency gains.",
     "Release standalone controls are 3.1\u20134.4 percent slower in this timing run.",
