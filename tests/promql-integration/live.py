@@ -224,6 +224,25 @@ def qualify(binary, codec, run, observe=None):
             check("fleet-average-range", "query_range", {"query": average, "start": base + 3, "end": base + 5, "step": 1},
                   {"status": "success", "data": {"resultType": "matrix", "result": [
                       {"metric": {}, "values": [[base + index, "12"] for index in range(3, 6)]}]}})
+            counted = 'count by(netdata_host_id)(count_over_time(fixture_http{netdata_dimension_id="gauge"}[3s]))'
+            current = ('count by(netdata_host_id)(fixture_http{netdata_dimension_id="gauge",'
+                       f'netdata_host_id="{ready["child"]}"' + '})')
+            for operation, hosts in [("and", [ready["child"]]), ("unless", [ready["host"]]),
+                                     ("or", [ready["host"], ready["child"]])]:
+                expected = {"status": "success", "data": {"resultType": "matrix", "result": [
+                    {"metric": {"netdata_host_id": host},
+                     "values": [[base + index, "1"] for index in range(3, 6)]}
+                    for host in sorted(hosts)]}}
+
+                def counted_result(value, expected=expected):
+                    if value.get("status") != "success" or value.get("data", {}).get("resultType") != "matrix":
+                        return False
+                    value["data"]["result"].sort(key=lambda row: row["metric"]["netdata_host_id"])
+                    return value == expected
+
+                check(f"fleet-counted-{operation}", "query_range",
+                      {"query": f"(({counted})) {operation} on(netdata_host_id) (({current}))",
+                       "start": base + 3, "end": base + 5, "step": 1}, inspect=counted_result)
             quantile = expressions["quantile"]
             for name, scope, value in [("fleet-histogram-quantile", "", 1), ("local-histogram-quantile", local, 0.5), ("child-histogram-quantile", child, 0.5)]:
                 check(name, "query", {"query": f"scalar({quantile})", "time": base + 4}, scalar(value), prefix=scope)

@@ -137,6 +137,8 @@ int main(void) {
         "(resets(m_total[3s]) == bool 0) unless on(zone) (m_total < 0)",
         "(rate(m_total[3s]) > bool 0) and on(zone) (resets(m_total[3s]) > bool 0)",
         "label_join((rate(m_total[3s]) > bool 0) or on(zone) (m_total < 0),\"zone\",\"\",\"zone\") and on(zone) m_total",
+        "count by(zone)(count_over_time(m_total[3s])) and on(zone) count by(zone)(m_total)",
+        "(count by(zone)(count_over_time(m_total[3s]))) and on(zone) (count by(zone)(m_total))",
     };
     for (unsigned delayed = 0; delayed < 2; delayed++) {
         netdata_promql_engine_options_t options;

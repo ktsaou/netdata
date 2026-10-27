@@ -13071,3 +13071,9 @@ See [MAPPED_GROUP_INTERVALS.md](MAPPED_GROUP_INTERVALS.md) for the two-inner-clo
 fixed-map admission and real aggregate terminal handoff. The regression preserves numerical visitor and cancellation
 ordering, native phase fallback, exact outcomes and paged ownership. Resource and compatibility evidence must remain
 bound to the actual sources and binaries; live latency is a separate qualification.
+
+## Completed discovery for grouped counts
+
+See [COUNT_SET_DISCOVERY.md](COUNT_SET_DISCOVERY.md) for Count selector/window admission, transparent
+parentheses, required final reads and complete C/HTTP qualification. The measured work reduction does not
+reduce raw sample or backing reads; retain standalone timing controls and the separate live-throughput assessment.

@@ -510,3 +510,8 @@ group identity, metadata/fallback exclusions, native inputs and actual borrowing
 Mapped selector interval qualification follows
 `src/crates/promql-engine/tests/promql-conformance/MAPPED_GROUP_INTERVALS.md` for multi-clock reuse,
 actual terminal completion and native-phase fallback.
+
+Grouped Count set discovery follows
+`src/crates/promql-engine/tests/promql-conformance/COUNT_SET_DISCOVERY.md` for selector/window composition,
+original-wrapper clock checks, native input validation and required final acquisition failures. Measure actual
+timing separately from accounted work, retaining standalone operand controls and unchanged raw/backing reads.

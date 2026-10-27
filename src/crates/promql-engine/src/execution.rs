@@ -2160,6 +2160,7 @@ impl CompiledQuery {
         let mut grid = crate::query_scopes::Grid::from(header);
         let mut ranked = false;
         let mut grouped = false;
+        let mut counted = false;
         let mut mapped = false;
         let mut collapsed = false;
         loop {
@@ -2211,12 +2212,40 @@ impl CompiledQuery {
                     grouped = true;
                     *child
                 }
+                Expr::Aggregate {
+                    operator: TokenKind::COUNT,
+                    expression: Some(child),
+                    parameter: None,
+                    ..
+                } if !fixed && !ranked && !grouped => {
+                    grouped = true;
+                    counted = true;
+                    *child
+                }
                 Expr::Call {
                     function: Some(function),
                     arguments,
-                } if grouped && !mapped && function.name == "abs" && arguments.len() == 1 => {
+                } if grouped
+                    && !counted
+                    && !mapped
+                    && function.name == "abs"
+                    && arguments.len() == 1 =>
+                {
                     mapped = true;
                     arguments[0]
+                }
+                Expr::Call {
+                    function: Some(function),
+                    ..
+                } if counted
+                    && !collapsed
+                    && grid.steps().is_ok_and(|steps| steps > 1)
+                    && function.name == "count_over_time" =>
+                {
+                    // Reuse completed membership; selected counts still read their original inputs.
+                    return Ok(self
+                        .binary_replay_selector(node, header, prepared, rosters)
+                        .is_some());
                 }
                 Expr::Selector(selector) if grouped => {
                     // Reuse discovery, never the selected values or their provider reads.
@@ -2244,10 +2273,18 @@ impl CompiledQuery {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<bool, Interrupted> {
+        let mut head = node;
+        while let Expr::Paren(child) = self.expression.arena[head].expression {
+            control.check()?;
+            account.work(1);
+            head = prepared
+                .preprocessing
+                .child(&self.expression, head, child, control, account)?;
+        }
         if matches!(
-            self.expression.arena[node].expression,
+            self.expression.arena[head].expression,
             Expr::Aggregate {
-                operator: TokenKind::SUM | TokenKind::TOPK,
+                operator: TokenKind::SUM | TokenKind::TOPK | TokenKind::COUNT,
                 ..
             }
         ) {
@@ -20834,6 +20871,14 @@ mod tests {
                 b"predict_linear(m[5s] anchored,scalar(histogram_quantile(-1,vector(1))))".as_slice(),
                 b"anchored modifier can only be used with: changes, delta, increase, rate, resets - not with predict_linear".as_slice(),
             ),
+            (
+                b"count(count_over_time(m[5s] anchored)) and m".as_slice(),
+                b"anchored modifier can only be used with: changes, delta, increase, rate, resets - not with count_over_time".as_slice(),
+            ),
+            (
+                b"count(count_over_time(m[5s] smoothed)) and m".as_slice(),
+                b"smoothed modifier can only be used with: delta, increase, rate - not with count_over_time".as_slice(),
+            ),
         ];
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
@@ -21626,6 +21671,165 @@ mod tests {
                         "{expression},page={page},delayed={delayed}",
                     );
                     drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn grouped_count_set_discovery_admission() {
+        for (body, single, range) in [
+            ("count by(instance)(counter_total)", true, true),
+            ("sum by(instance)(counter_total)", true, true),
+            (
+                "count by(instance)(count_over_time(counter_total[2s]))",
+                false,
+                true,
+            ),
+            (
+                "count by(instance)(count_over_time(counter_total[2s] offset 1s))",
+                false,
+                true,
+            ),
+            ("count by(instance)(counter_total offset 1s)", false, false),
+            ("count by(instance)(counter_total @ 3)", false, false),
+            (
+                "count by(instance)(count_over_time(counter_total[2s] @ 3))",
+                false,
+                false,
+            ),
+            (
+                "count by(instance)(rate(counter_total[2s] anchored))",
+                false,
+                false,
+            ),
+            (
+                "count by(instance)(rate(counter_total[2s] smoothed))",
+                false,
+                false,
+            ),
+            (
+                "count by(instance)(count_over_time(counter_total[2s:1s]))",
+                false,
+                false,
+            ),
+            ("count by(instance)(abs(counter_total))", false, false),
+            (
+                "count by(instance)(sum by(instance)(counter_total))",
+                false,
+                false,
+            ),
+            (
+                "sum by(instance)(count_over_time(counter_total[2s]))",
+                false,
+                false,
+            ),
+            ("count by(instance)(rate(counter_total[2s]))", false, false),
+        ] {
+            for (request, admitted) in [
+                (QueryRequest::Instant { time_ms: 4000 }, single),
+                (
+                    QueryRequest::Range {
+                        start_ms: 4000,
+                        end_ms: 4001,
+                        step_ms: 1000,
+                    },
+                    single,
+                ),
+                (
+                    QueryRequest::Range {
+                        start_ms: 2000,
+                        end_ms: 4000,
+                        step_ms: 1000,
+                    },
+                    range,
+                ),
+            ] {
+                for delayed in [false, true] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut options = options(delayed);
+                    options.parser.extended_range_selectors = true;
+                    let expression = format!("(({body})) and on(instance) counter_total");
+                    let compiled = engine
+                        .compile(expression.as_bytes(), options, &control)
+                        .unwrap();
+                    let provider = FixtureProvider::new(4, 1, 4);
+                    assert_eq!(
+                        prepared_set_discovery_count(&compiled, &provider, request, &control),
+                        usize::from(admitted),
+                        "{body} {request:?} delayed={delayed}"
+                    );
+                    drop(compiled);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn grouped_count_set_discovery_keeps_required_final_acquisitions() {
+        set_discovery_final_acquisitions_with_count(
+            "count by(instance)(count_over_time(m_total[2s])) and on(instance) count by(instance)(n_total)",
+            4,
+        );
+    }
+
+    #[test]
+    fn grouped_count_set_discovery_native_results_and_cancellation() {
+        let expression = "count by(instance)(count_over_time(counter_total[2s])) and on(instance) count by(instance)(counter_total)";
+        let request = QueryRequest::Range {
+            start_ms: 2000,
+            end_ms: 4000,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for cancel in [false, true] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(expression.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let provider = native_group_provider::<true>(page, 4);
+                    assert_eq!(
+                        prepared_set_discovery_count(&query, &provider, request, &control),
+                        1
+                    );
+                    if cancel {
+                        let mut sink = RecordingSink {
+                            cancel: Some(control.cancellation.clone()),
+                            ..RecordingSink::default()
+                        };
+                        let report =
+                            query.execute_reported(&provider, request, &control, &mut sink);
+                        assert!(matches!(
+                            report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                                Interrupted::Cancelled
+                            )))
+                        ));
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        assert_eq!(sink.chunks, 2);
+                    } else {
+                        let report = query.collect_reported(&provider, request, &control);
+                        assert!(report.annotations.is_empty());
+                        let result = report.result.as_ref().unwrap();
+                        assert_eq!(result.series.len(), 4);
+                        for (group, row) in result.series.iter().enumerate() {
+                            assert_eq!(row.labels.0.len(), 1);
+                            assert_eq!(&*row.labels.0[0].name, b"instance");
+                            assert_eq!(&*row.labels.0[0].value, format!("g{group:04}").as_bytes());
+                            assert_eq!(row.points.len(), 3);
+                            for (tick, point) in row.points.iter().enumerate() {
+                                assert_eq!(point.time_ms, (tick as i64 + 2) * 1000);
+                                assert_eq!(float_bits(point), 2.0_f64.to_bits());
+                            }
+                        }
+                    }
+                    provider.assert_closed();
+                    drop(query);
                     engine.accounting.snapshot().assert_memory_released();
                 }
             }
