@@ -3,7 +3,7 @@
   "engine_commit": "73313c6f697b5facf36c937ec5851e69578707c1",
   "installed_binary_sha256": "6324736340053adf6ace5be5f6ad271f91be3d8083be1fb85ffd24ddb7543147",
   "previous_engine_commit": "947ef6c78f0f318a0f2aba6a94a6e98a84271706",
-  "scope": "136 fleet range queries at four clients, then four serial Count requests; unchanged retained windows/steps/deadlines. Not a full 360-request replay.",
+  "scope": "136 fleet panel requests at four clients (120 range and 16 instant), then four serial Count requests; unchanged retained windows/steps/deadlines. Not a full 360-request replay.",
   "fleet_before": {
     "requests": 136,
     "outcomes": {
@@ -399,5 +399,9 @@
     "The previous full-suite instant and long-history cohorts were not rerun in this focused deployment check.",
     "Timeout counters describe partial execution, not equal completed work.",
     "Whole practical remediation remains incomplete; historical histogram boundary repair is excluded by decision71."
-  ]
+  ],
+  "fleet_request_modes": {
+    "range": 120,
+    "instant": 16
+  }
 }

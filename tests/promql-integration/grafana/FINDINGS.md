@@ -8,13 +8,16 @@ long-range performance is not yet suitable for these workloads under a 25-second
 This is a baseline and an optimization priority list, not a claim that all dashboards are fast or that the live adapter
 supports every PromQL input type. Alert-expression testing does not install an alert scheduler or notification system.
 
+The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
+its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
+
 ## Follow-up: Count summaries from validated page tails — 2026-10-27
 
 Engine `73313c6f69` is installed. It reuses bounded integer summaries from already validated pages, without keeping
 raw history. [Controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/INTERMEDIATE_REUSE.md#count-summaries-from-validated-page-tails)
 records 70.4% fewer fetched entries and 31.8–34.1% faster grouped Count sums in the large-page fixture, with a
-32-byte query-workspace increase. [Live measurements](count-page-prefixes-live.json) repeat all 136 fleet range
-requests at four clients, then four focused serial Count requests. Windows, steps and deadlines are unchanged.
+32-byte query-workspace increase. [Live measurements](count-page-prefixes-live.json) repeat all 136 fleet panel
+requests at four clients (120 range and 16 instant), then four focused serial Count requests. Windows, steps and deadlines are unchanged.
 
 - Grouped Count under four clients: **21.37→13.37 seconds**.
 - Serial grouped Count: **19.34/15.96→9.83/9.70 seconds**.
@@ -39,7 +42,7 @@ and completed evaluation. The [controlled qualification](../../../src/crates/pro
 shows targeted improvements without increasing measured memory peaks. The [full live replay](count-group-labels-live.json)
 retains all 360 requests and their unchanged windows, resolution and deadlines.
 
-- Fleet range: **1/136 timeout**, previously 3; cohort time 126.96 seconds, previously 135.94.
+- Fleet panel cohort: **1/136 timeout**, previously 3; cohort time 126.96 seconds, previously 135.94.
 - Fleet instant: **0/136 timeouts**. Selected short-range and eight-client cohorts also have none.
 - Selected 6h/24h/7d: **2/8, 3/8 and 6/8 timeouts**, unchanged from the previous full replay.
 - Total: **12/360 timeouts**, previously 14. Grouped Count now completes in 21.37 seconds under four clients;
@@ -79,7 +82,7 @@ controlled fixture gains have **not resolved the two fleet Count timeouts**.
 
 | Cohort | Previous deployment timeouts | Current deployment timeouts |
 | --- | ---: | ---: |
-| Fleet, 136 range queries, 4 clients | 2 | 3 |
+| Fleet, 136 panel requests, 4 clients | 2 | 3 |
 | Fleet, 136 instant queries, 4 clients | 0 | 0 |
 | Selected 6-hour queries, 8 requests | 2 | 2 |
 | Selected 24-hour queries, 8 requests | 3 | 3 |
@@ -111,7 +114,7 @@ windows. The 25-second deadline, scopes, time windows and resolutions are unchan
 
 | Cohort | Before either optimization | Previous deployment | Current deployment |
 | --- | ---: | ---: | ---: |
-| Fleet, 136 range queries, 4 clients | 28 timeouts | 2 | 2 |
+| Fleet, 136 panel requests, 4 clients | 28 timeouts | 2 | 2 |
 | Fleet, 136 instant queries, 4 clients | 4 timeouts | 0 | 0 |
 | Selected 6-hour queries, 8 requests | 7 timeouts | 6 | 2 |
 | Selected 24-hour queries, 8 requests | 7 timeouts | 6 | 3 |
@@ -139,7 +142,7 @@ repeat all 360 main requests with the original scopes, steps, concurrency and 25
 
 | Cohort | Previous timeouts | Current timeouts |
 | --- | ---: | ---: |
-| Fleet, 136 range queries, 4 clients | 28 | 2 |
+| Fleet, 136 panel requests, 4 clients | 28 | 2 |
 | Fleet, 136 instant queries, 4 clients | 4 | 0 |
 | Selected fleet queries, serial, 16 requests | 6 | 0 |
 | Selected fleet queries, 8 clients, 16 requests | 6 | 0 |
