@@ -557,3 +557,9 @@ accessor compile only with `NETDATA_INTERNAL_CHECKS`; normal backing structures 
 empty fields, embedded zero bytes, multiple fields, keys crossing 8 KiB windows, unequal bytes/lengths, invalid offsets,
 cancellation and allocation cleanup. The initial diagnostic incorrectly counted its still-owned report as a leak;
 that failed capture remains attributed separately from the corrected allocation-baseline checks.
+
+A follow-up uses relaxed atomic updates and per-field snapshots for these internal counters, preserving
+independently acquired sealed-body readers. Snapshots are not transactions across all four fields; phase fixtures
+read them after synchronous work. The receipt records fresh normal/internal storage and HTTP qualification for
+the correction. The timings above retain their original non-atomic diagnostic instrumentation and source identity;
+the buffered comparison algorithm and normal-build code are unchanged by this follow-up.

@@ -49,7 +49,15 @@ void promql_body_release(PROMQL_BODY *body) {
 uint64_t promql_body_length(const PROMQL_BODY *body) { return body ? body->length : 0; }
 #ifdef NETDATA_INTERNAL_CHECKS
 PROMQL_FILE_OBSERVATIONS promql_body_file_observations(const PROMQL_BODY *body) {
-    return body && body->file ? body->file->observations : (PROMQL_FILE_OBSERVATIONS){0};
+    if(!body || !body->file) return (PROMQL_FILE_OBSERVATIONS){0};
+    // Sealed bodies can have independently acquired readers; counters do not publish body data.
+    const PROMQL_FILE_OBSERVATIONS *observed = &body->file->observations;
+    return (PROMQL_FILE_OBSERVATIONS){
+        .read_calls = __atomic_load_n(&observed->read_calls, __ATOMIC_RELAXED),
+        .read_bytes = __atomic_load_n(&observed->read_bytes, __ATOMIC_RELAXED),
+        .write_calls = __atomic_load_n(&observed->write_calls, __ATOMIC_RELAXED),
+        .write_bytes = __atomic_load_n(&observed->write_bytes, __ATOMIC_RELAXED),
+    };
 }
 #endif
 const char *promql_body_directory(const PROMQL_BODY *body) { return body ? body->directory : NULL; }

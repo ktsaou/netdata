@@ -5509,5 +5509,309 @@
     "Backing observations and generated probes compile only with internal checks; normal structures omit them.",
     "Normal storage omits29internal-only description sort/cost/key probes. All other storage/API cases run.",
     "Sorting and output emission algorithms remain unchanged; positive limits still inspect the complete catalogue."
-  ]
+  ],
+  "instrumentation_followup": {
+    "scope": "Relaxed atomic internal diagnostic updates and per-field snapshots preserve independently acquired sealed-body readers. No normal-build code, structure, algorithm or public contract change.",
+    "source_changes": {
+      "src/web/api/promql/backing.c": {
+        "before": "f2558599162d43104744939efd1fcf5781f57d48406010037eba84b019eaa5e3",
+        "after": "1a517539597daa50d09779f50213f0242ca9438a408cba2fcdf0d79ff6ee9a94"
+      },
+      "src/web/api/promql/body.c": {
+        "before": "46961bfc97041f6070b31492ecf48abfc26d6bd97adb8792eceb53f9b857249a",
+        "after": "7474c8dfb77d014bc6c7ace4913e94cf152ddc60180bfc505dbdf790d569b60b"
+      }
+    },
+    "checks": {
+      "Normal": {
+        "build": {
+          "path": ".tmp/practical-replay-j32eeh4e/metadataAtomicNormal-build.json",
+          "sha256": "4dc5c037e8137a8df4cb49d035cc6a6966c40692cddf872ddfe367b1c4f24738"
+        },
+        "binary_sha256": "1342466d9a4ab17d5f525c189294cb1d969868924ed41be0dad452686cefd9e5",
+        "mode": "normal",
+        "build_logs": [
+          {
+            "path": ".tmp/practical-replay-j32eeh4e/metadataAtomicNormal-build-0.stdout",
+            "sha256": "591fde05f8acd490de36920582c8dd28b80879bd5f09479306b06ca48e00c180"
+          },
+          {
+            "path": ".tmp/practical-replay-j32eeh4e/metadataAtomicNormal-build-0.stderr",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": ".tmp/practical-replay-j32eeh4e/metadataAtomicNormal-build-1.stdout",
+            "sha256": "8a35b99e8d29aca04daba5dd6ef4511e776f98d4bb8943476f4b3939feda1158"
+          },
+          {
+            "path": ".tmp/practical-replay-j32eeh4e/metadataAtomicNormal-build-1.stderr",
+            "sha256": "7a7bb64a28cdda9b91e6e27f41be455104d929b5d7ad6dd5beca75fc5a47f1f4"
+          }
+        ],
+        "storage": {
+          "path": ".tmp/dbengine-storage-1vmwiche/receipt.json",
+          "sha256": "1a3b2db266411760dde990e431119cc531fedc7f23dd41d294cad51ab416ab4c"
+        },
+        "phases": [
+          {
+            "codec": "array",
+            "phase": "write",
+            "exit": 0,
+            "records": 36,
+            "logs": [
+              {
+                "path": ".tmp/dbengine-storage-1vmwiche/array/write.stdout",
+                "sha256": "ca9da7ef83837230db96ecdb2003d2a2c6bd28977bddfbb2f9a06369f659870b"
+              },
+              {
+                "path": ".tmp/dbengine-storage-1vmwiche/array/write.stderr",
+                "sha256": "4651efdd046e2cf36ff32172c49fd65a4d37e63369f9b9604cfd216806aa7e3e"
+              }
+            ]
+          },
+          {
+            "codec": "array",
+            "phase": "read",
+            "exit": 0,
+            "records": 385,
+            "logs": [
+              {
+                "path": ".tmp/dbengine-storage-1vmwiche/array/read.stdout",
+                "sha256": "284e5af366bd07b1557d9e3b03fd8bb47bb71f9d838ddb092681e5abd447cd2e"
+              },
+              {
+                "path": ".tmp/dbengine-storage-1vmwiche/array/read.stderr",
+                "sha256": "33654ad809c42c6d2143b70ea5239cfe08f9dda65099a4c9465e02f0f873e91a"
+              }
+            ]
+          },
+          {
+            "codec": "array",
+            "phase": "append",
+            "exit": 0,
+            "records": 36,
+            "logs": [
+              {
+                "path": ".tmp/dbengine-storage-1vmwiche/array/append.stdout",
+                "sha256": "fe7325922d77d339c3f75635bf8bc98a691c5db2d62dfbba06d5701a655efcb3"
+              },
+              {
+                "path": ".tmp/dbengine-storage-1vmwiche/array/append.stderr",
+                "sha256": "492b0ed786deb955e08107c08ca308a55572f38a6ed5e8439cad5e3686281119"
+              }
+            ]
+          },
+          {
+            "codec": "gorilla",
+            "phase": "write",
+            "exit": 0,
+            "records": 36,
+            "logs": [
+              {
+                "path": ".tmp/dbengine-storage-1vmwiche/gorilla/write.stdout",
+                "sha256": "1c4f9177a2b405ecd16f9b8f8520f88283e28f17f3c27ede183b86f050bed538"
+              },
+              {
+                "path": ".tmp/dbengine-storage-1vmwiche/gorilla/write.stderr",
+                "sha256": "25b7a325355a1e36910ba2397ff008a485dca90ffa5bc07ee86fe910ae6b8c16"
+              }
+            ]
+          },
+          {
+            "codec": "gorilla",
+            "phase": "read",
+            "exit": 0,
+            "records": 385,
+            "logs": [
+              {
+                "path": ".tmp/dbengine-storage-1vmwiche/gorilla/read.stdout",
+                "sha256": "4d4a9a639b512bfec85d6b0eb80d1f8d4552e9f787c7eb3d327f908b1e0de9a3"
+              },
+              {
+                "path": ".tmp/dbengine-storage-1vmwiche/gorilla/read.stderr",
+                "sha256": "9ef924c7244370627dc77b959595af2e79e0baa2817ab35d2e809191c9dfdb94"
+              }
+            ]
+          },
+          {
+            "codec": "gorilla",
+            "phase": "append",
+            "exit": 0,
+            "records": 36,
+            "logs": [
+              {
+                "path": ".tmp/dbengine-storage-1vmwiche/gorilla/append.stdout",
+                "sha256": "4f09ea564a9f3f8c5e1db1f536b5ec7f996a94caf55b19e60abcadab82517383"
+              },
+              {
+                "path": ".tmp/dbengine-storage-1vmwiche/gorilla/append.stderr",
+                "sha256": "b10feee8428c3c3639da498581aba49e447f8e6de9120cd5edbd1b2addbc8628"
+              }
+            ]
+          }
+        ]
+      },
+      "Internal": {
+        "build": {
+          "path": ".tmp/practical-replay-j32eeh4e/metadataAtomicInternal-build.json",
+          "sha256": "f6f2714e092a1fef6a6db90f4ba7d3af10537d01935c5fb06f8e6866a5355199"
+        },
+        "binary_sha256": "f0e4e4e9f427b0f25180ccd95da946e6105a7f12f5ce265c0430978ce8de1fd3",
+        "mode": "internal",
+        "build_logs": [
+          {
+            "path": ".tmp/practical-replay-j32eeh4e/metadataAtomicInternal-build-0.stdout",
+            "sha256": "591fde05f8acd490de36920582c8dd28b80879bd5f09479306b06ca48e00c180"
+          },
+          {
+            "path": ".tmp/practical-replay-j32eeh4e/metadataAtomicInternal-build-0.stderr",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": ".tmp/practical-replay-j32eeh4e/metadataAtomicInternal-build-1.stdout",
+            "sha256": "e2d054a270710bffc6380906c76175a9a7fa8b1ffa39153b8fd77ab3db01e3f8"
+          },
+          {
+            "path": ".tmp/practical-replay-j32eeh4e/metadataAtomicInternal-build-1.stderr",
+            "sha256": "6bfa9e18ffdef821c711a542cfebd7db0982665615563e5a191285e489609c6f"
+          }
+        ],
+        "storage": {
+          "path": ".tmp/dbengine-storage-87y_6zxs/receipt.json",
+          "sha256": "c7407b95517eaaa463d1df525b64de047243a36923099a4276ddf5dbb117fed7"
+        },
+        "phases": [
+          {
+            "codec": "array",
+            "phase": "write",
+            "exit": 0,
+            "records": 36,
+            "logs": [
+              {
+                "path": ".tmp/dbengine-storage-87y_6zxs/array/write.stdout",
+                "sha256": "89732d8ddd327512f2f06ab1b9127bf94dccb2d22fbbc74f5a98a1ccdd0667bf"
+              },
+              {
+                "path": ".tmp/dbengine-storage-87y_6zxs/array/write.stderr",
+                "sha256": "7ed09fa982debf5a1d2092112e7fd25f41a40eac4480e9b045023eea0f660a54"
+              }
+            ]
+          },
+          {
+            "codec": "array",
+            "phase": "read",
+            "exit": 0,
+            "records": 414,
+            "logs": [
+              {
+                "path": ".tmp/dbengine-storage-87y_6zxs/array/read.stdout",
+                "sha256": "5dabf6769a2688cbffa2aa173aa1f6cd5ee493bb9e0a4da0f2cf9b8eb6b6e4ef"
+              },
+              {
+                "path": ".tmp/dbengine-storage-87y_6zxs/array/read.stderr",
+                "sha256": "fa506950a29d05de0b0f7a4a0deda42a0d5c2ee571ac254e018a98613f24eae0"
+              }
+            ]
+          },
+          {
+            "codec": "array",
+            "phase": "append",
+            "exit": 0,
+            "records": 36,
+            "logs": [
+              {
+                "path": ".tmp/dbengine-storage-87y_6zxs/array/append.stdout",
+                "sha256": "805b2f83528069e8c28fea10d11315db7e1ce4f5af995487f123c3d2fcb77aed"
+              },
+              {
+                "path": ".tmp/dbengine-storage-87y_6zxs/array/append.stderr",
+                "sha256": "e1f723ad2224bff863ad734bc2de3fa7efb0f0653e307f44155c4ae1bfd65648"
+              }
+            ]
+          },
+          {
+            "codec": "gorilla",
+            "phase": "write",
+            "exit": 0,
+            "records": 36,
+            "logs": [
+              {
+                "path": ".tmp/dbengine-storage-87y_6zxs/gorilla/write.stdout",
+                "sha256": "ffff6ef9ab4be9b6e9f5b2c37e62c010f78471e535e0a08e69ea4e1c7f806fa2"
+              },
+              {
+                "path": ".tmp/dbengine-storage-87y_6zxs/gorilla/write.stderr",
+                "sha256": "138a7f42c0fd1e91eb36cb2e681b184500557827f8272b7fc0e27f2242101991"
+              }
+            ]
+          },
+          {
+            "codec": "gorilla",
+            "phase": "read",
+            "exit": 0,
+            "records": 414,
+            "logs": [
+              {
+                "path": ".tmp/dbengine-storage-87y_6zxs/gorilla/read.stdout",
+                "sha256": "77b58970fbde052f9f036af8cdc778d9ff2c557aadb74b126614c92775f5f942"
+              },
+              {
+                "path": ".tmp/dbengine-storage-87y_6zxs/gorilla/read.stderr",
+                "sha256": "385111607c1e6c149ae8a04ac620963902c8597a90c8d0b86bc68f6fb3b0fb7d"
+              }
+            ]
+          },
+          {
+            "codec": "gorilla",
+            "phase": "append",
+            "exit": 0,
+            "records": 36,
+            "logs": [
+              {
+                "path": ".tmp/dbengine-storage-87y_6zxs/gorilla/append.stdout",
+                "sha256": "9bf881d72b477944d632c26c2a81fccdc7b325a87831b3bd6d7944a983515214"
+              },
+              {
+                "path": ".tmp/dbengine-storage-87y_6zxs/gorilla/append.stderr",
+                "sha256": "4ee7fdd217a915c6f791e2362bab9b915b6cbabc96512a64a77202e147027ab4"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "http": {
+      "path": ".tmp/live-api-lydc67xs/receipt.json",
+      "sha256": "0290c25fb01119ff17f88b93bb646b90ad97cfda54ca314e7a7f458f94cddb5b"
+    },
+    "http_runs": [
+      {
+        "codec": "array",
+        "checks": 71,
+        "host_readiness": 12,
+        "exit": 0
+      },
+      {
+        "codec": "gorilla",
+        "checks": 71,
+        "host_readiness": 12,
+        "exit": 0
+      }
+    ],
+    "runners": [
+      {
+        "path": ".tmp/practical-replay-j32eeh4e/metadata_atomic_checks.py",
+        "sha256": "3a26ae940447a1019e2c58c405cf6e433332cce9a53837ebe1017e311207c9ee"
+      },
+      {
+        "path": ".tmp/practical-replay-j32eeh4e/metadata_atomic_qualify.py",
+        "sha256": "f8415dc30ecc78298937f7bfa0cbef30c5d8d3dabd29c6bacca2f4db6ba6227b"
+      }
+    ],
+    "limitations": [
+      "Earlier timing cohorts retain their original non-atomic internal instrumentation and source identity; this follow-up does not reattribute or remeasure them.",
+      "Per-field snapshots need not be mutually simultaneous; phase fixtures read them after synchronous work.",
+      "Concurrent retained-body reads are supported by the ownership API; overlap was not demonstrated in current live transports. No live race reproduction is claimed."
+    ]
+  }
 }
