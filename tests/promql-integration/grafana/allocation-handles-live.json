@@ -1,0 +1,438 @@
+{
+  "schema": 1,
+  "date": "2026-10-27",
+  "engine_commit": "c48c5752245b759c715078d4d9cc0070c5b41a97",
+  "previous_engine_commit": "e02563e86b808a0e00e9201cc6b492774e433fe5",
+  "installed_binary_sha256": "570f322714a6c821d5c725aa7bdbe5a63ecbb0c06c623fc023937ec82442cb12",
+  "deployment": {
+    "unit": "promql-deploy-c48c575224",
+    "invocation": "a8ab882445b14309b1127cbd0f220d32",
+    "installer_exit": 0,
+    "protected_configuration_comparisons": "passed",
+    "smoke_query": "passed"
+  },
+  "captures": {
+    "before": {
+      "file": "allocation-handles-before-measurements.jsonl.gz",
+      "sha256": "5ef04b02f37355249dd9ef216f53847936699452fc732da8a057361263fe7f85",
+      "uncompressed_sha256": "a406379c870b4530f78c66aa2b2f955d20da5b521e20ecf8428a7bf147f0cfa0",
+      "records": 380,
+      "queries": 360,
+      "complete_response_bodies_retained_privately": true,
+      "response_body_compressed_bytes": 1638979
+    },
+    "after": {
+      "file": "allocation-handles-after-measurements.jsonl.gz",
+      "sha256": "5877d8e96b3aac10a2cd81518aa729cb08ad574c608cc4fbbcc2deaca68bfb92",
+      "uncompressed_sha256": "c43d25d7019435c12652ba7692b9d84abb563e66356171fdbd914fd447fe7393",
+      "records": 380,
+      "queries": 360,
+      "complete_response_bodies_retained_privately": true,
+      "response_body_compressed_bytes": 1643857
+    }
+  },
+  "comparison": {
+    "file": "allocation-handles-comparison.json.gz",
+    "sha256": "38c283e2df235e866b9311f37361cbac105dfe929ec7c4c559a87641f2554a66",
+    "uncompressed_sha256": "1d600dc1aa0ec39cf2867572dbc824577643fde6b47173ad2a658e2ad3b45d6a"
+  },
+  "before_summary": [
+    {
+      "cohort": "fleet4",
+      "requests": 136,
+      "outcomes": {
+        "nonempty": 127,
+        "empty": 9
+      },
+      "seconds": 109.1382183629903
+    },
+    {
+      "cohort": "instant-fleet",
+      "requests": 136,
+      "outcomes": {
+        "nonempty": 124,
+        "empty": 12
+      },
+      "seconds": 57.98548391400254
+    },
+    {
+      "cohort": "focus-host",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 10,
+        "empty": 6
+      },
+      "seconds": 11.14811306699994
+    },
+    {
+      "cohort": "focus-group",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 12,
+        "empty": 4
+      },
+      "seconds": 14.160344292002264
+    },
+    {
+      "cohort": "focus-fleet",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 14,
+        "empty": 2
+      },
+      "seconds": 30.79851867002435
+    },
+    {
+      "cohort": "focus-fleet8",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 14,
+        "empty": 2
+      },
+      "seconds": 19.206155029998627
+    },
+    {
+      "cohort": "focus-6h",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 4,
+        "empty": 2,
+        "error": 2
+      },
+      "seconds": 67.245093851001
+    },
+    {
+      "cohort": "focus-24h",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 5,
+        "empty": 1,
+        "error": 2
+      },
+      "seconds": 85.53506073099561
+    },
+    {
+      "cohort": "focus-7d",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 2,
+        "error": 6
+      },
+      "seconds": 167.30867951599066
+    }
+  ],
+  "after_summary": [
+    {
+      "cohort": "fleet4",
+      "requests": 136,
+      "outcomes": {
+        "nonempty": 126,
+        "error": 1,
+        "empty": 9
+      },
+      "seconds": 110.85019404900959
+    },
+    {
+      "cohort": "instant-fleet",
+      "requests": 136,
+      "outcomes": {
+        "nonempty": 124,
+        "empty": 12
+      },
+      "seconds": 58.72478192302515
+    },
+    {
+      "cohort": "focus-host",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 10,
+        "empty": 6
+      },
+      "seconds": 9.523453205998521
+    },
+    {
+      "cohort": "focus-group",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 12,
+        "empty": 4
+      },
+      "seconds": 14.69217419900815
+    },
+    {
+      "cohort": "focus-fleet",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 14,
+        "empty": 2
+      },
+      "seconds": 30.828132116002962
+    },
+    {
+      "cohort": "focus-fleet8",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 14,
+        "empty": 2
+      },
+      "seconds": 19.22928336399491
+    },
+    {
+      "cohort": "focus-6h",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 4,
+        "error": 2,
+        "empty": 2
+      },
+      "seconds": 67.28696569797467
+    },
+    {
+      "cohort": "focus-24h",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 5,
+        "error": 2,
+        "empty": 1
+      },
+      "seconds": 88.19669381799758
+    },
+    {
+      "cohort": "focus-7d",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 3,
+        "error": 5
+      },
+      "seconds": 162.4706156619941
+    }
+  ],
+  "successful_pairs": 349,
+  "ordered_equal": 279,
+  "unordered_equal": 347,
+  "diagnostics_equal": 349,
+  "same_series_point_counts": 349,
+  "transitions": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/4/A",
+      "repeat": 0,
+      "before": "nonempty",
+      "after": "error"
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "before": "error",
+      "after": "nonempty"
+    }
+  ],
+  "remaining": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/4/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.15776332101086
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.034227271011332
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.036079615994822
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.02223159300047
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.029875547013944
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.00972177699441
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.022687584976666
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.00573488898226
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.00823590901564
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.02020786900539
+    }
+  ],
+  "average_order_explanation": {
+    "checks": [
+      {
+        "phase": "before",
+        "query": "applications",
+        "exact_matched_points": 6087,
+        "inner_rows": 736,
+        "observed_host_order_sha256": "609214130f660ec580339e24e97181d51417dc4a11ed2111b321353e0218e7f7"
+      },
+      {
+        "phase": "before",
+        "query": "bandwidth",
+        "exact_matched_points": 31,
+        "inner_rows": 18,
+        "observed_host_order_sha256": "609214130f660ec580339e24e97181d51417dc4a11ed2111b321353e0218e7f7"
+      },
+      {
+        "phase": "after",
+        "query": "applications",
+        "exact_matched_points": 6087,
+        "inner_rows": 736,
+        "observed_host_order_sha256": "aae542c3d2c32fb5486faf941c92296ec6cb76eda42f10ce94b42526e7afe2b9"
+      },
+      {
+        "phase": "after",
+        "query": "bandwidth",
+        "exact_matched_points": 31,
+        "inner_rows": 18,
+        "observed_host_order_sha256": "aae542c3d2c32fb5486faf941c92296ec6cb76eda42f10ce94b42526e7afe2b9"
+      }
+    ],
+    "differences": [
+      {
+        "query": "applications",
+        "points": 6087,
+        "changed_points": 11,
+        "max_ulp_difference": 2
+      },
+      {
+        "query": "bandwidth",
+        "points": 31,
+        "changed_points": 2,
+        "max_ulp_difference": 1
+      }
+    ],
+    "inner_values_identical": true,
+    "observed_host_order_changed": true,
+    "exact_reproduction": true,
+    "scope": "Finite captured values only; host order is observed in separate same-cohort queries, not instrumented inside the nested averages.",
+    "interpretation": "The observed host order exactly explains the differences. Restart-mediated metadata loading is an inferred cause of that order change.",
+    "runner_sha256": "1bd6dbe325c8376626b558cdc26e755556513d480026eac8787772c9b5bbc668",
+    "arithmetic_sources": {
+      "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+      "src/crates/promql-engine/src/aggregation.rs": "2d5b6cc5381eecc4c717b52b24adf4906fb21571c073e443388cbb9ddb859bb6"
+    }
+  },
+  "successful_pair_median_elapsed_ratio": 1.0011567669500534,
+  "same_sample_count_pairs": 336,
+  "memory_acquisition_comparison": {
+    "workspace": {
+      "acquired_before": 36402354552,
+      "acquired_after": 37560779916,
+      "queries_with_lower_acquired": 298,
+      "queries_with_higher_acquired": 32,
+      "queries_with_lower_peak": 171,
+      "queries_with_higher_peak": 61
+    },
+    "accounting": {
+      "acquired_before": 7638497792,
+      "acquired_after": 7110079232,
+      "queries_with_lower_acquired": 254,
+      "queries_with_higher_acquired": 82,
+      "queries_with_lower_peak": 270,
+      "queries_with_higher_peak": 36
+    },
+    "providerHeld": {
+      "acquired_before": 34965469352,
+      "acquired_after": 35033821194,
+      "queries_with_lower_acquired": 0,
+      "queries_with_higher_acquired": 210,
+      "queries_with_lower_peak": 0,
+      "queries_with_higher_peak": 1
+    },
+    "borrowedView": {
+      "acquired_before": 29472272173,
+      "acquired_after": 36329544289,
+      "queries_with_lower_acquired": 1,
+      "queries_with_higher_acquired": 90,
+      "queries_with_lower_peak": 1,
+      "queries_with_higher_peak": 33
+    }
+  },
+  "share": {
+    "route": "grafana-backend",
+    "http_status": 200,
+    "query_status": 200,
+    "frames": 79,
+    "seconds": 1.6201742189878132,
+    "has_error": false
+  },
+  "reception": {
+    "hosts_before": 18,
+    "hosts_after": 18,
+    "common": 18,
+    "advanced": 18,
+    "before_seconds": 1.1688756540243048,
+    "after_seconds": 0.5187400029972196
+  },
+  "artifacts": {
+    ".tmp/practical-replay-j32eeh4e/lease43-comparison.json": "1d600dc1aa0ec39cf2867572dbc824577643fde6b47173ad2a658e2ad3b45d6a",
+    ".tmp/practical-replay-j32eeh4e/lease43-average-order-explanation.json": "975c84fe99180577bfa86304611a16322033a389d8d3463a6026a71e790c2b40",
+    ".tmp/practical-replay-j32eeh4e/lease43-deployment.json": "beb90615f9524ba0f07d102e3e9d39b38ad8bc884621d952c0d99d7c0ac772db",
+    ".tmp/practical-replay-j32eeh4e/lease43before-live-receipt.json": "5e991005a8f9414b211e72dfa0bac113e92d1e284820a54ed173bcd59216263f",
+    ".tmp/practical-replay-j32eeh4e/lease43before-runtime.json": "d7f9a2c0b72e99147c76a4ef84f81b15dc138761f827bf89e6d06c9f49f39c82",
+    ".tmp/practical-replay-j32eeh4e/lease43after-live-receipt.json": "47f9fe0f4c7c53bade8fb3ccc5674d233ad74cf947a8361db871dd231642527a",
+    ".tmp/practical-replay-j32eeh4e/lease43after-runtime.json": "02b3221ed94ecef0ceb5c6719bfbe0af47edeb46c3eb89b63d9fff8d4a68b2d4",
+    ".tmp/practical-replay-j32eeh4e/deploy_lease43.py": "39ec13c780b037a13eda03e3903f16468d48b1c7d078d0d3543bf1bcb3e1f1ff",
+    ".tmp/practical-replay-j32eeh4e/compare_lease43.py": "abb653415e4f6c9c9a5241184cb2e070e7ef488a14551feb411c007ea290bcb8",
+    ".tmp/practical-replay-j32eeh4e/explain_lease43_averages.py": "1bd6dbe325c8376626b558cdc26e755556513d480026eac8787772c9b5bbc668",
+    ".tmp/practical-replay-j32eeh4e/publish_lease43_live.py": "7ba332bc82063c03d68447e6ecd335a63014340e502071d3b35645a789b07a37",
+    ".tmp/practical-replay-j32eeh4e/adapter_live_responses.py": "cb915148290947019634593a36141b85d920d77f6b3b5b4fafe4390075148a43",
+    ".tmp/practical-replay-j32eeh4e/live_with_responses.py": "1d9ea602b36fd9768e007467cfa136bfab51332720ae48d2c5f8ab66e51c37da",
+    ".tmp/practical-replay-j32eeh4e/lease43-deployment.stdout": "621fc3a68b2d5bce12a4933993195ec04e30b1a51197f09eb60535f02d923147",
+    ".tmp/practical-replay-j32eeh4e/lease43-deployment.stderr": "0f869623937bba245c9b49b25a6e61d7d96eec1cd198c058c7c05d836cdf6d8a",
+    ".tmp/practical-replay-j32eeh4e/lease43-deployment-journal.stdout": "f6176e1a07923ff15943af1f4cbee85d1f3025c1681530a3a6620ae8baf40461"
+  },
+  "interpretation": [
+    "The direct-handle change removes redundant allocations; this live replay does not establish an overall throughput improvement.",
+    "Both versions have ten timeouts: a seven-day bandwidth case recovers, but a concurrent disappearance case newly times out.",
+    "All successful pairs preserve labels/timestamps/counts and diagnostics. The13 differing numeric points are exactly reproduced using unchanged inner values and the observed host order.",
+    "Provider order is preserved by decision9 outside designated unspecified intermediate boundaries. Host insertion/loading after restart is an inferred source of the observed ordering change.",
+    "Same expressions, scopes, windows, steps and deadlines; live storage, cache residency and background work are not immutable.",
+    "Acquired memory is cumulative allocation or borrowed exposure traffic, not simultaneous RAM. Observed costs are mixed across categories; timeout counters describe partial execution.",
+    "Long-history and concurrent-query failures remain open. Histogram73 remains unapproved; historical bucket-boundary repair is excluded by71."
+  ]
+}

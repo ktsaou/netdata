@@ -11,9 +11,37 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
-## Follow-up: overlapping journal lookup — 2026-10-27
+## Follow-up: direct DBengine allocation handles — 2026-10-27
 
-Runtime `e02563e86b` is installed. DBengine's journal index orders end times; a journal that starts after a
+Runtime `c48c575224` is installed. DBengine read leases now own their existing Rust allocation handles directly,
+removing a C wrapper and its extra accounting handle. The [controlled qualification](../allocation-handles-qualification.json)
+covers ownership, resizing, refusal cleanup and handles retained beyond query/report lifetimes. Both build modes
+pass storage/API checks; the corrected metadata fixture passes 148 HTTP checks and 24 host-readiness cases.
+
+The [complete live comparison](allocation-handles-live.json) still has ten timeouts out of 360 requests on each
+version. Seven-day bandwidth now completes in 21.77 seconds; a concurrent application-disappearance query changes
+from 23.36 seconds to a timeout. Fleet panel batch time is 109.14 seconds before and 110.85 seconds after.
+The median elapsed ratio across 349 successful pairs is 1.001. This does not establish an overall speedup.
+
+All successful pairs retain labels, timestamps, result counts and complete diagnostics. Unordered results match
+exactly in 347 pairs. The other two averages differ at 13 points by one or two floating-point units in the last
+place. Unlike earlier captures, these runs retain complete compressed responses. Their inner values are unchanged;
+applying each run's independently observed host order reproduces all 6,087 application-average points and all
+31 bandwidth-average points exactly. Provider order is preserved by [decision 9](../../../src/crates/promql-engine/tests/promql-conformance/DESIGN.md#9-define-deterministic-order-only-where-upstream-leaves-it-unspecified).
+Restart-mediated metadata loading is an inferred cause of the changed host order, not a directly recorded trace.
+
+The live resource comparison is mixed: accounting-allocation traffic decreases overall among the 336 pairs with
+identical sample counts, while workspace and borrowed-view traffic increase overall. These are cumulative
+allocation/exposure counters, not simultaneous RAM. Cache residency and background work are uncontrolled; the
+per-lease allocation reduction is established by the controlled C regression, not by a universal live-memory claim.
+
+Installation and both persistent configuration comparisons pass. Netdata and Grafana remain active with 48 GiB
+free. Grafana returns 79 frames in 1.62 seconds, and all 18 observed hosts advance. Remaining priorities include
+the common disappearance query's repeated grouped-Count discovery, long-history latency and histogram decision 73.
+
+## Earlier follow-up: overlapping journal lookup — 2026-10-27
+
+Runtime `e02563e86b` was installed at this checkpoint. DBengine's journal index orders end times; a journal that starts after a
 query cannot prove that every later journal also misses it. Both lookup modes now continue searching.
 The [controlled regression](../journal-order-qualification.json) reproduces missing data with the unchanged
 reader on both codecs and passes with the correction. This adds no reader state or history buffers; necessary
