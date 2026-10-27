@@ -170,6 +170,158 @@ fn fixed_scalar_windows_preserve_name_projection_and_native_fallback() {
 }
 
 #[test]
+fn phase_changed_native_inputs_revoke_mapped_window_progress() {
+    thread_local! { static FINAL_NATIVE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
+    struct Restore;
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            FINAL_NATIVE.set(false);
+        }
+    }
+    fn changing(index: usize) -> crate::value::Sample {
+        let mut sample = crate::test_storage::counter(index);
+        if index == 0 && FINAL_NATIVE.get() {
+            sample.value =
+                crate::value::SampleValue::FloatHistogram(crate::histogram::FloatHistogram {
+                    count: 1.0,
+                    sum: 1.0,
+                    ..Default::default()
+                });
+        }
+        sample
+    }
+    let _restore = Restore;
+    for page in [1, 17, 1024] {
+        for delayed in [false, true] {
+            for sources in [1, 2] {
+                for operator in ["sum", "count", "max"] {
+                    let run = |disabled| {
+                        FINAL_NATIVE.set(false);
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let mut provider = FixtureProvider::new(9, page, sources);
+                        for (index, series) in provider.series.iter_mut().enumerate() {
+                            series.labels[1].1 = b"shared".to_vec();
+                            series.labels[2].1 = index.to_string().into_bytes();
+                        }
+                        provider.series[sources - 1].source.sample = changing;
+                        let query = engine.compile(
+                            format!("avg_over_time((100-{operator} by(instance)(counter_total))[4s:1s])").as_bytes(),
+                            EngineOptions { delayed_name_removal: delayed, ..Default::default() },
+                            &control,
+                        ).unwrap();
+                        let account = query.execution_accounting();
+                        let ((values, loads, saves), _) =
+                            computed_groups::observe(disabled, || {
+                                let header = query
+                                    .header(QueryRequest::Range {
+                                        start_ms: 4000,
+                                        end_ms: 8000,
+                                        step_ms: 1000,
+                                    })
+                                    .unwrap();
+                                let prepared = Prepared::new(
+                                    &query.expression,
+                                    &query.preprocessing,
+                                    header,
+                                    query.options.no_step_subquery_interval_ms,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                                let header = prepared.evaluator_header();
+                                prepared.activate(header, &control, &account).unwrap();
+                                let options =
+                                    query.evaluation_options(header, header.start_ms, &prepared);
+                                let bounds = crate::query_bounds::find(
+                                    &query.expression,
+                                    options,
+                                    &prepared,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                                let scope = provider.open(bounds, &control).unwrap();
+                                let catalog = Catalog::new(
+                                    &scope,
+                                    &query.expression,
+                                    &prepared,
+                                    options,
+                                    query.options.no_step_subquery_interval_ms,
+                                    &control,
+                                    &account,
+                                )
+                                .unwrap();
+                                let rosters = query
+                                    .prepare_rosters(
+                                        &catalog,
+                                        &prepared,
+                                        bounds,
+                                        &control,
+                                        &account,
+                                        &mut Annotations::default(),
+                                    )
+                                    .unwrap();
+                                FINAL_NATIVE.set(true);
+                                crate::derived_progress::observe(false, || {
+                                    let mut values = Vec::new();
+                                    for index in 0..5 {
+                                        let time_ms = header.start_ms + index * header.step_ms;
+                                        let mut machine = Machine::new(
+                                            &catalog,
+                                            &query.expression,
+                                            query.expression.root,
+                                            query.evaluation_options(header, time_ms, &prepared),
+                                            &control,
+                                            &account,
+                                            EvaluationMetadata {
+                                                prepared: &prepared,
+                                                rosters: &rosters,
+                                                timestamp_selectors: &query.timestamp_selectors,
+                                                data_bounds: bounds,
+                                                annotations: None,
+                                                binary_preparation: None,
+                                                histogram_preparation: None,
+                                                info_preparation: None,
+                                                count_preparation: None,
+                                            },
+                                        );
+                                        machine.set_step_index(index);
+                                        while let Some(sample) = machine.next().unwrap() {
+                                            let OwnedValue::Float(value) = sample.value else {
+                                                panic!("Float range result")
+                                            };
+                                            values.push((time_ms, sample.ordinal, value.to_bits()));
+                                        }
+                                    }
+                                    values
+                                })
+                            });
+                        provider.assert_closed();
+                        account.snapshot().assert_memory_released();
+                        drop((account, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                        (values, loads, saves)
+                    };
+                    let (expected, _, _) = run(true);
+                    let (actual, loads, saves) = run(false);
+                    assert_eq!(
+                        actual, expected,
+                        "{operator}, sources={sources}, page={page}, delayed={delayed}"
+                    );
+                    assert!(!actual.is_empty());
+                    assert_eq!(
+                        (loads, saves),
+                        (0, 0),
+                        "native input revokes mapped progress: {operator}, sources={sources}, page={page}, delayed={delayed}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn grouped_subqueries_finish_each_cold_producer_before_reuse() {
     for sources in [32, 128, 512] {
         let engine = Engine::default();
@@ -474,6 +626,15 @@ fn partial_group_producers_publish_only_finished_values_and_explicit_absence() {
                         (kind, cell(3)),
                         (1, computed_groups::Cell::Absent) | (2, computed_groups::Cell::Unknown)
                     ));
+                    assert_eq!(
+                        catalog
+                            .with_computed_group(node, &control, &account, |store| {
+                                Ok(store.has_only_float_inputs())
+                            })
+                            .unwrap(),
+                        Some(kind == 1),
+                        "native input revokes mapped admission without deleting completed cells"
+                    );
                     let (actual, hits) = computed_groups::observe(false, collect);
                     assert_eq!(actual, expected);
                     if kind == 1 {

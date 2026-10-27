@@ -1367,6 +1367,7 @@ pub(crate) struct Store<'q> {
     final_phase: bool,
     explicit_absence: bool,
     series_major: bool,
+    only_float_inputs: bool,
 }
 
 struct Page {
@@ -1452,8 +1453,18 @@ impl<'q> Store<'q> {
             final_phase: false,
             explicit_absence: false,
             series_major: false,
+            only_float_inputs: true,
         };
         Ok(Some(store))
+    }
+
+    pub(crate) fn has_only_float_inputs(&self) -> bool {
+        self.only_float_inputs
+    }
+
+    pub(crate) fn observe_native_input(&mut self) {
+        // Input kind can change after preparation, including for groups that finish absent.
+        self.only_float_inputs = false;
     }
 
     fn offset(&self, key: ReplayKey, time_ms: i64, ordinal: usize) -> Option<u64> {

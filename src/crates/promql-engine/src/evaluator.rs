@@ -3968,12 +3968,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         let Some(group) = groups.get(ordinal) else {
             return Ok(None);
         };
-        // A Float map can hide native inputs; only the aggregate store proves eligible history.
+        // A Float map can hide native inputs, including changes after preparation.
         if scalar_map.is_some()
             && self
                 .catalog
-                .with_computed_group(node, self.control, self.account, |_| Ok(()))?
-                .is_none()
+                .with_computed_group(node, self.control, self.account, |store| {
+                    Ok(store.has_only_float_inputs())
+                })?
+                != Some(true)
         {
             return Ok(None);
         }
@@ -5245,6 +5247,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     };
                     if let Some(position) = position {
                         let group = &mut groups[position];
+                        if matches!(&sample.value, OwnedValue::Histogram(_)) {
+                            self.catalog.with_computed_group(
+                                node,
+                                self.control,
+                                self.account,
+                                |store| {
+                                    store.observe_native_input();
+                                    Ok(())
+                                },
+                            )?;
+                        }
                         if let Some(kind) = group.add(
                             *operator,
                             &sample.value,

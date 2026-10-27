@@ -54,6 +54,15 @@ maps, fixed-time boundaries, sparse and nonfinite values, and mixed/native histo
 must check both completed-window consumption and dry-progress counters: zero value-cache hits alone does not
 prove that ordinary traversal was retained. Calibrate failures against actual final-phase acquisitions and exercise
 cancellation after real mapped-window delivery; the direct aggregate terminal hook does not apply to mapped children.
+Preparation-to-final changes from Float to native input must revoke mapped progress eligibility even when SUM
+returns absence, COUNT returns a Float, or MAX ignores the native input. Keep existing unfinished and completed
+cells intact when revoking eligibility.
+
+Adjacent raw-window checks belong to `matrix_reader`. Compare ordinary traversal against resumed traversal for
+equal-width and overlapping windows, including sparse/nonfinite values, EOF, exact sample credits and one-page
+ownership. Native copy normalization depends on its first admission endpoint: preserve same-clock consumption
+when a new native appears, then reject the following adjacent reuse. Exercise newly reached seek failures,
+cancellation, geometry/owner/scope changes and checked clock overflow. The disjoint path remains a separate control.
 
 Replay the retained original evaluation, SRE recording/alert, temporal, native-histogram, grouping and precise-time
 panels in both profiles. Keep existing source-unspecified ordering classifications visible; they are not strict
@@ -111,7 +120,7 @@ query cardinality. Provider backing also consumes storage and I/O outside those 
 ### Scalar-mapped aggregate windows
 
 [mapped-windows-qualification.json](mapped-windows-qualification.json) records the subsequent single-scalar-map
-extension. Both profiles pass 1,083 unit tests (two ignored), 128,652 builtin comparisons combined, 3,952 retained
+extension before the subsequent native-admission correction. Both profiles pass 1,083 unit tests (two ignored), 128,652 builtin comparisons combined, 3,952 retained
 focused comparisons and 2,592 new mapped-window comparisons. All compared outcomes and numeric bits match the
 pinned originals. The predecessor also passes the same new 1,296 cases separately. A later test-only lint edit is
 explicitly distinguished from the frozen binaries; runtime source is unchanged.
@@ -133,5 +142,39 @@ record per group. Source entries fetched remain 28,152; the improvement removes 
 The smaller four-group fixture's unchanged average control measures 3.363 → 3.361 ms; mapped average
 17.640 → 3.979 ms and mapped quantile 78.244 → 4.949 ms. These are six measured runs after one warmup.
 Measurements ran on the shared workstation alongside the size-optimized unit build/run; they do not establish
-isolated throughput or VM latency. Dense backing traffic and raw overlapping-window replay remain separate
-remediation work. Combined SRE, temporal, caller and live qualification remains required before deployment.
+isolated throughput or VM latency. Review subsequently found that backing presence alone did not exclude native
+inputs introduced during final execution. A store-local monotonic Float-input flag fixes that admission gap;
+36 phase-changing cases compare ordinary traversal and require zero mapped-progress hits. No wrong expression
+result was demonstrated by that finding. The receipt above remains bound to its original source and binaries.
+
+### Adjacent raw Float windows and native admission
+
+[adjacent-windows-qualification.json](adjacent-windows-qualification.json) binds the combined native-admission
+correction and adjacent raw-window optimization. Both optimized profiles pass 1,087 unit tests each (two ignored).
+The combined comparisons include 128,652 builtin, 231,540 SRE, 3,952 focused, 2,592 mapped-window, 4,380 overlapping
+window and 18,192 temporal/temporary/count-values executions with exact outcomes and numeric bits. The separate
+31,572-panel remainder retains 924 strict ordering disagreements and six copies of the established numerical
+witness; these are not strict passes. Actual native, ARM64 and ARM32 C/C++ callers and six real DBengine storage
+phases are separately source-bound in the receipt.
+
+With a ten-second evaluation step, a completed Float window can seek directly to the next window's lower bound
+instead of replaying every earlier endpoint. It still reads the current window chronologically and retains no raw
+history. Six alternating measured repetitions after one warmup gave these release medians:
+
+| Fixture | Query | Before | After | Fetched entries before → after |
+| --- | --- | ---: | ---: | ---: |
+| 1 series, 2,401 points | `rate(m_total[10s])` | 28.514 ms | 1.417 ms | 585,534 → 8,148 |
+| Same | `rate(m_total[11s])` | 28.522 ms | 1.432 ms | 586,000 → 8,150 |
+| Same | `count_over_time(m_total[300s])` | 29.084 ms | 7.659 ms | 590,792 → 138,336 |
+| 8 series, 1,201 points | `rate(m_total[11s])` | 60.133 ms | 5.590 ms | 1,191,648 → 32,560 |
+
+All eight measured memory-category peaks are unchanged in these release comparisons. The unchanged disjoint
+control, `rate(m_total[9s])` over 1,201 points, is slower: 0.791 → 1.019 ms with 4,066 entries fetched in both.
+Other qualification jobs overlapped these shared-workstation runs; they do not establish isolated capacity or
+universal speed improvement. Wide windows still revisit their own samples, and dense computed-window backing I/O
+remains a separate source of work. These measurements do not establish candidate deployment or live VM latency.
+
+The C average fixture's old physical-read assertion failed because Float reads decreased from 48/64 to 34/36
+for one-point/larger pages. An actual C diagnostic copy retained every other assertion and confirmed the new
+counts; stale-native reads remained 96/128. The corrected exact expectations preserve values, labels, sample
+credits, cursor counts, calibrated provider failures and cleanup checks. Both original failures remain evidence.

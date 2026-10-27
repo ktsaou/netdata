@@ -231,8 +231,10 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   input scan while preserving visitor-before-terminal error order. Other child shapes retain ordinary traversal.
   A single literal-scalar binary map over a completed Float aggregate can use the same window and progress
   backing. Resolve the actual prepared source ordinal and validate labels on both sides of reserved-name removal.
-  The aggregate store must exist: a Float map output alone cannot prove that its input history excluded native
-  histograms. Apply the ordinary scalar arithmetic, comparison filtering and Boolean rules before stale filtering;
+  The aggregate store must exist and retain its Float-input eligibility. An observed native input revokes that
+  eligibility across phases, including when the aggregate returns absence or a Float. Keep existing cells and
+  backing ownership intact; a Float map output alone cannot prove native-free input history. Apply the ordinary
+  scalar arithmetic, comparison filtering and Boolean rules before stale filtering;
   do not retain a second mapped-value history. Multiple maps and unsupported boundaries retain replay. The map's
   original terminal path still owns its deferred diagnostics.
   A completed group window touching at most two backing pages uses the two resident pages. Larger sparse
@@ -243,6 +245,13 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Failure behavior:** missing optional backing retains ordinary replay. An actual backing error fails the query.
   Unknown/native/incomplete values fall back before consumption; there is no fallback after partially feeding a
   numerical kernel. Provider ownership and temporary I/O remain accounted and cancellation remains observable.
+- **Adjacent raw Float windows:** the existing completed reader progress can also start an overlapping or
+  equal-width forward window at its current lower bound. Require exact geometry, checked clocks, no statistics
+  or buffered traversal, and no native allocation in the completed predecessor, including stale native values.
+  Preserve the original start certificate for same-clock consumption if this window newly encounters native
+  input; that input prevents reuse at the following clock. Keep the earlier disjoint-window proof first.
+  Seek errors propagate, global data bounds and counter origin stay unchanged, and each current window is still
+  read in ordinary chronological order. No raw-history buffer or additional progress allocation is introduced.
 - **Boundary:** this is internal use of the existing ABI4 temporary storage callbacks. It does not change collection,
   interpolation, metric units, contexts ownership or the raw dbengine page interface. Original temporal sorting
   still requires backing when exact sorting needs it; the optional replay fallback does not relax that requirement.

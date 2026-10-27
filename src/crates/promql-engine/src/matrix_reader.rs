@@ -92,7 +92,9 @@ impl Progress {
         self.with_geometry(())
     }
     pub(crate) fn resume(self, window: MatrixWindow) -> Option<Resume> {
-        if self.geometry != Geometry::from(window) || !window.prunable() {
+        if self.geometry != Geometry::from(window)
+            || !(window.prunable() || window.float_adjacent())
+        {
             return None;
         }
         let start = if window.end_ms == self.end_ms {
@@ -102,14 +104,29 @@ impl Progress {
                 return None;
             }
             let target_ms = window.end_ms.checked_sub(window.range_ms)?;
-            if target_ms <= self.last_time_ms || target_ms <= self.current_time_ms? {
+            if window.prunable()
+                && target_ms > self.last_time_ms
+                && self
+                    .current_time_ms
+                    .is_some_and(|current| target_ms > current)
+            {
+                Start {
+                    target_ms,
+                    histograms_allocated: self.histograms_allocated,
+                }
+            } else if window.float_adjacent() && !self.histograms_allocated {
+                // No previously admitted native value depends on an earlier copy endpoint.
+                Start {
+                    target_ms,
+                    histograms_allocated: false,
+                }
+            } else {
                 return None;
             }
-            Start {
-                target_ms,
-                histograms_allocated: self.histograms_allocated,
-            }
         };
+        if !window.prunable() && start.histograms_allocated {
+            return None;
+        }
         Some(Resume {
             geometry: self.geometry,
             end_ms: window.end_ms,
@@ -138,9 +155,19 @@ impl MatrixWindow {
     }
 
     fn prunable(self) -> bool {
-        self.buffer_ms.is_none()
-            && self.range_ms > 0
-            && self.step_ms >= self.range_ms
+        self.buffer_ms.is_none() && self.step_ms >= self.range_ms && self.valid_forward_bounds()
+    }
+
+    fn float_adjacent(self) -> bool {
+        !self.statistics
+            && self.buffer_ms.is_none()
+            && self.step_ms <= self.range_ms
+            && self.valid_forward_bounds()
+    }
+
+    fn valid_forward_bounds(self) -> bool {
+        self.range_ms > 0
+            && self.step_ms > 0
             && self
                 .end_ms
                 .checked_sub(self.first_end_ms)
@@ -159,7 +186,8 @@ impl MatrixWindow {
             .filter(|resume| {
                 resume.geometry == Geometry::from(self)
                     && resume.end_ms == self.end_ms
-                    && self.prunable()
+                    && (self.prunable()
+                        || (self.float_adjacent() && !resume.start.histograms_allocated))
                     && self.end_ms.checked_sub(self.range_ms) == Some(resume.start.target_ms)
             })
             .map(|resume| resume.start)
@@ -890,6 +918,373 @@ mod tests {
             }
         }
         assert_eq!(cases, 1152);
+    }
+
+    #[test]
+    fn adjacent_float_windows_preserve_bits_credits_and_paged_ownership() {
+        fn sparse(index: usize) -> Sample {
+            Sample {
+                time_ms: [0, 1000, 1300, 2000, 3100, 4500, 6000, 10000][index],
+                start_time_ms: -1000,
+                value: SampleValue::Float(match index {
+                    2 => f64::from_bits(crate::value::STALE_NAN_BITS),
+                    3 => f64::from_bits(0x7ff8_0000_0000_0042),
+                    5 => -0.0,
+                    _ => index as f64,
+                }),
+            }
+        }
+        for page in [1, 17, 1024] {
+            for range_ms in [1000, 3000] {
+                for reduce_delta in [false, true] {
+                    for count in [0, 3, 8] {
+                        for sample in [counter as fn(usize) -> Sample, sparse] {
+                            let ordinary = GeneratedSeries::new(count, page, sample);
+                            let resumed = GeneratedSeries::new(count, page, sample);
+                            let ordinary_account = EngineAccounting::default().query();
+                            let resumed_account = EngineAccounting::default().query();
+                            let mut progress = None;
+                            for end_ms in (2000..=8000).step_by(1000) {
+                                let window = MatrixWindow {
+                                    first_end_ms: 2000,
+                                    end_ms,
+                                    range_ms,
+                                    step_ms: 1000,
+                                    data_bounds: TimeBounds {
+                                        start_ms: -1000,
+                                        end_ms: 10000,
+                                    },
+                                    reduce_delta,
+                                    ..window()
+                                };
+                                let bounds = TimeBounds {
+                                    start_ms: end_ms - range_ms + 1,
+                                    end_ms,
+                                };
+                                let mut expected = Vec::new();
+                                let before = acquire::<_, StorageError>(
+                                    &ordinary,
+                                    bounds,
+                                    window,
+                                    &Control::default(),
+                                    &ordinary_account,
+                                    |sample| {
+                                        let SampleValueRef::Float(value) = sample.value else {
+                                            panic!("Float input")
+                                        };
+                                        expected.push((
+                                            sample.time_ms,
+                                            sample.start_time_ms,
+                                            value.to_bits(),
+                                        ));
+                                        Ok(())
+                                    },
+                                )
+                                .unwrap();
+                                let warm = window.with_progress(progress);
+                                assert_eq!(warm.resume.is_some(), end_ms != 2000);
+                                let mut actual = Vec::new();
+                                let after = acquire::<_, StorageError>(
+                                    &resumed,
+                                    bounds,
+                                    warm,
+                                    &Control::default(),
+                                    &resumed_account,
+                                    |sample| {
+                                        let SampleValueRef::Float(value) = sample.value else {
+                                            panic!("Float input")
+                                        };
+                                        actual.push((
+                                            sample.time_ms,
+                                            sample.start_time_ms,
+                                            value.to_bits(),
+                                        ));
+                                        Ok(())
+                                    },
+                                )
+                                .unwrap();
+                                assert_eq!(actual, expected);
+                                assert_eq!(after.populated, before.populated);
+                                assert_eq!(after.histograms_allocated, before.histograms_allocated);
+                                assert_eq!(
+                                    after.progress.sample_units,
+                                    before.progress.sample_units
+                                );
+                                progress = Some(after.progress);
+                            }
+                            assert_closed(&ordinary, &ordinary_account);
+                            assert_closed(&resumed, &resumed_account);
+                            assert!(resumed.counters.peak.load(Ordering::Relaxed) <= 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn adjacent_float_proofs_preserve_new_native_copy_fields_and_then_stop() {
+        fn native_at(index: usize, native_index: usize, stale: bool) -> Sample {
+            let mut sample = counter(index);
+            if index == native_index {
+                sample.value = SampleValue::FloatHistogram(FloatHistogram {
+                    schema: crate::histogram::CUSTOM_BUCKETS_SCHEMA,
+                    count: 1.0,
+                    sum: if stale {
+                        f64::from_bits(crate::value::STALE_NAN_BITS)
+                    } else {
+                        1.0
+                    },
+                    zero_count: 7.0,
+                    zero_threshold: 0.001,
+                    custom_values: Some(vec![1.0].into()),
+                    negative_spans: Some(
+                        vec![Span {
+                            offset: 1,
+                            length: 1,
+                        }]
+                        .into(),
+                    ),
+                    negative_buckets: Some(vec![2.0].into()),
+                    ..Default::default()
+                });
+            }
+            sample
+        }
+        fn newly_native(index: usize) -> Sample {
+            native_at(index, 2, false)
+        }
+        fn previous_native(index: usize) -> Sample {
+            native_at(index, 1, false)
+        }
+        fn previous_stale(index: usize) -> Sample {
+            native_at(index, 1, true)
+        }
+        fn values(
+            source: &GeneratedSeries,
+            window: MatrixWindow,
+            account: &QueryAccounting,
+        ) -> (Acquisition, Vec<(i64, String)>) {
+            let mut values = Vec::new();
+            let acquisition = acquire::<_, StorageError>(
+                source,
+                TimeBounds {
+                    start_ms: window.end_ms - window.range_ms + 1,
+                    end_ms: window.end_ms,
+                },
+                window,
+                &Control::default(),
+                account,
+                |sample| {
+                    values.push((sample.time_ms, format!("{:?}", sample.value)));
+                    Ok(())
+                },
+            )
+            .unwrap();
+            (acquisition, values)
+        }
+        for page in [1, 17, 1024] {
+            for range_ms in [1000, 3000] {
+                let cold = MatrixWindow {
+                    first_end_ms: 2000,
+                    end_ms: 2000,
+                    range_ms,
+                    step_ms: 1000,
+                    data_bounds: TimeBounds {
+                        start_ms: -1000,
+                        end_ms: 10000,
+                    },
+                    ..window()
+                };
+                for sample in [
+                    newly_native as fn(usize) -> Sample,
+                    previous_native,
+                    previous_stale,
+                ] {
+                    let source = GeneratedSeries::new(6, page, sample);
+                    let account = EngineAccounting::default().query();
+                    let (first, _) = values(&source, cold, &account);
+                    let next = MatrixWindow {
+                        end_ms: 3000,
+                        ..cold
+                    };
+                    let warm = next.with_progress(Some(first.progress));
+                    assert_eq!(warm.resume.is_some(), !first.histograms_allocated);
+                    let bounds = Some(TimeBounds {
+                        start_ms: 3001 - range_ms,
+                        end_ms: 3000,
+                    });
+                    let acquired = probe::<_, StorageError>(
+                        &source,
+                        bounds,
+                        warm,
+                        &Control::default(),
+                        &account,
+                        ignore_sample,
+                    )
+                    .unwrap();
+                    assert!(acquired.histograms_allocated);
+                    let consuming = warm.with_progress(Some(acquired.progress));
+                    assert_eq!(
+                        consuming.resume.is_some(),
+                        warm.resume.is_some(),
+                        "same-clock consumption retains the historical start proof"
+                    );
+                    let (_, expected) = values(&source, next, &account);
+                    let mut actual = Vec::new();
+                    let consumed = consume::<_, StorageError>(
+                        &source,
+                        bounds,
+                        consuming,
+                        &Control::default(),
+                        &account,
+                        |sample| {
+                            actual.push((sample.time_ms, format!("{:?}", sample.value)));
+                            Ok(())
+                        },
+                    )
+                    .unwrap();
+                    assert_eq!(actual, expected);
+                    assert!(
+                        consumed
+                            .progress
+                            .resume(MatrixWindow {
+                                end_ms: 4000,
+                                ..cold
+                            })
+                            .is_none()
+                    );
+                    let final_window = MatrixWindow {
+                        end_ms: 4000,
+                        ..cold
+                    };
+                    let (_, expected) = values(&source, final_window, &account);
+                    let (_, actual) = values(
+                        &source,
+                        final_window.with_progress(Some(consumed.progress)),
+                        &account,
+                    );
+                    assert_eq!(actual, expected);
+                    assert_closed(&source, &account);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn adjacent_float_seek_failures_and_incompatible_scopes_do_not_reuse() {
+        for page in [1, 17, 1024] {
+            for range_ms in [1000, 1500] {
+                let source = ObservedSeries {
+                    source: GeneratedSeries::new(3, page, future),
+                    seeks: RefCell::new(Vec::new()),
+                    fail_seek: Some(3000 - range_ms),
+                    panic_next_at: Cell::new(None),
+                };
+                let account = EngineAccounting::default().query();
+                let cold = MatrixWindow {
+                    first_end_ms: 2000,
+                    end_ms: 2000,
+                    range_ms,
+                    step_ms: 1000,
+                    data_bounds: TimeBounds {
+                        start_ms: 0,
+                        end_ms: 10000,
+                    },
+                    ..window()
+                };
+                let progress = probe::<_, StorageError>(
+                    &source,
+                    Some(TimeBounds {
+                        start_ms: 2001 - range_ms,
+                        end_ms: 2000,
+                    }),
+                    cold,
+                    &Control::default(),
+                    &account,
+                    ignore_sample,
+                )
+                .unwrap()
+                .progress;
+                let next = MatrixWindow {
+                    end_ms: 3000,
+                    ..cold
+                };
+                assert!(
+                    progress.resume(next).is_some(),
+                    "a future point does not block Float continuation"
+                );
+                for changed in [
+                    MatrixWindow {
+                        statistics: true,
+                        ..next
+                    },
+                    MatrixWindow {
+                        buffer_ms: Some(range_ms),
+                        ..next
+                    },
+                    MatrixWindow {
+                        end_ms: 4000,
+                        ..next
+                    },
+                    MatrixWindow {
+                        first_end_ms: 1000,
+                        ..next
+                    },
+                    MatrixWindow { step_ms: 0, ..next },
+                    MatrixWindow {
+                        first_end_ms: i64::MIN,
+                        ..next
+                    },
+                ] {
+                    assert!(progress.resume(changed).is_none());
+                }
+                // Ordinary replay never performs this new current-window Seek.
+                probe::<_, StorageError>(
+                    &source,
+                    None,
+                    next,
+                    &Control::default(),
+                    &account,
+                    ignore_sample,
+                )
+                .unwrap();
+                let mut visited = false;
+                let failure = acquire::<_, StorageError>(
+                    &source,
+                    Some(TimeBounds {
+                        start_ms: 3001 - range_ms,
+                        end_ms: 3000,
+                    }),
+                    next.with_progress(Some(progress)),
+                    &Control::default(),
+                    &account,
+                    |_| {
+                        visited = true;
+                        Ok(())
+                    },
+                );
+                assert!(
+                    matches!(failure, Err(StorageError::Provider(bytes)) if &*bytes == b"current seek failed")
+                );
+                assert!(!visited);
+                assert_eq!(source.seeks.borrow().last(), Some(&(3000 - range_ms)));
+                let control = Control::default();
+                control.cancellation.cancel();
+                assert!(matches!(
+                    probe::<_, StorageError>(
+                        &source,
+                        None,
+                        next.with_progress(Some(progress)),
+                        &control,
+                        &account,
+                        ignore_sample
+                    ),
+                    Err(StorageError::Interrupted(Interrupted::Cancelled))
+                ));
+                assert_closed(&source.source, &account);
+            }
+        }
     }
 
     #[test]

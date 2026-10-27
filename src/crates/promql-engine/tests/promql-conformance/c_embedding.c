@@ -1691,7 +1691,11 @@ static void average_read_reuse(netdata_promql_engine_t *engine) {
             if (normal) {
                 first_output_cursors[source.stale_histogram] = output.first_output_cursors;
                 assert(source.source.opened[3] == (source.stale_histogram ? 32u : 16u));
-                assert(source.source.samples_returned == (page_sizes[page] == 1 ? 48u : 64u) * (source.stale_histogram ? 2u : 1u));
+                // Native history keeps replay; completed Float windows resume at the next endpoint.
+                uint64_t expected_samples = source.stale_histogram
+                    ? (page_sizes[page] == 1 ? 96u : 128u)
+                    : (page_sizes[page] == 1 ? 34u : 36u);
+                assert(source.source.samples_returned == expected_samples);
             } else {
                 if (arm != 2) assert(source.failed_cursor == source.fail_on_cursor && output.first_output_cursors == 0);
                 static const uint8_t message[] = {'p','r','o','v','i','d','e','r',0,255,'f','a','i','l','u','r','e'};
