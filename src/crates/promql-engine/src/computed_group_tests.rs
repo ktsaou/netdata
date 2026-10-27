@@ -3,6 +3,73 @@ use super::*;
 use crate::{computed_groups, result::OwnedValue, test_storage::FixtureProvider};
 
 #[test]
+fn mapped_subqueries_complete_each_cold_clock_before_reuse() {
+    for page in [1, 17, 1024] {
+        for inner in [1, 2, 4] {
+            for body in [
+                "100-sum by(instance)(counter_total)",
+                "sum by(instance)(counter_total)/100",
+                "sum by(instance)(counter_total)>10",
+                "10<sum by(instance)(counter_total)",
+                "sum by(instance)(counter_total)>bool 10",
+                "-sum by(instance)(counter_total)",
+                "abs(sum by(instance)(counter_total))",
+                "-abs(sum by(instance)(counter_total))",
+                "clamp(sum by(instance)(counter_total),4,20)",
+                "100-sum by(instance)(rate(counter_total[3s]))",
+            ] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut provider = FixtureProvider::new(25, page, 16);
+                for (index, series) in provider.series.iter_mut().enumerate() {
+                    series.labels[1].1 = (index / 2).to_string().into_bytes();
+                    series.labels[2].1 = (index % 2).to_string().into_bytes();
+                }
+                let expression = format!("max_over_time((({body}))[4s:{inner}s])");
+                let query = engine
+                    .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let request = QueryRequest::Range {
+                    start_ms: 4000,
+                    end_ms: 20000,
+                    step_ms: 2000,
+                };
+                let (expected, before) = {
+                    let _fallback = crate::evaluator::disable_drained_child();
+                    query.collect(&provider, request, &control).unwrap()
+                };
+                let (result, counts) = crate::evaluator::observe_aggregate_termination(None, || {
+                    query.collect(&provider, request, &control)
+                });
+                let (actual, after) = result.unwrap();
+                same_float_results(&actual, &expected);
+                assert_eq!(
+                    after.statistics.samples.total_queryable_samples,
+                    before.statistics.samples.total_queryable_samples,
+                    "{expression}, page={page}"
+                );
+                assert!(!actual.series.is_empty(), "{expression}");
+                let final_phase = counts[1];
+                assert!(final_phase[2] > 0, "cold interval path: {expression}");
+                assert_eq!(
+                    final_phase[2], final_phase[3],
+                    "every cold clock reaches its real terminal step: {expression}"
+                );
+                assert_eq!(&final_phase[4..6], &[0, 0], "{expression}");
+                assert!(
+                    final_phase[2] <= 20 / inner as usize + 1,
+                    "at most one full contributor scan per observed clock: {expression}, {counts:?}"
+                );
+                assert!(after.work < before.work, "{expression}, page={page}");
+                drop((actual, expected, query));
+                provider.assert_closed();
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+}
+
+#[test]
 fn fixed_scalar_subquery_windows_preserve_results_and_reuse_completed_values() {
     fn sparse(index: usize) -> crate::value::Sample {
         let value = match index {
@@ -427,6 +494,48 @@ fn drained_aggregate_terminal_cancellation_prevents_publication() {
         drop((report, query));
         provider.assert_closed();
         engine.accounting.snapshot().assert_memory_released();
+    }
+}
+
+#[test]
+fn mapped_aggregate_terminal_cancellation_prevents_publication() {
+    for page in [1, 17, 1024] {
+        for body in [
+            "100-sum by(instance)(counter_total)",
+            "abs(sum by(instance)(counter_total))",
+            "-abs(sum by(instance)(counter_total))",
+        ] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let provider = FixtureProvider::new(21, page, 4);
+            let expression = format!("max_over_time((({body}))[4s:1s])");
+            let query = engine
+                .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                .unwrap();
+            let (report, counts) = crate::evaluator::observe_aggregate_termination(Some(4000), || {
+                query.collect_reported(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 4000,
+                        end_ms: 19000,
+                        step_ms: 2000,
+                    },
+                    &control,
+                )
+            });
+            assert!(matches!(
+                report.result,
+                Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                    Interrupted::Cancelled
+                )))
+            ));
+            assert_eq!(counts[1][2], 4, "{expression}");
+            assert_eq!(counts[1][3], 3, "cancelled endpoint: {expression}");
+            assert_eq!(report.observations.output_samples, 0);
+            drop((report, query));
+            provider.assert_closed();
+            engine.accounting.snapshot().assert_memory_released();
+        }
     }
 }
 

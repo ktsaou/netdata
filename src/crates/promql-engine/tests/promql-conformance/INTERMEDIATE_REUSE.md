@@ -53,7 +53,9 @@ against ordinary replay and pinned original results. Include reserved-name proje
 maps, fixed-time boundaries, sparse and nonfinite values, and mixed/native history. A native fallback assertion
 must check both completed-window consumption and dry-progress counters: zero value-cache hits alone does not
 prove that ordinary traversal was retained. Calibrate failures against actual final-phase acquisitions and exercise
-cancellation after real mapped-window delivery; the direct aggregate terminal hook does not apply to mapped children.
+cancellation after real mapped-window delivery. Qualified fixed maps now preserve the actual drained aggregate's
+terminal step too; arbitrary maps and wrappers retain ordinary retirement. A pending map diagnostic prohibits this
+handoff. Check several inner steps per output step, since a one-clock fixture can hide repeated contributor scans.
 Preparation-to-final changes from Float to native input must revoke mapped progress eligibility even when SUM
 returns absence, COUNT returns a Float, or MAX ignores the native input. Keep existing unfinished and completed
 cells intact when revoking eligibility.

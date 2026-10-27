@@ -505,3 +505,8 @@ completion, backing transfer costs and native/late-cursor qualification.
 Direct Count aggregate label borrowing follows
 `src/crates/promql-engine/tests/promql-conformance/COUNT_GROUP_LABELS.md` for completed Float results, current
 group identity, metadata/fallback exclusions, native inputs and actual borrowing/cancellation measurements.
+
+
+Mapped selector interval qualification follows
+`src/crates/promql-engine/tests/promql-conformance/MAPPED_GROUP_INTERVALS.md` for multi-clock reuse,
+actual terminal completion and native-phase fallback.

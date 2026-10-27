@@ -2775,6 +2775,7 @@ changing membership, special literals, complete original comparisons and proport
 
 The later [direct delayed-group extension](#completed-direct-groups-with-delayed-metadata-removal)
 adds a separate identity proof; this section retains its original qualification scope.
+The later [mapped-selector interval extension](#completed-mapped-selector-intervals) qualifies the existing fixed-map callers.
 
 - **Choice:** extend the private ordinary-group recognizer to allow direct instant selectors only at consumed
   subquery demand and Group interval qualification. Four composition callers remain rate-only.
@@ -3522,3 +3523,21 @@ This is a Count-only integer identity, not a Float subtraction algorithm for SUM
 paged; use bounded transfer buffers and one clean header cache. Missing backing capability retains ordinary replay,
 while actual backing errors fail. Exact scope, exclusions, error controls and measured costs are documented in
 [Exact Count boundaries](INTERMEDIATE_REUSE.md#exact-count-boundaries).
+
+
+## Completed mapped selector intervals
+
+- **Cause:** ordinary contributor replay remembers one completed clock. Multiple inner clocks per outer step can
+  displace that clock for every group, causing repeated complete contributor scans despite successful reader progress.
+- **Admission:** the existing fixed-map recognizer also accepts ordinary groups over direct instant selectors.
+  Literal scalar arithmetic/comparisons, unary maps, fixed Float functions and the already qualified Unary–Float–Group
+  composition retain their existing edge, clock, Float-kind, boundary and delayed-name restrictions.
+- **Completion:** preserve the real terminal step of an empty, non-collecting cold aggregate across qualified maps.
+  Intervening frames must be transparent passes, running ordered rows or eligible maps without pending diagnostics.
+  The exact range-path proof excludes unrelated compositions; the receiver still requires a single Float descriptor.
+  Mapping, uniqueness checks and the ordinary kernel visitor precede completion. An emitted value alone grants no credit.
+- **Ownership:** existing interval metadata and provider-backed cells remain unchanged. No extra time-key cache, raw
+  history buffer, metadata catalogue or public interface is introduced. Existing rate-map producers share the handoff.
+- **Fallback:** absent and filtered results finish naturally. Unsupported wrappers, pending annotations, incompatible
+  descriptors and existing native/phase restrictions retain their established paths. Preparation never supplies fresh
+  final values.

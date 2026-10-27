@@ -1830,7 +1830,7 @@ impl CompiledQuery {
                 return Ok(None);
             };
             if self
-                .grouped_interval_child(child, false, false, prepared, control, account)?
+                .grouped_interval_child(child, true, false, prepared, control, account)?
                 .is_some()
                 || self
                     .grouped_ratio_children::<false>(child, prepared, control, account)?
@@ -1850,7 +1850,7 @@ impl CompiledQuery {
                 return Ok(None);
             };
             return Ok(self
-                .grouped_interval_child(group, false, false, prepared, control, account)?
+                .grouped_interval_child(group, true, false, prepared, control, account)?
                 .is_some()
                 .then_some(edge));
         }
@@ -13352,8 +13352,8 @@ mod tests {
                 "sum by(id)(max by(id,member)(m_total))/sum by(id)(m_total)",
                 0,
             ),
-            ("abs(sum by(id)(m_total))", 0),
-            ("sum by(id)(m_total)+1", 0),
+            ("abs(sum by(id)(m_total))", 1),
+            ("sum by(id)(m_total)+1", 1),
             ("sum by(id)(m_total)/sum by(id)(m_total)", 0),
             ("histogram_quantile(0.5,sum by(id,le)(m_total))", 0),
             ("topk(1,m_total)", 0),

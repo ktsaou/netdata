@@ -13035,3 +13035,11 @@ not precise throughput guarantees. The actual dashboard/VM checks are documented
 The C harness now recognizes its existing 105 empty-group ownership records (five shapes, three pages, seven
 success/failure scenarios) and checks their roster, statuses, statistics and accounting shape. This repairs a stale
 Python output roster; the C assertions remain intact. An intentional split hex escape is parenthesized for Clang 23.
+
+
+## Completed intervals through mapped selector groups
+
+See [MAPPED_GROUP_INTERVALS.md](MAPPED_GROUP_INTERVALS.md) for the two-inner-clock contributor replay defect,
+fixed-map admission and real aggregate terminal handoff. The regression preserves numerical visitor and cancellation
+ordering, native phase fallback, exact outcomes and paged ownership. Resource and compatibility evidence must remain
+bound to the actual sources and binaries; live latency is a separate qualification.

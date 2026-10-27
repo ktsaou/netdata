@@ -4995,17 +4995,25 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         {
             return Ok(false);
         }
+        let mut mapped = false;
         for frame in &self.frames[parent + 1..origin] {
             self.control.check()?;
             self.account.work(1);
-            if !matches!(
-                frame.state,
-                State::Pass | State::OrderedRows { running: true, .. }
-            ) {
-                return Ok(false);
+            match frame.state {
+                State::Pass | State::OrderedRows { running: true, .. } => (),
+                State::Map {
+                    operation:
+                        MapOperation::Binary { .. }
+                        | MapOperation::Unary(_)
+                        | MapOperation::Pointwise(PointwiseFunction::Float(..)),
+                    last_diagnostic: None,
+                    ..
+                } => mapped = true,
+                _ => return Ok(false),
             }
         }
-        Ok(true)
+        // Completion belongs to the drained group, across only its qualified fixed maps.
+        Ok(!mapped || self.direct_range_path(origin, true)?.is_some())
     }
 
     fn propagate(
