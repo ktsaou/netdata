@@ -64,20 +64,44 @@ bool promql_key_write(PROMQL_BODY *body, PROMQL_KEY_VIEW view, PROMQL_READ_FRAME
     return visit_key(view, write_part, body, frame, error);
 }
 
-typedef struct { PROMQL_BODY *body; uint64_t offset; uint8_t *window; bool equal; } KEY_EQUAL;
+typedef struct {
+    PROMQL_BODY *body;
+    uint64_t offset, remaining;
+    uint8_t *window;
+    size_t position, loaded;
+    bool equal;
+} KEY_EQUAL;
 
 static bool equal_part(void *context, const uint8_t *bytes, size_t length, PROMQL_READ_FRAME *frame, int *error) {
     KEY_EQUAL *comparison = context;
-    if(!promql_body_read(comparison->body, comparison->offset, comparison->window, length, frame, error)) return false;
-    comparison->equal = memcmp(comparison->window, bytes, length) == 0;
-    comparison->offset += length;
-    return comparison->equal;
+    while(length) {
+        if(comparison->position == comparison->loaded) {
+            if(!comparison->remaining) { comparison->equal = false; return false; }
+            size_t count = (size_t)MIN(comparison->remaining, (uint64_t)PROMQL_BODY_WINDOW);
+            if(!promql_body_read(comparison->body, comparison->offset, comparison->window, count, frame, error)) return false;
+            comparison->offset += count;
+            comparison->remaining -= count;
+            comparison->position = 0;
+            comparison->loaded = count;
+        }
+        size_t count = MIN(length, comparison->loaded - comparison->position);
+        if(memcmp(comparison->window + comparison->position, bytes, count)) {
+            comparison->equal = false;
+            return false;
+        }
+        comparison->position += count;
+        bytes += count;
+        length -= count;
+    }
+    return true;
 }
 
-bool promql_key_equal(PROMQL_BODY *body, uint64_t offset, PROMQL_KEY_VIEW view,
+bool promql_key_equal(PROMQL_BODY *body, uint64_t offset, uint64_t length, PROMQL_KEY_VIEW view,
                       uint8_t window[PROMQL_BODY_WINDOW], PROMQL_READ_FRAME *frame, int *error, bool *equal) {
-    KEY_EQUAL comparison = {.body = body, .offset = offset, .window = window, .equal = true};
+    // Field and terminator callbacks share the same bounded read window.
+    KEY_EQUAL comparison = {.body = body, .offset = offset, .remaining = length, .window = window, .equal = true};
     bool success = visit_key(view, equal_part, &comparison, frame, error);
+    if(success && (comparison.remaining || comparison.position != comparison.loaded)) comparison.equal = false;
     *equal = comparison.equal;
     return success || (!comparison.equal && !*error);
 }

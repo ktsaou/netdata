@@ -51,6 +51,11 @@ REQUEST_CASES = {"body-first", "escaped-separators", "embedded-nul", "empty-firs
 DESCRIPTION_CASES = {"archived-description-unloaded", "description-no-samples", "description-frozen-strings",
                      "description-updated-strings", "description-deleted-metric", "description-deleted-instance",
                      "description-deleted-context", "description-no-dimensions", "description-cancel-after-row"}
+DESCRIPTION_KEY_CASES = {f"{kind}-{length}" for kind in ("field", "labels")
+                         for length in (0, 31, 8190, 8193, 24577)}
+DESCRIPTION_COST_CASES = {"in-memory-duplicates", "distinct-catalogue", "duplicate-catalogue",
+                          "duplicate-one", "duplicate-zero"}
+DESCRIPTION_COST_CASES |= {name + "-controlled" for name in DESCRIPTION_COST_CASES}
 DESCRIPTION_SORT_CASES = {"empty", "single", "sorted-long", "reverse-long", "cancel-initialization",
                           "cancel-comparison", "cancel-emission", "read-failure", "zero-limit-long"}
 API_HANDLER_CASES = {
@@ -210,6 +215,8 @@ def main():
                 metadata_refs = [row for row in rows if "metadata_ref_case" in row]
                 descriptions = [row for row in rows if "metadata_description_case" in row]
                 description_sorts = [row for row in rows if "metadata_sort_case" in row]
+                description_costs = [row for row in rows if "metadata_cost_case" in row]
+                description_keys = [row for row in rows if "metadata_key_case" in row]
                 requests = [row for row in rows if "request_case" in row]
                 api_handlers = [row for row in rows if "api_handler_case" in row]
                 mqtt_sources = [row for row in rows if "mqtt_source_case" in row]
@@ -229,6 +236,8 @@ def main():
                 expected_refs = METADATA_REF_CASES if phase == "read" else set()
                 expected_descriptions = DESCRIPTION_CASES if phase == "read" else set()
                 expected_description_sorts = DESCRIPTION_SORT_CASES if phase == "read" else set()
+                expected_description_costs = DESCRIPTION_COST_CASES if phase == "read" else set()
+                expected_description_keys = DESCRIPTION_KEY_CASES if phase == "read" else set()
                 expected_requests = REQUEST_CASES if phase == "read" else set()
                 expected_api = API_HANDLER_CASES if phase == "read" else set()
                 expected_mqtt = MQTT_SOURCE_CASES if phase == "read" else set()
@@ -237,7 +246,7 @@ def main():
                 expected_operations = OPERATION_CASES if phase == "read" else set()
                 expected_routes = API_ROUTE_CASES if phase == "read" else set()
                 expected_peers = RTC_PEER_CASES if phase == "read" and args.rtc_peers else set()
-                if (result or len(rows) != 36 + len(expected_geometry) + len(expected_singletons) + len(expected_faults) + len(expected_collections) + len(expected_providers) + len(expected_checkpoints) + len(expected_checkpoint_callbacks) + len(expected_discoveries) + len(expected_outputs) + len(expected_natives) + len(expected_refs) + len(expected_descriptions) + len(expected_description_sorts) + len(expected_requests) + len(expected_api) + len(expected_mqtt) + len(expected_aclk) + len(expected_rtc) + len(expected_operations) + len(expected_routes) + len(expected_peers)
+                if (result or len(rows) != 36 + len(expected_geometry) + len(expected_singletons) + len(expected_faults) + len(expected_collections) + len(expected_providers) + len(expected_checkpoints) + len(expected_checkpoint_callbacks) + len(expected_discoveries) + len(expected_outputs) + len(expected_natives) + len(expected_refs) + len(expected_descriptions) + len(expected_description_sorts) + len(expected_description_costs) + len(expected_description_keys) + len(expected_requests) + len(expected_api) + len(expected_mqtt) + len(expected_aclk) + len(expected_rtc) + len(expected_operations) + len(expected_routes) + len(expected_peers)
                         or {row["storage_geometry"] for row in geometry} != expected_geometry
                         or any(row["errors"] for row in rows)
                         or {(row["storage_singleton"], row["tier"]) for row in singletons} != expected_singletons
@@ -253,6 +262,8 @@ def main():
                         or {row["metadata_ref_case"] for row in metadata_refs} != expected_refs
                         or {row["metadata_description_case"] for row in descriptions} != expected_descriptions
                         or {row["metadata_sort_case"] for row in description_sorts} != expected_description_sorts
+                        or {row["metadata_cost_case"] for row in description_costs} != expected_description_costs
+                        or {row["metadata_key_case"] for row in description_keys} != expected_description_keys
                         or any(row["rows"] and not row["pointer_checks"] for row in descriptions)
                         or {row["request_case"] for row in requests} != expected_requests
                         or {row["api_handler_case"] for row in api_handlers} != expected_api

@@ -9,6 +9,10 @@
 
 typedef struct promql_body PROMQL_BODY;
 
+#ifdef NETDATA_INTERNAL_CHECKS
+PROMQL_FILE_OBSERVATIONS promql_body_file_observations(const PROMQL_BODY *body);
+#endif
+
 PROMQL_BODY *promql_body_create(const netdata_promql_accounting_context_t *account, const char *directory,
                                 uint32_t kind, int *error);
 bool promql_body_acquire(PROMQL_BODY *body);

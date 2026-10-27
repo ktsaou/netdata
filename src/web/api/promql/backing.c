@@ -73,9 +73,17 @@ static bool file_transfer(PROMQL_FILE *file, uint64_t offset, void *buffer, size
         off_t position;
         if(!file_offset(offset, &position, error)) return false;
         size_t count = MIN(length, (size_t)65536);
+#ifdef NETDATA_INTERNAL_CHECKS
+        if(write) file->observations.write_calls++;
+        else file->observations.read_calls++;
+#endif
         ssize_t transferred = write ? pwrite(file->fd, buffer, count, position) : pread(file->fd, buffer, count, position);
         if(transferred == -1 && errno == EINTR) continue;
         if(transferred <= 0) { *error = transferred ? errno : EIO; return false; }
+#ifdef NETDATA_INTERNAL_CHECKS
+        if(write) file->observations.write_bytes += (uint64_t)transferred;
+        else file->observations.read_bytes += (uint64_t)transferred;
+#endif
         offset += (size_t)transferred;
         buffer = (uint8_t *)buffer + transferred;
         length -= (size_t)transferred;

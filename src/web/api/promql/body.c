@@ -47,6 +47,11 @@ void promql_body_release(PROMQL_BODY *body) {
 }
 
 uint64_t promql_body_length(const PROMQL_BODY *body) { return body ? body->length : 0; }
+#ifdef NETDATA_INTERNAL_CHECKS
+PROMQL_FILE_OBSERVATIONS promql_body_file_observations(const PROMQL_BODY *body) {
+    return body && body->file ? body->file->observations : (PROMQL_FILE_OBSERVATIONS){0};
+}
+#endif
 const char *promql_body_directory(const PROMQL_BODY *body) { return body ? body->directory : NULL; }
 uint64_t promql_body_plain_length(const PROMQL_BODY *body) {
     return body ? (body->gzip ? body->plain_length : body->length) : 0;

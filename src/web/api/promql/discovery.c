@@ -103,7 +103,7 @@ static bool intern(DISCOVERY_OUTPUT *output, PROMQL_KEY_VIEW view, PROMQL_READ_F
             DISCOVERY_ENTRY *entry = &output->entries[output->slots[slot] - 1];
             if(entry->hash == hash && entry->length == length) {
                 bool equal;
-                if(!promql_key_equal(output->records, entry->key, view, output->window, frame, &output->failure, &equal)) return false;
+                if(!promql_key_equal(output->records, entry->key, entry->length, view, output->window, frame, &output->failure, &equal)) return false;
                 if(equal) return true;
             }
             slot = (slot + 1) & (output->slot_count - 1);
@@ -477,6 +477,218 @@ bool promql_api_metadata(PROMQL_API_REQUEST *request) {
 
 #ifdef NETDATA_INTERNAL_CHECKS
 typedef struct {
+    unsigned length;
+    bool labels;
+    netdata_promql_control_t *control;
+    int errors;
+    uint64_t encoded_bytes, read_calls;
+} DESCRIPTION_KEY_PROBE;
+
+static void description_key_probe(void *context, void *handle __maybe_unused,
+                                   const netdata_promql_accounting_context_t *account) {
+    DESCRIPTION_KEY_PROBE *probe = context;
+    PROMQL_READ_FRAME frame = {.account = account, .call_control = probe->control};
+    int error = 0;
+    PROMQL_BODY *body = promql_body_create(account, ".", NETDATA_PROMQL_MEMORY_RESULT, &error);
+    uint8_t *data = promql_malloc(account, NETDATA_PROMQL_MEMORY_WORKSPACE, MAX(probe->length, 1));
+    uint8_t *window = promql_malloc(account, NETDATA_PROMQL_MEMORY_WORKSPACE, PROMQL_BODY_WINDOW);
+    if(!body || !data || !window) { probe->errors++; goto done; }
+    memset(data, 'q', probe->length);
+    if(probe->length) data[0] = data[probe->length / 2] = data[probe->length - 1] = 0;
+    netdata_promql_label_t labels[] = {
+        {{data, probe->length / 2}, {data + probe->length / 2, probe->length - probe->length / 2}},
+        {{NULL, 0}, {(const uint8_t *)"unit", 4}},
+    };
+    PROMQL_KEY_VIEW view = {.single = !probe->labels, .field = {data, probe->length}, .labels = {labels, 2}};
+    uint64_t length, hash;
+    memset(window, 'p', PROMQL_BODY_WINDOW);
+    if(!promql_body_append(body, window, PROMQL_BODY_WINDOW, &frame, &error)) { probe->errors++; goto done; }
+    uint64_t offset = promql_body_length(body);
+    if(!promql_key_measure(view, &length, &hash, &frame, &error) ||
+       !promql_key_write(body, view, &frame, &error) ||
+       !promql_body_append(body, window, PROMQL_BODY_WINDOW, &frame, &error)) { probe->errors++; goto done; }
+    probe->encoded_bytes = length;
+    PROMQL_FILE_OBSERVATIONS before = promql_body_file_observations(body);
+    bool equal = false;
+    probe->errors += !promql_key_equal(body, offset, length, view, window, &frame, &error, &equal) || !equal || error;
+    PROMQL_FILE_OBSERVATIONS after = promql_body_file_observations(body);
+    probe->read_calls = after.read_calls - before.read_calls;
+    probe->errors += probe->read_calls != (length + PROMQL_BODY_WINDOW - 1) / PROMQL_BODY_WINDOW ||
+        after.read_bytes - before.read_bytes != length;
+    if(probe->length > 2) {
+        data[1] = 'r';
+        probe->errors += !promql_key_equal(body, offset, length, view, window, &frame, &error, &equal) || equal || error;
+        data[1] = 'q';
+    }
+    probe->errors += !promql_key_equal(body, offset, length - 1, view, window, &frame, &error, &equal) || equal || error;
+    probe->errors += !promql_key_equal(body, offset, length + 1, view, window, &frame, &error, &equal) || equal || error;
+    probe->errors += promql_key_equal(body, promql_body_length(body) + 1, length, view, window, &frame, &error, &equal) || error != EINVAL;
+    error = 0;
+    probe->errors += netdata_promql_control_cancel(probe->control) != NETDATA_PROMQL_OK;
+    probe->errors += promql_key_equal(body, offset, length, view, window, &frame, &error, &equal) ||
+        error != ECANCELED || frame.interrupted != NETDATA_PROMQL_CANCELLED;
+done:
+    promql_body_release(body);
+    promql_free(data); promql_free(window);
+}
+
+static int description_key_fixture(netdata_promql_engine_t *engine) {
+    const unsigned lengths[] = {0, 31, 8190, 8193, 24577};
+    int errors = 0;
+    for(size_t variant = 0; variant < 2 * sizeof(lengths) / sizeof(lengths[0]); variant++) {
+        DESCRIPTION_KEY_PROBE probe = {.length = lengths[variant / 2], .labels = variant % 2};
+        netdata_promql_report_t *report = NULL;
+        netdata_promql_query_observations_t before = {0}, after = {0};
+        int64_t limit;
+        probe.errors += netdata_promql_control_create(engine, NULL, &probe.control) != NETDATA_PROMQL_OK;
+        probe.errors += netdata_promql_api_parse_limit(engine, (netdata_promql_bytes_t){0}, NULL, &limit, &report) != NETDATA_PROMQL_OK;
+        if(report && probe.control) {
+            probe.errors += netdata_promql_report_live_observations(report, &before) != NETDATA_PROMQL_OK;
+            probe.errors += netdata_promql_report_accounted(report, description_key_probe, &probe, NULL) != NETDATA_PROMQL_OK;
+            probe.errors += netdata_promql_report_live_observations(report, &after) != NETDATA_PROMQL_OK;
+            for(size_t kind = 0; kind < NETDATA_PROMQL_MEMORY_KINDS; kind++)
+                if(kind != NETDATA_PROMQL_MEMORY_ACCOUNTING) probe.errors += after.memory[kind].current != before.memory[kind].current;
+        }
+        if(report) netdata_promql_report_release(report);
+        if(probe.control) netdata_promql_control_release(probe.control);
+        printf("{\"metadata_key_case\":\"%s-%u\",\"errors\":%d,\"encoded_bytes\":%"PRIu64",\"read_calls\":%"PRIu64"}\n",
+            probe.labels ? "labels" : "field", probe.length, probe.errors, probe.encoded_bytes, probe.read_calls);
+        errors += probe.errors;
+    }
+    return errors;
+}
+
+typedef struct {
+    unsigned names, passes;
+    int64_t limit;
+    netdata_promql_control_t *control;
+    int errors;
+    uint64_t entries, records_bytes, output_bytes, elapsed[3];
+    PROMQL_FILE_OBSERVATIONS io[3];
+} DESCRIPTION_COST_PROBE;
+
+static PROMQL_FILE_OBSERVATIONS description_cost_io(const DISCOVERY_OUTPUT *output) {
+    PROMQL_FILE_OBSERVATIONS records = promql_body_file_observations(output->records);
+    PROMQL_FILE_OBSERVATIONS body = promql_body_file_observations(output->body);
+    return (PROMQL_FILE_OBSERVATIONS){records.read_calls + body.read_calls, records.read_bytes + body.read_bytes,
+        records.write_calls + body.write_calls, records.write_bytes + body.write_bytes};
+}
+
+static bool description_cost_text(PROMQL_BODY *body, uint64_t *offset, const char *expected,
+                                   PROMQL_READ_FRAME *frame, int *error) {
+    char bytes[256];
+    size_t length = strlen(expected);
+    if(length > sizeof(bytes) || !promql_body_read(body, *offset, bytes, length, frame, error) ||
+       memcmp(bytes, expected, length)) return false;
+    *offset += length;
+    return true;
+}
+
+static void description_cost_probe(void *context, void *handle __maybe_unused,
+                                    const netdata_promql_accounting_context_t *account) {
+    DESCRIPTION_COST_PROBE *probe = context;
+    PROMQL_API_REQUEST request = {.directory = "."};
+    DISCOVERY_OUTPUT output = {.request = &request, .kind = PROMQL_API_METADATA,
+        .metric_limit = probe->limit, .description_limit = -1};
+    PROMQL_READ_FRAME frame = {.account = account, .call_control = probe->control};
+    uint64_t *order = NULL;
+    netdata_promql_bytes_t error = {0};
+    if(!create_records(&output, &frame)) { probe->errors++; goto done; }
+    usec_t started = now_monotonic_usec();
+    // Separate catalogue passes force duplicate checks against earlier spilled records.
+    for(unsigned pass = 0; pass < probe->passes; pass++) {
+        for(unsigned i = 0; i < probe->names; i++) {
+            char name[32];
+            snprintfz(name, sizeof(name) - 1, "fixture_%06u", probe->names - i - 1);
+            PROMQL_DESCRIPTION description = {.name = promql_bytes(name), .type = promql_bytes("gauge"),
+                .help = promql_bytes("Fixture requests"), .unit = promql_bytes("requests/s")};
+            if(description_visit(&output, &description, &frame, &error) != NETDATA_PROMQL_OK) {
+                probe->errors++; goto done;
+            }
+        }
+    }
+    probe->elapsed[0] = now_monotonic_usec() - started;
+    probe->io[0] = description_cost_io(&output);
+    probe->entries = output.count;
+    probe->records_bytes = promql_body_length(output.records);
+    probe->errors += output.count != (probe->limit == 0 ? 0 : probe->names);
+    started = now_monotonic_usec();
+    if(output.count) {
+        order = promql_malloc(account, NETDATA_PROMQL_MEMORY_WORKSPACE, output.count * sizeof(*order));
+        if(!order || !description_sort(&output, order, &frame)) { probe->errors++; goto done; }
+        for(size_t i = 0; i < output.count; i++) probe->errors += order[i] != output.count - i - 1;
+    }
+    probe->elapsed[1] = now_monotonic_usec() - started;
+    probe->io[1] = description_cost_io(&output);
+    started = now_monotonic_usec();
+    if(!descriptions_write(&output, order, &frame)) { probe->errors++; goto done; }
+    probe->elapsed[2] = now_monotonic_usec() - started;
+    probe->io[2] = description_cost_io(&output);
+    probe->output_bytes = promql_body_length(output.body);
+    uint64_t offset = 0;
+    bool valid = promql_body_is_sealed(output.body) &&
+        description_cost_text(output.body, &offset, "{\"status\":\"success\",\"data\":{", &frame, &output.failure);
+    unsigned names = probe->limit < 0 ? probe->names : MIN((uint64_t)probe->limit, probe->names);
+    for(unsigned i = 0; valid && i < names; i++) {
+        char expected[256];
+        snprintfz(expected, sizeof(expected) - 1,
+            "%s\"fixture_%06u\":[{\"type\":\"gauge\",\"help\":\"Fixture requests\",\"unit\":\"requests/s\"}]", i ? "," : "", i);
+        valid = description_cost_text(output.body, &offset, expected, &frame, &output.failure);
+    }
+    probe->errors += !valid || !description_cost_text(output.body, &offset, "}}", &frame, &output.failure) ||
+        offset != probe->output_bytes;
+done:
+    promql_free(order);
+    abort_output(&output, account);
+}
+
+static int description_cost_fixture(netdata_promql_engine_t *engine) {
+    const struct { const char *name; unsigned names, passes; int64_t limit; } cases[] = {
+        {"in-memory-duplicates", 16, 16, -1}, {"distinct-catalogue", 5000, 1, -1},
+        {"duplicate-catalogue", 5000, 16, -1}, {"duplicate-one", 5000, 16, 1},
+        {"duplicate-zero", 5000, 16, 0},
+    };
+    int errors = 0;
+    for(size_t variant = 0; variant < 2 * sizeof(cases) / sizeof(cases[0]); variant++) {
+        size_t i = variant / 2;
+        bool controlled = variant % 2;
+        DESCRIPTION_COST_PROBE probe = {.names = cases[i].names, .passes = cases[i].passes, .limit = cases[i].limit};
+        netdata_promql_report_t *report = NULL;
+        netdata_promql_query_observations_t before = {0}, observed = {0};
+        int64_t limit;
+        if(controlled) probe.errors += netdata_promql_control_create(engine, NULL, &probe.control) != NETDATA_PROMQL_OK;
+        probe.errors += netdata_promql_api_parse_limit(engine, (netdata_promql_bytes_t){0}, NULL, &limit, &report) != NETDATA_PROMQL_OK;
+        if(report) {
+            probe.errors += netdata_promql_report_live_observations(report, &before) != NETDATA_PROMQL_OK;
+            probe.errors += netdata_promql_report_accounted(report, description_cost_probe, &probe, NULL) != NETDATA_PROMQL_OK;
+            probe.errors += netdata_promql_report_live_observations(report, &observed) != NETDATA_PROMQL_OK;
+            for(size_t kind = 0; kind < NETDATA_PROMQL_MEMORY_KINDS; kind++)
+                if(kind != NETDATA_PROMQL_MEMORY_ACCOUNTING)
+                    probe.errors += observed.memory[kind].current != before.memory[kind].current;
+            netdata_promql_report_release(report);
+        }
+        if(probe.control) netdata_promql_control_release(probe.control);
+        printf("{\"metadata_cost_case\":\"%s%s\",\"errors\":%d,\"candidates\":%u,\"entries\":%"PRIu64
+            ",\"records_bytes\":%"PRIu64",\"output_bytes\":%"PRIu64",\"phases\":[",
+            cases[i].name, controlled ? "-controlled" : "", probe.errors,
+            probe.names * probe.passes, probe.entries, probe.records_bytes, probe.output_bytes);
+        PROMQL_FILE_OBSERVATIONS previous = {0};
+        for(size_t phase = 0; phase < 3; phase++) {
+            PROMQL_FILE_OBSERVATIONS current = probe.io[phase];
+            const char *names[] = {"prepare", "sort", "emit"};
+            printf("%s{\"name\":\"%s\",\"microseconds\":%"PRIu64",\"read_calls\":%"PRIu64",\"read_bytes\":%"PRIu64
+                ",\"write_calls\":%"PRIu64",\"write_bytes\":%"PRIu64"}", phase ? "," : "", names[phase], probe.elapsed[phase],
+                current.read_calls - previous.read_calls, current.read_bytes - previous.read_bytes,
+                current.write_calls - previous.write_calls, current.write_bytes - previous.write_bytes);
+            previous = current;
+        }
+        printf("]}\n");
+        errors += probe.errors;
+    }
+    return errors;
+}
+
+typedef struct {
     netdata_promql_engine_t *engine;
     unsigned count, mode;
     uint64_t records_bytes, entries;
@@ -566,6 +778,6 @@ int promql_description_sort_fixture(netdata_promql_engine_t *engine) {
             cases[i].name, probe.errors, probe.entries, probe.records_bytes);
         errors += probe.errors;
     }
-    return errors;
+    return errors + description_cost_fixture(engine) + description_key_fixture(engine);
 }
 #endif

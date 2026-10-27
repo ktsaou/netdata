@@ -537,3 +537,23 @@ record bytes, then passes with zero entries and zero record bytes. These are bac
 Both codecs pass all storage phases (394 read records with internal checks, 385 in a normal build), 23 metadata
 cases through each direct/routed API path, and 71 HTTP checks per codec. Positive limits and full-catalogue
 preparation are unchanged; deployed latency measurements are separate from these fixture results.
+
+### Buffered equality reads
+
+Metadata and ordinary discovery now compare stored keys through the existing 8 KiB scratch window, reusing each
+read across field and terminator callbacks. The caller supplies the encoded length it already checked. No additional
+heap buffer or persistent metadata cache is introduced; the comparison has additional automatic bookkeeping.
+The [qualification receipt](metadata-buffered-keys-qualification.json) records actual output-phase measurements,
+complete generated JSON checks, boundary/failure checks, normal/internal storage and 142 HTTP checks.
+
+For 5,000 short names repeated across 16 catalogue passes, equality preparation makes 74,400 backing reads instead
+of 595,200, with unchanged bytes read. Four alternating old/new pairs, excluding the first warmup pair, measure
+controlled preparation medians of 379 to 75 ms and combined preparation/sort/emission medians of 513 to 208 ms.
+The distinct-name control remains approximately 140/138 ms. These synthetic shared-workstation timings omit contexts
+traversal and gzip; they do not establish live endpoint speed or equality of total query memory.
+
+The internal fixture also compares runs with and without ordinary query controls. Its per-file counters and body
+accessor compile only with `NETDATA_INTERNAL_CHECKS`; normal backing structures do not grow. Boundary tests cover
+empty fields, embedded zero bytes, multiple fields, keys crossing 8 KiB windows, unequal bytes/lengths, invalid offsets,
+cancellation and allocation cleanup. The initial diagnostic incorrectly counted its still-owned report as a leak;
+that failed capture remains attributed separately from the corrected allocation-baseline checks.
