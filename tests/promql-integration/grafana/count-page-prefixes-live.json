@@ -1,0 +1,403 @@
+{
+  "schema": 1,
+  "engine_commit": "73313c6f697b5facf36c937ec5851e69578707c1",
+  "installed_binary_sha256": "6324736340053adf6ace5be5f6ad271f91be3d8083be1fb85ffd24ddb7543147",
+  "previous_engine_commit": "947ef6c78f0f318a0f2aba6a94a6e98a84271706",
+  "scope": "136 fleet range queries at four clients, then four serial Count requests; unchanged retained windows/steps/deadlines. Not a full 360-request replay.",
+  "fleet_before": {
+    "requests": 136,
+    "outcomes": {
+      "nonempty": 126,
+      "empty": 9,
+      "error": 1
+    },
+    "seconds": 126.96386199700646
+  },
+  "fleet_after": {
+    "cohort": "fleet4",
+    "requests": 136,
+    "outcomes": {
+      "nonempty": 125,
+      "error": 2,
+      "empty": 9
+    },
+    "seconds": 129.257437200984
+  },
+  "remaining": [
+    {
+      "id": "nd-promql-apps/9/A",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.079353754001204,
+      "expression_template": "sum by (netdata_host_id, netdata_host_name, app_group, netdata_dimension_id) (abs(app_disk_physical_io{netdata_host_name=~\"${host}\",app_group=~\"${application}\"})) and topk(10, sum by (netdata_host_id, netdata_host_name, app_group, netdata_dimension_id) (abs(app_disk_physical_io{netdata_host_name=~\"${host}\",app_group=~\"${application}\"} @ end())))",
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 136678,
+          "providerCalls": 243889,
+          "sampleBatches": 41411,
+          "samplesFetched": 12160012,
+          "work": 1512494424,
+          "outputSamples": 208,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 40476510,
+              "acquired": 1745120541,
+              "released": 1745120541,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 19262,
+              "acquired": 19262,
+              "released": 18454,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 18386466,
+              "acquired": 592693480,
+              "released": 592693480,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 2104360,
+              "acquired": 3053831768,
+              "released": 3053831768,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 4908224,
+              "acquired": 94352832,
+              "released": 94351936,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 3061312,
+              "acquired": 3061312,
+              "released": 3061312,
+              "overflowed": 0
+            },
+            "readCalls": 108852,
+            "writeCalls": 62223,
+            "readBytes": 216746880,
+            "writtenBytes": 207114688,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 41411,
+                "points": 12157779
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "nd-pql-data-availability/4/A",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.060913408000488,
+      "expression_template": "count by (netdata_host_id,netdata_host_name,app_group) (count_over_time(app_processes{netdata_host_name=~\"${host}\"}[1h])) unless on(netdata_host_id,app_group) count by (netdata_host_id,netdata_host_name,app_group) (app_processes{netdata_host_name=~\"${host}\"})",
+      "stats": {
+        "available": true,
+        "netdata": {
+          "snapshot": "execution-report",
+          "samplesRead": 7659834,
+          "providerCalls": 359521,
+          "sampleBatches": 22398,
+          "samplesFetched": 12819269,
+          "work": 791017875,
+          "outputSamples": 0,
+          "counterOverflowed": 0,
+          "memoryBytes": {
+            "compiled": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "workspace": {
+              "current": 0,
+              "peak": 16239506,
+              "acquired": 2513323540,
+              "released": 2513323540,
+              "overflowed": 0
+            },
+            "result": {
+              "current": 808,
+              "peak": 17486,
+              "acquired": 17486,
+              "released": 16678,
+              "overflowed": 0
+            },
+            "providerHeld": {
+              "current": 0,
+              "peak": 11423662,
+              "acquired": 403489826,
+              "released": 403489826,
+              "overflowed": 0
+            },
+            "borrowedView": {
+              "current": 0,
+              "peak": 1564204,
+              "acquired": 2697385192,
+              "released": 2697385192,
+              "overflowed": 0
+            },
+            "regexEstimate": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "sharedCacheReference": {
+              "current": 0,
+              "peak": 0,
+              "acquired": 0,
+              "released": 0,
+              "overflowed": 0
+            },
+            "accounting": {
+              "current": 896,
+              "peak": 3051136,
+              "acquired": 71111168,
+              "released": 71110272,
+              "overflowed": 0
+            }
+          },
+          "temporaryStorage": {
+            "extentBytes": {
+              "current": 0,
+              "peak": 3431360,
+              "acquired": 3431360,
+              "released": 3431360,
+              "overflowed": 0
+            },
+            "readCalls": 235105,
+            "writeCalls": 75434,
+            "readBytes": 60956576,
+            "writtenBytes": 7574304,
+            "counterOverflowed": 0
+          },
+          "storage": {
+            "tiers": [
+              {
+                "pageEncounters": 20492,
+                "points": 12818889
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              },
+              {
+                "pageEncounters": 0,
+                "points": 0
+              }
+            ],
+            "reconstructionPoints": 0,
+            "counterOverflowed": 0
+          }
+        }
+      }
+    }
+  ],
+  "focused_comparisons": [
+    {
+      "id": "nd-pql-data-availability/4/A",
+      "repeat": 0,
+      "before_seconds": 25.019310447998578,
+      "after_seconds": 20.359365159005392,
+      "before_outcome": "error",
+      "after_outcome": "nonempty",
+      "successful_results_compared": false,
+      "same_result_digest": false
+    },
+    {
+      "id": "nd-pql-data-availability/12/A",
+      "repeat": 0,
+      "before_seconds": 19.337384943006327,
+      "after_seconds": 9.826127064006869,
+      "before_outcome": "nonempty",
+      "after_outcome": "nonempty",
+      "successful_results_compared": true,
+      "same_result_digest": true
+    },
+    {
+      "id": "nd-pql-data-availability/4/A",
+      "repeat": 1,
+      "before_seconds": 24.50855486301589,
+      "after_seconds": 20.783480351994513,
+      "before_outcome": "nonempty",
+      "after_outcome": "nonempty",
+      "successful_results_compared": true,
+      "same_result_digest": true
+    },
+    {
+      "id": "nd-pql-data-availability/12/A",
+      "repeat": 1,
+      "before_seconds": 15.959709335991647,
+      "after_seconds": 9.699793631996727,
+      "before_outcome": "nonempty",
+      "after_outcome": "nonempty",
+      "successful_results_compared": true,
+      "same_result_digest": true
+    }
+  ],
+  "share": {
+    "route": "grafana-backend",
+    "http_status": 200,
+    "query_status": 200,
+    "frames": 79,
+    "seconds": 1.1403284500120208,
+    "has_error": false
+  },
+  "reception": {
+    "hosts_before": 18,
+    "hosts_after": 18,
+    "common": 18,
+    "advanced": 18,
+    "before_seconds": 0.6362372899893671,
+    "after_seconds": 0.4445859239785932
+  },
+  "fleet_share": {
+    "route": "grafana-backend",
+    "http_status": 200,
+    "query_status": 200,
+    "frames": 79,
+    "seconds": 1.3203458210045937,
+    "has_error": false
+  },
+  "fleet_reception": {
+    "hosts_before": 18,
+    "hosts_after": 18,
+    "common": 18,
+    "advanced": 18,
+    "before_seconds": 0.5707491300127003,
+    "after_seconds": 0.4307858730026055
+  },
+  "captures": {
+    "countPagesFleet": {
+      "file": "count-page-prefixes-measurements.jsonl.gz",
+      "sha256": "8c49530f2b7c4a14a06da7d9df182a5fb4cfa05283af68ebcb8fc733b75fe2d2",
+      "records": 140,
+      "queries": 136
+    },
+    "countPagesFocused": {
+      "file": "count-page-prefixes-focused.jsonl.gz",
+      "sha256": "f8aafa1186ef4143f4a523129ab917d88f060e7cd91ee67966aa9e748b0b78a4",
+      "records": 8,
+      "queries": 4
+    }
+  },
+  "bindings": {
+    "tests/promql-integration/grafana/practical-qualification.json": "ed071d08030a56258a008ba0a9e1d3ddcf68bf09e2060059be5153cd129e0053",
+    "tests/promql-integration/grafana/practical-measurements.jsonl.gz": "2a4c0db1554c69ab037607151b5b92b23f863972d51c278d3557c7c30a7f556c",
+    ".tmp/practical-replay-j32eeh4e/count_pages_live.py": "cc5e9683d1cfbf6fd23cdaf320b1c2bf216002b60483c97f2346804712056859",
+    "tests/promql-integration/grafana/measure.py": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+    "tests/promql-integration/grafana/workload-catalogue.json": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a",
+    "tests/promql-integration/grafana/alert-expressions.json": "9c0f1d0a94cc861fee56a33c66b0083c2544ac1735be7ff2167e3bab6f3d0989",
+    "tests/promql-integration/grafana/applications.json": "c28631f6868ec68795f4a8a65280ef3e69519bf830fbe983ceb3603306fa576e",
+    "tests/promql-integration/grafana/data-availability.json": "b36278593b93ff2ade0fd11c81c338ceedde5cd6b1036bc38368b4657a18022d",
+    "tests/promql-integration/grafana/database-instances.json": "12ec0370af032e8eb5f45a4f427fc6d714a2f336ec8b81c40db8b686a1f4c3a2",
+    "tests/promql-integration/grafana/fleet-applications.json": "3311f09898b05d67894cfa32a43a7aac78f2c30122dc8d6d4d1bf24d977a072f",
+    "tests/promql-integration/grafana/fleet-bandwidth.json": "5a8481d1dcd149a5db45bf2c1187a85eae584e37caed09bc061d054cb040f1fc",
+    "tests/promql-integration/grafana/fleet-capacity.json": "11172bb6489f1ab1e59ef4ccac4d87fafef258966fe3fa735a1b85b6476bbfc2",
+    "tests/promql-integration/grafana/fleet-overview.json": "4d1e1a3ab2b060b9db8edbc8909988990b1f41d6db88d17ab2eeb088542ee066",
+    "tests/promql-integration/grafana/history-comparisons.json": "b14d4c97686709a17bffc99f5e7d11fab180603536e1ba802a3f2447e2e4f0f6",
+    "tests/promql-integration/grafana/host-resources.json": "cd0315d3ff956a71506aa8fa3e8abef014a3690d083688c4fd975c5943299043",
+    "tests/promql-integration/grafana/service-instances.json": "95c24813b53ebb6af7929cd18c0d37cf8f5a1f4bd164726929e264ed93128d52",
+    "tests/promql-integration/grafana/storage-network.json": "689baf3eac66b836f744d10e9ff039b96068190d09fc777ec79db69270679560",
+    ".tmp/practical-workloads-csukpli2/fleet4.jsonl.gz": "9c223bb3c11829154007dee6be684feffb827d65f5442d66d1eee0c2f9d876e7",
+    ".tmp/practical-replay-j32eeh4e/grafana-share-diagnosis.json": "c25efd0940389e63c499674d10649cd73c7605922ff892908d6623fd5c44539e",
+    ".tmp/practical-replay-j32eeh4e/control_live_after.py": "af0e57e95f20aee7fd430428764314b176c8a73060e74e5aa88b71bab93a7af5",
+    ".tmp/practical-replay-j32eeh4e/control-live-before.jsonl.gz": "413334aa494aa34c535b7801967553e5af43d3d9c1cc6ceeb687b80fea005530"
+  },
+  "deployment": {
+    "revision": "73313c6f697b5facf36c937ec5851e69578707c1",
+    "unit": "promql-deploy-73313c6f69",
+    "exit_status": 0,
+    "wall_seconds": 235.7,
+    "reported_build_memory_peak": "3.1G",
+    "binary_sha256": "6324736340053adf6ace5be5f6ad271f91be3d8083be1fb85ffd24ddb7543147",
+    "configuration_comparisons": "both passed",
+    "protected_copies": ".tmp/install.IAYwVkl2",
+    "data_preserved": true,
+    "services": "Netdata and Grafana active",
+    "constant_routes": "direct and Grafana proxy pass",
+    "approximate_disk_free_gib": 52,
+    "journal_sha256": "b0af60716e0897ca0b38944e3ab479d572329c40bd3fcc29992765c1694923aa",
+    "postcheck_sha256": "cd5f411d6dc9b06641507978b98f2cab84ed4a81c5144427eb13192a8d543233",
+    "after_replay_state_sha256": "0c747893d47ba2b56fc6987a193fc98596b6dac38253921ce1d29446fd877ea2"
+  },
+  "previous_full_suite": {
+    "file": "count-group-labels-live.json",
+    "sha256": "4d61cd8e66617065ab7c9444d24d5825e2319b61abfa401b7f7730e8e3014fbd"
+  },
+  "generator_sha256": "723782438360445b77ebe79a1c4ab17898ce2a94e128abcd4179bdb785b02a61",
+  "limitations": [
+    "Live data and caches are not immutable; exact-input correctness is separately qualified.",
+    "The previous full-suite instant and long-history cohorts were not rerun in this focused deployment check.",
+    "Timeout counters describe partial execution, not equal completed work.",
+    "Whole practical remediation remains incomplete; historical histogram boundary repair is excluded by decision71."
+  ]
+}

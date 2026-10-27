@@ -8,9 +8,33 @@ long-range performance is not yet suitable for these workloads under a 25-second
 This is a baseline and an optimization priority list, not a claim that all dashboards are fast or that the live adapter
 supports every PromQL input type. Alert-expression testing does not install an alert scheduler or notification system.
 
-## Follow-up: direct Count aggregate labels — 2026-10-27
+## Follow-up: Count summaries from validated page tails — 2026-10-27
 
-Engine `947ef6c78f` is installed. Eligible Count aggregates reuse existing group labels after fresh source matching
+Engine `73313c6f69` is installed. It reuses bounded integer summaries from already validated pages, without keeping
+raw history. [Controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/INTERMEDIATE_REUSE.md#count-summaries-from-validated-page-tails)
+records 70.4% fewer fetched entries and 31.8–34.1% faster grouped Count sums in the large-page fixture, with a
+32-byte query-workspace increase. [Live measurements](count-page-prefixes-live.json) repeat all 136 fleet range
+requests at four clients, then four focused serial Count requests. Windows, steps and deadlines are unchanged.
+
+- Grouped Count under four clients: **21.37→13.37 seconds**.
+- Serial grouped Count: **19.34/15.96→9.83/9.70 seconds**.
+- Serial disappearance: a timeout plus 24.51 seconds previously; **20.36/20.78 seconds**, both successful now.
+- Fleet cohort: **2/136 timeouts**, versus 1 previously; total time **129.26 versus 126.96 seconds**. Disappearance
+  still times out under load, and the application physical-I/O panel also times out in this run.
+
+The I/O expression does not use Count and has varied across earlier replays. This single uncontrolled run does not
+establish its cause. Successful serial results match their earlier successful-result digests; a previous error is
+not a comparable complete result. The aggregate fleet timing does not establish an overall throughput improvement.
+
+Grafana application share returns 79 frames in 1.14 seconds; all 18 reporting CPU hosts advance. Netdata and Grafana
+are active, configuration checks passed, retained data was preserved, and approximately 52 GiB remains free.
+This is **not another full 360-request replay**: instant and long-history results below retain their earlier source
+attribution. Long-history and concurrent-query performance, live histogram representation and help/type metadata
+remain limitations. Historical histogram boundary repair is excluded by decision 71.
+
+## Earlier follow-up: direct Count aggregate labels — 2026-10-27
+
+Engine `947ef6c78f` was installed for this checkpoint. Eligible Count aggregates reuse existing group labels after fresh source matching
 and completed evaluation. The [controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/COUNT_GROUP_LABELS.md)
 shows targeted improvements without increasing measured memory peaks. The [full live replay](count-group-labels-live.json)
 retains all 360 requests and their unchanged windows, resolution and deadlines.
@@ -29,7 +53,7 @@ Disappearance timed out once and completed once in 24.51 seconds. This remains t
 Grafana application share returns 79 frames in 1.57 seconds, all 18 reporting CPU hosts advance, both services are
 active and approximately 52 GiB remains free. Configuration and retained data were preserved. Historical histogram
 boundary repair remains excluded by decision 71; remaining performance and live representation work remains open.
-The development page-summary prototype is not part of this installed revision.
+The later page-summary deployment is recorded above.
 
 ## Earlier follow-up: single-clock C control snapshots — 2026-10-27
 
