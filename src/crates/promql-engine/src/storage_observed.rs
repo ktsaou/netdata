@@ -152,6 +152,40 @@ impl<Q: QueryProvider> QueryProvider for ObservedQuery<Q> {
             }
         }
     }
+    fn open_temporary_float_bits(
+        &self,
+        request: TemporaryFloatBitsRequest<'_>,
+        control: &Control,
+    ) -> Result<Option<OwnedTemporary<'_>>, StorageError> {
+        let bytes = request.extent_bytes()?;
+        let mut scope = TemporaryScope {
+            query: self,
+            lease: RefCell::new(ResourceLease::new(
+                &self.account,
+                ProviderResources::default(),
+            )),
+            extent: None,
+        };
+        let result = self.value.open_temporary_float_bits(
+            TemporaryFloatBitsRequest {
+                accounting: &self.account,
+                ..request
+            },
+            control,
+        );
+        match result {
+            Ok(Some(value)) => {
+                scope.extent = Some(self.account.hold_temporary_storage(bytes));
+                scope.observe(value.resources());
+                Ok(Some(OwnedTemporary::new(
+                    OwnedObservedTemporary { value, scope },
+                    &self.account,
+                )))
+            }
+            Ok(None) => Ok(None),
+            Err(error) => Err(error.accounted(&self.account)),
+        }
+    }
     fn with_temporary_float_bits<R>(
         &self,
         request: TemporaryFloatBitsRequest<'_>,
@@ -208,6 +242,41 @@ impl<Q: QueryProvider> Drop for TemporaryScope<'_, Q> {
 struct ObservedTemporary<'s, 'g, 'q, Q: QueryProvider> {
     value: &'s mut dyn TemporaryFloatBits,
     scope: &'g TemporaryScope<'q, Q>,
+}
+struct OwnedObservedTemporary<'a, Q: QueryProvider> {
+    // Field order keeps backing alive until all callback observations have finished.
+    value: OwnedTemporary<'a>,
+    scope: TemporaryScope<'a, Q>,
+}
+impl<Q: QueryProvider> TemporaryFloatBits for OwnedObservedTemporary<'_, Q> {
+    fn resources(&self) -> ProviderResources {
+        self.scope.observe(self.value.resources());
+        ProviderResources::default()
+    }
+    fn read_into(
+        &mut self,
+        offset: u64,
+        values: &mut [u64],
+        control: &Control,
+    ) -> Result<(), StorageError> {
+        ObservedTemporary {
+            value: &mut self.value,
+            scope: &self.scope,
+        }
+        .read_into(offset, values, control)
+    }
+    fn write_at(
+        &mut self,
+        offset: u64,
+        values: &[u64],
+        control: &Control,
+    ) -> Result<(), StorageError> {
+        ObservedTemporary {
+            value: &mut self.value,
+            scope: &self.scope,
+        }
+        .write_at(offset, values, control)
+    }
 }
 impl<Q: QueryProvider> TemporaryFloatBits for ObservedTemporary<'_, '_, '_, Q> {
     fn resources(&self) -> ProviderResources {
@@ -805,7 +874,7 @@ mod tests {
         value: crate::fixture_temporary_storage::FileStore,
         held: Vec<u8>,
         query: &'a TransferringQuery<'q>,
-        account: &'a QueryAccounting,
+        account: QueryAccounting,
     }
     impl QueryProvider for TransferringQuery<'_> {
         type Selection<'a>
@@ -827,6 +896,22 @@ mod tests {
                 "temporary transfer query has no selectors",
             ))
         }
+        fn open_temporary_float_bits(
+            &self,
+            request: TemporaryFloatBitsRequest<'_>,
+            control: &Control,
+        ) -> Result<Option<OwnedTemporary<'_>>, StorageError> {
+            let value = crate::fixture_temporary_storage::FileStore::create(request, control)?;
+            Ok(Some(OwnedTemporary::new(
+                TransferringTemporary {
+                    value,
+                    held: self.held.take(),
+                    query: self,
+                    account: request.accounting.clone(),
+                },
+                request.accounting,
+            )))
+        }
         fn with_temporary_float_bits<R>(
             &self,
             request: TemporaryFloatBitsRequest<'_>,
@@ -838,7 +923,7 @@ mod tests {
                 value,
                 held: self.held.take(),
                 query: self,
-                account: request.accounting,
+                account: request.accounting.clone(),
             };
             let result = visit(&mut store);
             drop(store);
@@ -869,7 +954,9 @@ mod tests {
             values: &mut [u64],
             control: &Control,
         ) -> Result<(), StorageError> {
-            self.held = self.query.held.take();
+            if !self.query.held.borrow().is_empty() {
+                self.held = self.query.held.take();
+            }
             self.value.read_into(offset, values, control)
         }
         fn write_at(
@@ -878,16 +965,79 @@ mod tests {
             values: &[u64],
             control: &Control,
         ) -> Result<(), StorageError> {
-            *self.query.held.borrow_mut() = std::mem::take(&mut self.held);
+            if !self.held.is_empty() {
+                *self.query.held.borrow_mut() = std::mem::take(&mut self.held);
+            }
             self.value.write_at(offset, values, control)
         }
     }
     impl Drop for TransferringTemporary<'_, '_> {
         fn drop(&mut self) {
-            assert_eq!(held(self.account), 64);
+            assert_eq!(held(&self.account), 64);
             assert_eq!(self.account.snapshot().temporary_storage.extent.current, 16);
-            *self.query.held.borrow_mut() = std::mem::take(&mut self.held);
+            if !self.held.is_empty() {
+                *self.query.held.borrow_mut() = std::mem::take(&mut self.held);
+            }
             self.query.closed.set(true);
+        }
+    }
+    #[test]
+    fn owned_temporary_keeps_transfer_accounting_through_close_and_unwind() {
+        for unwind in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let closed = Cell::new(false);
+            let query = ObservedQuery::new(
+                TransferringQuery {
+                    held: RefCell::new(vec![0; 64]),
+                    closed: &closed,
+                },
+                &account,
+            );
+            let control = Control::default();
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let mut store = query
+                    .open_temporary_float_bits(
+                        TemporaryFloatBitsRequest {
+                            value_count: 2,
+                            accounting: &account,
+                        },
+                        &control,
+                    )
+                    .unwrap()
+                    .unwrap();
+                assert!(!closed.get());
+                assert_eq!(account.snapshot().temporary_storage.extent.current, 16);
+                assert_eq!(held(&account), 64);
+                let bits = [u64::MAX, 0x7ff8_0000_0000_0001];
+                store.write_at(0, &bits, &control).unwrap();
+                assert_eq!(held(&account), 64);
+                let mut values = [0; 2];
+                store.read_into(0, &mut values, &control).unwrap();
+                assert_eq!(values, bits);
+                assert_eq!(held(&account), 64);
+                assert!(store.read_into(2, &mut values, &control).is_err());
+                control.cancellation.cancel();
+                assert!(store.write_at(0, &bits, &control).is_err());
+                if unwind {
+                    panic!("owned temporary unwind probe");
+                }
+            }));
+            assert_eq!(result.is_err(), unwind);
+            assert!(closed.get());
+            assert_eq!(query.value.held.borrow().len(), 64);
+            assert_eq!(account.snapshot().temporary_storage.extent.current, 0);
+            // During unwind, the next observation reconciles any physical ownership transfer.
+            query.lease.borrow_mut().update(query.value.resources());
+            assert_eq!(held(&account), 64);
+            assert_eq!(
+                account.snapshot().memory[MemoryKind::ProviderHeld as usize].peak,
+                64
+            );
+            drop(query);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
         }
     }
     #[test]

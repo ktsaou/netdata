@@ -48,7 +48,7 @@ pub(crate) fn global_ordinary(expression: &Expr) -> bool {
 #[derive(Debug)]
 pub(crate) struct Group<'a> {
     labels: &'a OwnedLabels,
-    ordinal: usize,
+    pub(crate) ordinal: usize,
     pub(crate) hash: u64,
     pub(crate) seen: bool,
     value: f64,

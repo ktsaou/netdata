@@ -268,6 +268,11 @@ pub(crate) struct ReplayKey {
     delayed_name_removal: bool,
 }
 impl ReplayKey {
+    pub(crate) fn at(mut self, time_ms: i64, step_index: i64) -> Self {
+        self.clock[0] = time_ms;
+        self.clock[5] = step_index;
+        self
+    }
     pub(crate) fn new(
         options: EvaluationOptions,
         step_index: i64,
@@ -599,6 +604,12 @@ impl Plan {
                 .replay
                 .as_ref()
                 .is_some_and(|replay| replay.completed.borrow().is_some())
+    }
+    #[cfg(test)]
+    pub(crate) fn has_pair_replay(&self) -> bool {
+        self.replay
+            .as_ref()
+            .is_some_and(|replay| matches!(replay.rows, ReplayRows::Pairs(_)))
     }
     #[cfg(test)]
     pub(crate) fn has_completed_pair_replay(&self, key: &ReplayKey) -> bool {

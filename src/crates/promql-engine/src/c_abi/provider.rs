@@ -177,6 +177,45 @@ struct Temporary<'a> {
     owner: Owner<'a>,
     count: u64,
 }
+impl Query<'_> {
+    fn temporary(
+        &self,
+        request: storage::TemporaryFloatBitsRequest<'_>,
+        control: &Control,
+    ) -> Result<Option<Temporary<'_>>, StorageError> {
+        request.extent_bytes()?;
+        let provider = self.owner.provider;
+        let table = &provider.table;
+        let Some(create) = table.temporary_create else {
+            return Ok(None);
+        };
+        control.check()?;
+        let mut handle = std::ptr::null_mut();
+        let mut error = types::Bytes::default();
+        let status = unsafe {
+            create(
+                table.context,
+                self.owner.handle,
+                request.value_count,
+                checked::Callback::new(control, provider.account).as_ptr(),
+                &mut handle,
+                &mut error,
+            )
+        };
+        unsafe { provider.status(status, error) }?;
+        Ok(Some(Temporary {
+            owner: Owner {
+                provider,
+                handle,
+                close: table.temporary_close.expect("validated temporary close"),
+                resource: table
+                    .temporary_resources
+                    .expect("validated temporary resources"),
+            },
+            count: request.value_count,
+        }))
+    }
+}
 impl Temporary<'_> {
     fn range(&self, offset: u64, len: usize) -> Result<u64, StorageError> {
         let len =
@@ -300,46 +339,28 @@ impl storage::QueryProvider for Query<'_> {
     fn resources(&self) -> ProviderResources {
         self.owner.resources()
     }
+    fn open_temporary_float_bits(
+        &self,
+        request: storage::TemporaryFloatBitsRequest<'_>,
+        control: &Control,
+    ) -> Result<Option<storage::OwnedTemporary<'_>>, StorageError> {
+        control.check()?;
+        Ok(self
+            .temporary(request, control)?
+            .map(|store| storage::OwnedTemporary::new(store, self.owner.provider.account)))
+    }
     fn with_temporary_float_bits<R>(
         &self,
         request: storage::TemporaryFloatBitsRequest<'_>,
         control: &Control,
         visit: impl for<'a> FnOnce(&'a mut dyn storage::TemporaryFloatBits) -> R,
     ) -> Result<R, StorageError> {
-        request.extent_bytes()?;
-        let provider = self.owner.provider;
-        let table = &provider.table;
-        let Some(create) = table.temporary_create else {
-            return Err(storage::temporary_storage_error(
-                provider.account,
+        let mut store = self.temporary(request, control)?.ok_or_else(|| {
+            storage::temporary_storage_error(
+                self.owner.provider.account,
                 b"temporary float storage unavailable",
-            ));
-        };
-        control.check()?;
-        let mut handle = std::ptr::null_mut();
-        let mut error = types::Bytes::default();
-        let status = unsafe {
-            create(
-                table.context,
-                self.owner.handle,
-                request.value_count,
-                checked::Callback::new(control, provider.account).as_ptr(),
-                &mut handle,
-                &mut error,
             )
-        };
-        unsafe { provider.status(status, error) }?;
-        let mut store = Temporary {
-            owner: Owner {
-                provider,
-                handle,
-                close: table.temporary_close.expect("validated temporary close"),
-                resource: table
-                    .temporary_resources
-                    .expect("validated temporary resources"),
-            },
-            count: request.value_count,
-        };
+        })?;
         Ok(visit(&mut store))
     }
     fn select(

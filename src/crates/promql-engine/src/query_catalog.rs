@@ -8,8 +8,8 @@ use crate::{
     query_bounds,
     query_preparation::Prepared,
     storage::{
-        Control, QueryProvider, ResourceOwner, SelectionRequest, Series, SeriesSelection,
-        StorageError, matches_checked, validate_labels_checked,
+        Control, Interrupted, QueryProvider, ResourceOwner, SelectionRequest, Series,
+        SeriesSelection, StorageError, matches_checked, validate_labels_checked,
     },
 };
 use std::cell::RefCell;
@@ -26,6 +26,8 @@ pub(crate) struct Catalog<'q, Q: QueryProvider + 'q> {
     query: &'q Q,
     sites: RefCell<AccountedVec<Option<Site<'q, Q>>>>,
     info_sites: RefCell<AccountedVec<Site<'q, Q>>>,
+    pub(crate) derived_progress: crate::derived_progress::Registry<'q>,
+    computed_groups: RefCell<AccountedVec<(NodeId, Option<crate::computed_groups::Store<'q>>)>>,
 }
 #[derive(Clone, Copy)]
 pub(crate) struct InfoSite(usize);
@@ -99,7 +101,72 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
             query,
             sites: RefCell::new(sites),
             info_sites: RefCell::new(AccountedVec::new(account, MemoryKind::Workspace)),
+            derived_progress: crate::derived_progress::Registry::new(account),
+            computed_groups: RefCell::new(AccountedVec::new(account, MemoryKind::Workspace)),
         })
+    }
+
+    pub(crate) fn add_computed_group(
+        &self,
+        node: NodeId,
+        store: crate::computed_groups::Store<'q>,
+    ) {
+        self.computed_groups.borrow_mut().push((node, Some(store)));
+    }
+
+    pub(crate) fn with_computed_group<R>(
+        &self,
+        node: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+        operation: impl FnOnce(&mut crate::computed_groups::Store<'q>) -> Result<R, StorageError>,
+    ) -> Result<Option<R>, StorageError> {
+        let (position, mut store) = {
+            let mut entries = self.computed_groups.borrow_mut();
+            let mut found = None;
+            for (position, (id, store)) in entries.iter_mut().enumerate() {
+                control.check()?;
+                account.work(1);
+                if *id == node {
+                    found = store.take().map(|store| (position, store));
+                    break;
+                }
+            }
+            let Some(found) = found else { return Ok(None) };
+            found
+        };
+        // Neither recursive evaluation nor provider callbacks hold the registry borrow.
+        let result = operation(&mut store);
+        self.computed_groups.borrow_mut()[position].1 = Some(store);
+        result.map(Some)
+    }
+
+    pub(crate) fn discard_computed_group(&self, node: NodeId) {
+        let value = {
+            let mut entries = self.computed_groups.borrow_mut();
+            entries
+                .iter()
+                .position(|(id, _)| *id == node)
+                .map(|position| entries.remove(position))
+        };
+        drop(value);
+    }
+
+    pub(crate) fn start_final_groups(
+        &self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        #[cfg(test)]
+        crate::evaluator::aggregate_final_phase();
+        for (_, store) in self.computed_groups.borrow_mut().iter_mut() {
+            control.check()?;
+            account.work(1);
+            if let Some(store) = store {
+                store.start_final();
+            }
+        }
+        self.derived_progress.start_final(control, account)
     }
 
     pub(crate) fn expand(

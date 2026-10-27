@@ -213,13 +213,48 @@ static uint32_t checkpoint_begin(void *handle, const netdata_promql_output_heade
     void *query = NULL;
     netdata_promql_series_open_t series = {0}, other = {0};
     netdata_promql_cursor_open_t cursor = {0}, second = {0};
-    const char *dimension = test->mode == 1 || test->mode == 7 ? "legacy" :
-                            test->mode == 8 ? "reset_gap" : "native";
+    const char *dimension = test->mode == 1 || test->mode == 7 || test->mode == 10 ? "legacy" :
+                            test->mode == 8 || test->mode == 11 ? "reset_gap" :
+                            test->mode == 12 ? "mixed" : "native";
+    netdata_promql_bounds_t cursor_bounds = bounds;
+    if(test->mode >= 9) {
+        test->cold_target = test->points / 2 + 1;
+        cursor_bounds.start_ms = (int64_t)(PROVIDER_BASE + test->cold_target) * 1000 - 999;
+    }
     if(netdata_promql_callback_accounting(control, &account) != NETDATA_PROMQL_OK ||
        provider.query_open(provider.context, bounds, control, &query, error) != NETDATA_PROMQL_OK ||
        !checkpoint_series(&provider, query, dimension, false, bounds, control, &series) ||
-       provider.cursor_open(provider.context, series.handle, bounds, control, &cursor, error) != NETDATA_PROMQL_OK) {
+       provider.cursor_open(provider.context, series.handle, cursor_bounds, control, &cursor, error) != NETDATA_PROMQL_OK) {
         test->errors++; goto finished;
+    }
+    if(test->mode >= 9) {
+        int64_t when = (int64_t)(PROVIDER_BASE + test->cold_target) * 1000;
+        double expected = 2.0 * (test->cold_target - (test->mode == 11 ? 73 : 0));
+        for(unsigned pass = 0; pass < 2; pass++) {
+            netdata_promql_page_t page;
+            netdata_promql_resources_t observations;
+            void *handle = pass ? second.handle : cursor.handle;
+            uint32_t status = provider.cursor_next(provider.context, handle, control, &page, &observations, error);
+            test->errors += status != NETDATA_PROMQL_OK;
+            if(status != NETDATA_PROMQL_OK) goto finished;
+            test->errors += !page.samples.len || page.samples.data[0].time_ms != when ||
+                page.samples.data[0].value.kind != NETDATA_PROMQL_VALUE_FLOAT ||
+                page.samples.data[0].value.payload.float_bits != netdata_promql_double_bits(expected);
+            PROMQL_PHYSICAL *physical = ((PROMQL_SERIES *)series.handle)->physical;
+            test->errors += !physical->basis_selected || physical->anchored != (test->mode == 9 || test->mode == 11);
+            if(pass) break;
+            test->cold_first_samples = (unsigned)page.samples.len;
+            // A later cursor retains the query's origin, including through its metadata alias.
+            if(!checkpoint_series(&provider, query, dimension, true, bounds, control, &other)) {
+                test->errors++; goto finished;
+            }
+            test->alias_shared = physical == ((PROMQL_SERIES *)other.handle)->physical;
+            test->errors += !test->alias_shared;
+            if(provider.cursor_open(provider.context, other.handle, cursor_bounds, control, &second, error) != NETDATA_PROMQL_OK) {
+                test->errors++; goto finished;
+            }
+        }
+        goto finished;
     }
     if(test->mode >= 6) {
         netdata_promql_page_t page;
@@ -328,7 +363,8 @@ static uint32_t checkpoint_chunk(void *context __maybe_unused, const netdata_pro
 static int checkpoint_callbacks(netdata_promql_engine_t *engine, unsigned points) {
     const char *names[] = {"native-seeks", "legacy-seeks", "alias-basis", "failed-open-cleanup",
                           "failed-seek-sticky", "two-metrics-one-file", "native-cold-seek",
-                          "legacy-cold-seek", "reset-gap-cold-seek"};
+                          "legacy-cold-seek", "reset-gap-cold-seek", "native-late-open", "legacy-late-open",
+                          "reset-gap-late-open", "mixed-late-open"};
     int errors = 0;
     for(unsigned mode = 0; mode < sizeof(names) / sizeof(names[0]); mode++) {
         CHECKPOINT_SCENARIO test = {.engine = engine, .mode = mode, .points = points};
@@ -377,7 +413,8 @@ static int checkpoint_pages_fixture(netdata_promql_engine_t *engine) {
     RRDDIM *legacy = rrddim_add(chart, "legacy", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
     RRDDIM *reset_gap = rrddim_add(chart, "reset_gap", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
     RRDDIM *legacy_negative = rrddim_add(chart, "legacy_negative", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
-    if(!native || !legacy || !reset_gap || !legacy_negative) { rrdset_free(chart); return 1; }
+    RRDDIM *mixed = rrddim_add(chart, "mixed", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
+    if(!native || !legacy || !reset_gap || !legacy_negative || !mixed) { rrdset_free(chart); return 1; }
     for(unsigned i = 1; i <= pages[5] * points_per_page; i++) {
         usec_t when = (usec_t)(PROVIDER_BASE + i) * USEC_PER_SEC;
         storage_engine_store_metric(native->tiers[0].sch, when, 2, 2, 2, 1, 0,
@@ -390,14 +427,18 @@ static int checkpoint_pages_fixture(netdata_promql_engine_t *engine) {
                                     (i == 69 || i == 73 ? SN_FLAG_RESET : SN_FLAG_NONE));
         storage_engine_store_metric(legacy_negative->tiers[0].sch, when, -2, -2, -2, 1, 0,
                                     SN_FLAG_NOT_ANOMALOUS | SP_FLAG_ORDINARY_SOURCE);
+        storage_engine_store_metric(mixed->tiers[0].sch, when, 2, 2, 2, 1, 0,
+                                    SN_FLAG_NOT_ANOMALOUS | (i <= 16 ? SP_FLAG_ORDINARY_SOURCE : SP_FLAG_COUNTER_SOURCE));
         if(i % points_per_page == 0) {
             storage_engine_store_flush(native->tiers[0].sch);
+            storage_engine_store_flush(mixed->tiers[0].sch);
             storage_engine_store_flush(legacy->tiers[0].sch);
             storage_engine_store_flush(reset_gap->tiers[0].sch);
             storage_engine_store_flush(legacy_negative->tiers[0].sch);
         }
     }
     rrddim_finalize_collection_and_check_retention(native);
+    rrddim_finalize_collection_and_check_retention(mixed);
     rrddim_finalize_collection_and_check_retention(legacy);
     rrddim_finalize_collection_and_check_retention(reset_gap);
     rrddim_finalize_collection_and_check_retention(legacy_negative);

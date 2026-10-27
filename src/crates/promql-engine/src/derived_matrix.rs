@@ -10,12 +10,21 @@ use crate::{
     value::SampleRef,
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Window {
     pub(crate) first_end_ms: i64,
     pub(crate) end_ms: i64,
     pub(crate) range_ms: i64,
     pub(crate) step_ms: i64,
+}
+
+pub(crate) const CHECKPOINT_WORDS: usize = 17;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Checkpoint(pub(crate) [u64; CHECKPOINT_WORDS]);
+impl Checkpoint {
+    pub(crate) fn sample_units(&self) -> u64 {
+        u64::from(self.0[0] & 3 == 3)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -81,8 +90,132 @@ pub(crate) struct Reader {
     pending: bool,
     seen: u64,
     current: Option<Current>,
+    after_child: Option<Action>,
 }
 impl Reader {
+    pub(crate) fn checkpoint(&self) -> Option<Checkpoint> {
+        if !matches!(self.phase, Phase::Done)
+            || self.pending
+            || self.materialized[1].is_some()
+            || self.after_child.is_some()
+        {
+            return None;
+        }
+        let mut words = [0; CHECKPOINT_WORDS];
+        words[0] = 1
+            | (u64::from(self.exhausted) << 7)
+            | (u64::from(self.cursor.kind == 2) << 8)
+            | (match self.landing {
+                Landing::Initial => 0,
+                Landing::Seek => 1,
+                Landing::Next => 2,
+            } << 9);
+        words[1] = self.end_ms as u64;
+        words[2] = self.delta_ms as u64;
+        words[3] = self.last_time_ms as u64;
+        for lane in 0..2 {
+            if let Some(time) = self.materialized[lane] {
+                words[0] |= 1 << (3 + lane);
+                words[4 + lane] = time as u64;
+            }
+            words[6 + lane] = self.cutoffs[lane] as u64;
+            if let Some(identity) = self.emitted[lane] {
+                words[0] |= 1 << (5 + lane);
+                words[8 + lane * 2] = identity.time_ms as u64;
+                words[9 + lane * 2] = identity.occurrence;
+            }
+        }
+        words[12] = self.cursor.time_ms as u64;
+        words[13] = self.cursor.occurrence;
+        if let Some(current) = &self.current {
+            let OwnedValue::Float(value) = &current.value else {
+                return None;
+            };
+            if current.kind != 1
+                || current
+                    ._float_samples
+                    .as_ref()
+                    .is_some_and(|samples| samples.units() != 1)
+            {
+                return None;
+            }
+            words[0] |= 2 | (u64::from(current._float_samples.is_some()) << 2);
+            words[14] = current.identity.time_ms as u64;
+            words[15] = current.identity.occurrence;
+            words[16] = value.to_bits();
+        }
+        Some(Checkpoint(words))
+    }
+
+    pub(crate) fn resume(
+        grid: Grid,
+        window: Window,
+        checkpoint: Checkpoint,
+        account: &QueryAccounting,
+    ) -> Option<Self> {
+        let words = checkpoint.0;
+        let flags = words[0];
+        let previous = words[1] as i64;
+        if flags & 1 == 0
+            || flags & !0x7ff != 0
+            || (flags >> 9) == 3
+            || window.step_ms <= 0
+            || window.range_ms <= 0
+            || !grid.forward_without_wrap()
+            || previous < window.first_end_ms
+            || previous > window.end_ms
+            || (i128::from(window.end_ms) - i128::from(previous)) % i128::from(window.step_ms) != 0
+        {
+            return None;
+        }
+        Some(Self {
+            grid,
+            window,
+            end_ms: previous,
+            delta_ms: words[2] as i64,
+            last_time_ms: words[3] as i64,
+            materialized: std::array::from_fn(|lane| {
+                (flags & (1 << (3 + lane)) != 0).then_some(words[4 + lane] as i64)
+            }),
+            cutoffs: [words[6] as i64, words[7] as i64],
+            emitted: std::array::from_fn(|lane| {
+                (flags & (1 << (5 + lane)) != 0).then_some(Identity {
+                    time_ms: words[8 + lane * 2] as i64,
+                    occurrence: words[9 + lane * 2],
+                })
+            }),
+            phase: if previous == window.end_ms {
+                Phase::Done
+            } else {
+                Phase::Finish
+            },
+            cursor: Fetch {
+                time_ms: words[12] as i64,
+                occurrence: words[13],
+                kind: if flags & 256 == 0 { 1 } else { 2 },
+            },
+            exhausted: flags & 128 != 0,
+            landing: match flags >> 9 {
+                0 => Landing::Initial,
+                1 => Landing::Seek,
+                _ => Landing::Next,
+            },
+            pending: false,
+            seen: 0,
+            current: (flags & 2 != 0).then(|| Current {
+                identity: Identity {
+                    time_ms: words[14] as i64,
+                    occurrence: words[15],
+                },
+                kind: 1,
+                value: OwnedValue::Float(f64::from_bits(words[16])),
+                _float_samples: (flags & 4 != 0)
+                    .then(|| crate::statistics::OwnedSamples::new(account, 1)),
+            }),
+            after_child: None,
+        })
+    }
+
     pub(crate) fn new(grid: Grid, window: Window) -> Self {
         Self {
             grid,
@@ -104,6 +237,7 @@ impl Reader {
             pending: false,
             seen: 0,
             current: None,
+            after_child: None,
         }
     }
 
@@ -152,6 +286,25 @@ impl Reader {
                 "derived Float completion did not reach its next occurrence",
             )),
         }
+    }
+
+    pub(crate) fn complete_received_child(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+        visit: impl FnMut(SampleRef<'_>) -> Result<(), EvaluationError>,
+    ) -> Result<(), EvaluationError> {
+        debug_assert!(self.after_child.is_none() && self.pending);
+        let fetch = self.cursor;
+        let next = self.advance(control, account, visit)?;
+        if !matches!(&next, Action::Fetch(next)
+            if next.time_ms == fetch.time_ms && next.kind == fetch.kind
+                && next.occurrence == fetch.occurrence + 1)
+        {
+            // The next request belongs to a different child; terminal completion cannot acknowledge it.
+            self.after_child = Some(next);
+        }
+        Ok(())
     }
 
     pub(crate) fn receive_value(&mut self, parts: crate::statistics::ValueParts) -> bool {
@@ -275,6 +428,11 @@ impl Reader {
         account: &QueryAccounting,
         mut visit: impl FnMut(SampleRef<'_>) -> Result<(), EvaluationError>,
     ) -> Result<Action, EvaluationError> {
+        if let Some(action) = self.after_child.take() {
+            control.check()?;
+            account.work(1);
+            return Ok(action);
+        }
         loop {
             control.check()?;
             account.work(1);
@@ -404,6 +562,124 @@ mod tests {
         storage::Interrupted,
     };
 
+    #[test]
+    fn completed_float_reader_resumes_sparse_and_stale_lookahead() {
+        fn drive(
+            reader: &mut Reader,
+            pattern: usize,
+            fail: Option<i64>,
+            account: &QueryAccounting,
+        ) -> Result<Vec<i64>, EvaluationError> {
+            let control = Control::default();
+            let mut fetched = Vec::new();
+            while let Action::Fetch(fetch) = reader.advance(&control, account, |_| Ok(()))? {
+                if fetch.absent_histogram(1) || fetch.occurrence != 0 {
+                    continue;
+                }
+                fetched.push(fetch.time_ms);
+                if fail == Some(fetch.time_ms) {
+                    return Err(StorageError::Invalid("future point failed").into());
+                }
+                let present = match pattern {
+                    0 => true,
+                    1 | 2 => matches!(fetch.time_ms, 1 | 9),
+                    3 => fetch.time_ms == 1,
+                    _ => false,
+                };
+                if present {
+                    let mut value = sample(account, fetch.time_ms);
+                    if pattern == 2 && fetch.time_ms == 9 {
+                        value.value =
+                            OwnedValue::Float(f64::from_bits(crate::value::STALE_NAN_BITS));
+                    }
+                    reader.receive_continued(value, true, &control, account, |_| Ok(()))?;
+                }
+            }
+            Ok(fetched)
+        }
+        fn without_emission(mut checkpoint: Checkpoint) -> Checkpoint {
+            // A dry visitor has no numerical effect; only acquisition/retention state must agree.
+            checkpoint.0[0] &= !((1 << 5) | (1 << 6));
+            checkpoint.0[8..12].fill(0);
+            checkpoint
+        }
+        for pattern in 0..5 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let grid = Grid {
+                start_ms: 1,
+                end_ms: 12,
+                interval_ms: 1,
+            };
+            let mut window = Window {
+                first_end_ms: 4,
+                end_ms: 4,
+                range_ms: 3,
+                step_ms: 1,
+            };
+            let mut reader = Reader::new(grid, window);
+            let first = drive(&mut reader, pattern, None, &account).unwrap();
+            if pattern == 1 || pattern == 2 {
+                assert_eq!(first.last(), Some(&9));
+            }
+            let mut checkpoint = reader.checkpoint().unwrap();
+            if pattern == 2 {
+                assert_eq!(checkpoint.0[16], crate::value::STALE_NAN_BITS);
+                assert_eq!(checkpoint.sample_units(), 1);
+            }
+            drop(reader);
+            for target in [4, 5, 8, 12] {
+                window.end_ms = target;
+                let mut resumed = Reader::resume(grid, window, checkpoint, &account).unwrap();
+                let incremental = drive(&mut resumed, pattern, None, &account).unwrap();
+                let mut original = Reader::new(grid, window);
+                let prefix = drive(&mut original, pattern, None, &account).unwrap();
+                checkpoint = resumed.checkpoint().unwrap();
+                assert_eq!(
+                    without_emission(checkpoint),
+                    without_emission(original.checkpoint().unwrap()),
+                    "pattern={pattern} target={target}"
+                );
+                assert!(incremental.len() <= prefix.len());
+                if target == 4 || target < 9 && matches!(pattern, 1 | 2) {
+                    assert!(incremental.is_empty(), "saved lookahead is retained");
+                }
+                drop((resumed, original));
+            }
+            assert!(
+                Reader::resume(
+                    grid,
+                    Window {
+                        end_ms: 8,
+                        ..window
+                    },
+                    checkpoint,
+                    &account
+                )
+                .is_none()
+            );
+            let mut failed = Reader::new(
+                grid,
+                Window {
+                    end_ms: 4,
+                    ..window
+                },
+            );
+            assert!(matches!(
+                drive(&mut failed, 1, Some(8), &account),
+                Err(EvaluationError::Storage(StorageError::Invalid(
+                    "future point failed"
+                )))
+            ));
+            assert!(
+                failed.checkpoint().is_none(),
+                "failed lookahead cannot publish progress"
+            );
+            drop(failed);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
     fn sample(account: &QueryAccounting, time_ms: i64) -> EvaluatedSample<'static> {
         EvaluatedSample {
             ordinal: 0,
@@ -413,6 +689,143 @@ mod tests {
             source_time_ms: time_ms,
             source_start_time_ms: 0,
             drop_name: false,
+        }
+    }
+
+    #[test]
+    fn drained_child_preserves_endpoint_visits_and_next_fetches() {
+        for range_ms in [500, 2000] {
+            let mut observations = Vec::new();
+            for drained in [false, true] {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let mut reader = Reader::new(
+                    Grid {
+                        start_ms: 1000,
+                        end_ms: 3000,
+                        interval_ms: 1000,
+                    },
+                    Window {
+                        first_end_ms: 1000,
+                        end_ms: 3000,
+                        range_ms,
+                        step_ms: 1000,
+                    },
+                );
+                let mut visits = Vec::new();
+                let mut requests = Vec::new();
+                let mut terminals = 0;
+                loop {
+                    let mut visit = |value: SampleRef<'_>| {
+                        visits.push(value.time_ms);
+                        Ok(())
+                    };
+                    let Action::Fetch(fetch) =
+                        reader.advance(&control, &account, &mut visit).unwrap()
+                    else {
+                        break;
+                    };
+                    if fetch.kind != 1 || fetch.occurrence != 0 {
+                        continue;
+                    }
+                    requests.push(fetch.time_ms);
+                    assert!(reader.receive(sample(&account, fetch.time_ms)));
+                    if drained {
+                        reader
+                            .complete_received_child(&control, &account, &mut visit)
+                            .unwrap();
+                        assert!(
+                            reader.checkpoint().is_none(),
+                            "actual terminal step is still pending"
+                        );
+                        terminals += 1;
+                    }
+                }
+                assert!(reader.checkpoint().is_some());
+                assert_eq!(requests, [1000, 2000, 3000]);
+                assert_eq!(
+                    visits,
+                    if range_ms == 500 {
+                        vec![3000]
+                    } else {
+                        vec![2000, 3000]
+                    }
+                );
+                assert_eq!(terminals, if drained { 3 } else { 0 });
+                observations.push((requests, visits));
+                drop(reader);
+                account.snapshot().assert_memory_released();
+            }
+            assert_eq!(observations[0], observations[1]);
+        }
+    }
+
+    #[test]
+    fn drained_child_visits_precede_terminal_and_staged_requests() {
+        for end_ms in [1000, 2000] {
+            for failure in 0..3 {
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let control = Control::default();
+                let mut reader = Reader::new(
+                    Grid {
+                        start_ms: 1000,
+                        end_ms,
+                        interval_ms: 1000,
+                    },
+                    Window {
+                        first_end_ms: 1000,
+                        end_ms,
+                        range_ms: 500,
+                        step_ms: 1000,
+                    },
+                );
+                assert!(matches!(
+                    reader
+                        .advance(&control, &account, |_| unreachable!())
+                        .unwrap(),
+                    Action::Fetch(_)
+                ));
+                assert!(reader.receive(sample(&account, 1000)));
+                let mut visits = 0;
+                let mut terminals = 0;
+                let result = (|| -> Result<(), EvaluationError> {
+                    reader.complete_received_child(&control, &account, |_| {
+                        visits += 1;
+                        if failure == 0 {
+                            return Err(EvaluationError::Invalid("drained visitor failure"));
+                        }
+                        Ok(())
+                    })?;
+                    assert!(reader.checkpoint().is_none());
+                    terminals += 1;
+                    if failure == 1 {
+                        control.cancellation.cancel();
+                    }
+                    control.check()?;
+                    match reader.advance(&control, &account, |_| unreachable!())? {
+                        Action::Done => assert_eq!(end_ms, 1000),
+                        Action::Fetch(fetch) => {
+                            assert_eq!((fetch.time_ms, fetch.kind, fetch.occurrence), (2000, 1, 0))
+                        }
+                    }
+                    Ok(())
+                })();
+                assert_eq!(visits, usize::from(end_ms == 1000));
+                assert_eq!(terminals, usize::from(failure != 0 || end_ms != 1000));
+                assert_eq!(
+                    result,
+                    match failure {
+                        0 if end_ms == 1000 =>
+                            Err(EvaluationError::Invalid("drained visitor failure")),
+                        1 => Err(EvaluationError::Interrupted(Interrupted::Cancelled)),
+                        _ => Ok(()),
+                    }
+                );
+                drop(reader);
+                account.snapshot().assert_memory_released();
+            }
         }
     }
 

@@ -224,6 +224,13 @@ impl QueryProvider for FixtureQuery<'_> {
     fn resources(&self) -> ProviderResources {
         ProviderResources::default()
     }
+    fn open_temporary_float_bits(
+        &self,
+        request: netdata_promql_engine::storage::TemporaryFloatBitsRequest<'_>,
+        control: &Control,
+    ) -> Result<Option<netdata_promql_engine::storage::OwnedTemporary<'_>>, StorageError> {
+        netdata_promql_engine::fixture_temporary_storage::open_store(request, control)
+    }
     fn with_temporary_float_bits<R>(
         &self,
         request: netdata_promql_engine::storage::TemporaryFloatBitsRequest<'_>,

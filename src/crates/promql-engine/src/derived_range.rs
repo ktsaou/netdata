@@ -306,6 +306,23 @@ pub(crate) fn scheduled_reader_pass(
 }
 
 pub(crate) enum Action<'a> {
+    RestoreDry {
+        source: BackingSource,
+        row: &'a Descriptor,
+        position: usize,
+        rows: usize,
+    },
+    SaveDry {
+        source: BackingSource,
+        row: &'a Descriptor,
+        position: usize,
+        rows: usize,
+        checkpoint: derived_matrix::Checkpoint,
+    },
+    ComputedWindow {
+        source: BackingSource,
+        row: &'a Descriptor,
+    },
     Backing {
         request: temporal_quantile::Backing,
         source: BackingSource,
@@ -340,6 +357,9 @@ pub(crate) struct BackingSource {
     pub(crate) single_float: bool,
 }
 impl BackingSource {
+    pub(crate) fn window(self) -> Window {
+        self.input.window()
+    }
     pub(crate) fn reader(self) -> Reader {
         Reader::new(self.input.grid, self.input.window())
     }
@@ -363,6 +383,15 @@ impl BackingSource {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum WindowPass {
+    Unvalidated,
+    Started,
+    Available,
+    Declined,
+    Complete,
+}
+
 pub(crate) struct Step<'a> {
     input: Input,
     _parameter_samples: crate::statistics::OwnedSamples,
@@ -376,6 +405,7 @@ pub(crate) struct Step<'a> {
     backed: Option<Output>,
     sample_units: u64,
     count_window: bool,
+    window_pass: WindowPass,
 }
 impl<'a> Step<'a> {
     pub(crate) fn new(
@@ -401,7 +431,52 @@ impl<'a> Step<'a> {
             backed: None,
             sample_units: 0,
             count_window: true,
+            window_pass: WindowPass::Unvalidated,
         }
+    }
+
+    pub(crate) fn restore_dry(
+        &mut self,
+        checkpoint: Option<derived_matrix::Checkpoint>,
+        account: &QueryAccounting,
+    ) {
+        if let Some(reader) = checkpoint.and_then(|checkpoint| {
+            Reader::resume(self.input.grid, self.input.window(), checkpoint, account)
+        }) {
+            self.reader = reader;
+        }
+    }
+
+    pub(crate) fn saved_dry(&mut self) {
+        self.reader = Reader::new(self.input.grid, self.input.window());
+        self.scheduled_complete = false;
+        self.dry = false;
+        self.window_pass = WindowPass::Available;
+    }
+
+    pub(crate) fn computed_pass(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+        drive: impl FnOnce(
+            &mut dyn FnMut(SampleRef<'_>) -> Result<(), EvaluationError>,
+        ) -> Result<bool, EvaluationError>,
+    ) -> Result<(), EvaluationError> {
+        let counting = self.count_window;
+        let kernel = &mut self.kernel;
+        let units = &mut self.sample_units;
+        // A declined preflight must not have visited any point.
+        let completed =
+            drive(&mut |sample| kernel.visit(sample, false, counting, units, control, account))?;
+        #[cfg(test)]
+        crate::computed_groups::window_pass(completed);
+        if completed {
+            self.dry = false;
+            self.window_pass = WindowPass::Complete;
+        } else {
+            self.window_pass = WindowPass::Declined;
+        }
+        Ok(())
     }
 
     pub(crate) fn receive_backed(&mut self, value: f64, account: &QueryAccounting) {
@@ -418,23 +493,43 @@ impl<'a> Step<'a> {
         });
     }
 
+    #[cfg(test)]
     pub(crate) fn receive(
         &mut self,
         sample: EvaluatedSample<'_>,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<bool, EvaluationError> {
+        self.receive_drained(sample, false, control, account)
+    }
+
+    pub(crate) fn receive_drained(
+        &mut self,
+        sample: EvaluatedSample<'_>,
+        drained_child: bool,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, EvaluationError> {
         control.check()?;
         account.work(1);
         let single_float = self.input.single_float(self.rows, self.position);
+        let complete_child =
+            drained_child && single_float && matches!(sample.value, OwnedValue::Float(_));
         let dry = self.dry;
         let counting = self.count_window;
         let kernel = &mut self.kernel;
         let units = &mut self.sample_units;
-        self.reader
-            .receive_continued(sample, single_float, control, account, |sample| {
-                kernel.visit(sample, dry, counting, units, control, account)
-            })
+        let mut visit =
+            |sample: SampleRef<'_>| kernel.visit(sample, dry, counting, units, control, account);
+        let truncate =
+            self.reader
+                .receive_continued(sample, single_float, control, account, &mut visit)?;
+        if truncate && complete_child {
+            self.reader
+                .complete_received_child(control, account, &mut visit)?;
+            return Ok(false);
+        }
+        Ok(truncate)
     }
 
     pub(crate) fn scheduled_pass(
@@ -530,6 +625,7 @@ impl<'a> Step<'a> {
         self.dry = true;
         let sample_units = std::mem::take(&mut self.sample_units);
         self.count_window = true;
+        self.window_pass = WindowPass::Unvalidated;
         Ok(Action::Series {
             sample,
             invalid_quantile: output.invalid_quantile.then_some(self.input.parameters[0]),
@@ -558,6 +654,36 @@ impl<'a> Step<'a> {
             if let Some(output) = self.backed.take() {
                 return self.finish_row(output, control, account);
             }
+            if self.window_pass == WindowPass::Unvalidated
+                && !self.input.scheduled
+                && self.input.options.start_ms < self.input.options.end_ms
+                && self.input.options.step_ms > 0
+                && self.input.single_float(self.rows, self.position)
+            {
+                self.window_pass = WindowPass::Started;
+                return Ok(Action::RestoreDry {
+                    source: BackingSource {
+                        input: self.input,
+                        ordinal: row.ordinal,
+                        kinds: row.kinds,
+                        single_float: true,
+                    },
+                    row,
+                    position: self.position,
+                    rows: self.rows.len(),
+                });
+            }
+            if self.window_pass == WindowPass::Available {
+                return Ok(Action::ComputedWindow {
+                    source: BackingSource {
+                        input: self.input,
+                        ordinal: row.ordinal,
+                        kinds: row.kinds,
+                        single_float: true,
+                    },
+                    row,
+                });
+            }
             if self.input.scheduled && !self.scheduled_complete {
                 return Ok(Action::ScheduledPass {
                     node: self.input.body,
@@ -576,9 +702,14 @@ impl<'a> Step<'a> {
             let kernel = &mut self.kernel;
             let units = &mut self.sample_units;
             let counting = self.count_window;
-            match self.reader.advance(control, account, |sample| {
-                kernel.visit(sample, dry, counting, units, control, account)
-            })? {
+            let action = if self.window_pass == WindowPass::Complete {
+                derived_matrix::Action::Done
+            } else {
+                self.reader.advance(control, account, |sample| {
+                    kernel.visit(sample, dry, counting, units, control, account)
+                })?
+            };
+            match action {
                 derived_matrix::Action::Fetch(fetch) => {
                     if fetch.absent_histogram(row.kinds) {
                         continue;
@@ -596,16 +727,43 @@ impl<'a> Step<'a> {
                     });
                 }
                 derived_matrix::Action::Done => {
+                    if self.dry && self.window_pass == WindowPass::Started {
+                        if let Some(checkpoint) = self.reader.checkpoint() {
+                            return Ok(Action::SaveDry {
+                                source: BackingSource {
+                                    input: self.input,
+                                    ordinal: row.ordinal,
+                                    kinds: row.kinds,
+                                    single_float: true,
+                                },
+                                row,
+                                position: self.position,
+                                rows: self.rows.len(),
+                                checkpoint,
+                            });
+                        }
+                        self.saved_dry();
+                        continue;
+                    }
                     self.reader = Reader::new(self.input.grid, self.input.window());
                     self.scheduled_complete = false;
                     if self.dry {
                         self.dry = false;
+                        if self.window_pass == WindowPass::Unvalidated
+                            && !self.input.scheduled
+                            && self.input.single_float(self.rows, self.position)
+                        {
+                            self.window_pass = WindowPass::Available;
+                        }
                         continue;
                     }
                     match self.kernel.finish_pass(control, account)? {
                         Pass::Replay => {
                             self.count_window = false;
                             self.dry = true;
+                            if self.window_pass == WindowPass::Complete {
+                                self.window_pass = WindowPass::Available;
+                            }
                             continue;
                         }
                         Pass::Backing(request) => {
@@ -679,6 +837,96 @@ mod tests {
             sources: 0..1,
             kinds: 1,
             heads: Default::default(),
+        }
+    }
+
+    #[test]
+    fn completed_window_passes_preserve_validation_counts_and_failed_consumption() {
+        for failure in 0..4 {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let rows = [row(&account)];
+            let mut input = input(8);
+            input.scheduled = false;
+            input.float_clock = FloatClock::Direct;
+            let mut step = Step::new(input, &rows, RowFilter::All, &account);
+            let mut children = 0;
+            let mut passes = 0;
+            loop {
+                match step.advance(&control, &account).unwrap() {
+                    Action::Child { options, .. } => {
+                        children += 1;
+                        assert!(
+                            passes == 0 || failure == 1,
+                            "validated passes must not replay children"
+                        );
+                        step.receive(
+                            EvaluatedSample {
+                                ordinal: 0,
+                                labels: OwnedLabels::new(&account, MemoryKind::Workspace).into(),
+                                value: OwnedValue::Float(options.time_ms as f64 / 1000.0),
+                                float_samples: None,
+                                source_time_ms: options.time_ms - 17,
+                                source_start_time_ms: 71,
+                                drop_name: false,
+                            },
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                    }
+                    Action::ComputedWindow { .. } => {
+                        assert!(children >= 8, "first dry traversal precedes the offer");
+                        passes += 1;
+                        let result = step.computed_pass(&control, &account, |visit| {
+                            if failure == 1 {
+                                return Ok(false);
+                            }
+                            if failure == 2 {
+                                return Err(StorageError::Invalid("preflight failed").into());
+                            }
+                            for tick in 1..=8 {
+                                visit(SampleRef {
+                                    time_ms: tick * 1000,
+                                    start_time_ms: 0,
+                                    value: crate::value::SampleValueRef::Float(tick as f64),
+                                })?;
+                                if failure == 3 {
+                                    return Err(StorageError::Invalid("consumption failed").into());
+                                }
+                            }
+                            Ok(true)
+                        });
+                        if failure >= 2 {
+                            assert!(result.is_err());
+                            assert_eq!(step.sample_units, u64::from(failure == 3));
+                            break;
+                        }
+                        result.unwrap();
+                    }
+                    Action::Series {
+                        sample: Some(sample),
+                        sample_units,
+                        ..
+                    } => {
+                        assert!(matches!(sample.value, OwnedValue::Float(value) if value == 4.5));
+                        assert_eq!(sample_units, 8, "rank passes count the window once");
+                        if failure == 0 {
+                            assert!(passes > 1);
+                        }
+                        if failure == 1 {
+                            assert_eq!(passes, 1);
+                        }
+                        assert!(matches!(step.window_pass, WindowPass::Unvalidated));
+                        break;
+                    }
+                    _ => panic!("completed Float quantile continuation"),
+                }
+            }
+            drop(step);
+            drop(rows);
+            account.snapshot().assert_memory_released();
         }
     }
 
@@ -791,6 +1039,10 @@ mod tests {
                         );
                         assert_eq!(sample_units, if plural { 6 } else { 3 });
                         outputs += 1;
+                    }
+                    Action::ComputedWindow { .. } => {
+                        step.computed_pass(&control, &account, |_| Ok(false))
+                            .unwrap();
                     }
                     Action::Done => break,
                     _ => panic!("ordinary derived sum"),

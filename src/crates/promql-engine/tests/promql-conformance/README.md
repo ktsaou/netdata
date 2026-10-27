@@ -19,9 +19,10 @@ The standalone Rust core evaluates derived expressions, nested subqueries, ordin
 vector sorting and typed histogram operations through bounded storage replay. Subquery clocks, source preprocessing
 visits, parameter phases and diagnostic accumulation have separate owners. Raw provider pages and decoder state
 are released after each replay; completed folds and their scalar resume certificates may survive at the current
-evaluation clock. The cache replaces an older fold instead of retaining a timeline. Raw histories remain paged;
-general temporal quantiles use separate provider-owned temporary backing. No second raw-storage page cache or
-enabled admission limit is introduced.
+evaluation clock. That fold cache replaces an older fold instead of retaining a timeline.
+[Completed intermediate reuse](INTERMEDIATE_REUSE.md) separately retains evaluated values and reader progress in
+provider backing with bounded resident pages. Raw histories remain paged; general temporal quantiles also use
+provider-owned backing. No second raw-storage page cache or enabled admission limit is introduced.
 
 Retained qualification covers:
 

@@ -592,8 +592,9 @@ static inline double netdata_promql_double_from_bits(uint64_t bits) {
  * Callback control is borrowed only for that callback. Poll it cooperatively during blocking work.
  * Resource/close callbacks receive the same actual-query accounting capability without a cancellation contract.
  * temporary_create/read/write/resources/close are either all present or all absent. Missing backing is an
- * error only when evaluation needs it. create receives the query token and logical float-value count (8N bytes).
- * Offsets and transfer lengths count uint64 float-bit values. Buffers live only during the callback. OK requires
+ * error only when evaluation needs it. create receives the query token and logical 64-bit word count (8N bytes).
+ * Words hold exact float bits or opaque computed records; the provider must not interpret their contents.
+ * Offsets and transfer lengths count uint64 words. Buffers live only during the callback. OK requires
  * the exact requested transfer count; short/oversized transfers are errors. Preserve every bit, including NaNs.
  * Providers choose backing and clean it on close; the core never creates files or retains a complete raw window.
  * Temporary extent/store counts are logical backing, separate from memory. Traffic reports attempted calls and

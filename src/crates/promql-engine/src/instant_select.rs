@@ -3,8 +3,8 @@
 use crate::{
     accounting::QueryAccounting,
     storage::{
-        Control, CursorAction, Interrupted, Series, StorageError, TimeBounds, WalkStart,
-        walk_scheduled,
+        Control, CursorAction, Interrupted, PageSamples, Series, StopPageObserver, StorageError,
+        TimeBounds, WalkStart, walk_scheduled_pages,
     },
     value::{SampleRef, SampleValueRef},
 };
@@ -32,12 +32,40 @@ impl InstantWindow {
             unit_weight: false,
         }
     }
+    pub(crate) fn bounds_after(self, previous_lookup_ms: i64) -> Option<TimeBounds> {
+        if self.first_lookup_ms != self.lookup_ms
+            || self.lookback_ms <= 0
+            || self.delta_ms < 0
+            || previous_lookup_ms >= self.lookup_ms
+        {
+            return None;
+        }
+        previous_lookup_ms.checked_sub(self.lookback_ms)?;
+        previous_lookup_ms.checked_sub(self.delta_ms)?;
+        self.lookup_ms.checked_sub(self.lookback_ms)?;
+        self.lookup_ms.checked_sub(self.delta_ms)?;
+        let start_ms = self
+            .data_bounds
+            .start_ms
+            .max(previous_lookup_ms.checked_add(1)?);
+        (start_ms <= self.data_bounds.end_ms).then_some(TimeBounds {
+            start_ms,
+            end_ms: self.data_bounds.end_ms,
+        })
+    }
+
     fn next_lookup(self, current: i64) -> Result<i64, StorageError> {
         current
             .checked_add(self.step_ms)
             .filter(|next| *next > current && *next <= self.lookup_ms)
             .ok_or(StorageError::Invalid("invalid instant replay schedule"))
     }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct FloatSeed {
+    pub(crate) lookup_ms: i64,
+    pub(crate) point: Option<(i64, i64, f64)>,
 }
 
 type Selected<T> = Option<(i64, i64, T)>;
@@ -155,6 +183,7 @@ pub(crate) fn select_with<S: Series, P: Projector>(
     })
 }
 
+#[cfg(test)]
 pub(crate) fn select_mapped<S: Series, T, E: From<StorageError> + From<Interrupted>>(
     series: &S,
     window: InstantWindow,
@@ -170,6 +199,28 @@ pub(crate) fn select_mapped<S: Series, T, E: From<StorageError> + From<Interrupt
         account,
         Plain(project),
         next_lookup,
+    )
+}
+
+#[cfg(test)]
+pub(crate) fn select_mapped_after<S: Series, T, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    window: InstantWindow,
+    seed: FloatSeed,
+    control: &Control,
+    account: &QueryAccounting,
+    project: impl FnMut(SampleValueRef<'_>) -> Result<T, E>,
+) -> Result<Selected<T>, E> {
+    scheduled(
+        series,
+        window,
+        control,
+        account,
+        Plain(project),
+        || Ok(None),
+        |_, _| Ok(false),
+        Some(seed),
+        None,
     )
 }
 
@@ -189,7 +240,108 @@ pub(crate) fn select_scheduled<S: Series, P: Projector>(
         projector,
         next_lookup,
         |_, _| Ok(false),
+        None,
+        None,
     )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn select_mapped_observed<S: Series, T, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    window: InstantWindow,
+    seed: Option<FloatSeed>,
+    control: &Control,
+    account: &QueryAccounting,
+    project: impl FnMut(SampleValueRef<'_>) -> Result<T, E>,
+    next_lookup: impl FnMut() -> Result<Option<i64>, StorageError>,
+    observer: Option<&mut StopPageObserver<'_, E>>,
+) -> Result<Selected<T>, E> {
+    scheduled(
+        series,
+        window,
+        control,
+        account,
+        Plain(project),
+        next_lookup,
+        |_, _| Ok(false),
+        seed,
+        observer,
+    )
+}
+
+pub(crate) fn visit_future_floats(
+    page: PageSamples<'_>,
+    grid: crate::query_scopes::Grid,
+    mut index: i64,
+    window: InstantWindow,
+    control: &Control,
+    account: &QueryAccounting,
+    mut visit: impl FnMut(i64, i64, i64, Selected<f64>) -> Result<(), StorageError>,
+) -> Result<(), StorageError> {
+    if page.is_empty()
+        || index < 0
+        || !grid.forward_without_wrap()
+        || window.lookback_ms <= 0
+        || ![window.lookback_ms, window.lookback_ms - 1].contains(&window.delta_ms)
+    {
+        return Ok(());
+    }
+    let Some(mut time) = grid
+        .interval_ms
+        .checked_mul(index)
+        .and_then(|offset| grid.start_ms.checked_add(offset))
+    else {
+        return Ok(());
+    };
+    for position in 0..page.len() {
+        control.check()?;
+        account.work(1);
+        if !matches!(page.sample(position).value, SampleValueRef::Float(_)) {
+            return Ok(());
+        }
+    }
+    let first = page.sample(0).time_ms;
+    let last = page.sample(page.len() - 1).time_ms;
+    let mut lookup = window.lookup_ms;
+    let mut position = 0;
+    // Bound eager work even when a sparse page spans millions of requested clock steps.
+    for _ in 0..page.len() {
+        control.check()?;
+        account.work(1);
+        let (Some(next_time), Some(next_lookup), Some(next_index)) = (
+            time.checked_add(grid.interval_ms),
+            lookup.checked_add(grid.interval_ms),
+            index.checked_add(1),
+        ) else {
+            break;
+        };
+        if next_time > grid.end_ms || next_lookup > last {
+            break;
+        }
+        (time, lookup, index) = (next_time, next_lookup, next_index);
+        if lookup < first {
+            continue;
+        }
+        let Some(lower) = lookup.checked_sub(window.lookback_ms) else {
+            break;
+        };
+        while position + 1 < page.len() && page.sample(position + 1).time_ms <= lookup {
+            control.check()?;
+            account.work(1);
+            position += 1;
+        }
+        let sample = page.sample(position);
+        let SampleValueRef::Float(value) = sample.value else {
+            unreachable!("validated Float page")
+        };
+        let selected = (sample.time_ms > lower && !sample.value.is_stale()).then_some((
+            sample.time_ms,
+            sample.start_time_ms,
+            value,
+        ));
+        visit(time, index, lookup, selected)?;
+    }
+    Ok(())
 }
 
 pub(crate) fn visit_scheduled<S: Series, P: Projector>(
@@ -209,6 +361,8 @@ pub(crate) fn visit_scheduled<S: Series, P: Projector>(
         projector,
         next_lookup,
         visit,
+        None,
+        None,
     )
     .map(|_| ())
 }
@@ -233,6 +387,7 @@ pub(crate) fn visit_mapped<S: Series, T, E: From<StorageError> + From<Interrupte
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn scheduled<S: Series, P: Projector>(
     series: &S,
     window: InstantWindow,
@@ -241,15 +396,43 @@ fn scheduled<S: Series, P: Projector>(
     mut projector: P,
     mut next_lookup: impl FnMut() -> Result<Option<i64>, StorageError>,
     mut visit: impl FnMut(i64, Option<(i64, i64, &P::Value)>) -> Result<bool, P::Error>,
+    seed: Option<FloatSeed>,
+    observer: Option<&mut StopPageObserver<'_, P::Error>>,
 ) -> Result<Selected<P::Value>, P::Error> {
     let mut lookup_ms = window.first_lookup_ms;
     let mut last_time = i64::MIN;
     let mut previous = None::<Point<P::Value>>;
     let mut selected = None;
     let mut initial = true;
-    let outcome = walk_scheduled::<_, P::Error>(
+    let bounds = if let Some(seed) = seed {
+        control.check()?;
+        let bounds = window
+            .bounds_after(seed.lookup_ms)
+            .ok_or(StorageError::Invalid("invalid instant continuation bounds"))?;
+        // The completed prior lookup owns the predecessor; the new cursor starts after it.
+        last_time = seed.lookup_ms;
+        initial = false;
+        if let Some((time_ms, start_time_ms, value)) = seed.point {
+            previous = Some(access(
+                &mut projector,
+                SampleRef {
+                    time_ms,
+                    start_time_ms,
+                    value: SampleValueRef::Float(value),
+                },
+                control,
+                account,
+                window.unit_weight,
+                false,
+            )?);
+        }
+        bounds
+    } else {
+        window.data_bounds
+    };
+    let outcome = walk_scheduled_pages::<_, P::Error>(
         series,
-        window.data_bounds,
+        bounds,
         WalkStart::Next,
         control,
         account,
@@ -325,6 +508,7 @@ fn scheduled<S: Series, P: Projector>(
                 lookup_ms = next;
             }
         },
+        observer,
     )?;
     if outcome.is_continue() {
         // Successful EOF preserves the memoized predecessor; errors never reach fallback.
@@ -404,6 +588,428 @@ mod tests {
             series.counters.closed.load(Ordering::Relaxed)
         );
         account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn validated_future_float_points_match_sparse_stale_and_offset_lookups() {
+        fn sparse(index: usize) -> Sample {
+            Sample {
+                time_ms: [0, 1000, 5000, 9000][index],
+                start_time_ms: -77,
+                value: SampleValue::Float(match index {
+                    0 => -0.0,
+                    1 => f64::from_bits(STALE_NAN_BITS),
+                    2 => f64::from_bits(0xfff8_0000_0000_1234),
+                    _ => 9.0,
+                }),
+            }
+        }
+        let samples = (0..4).map(sparse).collect::<Vec<_>>();
+        let source = GeneratedSeries::new(4, 17, sparse);
+        let account = EngineAccounting::default().query();
+        let control = Control::default();
+        for offset in [-9000, 0, 9000] {
+            for lookback in [500, 501, 1000, 5000] {
+                for index in 0..18 {
+                    let grid = crate::query_scopes::Grid {
+                        start_ms: -offset,
+                        end_ms: 9000 - offset,
+                        interval_ms: 500,
+                    };
+                    let mut visited = 0;
+                    visit_future_floats(
+                        PageSamples::Samples(&samples),
+                        grid,
+                        index,
+                        InstantWindow::single(index * 500, lookback, bounds(10000)),
+                        &control,
+                        &account,
+                        |time, future_index, lookup, point| {
+                            assert_eq!(time, lookup - offset);
+                            assert_eq!(lookup, future_index * 500);
+                            let expected = owned(
+                                &source,
+                                lookup,
+                                lookback,
+                                bounds(10000),
+                                &control,
+                                &account,
+                            )?;
+                            let expected = expected.map(|(time, start, value)| {
+                                let OwnedValue::Float(value) = value else {
+                                    panic!("Float reference")
+                                };
+                                (time, start, value.to_bits())
+                            });
+                            assert_eq!(
+                                point.map(|(time, start, value)| (time, start, value.to_bits())),
+                                expected
+                            );
+                            visited += 1;
+                            Ok(())
+                        },
+                    )
+                    .unwrap();
+                    assert!(visited > 0 && visited <= samples.len());
+                }
+            }
+        }
+        let mut native = samples;
+        native[3].value = SampleValue::FloatHistogram(FloatHistogram::default());
+        visit_future_floats(
+            PageSamples::Samples(&native),
+            crate::query_scopes::Grid {
+                start_ms: 0,
+                end_ms: 9000,
+                interval_ms: 500,
+            },
+            0,
+            InstantWindow::single(0, 5000, bounds(10000)),
+            &control,
+            &account,
+            |_, _, _, _| panic!("native page must decline before publishing"),
+        )
+        .unwrap();
+        let sparse_gap = [
+            sparse(0),
+            Sample {
+                time_ms: 1_000_000,
+                ..sparse(3)
+            },
+        ];
+        let before = account.snapshot().work;
+        let mut visited = 0;
+        visit_future_floats(
+            PageSamples::Samples(&sparse_gap),
+            crate::query_scopes::Grid {
+                start_ms: 0,
+                end_ms: 1_000_000,
+                interval_ms: 1,
+            },
+            0,
+            InstantWindow::single(0, 5000, bounds(1_000_000)),
+            &control,
+            &account,
+            |_, _, _, _| {
+                visited += 1;
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(visited, sparse_gap.len());
+        assert!(account.snapshot().work - before < 16);
+        assert_closed(&source, &account);
+    }
+
+    #[test]
+    fn stop_page_observer_runs_after_tail_validation_without_fetching_another_page() {
+        fn malformed(index: usize) -> Sample {
+            Sample {
+                time_ms: [1000, 2000, 1500][index],
+                start_time_ms: 0,
+                value: SampleValue::Float(index as f64),
+            }
+        }
+        for fault in 0..5 {
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let mut source = if fault == 1 {
+                GeneratedSeries::new(3, 3, malformed)
+            } else {
+                GeneratedSeries::new(6, 3, counter)
+            };
+            source.fail_page = Some(if fault == 4 { 0 } else { 1 });
+            let mut calls = 0;
+            let mut observer = |page: PageSamples<'_>| {
+                calls += 1;
+                assert_eq!(page.len(), 3);
+                assert!(account.snapshot().memory[MemoryKind::BorrowedView as usize].current > 0);
+                if fault == 2 {
+                    return Err(StorageError::Invalid("stop observer failure"));
+                }
+                if fault == 3 {
+                    control.cancellation.cancel();
+                }
+                Ok(())
+            };
+            let result = select_mapped_observed::<_, _, StorageError>(
+                &source,
+                InstantWindow::single(2000, 5000, bounds(10000)),
+                None,
+                &control,
+                &account,
+                |value| {
+                    Ok(OwnedValue::copy_from_checked(
+                        value,
+                        &control,
+                        &account,
+                        MemoryKind::Workspace,
+                    )?)
+                },
+                || Ok(None),
+                Some(&mut observer),
+            );
+            match fault {
+                0 => assert!(matches!(
+                    result,
+                    Ok(Some((2000, 0, OwnedValue::Float(2.0))))
+                )),
+                1 => assert!(matches!(
+                    result,
+                    Err(StorageError::Invalid(
+                        "sample timestamps are not strictly increasing"
+                    ))
+                )),
+                2 => assert!(matches!(
+                    result,
+                    Err(StorageError::Invalid("stop observer failure"))
+                )),
+                3 => assert!(matches!(result, Err(StorageError::Interrupted(_)))),
+                _ => assert!(matches!(result, Err(StorageError::Provider(_)))),
+            }
+            assert_eq!(calls, usize::from(![1, 4].contains(&fault)));
+            assert_eq!(source.counters.next_calls.load(Ordering::Relaxed), 1);
+            drop(result);
+            assert_closed(&source, &account);
+        }
+    }
+
+    #[test]
+    fn seeded_float_lookup_keeps_sparse_future_stale_and_native_outcomes() {
+        fn sparse(index: usize) -> Sample {
+            Sample {
+                time_ms: [0, 1000, 9000, 13000][index],
+                start_time_ms: -37,
+                value: match index {
+                    0 => SampleValue::Float(-0.0),
+                    1 => SampleValue::Float(f64::from_bits(STALE_NAN_BITS)),
+                    2 => SampleValue::Float(9.0),
+                    _ => SampleValue::FloatHistogram(FloatHistogram {
+                        count: 1.0,
+                        sum: 7.0,
+                        ..Default::default()
+                    }),
+                },
+            }
+        }
+        struct Tracked {
+            source: GeneratedSeries,
+            bounds: std::cell::RefCell<Vec<TimeBounds>>,
+        }
+        impl Series for Tracked {
+            type Cursor<'a> = crate::test_storage::GeneratedCursor<'a>;
+            fn label_count(&self) -> usize {
+                0
+            }
+            fn label(&self, _: usize) -> crate::storage::LabelRef<'_> {
+                unreachable!()
+            }
+            fn resources(&self) -> crate::storage::ProviderResources {
+                self.source.resources()
+            }
+            fn cursor(
+                &self,
+                bounds: TimeBounds,
+                control: &Control,
+            ) -> Result<Self::Cursor<'_>, StorageError> {
+                self.bounds.borrow_mut().push(bounds);
+                self.source.cursor(bounds, control)
+            }
+        }
+        for page in [1, 17, 1024] {
+            for (previous, current) in [
+                (0, 500),
+                (500, 900),
+                (900, 1000),
+                (1000, 5000),
+                (5000, 8999),
+                (8999, 9000),
+                (9000, 9500),
+                (9500, 12000),
+                (12000, 12500),
+                (12500, 15000),
+            ] {
+                let source = Tracked {
+                    source: GeneratedSeries::new(4, page, sparse),
+                    bounds: Default::default(),
+                };
+                let control = Control::default();
+                let account = EngineAccounting::default().query();
+                let prior = owned(
+                    &source.source,
+                    previous,
+                    5000,
+                    bounds(16000),
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let point = prior.as_ref().map(|(time, start, value)| {
+                    let OwnedValue::Float(value) = value else {
+                        panic!("Float seed fixture")
+                    };
+                    (*time, *start, *value)
+                });
+                let seed = FloatSeed {
+                    lookup_ms: previous,
+                    point,
+                };
+                drop(prior);
+                let expected = owned(
+                    &source.source,
+                    current,
+                    5000,
+                    bounds(16000),
+                    &control,
+                    &account,
+                )
+                .unwrap();
+                let before = account.snapshot().statistics.samples.samples_read;
+                let actual = select_mapped_after::<_, _, StorageError>(
+                    &source,
+                    InstantWindow::single(current, 5000, bounds(16000)),
+                    seed,
+                    &control,
+                    &account,
+                    |value| {
+                        Ok(OwnedValue::copy_from_checked(
+                            value,
+                            &control,
+                            &account,
+                            MemoryKind::Workspace,
+                        )?)
+                    },
+                )
+                .unwrap();
+                assert_eq!(
+                    source
+                        .bounds
+                        .borrow()
+                        .iter()
+                        .map(|bounds| (bounds.start_ms, bounds.end_ms))
+                        .collect::<Vec<_>>(),
+                    [(previous + 1, 16000)]
+                );
+                assert_eq!(
+                    actual.as_ref().map(|(time, start, _)| (*time, *start)),
+                    expected.as_ref().map(|(time, start, _)| (*time, *start))
+                );
+                match (actual.as_ref(), expected.as_ref()) {
+                    (Some((_, _, OwnedValue::Float(a))), Some((_, _, OwnedValue::Float(b)))) => {
+                        assert_eq!(a.to_bits(), b.to_bits())
+                    }
+                    _ => assert_eq!(format!("{actual:?}"), format!("{expected:?}")),
+                }
+                if let Some((_, _, OwnedValue::Float(_))) = actual {
+                    assert_eq!(
+                        account.snapshot().statistics.samples.samples_read - before,
+                        1
+                    );
+                }
+                drop((actual, expected));
+                assert_closed(&source.source, &account);
+            }
+        }
+    }
+
+    #[test]
+    fn seeded_lookup_validates_the_unconsumed_page_tail() {
+        fn malformed(index: usize) -> Sample {
+            Sample {
+                time_ms: [2000, 3000, 2500][index],
+                start_time_ms: 11,
+                value: SampleValue::Float(index as f64),
+            }
+        }
+        for page in [17, 1024] {
+            for (sample, invalid) in [(counter as fn(usize) -> Sample, false), (malformed, true)] {
+                let account = EngineAccounting::default().query();
+                let control = Control::default();
+                let source = GeneratedSeries::new(3, page, sample);
+                let result = select_mapped_after::<_, _, StorageError>(
+                    &source,
+                    InstantWindow::single(2000, 5000, bounds(5000)),
+                    FloatSeed {
+                        lookup_ms: 1000,
+                        point: Some((1000, 11, 1.0)),
+                    },
+                    &control,
+                    &account,
+                    |value| {
+                        Ok(OwnedValue::copy_from_checked(
+                            value,
+                            &control,
+                            &account,
+                            MemoryKind::Workspace,
+                        )?)
+                    },
+                );
+                if invalid {
+                    assert!(matches!(
+                        result,
+                        Err(StorageError::Invalid(
+                            "sample timestamps are not strictly increasing"
+                        ))
+                    ));
+                    assert_eq!(source.counters.samples_returned.load(Ordering::Relaxed), 3);
+                } else {
+                    assert!(matches!(
+                        result,
+                        Ok(Some((2000, 0, OwnedValue::Float(2.0))))
+                    ));
+                }
+                assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+                assert_eq!(source.counters.next_calls.load(Ordering::Relaxed), 1);
+                drop(result);
+                assert_closed(&source, &account);
+            }
+        }
+    }
+
+    #[test]
+    fn seeded_lookup_keeps_fresh_cursor_errors_and_checked_geometry() {
+        let account = EngineAccounting::default().query();
+        let control = Control::default();
+        let mut source = GeneratedSeries::new(4, 1, counter);
+        source.fail_page = Some(0);
+        let result = select_mapped_after::<_, _, StorageError>(
+            &source,
+            InstantWindow::single(2000, 5000, bounds(5000)),
+            FloatSeed {
+                lookup_ms: 1000,
+                point: Some((1000, 11, 1.0)),
+            },
+            &control,
+            &account,
+            |value| {
+                Ok(crate::statistics::ValueParts::new(
+                    OwnedValue::copy_from_checked(
+                        value,
+                        &control,
+                        &account,
+                        MemoryKind::Workspace,
+                    )?,
+                    &account,
+                ))
+            },
+        );
+        assert!(matches!(result, Err(StorageError::Provider(_))));
+        assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+        assert_eq!(source.counters.next_calls.load(Ordering::Relaxed), 1);
+        drop(result);
+        assert_closed(&source, &account);
+        for (current, previous, lookback) in [
+            (5, 5, 10),
+            (5, 6, 10),
+            (5, 4, 0),
+            (i64::MIN + 1, i64::MIN, 10),
+        ] {
+            assert!(
+                InstantWindow::single(current, lookback, bounds(100))
+                    .bounds_after(previous)
+                    .is_none()
+            );
+        }
     }
 
     #[test]

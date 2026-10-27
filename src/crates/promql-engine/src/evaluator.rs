@@ -32,9 +32,60 @@ const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 
 #[cfg(test)]
 thread_local! {
+    static DRAINED_CHILD_DISABLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static AGGREGATE_TERMINATION: std::cell::Cell<Option<(usize, [[usize; 7]; 2])>> = const { std::cell::Cell::new(None) };
+    static AGGREGATE_TERMINAL_CANCEL: std::cell::Cell<Option<i64>> = const { std::cell::Cell::new(None) };
     static SELECTOR_GROUP_PHASE: std::cell::Cell<Option<(u64, u64)>> = const { std::cell::Cell::new(None) };
     static SELECTOR_LABEL_OWNERS: std::cell::Cell<Option<[usize; 4]>> = const { std::cell::Cell::new(None) };
     static MAPPED_LABEL_OBSERVATION: std::cell::Cell<Option<(bool, [usize; 3])>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) struct DrainedChildFallback(bool);
+#[cfg(test)]
+impl Drop for DrainedChildFallback {
+    fn drop(&mut self) {
+        DRAINED_CHILD_DISABLED.set(self.0);
+    }
+}
+#[cfg(test)]
+pub(crate) fn disable_drained_child() -> DrainedChildFallback {
+    DrainedChildFallback(DRAINED_CHILD_DISABLED.replace(true))
+}
+
+#[cfg(test)]
+pub(crate) fn observe_aggregate_termination<R>(
+    cancel_at: Option<i64>,
+    operation: impl FnOnce() -> R,
+) -> (R, [[usize; 7]; 2]) {
+    struct Restore(Option<(usize, [[usize; 7]; 2])>, Option<i64>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            AGGREGATE_TERMINATION.set(self.0);
+            AGGREGATE_TERMINAL_CANCEL.set(self.1);
+        }
+    }
+    let _restore = Restore(
+        AGGREGATE_TERMINATION.replace(Some((0, [[0; 7]; 2]))),
+        AGGREGATE_TERMINAL_CANCEL.replace(cancel_at),
+    );
+    let result = operation();
+    (result, AGGREGATE_TERMINATION.get().unwrap().1)
+}
+
+#[cfg(test)]
+pub(crate) fn aggregate_final_phase() {
+    if let Some((_, counts)) = AGGREGATE_TERMINATION.get() {
+        AGGREGATE_TERMINATION.set(Some((1, counts)));
+    }
+}
+
+#[cfg(test)]
+fn note_aggregate_termination(event: usize) {
+    if let Some((phase, mut counts)) = AGGREGATE_TERMINATION.get() {
+        counts[phase][event] += 1;
+        AGGREGATE_TERMINATION.set(Some((phase, counts)));
+    }
 }
 
 #[cfg(test)]
@@ -551,11 +602,15 @@ enum State<'a> {
         operation: SelectorOperation,
         ordinal: usize,
     },
+    ComputedGroups {
+        next: usize,
+    },
     Aggregate {
         groups: AccountedVec<Group<'a>>,
         lookup: Option<AccountedBox<crate::position_index::PositionIndex>>,
         collecting: bool,
         interval_cold: bool,
+        computed: bool,
     },
     Scalar {
         count: usize,
@@ -1367,6 +1422,23 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             }
             Ok(())
         };
+        if source.single_float
+            && let Some(position) = RowFilter::One(source.ordinal).next_position(
+                self.rosters.descriptors(source.node()),
+                0,
+                self.control,
+                self.account,
+            )?
+            && self.visit_computed_window(
+                source,
+                &self.rosters.descriptors(source.node())[position],
+                &mut append,
+            )?
+        {
+            #[cfg(test)]
+            crate::computed_groups::materialized_window();
+            return Ok(());
+        }
         if source.scheduled() {
             let grid = source.grid();
             let child = self.replay(source.node(), source.options(grid.end_ms), None);
@@ -1890,6 +1962,46 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             },
         )
     }
+    fn capture_selector_point(
+        &self,
+        node: NodeId,
+        ordinal: usize,
+        time: i64,
+        index: i64,
+        sample: Option<SampleRef<'_>>,
+    ) -> Result<(), StorageError> {
+        let point = match sample {
+            Some(SampleRef {
+                time_ms,
+                start_time_ms,
+                value: crate::value::SampleValueRef::Float(value),
+            }) => Some(crate::computed_groups::Point {
+                bits: value.to_bits(),
+                time_ms,
+                start_time_ms,
+                drop_name: false,
+            }),
+            None => None,
+            // A native value is deliberately unknown in the float-only backing.
+            Some(_) => return Ok(()),
+        };
+        let key = crate::vector_matching::ReplayKey::new(
+            self.options,
+            self.step_index,
+            self.prepared.lookback_ns(self.options.lookback_ms),
+            self.data_bounds,
+        )
+        .at(time, index);
+        self.catalog
+            .with_computed_group(node, self.control, self.account, |store| {
+                if store.building(key, time, ordinal) {
+                    store.write(key, time, ordinal, point, self.control, self.account)?;
+                }
+                Ok(())
+            })?;
+        Ok(())
+    }
+
     fn visit_selected_series<
         S: Series,
         E: From<EvaluationError> + From<StorageError> + From<Interrupted>,
@@ -1990,6 +2102,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             while let Some((time, index)) = traversal.current() {
                 self.control.check()?;
                 self.account.work(1);
+                self.capture_selector_point(node, ordinal, time, index, None)?;
                 if visit(time, index, &labels, None)? {
                     break;
                 }
@@ -2021,6 +2134,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         progress.add(units);
                     }
                 }
+                self.capture_selector_point(node, ordinal, logical_time, index, sample)?;
                 if visit(logical_time, index, &labels, sample)? {
                     return Ok::<_, E>(true);
                 }
@@ -2318,6 +2432,51 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                     _ => (),
                 }
+                let key = crate::vector_matching::ReplayKey::new(
+                    self.options,
+                    self.step_index,
+                    self.prepared.lookback_ns(self.options.lookback_ms),
+                    self.data_bounds,
+                );
+                let cached = self.catalog.with_computed_group(
+                    selector_node,
+                    self.control,
+                    self.account,
+                    |store| {
+                        Ok((
+                            store.read_selector(
+                                key,
+                                self.options.time_ms,
+                                series_ordinal,
+                                self.control,
+                                self.account,
+                            )?,
+                            store.records_final(key, self.options.time_ms, series_ordinal),
+                        ))
+                    },
+                )?;
+                match cached {
+                    Some((crate::computed_groups::Cell::Present(point), _)) => {
+                        self.note_instant_sample(node, selector_node)?;
+                        return self.finish_selector_sample(
+                            node,
+                            selector_node,
+                            operation,
+                            series_ordinal,
+                            &series_labels,
+                            Some((
+                                point.time_ms,
+                                point.start_time_ms,
+                                crate::statistics::ValueParts::new(
+                                    OwnedValue::Float(f64::from_bits(point.bits)),
+                                    self.account,
+                                ),
+                            )),
+                        );
+                    }
+                    Some((crate::computed_groups::Cell::Absent, _)) => return Ok(None),
+                    _ => (),
+                }
                 let fixed = self.invariants[selector_node.0];
                 let options = self.options;
                 let grid = crate::query_scopes::Grid {
@@ -2326,9 +2485,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     interval_ms: options.step_ms,
                 };
                 let target_index = self.step_index;
-                let single_lookup = !fixed
+                let supported_lookup = !fixed
                     && !selector.skip_histogram_buckets
-                    && target_index > 0
+                    && options.step_ms > 0
+                    && target_index >= 0
                     && options.lookback_ms > 0
                     && options.time_ms <= grid.end_ms
                     && grid
@@ -2337,11 +2497,63 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         .and_then(|width| grid.start_ms.checked_add(width))
                         == Some(options.time_ms)
                     && self.supports_schedule(selector_node, grid);
+                let single_lookup = supported_lookup && target_index > 0;
                 let mut window = self.instant_window(selector_node);
                 if single_lookup {
                     // Plain values have no state from earlier logical lookups.
                     window.first_lookup_ms = window.lookup_ms;
                 }
+                let seed = if single_lookup && cached.is_some_and(|(_, record)| record) {
+                    let previous_time = options.time_ms.checked_sub(grid.interval_ms);
+                    if let Some(previous_time) = previous_time {
+                        let previous_lookup = self.lookup_at(selector_node, previous_time);
+                        if window.bounds_after(previous_lookup).is_some() {
+                            self.catalog
+                                .with_computed_group(
+                                    selector_node,
+                                    self.control,
+                                    self.account,
+                                    |store| {
+                                        let point = store.read(
+                                            key.at(previous_time, target_index - 1),
+                                            previous_time,
+                                            series_ordinal,
+                                            self.control,
+                                            self.account,
+                                        )?;
+                                        Ok(match point {
+                                            crate::computed_groups::Cell::Present(point)
+                                                if point.time_ms <= previous_lookup =>
+                                            {
+                                                Some(crate::instant_select::FloatSeed {
+                                                    lookup_ms: previous_lookup,
+                                                    point: Some((
+                                                        point.time_ms,
+                                                        point.start_time_ms,
+                                                        f64::from_bits(point.bits),
+                                                    )),
+                                                })
+                                            }
+                                            crate::computed_groups::Cell::Absent => {
+                                                Some(crate::instant_select::FloatSeed {
+                                                    lookup_ms: previous_lookup,
+                                                    point: None,
+                                                })
+                                            }
+                                            _ => None,
+                                        })
+                                    },
+                                )?
+                                .flatten()
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
                 let mut position = crate::query_scopes::Traversal::new(grid, false);
                 let next_lookup = || {
                     if single_lookup
@@ -2366,27 +2578,113 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         next_lookup,
                     )?
                 } else {
-                    crate::instant_select::select_mapped::<_, _, StorageError>(
-                        series,
-                        window,
-                        self.control,
-                        self.account,
-                        |value| {
-                            Ok(crate::statistics::ValueParts::new(
-                                OwnedValue::from_sample_checked(
-                                    value,
+                    let project = |value: SampleValueRef<'_>| {
+                        Ok(crate::statistics::ValueParts::new(
+                            OwnedValue::from_sample_checked(
+                                value,
+                                self.control,
+                                self.account,
+                                MemoryKind::Workspace,
+                            )?,
+                            self.account,
+                        ))
+                    };
+                    let mut observe = |page: crate::storage::PageSamples<'_>| {
+                        crate::instant_select::visit_future_floats(
+                            page,
+                            grid,
+                            target_index,
+                            window,
+                            self.control,
+                            self.account,
+                            |time, index, lookup, point| {
+                                if self.lookup_at(selector_node, time) != lookup {
+                                    return Ok(());
+                                }
+                                self.catalog.with_computed_group(
+                                    selector_node,
                                     self.control,
                                     self.account,
-                                    MemoryKind::Workspace,
-                                )?,
-                                self.account,
-                            ))
-                        },
+                                    |store| {
+                                        store.write_future_selector(
+                                            key.at(time, index),
+                                            time,
+                                            series_ordinal,
+                                            point.map(|(time_ms, start_time_ms, value)| {
+                                                crate::computed_groups::Point {
+                                                    bits: value.to_bits(),
+                                                    time_ms,
+                                                    start_time_ms,
+                                                    drop_name: false,
+                                                }
+                                            }),
+                                            self.control,
+                                            self.account,
+                                        )
+                                    },
+                                )?;
+                                Ok(())
+                            },
+                        )
+                    };
+                    #[cfg(test)]
+                    let future_enabled = !crate::computed_groups::future_disabled();
+                    #[cfg(not(test))]
+                    let future_enabled = true;
+                    let observer = (future_enabled
+                        && supported_lookup
+                        && cached.is_some_and(|(_, record)| record))
+                    .then_some(
+                        &mut observe as &mut crate::storage::StopPageObserver<'_, StorageError>,
+                    );
+                    #[cfg(test)]
+                    if seed.is_some() {
+                        crate::computed_groups::seeded_lookup();
+                    }
+                    crate::instant_select::select_mapped_observed::<_, _, StorageError>(
+                        series,
+                        window,
+                        seed,
+                        self.control,
+                        self.account,
+                        project,
                         next_lookup,
+                        observer,
                     )?
                 };
                 if result.is_some() {
                     self.note_instant_sample(node, selector_node)?;
+                }
+                if cached.is_some_and(|(_, record)| record) {
+                    let point = match result.as_ref() {
+                        Some((time, start, value)) => match value.value {
+                            OwnedValue::Float(value) => Some(Some(crate::computed_groups::Point {
+                                bits: value.to_bits(),
+                                time_ms: *time,
+                                start_time_ms: *start,
+                                drop_name: false,
+                            })),
+                            _ => None,
+                        },
+                        None => Some(None),
+                    };
+                    if let Some(point) = point {
+                        self.catalog.with_computed_group(
+                            selector_node,
+                            self.control,
+                            self.account,
+                            |store| {
+                                store.write(
+                                    key,
+                                    self.options.time_ms,
+                                    series_ordinal,
+                                    point,
+                                    self.control,
+                                    self.account,
+                                )
+                            },
+                        )?;
+                    }
                 }
                 result
             }
@@ -3560,6 +3858,230 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         Ok(None)
     }
 
+    fn computed_window_group(
+        &self,
+        source: crate::derived_range::BackingSource,
+        row: &Descriptor,
+    ) -> Result<Option<(NodeId, usize)>, EvaluationError> {
+        let grid = source.grid();
+        let mut node = source.node();
+        let mut ordinal = row.ordinal;
+        let mut required_hash = None;
+        let groups = loop {
+            self.control.check()?;
+            self.account.work(1);
+            if self.invariants[node.0]
+                || self.prepared.flags().boundaries[node.0]
+                || self.rosters.matrix(node).is_some()
+                || !self.rosters.replay_grid_matches(
+                    node,
+                    grid.header(self.prepared.header),
+                    self.prepared,
+                )
+            {
+                return Ok(None);
+            }
+            if let Some((rows, sources)) = self.rosters.ordered(node) {
+                let Some(position) =
+                    RowFilter::One(ordinal).next_position(rows, 0, self.control, self.account)?
+                else {
+                    return Ok(None);
+                };
+                let row = &rows[position];
+                if row.kinds != 1
+                    || row.heads.multiple()
+                    || rows
+                        .get(position + 1)
+                        .is_some_and(|next| next.ordinal == ordinal)
+                    || required_hash.is_some_and(|hash| hash != row.hash)
+                {
+                    return Ok(None);
+                }
+                let Some([source]) = sources.get(row.sources.clone()) else {
+                    return Ok(None);
+                };
+                required_hash = Some(row.hash);
+                ordinal = *source;
+            }
+            if let Some(groups) = self.rosters.groups(node) {
+                break groups;
+            }
+            let Expr::Paren(child) = self.expression.arena[node].expression else {
+                return Ok(None);
+            };
+            node = self.prepared.preprocessing.child(
+                self.expression,
+                node,
+                child,
+                self.control,
+                self.account,
+            )?;
+        };
+        let Some(group) = groups.get(ordinal) else {
+            return Ok(None);
+        };
+        if let Some(hash) = required_hash {
+            let labels = SampleLabels::aggregate(&group.labels, self.account, self.control)?;
+            if label_hash::full(&labels, self.control, self.account)? != hash {
+                return Ok(None);
+            }
+        }
+        Ok(Some((node, ordinal)))
+    }
+
+    fn derived_progress_scope(
+        &self,
+        source: crate::derived_range::BackingSource,
+        row: &Descriptor,
+        rows: usize,
+    ) -> Result<Option<crate::derived_progress::Scope>, EvaluationError> {
+        if self.computed_window_group(source, row)?.is_none() {
+            return Ok(None);
+        }
+        let grid = source.grid();
+        let window = source.window();
+        if !source.single_float
+            || !grid.forward_without_wrap()
+            || window.range_ms <= 0
+            || window.step_ms <= 0
+            || window.first_end_ms.checked_sub(window.range_ms).is_none()
+            || window.end_ms.checked_sub(window.range_ms).is_none()
+        {
+            return Ok(None);
+        }
+        let key = crate::vector_matching::ReplayKey::new(
+            source.options(grid.start_ms),
+            0,
+            self.prepared.lookback_ns(self.options.lookback_ms),
+            self.data_bounds,
+        );
+        Ok(Some(crate::derived_progress::Scope::new(
+            key, grid, window, rows,
+        )))
+    }
+
+    fn visit_computed_window(
+        &self,
+        source: crate::derived_range::BackingSource,
+        row: &Descriptor,
+        visit: &mut dyn FnMut(crate::value::SampleRef<'_>) -> Result<(), EvaluationError>,
+    ) -> Result<bool, EvaluationError> {
+        let Some((node, ordinal)) = self.computed_window_group(source, row)? else {
+            return Ok(false);
+        };
+        let grid = source.grid();
+        let window = source.window();
+        let Some(lower) = window.end_ms.checked_sub(window.range_ms) else {
+            return Ok(false);
+        };
+        if !source.single_float
+            || !grid.forward_without_wrap()
+            || grid.end_ms < grid.start_ms
+            || window.range_ms <= 0
+            || window.first_end_ms > window.end_ms
+            || window.first_end_ms.checked_sub(window.range_ms).is_none()
+            || window.first_end_ms != window.end_ms && window.step_ms <= 0
+        {
+            return Ok(false);
+        }
+        // Use wide differences so an otherwise valid negative grid cannot wrap.
+        let start = ((i128::from(lower) - i128::from(grid.start_ms))
+            .div_euclid(i128::from(grid.interval_ms))
+            + 1)
+        .max(0);
+        let end = (i128::from(window.end_ms.min(grid.end_ms)) - i128::from(grid.start_ms))
+            .div_euclid(i128::from(grid.interval_ms));
+        let (Ok(start), Ok(end)) = (i64::try_from(start), i64::try_from(end)) else {
+            return Ok(false);
+        };
+        if start > end {
+            return Ok(false);
+        }
+        let key = crate::vector_matching::ReplayKey::new(
+            source.options(grid.start_ms),
+            0,
+            self.prepared.lookback_ns(self.options.lookback_ms),
+            self.data_bounds,
+        );
+        self.catalog
+            .with_computed_group(node, self.control, self.account, |store| {
+                // Keep kernel errors distinct from provider errors without lending the registry borrow.
+                Ok((|| -> Result<bool, EvaluationError> {
+                    let timestamp = |index: i64| {
+                        (i128::from(grid.start_ms)
+                            + i128::from(index) * i128::from(grid.interval_ms))
+                            as i64
+                    };
+                    let first = timestamp(start);
+                    let last = timestamp(end);
+                    let direct = store.window_cell_reads(
+                        (key.at(first, start), first),
+                        (key.at(last, end), last),
+                        ordinal,
+                    );
+                    for consuming in [false, true] {
+                        for index in start..=end {
+                            self.control.check()?;
+                            self.account.work(1);
+                            let time = timestamp(index);
+                            let (cell, _sample) = store.read_window(
+                                key.at(time, index),
+                                time,
+                                ordinal,
+                                direct,
+                                self.control,
+                                self.account,
+                            )?;
+                            match cell {
+                                crate::computed_groups::Cell::Unknown if !consuming => {
+                                    return Ok(false);
+                                }
+                                crate::computed_groups::Cell::Unknown => {
+                                    return Err(EvaluationError::Invalid(
+                                        "completed subquery window changed during consumption",
+                                    ));
+                                }
+                                crate::computed_groups::Cell::Present(point) if consuming => {
+                                    let value = crate::value::SampleValueRef::Float(
+                                        f64::from_bits(point.bits),
+                                    );
+                                    if !value.is_stale() {
+                                        visit(crate::value::SampleRef {
+                                            time_ms: time,
+                                            start_time_ms: 0,
+                                            value,
+                                        })?;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    Ok(true)
+                })())
+            })?
+            .transpose()
+            .map(|result| result.unwrap_or(false))
+    }
+
+    fn computed_group_sample(
+        &self,
+        node: NodeId,
+        ordinal: usize,
+        point: crate::computed_groups::Point,
+    ) -> Result<EvaluatedSample<'a>, EvaluationError> {
+        let group = &self.rosters.groups(node).expect("computed group labels")[ordinal];
+        Ok(EvaluatedSample {
+            ordinal,
+            labels: SampleLabels::aggregate(&group.labels, self.account, self.control)?,
+            value: OwnedValue::Float(f64::from_bits(point.bits)),
+            float_samples: Some(crate::statistics::OwnedSamples::new(self.account, 1)),
+            source_time_ms: point.time_ms,
+            source_start_time_ms: point.start_time_ms,
+            drop_name: group.whole_drop_name.unwrap_or(point.drop_name),
+        })
+    }
+
     fn enter(&mut self, index: usize) -> Result<Option<EvaluatedSample<'a>>, EvaluationError> {
         let node = self.frames[index].node;
         if self
@@ -3686,6 +4208,85 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     .groups(node)
                     .ok_or(EvaluationError::Invalid("aggregation roster is missing"))?;
                 let filter = self.frames[index].filter;
+                let computed_ordinal = filter.singleton().or_else(|| {
+                    (descriptors.len() == 1 && matches!(filter, RowFilter::All)).then_some(0)
+                });
+                let key = crate::vector_matching::ReplayKey::new(
+                    self.options,
+                    self.step_index,
+                    self.prepared.lookback_ns(self.options.lookback_ms),
+                    self.data_bounds,
+                );
+                let cached = self.catalog.with_computed_group(
+                    node,
+                    self.control,
+                    self.account,
+                    |store| {
+                        if let Some(ordinal) = computed_ordinal {
+                            Ok((
+                                store.read(
+                                    key,
+                                    self.options.time_ms,
+                                    ordinal,
+                                    self.control,
+                                    self.account,
+                                )?,
+                                store.records_final(key, self.options.time_ms, ordinal),
+                                false,
+                            ))
+                        } else {
+                            let record = store.records_final(key, self.options.time_ms, 0);
+                            let mut complete = store.prepared(key, self.options.time_ms);
+                            if record {
+                                let mut selected = false;
+                                complete = true;
+                                for ordinal in 0..descriptors.len() {
+                                    if filter.accepts(ordinal, self.control, self.account)? {
+                                        selected = true;
+                                        if matches!(
+                                            store.read(
+                                                key,
+                                                self.options.time_ms,
+                                                ordinal,
+                                                self.control,
+                                                self.account
+                                            )?,
+                                            crate::computed_groups::Cell::Unknown
+                                        ) {
+                                            complete = false;
+                                            break;
+                                        }
+                                    }
+                                }
+                                complete &= selected;
+                            }
+                            Ok((crate::computed_groups::Cell::Unknown, record, complete))
+                        }
+                    },
+                )?;
+                let mut computed = false;
+                if let Some((cell, record, prepared)) = cached {
+                    match cell {
+                        crate::computed_groups::Cell::Present(point) => {
+                            let sample =
+                                self.computed_group_sample(node, computed_ordinal.unwrap(), point)?;
+                            self.frames.pop();
+                            return Ok(Some(sample));
+                        }
+                        crate::computed_groups::Cell::Absent => {
+                            self.frames.pop();
+                            return Ok(None);
+                        }
+                        crate::computed_groups::Cell::Unknown => {}
+                    }
+                    if prepared {
+                        self.frames[index].state = State::ComputedGroups { next: 0 };
+                        return Ok(None);
+                    }
+                    if record {
+                        computed = true;
+                    }
+                }
                 if let Some(key) = self.singleton_group_key(index)?
                     && filter.accepts(0, self.control, self.account)?
                     && let Some((value, drop_name)) = self.prepared.range_folds.aggregate_value(
@@ -3779,6 +4380,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         plan.activate(filter, key, self.control, self.account)?
                     };
                     interval_cold = interval && !active;
+                    #[cfg(test)]
+                    if interval {
+                        note_aggregate_termination(0);
+                        note_aggregate_termination(if active { 1 } else { 2 });
+                    }
                     if active {
                         RowFilter::Contributors(plan)
                     } else {
@@ -3792,6 +4398,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     lookup,
                     collecting: true,
                     interval_cold,
+                    computed,
                 };
                 self.push_filtered(*child, child_filter, false, OutputMode::Vector)?;
                 Ok(None)
@@ -4214,6 +4821,33 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         }
     }
 
+    fn drained_range_child(&self, parent: usize, origin: usize) -> Result<bool, Interrupted> {
+        #[cfg(test)]
+        if DRAINED_CHILD_DISABLED.get() {
+            return Ok(false);
+        }
+        let Some(frame) = self.frames.get(origin) else {
+            return Ok(false);
+        };
+        if !matches!(&frame.state, State::Aggregate {
+            collecting: false, groups, interval_cold: true, ..
+        } if groups.is_empty())
+        {
+            return Ok(false);
+        }
+        for frame in &self.frames[parent + 1..origin] {
+            self.control.check()?;
+            self.account.work(1);
+            if !matches!(
+                frame.state,
+                State::Pass | State::OrderedRows { running: true, .. }
+            ) {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
     fn propagate(
         &mut self,
         mut sample: EvaluatedSample<'a>,
@@ -4227,6 +4861,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             self.step_index = self.frames[index].step_index;
             let filter = self.frames[index].filter;
             let mode = self.frames[index].mode;
+            let drained_child = if matches!(self.frames[index].state, State::Range(_)) {
+                self.drained_range_child(index, origin)?
+            } else {
+                false
+            };
             match &mut self.frames[index].state {
                 State::Gather(step) => {
                     if step.receive(sample) {
@@ -4235,7 +4874,22 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     return Ok(None);
                 }
                 State::Range(step) => {
-                    if step.receive(sample, self.control, self.account)? {
+                    if step.receive_drained(sample, drained_child, self.control, self.account)? {
+                        #[cfg(test)]
+                        for frame in &self.frames[index + 1..] {
+                            if let State::Aggregate {
+                                collecting,
+                                groups,
+                                interval_cold: true,
+                                ..
+                            } = &frame.state
+                            {
+                                note_aggregate_termination(4);
+                                if !collecting && groups.is_empty() {
+                                    note_aggregate_termination(5);
+                                }
+                            }
+                        }
                         self.frames.truncate(index + 1);
                     }
                     return Ok(None);
@@ -4452,8 +5106,15 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     groups,
                     lookup,
                     collecting: true,
+                    interval_cold,
                     ..
                 } => {
+                    #[cfg(test)]
+                    if *interval_cold {
+                        note_aggregate_termination(6);
+                    }
+                    #[cfg(not(test))]
+                    let _ = interval_cold;
                     let Expr::Aggregate {
                         operator,
                         grouping,
@@ -4651,6 +5312,62 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                 },
                 State::Range(step) => match step.advance(self.control, self.account)? {
+                    crate::derived_range::Action::RestoreDry {
+                        source,
+                        row,
+                        position,
+                        rows,
+                    } => {
+                        let checkpoint = match self.derived_progress_scope(source, row, rows)? {
+                            Some(scope) => self.catalog.derived_progress.load(
+                                self.catalog.query(),
+                                self.frames[index].node,
+                                scope,
+                                position,
+                                self.control,
+                                self.account,
+                            )?,
+                            None => None,
+                        };
+                        let State::Range(step) = &mut self.frames[index].state else {
+                            unreachable!("dry progress continuation")
+                        };
+                        step.restore_dry(checkpoint, self.account);
+                    }
+                    crate::derived_range::Action::SaveDry {
+                        source,
+                        row,
+                        position,
+                        rows,
+                        checkpoint,
+                    } => {
+                        if let Some(scope) = self.derived_progress_scope(source, row, rows)? {
+                            self.catalog.derived_progress.save(
+                                self.frames[index].node,
+                                scope,
+                                position,
+                                checkpoint,
+                                self.control,
+                                self.account,
+                            )?;
+                        }
+                        let State::Range(step) = &mut self.frames[index].state else {
+                            unreachable!("dry progress continuation")
+                        };
+                        step.saved_dry();
+                    }
+                    crate::derived_range::Action::ComputedWindow { source, row } => {
+                        let State::Range(mut step) =
+                            std::mem::replace(&mut self.frames[index].state, State::Enter)
+                        else {
+                            unreachable!("completed range continuation")
+                        };
+                        let result = step.computed_pass(self.control, self.account, |visit| {
+                            self.visit_computed_window(source, row, visit)
+                        });
+                        self.frames[index].state = State::Range(step);
+                        result?;
+                    }
                     crate::derived_range::Action::Backing { request, source } => {
                         let State::Range(mut step) =
                             std::mem::replace(&mut self.frames[index].state, State::Enter)
@@ -5305,11 +6022,57 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         return Ok(Some(sample));
                     }
                 }
+                State::ComputedGroups { next } => {
+                    let ordinal = filter.next_ordinal(*next, self.control, self.account)?;
+                    let Some(ordinal) = ordinal.filter(|ordinal| {
+                        *ordinal < self.rosters.groups(node).expect("computed groups").len()
+                    }) else {
+                        self.frames.pop();
+                        continue;
+                    };
+                    *next = ordinal + 1;
+                    let key = crate::vector_matching::ReplayKey::new(
+                        self.options,
+                        self.step_index,
+                        self.prepared.lookback_ns(self.options.lookback_ms),
+                        self.data_bounds,
+                    );
+                    match self.catalog.with_computed_group(
+                        node,
+                        self.control,
+                        self.account,
+                        |store| {
+                            store.read(
+                                key,
+                                self.options.time_ms,
+                                ordinal,
+                                self.control,
+                                self.account,
+                            )
+                        },
+                    )? {
+                        Some(crate::computed_groups::Cell::Present(point)) => {
+                            let sample = self.computed_group_sample(node, ordinal, point)?;
+                            if let Some(sample) =
+                                self.propagate(Self::rebind(sample, boundary_time_ms), index)?
+                            {
+                                return Ok(Some(sample));
+                            }
+                        }
+                        Some(crate::computed_groups::Cell::Absent) => {}
+                        _ => {
+                            return Err(EvaluationError::Invalid(
+                                "completed group cell is missing",
+                            ));
+                        }
+                    }
+                }
                 State::Aggregate {
                     groups,
                     lookup,
                     collecting,
                     interval_cold,
+                    computed,
                 } => {
                     if *collecting {
                         if let Some(plan) = self.rosters.group_replay(node) {
@@ -5335,9 +6098,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         }
                     }
                     if let Some(group) = groups.pop() {
-                        if !group.seen {
-                            continue;
-                        }
+                        let ordinal = group.ordinal;
                         let Expr::Aggregate {
                             operator,
                             expression: Some(child),
@@ -5346,12 +6107,16 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         else {
                             unreachable!()
                         };
-                        let (sample, annotation) = group.finish(
-                            operator,
-                            self.options.time_ms,
-                            self.control,
-                            self.account,
-                        )?;
+                        let (sample, annotation) = if group.seen {
+                            group.finish(
+                                operator,
+                                self.options.time_ms,
+                                self.control,
+                                self.account,
+                            )?
+                        } else {
+                            (None, None)
+                        };
                         if let Some(kind) = annotation
                             && node == self.diagnostic_node
                             && let Some(annotations) = &mut self.annotations
@@ -5388,6 +6153,48 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                 self.account,
                             )?;
                         }
+                        if *computed {
+                            let point = match &sample {
+                                Some(EvaluatedSample {
+                                    value: OwnedValue::Float(value),
+                                    source_time_ms,
+                                    source_start_time_ms,
+                                    drop_name,
+                                    ..
+                                }) => Some(Some(crate::computed_groups::Point {
+                                    bits: value.to_bits(),
+                                    time_ms: *source_time_ms,
+                                    start_time_ms: *source_start_time_ms,
+                                    drop_name: *drop_name,
+                                })),
+                                None => Some(None),
+                                _ => None,
+                            };
+                            if let Some(point) = point {
+                                // Publish only this finalized group; unvisited groups remain unknown.
+                                let key = crate::vector_matching::ReplayKey::new(
+                                    self.options,
+                                    self.step_index,
+                                    self.prepared.lookback_ns(self.options.lookback_ms),
+                                    self.data_bounds,
+                                );
+                                self.catalog.with_computed_group(
+                                    node,
+                                    self.control,
+                                    self.account,
+                                    |store| {
+                                        store.write(
+                                            key,
+                                            self.options.time_ms,
+                                            ordinal,
+                                            point,
+                                            self.control,
+                                            self.account,
+                                        )
+                                    },
+                                )?;
+                            }
+                        }
                         if let Some(sample) = sample
                             && let Some(sample) =
                                 self.propagate(Self::rebind(sample, boundary_time_ms), index)?
@@ -5397,6 +6204,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     } else {
                         if *interval_cold {
                             // The child scan and selected group finished; unselected groups were not finalized.
+                            #[cfg(test)]
+                            if AGGREGATE_TERMINATION
+                                .get()
+                                .is_some_and(|(phase, _)| phase == 1)
+                                && AGGREGATE_TERMINAL_CANCEL.get() == Some(self.options.time_ms)
+                            {
+                                self.control.cancellation.cancel();
+                            }
                             self.rosters
                                 .group_replay(node)
                                 .expect("interval group plan")
@@ -5410,6 +6225,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     self.control,
                                     self.account,
                                 )?;
+                            #[cfg(test)]
+                            note_aggregate_termination(3);
                         }
                         self.frames.pop();
                     }

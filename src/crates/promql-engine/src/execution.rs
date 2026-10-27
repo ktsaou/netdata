@@ -46,6 +46,10 @@ mod scheduled_output;
 #[path = "lookup_tests.rs"]
 mod lookup_tests;
 
+#[cfg(test)]
+#[path = "computed_group_tests.rs"]
+mod computed_group_tests;
+
 #[derive(Clone, Copy, Debug)]
 pub struct EngineOptions {
     pub parser: ParserOptions,
@@ -1259,6 +1263,89 @@ impl CompiledQuery {
         self.binary_pair_children(node, header)
     }
 
+    fn delayed_root_groups(
+        &self,
+        header: OutputHeader,
+        prepared: &Prepared,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<[NodeId; 2]>, Interrupted> {
+        let root = self.expression.root;
+        if !self.options.delayed_name_removal
+            || prepared.flags().invariants[root.0]
+            || prepared.flags().boundaries[root.0]
+        {
+            return Ok(None);
+        }
+        let Some((left, right, _)) = self.binary_pair_children(root, header) else {
+            return Ok(None);
+        };
+        let mut groups = [left, right];
+        for node in &mut groups {
+            *node =
+                prepared
+                    .preprocessing
+                    .child(&self.expression, root, *node, control, account)?;
+            loop {
+                control.check()?;
+                account.work(1);
+                if prepared.flags().invariants[node.0] || prepared.flags().boundaries[node.0] {
+                    return Ok(None);
+                }
+                let Expr::Paren(child) = self.expression.arena[*node].expression else {
+                    break;
+                };
+                *node = prepared.preprocessing.child(
+                    &self.expression,
+                    *node,
+                    child,
+                    control,
+                    account,
+                )?;
+            }
+            let Expr::Aggregate {
+                operator,
+                expression: Some(child),
+                parameter: None,
+                grouping,
+                without,
+            } = &self.expression.arena[*node].expression
+            else {
+                return Ok(None);
+            };
+            if !crate::aggregation::ordinary(*operator)
+                || !Self::grouping_drops_metadata(grouping.as_deref(), *without, control, account)?
+            {
+                return Ok(None);
+            }
+            let child =
+                prepared
+                    .preprocessing
+                    .child(&self.expression, *node, *child, control, account)?;
+            let Expr::Selector(selector) = &self.expression.arena[child].expression else {
+                return Ok(None);
+            };
+            if prepared.flags().invariants[child.0]
+                || prepared.flags().boundaries[child.0]
+                || crate::query_scopes::Grid::from(prepared.source_header(child, header))
+                    != header.into()
+                || crate::query_scopes::Grid::from(prepared.scope_header(child, header))
+                    != header.into()
+                || !crate::evaluator::supports_selector_schedule(
+                    child,
+                    selector,
+                    prepared,
+                    self.timestamp_selectors[child.0],
+                    prepared.lookback_ms(self.options.lookback_ms),
+                    header.into(),
+                )
+            {
+                return Ok(None);
+            }
+        }
+        Ok(Some(groups))
+    }
+
     fn binary_pair_children(
         &self,
         node: NodeId,
@@ -1903,9 +1990,26 @@ impl CompiledQuery {
                 account,
             )?;
         }
-        let Some(selector) =
-            self.binary_replay_operand(child, header, prepared, rosters, control, account)?
-        else {
+        let mut selector =
+            self.binary_replay_operand(child, header, prepared, rosters, control, account)?;
+        if selector.is_none()
+            && !prepared.flags().invariants[node.0]
+            && !prepared.flags().boundaries[node.0]
+            && !prepared.flags().invariants[child.0]
+            && !prepared.flags().boundaries[child.0]
+            && rosters.replay_grid_matches(child, header, prepared)
+            && let Some(leaf) = self.direct_clock_selector(child, control, account)?
+            && rosters.scheduled_selector(child) == Some(leaf)
+            && !prepared.flags().invariants[leaf.0]
+            && !prepared.flags().boundaries[leaf.0]
+            && crate::query_scopes::Grid::from(prepared.source_header(leaf, header))
+                == header.into()
+            && crate::query_scopes::Grid::from(prepared.scope_header(leaf, header)) == header.into()
+        {
+            // Direct clock preparation owns this source's schedule without a separate raw producer.
+            selector = Some(leaf);
+        }
+        let Some(selector) = selector else {
             return Ok(None);
         };
         let Expr::Selector(value) = &self.expression.arena[selector].expression else {
@@ -2577,6 +2681,49 @@ impl CompiledQuery {
         }
         let mut rosters = Rosters::new(account, self.expression.arena.nodes.len(), control)?;
         rosters.set_result_node(self.expression.root);
+        let mut computed_selectors = AccountedVec::new(account, MemoryKind::Workspace);
+        for (index, expression_node) in self.expression.arena.nodes.iter().enumerate() {
+            control.check()?;
+            account.work(1);
+            let Expr::Aggregate {
+                operator,
+                expression: Some(child),
+                parameter: None,
+                ..
+            } = &expression_node.expression
+            else {
+                continue;
+            };
+            if !crate::aggregation::ordinary(*operator) {
+                continue;
+            }
+            let mut child = prepared.preprocessing.child(
+                &self.expression,
+                NodeId(index),
+                *child,
+                control,
+                account,
+            )?;
+            loop {
+                control.check()?;
+                account.work(1);
+                if matches!(self.expression.arena[child].expression, Expr::Selector(_)) {
+                    computed_selectors.push(child);
+                    break;
+                }
+                let Some(next) = crate::scheduled_expression::vector_child(
+                    &self.expression,
+                    prepared,
+                    child,
+                    control,
+                    account,
+                )?
+                else {
+                    break;
+                };
+                child = next;
+            }
+        }
         let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
         tasks.push(Task::Visit(
             self.expression.root,
@@ -3090,6 +3237,31 @@ impl CompiledQuery {
                         && matches!(self.expression.arena[k].expression, Expr::Number { .. })
                     {
                         Some([*left, *right])
+                    } else if node == self.expression.root
+                        && contributor_clock
+                        && self
+                            .delayed_root_groups(header, prepared, control, account)?
+                            .is_some()
+                    {
+                        let (left, right, _) = self
+                            .binary_pair_children(node, header)
+                            .expect("checked root pair");
+                        Some([
+                            prepared.preprocessing.child(
+                                &self.expression,
+                                node,
+                                left,
+                                control,
+                                account,
+                            )?,
+                            prepared.preprocessing.child(
+                                &self.expression,
+                                node,
+                                right,
+                                control,
+                                account,
+                            )?,
+                        ])
                     } else if node != self.expression.root
                         && contributor_clock
                         && let Some((left, right, _)) = self.binary_replay_children(node, header)
@@ -3328,15 +3500,40 @@ impl CompiledQuery {
                 if subquery_demand && !interval {
                     replay_selector = None;
                 }
+                let group_child = prepared.preprocessing.child(
+                    &self.expression,
+                    node,
+                    *child,
+                    control,
+                    account,
+                )?;
+                let mut computed_float = node != self.expression.root
+                    && !prepared.flags().boundaries[node.0]
+                    && !prepared.flags().invariants[node.0]
+                    && !rosters.descriptors(group_child).is_empty();
+                for descriptor in rosters.descriptors(group_child) {
+                    control.check()?;
+                    account.work(1);
+                    if descriptor.kinds != 1 || descriptor.heads.multiple() {
+                        computed_float = false;
+                        break;
+                    }
+                }
+                if self
+                    .delayed_root_groups(header, prepared, control, account)?
+                    .is_some_and(|groups| groups.contains(&node))
+                    && (!computed_float
+                        || !crate::scheduled_expression::unique_rows(
+                            rosters.descriptors(group_child),
+                            control,
+                            account,
+                        )?)
+                {
+                    replay_selector = None;
+                }
                 rosters.prepare_groups(
                     node,
-                    prepared.preprocessing.child(
-                        &self.expression,
-                        node,
-                        *child,
-                        control,
-                        account,
-                    )?,
+                    group_child,
                     grouping.as_deref(),
                     *without,
                     replay_selector,
@@ -3345,6 +3542,25 @@ impl CompiledQuery {
                 )?;
                 if interval {
                     rosters.allow_group_interval(node);
+                }
+                if computed_float {
+                    let options = self.evaluation_options(header, header.start_ms, prepared);
+                    let key = crate::vector_matching::ReplayKey::new(
+                        options,
+                        0,
+                        prepared.lookback_ns(options.lookback_ms),
+                        data_bounds,
+                    );
+                    if let Some(store) = crate::computed_groups::Store::create(
+                        catalog.query(),
+                        rosters.groups(node).expect("prepared groups").len(),
+                        header.into(),
+                        key,
+                        control,
+                        account,
+                    )? {
+                        catalog.add_computed_group(node, store);
+                    }
                 }
             }
             if crate::topk::is_selection(expression) {
@@ -3737,6 +3953,47 @@ impl CompiledQuery {
                     }
                 }
             }
+            if (raw_selector || clock_selector.is_some()) && node != self.expression.root {
+                let selector_node = site.expect("instant selector site");
+                let mut computed_input = false;
+                for candidate in &computed_selectors {
+                    control.check()?;
+                    account.work(1);
+                    if *candidate == selector_node {
+                        computed_input = true;
+                        break;
+                    }
+                }
+                let Expr::Selector(selector) = &self.expression.arena[selector_node].expression
+                else {
+                    unreachable!("instant selector expression")
+                };
+                if computed_input
+                    && !selector.smoothed
+                    && !selector.skip_histogram_buckets
+                    && !prepared.flags().boundaries[selector_node.0]
+                    && !prepared.flags().invariants[selector_node.0]
+                {
+                    let options = self.evaluation_options(header, header.start_ms, prepared);
+                    let key = crate::vector_matching::ReplayKey::new(
+                        options,
+                        0,
+                        prepared.lookback_ns(options.lookback_ms),
+                        data_bounds,
+                    );
+                    if let Some(mut store) = crate::computed_groups::Store::create(
+                        catalog.query(),
+                        catalog.len(selector_node),
+                        header.into(),
+                        key,
+                        control,
+                        account,
+                    )? {
+                        store.selector_points();
+                        catalog.add_computed_group(selector_node, store);
+                    }
+                }
+            }
             if let Some(selector_node) = self.direct_clock_selector(node, control, account)? {
                 let Expr::Selector(selector) = &self.expression.arena[selector_node].expression
                 else {
@@ -4067,6 +4324,40 @@ impl CompiledQuery {
                             if absent_range {
                                 continue;
                             }
+                            if rosters.groups(node).is_some() {
+                                if let crate::result::OwnedValue::Float(value) = &sample.value {
+                                    let options =
+                                        self.evaluation_options(header, time_ms, prepared);
+                                    let key = crate::vector_matching::ReplayKey::new(
+                                        options,
+                                        step_index,
+                                        prepared.lookback_ns(options.lookback_ms),
+                                        data_bounds,
+                                    );
+                                    catalog.with_computed_group(
+                                        node,
+                                        control,
+                                        account,
+                                        |store| {
+                                            store.write(
+                                                key,
+                                                time_ms,
+                                                sample.ordinal,
+                                                Some(crate::computed_groups::Point {
+                                                    bits: value.to_bits(),
+                                                    time_ms: sample.source_time_ms,
+                                                    start_time_ms: sample.source_start_time_ms,
+                                                    drop_name: sample.drop_name,
+                                                }),
+                                                control,
+                                                account,
+                                            )
+                                        },
+                                    )?;
+                                } else {
+                                    catalog.discard_computed_group(node);
+                                }
+                            }
                             let hash = crate::label_hash::full(&sample.labels, control, account)?;
                             if series_site.is_none() {
                                 step_kinds.push(hash, sample.ordinal, sample.value.kind_bit());
@@ -4350,9 +4641,18 @@ impl CompiledQuery {
                         clock.grid == crate::query_scopes::Grid::from(prepared.evaluator_header())
                     });
             }
+            catalog.with_computed_group(node, control, account, |store| {
+                store.publish(control, account)
+            })?;
+            if let Some(selector) = clock_selector {
+                catalog.with_computed_group(selector, control, account, |store| {
+                    store.publish(control, account)
+                })?;
+            }
         }
         // Final consumption must validate its own first delivery, even on the same key.
         rosters.clear_replay_progress(control, account)?;
+        catalog.start_final_groups(control, account)?;
         Ok(rosters)
     }
 
@@ -10905,6 +11205,15 @@ mod tests {
     }
 
     fn grouped_input_failure_checks(expression: &str) {
+        // Keep this acquisition-boundary control on the non-prefetch route.
+        let _future = crate::computed_groups::disable_future();
+        for reuse in [false, true] {
+            let _fallback = (!reuse).then(crate::computed_groups::disable);
+            grouped_input_failure_mode(expression, reuse);
+        }
+    }
+
+    fn grouped_input_failure_mode(expression: &str, reuse: bool) {
         fn acquisitions(input: &FixtureProvider) -> Vec<usize> {
             input
                 .series
@@ -10923,6 +11232,10 @@ mod tests {
                 let mut landmarks: Vec<Vec<usize>> = Vec::new();
                 let (mut selected, mut excluded) = (0, 0);
                 for fault in ["none", "cold", "warm", "next", "cancel"] {
+                    if reuse && fault == "warm" {
+                        // Completed cells have no second raw read to fail at this clock.
+                        continue;
+                    }
                     let control = Control::default();
                     let mut provider = local_grouped_operand_provider(page, 4);
                     let phase = match fault {
@@ -11142,14 +11455,18 @@ mod tests {
                             let warm: Vec<_> = (0..provider.series.len())
                                 .filter(|&index| landmarks[2][index] > landmarks[1][index])
                                 .collect();
-                            assert_eq!(warm.len(), 2, "both selected members must be fresh");
+                            assert_eq!(
+                                warm.len(),
+                                if reuse { 0 } else { 2 },
+                                "completed cells versus raw replay"
+                            );
                             assert!(warm.iter().all(|&index| {
                                 provider.series[index]
                                     .labels
                                     .iter()
                                     .any(|(key, value)| key == b"id" && value == &selected_identity)
                             }));
-                            selected = warm[0];
+                            selected = warm.first().copied().unwrap_or(0);
                             excluded = (0..provider.series.len())
                                 .find(|index| {
                                     !warm.contains(index)
@@ -11254,7 +11571,12 @@ mod tests {
                             ("quantile(.5,sum by(job)(sum by(job,id)(m_total)))", 2),
                             ("quantile(.5,sum by(id)(m_total @ 2))", 0),
                             ("quantile(.5,sum by(id)(m_total offset 1s))", 1),
-                            ("quantile(.5,sum by(id)(timestamp(m_total)))", 0),
+                            ("quantile(.5,sum by(id)(timestamp(m_total)))", 1),
+                            ("quantile(.5,sum by(id)(timestamp(m_total @ 2)))", 0),
+                            (
+                                "quantile(.5,sum by(id)(timestamp(m_total offset 500ms)))",
+                                1,
+                            ),
                             ("quantile(.5,sum by(id)(m_total*scalar(m_total)))", 0),
                             ("quantile(.5,m_total)", 0),
                             ("topk(1,sum by(id)(m_total))", 1),
@@ -11271,10 +11593,10 @@ mod tests {
                             ("bottomk(1,sum by(id)(m_total offset 1s))", 1),
                             ("limitk(1,sum by(id)(m_total offset 1s))", 1),
                             ("limit_ratio(.5,sum by(id)(m_total offset 1s))", 1),
-                            ("topk(1,sum by(id)(timestamp(m_total)))", 0),
-                            ("bottomk(1,sum by(id)(timestamp(m_total)))", 0),
-                            ("limitk(1,sum by(id)(timestamp(m_total)))", 0),
-                            ("limit_ratio(.5,sum by(id)(timestamp(m_total)))", 0),
+                            ("topk(1,sum by(id)(timestamp(m_total)))", 1),
+                            ("bottomk(1,sum by(id)(timestamp(m_total)))", 1),
+                            ("limitk(1,sum by(id)(timestamp(m_total)))", 1),
+                            ("limit_ratio(.5,sum by(id)(timestamp(m_total)))", 1),
                             (
                                 "last_over_time((limit_ratio(.5,sum by(id)(m_total)))[2s:1s] @ 2)",
                                 1,
@@ -11401,7 +11723,7 @@ mod tests {
                         1,
                     ),
                     ("abs(sum by(instance)(counter_total))", false, 1, 1),
-                    ("abs(sum by(job)(timestamp(counter_total)))", false, 0, 0),
+                    ("abs(sum by(job)(timestamp(counter_total)))", false, 1, 0),
                 ] {
                     let engine = Engine::default();
                     let control = Control::default();
@@ -11814,6 +12136,8 @@ mod tests {
     }
 
     fn check_completed_single_group_read_phases(scalar: bool, literal_left: Option<bool>) {
+        // Keep this acquisition-boundary control on the non-prefetch route.
+        let _future = crate::computed_groups::disable_future();
         let acquisitions = |provider: &FixtureProvider| {
             provider
                 .series
@@ -14585,49 +14909,56 @@ mod tests {
             account.snapshot().assert_memory_released();
             landmarks
         }
-        for &page in grouped_clock_pages(full_matrix) {
-            let engine = Engine::default();
-            let control = Control::default();
-            let query = engine.compile(
+        for disabled in [false, true] {
+            let _fallback = disabled.then(crate::computed_groups::disable);
+            for &page in grouped_clock_pages(full_matrix) {
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine.compile(
                 format!("max_over_time((histogram_quantile(.5,{aggregate} by(id,le)(rate(duration_bucket[3s]))))[4s:1s])").as_bytes(),
                 EngineOptions::default(), &control).unwrap();
-            let calibration = grouped_histogram_provider(page, 2);
-            let landmarks = drive(&query, &calibration, None, expected);
-            assert_eq!(landmarks.len(), 3);
-            let fresh = (0..8)
-                .filter(|&i| landmarks[2][i] > landmarks[1][i])
-                .collect::<Vec<_>>();
-            assert_eq!(
-                fresh.len(),
-                4,
-                "selected histogram must reread its four raw contributors"
-            );
-            let nonmember = (0..8).find(|i| !fresh.contains(i)).unwrap();
-            assert!(
-                landmarks[1][nonmember] > landmarks[0][nonmember],
-                "cold discovery must read other histograms"
-            );
-            for (after, target) in [(0, nonmember), (1, fresh[0])] {
-                let mut input = grouped_histogram_provider(page, 2);
-                let acquisition = landmarks[after][target] + 1;
-                input.series[target].source.fail_acquisition = Some(acquisition);
+                let calibration = grouped_histogram_provider(page, 2);
+                let landmarks = drive(&query, &calibration, None, expected);
+                assert_eq!(landmarks.len(), 3);
+                let fresh = (0..8)
+                    .filter(|&i| landmarks[2][i] > landmarks[1][i])
+                    .collect::<Vec<_>>();
                 assert_eq!(
-                    drive(&query, &input, Some((after, false)), expected).len(),
-                    after + 1
+                    fresh.len(),
+                    if disabled { 4 } else { 0 },
+                    "completed grouped bucket values replace warm contributor rereads"
                 );
-                assert_eq!(
-                    input.series[target]
-                        .source
-                        .counters
-                        .opened
-                        .load(Ordering::Relaxed),
-                    acquisition
+                let nonmember = (0..8).find(|i| !fresh.contains(i)).unwrap();
+                assert!(
+                    landmarks[1][nonmember] > landmarks[0][nonmember],
+                    "cold discovery must read other histograms"
                 );
+                let mut faults = vec![(0, nonmember)];
+                if disabled {
+                    faults.push((1, fresh[0]));
+                }
+                for (after, target) in faults {
+                    let mut input = grouped_histogram_provider(page, 2);
+                    let acquisition = landmarks[after][target] + 1;
+                    input.series[target].source.fail_acquisition = Some(acquisition);
+                    assert_eq!(
+                        drive(&query, &input, Some((after, false)), expected).len(),
+                        after + 1
+                    );
+                    assert_eq!(
+                        input.series[target]
+                            .source
+                            .counters
+                            .opened
+                            .load(Ordering::Relaxed),
+                        acquisition
+                    );
+                }
+                let input = grouped_histogram_provider(page, 2);
+                assert_eq!(drive(&query, &input, Some((1, true)), expected).len(), 2);
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
             }
-            let input = grouped_histogram_provider(page, 2);
-            assert_eq!(drive(&query, &input, Some((1, true)), expected).len(), 2);
-            drop(query);
-            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -15089,6 +15420,83 @@ mod tests {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn dry_progress_preserves_first_final_and_later_child_failures() {
+        fn make_provider(page: usize) -> FixtureProvider {
+            let mut provider = FixtureProvider::new(13, page, 4);
+            // Fault indices must belong to this series, rather than the fixture's shared counter.
+            for row in &mut provider.series {
+                row.source.counters =
+                    std::sync::Arc::new(crate::test_storage::CursorCounts::default());
+            }
+            provider
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        b"quantile_over_time(.5,(sum by(instance)(counter_total))[4s:1s])",
+                        EngineOptions {
+                            delayed_name_removal: delayed,
+                            ..Default::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let request = QueryRequest::Range {
+                    start_ms: 4000,
+                    end_ms: 12000,
+                    step_ms: 1000,
+                };
+                let calibration = make_provider(page);
+                let (_, first) =
+                    float_map_join_preparation(&query, &calibration, request, &control);
+                let provider = make_provider(page);
+                let (report, hits, saves) = crate::derived_progress::observe(false, || {
+                    query.execute_reported(
+                        &provider,
+                        request,
+                        &control,
+                        &mut RecordingSink::default(),
+                    )
+                });
+                assert!(report.result.is_ok());
+                assert!(hits > 0 && saves > 0);
+                drop(report);
+                let last = provider
+                    .series
+                    .iter()
+                    .map(|row| row.source.counters.opened.load(Ordering::Relaxed))
+                    .collect::<Vec<_>>();
+                provider.assert_closed();
+                for (position, (&prepared, &total)) in first.iter().zip(&last).enumerate() {
+                    assert!(total > prepared, "final data must be read afresh");
+                    for acquisition in [prepared + 1, total] {
+                        let mut provider = make_provider(page);
+                        provider.series[position].source.fail_acquisition = Some(acquisition);
+                        let mut sink = RecordingSink::default();
+                        let report =
+                            query.execute_reported(&provider, request, &control, &mut sink);
+                        assert!(
+                            matches!(&report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
+                            if &**bytes == b"injected page failure"),
+                            "page={page} delayed={delayed} position={position} acquisition={acquisition} prepared={prepared} total={total}: {:?}",
+                            report.result
+                        );
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        report.assert_retained_callback_error_memory();
+                        provider.assert_closed();
+                    }
+                }
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
             }
         }
     }
@@ -15865,6 +16273,8 @@ mod tests {
         fault: bool,
         settings: EngineOptions,
     ) {
+        // Exercise actual endpoint truncation; the default drained-child path has separate completion checks.
+        let _fallback = crate::evaluator::disable_drained_child();
         for &(rate_function, _) in grouped_clock_rates(full_matrix) {
             for &page in grouped_clock_pages(full_matrix) {
                 let engine = Engine::default();
@@ -16036,6 +16446,14 @@ mod tests {
                         .subquery_scope(NodeId(subquery), &inspection, &account)
                         .unwrap();
                     assert_eq!(grid.end_ms, 8000);
+                    let group_node = (0..compiled.expression.arena.nodes.len())
+                        .map(NodeId)
+                        .find(|node| {
+                            rosters
+                                .group_replay(*node)
+                                .is_some_and(|candidate| std::ptr::eq(candidate, plan))
+                        })
+                        .unwrap();
                     for index in 0..grid.steps().unwrap() {
                         let time_ms = grid.start_ms + index * grid.interval_ms;
                         let key = crate::vector_matching::ReplayKey::new(
@@ -16049,6 +16467,38 @@ mod tests {
                             !fault && time_ms < grid.end_ms,
                             "only actual child completion earns clock {time_ms}"
                         );
+                        if !nested && wrapper.is_none() && time_ms == grid.end_ms {
+                            let mut completed = 0;
+                            for ordinal in 0..rosters.groups(group_node).unwrap().len() {
+                                let cell = catalog
+                                    .with_computed_group(
+                                        group_node,
+                                        &inspection,
+                                        &account,
+                                        |store| {
+                                            store.read(key, time_ms, ordinal, &inspection, &account)
+                                        },
+                                    )
+                                    .unwrap()
+                                    .expect("computed grouped backing");
+                                match cell {
+                                    crate::computed_groups::Cell::Present(_) => completed += 1,
+                                    crate::computed_groups::Cell::Unknown => (),
+                                    crate::computed_groups::Cell::Absent => {
+                                        panic!("fixture group is present")
+                                    }
+                                }
+                            }
+                            assert_eq!(
+                                completed > 0,
+                                !fault,
+                                "completed values survive final-clock frame retirement"
+                            );
+                            assert!(
+                                !plan.interval_contains(key),
+                                "value publication grants no interval certificate"
+                            );
+                        }
                         if let Some((_, inner)) = pair {
                             assert_eq!(
                                 inner.interval_contains(key),
@@ -16891,6 +17341,8 @@ mod tests {
 
     #[test]
     fn local_grouped_inner_machines_preserve_member_and_clock_failures() {
+        // This cohort verifies the replay-only provider fallback, including its required reopenings.
+        let _without_backing = crate::computed_groups::disable();
         for (left_window, right_window) in [(false, false), (true, false), (false, true)] {
             let left = if left_window {
                 "rate(m_total[2s])"
@@ -17271,6 +17723,17 @@ mod tests {
         request: QueryRequest,
         control: &Control,
     ) -> (usize, Vec<usize>, usize) {
+        float_map_join_preparation_inspect(compiled, calibration, request, control, false, |_| {})
+    }
+
+    fn float_map_join_preparation_inspect(
+        compiled: &CompiledQuery,
+        calibration: &FixtureProvider,
+        request: QueryRequest,
+        control: &Control,
+        final_root: bool,
+        mut inspect: impl FnMut(&Rosters),
+    ) -> (usize, Vec<usize>, usize) {
         let account = compiled.execution_accounting();
         let (descriptors, pair_plans) = {
             let header = compiled.header(request).unwrap();
@@ -17305,7 +17768,7 @@ mod tests {
                 &account,
             )
             .unwrap();
-            let rosters = compiled
+            let mut rosters = compiled
                 .prepare_rosters(
                     &catalog,
                     &prepared,
@@ -17315,6 +17778,22 @@ mod tests {
                     &mut Annotations::default(),
                 )
                 .unwrap();
+            if final_root {
+                compiled
+                    .certify_pair_replay(
+                        compiled.expression.root,
+                        compiled.header(request).unwrap(),
+                        header,
+                        false,
+                        false,
+                        &prepared,
+                        &mut rosters,
+                        control,
+                        &account,
+                    )
+                    .unwrap();
+            }
+            inspect(&rosters);
             let mut pair_plans = 0;
             for position in 0..compiled.expression.arena.nodes.len() {
                 if let Some(plan) = rosters.binary(NodeId(position)) {
@@ -17359,6 +17838,387 @@ mod tests {
             .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
             .collect();
         (descriptors, baseline, pair_plans)
+    }
+
+    #[test]
+    fn delayed_root_group_pairs_require_float_sources_and_removed_metadata() {
+        fn histogram(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                value: crate::value::SampleValue::FloatHistogram(
+                    crate::histogram::FloatHistogram {
+                        count: 1.0,
+                        sum: 1.0,
+                        ..Default::default()
+                    },
+                ),
+                ..crate::test_storage::counter(index)
+            }
+        }
+        let request = QueryRequest::Range {
+            start_ms: 2000,
+            end_ms: 4000,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            for (source, admitted) in [
+                (
+                    "sum by(instance)(counter_total)/on() group_left sum(counter_total)",
+                    true,
+                ),
+                (
+                    "(sum by(instance)(counter_total))/on() group_left() (sum(counter_total))",
+                    true,
+                ),
+                (
+                    "sum by(instance,__name__)(counter_total)/on() group_left sum(counter_total)",
+                    false,
+                ),
+                (
+                    "sum by(instance,__type__)(counter_total)/on() group_left sum(counter_total)",
+                    false,
+                ),
+                (
+                    "sum by(instance,__unit__)(counter_total)/on() group_left sum(counter_total)",
+                    false,
+                ),
+                (
+                    "sum by(instance)(counter_total)/on() group_left sum by(__name__)(counter_total)",
+                    false,
+                ),
+                (
+                    "sum by(instance)(counter_total @ 2)/on() group_left sum(counter_total)",
+                    false,
+                ),
+                (
+                    "sum by(instance)(abs(counter_total))/on() group_left sum(counter_total)",
+                    false,
+                ),
+                (
+                    "abs(sum by(instance)(counter_total)/on() group_left sum(counter_total))",
+                    false,
+                ),
+            ] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        source.as_bytes(),
+                        EngineOptions {
+                            delayed_name_removal: true,
+                            ..Default::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let input = FixtureProvider::new(6, page, 4);
+                let mut plans = 0;
+                let (rows, _, _) = float_map_join_preparation_inspect(
+                    &query,
+                    &input,
+                    request,
+                    &control,
+                    true,
+                    |rosters| {
+                        plans = usize::from(
+                            rosters
+                                .binary(query.expression.root)
+                                .is_some_and(|plan| plan.has_pair_replay()),
+                        );
+                    },
+                );
+                assert_eq!(rows, 4, "{source}");
+                assert_eq!(plans, usize::from(admitted), "{source}");
+            }
+            for source_kind in 0..3 {
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        b"count by(instance)(counter_total)/on() group_left count(counter_total)",
+                        EngineOptions {
+                            delayed_name_removal: true,
+                            ..Default::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let mut input = FixtureProvider::new(6, page, 4);
+                for (index, series) in input.series.iter_mut().enumerate() {
+                    if source_kind == 0 || source_kind == 1 && index == 0 {
+                        series.source.sample = histogram;
+                    }
+                }
+                if source_kind == 2 {
+                    input.series[1].labels = input.series[0].labels.clone();
+                }
+                let mut plans = 0;
+                let (rows, _, _) = float_map_join_preparation_inspect(
+                    &query,
+                    &input,
+                    request,
+                    &control,
+                    true,
+                    |rosters| {
+                        plans = usize::from(
+                            rosters
+                                .binary(query.expression.root)
+                                .is_some_and(|plan| plan.has_pair_replay()),
+                        );
+                    },
+                );
+                assert_eq!(rows, if source_kind == 2 { 3 } else { 4 });
+                assert_eq!(
+                    plans, 0,
+                    "native/mixed/duplicate sources cannot certify this route"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn computed_group_reuse_preserves_cold_final_and_next_clock_errors_before_sink_failure() {
+        for expression in [
+            "sum by(instance)(counter_total)/on() group_left sum(counter_total)",
+            "time()-max by(instance)(timestamp(counter_total))",
+        ] {
+            for delayed in [false, true] {
+                computed_group_final_read_failures(expression, delayed);
+            }
+        }
+    }
+
+    fn computed_group_final_read_failures(expression: &str, delayed: bool) {
+        // Keep this acquisition-boundary control on the non-prefetch route.
+        let _future = crate::computed_groups::disable_future();
+        fn input_provider(page: usize) -> FixtureProvider {
+            let mut input = FixtureProvider::new(6, page, 4);
+            for series in &mut input.series {
+                series.source.counters =
+                    std::sync::Arc::new(crate::test_storage::CursorCounts::default());
+            }
+            input
+        }
+        let request = QueryRequest::Range {
+            start_ms: 2000,
+            end_ms: 4000,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    expression.as_bytes(),
+                    EngineOptions {
+                        delayed_name_removal: delayed,
+                        ..Default::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let calibration = input_provider(page);
+            let (_, prepared) = float_map_join_preparation(&query, &calibration, request, &control);
+            assert_eq!(prepared.len(), 4);
+            for (position, &acquisitions) in prepared.iter().enumerate() {
+                let mut input = input_provider(page);
+                input.series[position].source.fail_acquisition = Some(acquisitions + 1);
+                let mut sink = RecordingSink {
+                    fail_after: Some(1),
+                    ..RecordingSink::default()
+                };
+                let report = query.execute_reported(&input, request, &control, &mut sink);
+                assert!(
+                    matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes)))) if &**bytes == b"injected page failure")
+                );
+                assert_eq!(sink.chunks, 0);
+                assert!(sink.aborted && !sink.committed);
+                report.assert_retained_callback_error_memory();
+                input.assert_closed();
+            }
+            let mut landmarks = Vec::new();
+            // All four rows at the first clock may share already-completed source points.
+            for outputs in [4, 5] {
+                let input = input_provider(page);
+                let mut sink = RecordingSink {
+                    fail_after: Some(outputs),
+                    ..RecordingSink::default()
+                };
+                let report = query.execute_reported(&input, request, &control, &mut sink);
+                assert!(
+                    matches!(&report.result, Err(ExecutionError::Sink(bytes)) if &**bytes == b"sink failure")
+                );
+                assert_eq!(sink.chunks, outputs);
+                landmarks.push(
+                    input
+                        .series
+                        .iter()
+                        .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
+                        .collect::<Vec<_>>(),
+                );
+                input.assert_closed();
+            }
+            let position = (0..4)
+                .find(|&position| landmarks[1][position] > landmarks[0][position])
+                .expect("new clock has a fresh source read");
+            let mut input = input_provider(page);
+            input.series[position].source.fail_acquisition = Some(landmarks[0][position] + 1);
+            let mut sink = RecordingSink {
+                fail_after: Some(5),
+                ..RecordingSink::default()
+            };
+            let report = query.execute_reported(&input, request, &control, &mut sink);
+            assert!(
+                matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes)))) if &**bytes == b"injected page failure")
+            );
+            assert_eq!(sink.chunks, 4);
+            assert!(sink.aborted && !sink.committed);
+            report.assert_retained_callback_error_memory();
+            input.assert_closed();
+        }
+    }
+
+    #[test]
+    fn completed_selector_pages_preserve_results_and_required_failure_boundaries() {
+        fn input(page: usize, points: usize) -> FixtureProvider {
+            let mut provider = FixtureProvider::new(points, page, 4);
+            for series in &mut provider.series {
+                series.source.counters =
+                    std::sync::Arc::new(crate::test_storage::CursorCounts::default());
+            }
+            provider
+        }
+        fn acquisitions(provider: &FixtureProvider) -> Vec<usize> {
+            provider
+                .series
+                .iter()
+                .map(|series| series.source.counters.opened.load(Ordering::Relaxed))
+                .collect()
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for expression in [
+                    "sum by(instance)(counter_total)/100",
+                    "time()-max by(instance)(timestamp(counter_total))",
+                    "sum by(instance)(counter_total)/on() group_left sum(counter_total)",
+                ] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            expression.as_bytes(),
+                            EngineOptions {
+                                delayed_name_removal: delayed,
+                                start_timestamps: true,
+                                ..Default::default()
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    for outside in [false, true] {
+                        let end = if outside { page + 2 } else { 2 };
+                        let request = QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: end as i64 * 1000,
+                            step_ms: (end as i64 - 1) * 1000,
+                        };
+                        let provider = input(page, end + 1);
+                        let (expected, before) = {
+                            let _ordinary = crate::computed_groups::disable_future();
+                            query.collect(&provider, request, &control).unwrap()
+                        };
+                        let (result, hits) = crate::computed_groups::observe(false, || {
+                            query.collect(&provider, request, &control)
+                        });
+                        let (actual, after) = result.unwrap();
+                        super::computed_group_tests::same_float_results(&actual, &expected);
+                        assert_eq!(
+                            after.statistics.samples.total_queryable_samples,
+                            before.statistics.samples.total_queryable_samples
+                        );
+                        assert_eq!(after.temporary_storage.extent.current, 0);
+                        if !outside && page > 1 {
+                            assert!(
+                                hits[20] > 0,
+                                "pending values consumed: {expression}, page={page}"
+                            );
+                        }
+                        provider.assert_closed();
+                        drop((expected, actual));
+                        let calibration = input(page, end + 1);
+                        let (_, prepared) =
+                            float_map_join_preparation(&query, &calibration, request, &control);
+                        // Preparation cannot substitute for the first final acquisition.
+                        assert_eq!(prepared.len(), 4);
+                        for (position, &acquisitions) in prepared.iter().enumerate() {
+                            let mut provider = input(page, end + 1);
+                            provider.series[position].source.fail_acquisition =
+                                Some(acquisitions + 1);
+                            let mut sink = RecordingSink {
+                                fail_after: Some(1),
+                                ..Default::default()
+                            };
+                            let report =
+                                query.execute_reported(&provider, request, &control, &mut sink);
+                            assert!(
+                                matches!(&report.result,
+                                Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
+                                if &**bytes == b"injected page failure"),
+                                "{expression}, page={page}, outside={outside}, source={position}"
+                            );
+                            assert_eq!(sink.chunks, 0);
+                            assert!(sink.aborted && !sink.committed);
+                            report.assert_retained_callback_error_memory();
+                            provider.assert_closed();
+                        }
+                        let mut landmarks = Vec::new();
+                        for outputs in [4, 5] {
+                            let provider = input(page, end + 1);
+                            let mut sink = RecordingSink {
+                                fail_after: Some(outputs),
+                                ..Default::default()
+                            };
+                            let report =
+                                query.execute_reported(&provider, request, &control, &mut sink);
+                            assert!(matches!(&report.result, Err(ExecutionError::Sink(bytes))
+                                if &**bytes == b"sink failure"));
+                            assert_eq!(sink.chunks, outputs);
+                            assert!(sink.aborted && !sink.committed);
+                            landmarks.push(acquisitions(&provider));
+                            provider.assert_closed();
+                            report.assert_retained_callback_error_memory();
+                        }
+                        if outside || page == 1 {
+                            let position = (0..4)
+                                .find(|&position| landmarks[1][position] > landmarks[0][position])
+                                .expect("clock beyond the validated page must read storage");
+                            let mut provider = input(page, end + 1);
+                            provider.series[position].source.fail_acquisition =
+                                Some(landmarks[0][position] + 1);
+                            let mut sink = RecordingSink {
+                                fail_after: Some(5),
+                                ..Default::default()
+                            };
+                            let report =
+                                query.execute_reported(&provider, request, &control, &mut sink);
+                            assert!(matches!(&report.result,
+                                Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
+                                if &**bytes == b"injected page failure"));
+                            assert_eq!(sink.chunks, 4);
+                            assert!(sink.aborted && !sink.committed);
+                            report.assert_retained_callback_error_memory();
+                            provider.assert_closed();
+                        } else {
+                            assert_eq!(
+                                landmarks[1], landmarks[0],
+                                "completed next clock needs no new source acquisition: {expression}, page={page}"
+                            );
+                        }
+                    }
+                    drop(query);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
     }
 
     #[test]
@@ -17615,6 +18475,8 @@ mod tests {
 
     #[test]
     fn grouped_aggregate_joins_keep_cold_nonmember_and_warm_selected_errors() {
+        // Completed-value reuse has separate first-read and cache-hit controls.
+        let _without_backing = crate::computed_groups::disable();
         let request = QueryRequest::Range {
             start_ms: 2000,
             end_ms: 3000,
@@ -20927,7 +21789,20 @@ mod tests {
                     account.snapshot().assert_memory_released();
                 }
             }
-            assert!(faults >= 16 && after_output > 0);
+            assert_eq!(
+                faults,
+                complete
+                    .iter()
+                    .zip(&prepared)
+                    .map(|(all, before)| all - before)
+                    .sum::<usize>()
+            );
+            if page == 1 {
+                assert!(
+                    after_output > 0,
+                    "unread later pages must retain actual failures"
+                );
+            }
             println!(
                 "set {expression} page={page}: {faults} final acquisition failures, {after_output} after output"
             );
@@ -30393,6 +31268,21 @@ mod tests {
             step_ms: 1000,
         };
         for (expression, request, expected) in [
+            (
+                "time()-max by(instance)(timestamp(counter_total))",
+                range,
+                1,
+            ),
+            (
+                "time()-max by(instance)(timestamp(counter_total))",
+                instant,
+                0,
+            ),
+            (
+                "time()-max by(instance)(timestamp(counter_total @ end()))",
+                range,
+                0,
+            ),
             ("histogram_sum(sum by(instance)(counter_total))", range, 1),
             ("histogram_sum(sum by(instance)(counter_total))", instant, 0),
             ("histogram_sum(sum by(instance)(counter_total))", equal, 0),
@@ -30629,7 +31519,7 @@ mod tests {
             (
                 "label_join(sum by(instance)(timestamp(counter_total)),\"row\",\"/\",\"instance\")",
                 range,
-                0,
+                1,
             ),
             (
                 "label_join(sum by(instance)(counter_total*scalar(counter_total)),\"row\",\"/\",\"instance\")",
@@ -30717,6 +31607,15 @@ mod tests {
 
     #[test]
     fn mapped_groups_keep_cold_selected_next_clock_and_output_failures() {
+        for reuse in [false, true] {
+            let _fallback = (!reuse).then(crate::computed_groups::disable);
+            mapped_group_failure_mode(reuse);
+        }
+    }
+
+    fn mapped_group_failure_mode(reuse: bool) {
+        // Keep this acquisition-boundary control on the non-prefetch route.
+        let _future = crate::computed_groups::disable_future();
         fn acquisitions(input: &FixtureProvider) -> Vec<usize> {
             input
                 .series
@@ -30927,19 +31826,26 @@ mod tests {
                     let next_nonmember = (0..8)
                         .rfind(|&index| 3 - index / 2 != group_order[1][0])
                         .unwrap();
-                    let (prefix, selected) = landmarks[0]
-                        .windows(2)
-                        .enumerate()
-                        .skip(1)
-                        .find_map(|(prefix, pair)| {
-                            (0..8)
-                                .find(|&index| {
-                                    3 - index / 2 == group_order[0][prefix]
-                                        && pair[1][index] > pair[0][index]
-                                })
-                                .map(|index| (prefix, index))
-                        })
-                        .expect("a later ordered row freshly reads a selected contributor");
+                    let warm =
+                        landmarks[0]
+                            .windows(2)
+                            .enumerate()
+                            .skip(1)
+                            .find_map(|(prefix, pair)| {
+                                (0..8)
+                                    .find(|&index| {
+                                        3 - index / 2 == group_order[0][prefix]
+                                            && pair[1][index] > pair[0][index]
+                                    })
+                                    .map(|index| (prefix, index))
+                            });
+                    let reused = reuse && !expression.starts_with("histogram_");
+                    assert_eq!(
+                        warm.is_none(),
+                        reused,
+                        "only completed Float cells replace warm reads"
+                    );
+                    let (prefix, selected) = warm.unwrap_or((1, 0));
                     for (phase, instant, after, target, acquisition) in [
                         (
                             "cold-nonmember",
@@ -30963,6 +31869,9 @@ mod tests {
                             landmarks[1][0][next_nonmember] + 1,
                         ),
                     ] {
+                        if reused && phase == "warm-selected" {
+                            continue;
+                        }
                         let mut input = provider();
                         input.series[target].source.fail_acquisition = Some(acquisition);
                         let observed = drive(&compiled, &input, Some((instant, after, false)));
@@ -31021,6 +31930,13 @@ mod tests {
 
     #[test]
     fn histogram_group_contributors_keep_cold_and_selected_failures() {
+        for reuse in [false, true] {
+            let _fallback = (!reuse).then(crate::computed_groups::disable);
+            histogram_group_failure_mode(reuse);
+        }
+    }
+
+    fn histogram_group_failure_mode(reuse: bool) {
         fn acquisitions(input: &FixtureProvider) -> Vec<usize> {
             input
                 .series
@@ -31194,17 +32110,23 @@ mod tests {
                     let calibration = provider(page);
                     let landmarks = drive(&compiled, &calibration, None);
                     assert_eq!(landmarks.len(), outputs + 1);
-                    let (prefix, selected) = landmarks
-                        .windows(2)
-                        .enumerate()
-                        .skip(1)
-                        .find_map(|(prefix, rows)| {
-                            (0..8)
-                                .rev()
-                                .find(|index| rows[1][*index] > rows[0][*index])
-                                .map(|selected| (prefix, selected))
-                        })
-                        .expect("a later histogram result freshly reads a selected contributor");
+                    let warm =
+                        landmarks
+                            .windows(2)
+                            .enumerate()
+                            .skip(1)
+                            .find_map(|(prefix, rows)| {
+                                (0..8)
+                                    .rev()
+                                    .find(|index| rows[1][*index] > rows[0][*index])
+                                    .map(|selected| (prefix, selected))
+                            });
+                    assert_eq!(
+                        warm.is_none(),
+                        reuse,
+                        "completed Float buckets replace warm reads"
+                    );
+                    let (prefix, selected) = warm.unwrap_or((1, 0));
                     for (phase, after, target, acquisition) in [
                         ("cold-nonmember", 0, 7, landmarks[0][7] + 1),
                         (
@@ -31214,6 +32136,9 @@ mod tests {
                             landmarks[prefix][selected] + 1,
                         ),
                     ] {
+                        if reuse && phase == "warm-selected" {
+                            continue;
+                        }
                         let mut input = provider(page);
                         input.series[target].source.fail_acquisition = Some(acquisition);
                         let observed = drive(&compiled, &input, Some((after, false)));

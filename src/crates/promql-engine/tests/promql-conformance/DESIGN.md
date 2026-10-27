@@ -188,6 +188,63 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Evidence:** [typed storage](../../src/storage.rs),
   [fold cache](../../src/range_cache.rs), [memory contract](contract.json).
 
+### Completed intermediate values and reader progress
+
+- **Choice (70.A):** retain completed grouped Float values and selected evaluated Float points in
+  provider-owned temporary backing. Stores start with one 1,024-word RAM page; grouped values and final selector replay can lazily
+  retain a second page for adjacent lookups. Values preserve exact bits and
+  source clocks; an explicit absent cell differs from a cell whose evaluation is unfinished.
+- **Traversal layout:** selector preparation writes series-major records; final evaluation uses time-major records.
+  Final generation tags invalidate preparation cells without transposing the backing. Both dirty pages are flushed
+  on publication, preserving lower dirty records before initializing unwritten gaps. Each resident page owns its
+  accounted buffer and sample credits; selector preparation retains one-page behavior.
+  Completed selector preparation reads only the four-word record on a cache miss, preserving the resident page.
+  A present temporary record owns one transient sample credit through the post-read cancellation check.
+- **Reuse proof:** match the expression site, evaluation grid, options and existing descriptor identity.
+  Keep existing contexts/label ownership. Publish only completed values; preserve separate preparation and
+  final generations so preparation cannot satisfy the first required final read.
+- **Forward instant lookups:** a previous completed final-generation Float or absence can seed the next lookup.
+  Open a fresh cursor after the previous raw lookup time, preserving the query-global bounds and counter origin.
+  Keep the first future sample, stale barriers, source/start timestamps, logical sample admission and callback errors.
+  Native/unknown predecessors and unsafe clock arithmetic retain ordinary replay.
+- **Already returned pages:** when a final selector stops, its entire borrowed page is validated before any reuse.
+  A Float-only page may also supply later grid values covered by that page, without another cursor operation.
+  Publication visits at most as many future steps as the page has samples, including skipped steps; sparse pages
+  cannot trigger unbounded eager work. Checked clocks, offsets, lookback and stale markers keep ordinary selection
+  semantics. Native pages and unsupported schedules retain replay. Only computed four-word cells are retained;
+  the borrowed raw page is released with its cursor.
+  Future publication outside both resident pages reads and writes only its four-word record when the backing
+  location is initialized. Resident targets retain coherent page updates; uninitialized targets retain the same
+  gap-initialization path. This prevents strided publication from repeatedly rewriting whole pages as series
+  count grows. Scratch records carry transient sample credits through fallible callbacks.
+  Prefetched values and absence are pending until actually requested. The first consumption clears that marker;
+  a present value contributes one useful sample, absence contributes zero. Probes and overlapping publication
+  cannot overwrite known values or grant duplicate credits. This does not bypass the fresh first final acquisition.
+- **Subqueries:** after a successful dry traversal, consume completed current-window values with the original
+  numerical kernel. A fixed 17-word record per existing row can retain the dry reader's cursor, lookahead and
+  window state in provider backing. Later forward steps resume that state; earlier or incompatible requests replay.
+  The progress owner holds one 136-byte record buffer, rather than an array of readers in RAM.
+  When a cold aggregate has drained its inputs and finalized its selected group, a direct single-Float subquery
+  consumer lets its actual terminal step finish. The ordinary reader visits the accepted value first, then retains
+  at most one next-request action while the child completes. That action is delivered before acknowledging another
+  fetch; progress cannot be saved until completion. This prevents later groups from repeating an already finished
+  input scan while preserving visitor-before-terminal error order. Other child shapes retain ordinary traversal.
+  A completed group window touching at most two backing pages uses the two resident pages. Larger sparse
+  windows, with at most four relevant cells per backing page, read nonresident four-word cells directly.
+  Dense windows retain whole-page reads to amortize callbacks. Both paths preserve dirty residents and keep
+  the transient sample lease through kernel consumption. The store derives that choice from exact grid/ordinal offsets; validation and
+  consumption still execute their original passes. Extra cache memory is bounded per store, not per query.
+- **Failure behavior:** missing optional backing retains ordinary replay. An actual backing error fails the query.
+  Unknown/native/incomplete values fall back before consumption; there is no fallback after partially feeding a
+  numerical kernel. Provider ownership and temporary I/O remain accounted and cancellation remains observable.
+- **Boundary:** this is internal use of the existing ABI4 temporary storage callbacks. It does not change collection,
+  interpolation, metric units, contexts ownership or the raw dbengine page interface. Original temporal sorting
+  still requires backing when exact sorting needs it; the optional replay fallback does not relax that requirement.
+- **Qualification:** [the recorded runs](computed-intermediates-qualification.json) bind both release profiles,
+  original comparisons, C/C++ consumers and the Netdata storage checks. [The guide](INTERMEDIATE_REUSE.md)
+  explains completion tests, measured improvements and short-query costs. Broad-run and final lint/test-only
+  rebuild identities remain distinct. These results do not substitute for live Grafana verification.
+
 ### 13. Exact temporal sorting uses provider-owned temporary backing
 
 - **Choice:** general temporal quantiles/provenance use exact float-bit slots and literal upstream sorting over

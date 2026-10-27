@@ -253,6 +253,17 @@ pub trait QueryProvider {
         request: SelectionRequest<'_>,
         control: &Control,
     ) -> Result<Self::Selection<'_>, StorageError>;
+    /// Optional query-owned backing for computed intermediates. None means no capability;
+    /// a failed create remains an error. The returned owner cannot outlive this query.
+    fn open_temporary_float_bits(
+        &self,
+        request: TemporaryFloatBitsRequest<'_>,
+        control: &Control,
+    ) -> Result<Option<OwnedTemporary<'_>>, StorageError> {
+        control.check()?;
+        request.extent_bytes()?;
+        Ok(None)
+    }
     /// Successful backing stays owned by the provider until after the visitor, including unwind.
     fn with_temporary_float_bits<R>(
         &self,
@@ -280,7 +291,8 @@ impl TemporaryFloatBitsRequest<'_> {
     }
 }
 
-/// Exact all-or-error transfers of raw float bits; offsets count values, not bytes.
+/// Exact all-or-error transfers of 64-bit words, including raw float bits and computed records.
+/// Offsets count words, not bytes; no bit pattern has a reserved storage meaning.
 /// No buffer or nested borrow survives a call. Unwritten slots must not be read.
 pub trait TemporaryFloatBits {
     fn resources(&self) -> ProviderResources;
@@ -296,6 +308,43 @@ pub trait TemporaryFloatBits {
         values: &[u64],
         control: &Control,
     ) -> Result<(), StorageError>;
+}
+
+/// Precisely charged, query-scoped ownership of a provider's temporary store.
+pub struct OwnedTemporary<'a> {
+    // Close the physical owner before releasing the allocation charge.
+    value: Box<dyn TemporaryFloatBits + 'a>,
+    _allocation: MemoryLease,
+}
+impl<'a> OwnedTemporary<'a> {
+    pub fn new<T: TemporaryFloatBits + 'a>(value: T, account: &QueryAccounting) -> Self {
+        let allocation = account.hold(MemoryKind::Workspace, size_of::<T>() as u64);
+        Self {
+            value: Box::new(value),
+            _allocation: allocation,
+        }
+    }
+}
+impl TemporaryFloatBits for OwnedTemporary<'_> {
+    fn resources(&self) -> ProviderResources {
+        self.value.resources()
+    }
+    fn read_into(
+        &mut self,
+        offset: u64,
+        values: &mut [u64],
+        control: &Control,
+    ) -> Result<(), StorageError> {
+        self.value.read_into(offset, values, control)
+    }
+    fn write_at(
+        &mut self,
+        offset: u64,
+        values: &[u64],
+        control: &Control,
+    ) -> Result<(), StorageError> {
+        self.value.write_at(offset, values, control)
+    }
 }
 
 pub(crate) fn temporary_storage_error(account: &QueryAccounting, message: &[u8]) -> StorageError {
@@ -736,16 +785,31 @@ pub(crate) fn walk_observed<S: Series, E: From<StorageError> + From<Interrupted>
     account: &QueryAccounting,
     visit: impl for<'a> FnMut(SampleRef<'a>, CursorOrigin) -> Result<CursorAction, E>,
 ) -> Result<std::ops::ControlFlow<()>, E> {
-    walk_observed_inner(series, bounds, start, control, account, false, visit)
+    walk_observed_inner(series, bounds, start, control, account, false, visit, None)
 }
 
+pub(crate) type StopPageObserver<'a, E> = dyn for<'p> FnMut(PageSamples<'p>) -> Result<(), E> + 'a;
+
+#[cfg(test)]
 pub(crate) fn walk_scheduled<S: Series, E: From<StorageError> + From<Interrupted>>(
     series: &S,
     bounds: TimeBounds,
     start: WalkStart<'_>,
     control: &Control,
     account: &QueryAccounting,
+    visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<CursorAction, E>,
+) -> Result<std::ops::ControlFlow<()>, E> {
+    walk_scheduled_pages(series, bounds, start, control, account, visit, None)
+}
+
+pub(crate) fn walk_scheduled_pages<S: Series, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    bounds: TimeBounds,
+    start: WalkStart<'_>,
+    control: &Control,
+    account: &QueryAccounting,
     mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<CursorAction, E>,
+    observer: Option<&mut StopPageObserver<'_, E>>,
 ) -> Result<std::ops::ControlFlow<()>, E> {
     walk_observed_inner(
         series,
@@ -755,6 +819,7 @@ pub(crate) fn walk_scheduled<S: Series, E: From<StorageError> + From<Interrupted
         account,
         true,
         |sample, _| visit(sample),
+        observer,
     )
 }
 
@@ -785,6 +850,7 @@ fn validate_walk_sample<E: From<StorageError> + From<Interrupted>>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn walk_observed_inner<S: Series, E: From<StorageError> + From<Interrupted>>(
     series: &S,
     bounds: TimeBounds,
@@ -793,6 +859,7 @@ fn walk_observed_inner<S: Series, E: From<StorageError> + From<Interrupted>>(
     account: &QueryAccounting,
     local_seeks: bool,
     mut visit: impl for<'a> FnMut(SampleRef<'a>, CursorOrigin) -> Result<CursorAction, E>,
+    mut observer: Option<&mut StopPageObserver<'_, E>>,
 ) -> Result<std::ops::ControlFlow<()>, E> {
     let _control_observation = control.observe(account);
     control.check()?;
@@ -943,7 +1010,14 @@ fn walk_observed_inner<S: Series, E: From<StorageError> + From<Interrupted>>(
                 seek = Some(target);
                 origin = CursorOrigin::SeekLanding;
             }
-            CursorAction::Stop => return Ok(std::ops::ControlFlow::Break(())),
+            CursorAction::Stop => {
+                if let Some(observer) = observer.as_mut() {
+                    control.check()?;
+                    observer(page.samples)?;
+                    control.check()?;
+                }
+                return Ok(std::ops::ControlFlow::Break(()));
+            }
         }
     }
     Ok(std::ops::ControlFlow::Continue(()))
@@ -1276,6 +1350,7 @@ mod tests {
                         }
                     }
                 },
+                None,
             );
             if mode == 2 {
                 let Err(StorageError::Provider(bytes)) = result else {

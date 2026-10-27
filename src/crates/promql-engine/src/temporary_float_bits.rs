@@ -57,7 +57,7 @@ impl Writer<'_> {
     }
 }
 
-fn write(
+pub(crate) fn write(
     store: &mut dyn TemporaryFloatBits,
     offset: u64,
     values: &[u64],

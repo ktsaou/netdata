@@ -794,6 +794,13 @@ impl crate::storage::QueryProvider for FixtureQuery<'_> {
     fn resources(&self) -> ProviderResources {
         ProviderResources::default()
     }
+    fn open_temporary_float_bits(
+        &self,
+        request: crate::storage::TemporaryFloatBitsRequest<'_>,
+        control: &Control,
+    ) -> Result<Option<crate::storage::OwnedTemporary<'_>>, StorageError> {
+        crate::fixture_temporary_storage::open_store(request, control)
+    }
     fn with_temporary_float_bits<R>(
         &self,
         request: crate::storage::TemporaryFloatBitsRequest<'_>,

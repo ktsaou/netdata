@@ -141,6 +141,31 @@ mod disk {
 ))]
 pub use disk::FileStore;
 
+pub fn open_store(
+    request: TemporaryFloatBitsRequest<'_>,
+    control: &Control,
+) -> Result<Option<crate::storage::OwnedTemporary<'static>>, StorageError> {
+    #[cfg(all(
+        target_os = "linux",
+        any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "arm")
+    ))]
+    {
+        Ok(Some(crate::storage::OwnedTemporary::new(
+            FileStore::create(request, control)?,
+            request.accounting,
+        )))
+    }
+    #[cfg(not(all(
+        target_os = "linux",
+        any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "arm")
+    )))]
+    {
+        control.check()?;
+        request.extent_bytes()?;
+        Ok(None)
+    }
+}
+
 pub fn with_store<R>(
     request: TemporaryFloatBitsRequest<'_>,
     control: &Control,

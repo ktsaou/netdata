@@ -19,7 +19,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - The reference is Prometheus v0.315.0 and Go 1.27.1, AMD64 with the retained FMA route. See `contract.json`.
 - Default stable and explicit upstream-test profiles differ. An optional-feature witness does not qualify the default.
 - Historical panels retain their original source and binary identities. See `core-qualification.json` and `IMPORT.json`.
-- Raw history must remain paged on both axes. Temporary backing belongs to the provider; unavailable backing is an error.
+- Raw history must remain paged on both axes. Required sorting backing belongs to the provider; absence is an error.
+  Optional completed-intermediate backing may be unavailable, in which case ordinary replay remains valid.
 - C ABI4 owns explicit handles, borrows callback buffers and commits provisional output only after successful evaluation.
 - Ordinary C-boundary panics must unwind. An abort build is rejected by `src/lib.rs`.
 
@@ -496,3 +497,7 @@ The rejected root Rate-label ownership experiment, metadata-free copy regression
 
 Mapped extrema/count/presence/variance ownership and typed-window checks follow
 `src/crates/promql-engine/tests/promql-conformance/README.md#borrowed-mapped-reducer-labels`.
+
+Provider-backed completed values, observed-page reuse and reader progress follow
+`src/crates/promql-engine/tests/promql-conformance/INTERMEDIATE_REUSE.md` for phase separation, actual terminal
+completion, backing transfer costs and native/late-cursor qualification.
