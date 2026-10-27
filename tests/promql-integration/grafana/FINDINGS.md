@@ -38,7 +38,7 @@ excluded by decision 71.
 
 ## Earlier follow-up: C page publication polling — 2026-10-27
 
-Runtime `72f69b6fd0` is installed. The C adapter no longer walks every validated sample solely to poll control
+Runtime `72f69b6fd0` was installed at this checkpoint. The C adapter no longer walks every validated sample solely to poll control
 and count work. Complete page validation and the final control check remain. The
 [controlled qualification](../adapter-page-polling-qualification.json) records unchanged measured memory and
 I/O, both profiles with 1,107 passing tests, actual GCC/Clang C/C++ callers, and independent review.
