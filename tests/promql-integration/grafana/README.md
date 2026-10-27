@@ -50,7 +50,9 @@ reconstruct absent historical values. See [the findings](FINDINGS.md) for the cu
 
 Metric titles, types and native units are now available through `/api/v1/metadata`, including Grafana’s datasource
 proxy. [Live metadata measurements](metadata-descriptions-live.json) record exact-name and full-catalogue latency,
-four-client requests and continuing reception. Small unfiltered output limits still incur a full catalogue scan.
+four-client requests and continuing reception. The [zero-limit follow-up](metadata-zero-limit-live.json) reduces
+`limit=0` median latency from 2.35 seconds to 91 ms by omitting intermediate output preparation. Contexts traversal
+remains active; positive limits and the full catalogue still take approximately 2.4 seconds in this workload.
 
 The latest [mapped aggregate interval replay](mapped-group-intervals-live.json) covers all 360 retained requests.
 The selected 24-hour CPU-history query now completes, but 12 requests still time out overall. These dashboards remain

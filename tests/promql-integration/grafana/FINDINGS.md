@@ -11,7 +11,32 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
-## Follow-up: metric descriptions through Netdata and Grafana — 2026-10-27
+## Follow-up: zero-limit metadata preparation — 2026-10-27
+
+Runtime `049817dc89` is installed. A zero name limit now discards descriptions before building intermediate
+records/indexes or sorting. It retains contexts traversal, parameter checks, unavailable-host errors and cancellation.
+[Controlled qualification](../metadata-zero-limit-qualification.json) covers internal and normal builds plus 142 HTTP
+checks. [Live evidence](metadata-zero-limit-live.json) records five serial repetitions per case, after one warmup:
+
+| Request | Before median | After median |
+|---|---:|---:|
+| Unfiltered `limit=0` | 2.347 s | 0.091 s |
+| Unfiltered `limit=1` | 2.447 s | 2.461 s |
+| Whole catalogue | 2.431 s | 2.435 s |
+| Exact `system_cpu` metadata | 7.36 ms | 6.85 ms |
+
+The zero-limit reduction is 96.1%; positive limits and full-catalogue preparation are unchanged. The serial response
+digest sets match for every case, including the full 4,964-name / 4,972-description catalogue. Four concurrent zero-limit
+requests finish in 0.47–0.51 seconds each, versus a 2.82-second batch before. These are warm, uncontrolled live
+observations; they establish neither cold-cache performance nor universal throughput.
+
+Installation succeeds in 196.79 seconds with both configuration comparisons passing. Netdata and Grafana remain
+active with approximately 50 GiB free. Grafana's CPU-history request returns 18 frames in 0.52 seconds; all 18
+reporting CPU hosts advance. The full 360-query workload is not repeated for this metadata-only change.
+Full-catalogue preparation, positive limits, long-history and concurrent-query findings remain open. Histogram
+representation remains under discussion, with historical boundary repair excluded by decision 71.
+
+## Earlier follow-up: metric descriptions through Netdata and Grafana — 2026-10-27
 
 Runtime `c46a8fbe6a` is installed. GET `/api/v1/metadata` now returns context-owned instance titles, native units
 and counter/gauge types under exact and underscore names. Both direct and Grafana-proxy routes previously returned
