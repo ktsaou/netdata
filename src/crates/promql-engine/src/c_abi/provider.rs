@@ -672,10 +672,6 @@ impl storage::SampleCursor for Cursor<'_> {
             .checked_mul(size_of::<SampleRef<'_>>())
             .filter(|bytes| *bytes <= isize::MAX as usize)
             .ok_or(Invalid("adapter descriptor size overflow"))?;
-        for _ in raw {
-            control.check()?;
-            provider.account.work(1);
-        }
         control.check()?;
         self.samples = ValidatedPage {
             data: raw.as_ptr(),

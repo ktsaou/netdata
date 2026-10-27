@@ -891,6 +891,91 @@ fn foreign_page_shapes_precede_cancellation_and_unread_tail_timestamps_stay_in_t
 }
 
 #[test]
+fn foreign_page_publication_checks_control_after_one_validation_pass() {
+    use crate::storage::{
+        Interrupted, Provider, QueryProvider, SampleCursor, Series, SeriesSelection, StorageError,
+    };
+    for page_size in [1, 17, 1024] {
+        for mode in 0..5 {
+            let accounting = crate::accounting::EngineAccounting::default();
+            let account = accounting.query();
+            let mut control = CoreControl::default();
+            let mut fixture = Fixture::new(page_size);
+            fixture.points.resize(page_size, fixture.points[0]);
+            for (index, point) in fixture.points.iter_mut().enumerate() {
+                point.time_ms = index as i64 * 1000;
+            }
+            if mode == 2 || mode == 4 {
+                fixture.points.last_mut().unwrap().value.reserved = 1;
+            }
+            let table = fixture.table();
+            let provider = unsafe { provider::Provider::new(&table, &account) }.unwrap();
+            let bounds = crate::storage::TimeBounds {
+                start_ms: 0,
+                end_ms: page_size as i64 * 1000,
+            };
+            let query = provider.open(bounds, &control).unwrap();
+            let mut selection = query
+                .select(
+                    crate::storage::SelectionRequest {
+                        matchers: &[],
+                        bounds,
+                        hints: crate::storage::SelectionHints::default(),
+                        accounting: Some(&account),
+                    },
+                    &control,
+                )
+                .unwrap();
+            let series = selection.next(&control).unwrap().unwrap();
+            drop(selection);
+            let mut cursor = series.cursor(bounds, &control).unwrap();
+            if mode >= 3 {
+                control.deadline = Some(std::time::Instant::now());
+            }
+            let before = account.snapshot().work;
+            let mut resources = crate::storage::ProviderResources::default();
+            let mut next = || {
+                cursor
+                    .next(&control, &mut resources)
+                    .map(|page| page.unwrap().samples.len())
+            };
+            let result = if mode == 1 || mode == 2 {
+                crate::test_storage::interrupt_after_work(&account, &control, 1, next)
+            } else {
+                next()
+            };
+            match mode {
+                0 => assert_eq!(result.unwrap(), page_size),
+                1 => assert!(matches!(
+                    result,
+                    Err(StorageError::Interrupted(Interrupted::Cancelled))
+                )),
+                3 => assert!(matches!(
+                    result,
+                    Err(StorageError::Interrupted(Interrupted::Deadline))
+                )),
+                _ => assert!(matches!(
+                    result,
+                    Err(StorageError::Invalid("nonzero reserved value field"))
+                )),
+            }
+            assert_eq!(account.snapshot().work - before, page_size as u64);
+            assert_eq!(
+                (account.snapshot().pages, account.snapshot().samples_fetched),
+                (1, page_size as u64)
+            );
+            drop(cursor);
+            drop(series);
+            drop(query);
+            for (opened, closed) in fixture.opened.iter().zip(&fixture.closed) {
+                assert_eq!(opened.get(), closed.get());
+            }
+            account.snapshot().assert_memory_released();
+        }
+    }
+}
+
+#[test]
 fn returned_c_pages_are_counted_before_conversion_cancellation() {
     unsafe {
         let engine = engine();

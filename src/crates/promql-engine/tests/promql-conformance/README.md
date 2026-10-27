@@ -2416,6 +2416,34 @@ remain precise, and totals containing estimates are not guaranteed bounds. Live 
 qualified separately in the containing repository. Go Cloud distribution and independent rule lifecycle remain
 tracked stages. Alertmanager remains excluded.
 
+## C page publication polling
+
+The C adapter retains one complete foreign-page shape/footprint validation pass and a final control check
+before publishing its borrowed view. Removing the leftover descriptor-construction loop eliminates one
+poll and one work unit per fetched sample; that loop no longer constructed descriptors. The descriptor-size
+overflow check remains, preserving its accepted-input boundary. No sample storage or ownership changes.
+
+The [source-bound qualification](../../../../../tests/promql-integration/adapter-page-polling-qualification.json)
+records both profiles with 1,107 passing units and 2 ignored, strict Clippy, and actual GCC/Clang C/C++ callers.
+A new regression first fails on the unchanged adapter's extra work. Its passing cases check pages 1/17/1024,
+cancellation during validation, malformed-tail precedence, expired deadlines, publication and cleanup.
+
+`adapter_page_cost.c` reuses the generated one-page provider from `c_embedding.c`. Link it against the library
+with the same include path and platform libraries as the embedding caller. Its arguments are input points,
+page size, function, deadline enabled and repetitions; for example,
+`adapter_page_cost 65537 1024 sum_over_time 1 31`. Supported functions are `sum_over_time`, `count_over_time`
+and `rate`; input lengths are 1025 or 65537. Compilation and control creation are outside the timed collect.
+
+The 72 paired configurations retain 1,440 queries over both profiles, both lengths, pages 1/17/1024 and explicit
+future/no deadlines. All recorded memory categories, provider calls, physical reads/pages, output counts and
+logical sample statistics match; work decreases by exactly the number of fetched samples. Exact expected
+Float bits, timestamps and raw surviving labels are asserted. Annotation counts, not their contents, are compared.
+Median candidate/baseline time ratios are 0.850 with deadlines and 0.964 without them. Three initially slower
+no-deadline cases are retained; a further 930-query check finds all 15 longer paired blocks faster, with median
+ratios 0.935, 0.943 and 0.940. These shared-workstation C-query timings include provider generation, evaluation and
+collection; they are not isolated adapter CPU measurements or live DBengine results. Native executable text
+changes by +344 bytes in release and -56 in release-min; data/BSS and measured query memory do not grow.
+
 ## Borrowed foreign sample pages
 
 The C adapter validates every header and nested array in the returned page before cooperative publication. It
