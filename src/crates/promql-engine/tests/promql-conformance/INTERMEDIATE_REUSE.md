@@ -48,6 +48,13 @@ tests retain the original no-certificate assertions. Default tests require actua
 linear cold input deliveries and interruption before endpoint publication. Reader tests separately preserve
 visitor-before-terminal error order and execution of a staged next-clock fetch.
 
+Mapped-window checks also compare both scalar operand orders, arithmetic, filtering and Boolean comparisons
+against ordinary replay and pinned original results. Include reserved-name projection, ambiguous labels, nested
+maps, fixed-time boundaries, sparse and nonfinite values, and mixed/native history. A native fallback assertion
+must check both completed-window consumption and dry-progress counters: zero value-cache hits alone does not
+prove that ordinary traversal was retained. Calibrate failures against actual final-phase acquisitions and exercise
+cancellation after real mapped-window delivery; the direct aggregate terminal hook does not apply to mapped children.
+
 Replay the retained original evaluation, SRE recording/alert, temporal, native-histogram, grouping and precise-time
 panels in both profiles. Keep existing source-unspecified ordering classifications visible; they are not strict
 original-output passes. Build and execute actual native, ARM64 and ARM32 C/C++ callers. Qualify the changed Netdata
@@ -100,3 +107,31 @@ The native GCC C executable's total `size` report grows from 7,952,302 to 8,109,
 5,632,095 to 5,747,643 bytes in release-min (+2.05%). This is compiled footprint, not per-query allocation or RSS.
 Runtime paging remains bounded per store; group metadata, outputs and the number of stores can still grow with
 query cardinality. Provider backing also consumes storage and I/O outside those RAM pages.
+
+### Scalar-mapped aggregate windows
+
+[mapped-windows-qualification.json](mapped-windows-qualification.json) records the subsequent single-scalar-map
+extension. Both profiles pass 1,083 unit tests (two ignored), 128,652 builtin comparisons combined, 3,952 retained
+focused comparisons and 2,592 new mapped-window comparisons. All compared outcomes and numeric bits match the
+pinned originals. The predecessor also passes the same new 1,296 cases separately. A later test-only lint edit is
+explicitly distinguished from the frozen binaries; runtime source is unchanged.
+
+The larger fixture has 36 source series, 18 groups and 361 output clocks across six hours, with a 30-minute
+subquery window and one-minute step. Three alternating runs give these median times:
+
+| Expression | Before | After |
+| --- | ---: | ---: |
+| `avg_over_time((avg by(id)(m))[30m:1m])` | 447.235 ms | 440.035 ms |
+| `avg_over_time((100-avg by(id)(m))[30m:1m])` | 11,799.887 ms | 516.919 ms |
+| `quantile_over_time(.95,(100-avg by(id)(m))[30m:1m])` | 63,156.602 ms | 1,252.868 ms |
+
+Both mapped queries add 1,520 bytes to their workspace peak: average 85,808 → 87,328 bytes; quantile
+85,872 → 87,392 bytes. Their cumulative workspace allocation falls from 677,842,910 → 30,812,110 bytes and
+3,526,912,062 → 31,160,366 bytes respectively. The additional backing extent is 2,448 bytes, one 136-byte progress
+record per group. Source entries fetched remain 28,152; the improvement removes repeated work on computed values.
+
+The smaller four-group fixture's unchanged average control measures 3.363 → 3.361 ms; mapped average
+17.640 → 3.979 ms and mapped quantile 78.244 → 4.949 ms. These are six measured runs after one warmup.
+Measurements ran on the shared workstation alongside the size-optimized unit build/run; they do not establish
+isolated throughput or VM latency. Dense backing traffic and raw overlapping-window replay remain separate
+remediation work. Combined SRE, temporal, caller and live qualification remains required before deployment.

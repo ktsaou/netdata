@@ -39,6 +39,38 @@ impl Pair {
     }
 }
 
+pub(crate) fn evaluate_scalar(
+    operator: TokenKind,
+    scalar: f64,
+    scalar_left: bool,
+    return_bool: bool,
+    vector: OwnedValue,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<Pair, EvaluationError> {
+    let vector_float = match &vector {
+        OwnedValue::Float(value) => Some(*value),
+        _ => None,
+    };
+    let scalar = OwnedValue::Float(scalar);
+    let (left, right) = if scalar_left {
+        (scalar, vector)
+    } else {
+        (vector, scalar)
+    };
+    let mut pair = evaluate(operator, left, right, control, account)?;
+    if let Some(value) = &mut pair.value {
+        if return_bool {
+            *value = OwnedValue::Float(f64::from(pair.keep));
+        } else if !pair.keep {
+            pair.value = None;
+        } else if scalar_left && operator.is_comparison() {
+            *value = OwnedValue::Float(vector_float.expect("compatible scalar comparison"));
+        }
+    }
+    Ok(pair)
+}
+
 pub(crate) fn evaluate(
     operator: TokenKind,
     left: OwnedValue,

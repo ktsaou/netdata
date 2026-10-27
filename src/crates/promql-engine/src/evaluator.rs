@@ -492,6 +492,12 @@ enum MapOperation {
     },
 }
 
+struct ComputedWindowGroup {
+    node: NodeId,
+    ordinal: usize,
+    scalar_map: Option<MapOperation>,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum PointwiseFunction {
     Timestamp,
@@ -3862,11 +3868,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         &self,
         source: crate::derived_range::BackingSource,
         row: &Descriptor,
-    ) -> Result<Option<(NodeId, usize)>, EvaluationError> {
+    ) -> Result<Option<ComputedWindowGroup>, EvaluationError> {
         let grid = source.grid();
         let mut node = source.node();
         let mut ordinal = row.ordinal;
         let mut required_hash = None;
+        let mut scalar_map = None;
+        let mut mapped_hash = None;
         let groups = loop {
             self.control.check()?;
             self.account.work(1);
@@ -3906,8 +3914,48 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             if let Some(groups) = self.rosters.groups(node) {
                 break groups;
             }
-            let Expr::Paren(child) = self.expression.arena[node].expression else {
-                return Ok(None);
+            let child = match self.expression.arena[node].expression {
+                Expr::Paren(child) => child,
+                Expr::Binary {
+                    operator,
+                    left,
+                    right,
+                    return_bool,
+                    ..
+                } if scalar_map.is_none() && self.rosters.ordered(node).is_some() => {
+                    if crate::scheduled_expression::fixed_map_vector(
+                        self.expression,
+                        self.prepared,
+                        node,
+                        self.control,
+                        self.account,
+                    )?
+                    .is_none()
+                    {
+                        return Ok(None);
+                    }
+                    let (scalar, scalar_left, child) = if let Expr::Number { value, .. } =
+                        self.expression.arena[left].expression
+                    {
+                        (value, true, right)
+                    } else if let Expr::Number { value, .. } =
+                        self.expression.arena[right].expression
+                    {
+                        (value, false, left)
+                    } else {
+                        return Ok(None);
+                    };
+                    scalar_map = Some(MapOperation::Binary {
+                        operator,
+                        scalar,
+                        scalar_left,
+                        return_bool,
+                    });
+                    // The map can remove reserved labels; validate both sides of that boundary.
+                    mapped_hash = required_hash.take();
+                    child
+                }
+                _ => return Ok(None),
             };
             node = self.prepared.preprocessing.child(
                 self.expression,
@@ -3920,13 +3968,43 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         let Some(group) = groups.get(ordinal) else {
             return Ok(None);
         };
-        if let Some(hash) = required_hash {
-            let labels = SampleLabels::aggregate(&group.labels, self.account, self.control)?;
-            if label_hash::full(&labels, self.control, self.account)? != hash {
+        // A Float map can hide native inputs; only the aggregate store proves eligible history.
+        if scalar_map.is_some()
+            && self
+                .catalog
+                .with_computed_group(node, self.control, self.account, |_| Ok(()))?
+                .is_none()
+        {
+            return Ok(None);
+        }
+        if required_hash.is_some() || mapped_hash.is_some() {
+            let mut labels = SampleLabels::aggregate(&group.labels, self.account, self.control)?;
+            if let Some(hash) = required_hash
+                && label_hash::full(&labels, self.control, self.account)? != hash
+            {
                 return Ok(None);
             }
+            if let Some(hash) = mapped_hash {
+                if let Some(MapOperation::Binary {
+                    operator,
+                    return_bool,
+                    ..
+                }) = scalar_map
+                    && !source.options(grid.start_ms).delayed_name_removal
+                    && (crate::binary_value::changes_metadata(operator) || return_bool)
+                {
+                    labels.drop_reserved(false, self.account, self.control)?;
+                }
+                if label_hash::full(&labels, self.control, self.account)? != hash {
+                    return Ok(None);
+                }
+            }
         }
-        Ok(Some((node, ordinal)))
+        Ok(Some(ComputedWindowGroup {
+            node,
+            ordinal,
+            scalar_map,
+        }))
     }
 
     fn derived_progress_scope(
@@ -3966,9 +4044,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         row: &Descriptor,
         visit: &mut dyn FnMut(crate::value::SampleRef<'_>) -> Result<(), EvaluationError>,
     ) -> Result<bool, EvaluationError> {
-        let Some((node, ordinal)) = self.computed_window_group(source, row)? else {
+        let Some(plan) = self.computed_window_group(source, row)? else {
             return Ok(false);
         };
+        let ComputedWindowGroup {
+            node,
+            ordinal,
+            scalar_map,
+        } = plan;
         let grid = source.grid();
         let window = source.window();
         let Some(lower) = window.end_ms.checked_sub(window.range_ms) else {
@@ -4042,9 +4125,39 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     ));
                                 }
                                 crate::computed_groups::Cell::Present(point) if consuming => {
-                                    let value = crate::value::SampleValueRef::Float(
-                                        f64::from_bits(point.bits),
-                                    );
+                                    let mut value = f64::from_bits(point.bits);
+                                    if let Some(MapOperation::Binary {
+                                        operator,
+                                        scalar,
+                                        scalar_left,
+                                        return_bool,
+                                    }) = scalar_map
+                                    {
+                                        let pair = crate::binary_value::evaluate_scalar(
+                                            operator,
+                                            scalar,
+                                            scalar_left,
+                                            return_bool,
+                                            OwnedValue::Float(value),
+                                            self.control,
+                                            self.account,
+                                        )?;
+                                        if pair.diagnostic.is_some() {
+                                            return Err(EvaluationError::Invalid(
+                                                "completed Float map produced a diagnostic",
+                                            ));
+                                        }
+                                        let Some(mapped) = pair.value else {
+                                            continue;
+                                        };
+                                        let OwnedValue::Float(mapped) = mapped else {
+                                            return Err(EvaluationError::Invalid(
+                                                "completed Float map changed sample kind",
+                                            ));
+                                        };
+                                        value = mapped;
+                                    }
+                                    let value = crate::value::SampleValueRef::Float(value);
                                     if !value.is_stale() {
                                         visit(crate::value::SampleRef {
                                             time_ms: time,
@@ -5017,41 +5130,23 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             scalar_left,
                             return_bool,
                         } => {
-                            let vector_float = if let OwnedValue::Float(value) = &sample.value {
-                                Some(*value)
-                            } else {
-                                None
-                            };
                             let vector =
                                 std::mem::replace(&mut sample.value, OwnedValue::Float(0.0));
-                            let scalar = OwnedValue::Float(scalar);
-                            let (left, right) = if scalar_left {
-                                (scalar, vector)
-                            } else {
-                                (vector, scalar)
-                            };
-                            let pair = crate::binary_value::evaluate(
+                            let pair = crate::binary_value::evaluate_scalar(
                                 operator,
-                                left,
-                                right,
+                                scalar,
+                                scalar_left,
+                                return_bool,
+                                vector,
                                 self.control,
                                 self.account,
                             )?;
                             if pair.diagnostic.is_some() {
                                 *last_diagnostic = pair.diagnostic;
                             }
-                            let Some(mut value) = pair.value else {
+                            let Some(value) = pair.value else {
                                 return Ok(None);
                             };
-                            if return_bool {
-                                value = OwnedValue::Float(f64::from(pair.keep));
-                            } else if !pair.keep {
-                                return Ok(None);
-                            } else if scalar_left && operator.is_comparison() {
-                                value = OwnedValue::Float(
-                                    vector_float.expect("compatible scalar comparison"),
-                                );
-                            }
                             (
                                 value,
                                 crate::binary_value::changes_metadata(operator) || return_bool,

@@ -229,6 +229,12 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   at most one next-request action while the child completes. That action is delivered before acknowledging another
   fetch; progress cannot be saved until completion. This prevents later groups from repeating an already finished
   input scan while preserving visitor-before-terminal error order. Other child shapes retain ordinary traversal.
+  A single literal-scalar binary map over a completed Float aggregate can use the same window and progress
+  backing. Resolve the actual prepared source ordinal and validate labels on both sides of reserved-name removal.
+  The aggregate store must exist: a Float map output alone cannot prove that its input history excluded native
+  histograms. Apply the ordinary scalar arithmetic, comparison filtering and Boolean rules before stale filtering;
+  do not retain a second mapped-value history. Multiple maps and unsupported boundaries retain replay. The map's
+  original terminal path still owns its deferred diagnostics.
   A completed group window touching at most two backing pages uses the two resident pages. Larger sparse
   windows, with at most four relevant cells per backing page, read nonresident four-word cells directly.
   Dense windows retain whole-page reads to amortize callbacks. Both paths preserve dirty residents and keep

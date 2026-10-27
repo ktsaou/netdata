@@ -3,6 +3,173 @@ use super::*;
 use crate::{computed_groups, result::OwnedValue, test_storage::FixtureProvider};
 
 #[test]
+fn fixed_scalar_subquery_windows_preserve_results_and_reuse_completed_values() {
+    fn sparse(index: usize) -> crate::value::Sample {
+        let value = match index {
+            9 => f64::from_bits(crate::value::STALE_NAN_BITS),
+            16 => f64::from_bits(0x7ff8_0000_0000_0002),
+            18 => -0.0,
+            22 => f64::INFINITY,
+            _ => index as f64,
+        };
+        crate::value::Sample {
+            value: crate::value::SampleValue::Float(value),
+            ..crate::test_storage::counter(index)
+        }
+    }
+    for page in [1, 17, 1024] {
+        for delayed in [false, true] {
+            for body in [
+                "100-sum by(instance)(counter_total)",
+                "sum by(instance)(counter_total)-100",
+                "1/sum by(instance)(counter_total)",
+                "sum by(instance)(counter_total)%3",
+                "sum by(instance)(counter_total)^0.5",
+                "sum by(instance)(counter_total)>20",
+                "20<sum by(instance)(counter_total)",
+                "20<bool sum by(instance)(counter_total)",
+            ] {
+                for reducer in ["avg_over_time", "quantile_over_time"] {
+                    let expression = if reducer == "quantile_over_time" {
+                        format!("quantile_over_time(0.9,(({body}))[4s:1s])")
+                    } else {
+                        format!("{reducer}((({body}))[4s:1s])")
+                    };
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut provider = FixtureProvider::new(29, page, 8);
+                    for (index, series) in provider.series.iter_mut().enumerate() {
+                        series.labels[1].1 = (index / 2).to_string().into_bytes();
+                        series.labels[2].1 = (index % 2).to_string().into_bytes();
+                        series.source.sample = sparse;
+                    }
+                    let query = engine
+                        .compile(
+                            expression.as_bytes(),
+                            EngineOptions {
+                                delayed_name_removal: delayed,
+                                ..Default::default()
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let request = QueryRequest::Range {
+                        start_ms: 4000,
+                        end_ms: 28000,
+                        step_ms: 1000,
+                    };
+                    let (ordinary, _) = computed_groups::observe(true, || {
+                        query.collect(&provider, request, &control)
+                    });
+                    let (reused, hits) = computed_groups::observe(false, || {
+                        query.collect(&provider, request, &control)
+                    });
+                    let (expected, before) = ordinary.unwrap();
+                    let (actual, after) = reused.unwrap();
+                    same_float_results(&actual, &expected);
+                    assert_eq!(
+                        after.statistics.samples.total_queryable_samples,
+                        before.statistics.samples.total_queryable_samples,
+                        "{expression}, page={page}, delayed={delayed}"
+                    );
+                    assert!(
+                        hits[17] + hits[18] > 0,
+                        "mapped windows must actually reuse values: {expression}, {hits:?}"
+                    );
+                    drop((actual, expected, query));
+                    provider.assert_closed();
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn fixed_scalar_windows_preserve_name_projection_and_native_fallback() {
+    fn mixed(index: usize) -> crate::value::Sample {
+        let mut sample = crate::test_storage::counter(index);
+        if index.is_multiple_of(3) {
+            sample.value =
+                crate::value::SampleValue::FloatHistogram(crate::histogram::FloatHistogram {
+                    count: index as f64 + 1.0,
+                    sum: index as f64,
+                    ..Default::default()
+                });
+        }
+        sample
+    }
+    for page in [1, 17, 1024] {
+        for delayed in [false, true] {
+            for mode in 0..3 {
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut provider = FixtureProvider::new(10, page, 4);
+                for (index, series) in provider.series.iter_mut().enumerate() {
+                    series.labels[1].1 = (index / 2).to_string().into_bytes();
+                    series.labels[2].1 = (index % 2).to_string().into_bytes();
+                    if mode == 1 && index % 2 == 1 {
+                        series.labels[0].1 = b"counter_other".to_vec();
+                    }
+                    if mode == 2 {
+                        series.source.sample = mixed;
+                    }
+                }
+                let query = engine
+                    .compile(
+                        br#"avg_over_time((100-sum by(__name__,instance)({__name__=~"counter_.*"}))[3s:1s])"#,
+                        EngineOptions {
+                            delayed_name_removal: delayed,
+                            ..Default::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let request = QueryRequest::Range {
+                    start_ms: 3000,
+                    end_ms: 9000,
+                    step_ms: 1000,
+                };
+                let (ordinary, _) =
+                    computed_groups::observe(true, || query.collect(&provider, request, &control));
+                let ((reused, hits), progress_loads, progress_saves) =
+                    crate::derived_progress::observe(false, || {
+                        computed_groups::observe(false, || {
+                            query.collect(&provider, request, &control)
+                        })
+                    });
+                match (ordinary, reused) {
+                    (Ok((expected, _)), Ok((actual, _))) => {
+                        same_float_results(&actual, &expected);
+                    }
+                    (Err(expected), Err(actual)) => {
+                        assert_eq!(format!("{actual:?}"), format!("{expected:?}"));
+                    }
+                    _ => panic!("mapped outcome changed: mode={mode}, delayed={delayed}"),
+                }
+                if mode == 0 {
+                    assert!(
+                        hits[17] > 0,
+                        "projected labels must permit unambiguous reuse"
+                    );
+                }
+                if mode == 2 {
+                    assert_eq!((progress_loads, progress_saves), (0, 0));
+                    assert_eq!(
+                        hits[17] + hits[18],
+                        0,
+                        "mixed history retains ordinary replay"
+                    );
+                }
+                drop(query);
+                provider.assert_closed();
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+}
+
+#[test]
 fn grouped_subqueries_finish_each_cold_producer_before_reuse() {
     for sources in [32, 128, 512] {
         let engine = Engine::default();

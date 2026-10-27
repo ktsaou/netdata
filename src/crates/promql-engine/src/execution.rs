@@ -17976,6 +17976,95 @@ mod tests {
     }
 
     #[test]
+    fn mapped_completed_windows_preserve_actual_final_read_errors_and_cancellation() {
+        let request = QueryRequest::Range {
+            start_ms: 4000,
+            end_ms: 7000,
+            step_ms: 1000,
+        };
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for body in [
+                    "100-sum by(instance)(counter_total)",
+                    "2<sum by(instance)(counter_total)",
+                    "1000<sum by(instance)(counter_total)",
+                ] {
+                    let expression = format!("avg_over_time(({body})[4s:1s])");
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(expression.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let calibration = FixtureProvider::new(8, page, 1);
+                    let (_, prepared) =
+                        float_map_join_preparation(&query, &calibration, request, &control);
+                    let input = FixtureProvider::new(8, page, 1);
+                    let report = query.collect_reported(&input, request, &control);
+                    assert!(report.result.is_ok());
+                    let last = input.series[0]
+                        .source
+                        .counters
+                        .opened
+                        .load(Ordering::Relaxed);
+                    input.assert_closed();
+                    drop(report);
+                    if !body.starts_with("1000") {
+                        assert!(
+                            last > prepared[0],
+                            "the first final acquisition stays fresh"
+                        );
+                    }
+                    for acquisition in prepared[0] + 1..=last {
+                        let mut input = FixtureProvider::new(8, page, 1);
+                        input.series[0].source.fail_acquisition = Some(acquisition);
+                        let mut sink = RecordingSink::default();
+                        let report = query.execute_reported(&input, request, &control, &mut sink);
+                        assert!(matches!(&report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes))))
+                            if &**bytes == b"injected page failure"));
+                        assert!(sink.aborted && !sink.committed);
+                        assert_eq!(
+                            input.series[0]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            acquisition
+                        );
+                        report.assert_retained_callback_error_memory();
+                        input.assert_closed();
+                    }
+                    if !body.starts_with("1000") {
+                        let input = FixtureProvider::new(8, page, 1);
+                        let mut sink = RecordingSink {
+                            cancel: Some(control.cancellation.clone()),
+                            ..RecordingSink::default()
+                        };
+                        let (report, hits) = crate::computed_groups::observe(false, || {
+                            query.execute_reported(&input, request, &control, &mut sink)
+                        });
+                        assert!(matches!(
+                            &report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                                Interrupted::Cancelled
+                            )))
+                        ));
+                        assert_eq!(sink.chunks, 2);
+                        assert!(sink.aborted && !sink.committed);
+                        assert!(
+                            hits[17] > 0,
+                            "cancel after actual mapped window consumption"
+                        );
+                        input.assert_closed();
+                    }
+                    drop(query);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
     fn computed_group_reuse_preserves_cold_final_and_next_clock_errors_before_sink_failure() {
         for expression in [
             "sum by(instance)(counter_total)/on() group_left sum(counter_total)",
