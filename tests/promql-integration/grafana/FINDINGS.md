@@ -8,7 +8,39 @@ long-range performance is not yet suitable for these workloads under a 25-second
 This is a baseline and an optimization priority list, not a claim that all dashboards are fast or that the live adapter
 supports every PromQL input type. Alert-expression testing does not install an alert scheduler or notification system.
 
-## Follow-up: mapped and adjacent-window reuse — 2026-10-27
+## Follow-up: exact Count boundaries — 2026-10-27
+
+Engine `916d412696` is installed on the playground. The [same-window results](count-windows-live.json)
+and [compressed measurements](count-windows-measurements.jsonl.gz) repeat all 360 requests with unchanged
+scopes, time windows, steps and 25-second deadlines. Count now reuses exact completed boundary summaries;
+controlled fixture gains have **not resolved the two fleet Count timeouts**.
+
+| Cohort | Previous deployment timeouts | Current deployment timeouts |
+| --- | ---: | ---: |
+| Fleet, 136 range queries, 4 clients | 2 | 3 |
+| Fleet, 136 instant queries, 4 clients | 0 | 0 |
+| Selected 6-hour queries, 8 requests | 2 | 2 |
+| Selected 24-hour queries, 8 requests | 3 | 3 |
+| Selected 7-day queries, 8 requests | 7 | 6 |
+
+The fleet range cohort took 135.94 seconds, versus 134.81 seconds previously. The one-hour application
+absence query and grouped five-minute sample-count query still timed out. The application I/O trend also
+hit the deadline in this replay; one live run does not establish the cause. Seven-day CPU availability
+completed this time. Overall, 14 of 360 requests timed out, unchanged from the previous deployment.
+
+Before timing out, the one-hour Count request fetched 16.48 million entries and read 6.21 million samples;
+the five-minute Count request fetched 25.90 million and read 2.84 million. Both now use temporary backing.
+These are partial executions with different amounts of completed work, not throughput comparisons.
+Source traversal, backing callback traffic and remaining long-history costs need further investigation.
+
+The application-share request returned 79 Grafana frames in 1.58 seconds. All 18 reporting CPU hosts advanced,
+Netdata and Grafana remain active, and approximately 53 GiB remains free. Both installation configuration
+comparisons passed and retained data was preserved. Live data and cache state remain uncontrolled; exact-input
+core qualification is documented separately in the [Count guide](../../../src/crates/promql-engine/tests/promql-conformance/INTERMEDIATE_REUSE.md#exact-count-boundaries).
+Historical histogram bucket-boundary repair is excluded by decision 71; other live histogram representation
+and measured performance gaps remain open.
+
+## Earlier follow-up: mapped and adjacent-window reuse — 2026-10-27
 
 Engine `019cc2bffa` is installed on the playground. The new
 [same-window results](adjacent-windows-live.json) and [compressed measurements](adjacent-windows-measurements.jsonl.gz)

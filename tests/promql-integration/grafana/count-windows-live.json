@@ -1,0 +1,1978 @@
+{
+  "schema": 1,
+  "date": "2026-10-27",
+  "engine_commit": "916d41269639aeece756b13957e2910796cc2ac3",
+  "installed_binary_sha256": "0678cbd31d79e1d0c4392b95839b511a464bf7225ae2ac35118101fe38825624",
+  "vm_compiler": "Rust1.93.1",
+  "baseline_engine_commit": "4b2fd852b8",
+  "previous_engine_commit": "019cc2bffae7e34fedc18d9a8a962571fba14f62",
+  "cohorts": [
+    {
+      "name": "fleet4",
+      "baseline": {
+        "requests": 136,
+        "outcomes": {
+          "nonempty": 100,
+          "empty": 8,
+          "error": 28
+        },
+        "seconds": 298.28966168899206
+      },
+      "previous": {
+        "requests": 136,
+        "outcomes": {
+          "empty": 9,
+          "error": 2,
+          "nonempty": 125
+        },
+        "seconds": 134.81177512799331
+      },
+      "after": {
+        "requests": 136,
+        "outcomes": {
+          "nonempty": 124,
+          "error": 3,
+          "empty": 9
+        },
+        "seconds": 135.93700026298757
+      }
+    },
+    {
+      "name": "instant-fleet",
+      "baseline": {
+        "requests": 136,
+        "outcomes": {
+          "empty": 11,
+          "nonempty": 121,
+          "error": 4
+        },
+        "seconds": 74.20891137199942
+      },
+      "previous": {
+        "requests": 136,
+        "outcomes": {
+          "empty": 12,
+          "nonempty": 124
+        },
+        "seconds": 51.6771447469946
+      },
+      "after": {
+        "requests": 136,
+        "outcomes": {
+          "nonempty": 124,
+          "empty": 12
+        },
+        "seconds": 52.611880097014364
+      }
+    },
+    {
+      "name": "focus-host",
+      "baseline": {
+        "requests": 16,
+        "outcomes": {
+          "empty": 6,
+          "nonempty": 10
+        },
+        "seconds": 29.875893048010767
+      },
+      "previous": {
+        "requests": 16,
+        "outcomes": {
+          "empty": 6,
+          "nonempty": 10
+        },
+        "seconds": 8.01940445099899
+      },
+      "after": {
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 10,
+          "empty": 6
+        },
+        "seconds": 9.103964220994385
+      }
+    },
+    {
+      "name": "focus-group",
+      "baseline": {
+        "requests": 16,
+        "outcomes": {
+          "empty": 4,
+          "nonempty": 12
+        },
+        "seconds": 91.51090054499218
+      },
+      "previous": {
+        "requests": 16,
+        "outcomes": {
+          "empty": 4,
+          "nonempty": 12
+        },
+        "seconds": 13.38813533000939
+      },
+      "after": {
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 12,
+          "empty": 4
+        },
+        "seconds": 13.876654675987083
+      }
+    },
+    {
+      "name": "focus-fleet",
+      "baseline": {
+        "requests": 16,
+        "outcomes": {
+          "error": 6,
+          "nonempty": 10
+        },
+        "seconds": 192.66900527499092
+      },
+      "previous": {
+        "requests": 16,
+        "outcomes": {
+          "empty": 2,
+          "nonempty": 14
+        },
+        "seconds": 35.54450022400124
+      },
+      "after": {
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 14,
+          "empty": 2
+        },
+        "seconds": 32.30361086598714
+      }
+    },
+    {
+      "name": "focus-fleet8",
+      "baseline": {
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 10,
+          "error": 6
+        },
+        "seconds": 50.24962296499871
+      },
+      "previous": {
+        "requests": 16,
+        "outcomes": {
+          "empty": 2,
+          "nonempty": 14
+        },
+        "seconds": 19.220517958994606
+      },
+      "after": {
+        "requests": 16,
+        "outcomes": {
+          "nonempty": 14,
+          "empty": 2
+        },
+        "seconds": 18.921526931982953
+      }
+    },
+    {
+      "name": "focus-6h",
+      "baseline": {
+        "requests": 8,
+        "outcomes": {
+          "error": 7,
+          "nonempty": 1
+        },
+        "seconds": 178.67167931000586
+      },
+      "previous": {
+        "requests": 8,
+        "outcomes": {
+          "empty": 2,
+          "error": 2,
+          "nonempty": 4
+        },
+        "seconds": 94.97169890800433
+      },
+      "after": {
+        "requests": 8,
+        "outcomes": {
+          "nonempty": 4,
+          "error": 2,
+          "empty": 2
+        },
+        "seconds": 80.70429410500219
+      }
+    },
+    {
+      "name": "focus-24h",
+      "baseline": {
+        "requests": 8,
+        "outcomes": {
+          "error": 7,
+          "nonempty": 1
+        },
+        "seconds": 187.3312311720074
+      },
+      "previous": {
+        "requests": 8,
+        "outcomes": {
+          "empty": 1,
+          "error": 3,
+          "nonempty": 4
+        },
+        "seconds": 125.83868137799436
+      },
+      "after": {
+        "requests": 8,
+        "outcomes": {
+          "nonempty": 4,
+          "error": 3,
+          "empty": 1
+        },
+        "seconds": 110.55841086700093
+      }
+    },
+    {
+      "name": "focus-7d",
+      "baseline": {
+        "requests": 8,
+        "outcomes": {
+          "error": 8
+        },
+        "seconds": 200.08039703199756
+      },
+      "previous": {
+        "requests": 8,
+        "outcomes": {
+          "error": 7,
+          "nonempty": 1
+        },
+        "seconds": 177.45393469800183
+      },
+      "after": {
+        "requests": 8,
+        "outcomes": {
+          "nonempty": 2,
+          "error": 6
+        },
+        "seconds": 171.16298492401256
+      }
+    }
+  ],
+  "share": {
+    "route": "grafana-backend",
+    "http_status": 200,
+    "query_status": 200,
+    "frames": 79,
+    "seconds": 1.583649203996174,
+    "has_error": false
+  },
+  "reception": {
+    "hosts_before": 18,
+    "hosts_after": 18,
+    "common": 18,
+    "advanced": 18,
+    "before_seconds": 0.5812661760137416,
+    "after_seconds": 0.46987454700865783
+  },
+  "remaining": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/9/A",
+      "expression_template": "sum by (netdata_host_id, netdata_host_name, app_group, netdata_dimension_id) (abs(app_disk_physical_io{netdata_host_name=~\"${host}\",app_group=~\"${application}\"})) and topk(10, sum by (netdata_host_id, netdata_host_name, app_group, netdata_dimension_id) (abs(app_disk_physical_io{netdata_host_name=~\"${host}\",app_group=~\"${application}\"} @ end())))",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.054797896009404,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 130127,
+        "providerCalls": 230832,
+        "sampleBatches": 40895,
+        "samplesFetched": 12027281,
+        "work": 1435975751,
+        "outputSamples": 160,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 40436062,
+            "acquired": 1711567086,
+            "released": 1711567086,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 19262,
+            "acquired": 19262,
+            "released": 18454,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 18249934,
+            "acquired": 581648038,
+            "released": 581648038,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 2095290,
+            "acquired": 3050819842,
+            "released": 3050819842,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 4873088,
+            "acquired": 92869824,
+            "released": 92868928,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 3049408,
+            "acquired": 3049408,
+            "released": 3049408,
+            "overflowed": 0
+          },
+          "readCalls": 102623,
+          "writeCalls": 56345,
+          "readBytes": 172165312,
+          "writtenBytes": 164352192,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 40895,
+              "points": 12025463
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 0,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/4/A",
+      "expression_template": "count by (netdata_host_id,netdata_host_name,app_group) (count_over_time(app_processes{netdata_host_name=~\"${host}\"}[1h])) unless on(netdata_host_id,app_group) count by (netdata_host_id,netdata_host_name,app_group) (app_processes{netdata_host_name=~\"${host}\"})",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.03958541501197,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 6209218,
+        "providerCalls": 331837,
+        "sampleBatches": 42503,
+        "samplesFetched": 16483399,
+        "work": 624575025,
+        "outputSamples": 0,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 16202546,
+            "acquired": 2191573393,
+            "released": 2191573393,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 17486,
+            "acquired": 17486,
+            "released": 16678,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 11298888,
+            "acquired": 1125466520,
+            "released": 1125466520,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 1556050,
+            "acquired": 2826233776,
+            "released": 2826233776,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 3017792,
+            "acquired": 95597952,
+            "released": 95597056,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 3406528,
+            "acquired": 3406528,
+            "released": 3406528,
+            "overflowed": 0
+          },
+          "readCalls": 154606,
+          "writeCalls": 64780,
+          "readBytes": 4923960,
+          "writtenBytes": 4826640,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 40928,
+              "points": 16482955
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 0,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/12/A",
+      "expression_template": "sum by (app_group) (count_over_time(app_cpu_utilization{netdata_host_name=~\"${host}\"}[5m]))",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.035227916989243,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 2836646,
+        "providerCalls": 733508,
+        "sampleBatches": 81057,
+        "samplesFetched": 25904609,
+        "work": 821611566,
+        "outputSamples": 3761,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 14670294,
+            "acquired": 2294891468,
+            "released": 2294891468,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 53470,
+            "acquired": 69438,
+            "released": 68630,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 15493911,
+            "acquired": 2684832477,
+            "released": 2684832477,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 1263456,
+            "acquired": 909600766,
+            "released": 909600766,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 4768768,
+            "acquired": 123900672,
+            "released": 123899776,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 858672,
+            "acquired": 858672,
+            "released": 858672,
+            "overflowed": 0
+          },
+          "readCalls": 258144,
+          "writeCalls": 224618,
+          "readBytes": 4683168,
+          "writtenBytes": 4684000,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 78097,
+              "points": 25903571
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 0,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "expression_template": "(sum by (app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\"})) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.02495453201118,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 454580,
+        "providerCalls": 38042,
+        "sampleBatches": 31105,
+        "samplesFetched": 26176597,
+        "work": 151547383,
+        "outputSamples": 0,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 13372594,
+            "acquired": 3476382579,
+            "released": 3476382579,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 17486,
+            "acquired": 17486,
+            "released": 16678,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 15879639,
+            "acquired": 92426397,
+            "released": 92426397,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 2109723,
+            "acquired": 16916217946,
+            "released": 16916217946,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 4888000,
+            "acquired": 56556352,
+            "released": 56555456,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 18968384,
+            "acquired": 18968384,
+            "released": 18968384,
+            "overflowed": 0
+          },
+          "readCalls": 0,
+          "writeCalls": 2028,
+          "readBytes": 0,
+          "writtenBytes": 16613376,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 31103,
+              "points": 26175095
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 0,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-service-instances/7/A",
+      "expression_template": "sum by (netdata_host_id,netdata_host_name,netdata_chart_id) (rate(cgroup_cpu{netdata_host_name=~\"${host}\"}[$__rate_interval])) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.020213255978888,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 1443132,
+        "providerCalls": 933559,
+        "sampleBatches": 179094,
+        "samplesFetched": 27211412,
+        "work": 864870987,
+        "outputSamples": 0,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 8713275,
+            "acquired": 2682450255,
+            "released": 2682450255,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 18959,
+            "acquired": 14530670,
+            "released": 14529862,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 9458626,
+            "acquired": 10262530412,
+            "released": 10262530412,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 1507898,
+            "acquired": 2383969684,
+            "released": 2383969684,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 2855168,
+            "acquired": 415517376,
+            "released": 415516480,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "readCalls": 0,
+          "writeCalls": 0,
+          "readBytes": 0,
+          "writtenBytes": 0,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 310976,
+              "points": 54582975
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 54582913,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "expression_template": "(sum by (app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\"})) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.01877765500103,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 79921,
+        "providerCalls": 30020,
+        "sampleBatches": 25645,
+        "samplesFetched": 24201823,
+        "work": 131573288,
+        "outputSamples": 0,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 6381332,
+            "acquired": 2373429036,
+            "released": 2373429036,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 17486,
+            "acquired": 17486,
+            "released": 16678,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 16612937,
+            "acquired": 58229741,
+            "released": 58229741,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 2144515,
+            "acquired": 11790918415,
+            "released": 11790918415,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 5114944,
+            "acquired": 51339904,
+            "released": 51339008,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 15888064,
+            "acquired": 15888064,
+            "released": 15888064,
+            "overflowed": 0
+          },
+          "readCalls": 0,
+          "writeCalls": 442,
+          "readBytes": 0,
+          "writtenBytes": 3620864,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 25645,
+              "points": 24200721
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 0,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-history-comparisons/8/A",
+      "expression_template": "max_over_time(((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[5m:30s])",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.00464819400804,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 75649,
+        "providerCalls": 127293,
+        "sampleBatches": 3287,
+        "samplesFetched": 2523615,
+        "work": 2310249978,
+        "outputSamples": 2435,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 227551,
+            "acquired": 8307160343,
+            "released": 8307160343,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 22110,
+            "acquired": 22654,
+            "released": 21846,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 208164,
+            "acquired": 39227038,
+            "released": 39227038,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 48988,
+            "acquired": 90764092,
+            "released": 90764092,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 58176,
+            "acquired": 3370752,
+            "released": 3369856,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 3331728,
+            "acquired": 3331728,
+            "released": 3331728,
+            "overflowed": 0
+          },
+          "readCalls": 94851,
+          "writeCalls": 27928,
+          "readBytes": 13267776,
+          "writtenBytes": 6996328,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 3265,
+              "points": 2523536
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 0,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-service-instances/7/A",
+      "expression_template": "sum by (netdata_host_id,netdata_host_name,netdata_chart_id) (rate(cgroup_cpu{netdata_host_name=~\"${host}\"}[$__rate_interval])) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.022248052002396,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 2551251,
+        "providerCalls": 1108312,
+        "sampleBatches": 207168,
+        "samplesFetched": 24995720,
+        "work": 873382316,
+        "outputSamples": 0,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 14307695,
+            "acquired": 3016907908,
+            "released": 3016907908,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 18959,
+            "acquired": 5718680,
+            "released": 5717872,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 20727890,
+            "acquired": 12138078756,
+            "released": 12138078756,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 2517567,
+            "acquired": 2906772994,
+            "released": 2906772994,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 6272960,
+            "acquired": 485745152,
+            "released": 485744256,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "readCalls": 0,
+          "writeCalls": 0,
+          "readBytes": 0,
+          "writtenBytes": 0,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 368857,
+              "points": 43985629
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 43985601,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-alert-expressions/6/A",
+      "expression_template": "(avg_over_time(((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[5m:1m]) > 80) and (avg_over_time(((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[30m:1m]) > 70)",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.006193106994033,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 160934,
+        "providerCalls": 193783,
+        "sampleBatches": 8834,
+        "samplesFetched": 8704826,
+        "work": 992162232,
+        "outputSamples": 0,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 706628,
+            "acquired": 4309618889,
+            "released": 4309618889,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 17486,
+            "acquired": 17486,
+            "released": 16678,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 208622,
+            "acquired": 852152,
+            "released": 852152,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 835983,
+            "acquired": 4737178472,
+            "released": 4737178472,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 58240,
+            "acquired": 7786752,
+            "released": 7785856,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 11617920,
+            "acquired": 11617920,
+            "released": 11617920,
+            "overflowed": 0
+          },
+          "readCalls": 183451,
+          "writeCalls": 1420,
+          "readBytes": 21743232,
+          "writtenBytes": 11617920,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 8610,
+              "points": 8704558
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 0,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-applications/1/A",
+      "expression_template": "(sum by (app_group) (app_cpu_utilization{netdata_host_name=~\"${host}\"})) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.017410302971257,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 21273,
+        "providerCalls": 52826,
+        "sampleBatches": 27770,
+        "samplesFetched": 17172598,
+        "work": 83532531,
+        "outputSamples": 0,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 4985199,
+            "acquired": 2486251010,
+            "released": 2486251010,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 17486,
+            "acquired": 17486,
+            "released": 16678,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 16613145,
+            "acquired": 50001869,
+            "released": 50001869,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 2224248,
+            "acquired": 13010246279,
+            "released": 13010246279,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 5115072,
+            "acquired": 53163904,
+            "released": 53163008,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 18526912,
+            "acquired": 18526912,
+            "released": 18526912,
+            "overflowed": 0
+          },
+          "readCalls": 0,
+          "writeCalls": 186,
+          "readBytes": 0,
+          "writtenBytes": 1523712,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 27770,
+              "points": 17172415
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 0,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "expression_template": "sum(rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"InOctets\"}[$__rate_interval]))",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.00405311898794,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 23651513,
+        "providerCalls": 74094,
+        "sampleBatches": 40849,
+        "samplesFetched": 31962159,
+        "work": 189444755,
+        "outputSamples": 231,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 811311,
+            "acquired": 1413839981,
+            "released": 1413839981,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 1860,
+            "peak": 20314,
+            "acquired": 3220372,
+            "released": 3218512,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 218224,
+            "acquired": 546686686,
+            "released": 546686686,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 924130,
+            "acquired": 5748115156,
+            "released": 5748115156,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 59264,
+            "acquired": 42865472,
+            "released": 42864576,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "readCalls": 0,
+          "writeCalls": 0,
+          "readBytes": 0,
+          "writtenBytes": 0,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 41837,
+              "points": 39429024
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 39429007,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "expression_template": "100 * sum(system_ram{netdata_host_name=~\"${host}\",netdata_dimension_id=\"used\"}) / sum(system_ram{netdata_host_name=~\"${host}\"})",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.006610762997298,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 24806,
+        "providerCalls": 57769,
+        "sampleBatches": 29107,
+        "samplesFetched": 18408311,
+        "work": 94061430,
+        "outputSamples": 0,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 1253805,
+            "acquired": 2306577372,
+            "released": 2306577372,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 17486,
+            "acquired": 17486,
+            "released": 16678,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 759148,
+            "acquired": 24310758,
+            "released": 24310758,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 926002,
+            "acquired": 12522369716,
+            "released": 12522369716,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 220480,
+            "acquired": 49034112,
+            "released": 49033216,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 981344,
+            "acquired": 981344,
+            "released": 981344,
+            "overflowed": 0
+          },
+          "readCalls": 5888,
+          "writeCalls": 112,
+          "readBytes": 188416,
+          "writtenBytes": 909408,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 29082,
+              "points": 18408047
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 0,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-history-comparisons/8/A",
+      "expression_template": "max_over_time(((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[5m:30s])",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.009004736988572,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 321869,
+        "providerCalls": 379501,
+        "sampleBatches": 8817,
+        "samplesFetched": 8697407,
+        "work": 1977902302,
+        "outputSamples": 0,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 209390,
+            "acquired": 5859929337,
+            "released": 5859929337,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 17486,
+            "acquired": 17486,
+            "released": 16678,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 208068,
+            "acquired": 851646,
+            "released": 851646,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 49500,
+            "acquired": 305707068,
+            "released": 305707068,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 57856,
+            "acquired": 7771200,
+            "released": 7770304,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 23238288,
+            "acquired": 23238288,
+            "released": 23238288,
+            "overflowed": 0
+          },
+          "readCalls": 367782,
+          "writeCalls": 2841,
+          "readBytes": 50681112,
+          "writtenBytes": 23238560,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 8593,
+              "points": 8697139
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 0,
+          "counterOverflowed": 0
+        }
+      }
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-service-instances/7/A",
+      "expression_template": "sum by (netdata_host_id,netdata_host_name,netdata_chart_id) (rate(cgroup_cpu{netdata_host_name=~\"${host}\"}[$__rate_interval])) / 100",
+      "outcome": "error",
+      "error_type": "timeout",
+      "seconds": 25.019767616991885,
+      "netdata": {
+        "snapshot": "execution-report",
+        "samplesRead": 16582622,
+        "providerCalls": 116577,
+        "sampleBatches": 46229,
+        "samplesFetched": 22539702,
+        "work": 220024446,
+        "outputSamples": 0,
+        "counterOverflowed": 0,
+        "memoryBytes": {
+          "compiled": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "workspace": {
+            "current": 0,
+            "peak": 5195988,
+            "acquired": 2092266781,
+            "released": 2092266781,
+            "overflowed": 0
+          },
+          "result": {
+            "current": 808,
+            "peak": 18959,
+            "acquired": 5587406,
+            "released": 5586598,
+            "overflowed": 0
+          },
+          "providerHeld": {
+            "current": 0,
+            "peak": 20081712,
+            "acquired": 1129342852,
+            "released": 1129342852,
+            "overflowed": 0
+          },
+          "borrowedView": {
+            "current": 0,
+            "peak": 2557639,
+            "acquired": 9692523076,
+            "released": 9692523076,
+            "overflowed": 0
+          },
+          "regexEstimate": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "sharedCacheReference": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "accounting": {
+            "current": 896,
+            "peak": 6121344,
+            "acquired": 91809856,
+            "released": 91808960,
+            "overflowed": 0
+          }
+        },
+        "temporaryStorage": {
+          "extentBytes": {
+            "current": 0,
+            "peak": 0,
+            "acquired": 0,
+            "released": 0,
+            "overflowed": 0
+          },
+          "readCalls": 0,
+          "writeCalls": 0,
+          "readBytes": 0,
+          "writtenBytes": 0,
+          "counterOverflowed": 0
+        },
+        "storage": {
+          "tiers": [
+            {
+              "pageEncounters": 48716,
+              "points": 27406882
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            },
+            {
+              "pageEncounters": 0,
+              "points": 0
+            }
+          ],
+          "reconstructionPoints": 27406854,
+          "counterOverflowed": 0
+        }
+      }
+    }
+  ],
+  "measurements": {
+    "file": "count-windows-measurements.jsonl.gz",
+    "sha256": "559d08f20c9e1217f4dd535f8867ad402e02c02caae99659ea70d164507e1b88",
+    "uncompressed_sha256": "002435f873ee15d2a5a5076bcfeb9fc4ed5b9f3f4da83eb57f82bb4a0427b37e",
+    "records": 380,
+    "queries": 360
+  },
+  "previous_receipt": {
+    "file": "adjacent-windows-live.json",
+    "sha256": "4a7787e83e6343148f441f195487567c16eda01cfe36a34bcc294c6225c49f90"
+  },
+  "bindings": {
+    "tests/promql-integration/grafana/practical-qualification.json": "ed071d08030a56258a008ba0a9e1d3ddcf68bf09e2060059be5153cd129e0053",
+    "tests/promql-integration/grafana/practical-measurements.jsonl.gz": "2a4c0db1554c69ab037607151b5b92b23f863972d51c278d3557c7c30a7f556c",
+    ".tmp/practical-replay-j32eeh4e/live_after.py": "2c825d350b50e22915409bf6b3c205233cf34730dc7a988ed5a94d0a214559de",
+    "tests/promql-integration/grafana/measure.py": "e28ee41d1fb420433b78ab56ea5e0b9fdd2c8846fb3091cf2d21151123bf3b08",
+    "tests/promql-integration/grafana/workload-catalogue.json": "d9be7b94b634c701a3e7264fb46b94e41eee71966d5f8b8a03c6071148567e0a",
+    "tests/promql-integration/grafana/alert-expressions.json": "9c0f1d0a94cc861fee56a33c66b0083c2544ac1735be7ff2167e3bab6f3d0989",
+    "tests/promql-integration/grafana/applications.json": "c28631f6868ec68795f4a8a65280ef3e69519bf830fbe983ceb3603306fa576e",
+    "tests/promql-integration/grafana/data-availability.json": "b36278593b93ff2ade0fd11c81c338ceedde5cd6b1036bc38368b4657a18022d",
+    "tests/promql-integration/grafana/database-instances.json": "12ec0370af032e8eb5f45a4f427fc6d714a2f336ec8b81c40db8b686a1f4c3a2",
+    "tests/promql-integration/grafana/fleet-applications.json": "3311f09898b05d67894cfa32a43a7aac78f2c30122dc8d6d4d1bf24d977a072f",
+    "tests/promql-integration/grafana/fleet-bandwidth.json": "5a8481d1dcd149a5db45bf2c1187a85eae584e37caed09bc061d054cb040f1fc",
+    "tests/promql-integration/grafana/fleet-capacity.json": "11172bb6489f1ab1e59ef4ccac4d87fafef258966fe3fa735a1b85b6476bbfc2",
+    "tests/promql-integration/grafana/fleet-overview.json": "4d1e1a3ab2b060b9db8edbc8909988990b1f41d6db88d17ab2eeb088542ee066",
+    "tests/promql-integration/grafana/history-comparisons.json": "b14d4c97686709a17bffc99f5e7d11fab180603536e1ba802a3f2447e2e4f0f6",
+    "tests/promql-integration/grafana/host-resources.json": "cd0315d3ff956a71506aa8fa3e8abef014a3690d083688c4fd975c5943299043",
+    "tests/promql-integration/grafana/service-instances.json": "95c24813b53ebb6af7929cd18c0d37cf8f5a1f4bd164726929e264ed93128d52",
+    "tests/promql-integration/grafana/storage-network.json": "689baf3eac66b836f744d10e9ff039b96068190d09fc777ec79db69270679560",
+    ".tmp/practical-workloads-csukpli2/fleet4.jsonl.gz": "9c223bb3c11829154007dee6be684feffb827d65f5442d66d1eee0c2f9d876e7",
+    ".tmp/practical-workloads-csukpli2/instant-fleet.jsonl.gz": "57d65915114d766582a4d8d3f938544fd37b1f95f7fd34face47a36458470d82",
+    ".tmp/practical-workloads-csukpli2/instant-fleet-process.json": "522d2f26d3fa281ca1adbf63e55c2f448531b99bbff1c4e9356ddedeb5754a29",
+    ".tmp/practical-workloads-csukpli2/focus-host.jsonl.gz": "c650f2bc10a55ed68ac738875eee52b50b3133e18ce89644f1e61e5fd0c71d3b",
+    ".tmp/practical-workloads-csukpli2/focus-host-process.json": "814889d4bdbf36305d463f0bb40c96471013b827e9c31cecad274fce4ad876ad",
+    ".tmp/practical-workloads-csukpli2/focus-group.jsonl.gz": "c021fa29ed842dbefdbdf4900cfda698577c37dc51db7261b17d10172c177f60",
+    ".tmp/practical-workloads-csukpli2/focus-group-process.json": "969b5e0e49be48592bc03c6a14b942bbdc52ba206df91b28889c31bd933adac2",
+    ".tmp/practical-workloads-csukpli2/focus-fleet.jsonl.gz": "d5c392ec654fa8fae338d21c7b0243fc478868d136f396b45e3fea537a25043a",
+    ".tmp/practical-workloads-csukpli2/focus-fleet-process.json": "a3892684e6b3cbcea1743606131bccf6bb9a7564319bb7848cc737edf4ef20d5",
+    ".tmp/practical-workloads-csukpli2/focus-fleet8.jsonl.gz": "fc610ab716f1a1523a7094b96bfc79eef437c3654732442316f621e4ba31ff25",
+    ".tmp/practical-workloads-csukpli2/focus-fleet8-process.json": "21e0ec41e2e8ea89fb89a22529b2c9c22511252f94443709372be87ccc455b41",
+    ".tmp/practical-workloads-csukpli2/focus-6h.jsonl.gz": "5158796bc63c0da5068d5303b3434152bc10ec0fd183bcb2995d67b622ac7f84",
+    ".tmp/practical-workloads-csukpli2/focus-6h-process.json": "22c75edc3884b8e816f6bf046a459d2e0f5cfcd2dcfc02db4c4be1f128d67b01",
+    ".tmp/practical-workloads-csukpli2/focus-24h.jsonl.gz": "3049516dc179e778349437004cbbadbcff535e40400433407bd6fbface4e9ff9",
+    ".tmp/practical-workloads-csukpli2/focus-24h-process.json": "8e8d861c0e4a904e21deb7143bd69227748bb01b01c9c19bb6cc134800fdac29",
+    ".tmp/practical-workloads-csukpli2/focus-7d.jsonl.gz": "3ca6a55c1846d75470d7d3543ef4b4d8c4d71d4fb2187a57a921010278919cd7",
+    ".tmp/practical-workloads-csukpli2/focus-7d-process.json": "db339cc0d6e6cbc5e1bf5f7aa21c47e6f3696561328c737b75426b22bfea07af",
+    ".tmp/practical-replay-j32eeh4e/grafana-share-diagnosis.json": "c25efd0940389e63c499674d10649cd73c7605922ff892908d6623fd5c44539e"
+  },
+  "deployment": {
+    "unit": "promql-deploy-916d412696",
+    "exit_status": 0,
+    "wall_seconds": 249.685,
+    "reported_build_memory_peak": "3.1G",
+    "configuration_comparisons": "both pass",
+    "data_preserved": true,
+    "services": [
+      "netdata active",
+      "grafana-server active"
+    ],
+    "constant_routes": [
+      "direct success",
+      "Grafana proxy success"
+    ],
+    "approximate_disk_free_gib": 53
+  },
+  "interpretation": [
+    "Identical saved scopes/windows/steps/deadlines; live data and cache are not immutable.",
+    "Both fleet Count queries still time out under four clients. Their raw work is reduced, but total latency remains unresolved.",
+    "A previously passing application I/O trend also times out in this cohort; no cause is assigned from one live run.",
+    "Seven-day CPU-availability Count now passes, leaving six of eight long-history cases timing out.",
+    "All instantaneous cases and selected short-range cohorts pass; Grafana application share still succeeds.",
+    "Counters from timed-out queries describe partial executions, not equal amounts of completed work.",
+    "The broad optimization goal remains open. Historical histogram bucket-boundary repair is excluded by decision71."
+  ],
+  "generator_sha256": "7561b79c02f667423ce2fb0cca90fdd9dbab416ce2d3532c42ae3fc8bd81018a"
+}
