@@ -3315,26 +3315,24 @@ root aggregate edge in delayed mode. The measurements below retain their earlier
 
 ## Borrowed direct-selector group labels
 
-- **Choice:** after ordinary provider validation and sample-read credit, a direct Float selector may borrow the
-  immediately consuming ordinary aggregate's frozen raw group labels. Shared borrowed-byte grouping hashes find
-  the active compact group position; original propagation still performs its lookup and arithmetic after the
-  provider callback returns. The lifetime comes from the immutable roster, not the callback's borrowed buffers.
-- **Admission:** exact current selector frame and direct collecting aggregate child; no smoothing; global or
-  single-key `by` grouping, with more than one input label for the latter. Wider `by`, `without`, intervening
-  maps/calls, native values and preowned scheduled samples keep their original paths. A lookup miss also copies
-  full source labels. This private shortcut changes no supported expression or provider requirement.
+- **Choice:** after fresh provider validation and sample completion, a direct Float selector may borrow the
+  immediately consuming ordinary aggregate's frozen raw group labels. Its fresh grouping hash resolves the active
+  compact position; a private label variant carries that position and consumer node into propagation.
+- **Consumption:** propagation strips the hint at entry. Only the first receiving collecting Aggregate may use
+  it, after consumer, bounds and raw-owner pointer checks. This avoids a second hash/lookup. Other paths perform
+  ordinary lookup. Label mutation/materialization discards the hint; no-op reserved removal may retain it.
+- **Admission:** exact current selector frame and direct collecting aggregate child; no smoothing; global grouping
+  or `by` with fewer requested keys than source labels. `without`, native result values, intervening maps/calls,
+  scheduled preowned samples and missing groups retain their existing paths.
 - **Identity and diagnostics:** preserve raw empty values and hash-only first-writer aliases. Borrow the active
-  group's raw key without output normalization. Native values keep source metric names for diagnostics; only
-  Float inputs discard unneeded source labels. Selection ordinals, timestamps, statistical credits and final
-  result ownership remain with their existing owners. Entry, byte-chunk and terminal controls stay active.
-- **Cost:** no state field, shared allocation, label cache or raw-history buffer. Avoided label copies reduce
-  allocation traffic; the measured peak does not increase. Additional grouping lookup and the later propagation
-  hash can cost more for wide retained keys, so the broader first candidate was rejected and admission narrowed.
-  The finite work gate is not a universal bound for arbitrary label-name lengths.
-- **Evidence:** the [qualification procedure](README.md#borrowed-direct-selector-group-labels) records causal
-  sparse/failure/native ownership tests, complete original-bound outcomes, finite timing/resource results,
-  preserved upstream differences, native/ARM/C execution and proportional fixed compiled costs. No arithmetic,
-  deterministic ordering, API, ABI, implicit limit, dbengine or contexts contract changes.
+  raw key without output normalization. Native values keep source diagnostic labels. Selection ordinals,
+  timestamps, statistical credits, arithmetic and final result ownership retain their existing owners.
+- **Cost:** no label cache, new shared allocation or raw-history buffer. Native label/sample layouts are unchanged.
+  The earlier broader candidate repeated lookup/hash work and remains rejected evidence; the current resolved
+  position removes that duplicate work. See [current ownership and measurements](RESOLVED_GROUP_INPUTS.md).
+- **Evidence:** [historical one-key qualification](README.md#borrowed-direct-selector-group-labels) retains its
+  original sources and limitations. Current qualification separately covers multiple keys, actual ownership,
+  complete outputs and memory. API, ABI, implicit limits, dbengine and contexts contracts are unchanged.
 
 ## Borrowed rate and increase group labels
 
@@ -3345,11 +3343,12 @@ root aggregate edge in delayed mode. The measurements below retain their earlier
 - **Proof:** the current selection frame must match the actual function-call node, underlying selector and
   exact rate kind/range. Its immediate parent must be the collecting ordinary aggregate over that call.
   The raw-selector admission remains unchanged. A missing active group retains the full-label fallback.
-- **Admission:** global grouping or single nonreserved `by` key; the latter requires multiple source labels.
-  Reserved metadata grouping, wider/without grouping, native values, extended or derived windows and
+- **Admission:** global grouping or nonreserved `by` keys, with fewer keys than source labels. Every requested
+  metadata key is checked. Reserved metadata grouping, `without`, native values, extended or derived windows and
   intervening frames keep existing ownership. Raw empty keys and hash-only first-writer aliases retain
   their existing identity. The borrowed owner is the roster, never the callback's temporary label buffer.
-- **Cost and evidence:** no retained field or label cache. Avoiding transient full labels reduces measured
+- **Cost and evidence:** the direct consumer uses the resolved-position ownership above; no label cache is added.
+  Avoiding transient full labels reduces measured
   allocation traffic and time without increasing measured query-memory peaks. The finite
   [qualification](README.md#borrowed-rate-and-increase-group-labels) records complete results, metadata
   aliases, native diagnostics, sparse/cancelled owner checks, actual C consumers and fixed compiled costs.

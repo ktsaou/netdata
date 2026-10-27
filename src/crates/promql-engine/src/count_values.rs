@@ -259,7 +259,9 @@ impl<'a> Step<'a> {
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
         let labels = match sample.labels {
-            SampleLabels::Borrowed(labels) if ordered_after_reset(labels, control, account)? => {
+            SampleLabels::Borrowed(labels) | SampleLabels::Group { labels, .. }
+                if ordered_after_reset(labels, control, account)? =>
+            {
                 SampleLabels::Borrowed(labels)
             }
             labels => {
@@ -278,7 +280,7 @@ impl<'a> Step<'a> {
             }
         }
         let labels = match labels {
-            SampleLabels::Borrowed(labels) => {
+            SampleLabels::Borrowed(labels) | SampleLabels::Group { labels, .. } => {
                 self.borrowed_group_labels(labels, &value, control, account)?
             }
             SampleLabels::Owned(mut labels) => {

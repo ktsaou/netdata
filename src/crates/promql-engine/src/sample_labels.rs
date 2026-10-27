@@ -3,6 +3,7 @@
 use crate::{
     accounting::{MemoryKind, QueryAccounting},
     evaluator::{EvaluationError, check_reserved_name, drop_reserved, metadata},
+    frontend::ast::NodeId,
     result::OwnedLabels,
     storage::{Control, Interrupted},
 };
@@ -11,15 +12,34 @@ use std::ops::Deref;
 #[derive(Debug)]
 pub(crate) enum SampleLabels<'a> {
     Borrowed(&'a OwnedLabels),
+    Group {
+        labels: &'a OwnedLabels,
+        consumer: NodeId,
+        position: usize,
+    },
     Owned(OwnedLabels),
 }
 
 impl<'a> SampleLabels<'a> {
     pub(crate) fn as_ref(&self) -> &OwnedLabels {
         match self {
-            Self::Borrowed(labels) => labels,
+            Self::Borrowed(labels) | Self::Group { labels, .. } => labels,
             Self::Owned(labels) => labels,
         }
+    }
+
+    pub(crate) fn take_group(&mut self) -> Option<(NodeId, usize)> {
+        let Self::Group {
+            labels,
+            consumer,
+            position,
+        } = self
+        else {
+            return None;
+        };
+        let resolved = (*consumer, *position);
+        *self = Self::Borrowed(labels);
+        Some(resolved)
     }
 
     pub(crate) fn aggregate(
@@ -51,7 +71,7 @@ impl<'a> SampleLabels<'a> {
     ) -> Result<OwnedLabels, Interrupted> {
         match self {
             Self::Owned(labels) => Ok(labels),
-            Self::Borrowed(labels) => {
+            Self::Borrowed(labels) | Self::Group { labels, .. } => {
                 let labels = labels.copy_checked(account, MemoryKind::Workspace, control)?;
                 control.check()?;
                 Ok(labels)
@@ -64,7 +84,7 @@ impl<'a> SampleLabels<'a> {
         account: &QueryAccounting,
         control: &Control,
     ) -> Result<&mut OwnedLabels, Interrupted> {
-        if let Self::Borrowed(labels) = self {
+        if let Self::Borrowed(labels) | Self::Group { labels, .. } = self {
             let owned = labels.copy_checked(account, MemoryKind::Workspace, control)?;
             control.check()?;
             *self = Self::Owned(owned);
@@ -81,7 +101,7 @@ impl<'a> SampleLabels<'a> {
         account: &QueryAccounting,
         control: &Control,
     ) -> Result<(), EvaluationError> {
-        let Self::Borrowed(labels) = self else {
+        let (Self::Borrowed(labels) | Self::Group { labels, .. }) = self else {
             return drop_reserved(
                 self.make_owned(account, control)?,
                 name_only,
@@ -135,6 +155,86 @@ impl Deref for SampleLabels<'_> {
 mod tests {
     use super::*;
     use crate::{accounting::EngineAccounting, storage::LabelRef};
+
+    #[test]
+    fn resolved_group_labels_keep_layout_and_one_consumer_ownership() {
+        #[allow(dead_code)]
+        enum PreviousLabels<'a> {
+            Borrowed(&'a OwnedLabels),
+            Owned(OwnedLabels),
+        }
+        #[allow(dead_code)]
+        struct PreviousSample<'a> {
+            ordinal: usize,
+            labels: PreviousLabels<'a>,
+            value: crate::result::OwnedValue,
+            float_samples: Option<crate::statistics::OwnedSamples>,
+            source_time_ms: i64,
+            source_start_time_ms: i64,
+            drop_name: bool,
+        }
+        use std::mem::{align_of, size_of};
+        assert_eq!(
+            size_of::<SampleLabels<'_>>(),
+            size_of::<PreviousLabels<'_>>()
+        );
+        assert_eq!(
+            align_of::<SampleLabels<'_>>(),
+            align_of::<PreviousLabels<'_>>()
+        );
+        assert_eq!(
+            size_of::<crate::evaluator::EvaluatedSample<'_>>(),
+            size_of::<PreviousSample<'_>>()
+        );
+        assert_eq!(
+            size_of::<Option<crate::evaluator::EvaluatedSample<'_>>>(),
+            size_of::<Option<PreviousSample<'_>>>()
+        );
+        println!(
+            "resolved group layouts: labels={} sample={} optional_sample={}",
+            size_of::<SampleLabels<'_>>(),
+            size_of::<crate::evaluator::EvaluatedSample<'_>>(),
+            size_of::<Option<crate::evaluator::EvaluatedSample<'_>>>()
+        );
+        let account = EngineAccounting::default().query();
+        let control = Control::default();
+        for reserved in [false, true] {
+            let source = if reserved {
+                labels(
+                    &account,
+                    &[(b"__name__", b"m"), (b"id", b"v"), (b"zone", b"")],
+                )
+            } else {
+                labels(&account, &[(b"id", b"v"), (b"zone", b"")])
+            };
+            let frozen = label_bytes(&source);
+            let make = || SampleLabels::Group {
+                labels: &source,
+                consumer: NodeId(7),
+                position: 3,
+            };
+            let mut value = make();
+            assert_eq!(value.take_group(), Some((NodeId(7), 3)));
+            assert_eq!(value.take_group(), None);
+            assert!(std::ptr::eq(value.as_ref(), &source));
+            let mut value = make();
+            value.drop_reserved(false, &account, &control).unwrap();
+            assert_eq!(value.take_group(), (!reserved).then_some((NodeId(7), 3)));
+            assert_eq!(value.0.len(), 2);
+            assert!(value.0.last().unwrap().value.is_empty());
+            drop(value);
+            let mut value = make();
+            value.make_owned(&account, &control).unwrap();
+            assert_eq!(value.take_group(), None);
+            assert!(!std::ptr::eq(value.as_ref(), &source));
+            assert_eq!(label_bytes(&value), frozen);
+            drop(value);
+            let owned = make().into_owned(&account, &control).unwrap();
+            assert_eq!(label_bytes(&owned), frozen);
+            assert_eq!(label_bytes(&source), frozen);
+        }
+        account.snapshot().assert_memory_released();
+    }
 
     fn labels(account: &QueryAccounting, pairs: &[(&[u8], &[u8])]) -> OwnedLabels {
         let refs: Vec<_> = pairs
@@ -358,7 +458,7 @@ mod tests {
                 );
                 assert_eq!(label_bytes(&source), frozen);
                 match &value {
-                    SampleLabels::Borrowed(owner) => {
+                    SampleLabels::Borrowed(owner) | SampleLabels::Group { labels: owner, .. } => {
                         assert!(std::ptr::eq(*owner, &source));
                         if account.snapshot().memory[MemoryKind::Workspace as usize].acquired
                             == before[MemoryKind::Workspace as usize].acquired

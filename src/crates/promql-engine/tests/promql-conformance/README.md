@@ -12476,6 +12476,9 @@ not qualified after rejection. No universal, live/concurrent, RSS or physical AR
 
 ## Borrowed direct-selector group labels
 
+The measurements below describe the original one-key milestone. The current [resolved aggregate input](RESOLVED_GROUP_INPUTS.md)
+extension also supports eligible multi-key grouping and consumes the already resolved group position.
+
 An ordinary aggregate can borrow its existing frozen group key when consuming a direct Float selector.
 This avoids copying every provider label into a temporary sample which aggregation immediately discards.
 Admission is deliberately narrow: global grouping or `by` with one key; the latter requires more than one
@@ -12532,6 +12535,9 @@ Preserve the failed first candidate and every prescribed slower-control result. 
 RSS, universal-work or physical ARM throughput guarantee follows from these finite checks.
 
 ## Borrowed rate and increase group labels
+
+The measurements below describe the original one-key milestone. The current [resolved aggregate input](RESOLVED_GROUP_INPUTS.md)
+extension also supports eligible multi-key grouping and consumes the already resolved group position.
 
 Completed Float `rate` and `increase` inputs can now use the direct-selector group-label shortcut described
 above. The function must directly feed an ordinary global aggregate or a single-key `by` aggregate; grouping

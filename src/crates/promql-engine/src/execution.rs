@@ -30612,7 +30612,10 @@ mod tests {
         let mut queries = 0;
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
-                for groups in [1, 4] {
+                for (groups, multi) in [1, 4]
+                    .into_iter()
+                    .flat_map(|groups| [false, true].map(|multi| (groups, multi)))
+                {
                     for operator in [
                         "sum", "avg", "count", "min", "max", "group", "stdvar", "stddev",
                     ] {
@@ -30627,10 +30630,23 @@ mod tests {
                             "idelta(counter_total[3s])",
                         ] {
                             for instant in [false, true] {
-                                let provider = mapped_group_provider(page, groups);
+                                let mut provider = mapped_group_provider(page, groups);
+                                if multi {
+                                    for row in &mut provider.series {
+                                        row.labels.extend([
+                                            (b"region".to_vec(), b"r".to_vec()),
+                                            (b"zone".to_vec(), b"z".to_vec()),
+                                        ]);
+                                    }
+                                }
                                 let engine = Engine::default();
                                 let control = Control::default();
-                                let expression = format!("{operator} by(instance)({child})");
+                                let grouping = if multi {
+                                    "instance,region,zone"
+                                } else {
+                                    "instance"
+                                };
+                                let expression = format!("{operator} by({grouping})({child})");
                                 let query = engine
                                     .compile(expression.as_bytes(), options(delayed), &control)
                                     .unwrap();
@@ -30652,7 +30668,13 @@ mod tests {
                                 assert_eq!(result.series.len(), groups);
                                 let mut seen = vec![false; groups];
                                 for row in result.series.iter() {
-                                    assert_eq!(row.labels.0.len(), 1);
+                                    assert_eq!(row.labels.0.len(), if multi { 3 } else { 1 });
+                                    if multi {
+                                        assert_eq!(&*row.labels.0[1].name, b"region");
+                                        assert_eq!(&*row.labels.0[1].value, b"r");
+                                        assert_eq!(&*row.labels.0[2].name, b"zone");
+                                        assert_eq!(&*row.labels.0[2].value, b"z");
+                                    }
                                     let group: usize =
                                         std::str::from_utf8(&row.labels.0[0].value[1..])
                                             .unwrap()
@@ -30724,7 +30746,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!(queries, 1536);
+        assert_eq!(queries, 3072);
         println!("Complete direct/mapped/Rate-family/Count selector queries: {queries}");
     }
 
@@ -30809,7 +30831,7 @@ mod tests {
     }
 
     #[test]
-    fn selector_group_labels_keep_wide_and_full_label_fallbacks() {
+    fn selector_group_labels_resolve_multiple_keys_and_keep_full_label_fallbacks() {
         for page in [1, 17, 1024] {
             for delayed in [false, true] {
                 for (source, full) in [
@@ -30866,9 +30888,9 @@ mod tests {
                     actual.sort();
                     expected.sort();
                     assert_eq!(actual, expected);
-                    assert_eq!(observed[0], 0);
-                    assert!(observed[1] > 0);
-                    assert!(phase.is_none());
+                    assert_eq!(observed[0] > 0, full);
+                    assert_eq!(observed[1] > 0, !full);
+                    assert_eq!(phase.is_some(), full);
                     provider.assert_closed();
                     drop((report, query));
                     engine.accounting.snapshot().assert_memory_released();
@@ -31166,6 +31188,12 @@ mod tests {
                     "sum by(instance,member)(rate(counter_total[3s]))",
                     "sum without(member)(rate(counter_total[3s]))",
                     "sum by(__name__)(rate(counter_total[3s]))",
+                    "sum by(__name__,instance)(rate(counter_total[3s]))",
+                    "sum by(instance,__type__)(rate(counter_total[3s]))",
+                    "sum by(instance,__unit__)(increase(counter_total[3s]))",
+                    "sum by(instance,__name__)(count_over_time(counter_total[3s]))",
+                    "sum by(__type__,instance)(count_over_time(counter_total[3s]))",
+                    "sum by(instance,__unit__)(count_over_time(counter_total[3s]))",
                     "sum by(__type__)(rate(counter_total[3s]))",
                     "sum by(__unit__)(increase(counter_total[3s]))",
                     "sum by(instance,member)(count_over_time(counter_total[3s]))",
@@ -31197,11 +31225,12 @@ mod tests {
                         assert_eq!(row.points.len(), 1);
                         assert_eq!(row.points[0].time_ms, 3000);
                     }
-                    assert_eq!(observed[0], 0, "{expression} {observed:?}");
+                    let multi = expression.starts_with("sum by(instance,member)");
+                    assert_eq!(observed[0] > 0, multi, "{expression} {observed:?}");
                     if !expression.contains("[3s:1s]") {
                         assert!(observed[1] > 0, "{expression}");
                     }
-                    assert!(phase.is_none(), "{expression}");
+                    assert_eq!(phase.is_some(), multi, "{expression}");
                     provider.assert_closed();
                     drop((report, query));
                     engine.accounting.snapshot().assert_memory_released();

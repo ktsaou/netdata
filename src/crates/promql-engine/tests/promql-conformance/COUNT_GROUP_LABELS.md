@@ -5,16 +5,20 @@ value is complete. The evaluator previously copied every source label, then hash
 aggregate. Count now uses the existing direct-selector group-label borrowing path.
 
 Admission remains narrow: the current selection must be the exact Count operation/range and the direct child of a
-collecting aggregate. Only Float results, ordinary selectors, and empty or single-label `by` grouping qualify.
+collecting aggregate. Only Float results, ordinary selectors, and global or eligible multi-label `by` grouping qualify.
 The evaluator still validates current provider labels, applies matchers and computes the group identity from those
 current bytes. It borrows the already-owned matching group labels only after the Count value and diagnostics are
 complete. A missing group uses the ordinary path. No additional metadata cache or provider guarantee is introduced.
 
-Multi-label grouping, `without`, reserved metadata grouping and other parent/operation shapes retain their previous
+`without`, reserved metadata grouping and other parent/operation shapes retain their previous
 paths. Metadata removal follows the existing Rate contract. Native inputs may qualify because Count produces a
 Float result; native sample validation and range semantics still run before borrowing.
 
-## Qualification
+Current multi-key admission and immediate resolved-position consumption are described in
+[Resolved direct aggregate inputs](RESOLVED_GROUP_INPUTS.md). The measurements below retain their original
+single-key source attribution.
+
+## Original single-key qualification
 
 [count-group-labels-qualification.json](count-group-labels-qualification.json) binds both optimized binaries and:
 

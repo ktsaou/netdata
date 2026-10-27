@@ -3067,15 +3067,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         series_labels,
                     )? {
                         Some(labels) => Some(labels),
-                        None => self.selector_mapped_labels(
-                            node,
-                            selector_node,
-                            operation,
-                            series_ordinal,
-                            series_labels,
-                        )?,
+                        None => self
+                            .selector_mapped_labels(
+                                node,
+                                selector_node,
+                                operation,
+                                series_ordinal,
+                                series_labels,
+                            )?
+                            .map(SampleLabels::Borrowed),
                     } {
-                    SampleLabels::Borrowed(labels)
+                    labels
                 } else {
                     OwnedLabels::copy_from_checked(
                         series_labels,
@@ -3087,7 +3089,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 };
                 #[cfg(test)]
                 record_selector_labels(
-                    matches!(labels, SampleLabels::Borrowed(_)),
+                    matches!(
+                        labels,
+                        SampleLabels::Borrowed(_) | SampleLabels::Group { .. }
+                    ),
                     matches!(value.2.value, OwnedValue::Histogram(_)),
                 );
                 self.finish_selector_value(selector_node, operation, series_ordinal, labels, value)
@@ -3242,7 +3247,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         selector_node: NodeId,
         operation: SelectorOperation,
         labels: &[crate::storage::LabelRef<'_>],
-    ) -> Result<Option<&'a OwnedLabels>, EvaluationError> {
+    ) -> Result<Option<SampleLabels<'a>>, EvaluationError> {
         let [.., parent, current] = self.frames.as_ref() else {
             return Ok(None);
         };
@@ -3312,15 +3317,22 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         else {
             unreachable!("ordinary aggregation frame")
         };
-        if *child != node
-            || *without
-            || grouping.as_ref().is_some_and(|names| {
-                names.len() > 1
-                    || !names.is_empty()
-                        && (labels.len() <= 1 || drops_metadata && metadata(&names[0]))
-            })
-        {
+        if *child != node || *without {
             return Ok(None);
+        }
+        if let Some(names) = grouping {
+            if !names.is_empty() && names.len() >= labels.len() {
+                return Ok(None);
+            }
+            if drops_metadata {
+                for name in names {
+                    self.control.check()?;
+                    self.account.work(1);
+                    if metadata(name) {
+                        return Ok(None);
+                    }
+                }
+            }
         }
         #[cfg(test)]
         if SELECTOR_LABEL_OWNERS.get().is_some() && SELECTOR_GROUP_PHASE.get().is_none() {
@@ -3362,7 +3374,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             SELECTOR_LABEL_OWNERS.set(Some(counts));
         }
         // Only Float input can discard source-only diagnostic labels before propagation.
-        Ok(position.map(|position| groups[position].raw_labels()))
+        Ok(position.map(|position| SampleLabels::Group {
+            labels: groups[position].raw_labels(),
+            consumer: parent.node,
+            position,
+        }))
     }
     fn finish_owned_selector_sample(
         &self,
@@ -4997,10 +5013,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         mut sample: EvaluatedSample<'a>,
         origin: usize,
     ) -> Result<Option<EvaluatedSample<'a>>, EvaluationError> {
+        // A resolved position belongs only to the immediately consuming frame.
+        let mut resolved_group = sample.labels.take_group();
         for index in (0..origin).rev() {
             self.control.check()?;
             self.account.work(1);
             let node = self.frames[index].node;
+            let resolved_group = resolved_group.take();
             self.options = self.frames[index].options;
             self.step_index = self.frames[index].step_index;
             let filter = self.frames[index].filter;
@@ -5251,28 +5270,36 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     else {
                         unreachable!()
                     };
-                    let hash = group_hash(
-                        &sample.labels,
-                        grouping.as_deref(),
-                        *without,
-                        self.control,
-                        self.account,
-                    )?;
-                    let position = if let Some(lookup) = lookup {
-                        lookup.find(
-                            hash,
-                            |position| Ok(groups[position].hash == hash),
-                            self.control,
-                            self.account,
-                        )?
+                    let position = if let Some((consumer, position)) = resolved_group
+                        && consumer == node
+                        && groups.get(position).is_some_and(|group| {
+                            std::ptr::eq(group.raw_labels(), sample.labels.as_ref())
+                        }) {
+                        Some(position)
                     } else {
-                        crate::evaluator_roster::group_position(
-                            groups,
-                            hash,
-                            |group| group.hash,
+                        let hash = group_hash(
+                            &sample.labels,
+                            grouping.as_deref(),
+                            *without,
                             self.control,
                             self.account,
-                        )?
+                        )?;
+                        if let Some(lookup) = lookup {
+                            lookup.find(
+                                hash,
+                                |position| Ok(groups[position].hash == hash),
+                                self.control,
+                                self.account,
+                            )?
+                        } else {
+                            crate::evaluator_roster::group_position(
+                                groups,
+                                hash,
+                                |group| group.hash,
+                                self.control,
+                                self.account,
+                            )?
+                        }
                     };
                     if let Some(position) = position {
                         let group = &mut groups[position];
