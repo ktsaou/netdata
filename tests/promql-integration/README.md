@@ -529,3 +529,11 @@ A follow-up normal build exposed and corrected an unconditional call to an inter
 The receipt retains that failed VM link and the successful normal build plus all six normal storage/API phases
 (379 read records per codec). Normal qualification omits only the eight internal sort probes; their earlier
 internal-check results remain separately attributed. The normal build does not enable the HTTP fixture switch.
+
+The [zero-limit follow-up](metadata-zero-limit-qualification.json) avoids preparing intermediate descriptions when
+`limit=0`. It preserves contexts traversal, unavailable-host errors, parameter validation, cancellation and gzip.
+The new long-description regression fails on the unchanged implementation with 37 entries and 669,663 intermediate
+record bytes, then passes with zero entries and zero record bytes. These are backing bytes, not total query RAM.
+Both codecs pass all storage phases (394 read records with internal checks, 385 in a normal build), 23 metadata
+cases through each direct/routed API path, and 71 HTTP checks per codec. Positive limits and full-catalogue
+preparation are unchanged; deployed latency measurements are separate from these fixture results.

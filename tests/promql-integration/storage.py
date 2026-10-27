@@ -52,7 +52,7 @@ DESCRIPTION_CASES = {"archived-description-unloaded", "description-no-samples", 
                      "description-updated-strings", "description-deleted-metric", "description-deleted-instance",
                      "description-deleted-context", "description-no-dimensions", "description-cancel-after-row"}
 DESCRIPTION_SORT_CASES = {"empty", "single", "sorted-long", "reverse-long", "cancel-initialization",
-                          "cancel-comparison", "cancel-emission", "read-failure"}
+                          "cancel-comparison", "cancel-emission", "read-failure", "zero-limit-long"}
 API_HANDLER_CASES = {
     "scalar", "live-gauge", "counter-absolute", "counter-legacy", "fleet-aliases", "form-body-priority", "range",
     "range-end-order", "range-zero-step", "range-type", "range-submillisecond", "empty-query", "time-wrapper",
@@ -64,7 +64,7 @@ API_HANDLER_CASES = {
     "caller-expired", "caller-expired-before-parse", "caller-keeps-uri-deadline", "cancel-on-registration",
     "pooled-release",
     "metadata-alias", "metadata-exact", "metadata-missing", "metadata-zero", "metadata-negative", "metadata-one", "metadata-per-zero", "metadata-ignore-time", "metadata-max", "metadata-min", "metadata-plus", "metadata-duplicate", "metadata-overflow", "metadata-underflow", "metadata-invalid", "metadata-space", "metadata-nul", "metadata-per-invalid",
-    "metadata-get-only", "metadata-cancel",
+    "metadata-get-only", "metadata-cancel", "metadata-zero-unfiltered", "metadata-zero-per-invalid", "metadata-zero-cancel",
 }
 MQTT_SOURCE_CASES = {"short-8193", "short-1000000", "timeout-release", "reconnect-purge", "read-error-stops",
                      "compact-partial", "view-refusal", "wire-limits"}

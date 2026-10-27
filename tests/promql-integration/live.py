@@ -179,6 +179,9 @@ def qualify(binary, codec, run, observe=None):
                     check(f"metadata-per-limit-{scope_name}-{metric}", "metadata",
                           {"metric": metric, "limit_per_metric": 2}, {"status": "success", "data": {metric: wanted[:2]}},
                           prefix=scope)
+            for compressed in (False, True):
+                check(f"metadata-zero-{compressed}", "metadata", {"limit": 0},
+                      {"status": "success", "data": {}}, compressed=compressed)
             check("metadata-all-name-limit", "metadata", {"limit": 1, "limit_per_metric": 1},
                   {"status": "success", "data": {"fixture.descriptions": [
                       {"type": "gauge", "help": "Child description", "unit": "KiB"}]}})

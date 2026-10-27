@@ -384,6 +384,7 @@ static bool descriptions_write(DISCOVERY_OUTPUT *output, const uint64_t *order, 
 static uint32_t description_visit(void *context, const PROMQL_DESCRIPTION *description,
                                    PROMQL_READ_FRAME *frame, netdata_promql_bytes_t *error) {
     DISCOVERY_OUTPUT *output = context;
+    if(output->metric_limit == 0) return NETDATA_PROMQL_OK;
     // The key encoder preserves all four byte fields; these pairs are not series labels.
     netdata_promql_label_t fields[] = {{description->name, description->type}, {description->help, description->unit}};
     if(!intern(output, (PROMQL_KEY_VIEW){.labels = {fields, 2}}, frame)) return output_error(output, frame, error);
@@ -478,6 +479,7 @@ bool promql_api_metadata(PROMQL_API_REQUEST *request) {
 typedef struct {
     netdata_promql_engine_t *engine;
     unsigned count, mode;
+    uint64_t records_bytes, entries;
     bool reverse;
     int errors;
 } DESCRIPTION_SORT_PROBE;
@@ -486,7 +488,7 @@ static void description_sort_probe(void *context, void *handle __maybe_unused,
                                     const netdata_promql_accounting_context_t *account) {
     DESCRIPTION_SORT_PROBE *probe = context;
     PROMQL_API_REQUEST request = {0};
-    DISCOVERY_OUTPUT output = {.request = &request, .kind = PROMQL_API_METADATA, .metric_limit = -1, .description_limit = -1};
+    DISCOVERY_OUTPUT output = {.request = &request, .kind = PROMQL_API_METADATA, .metric_limit = probe->mode == 5 ? 0 : -1, .description_limit = -1};
     PROMQL_READ_FRAME frame = {.account = account};
     uint64_t *order = NULL;
     netdata_promql_control_t *control = NULL;
@@ -505,7 +507,11 @@ static void description_sort_probe(void *context, void *handle __maybe_unused,
         for(unsigned duplicate = 0; duplicate < 2; duplicate++)
             if(description_visit(&output, &description, &frame, &error) != NETDATA_PROMQL_OK) { probe->errors++; goto done; }
     }
-    probe->errors += output.count != probe->count;
+    probe->records_bytes = promql_body_length(output.records);
+    probe->entries = output.count;
+    probe->errors += output.count != (probe->mode == 5 ? 0 : probe->count);
+    if(probe->mode == 5)
+        probe->errors += output.entries != NULL || output.slots != NULL || probe->records_bytes != 0;
     order = promql_malloc(account, NETDATA_PROMQL_MEMORY_WORKSPACE, MAX(output.count, 1) * sizeof(*order));
     if(!order) { probe->errors++; goto done; }
     if(probe->mode >= 1 && probe->mode <= 3) {
@@ -540,6 +546,7 @@ int promql_description_sort_fixture(netdata_promql_engine_t *engine) {
         {"empty", 0, 0, false}, {"single", 1, 0, false}, {"sorted-long", 37, 0, false},
         {"reverse-long", 37, 0, true}, {"cancel-initialization", 37, 1, true},
         {"cancel-comparison", 37, 2, true}, {"cancel-emission", 37, 3, true}, {"read-failure", 37, 4, true},
+        {"zero-limit-long", 37, 5, true},
     };
     int errors = 0;
     for(size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
@@ -555,7 +562,8 @@ int promql_description_sort_fixture(netdata_promql_engine_t *engine) {
         probe.errors += netdata_promql_engine_observations(engine, &observed) != NETDATA_PROMQL_OK;
         for(size_t kind = 0; kind < NETDATA_PROMQL_MEMORY_KINDS; kind++)
             if(kind != NETDATA_PROMQL_MEMORY_ACCOUNTING) probe.errors += observed.memory[kind].current != 0;
-        printf("{\"metadata_sort_case\":\"%s\",\"errors\":%d}\n", cases[i].name, probe.errors);
+        printf("{\"metadata_sort_case\":\"%s\",\"errors\":%d,\"entries\":%"PRIu64",\"records_bytes\":%"PRIu64"}\n",
+            cases[i].name, probe.errors, probe.entries, probe.records_bytes);
         errors += probe.errors;
     }
     return errors;
