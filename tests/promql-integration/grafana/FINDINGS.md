@@ -8,9 +8,32 @@ long-range performance is not yet suitable for these workloads under a 25-second
 This is a baseline and an optimization priority list, not a claim that all dashboards are fast or that the live adapter
 supports every PromQL input type. Alert-expression testing does not install an alert scheduler or notification system.
 
-## Follow-up: single-clock C control snapshots — 2026-10-27
+## Follow-up: direct Count aggregate labels — 2026-10-27
 
-Engine `be36099f3b` is installed. Its C control-state interface shares one clock reading for status and remaining
+Engine `947ef6c78f` is installed. Eligible Count aggregates reuse existing group labels after fresh source matching
+and completed evaluation. The [controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/COUNT_GROUP_LABELS.md)
+shows targeted improvements without increasing measured memory peaks. The [full live replay](count-group-labels-live.json)
+retains all 360 requests and their unchanged windows, resolution and deadlines.
+
+- Fleet range: **1/136 timeout**, previously 3; cohort time 126.96 seconds, previously 135.94.
+- Fleet instant: **0/136 timeouts**. Selected short-range and eight-client cohorts also have none.
+- Selected 6h/24h/7d: **2/8, 3/8 and 6/8 timeouts**, unchanged from the previous full replay.
+- Total: **12/360 timeouts**, previously 14. Grouped Count now completes in 21.37 seconds under four clients;
+  disappearance still times out. The previously failing application I/O trend also completes in this run.
+
+This full comparison includes the intervening single-clock C change. Live caches and data are uncontrolled, so it
+cannot isolate either change. A separate four-request serial comparison against that immediately preceding build
+records grouped Count at 19.34/15.96 seconds, versus 21.05/17.88 seconds; successful results have identical digests.
+Disappearance timed out once and completed once in 24.51 seconds. This remains too close to the deadline to call fixed.
+
+Grafana application share returns 79 frames in 1.57 seconds, all 18 reporting CPU hosts advance, both services are
+active and approximately 52 GiB remains free. Configuration and retained data were preserved. Historical histogram
+boundary repair remains excluded by decision 71; remaining performance and live representation work remains open.
+The development page-summary prototype is not part of this installed revision.
+
+## Earlier follow-up: single-clock C control snapshots — 2026-10-27
+
+Engine `be36099f3b` was installed for this checkpoint. Its C control-state interface shares one clock reading for status and remaining
 time, preserving all polling locations and deadline settings. The [component qualification](../../../src/crates/promql-engine/tests/promql-conformance/CONTROL_POLLING.md)
 shows lower polling cost; the [focused live results](control-poll-live.json) do **not establish a whole-query speedup**.
 
@@ -21,8 +44,7 @@ not a new full-suite replay, and live caches/data are uncontrolled. The latest f
 
 Grafana application share returned 79 frames in 1.78 seconds; all 18 reporting CPU hosts advanced. Both services
 are active, both configuration comparisons passed, retained data was preserved and approximately 53 GiB remains
-free. The remaining performance and representation findings remain open. The Count label-reuse experiment on the
-development checkout is not included in this deployment.
+free. The remaining performance and representation findings remain open. The subsequent Count label change is recorded in the newer checkpoint above.
 
 ## Earlier follow-up: exact Count boundaries — 2026-10-27
 
